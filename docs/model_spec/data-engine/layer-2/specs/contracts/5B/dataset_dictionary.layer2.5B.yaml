@@ -351,7 +351,7 @@ datasets:
     owner_subsegment: 5B
     description: HashGate flag proving the validation bundle digest for a fingerprint.
     version: '{manifest_fingerprint}'
-    format: text
+    format: json
     path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B
     partitioning: [fingerprint]
     ordering: []

@@ -497,7 +497,7 @@ These MUST be:
    * `manifest_fingerprint`
    * `parameter_hash` — fixed hex string for the governing parameter pack (fingerprint-only artefacts still carry the same value)
    * `owner_layer` / `owner_segment` (e.g. `layer1` + `2A`, `layer2` + `5A`)
-   * `artifact_id` and, where applicable, `manifest_key`
+   * `artifact_id` and `manifest_key`
    * `role` (e.g. `DATASET`, `CONFIG`, `VALIDATION_BUNDLE`, `POLICY`, `FLAG`, `LOG`)
    * `schema_ref` (JSON-Schema anchor)
    * `path_template` and partition key spec (as per the dataset dictionary / artefact registry)
@@ -653,6 +653,7 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 * `upstream_segments` — map from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to a minimal status object:
 
   * at minimum: `{ status: "PASS" | "FAIL" | "MISSING", bundle_path, flag_path }`.
+  * WHEN AVAILABLE: record `spec_version` (string) and `bundle_digest` (hex) so downstream tooling can reason about spec compatibility and bundle hashes directly from the receipt.
 * `spec_version` — semantic version of the S0 contract implemented by this receipt.
 * `sealed_inputs_digest` — a SHA-256 (or equivalent) digest over the normalised bytes of `sealed_inputs_5B` for this fingerprint (schema will define exact hashing law).
 * `sealed_inputs_row_count` — row count of `sealed_inputs_5B`.
@@ -695,9 +696,9 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 Each row describes a single artefact that 5B is allowed to see. It MUST include at least:
 
 * `manifest_fingerprint`
-* `parameter_hash` — nullable when the artefact is fingerprint-only.
+* `parameter_hash` — fixed hex string for the governing parameter pack (fingerprint-only artefacts still carry this value).
 * `owner_layer` / `owner_segment`
-* `artifact_id` (and, where applicable, `manifest_key`)
+* `artifact_id` and `manifest_key`
 * `role` — `DATASET` | `CONFIG` | `POLICY` | `VALIDATION_BUNDLE` | `FLAG` | `LOG`
 * `schema_ref`
 * `path_template`
@@ -768,229 +769,83 @@ With these two control-plane datasets and the identity rules above, 5B’s “wo
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-This section fixes the **dataset identities, schema anchors and catalogue links** for the outputs of **5B.S0 — Gate & sealed inputs**. It is binding on:
+This section fixes the **dataset identities, schema anchors and catalogue links** for the outputs of **5B.S0 — Gate & sealed inputs**. Rather than duplicating the schema and registry content, it points directly to the authoritative contracts:
 
-* the JSON-Schema packs (`schemas.layer2.yaml`, `schemas.5B.yaml`),
-* the Layer-2 / 5B dataset dictionary, and
-* the 5B artefact registry.
+* JSON-Schema definitions live in `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`.
+* Dataset dictionary entries live in `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`.
+* Artefact registry entries live in `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml`.
 
-5B.S0 produces **exactly two datasets**:
+This spec therefore states:
 
-1. `s0_gate_receipt_5B` – a single, fingerprint-scoped control object.
-2. `sealed_inputs_5B` – a fingerprint-scoped inventory table of admissible inputs for 5B.
+* which datasets exist and their role in the state graph;
+* which identity / partition / cardinality rules are binding; and
+* which catalogue artefacts must be consulted for shapes and paths.
 
-> **Naming note:**
-> Although this state is labelled “5B.S0” in the state-flow, the dataset names follow the existing Layer-1/Layer-2 convention for gate receipts (prefix `s0_…`) to stay aligned with 1A/1B/2A/2B/5A.
+5B.S0 produces **exactly two datasets** (gate receipt + sealed inventory). All field-level requirements are governed by the schema pack; this document only constrains their usage semantics.
 
 ---
 
 ### 5.1 `s0_gate_receipt_5B` — schema anchor & shape
 
-**Dataset ID (dictionary):**
+**Authority pointers**
 
-* `id`: `s0_gate_receipt_5B`
-* `owner_segment`: `5B`
-* `layer`: `2`
+* Dataset dictionary entry: `datasets[].id == "s0_gate_receipt_5B"`.
+* Schema anchor: `schemas.5B.yaml#/validation/s0_gate_receipt_5B`.
+* Artefact registry key: `mlr.5B.control.s0_gate_receipt`.
 
-**Schema anchor:**
+**Binding obligations (summarised here; shape lives in schema pack)**
 
-* `schema_ref`: `schemas.5B.yaml#/validation/s0_gate_receipt_5B`
+* One JSON object per `manifest_fingerprint` (receipts are fingerprint-partitioned; see dictionary path).
+* Run identity fields (`parameter_hash`, `seed`, `run_id`, `scenario_set`) and upstream PASS map MUST appear exactly as defined in the schema pack.
+* `sealed_inputs_digest` and `sealed_inputs_row_count` MUST reference the specific `sealed_inputs_5B` file for the same fingerprint.
+* Additional metadata (e.g. per-role counts) MAY be added to the schema pack; this document only constrains semantics.
 
-**Logical shape (minimum fields):**
+**Partition / path / PK**
 
-The `s0_gate_receipt_5B` schema MUST describe a **single JSON object per `manifest_fingerprint`**, with at least the following fields (names may be adjusted in the concrete schema but MUST be stable once published):
-
-* `manifest_fingerprint : string`
-
-  * The fingerprint this receipt applies to.
-
-* `parameter_hash : string`
-
-  * The parameter hash bound to this sealed universe.
-
-* `seed : integer | string`
-
-  * Seed for the engine run (as defined in §2).
-
-* `run_id : string`
-
-  * Engine/run identifier; unique within (`parameter_hash`, `manifest_fingerprint`, `seed`).
-
-* `scenario_set : array<string>`
-
-  * Non-empty list of `scenario_id` values that 5B is allowed to process for this (`parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`).
-
-* `created_utc : string` (RFC3339 with micros)
-
-  * Timestamp of receipt creation.
-
-* `upstream_segments : object`
-
-  * Map from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to a small object capturing:
-
-    * `status : "PASS" | "FAIL" | "MISSING"`
-    * `spec_version : string`
-    * `bundle_digest : string` (the digest from the upstream `_passed.flag_*`, when status is `"PASS"`)
-
-* `sealed_inputs_digest : string`
-
-  * Hex SHA-256 (or future hash) of the raw bytes of `sealed_inputs_5B` for this `manifest_fingerprint`, computed under a deterministic ordering contract (spelled out in the JSON-Schema description).
-
-Implementations MAY add additional optional fields (e.g. `environment`, `build_id`, or per-role row counts), but MUST NOT remove or relax the above **required** fields without bumping the 5B spec version and corresponding schema version.
-
-**Cardinality & PK:**
-
-* Exactly **one row per `manifest_fingerprint`** and `run_id` in the world; dictionary SHOULD mark this dataset as **non-partitioned table** or a single JSON object, partitioned only by `fingerprint` (see §5.2).
-* Primary key at schema level: `manifest_fingerprint` (and, if multi-run is allowed, `run_id`).
+* Partition key: `fingerprint={manifest_fingerprint}` (dictionary).
+* Logical PK: `manifest_fingerprint` (optionally `run_id` if multiple receipts per fingerprint are supported).
+* Write-once per `{manifest_fingerprint, run_id}`. Re-runs MUST be byte-identical or treated as conflicts.
 
 ---
 
 ### 5.2 `sealed_inputs_5B` — schema anchor & shape
 
-**Dataset ID (dictionary):**
+**Authority pointers**
 
-* `id`: `sealed_inputs_5B`
-* `owner_segment`: `5B`
-* `layer`: `2`
+* Dataset dictionary entry: `datasets[].id == "sealed_inputs_5B"`.
+* Schema anchor: `schemas.5B.yaml#/validation/sealed_inputs_5B`.
+* Artefact registry key: `mlr.5B.control.sealed_inputs`.
 
-**Schema anchor:**
+**Binding obligations (summarised)**
 
-* `schema_ref`: `schemas.5B.yaml#/validation/sealed_inputs_5B`
-
-**Logical shape (minimum fields):**
-
-`sealed_inputs_5B` is a **tabular dataset**; each row describes a single artefact that 5B is allowed to use for a given `manifest_fingerprint`. The schema MUST provide at least:
-
-* `manifest_fingerprint : string`
-
-* `parameter_hash : string | null`
-
-  * `null` or omitted when the artefact is fingerprint-only (e.g. a validation bundle).
-
-* `owner_segment : string`
-
-  * Segment which owns the artefact (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`, `"5B"`, or shared).
-
-* `artifact_id : string`
-
-  * Logical artefact ID as used in the relevant artefact registry (e.g. `mlr.2A.validation_bundle`, `mlr.5A.merchant_zone_scenario_local`).
-
-* `role : string`
-
-  * Controlled vocabulary: `DATASET`, `CONFIG`, `POLICY`, `VALIDATION_BUNDLE`, `FLAG`, `LOG`, etc.
-
-* `schema_ref : string`
-
-  * JSON-Schema `$ref` into the owning schema pack.
-
-* `path_template : string`
-
-  * Canonical path template from the dataset dictionary or registry, including partition tokens (e.g. `data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`).
-
-* `partition_keys : array<string>`
-
-  * Ordered list of partition key names that appear in the path template.
-
-* `sha256_hex : string`
-
-  * Content digest of the artefact (or index/bundle digest, as appropriate to its role), as computed or imported from upstream sealed-inputs.
-
-* `status : string`
-
-  * `REQUIRED`, `OPTIONAL`, `INTERNAL`, or `IGNORED` (semantic as per §3.3).
-
-* `read_scope : string`
-
-  * `METADATA_ONLY` or `ROW_LEVEL`, as per §3.3.
-
-Optionally, the schema MAY include:
-
-* `notes : string`
-* `last_seen_utc : string` (RFC3339 micros)
-* `source_dict_id : string` (which dictionary/registry supplied this entry)
-
-but these fields MUST NOT be required for correctness.
+* Rows enumerate every artefact 5B may read; `status`/`read_scope` semantics are binding as described in §3.3, with enum definitions enforced by the schema pack.
+* `manifest_fingerprint` and `parameter_hash` columns MUST match the world identity for the run (fingerprint-only artefacts still carry the same `parameter_hash` string).
+* For every artefact: both dictionary ID (`artifact_id`) and registry manifest key (`manifest_key`) must be recorded (schema enforced).
+* Digest values (`sha256_hex`) MUST originate from upstream sealed inputs or direct hashing, per Step 3 of the algorithm.
+* Optional metadata (`notes`, `owner_team`, `source_manifest`) MAY appear; the schema pack controls which keys are allowed.
 
 **Cardinality & PK:**
 
-* Partition domain: all rows for a given `manifest_fingerprint` MUST be stored together (see §5.3).
-* Recommended primary key: composite of
-  `(manifest_fingerprint, owner_segment, artifact_id)`
-  plus, if necessary, a disambiguating `role` field.
+* Partition domain: one file per fingerprint partition (dictionary path). No seed/run partitions.
+* Logical PK: `(manifest_fingerprint, owner_segment, artifact_id, role)`; duplicates are forbidden (acceptance criteria §8.1).
+* Writer ordering MUST follow `(owner_segment, artifact_id, role)` to keep the digest deterministic.
 
 ---
 
 ### 5.3 Partitioning, path templates & dictionary links
 
-The 5B dataset dictionary MUST register the S5 outputs as follows (in YAML or equivalent):
+The dictionary entries described above remain the **only** source of truth for:
 
-#### 5.3.1 `s0_gate_receipt_5B` entry
+* file formats (`json` vs `parquet`),
+* concrete path templates and partition key names, and
+* lineage metadata (produced/consumed-by, lifecycle phase, retention).
 
-* `id`: `s0_gate_receipt_5B`
+This spec therefore imposes two additional binding rules:
 
-* `schema_ref`: `schemas.5B.yaml#/validation/s0_gate_receipt_5B`
+1. Downstream agents MUST discover `s0_gate_receipt_5B` and `sealed_inputs_5B` exclusively via the dictionary/registry (no hard-coded folders).
+2. Registry dependencies MUST list the upstream PASS artefacts and 5B config packs that S0 requires; if new dependencies are introduced, they MUST be reflected in the registry first, then referenced here in behavioural terms.
 
-* `format`: `json` (one object)
-
-* `path`:
-
-  ```text
-  data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
-  ```
-
-* `partitioning`:
-
-  ```yaml
-  partition_keys:
-    - manifest_fingerprint
-  ```
-
-* `version`: `{manifest_fingerprint}`
-
-* `final_in_segment`: `false` (the final HashGate will live in the 5B validation bundle)
-
-* `lifecycle.phase`: `alpha` / `beta` / `prod` as appropriate.
-
-#### 5.3.2 `sealed_inputs_5B` entry
-
-* `id`: `sealed_inputs_5B`
-
-* `schema_ref`: `schemas.5B.yaml#/validation/sealed_inputs_5B`
-
-* `format`: `parquet`
-
-* `path`:
-
-  ```text
-  data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
-  ```
-
-* `partitioning`:
-
-  ```yaml
-  partition_keys:
-    - manifest_fingerprint
-  ```
-
-* `version`: `{manifest_fingerprint}`
-
-* `final_in_segment`: `false`
-
-* `lifecycle.phase`: aligned with 5B’s current maturity.
-
-The artefact registry for 5B MUST then:
-
-* register `s0_gate_receipt_5B` and `sealed_inputs_5B` as artefacts of `type: dataset`, `category: control` or `validation`,
-* associate them with manifest keys such as:
-
-  * `mlr.5B.control.s0_gate_receipt`,
-  * `mlr.5B.control.sealed_inputs`,
-* declare their dependency on:
-
-  * upstream segment PASS flags (`mlr.1A.validation_bundle`, …, `mlr.5A.validation_bundle`), and
-  * the relevant 5B config/policy artefacts (arrival process config, 5B RNG policy, 5B validation policy).
-
-Once these registrations are in place, **all discovery of the S5 outputs** by downstream tooling MUST go via the dataset dictionary and artefact registry; no alternative path conventions or ad-hoc locations are permitted.
+With those references, we maintain a single source of truth for contract shapes while keeping the behavioural obligations documented in this state specification.
 
 ---
 
@@ -1190,7 +1045,7 @@ For each candidate artefact in the in-memory list:
    Construct a row for `sealed_inputs_5B` with:
 
    * `manifest_fingerprint = mf`
-   * `parameter_hash = ph` or `null` if the artefact is fingerprint-only by contract
+   * `parameter_hash = ph`
    * `owner_segment`
    * `artifact_id`
    * `role`

@@ -26,16 +26,17 @@ validation:
   s0_gate_receipt_5B:
     type: object
     additionalProperties: true
-      required:
-        - manifest_fingerprint
-        - parameter_hash
-        - seed
-        - run_id
-        - created_utc
-        - upstream_segments
-        - scenario_set
-        - sealed_inputs_digest
-        - spec_version
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - run_id
+      - created_utc
+      - upstream_segments
+      - scenario_set
+      - sealed_inputs_digest
+      - sealed_inputs_row_count
+      - spec_version
     properties:
       manifest_fingerprint: { $ref: '#/$defs/hex64' }
       parameter_hash: { $ref: '#/$defs/hex64' }
@@ -52,10 +53,15 @@ validation:
             status: { enum: [PASS, FAIL, MISSING] }
             bundle_path: { type: string }
             flag_path: { type: string }
+            spec_version: { type: string }
+            bundle_digest: { $ref: '#/$defs/hex64' }
       scenario_set:
         type: array
         items: { $ref: '#/$defs/scenario_id' }
       sealed_inputs_digest: { $ref: '#/$defs/hex64' }
+      sealed_inputs_row_count:
+        type: integer
+        minimum: 0
       spec_version: { type: string }
 
   sealed_inputs_5B:

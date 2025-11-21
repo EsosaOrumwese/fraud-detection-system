@@ -764,313 +764,48 @@ Within this pattern, `s0_gate_receipt_5A` and `sealed_inputs_5A` serve as the **
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-This section fixes **where** the 5A.S0 outputs live in the schema hierarchy, **what their row shapes are**, and **how the dataset dictionary & artefact registry must refer to them**. All of this is **binding**.
+Contract authority for 5A.S0 lives in the 5A schema pack (`schemas.5A.yaml`), dataset dictionary (`dataset_dictionary.layer2.5A.yaml`) and artefact registry (`artefact_registry_5A.yaml`). S0 emits three control-plane datasets:
 
-5A.S0 has three logical outputs:
+1. `s0_gate_receipt_5A`
+2. `sealed_inputs_5A`
+3. `scenario_manifest_5A` (optional convenience view)
 
-1. `s0_gate_receipt_5A` *(required)*
-2. `sealed_inputs_5A` *(required)*
-3. `scenario_manifest_5A` *(optional)*
+### 5.1 `s0_gate_receipt_5A`
 
-Everything below assumes 5A-specific schemas live in `schemas.5A.yaml` under a `validation` section, and that Layer-2–wide validation bundle shapes live in `schemas.layer2.yaml`.
+* **Schema anchor:** `schemas.5A.yaml#/validation/s0_gate_receipt_5A`
+* **Dictionary id:** `s0_gate_receipt_5A`
+* **Registry key:** `mlr.5A.control.s0_gate_receipt`
 
----
+Binding notes:
 
-### 5.1 Schema files and sections
+- Written once per `manifest_fingerprint` at `data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`.
+- Carries the run identity (`parameter_hash`, `manifest_fingerprint`, `run_id`, `scenario_set`) plus the upstream PASS map and `sealed_inputs_digest`; the schema pack is the shape authority.
+- Any rerun with the same `(parameter_hash, manifest_fingerprint, run_id)` must reproduce byte-identical JSON; otherwise treat as a write conflict.
 
-The following schema files and sections are **authoritative** for 5A.S0:
+### 5.2 `sealed_inputs_5A`
 
-* **5A segment schema file**
+* **Schema anchor:** `schemas.5A.yaml#/validation/sealed_inputs_5A`
+* **Dictionary id:** `sealed_inputs_5A`
+* **Registry key:** `mlr.5A.control.sealed_inputs`
 
-  * File: `schemas.5A.yaml`
-  * MUST contain a top-level object with (among others) a `validation` section.
-  * 5A.S0’s row-level shapes MUST be anchored under:
+Binding notes:
 
-    * `schemas.5A.yaml#/validation/s0_gate_receipt_5A`
-    * `schemas.5A.yaml#/validation/sealed_inputs_5A`
-    * `schemas.5A.yaml#/validation/scenario_manifest_5A` *(if implemented)*
+- Stored under `data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`; partition key is `manifest_fingerprint` only.
+- Rows enumerate the whitelist of artefacts 5A may read (owner segment, manifest key, schema_ref, digest, `status`, `read_scope`). Column definitions and enums live solely in the schema pack.
+- Downstream states MUST treat this table as authoritative – no reading artefacts outside the listed rows. Updates require regenerating the manifest and rerunning S0.
 
-* **Layer-2 validation bundle schema file**
+### 5.3 `scenario_manifest_5A` (optional)
 
-  * File: `schemas.layer2.yaml`
-  * MUST define shared shapes for:
+* **Schema anchor:** `schemas.5A.yaml#/validation/scenario_manifest_5A`
+* **Dictionary id:** `scenario_manifest_5A`
+* **Registry key:** `mlr.5A.control.scenario_manifest`
 
-    * `validation_bundle_index_5A`
-    * `validation_passed_flag_5A`
-  * These are used by the eventual 5A segment-level validation state, not by S0 directly, but S0’s outputs MUST be compatible with their expectations (e.g. referenced in the index).
+Binding notes:
 
-5A.S0 MUST NOT define duplicate `$id` or schema anchors that clash with other segments or layers.
+- Optional projection of scenario metadata derived from sealed inputs.
+- When produced it must reside at `data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet` and adhere exactly to the schema pack.
+- Absence of this dataset MUST NOT block downstream consumers so long as the gate receipt + sealed inputs are present.
 
----
-
-### 5.2 `s0_gate_receipt_5A` — schema anchor & row shape
-
-**Anchor**
-
-* Schema anchor:
-  `schemas.5A.yaml#/validation/s0_gate_receipt_5A`
-* Type: JSON object representing a **single logical receipt row**.
-
-**Intended semantics**
-
-This schema describes the fingerprint-scoped gate receipt emitted by 5A.S0. It MUST be usable as:
-
-* the row shape for the `s0_gate_receipt_5A` table in the dataset dictionary, and
-* the embedded type for any 5A run-report / validation bundle entries that want to embed the receipt.
-
-**Required fields (at minimum)**
-
-The schema MUST include the following required properties:
-
-* `manifest_fingerprint` — string
-
-  * MUST equal the partition token `fingerprint={manifest_fingerprint}`.
-
-* `parameter_hash` — string
-
-  * MUST equal the run’s parameter pack identity.
-
-* `run_id` — string
-
-  * Unique per `(parameter_hash, manifest_fingerprint)`.
-
-* `created_utc` — RFC3339-micros timestamp
-
-* `verified_upstream_segments` — object
-
-  * Keys: segment IDs (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`).
-  * Values: objects with at least:
-
-    * `status ∈ {"PASS","FAIL","MISSING"}`
-    * `bundle_id` or `bundle_path` (logical ID/path from registry)
-    * `bundle_sha256_hex` (optional but recommended)
-    * `flag_sha256_hex` (optional but recommended)
-
-* `scenario_id` — string or array of strings
-
-  * Single-scenario manifests may record a scalar (e.g. `"baseline"`); multi-scenario runs MUST record the ordered scenario set as an array. Row-level details for each scenario (start/end horizons, tags, flags) live in `scenario_manifest_5A`, and S0’s receipt only mirrors the identifiers so later states can fail fast on mismatched scenario sets.
-
-* `scenario_pack_id` — string (optional)
-
-* `parameter_pack_id` — string (optional human-facing label)
-
-* `sealed_inputs_digest` — string
-
-  * SHA-256 or equivalent digest over the `sealed_inputs_5A` contents, computed according to a hashing law defined later.
-
-The schema MAY include additional fields (e.g. environment, CI build ID, operator), but they MUST be explicitly optional.
-
-**Key & uniqueness**
-
-The dataset dictionary MUST declare `s0_gate_receipt_5A` as having:
-
-* `primary_key: [manifest_fingerprint]`
-* `partition_keys: [fingerprint]`
-
-and enforce that **exactly one row** exists per `manifest_fingerprint`.
-
----
-
-### 5.3 `sealed_inputs_5A` — schema anchor & row shape
-
-**Anchor**
-
-* Schema anchor:
-  `schemas.5A.yaml#/validation/sealed_inputs_5A`
-* Type: JSON object representing **one sealed artefact**.
-
-**Intended semantics**
-
-This schema describes the row-level shape of the 5A sealed-input inventory. Each row corresponds to a **single logical artefact** 5A is allowed to read for this fingerprint.
-
-**Required fields (at minimum)**
-
-The schema MUST include the following required properties:
-
-* Run / fingerprint binding:
-
-  * `manifest_fingerprint` — string
-  * `parameter_hash` — string
-
-* Artefact identity:
-
-  * `owner_layer` — string enum, e.g. `{"layer1","layer2","engine"}`
-  * `owner_segment` — string (e.g. `"1A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`)
-  * `artifact_id` — string (logical ID from the relevant artefact registry)
-  * `manifest_key` — string (exact manifest key, if the registry defines one)
-
-* Role:
-
-  * `role` — string enum
-    (e.g. `"upstream_egress"`, `"reference_data"`, `"scenario_config"`, `"policy"`, `"contract"`, `"validation_bundle"`, `"validation_flag"`)
-
-* Schema & path:
-
-  * `schema_ref` — string (JSON-Pointer to a schema anchor)
-  * `path_template` — string (catalogue path template, including tokens `fingerprint={manifest_fingerprint}` and, if relevant, `parameter_hash={parameter_hash}`)
-  * `partition_keys` — array of strings (e.g. `["seed","fingerprint"]` for row tables or `["fingerprint"]` for control datasets)
-
-* Integrity & version:
-
-  * `sha256_hex` — string (lowercase hex digest of the artefact for this fingerprint)
-  * `version` — string (semver or similar)
-  * `source_dictionary` — string (e.g. `"dataset_dictionary.layer1.1B"` or `"dataset_dictionary.layer2.5A"`)
-  * `source_registry` — string (e.g. `"artefact_registry_1B"`, `"artefact_registry_5A"`)
-
-* Scope:
-
-  * `status` — string enum `{"REQUIRED","OPTIONAL","IGNORED"}` from 5A’s perspective
-  * `read_scope` — string enum `{"ROW_LEVEL","METADATA_ONLY"}`
-
-Optional fields MAY include `notes`, `license_class`, `owner_team`, etc., but MUST NOT be required.
-
-**Key & uniqueness**
-
-The dataset dictionary MUST declare:
-
-* `primary_key: [manifest_fingerprint, owner_segment, artifact_id]`
-* `partition_keys: [fingerprint]`
-
-The schema MUST be compatible with that key (those fields required, non-nullable), and implementations MUST enforce uniqueness of the PK tuple.
-
----
-
-### 5.4 `scenario_manifest_5A` — schema anchor & row shape (optional)
-
-**Anchor**
-
-* Schema anchor (if implemented):
-  `schemas.5A.yaml#/validation/scenario_manifest_5A`
-* Type: JSON object representing a **single scenario manifest row**.
-
-**Intended semantics**
-
-A convenience projection that summarises the scenario-level configuration sealed for this fingerprint. All values MUST be derivable from `s0_gate_receipt_5A` + scenario-related rows in `sealed_inputs_5A`.
-
-**Required fields (if present at all)**
-
-At minimum:
-
-* `manifest_fingerprint` — string
-* `scenario_id` — string
-* `scenario_version` — string (or semantic version / hash)
-* `horizon_start_utc` — RFC3339-micros timestamp
-* `horizon_end_utc` — RFC3339-micros timestamp
-* `is_baseline` — boolean
-* `is_stress` — boolean
-
-Optional but recommended:
-
-* `labels` — array of strings (e.g. `["black_friday","high_volume"]`)
-* `scenario_config_ids` — array of strings (logical IDs of underlying configs in `sealed_inputs_5A`)
-
-**Key & uniqueness**
-
-If `scenario_manifest_5A` is materialised as an actual dataset, the dictionary MUST declare:
-
-* `primary_key: [manifest_fingerprint, scenario_id]`
-* `partition_keys: [fingerprint]`
-
-and, for the common case of a single scenario per fingerprint, the combination `(manifest_fingerprint)` SHOULD be unique.
-
----
-
-### 5.5 Dataset dictionary entries (5A)
-
-The **5A dataset dictionary** (e.g. `dataset_dictionary.layer2.5A.yaml`) MUST contain entries for:
-
-1. **`s0_gate_receipt_5A`**
-
-   * `id: s0_gate_receipt_5A`
-   * `owner_subsegment: "5A"`
-   * `schema_ref: schemas.5A.yaml#/validation/s0_gate_receipt_5A`
-   * `path: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`
-   * `partitioning: ["fingerprint"]`
-   * `primary_key: ["manifest_fingerprint"]`
-   * `status: "required"`
-   * `produced_by: ["5A.S0"]`
-   * `consumed_by: ["5A.S1","5A.S2","5A.validation_*"]`
-
-2. **`sealed_inputs_5A`**
-
-   * `id: sealed_inputs_5A`
-   * `owner_subsegment: "5A"`
-   * `schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A`
-   * `path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`
-   * `partitioning: ["fingerprint"]`
-   * `primary_key: ["manifest_fingerprint","owner_segment","artifact_id"]`
-   * `status: "required"`
-   * `produced_by: ["5A.S0"]`
-   * `consumed_by: ["5A.S1","5A.S2","5A.S3","5A.S4","5A.validation_*"]`
-
-3. **`scenario_manifest_5A`** *(if implemented)*
-
-   * `id: scenario_manifest_5A`
-   * `owner_subsegment: "5A"`
-   * `schema_ref: schemas.5A.yaml#/validation/scenario_manifest_5A`
-   * `path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet`
-   * `partitioning: ["fingerprint"]`
-   * `primary_key: ["manifest_fingerprint","scenario_id"]`
-   * `status: "optional"`
-   * `produced_by: ["5A.S0"]`
-   * `consumed_by: ["5A.S1","5A.S2","5A.S3","5A.S4","5A.validation_*"]`
-
-All three entries MUST conform to the Layer-1 conventions:
-
-* path tokens using `fingerprint={manifest_fingerprint}`;
-* schemas referenced only via `schema_ref`;
-* no hardcoded absolute paths.
-
----
-
-### 5.6 Artefact registry entries (5A)
-
-The **5A artefact registry** (e.g. `artefact_registry_5A.yaml`) MUST register these datasets as manifest-visible artefacts.
-
-For each output:
-
-1. **`s0_gate_receipt_5A` artefact**
-
-   * `artifact_id: "s0_gate_receipt_5A"`
-   * `type: "dataset"`
-   * `category: "control"`
-   * `manifest_key`: e.g. `"mlr.5A.validation.s0_gate_receipt"`
-   * `schema: "schemas.5A.yaml#/validation/s0_gate_receipt_5A"`
-   * `path_template`: matches dictionary `path`
-   * `dependencies`: MUST include all upstream validation bundles/flags checked by S0 (1A–3B).
-   * `cross_layer: true` (because it summarises status across multiple layers).
-
-2. **`sealed_inputs_5A` artefact**
-
-   * `artifact_id: "sealed_inputs_5A"`
-   * `type: "dataset"`
-   * `category: "control"`
-   * `manifest_key`: e.g. `"mlr.5A.validation.sealed_inputs"`
-   * `schema: "schemas.5A.yaml#/validation/sealed_inputs_5A"`
-   * `path_template`: matches dictionary `path`
-   * `dependencies`: SHOULD include the Layer-1 and Layer-2 dictionaries and registries it was derived from.
-   * `cross_layer: true`.
-
-3. **`scenario_manifest_5A` artefact** *(if implemented)*
-
-   * `artifact_id: "scenario_manifest_5A"`
-   * `type: "dataset"`
-   * `category: "control"`
-   * `manifest_key`: e.g. `"mlr.5A.validation.scenario_manifest"`
-   * `schema: "schemas.5A.yaml#/validation/scenario_manifest_5A"`
-   * `path_template`: matches dictionary `path`
-   * `dependencies`: SHOULD include scenario config artefacts listed in `sealed_inputs_5A`.
-
-These registry entries ensure that:
-
-* the engine manifest can “see” S0’s outputs and include them in `manifest_fingerprint` derivation;
-* later segments (5B, 6A, etc.) can refer to them via stable `artifact_id` / `manifest_key` rather than bespoke paths.
-
----
-
-Within this structure, 5A.S0’s outputs are fully specified: they have **clear schema anchors**, **dictionary definitions**, and **registry entries** that match the rest of your Layer-1 house style, without adding unnecessary bulk or extra surface area.
-
----
 
 ## 6. Deterministic algorithm (RNG-free) *(Binding)*
 

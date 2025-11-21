@@ -654,219 +654,28 @@ RNG event logs for count draws:
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-This section fixes the **dataset identity, schema anchors, and catalogue wiring** for the output of **5B.S3 — Bucket-level arrival counts**:
+The S3 egress contracts are fully specified in:
 
-* `s3_bucket_counts_5B` *(required)*
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml
 
-No other S3 datasets are allowed unless this spec and the 5B schemas/dictionaries are updated.
+S3 emits a single dataset: `s3_bucket_counts_5B` (integer counts per `(seed, scenario, merchant, zone, channel_group, bucket_index)`).
 
----
+### 5.1 `s3_bucket_counts_5B`
 
-### 5.1 Common conventions
+* **Schema anchor:** `schemas.5B.yaml#/model/s3_bucket_counts_5B`
+* **Dictionary entry:** `datasets[].id == "s3_bucket_counts_5B"`
+* **Registry manifest key:** `mlr.5B.model.s3_bucket_counts`
 
-` s3_bucket_counts_5B` MUST:
+Binding rules:
 
-* Live in the 5B schema pack: `schemas.5B.yaml`.
-* Reuse Layer-1 primitives via `$ref` into `schemas.layer1.yaml` for:
+* Partitioning/path layout (`seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`) and the composite primary key are defined in the dictionary; S3 MUST adhere to them when writing shards.
+* Column meanings (counts, RNG receipts, integrity flags) are governed by the schema pack. This state spec only enforces that counts reflect the exact integerisation performed in §6 and that every in-scope entity appears exactly once per bucket.
+* Registry dependencies (realised intensities, grouping, RNG policy, scenario surfaces) are authoritative; no additional artefacts may be read unless they appear in `sealed_inputs_5B` and the registry first.
+* Determinism: for a fixed `(seed, parameter_hash, manifest_fingerprint, scenario_id)`, reruns MUST produce byte-identical output.
 
-  * `id64` (merchant IDs),
-  * `iana_tzid`,
-  * `iso2`,
-  * `rfc3339_micros`,
-  * numeric scalar types (e.g. `dec_u128` if needed).
-* Be registered in `dataset_dictionary.layer2.5B.yaml` and the 5B artefact registry with:
-
-  * `owner_segment: 5B`,
-  * `layer: 2`.
-
-Identity & scope:
-
-* Deterministic function of `(parameter_hash, manifest_fingerprint, seed, scenario_id)` given S1/S2 and config.
-* Independent of `run_id`.
-
-Partitioning convention (S3):
-
-* `partition_keys: [seed, manifest_fingerprint, scenario_id]`
-* Path token for world: `fingerprint={manifest_fingerprint}` (consistent with S2, S1, etc.).
-
----
-
-### 5.2 `s3_bucket_counts_5B` — schema & catalogue links
-
-#### 5.2.1 Schema anchor
-
-* **Dataset ID** (dictionary): `s3_bucket_counts_5B`
-* **Schema anchor**:
-  `schemas.5B.yaml#/model/s3_bucket_counts_5B`
-
-#### 5.2.2 Logical shape (required fields)
-
-Each row represents a **single bucket-level count** for one entity×bucket×scenario×seed.
-
-Required columns (names illustrative but MUST be fixed in the schema):
-
-**Identity & keys**
-
-* `manifest_fingerprint : string`
-
-* `parameter_hash : string`
-
-* `seed : integer | string`
-
-* `scenario_id : string`
-
-* `merchant_id`
-
-  * `$ref: "schemas.layer1.yaml#/$defs/id64"`
-
-* `zone_representation`
-
-  * the chosen zone representation for 5B, consistent with S1/S2, e.g.:
-
-    ```yaml
-    country_iso:
-      $ref: "schemas.layer1.yaml#/$defs/iso2"
-    tzid:
-      $ref: "schemas.layer1.yaml#/$defs/iana_tzid"
-    ```
-
-    or a single `tzid` field (spec chooses one and locks it in the schema).
-
-* Optional: `channel_group : string`
-
-  * only if S1/S2 use a channel dimension.
-
-* `bucket_index : integer`
-
-  * MUST align with `s1_time_grid_5B.bucket_index` for `(mf, scenario_id)`.
-
-**Intensity & distribution parameters**
-
-*Optional but recommended modelling columns (if configured):*
-
-* `lambda_realised : number`
-
-  * Echo of S2’s realised intensity for this entity×bucket (non-negative, finite).
-
-* `bucket_duration_seconds : integer`
-
-  * Duration of the bucket in seconds; either copied from S1 or recomputed deterministically.
-
-* Arrival-law parameters (depending on the configured law). Schema SHOULD define a stable representation, for example:
-
-  * For Poisson:
-
-    ```yaml
-    mu:
-      type: number
-      description: "Poisson mean for this bucket (lambda_realised × duration)"
-    ```
-
-  * For NB (optional fields, if NB is allowed):
-
-    ```yaml
-    nb_r:
-      type: number
-      description: "Negative-binomial shape parameter r (if used)"
-    nb_p:
-      type: number
-      description: "Negative-binomial success probability p (if used)"
-    ```
-
-* Optional: `arrival_law_id : string`
-
-  * e.g. `"poisson"`, `"nb"`, `"auto_poisson_nb"`, if mixture is allowed.
-
-**Count & diagnostics**
-
-* `count_N : integer`
-
-  * The realised count for this entity×bucket.
-  * MUST be a non-negative integer; MUST be finite.
-
-Optional diagnostics (not required by this spec, but allowed for future extension):
-
-* `count_clipped_flag : boolean`
-* `fano_band : string` (e.g. `"WITHIN"`, `"LOW"`, `"HIGH"`)
-* `group_id : string | integer` (echo of S1 grouping, if helpful)
-* `config_version : string` (echo of S3 count config version).
-
-The exact field set and types MUST be pinned in `schemas.5B.yaml#/model/s3_bucket_counts_5B`. Any added optional fields must be documented there. Only the identity columns and `count_N` are strictly required by this spec; every other column described above is optional (though strongly recommended) and MUST conform to the schema if emitted.
-
-#### 5.2.3 Primary key, partitions & dictionary entry
-
-**Logical primary key:**
-
-```text
-(manifest_fingerprint, parameter_hash, seed,
- scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
-```
-
-This combination MUST be unique.
-
-**Writer sort order (within each file):**
-
-```text
-scenario_id,
-merchant_id,
-zone_representation[, channel_group],
-bucket_index
-```
-
-**Dictionary entry (sketch):**
-
-```yaml
-datasets:
-  - id: s3_bucket_counts_5B
-    owner_segment: 5B
-    layer: 2
-    schema_ref: "schemas.5B.yaml#/model/s3_bucket_counts_5B"
-    format: parquet
-    path: "data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet"
-    partition_keys: ["seed", "manifest_fingerprint", "scenario_id"]
-    version: "{manifest_fingerprint}"
-    final_in_segment: false
-```
-
-**Registry entry (sketch):**
-
-* Manifest key: `mlr.5B.model.s3_bucket_counts`
-* `type: dataset`, `category: model`
-* `depends_on`:
-
-  * `mlr.5B.model.s1_time_grid` (time grid),
-  * `mlr.5B.model.s1_grouping` (domain),
-  * `mlr.5B.model.s2_realised_intensity` (intensity surface),
-  * 5B arrival/count config (e.g. `mlr.5B.config.arrival_count_config`),
-  * 5B RNG policy for counts.
-
----
-
-### 5.3 Catalogue usage rules
-
-* All discovery of `s3_bucket_counts_5B` by S4 and the 5B validation state MUST go via:
-
-  * `dataset_dictionary.layer2.5B.yaml`, and
-  * the 5B artefact registry (using the manifest key above).
-
-* Code MUST NOT hard-code directory paths or filenames; they MUST be derived from:
-
-  * dictionary `path` + `partition_keys`, and
-  * registry entries.
-
-* `s3_bucket_counts_5B` MUST be marked in the dictionary as:
-
-  * `final_in_state: true` for S3 (no later state may rewrite it),
-  * **not** `final_in_segment` (the final gate is 5B’s validation/HashGate state).
-
-With this wiring, S3’s bucket-count output is:
-
-* clearly shaped and typed (`schemas.5B.yaml`),
-* discoverable and joinable via catalogue (dictionary/registry), and
-* aligned with 5B’s identity and partitioning rules so S4 and validation can treat it as the canonical count surface.
-
----
-
+Any schema or catalogue changes MUST occur in the contract files before S3 alters its egress behaviour.
 ## 6. Deterministic algorithm with RNG (count realisation) *(Binding)*
 
 This section defines the **exact responsibilities and structure** of **5B.S3 — Bucket-level arrival counts**.

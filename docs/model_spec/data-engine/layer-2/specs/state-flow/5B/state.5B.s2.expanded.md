@@ -632,245 +632,40 @@ Within this identity model, S2’s outputs are clearly scoped: **world + seed + 
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-This section fixes the **dataset identities, schema anchors and catalogue wiring** for the outputs of **5B.S2 — Latent intensity fields**:
+Contract authority for all S2 outputs lives in:
 
-* `s2_realised_intensity_5B` *(required)*
-* `s2_latent_field_5B` *(optional, diagnostic)*
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml
 
-No other S2 datasets are allowed without updating this spec and the 5B schemas/dictionaries.
+This section summarises the obligations for the two deterministic S2 egresses.
 
----
+### 5.1 `s2_realised_intensity_5B`
 
-### 5.1 Common conventions
+* **Schema anchor:** `schemas.5B.yaml#/model/s2_realised_intensity_5B`
+* **Dictionary entry:** `datasets[].id == "s2_realised_intensity_5B"`
+* **Registry manifest key:** `mlr.5B.model.s2_realised_intensity`
 
-Both S2 datasets MUST:
+Binding rules:
 
-* Live in the 5B schema pack: `schemas.5B.yaml`.
-* Reuse Layer-1 primitives via `$ref` to `schemas.layer1.yaml` for:
+* Partitioning/pathing (`seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`) and primary keys are governed entirely by the dictionary and MUST be honoured so hashes remain deterministic.
+* Columns encode the realised λ per `(merchant, zone, channel_group, bucket_index)`; their meanings and types live in the schema pack. S2 MUST not add/drop columns without updating the schema.
+* Inputs and configs declared in the registry (time grid, grouping, λ surfaces, LGCP + RNG policies) are the ONLY artefacts allowed to influence these rows; introducing another dependency requires a registry + sealed-inputs update first.
+* For a fixed `(seed, parameter_hash, manifest_fingerprint, scenario_id)`, rerunning S2 MUST produce byte-identical shards.
 
-  * `id64` (merchant IDs),
-  * `iana_tzid`,
-  * `iso2`,
-  * `rfc3339_micros`,
-  * numeric scalar types (e.g. `dec_u128` if used).
-* Be registered in `dataset_dictionary.layer2.5B.yaml` and the 5B artefact registry with:
+### 5.2 `s2_latent_field_5B` (optional)
 
-  * `owner_segment: 5B`,
-  * `layer: 2`.
+* **Schema anchor:** `schemas.5B.yaml#/model/s2_latent_field_5B`
+* **Dictionary entry:** `datasets[].id == "s2_latent_field_5B"`
+* **Registry manifest key:** `mlr.5B.model.s2_latent_field`
 
-Identity & scope:
+Binding rules:
 
-* Deterministic function of `(parameter_hash, manifest_fingerprint, seed, scenario_id)`.
-* Independent of `run_id`.
+* This dataset is optional/diagnostic; when emitted, it MUST follow the dictionary pathing and schema exactly. When suppressed, downstream states MUST continue to rely solely on `s2_realised_intensity_5B`.
+* Rows are keyed by `(seed, manifest_fingerprint, scenario_id, group_id, bucket_index)`; enforcement lives in the schema/dictionary but S2 MUST preserve determinism and use the same RNG receipts as the realised intensity table.
+* The registry declares that this output shares the same dependencies as the realised intensity plus any additional diagnostics configs; no extra artefacts may be read unless sealed first.
 
-Partitioning convention (S2):
-
-* `partition_keys: [seed, manifest_fingerprint, scenario_id]`
-* Path token for world: `fingerprint={manifest_fingerprint}` (consistent with Layer-1/Layer-2).
-
----
-
-### 5.2 `s2_realised_intensity_5B` — schema & catalogue links *(REQUIRED)*
-
-#### 5.2.1 Schema anchor
-
-* **Dataset ID** (dictionary): `s2_realised_intensity_5B`
-* **Schema anchor**:
-  `schemas.5B.yaml#/model/s2_realised_intensity_5B`
-
-#### 5.2.2 Logical shape (required fields)
-
-Each row represents a **realised intensity** for one entity×bucket×scenario for a given seed.
-
-Required columns (names illustrative but MUST be fixed in the schema):
-
-* Identity & keys:
-
-  * `manifest_fingerprint : string`
-  * `parameter_hash : string`
-  * `seed : integer | string`
-  * `scenario_id : string`
-  * `merchant_id` — `$ref: schemas.layer1.yaml#/$defs/id64`
-  * `zone_representation` — the chosen zone representation for 5B; schema MUST fix shape, e.g.:
-
-    * either `tzid : $ref: .../iana_tzid`, or
-    * `country_iso : $ref: .../iso2` + `tzid : $ref: .../iana_tzid`
-  * optional `channel_group : string`
-  * `bucket_index : integer` — must align with `s1_time_grid_5B.bucket_index` for `(mf, scenario_id)`.
-
-* Intensity & latent effect:
-
-  * `lambda_baseline : number`
-
-    * deterministic λ from 5A, echoed or aligned to 5A S4 surface.
-  * `lambda_random_component : number`
-
-    * the multiplicative (or log-scale) factor from the latent field; exact interpretation documented in schema description (e.g. log-normal factor vs additive-on-log).
-  * `lambda_realised : number`
-
-    * the final intensity used by S3; MUST satisfy:
-
-      * `lambda_realised ≥ 0`,
-      * finite (no NaN/Inf),
-      * any additional bounds from the arrival/LGCP config (documented elsewhere).
-
-* Provenance (recommended):
-
-  * `group_id : string | integer` — group from `s1_grouping_5B` for this entity.
-  * `kernel_id : string` — ID of kernel/hyper-parameter set applied.
-  * `config_version : string` — version of `arrival_lgcp_config_5B` used.
-
-Exact field names, types and any optional extras MUST be pinned in `schemas.5B.yaml#/model/s2_realised_intensity_5B`.
-
-#### 5.2.3 Keys, partitions & dictionary entry
-
-**Logical primary key:**
-
-```text
-(manifest_fingerprint, parameter_hash, seed,
- scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
-```
-
-**Writer sort order (per file):**
-
-```text
-scenario_id, merchant_id, zone_representation[, channel_group], bucket_index
-```
-
-**Dictionary entry (sketch):**
-
-```yaml
-datasets:
-  - id: s2_realised_intensity_5B
-    owner_segment: 5B
-    layer: 2
-    schema_ref: "schemas.5B.yaml#/model/s2_realised_intensity_5B"
-    format: parquet
-    path: "data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet"
-    partition_keys: ["seed", "manifest_fingerprint", "scenario_id"]
-    version: "{manifest_fingerprint}"
-    final_in_segment: false
-```
-
-**Registry entry (sketch):**
-
-* Manifest key: `mlr.5B.model.s2_realised_intensity`
-* `type: dataset`, `category: model`
-* `depends_on`:
-
-  * `mlr.5B.model.s1_time_grid`,
-  * `mlr.5B.model.s1_grouping`,
-  * 5A λ surface manifest key (e.g. `mlr.5A.model.merchant_zone_scenario_local`),
-  * 5B arrival/LGCP config,
-  * 5B RNG policy.
-
----
-
-### 5.3 `s2_latent_field_5B` — schema & catalogue links *(OPTIONAL)*
-
-#### 5.3.1 Schema anchor
-
-* **Dataset ID** (dictionary): `s2_latent_field_5B`
-* **Schema anchor**:
-  `schemas.5B.yaml#/model/s2_latent_field_5B`
-
-#### 5.3.2 Logical shape (required fields)
-
-Each row represents a **latent field value** for a group×bucket×scenario for a given seed. This dataset is optional and diagnostic.
-
-Required columns:
-
-* Identity & keys:
-
-  * `manifest_fingerprint : string`
-  * `parameter_hash : string`
-  * `seed : integer | string`
-  * `scenario_id : string`
-  * `group_id : string | integer`
-  * `bucket_index : integer`
-
-* Latent values:
-
-* `latent_value : number`
-
-  * the raw latent sample (e.g. Gaussian draw) for the group×bucket.
-* `latent_mean : number`, `latent_std : number`
-
-  * echo whatever parameters were used to produce `latent_value` (useful for diagnostics).
-* `lambda_random_component : number`
-
-  * the derived effect applied in intensity space (e.g. `exp(latent_value)`), matching the `lambda_random_component` stored in `s2_realised_intensity_5B`.
-
-Optional fields:
-
-* `kernel_id : string`
-* `config_version : string`
-* any diagnostic tags (e.g. per-group hyper-parameters echoed).
-
-Exact shape MUST be fixed by `schemas.5B.yaml#/model/s2_latent_field_5B`.
-
-#### 5.3.3 Keys, partitions & dictionary entry
-
-**Logical primary key:**
-
-```text
-(manifest_fingerprint, parameter_hash, seed,
- scenario_id, group_id, bucket_index)
-```
-
-**Writer sort order (per file):**
-
-```text
-scenario_id, group_id, bucket_index
-```
-
-**Dictionary entry (sketch):**
-
-```yaml
-datasets:
-  - id: s2_latent_field_5B
-    owner_segment: 5B
-    layer: 2
-    schema_ref: "schemas.5B.yaml#/model/s2_latent_field_5B"
-    format: parquet
-    path: "data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet"
-    partition_keys: ["seed", "manifest_fingerprint", "scenario_id"]
-    version: "{manifest_fingerprint}"
-    final_in_segment: false
-```
-
-**Registry entry (sketch):**
-
-* Manifest key: `mlr.5B.model.s2_latent_field`
-* `type: dataset`, `category: diagnostic`
-* `depends_on`:
-
-  * `mlr.5B.model.s1_time_grid`,
-  * `mlr.5B.model.s1_grouping`,
-  * 5B arrival/LGCP config,
-  * 5B RNG policy.
-
-Downstream code MUST treat this dataset as **optional**: if absent, all operational logic must use `s2_realised_intensity_5B` only.
-
----
-
-### 5.4 Catalogue usage rules
-
-* All discovery of S2 outputs by S3/S4 or validation MUST go via:
-
-  * `dataset_dictionary.layer2.5B.yaml`, and
-  * the 5B artefact registry (manifest keys above).
-* No code may hard-code paths or filenames; all must be derived from these catalogues.
-* Both S2 datasets MUST be marked `final_in_state: true` for S2, but **not** `final_in_segment` (they are still gated by 5B’s terminal HashGate, not by S2 itself).
-
-With these shapes and links in place, S2’s outputs are:
-
-* clearly typed (`schemas.5B.yaml`),
-* discoverable (dictionary/registry),
-* and consistent with 5B’s identity and partitioning rules from §4.
-
----
-
+Any adjustments to these egresses MUST begin with updates to the schema pack and catalogue; this state doc only captures the behavioural envelope (determinism, allowed dependencies, and identity scope).
 ## 6. Deterministic algorithm with RNG (LGCP core) *(Binding)*
 
 This section defines the **exact responsibilities and structure** of the 5B.S2 algorithm. It is:

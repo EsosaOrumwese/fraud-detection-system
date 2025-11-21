@@ -622,233 +622,48 @@ Any change to the time-grid or grouping semantics requires a new `parameter_hash
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-This section fixes the **dataset identities, schema anchors and catalogue wiring** for the outputs of **5B.S1 — Time grid & grouping plan**:
+To keep **one source of truth** for the S1 contracts, field-level requirements live exclusively in:
 
-* `s1_time_grid_5B`
-* `s1_grouping_5B`
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml
 
-No other datasets may be produced by S1 unless the spec and schemas are updated.
+This section summarises the binding behaviour for the two S1 datasets and points to the canonical entries that govern columns, partitions, and manifest wiring.
 
----
+S1 produces:
 
-### 5.1 Common conventions
+1. `s1_time_grid_5B` — the canonical bucket plan for each `scenario_id`.
+2. `s1_grouping_5B` — the deterministic group membership map for every in-scope `(merchant, zone[, channel])`.
 
-Both datasets MUST:
+No other datasets may be emitted unless those contracts are extended first.
 
-* Live in the **5B schema pack** under `schemas.5B.yaml`.
-* Use Layer-1 primitives via `$ref` into `schemas.layer1.yaml` for:
+### 5.1 `s1_time_grid_5B`
 
-  * `id64` (merchant IDs),
-  * `iana_tzid`,
-  * `rfc3339_micros`,
-  * `iso2`, etc.
-* Be registered in `dataset_dictionary.layer2.5B.yaml` and in the 5B artefact registry with `owner_segment: 5B` and `layer: 2`.
-* Carry, as columns:
+* **Schema anchor:** `schemas.5B.yaml#/model/s1_time_grid_5B`
+* **Dictionary entry:** `datasets[].id == "s1_time_grid_5B"`
+* **Registry manifest key:** `mlr.5B.model.s1_time_grid`
 
-  * `manifest_fingerprint : string`
-  * `parameter_hash : string`
-  * `scenario_id : string`
+Binding rules:
 
-Identity:
+* The dictionary path (`data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/…`) and partition keys `[manifest_fingerprint, scenario_id]` are normative; S1 MUST write exactly there and nowhere else.
+* Row content (bucket indices, UTC/local timing metadata, scenario tags) MUST match the schema pack’s definitions. This spec constrains behaviour (no gaps/overlaps, deterministic ordering) but the schema is the shape authority.
+* Dependencies listed in the registry (S0 gate receipt, 5A scenario manifest, 5B time-grid policy) are the only artefacts S1 may read for this output; anything else must first be added to `sealed_inputs_5B`.
+* Under a fixed `(parameter_hash, manifest_fingerprint)`, re-running S1 MUST regenerate byte-identical files; all variability (e.g. different bucket duration choices) requires a contract update.
 
-* Deterministic function of `(parameter_hash, manifest_fingerprint, scenario_id)`.
-* Independent of `seed` and `run_id`.
+### 5.2 `s1_grouping_5B`
 
-Recommended partitioning (dictionary):
+* **Schema anchor:** `schemas.5B.yaml#/model/s1_grouping_5B`
+* **Dictionary entry:** `datasets[].id == "s1_grouping_5B"`
+* **Registry manifest key:** `mlr.5B.model.s1_grouping`
 
-* `partition_keys: [manifest_fingerprint, scenario_id]`
-* Path token: `fingerprint={manifest_fingerprint}` (consistent with Layer-1/Layer-2).
+Binding rules:
 
----
+* The grouping domain is fixed elsewhere in this spec; every in-scope entity MUST appear exactly once in this dataset with the deterministic `group_id` emitted by the current grouping policy pack.
+* Column set, allowed enums, and optional metadata fields are governed entirely by the schema pack. If the grouping policy introduces new tags, the schema/dictionary must be updated before S1 writes them.
+* Partitioning/ordering rules from the dictionary (`fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`; sorted by scenario then merchant→zone) are mandatory for deterministic hashing and MUST be honoured.
+* Registry dependencies (sealed inputs, grouping policy config, upstream zone/intensity surfaces) define the only artefacts S1 may touch to build the grouping. Any new dependency requires a registry + sealed-inputs update first.
 
-### 5.2 `s1_time_grid_5B` — schema & catalogue links
-
-#### 5.2.1 Schema anchor
-
-* **Dataset ID** (dictionary): `s1_time_grid_5B`
-* **Schema anchor**:
-  `schemas.5B.yaml#/model/s1_time_grid_5B`
-
-#### 5.2.2 Logical shape (required fields)
-
-` s1_time_grid_5B` is a **time-bucket dimension table**. Each row represents a single bucket for a given scenario.
-
-Minimum required fields:
-
-* `manifest_fingerprint : string`
-* `parameter_hash : string`
-* `scenario_id : string`
-* `bucket_index : integer`
-
-  * Unique and contiguous per `(manifest_fingerprint, scenario_id)`, starting at 0 or 1 (choice fixed in schema description).
-* `bucket_start_utc : string` (`rfc3339_micros`)
-* `bucket_end_utc : string` (`rfc3339_micros`)
-
-  * MUST satisfy `bucket_end_utc > bucket_start_utc`.
-* `bucket_duration_seconds : integer`
-
-  * Derived, equal to `bucket_end_utc - bucket_start_utc` in seconds.
-
-Local / scenario tags (minimum):
-
-* `local_day_of_week : integer`
-
-  * 0–6 or 1–7; exact convention fixed in schema doc.
-* `local_minutes_since_midnight : integer`
-* `is_weekend : boolean`
-* `scenario_is_baseline : boolean`
-* `scenario_is_stress : boolean`
-
-  * These echo 5A scenario manifest tags.
-
-Additional optional fields MAY be added later (e.g. `is_payday_bucket`, `is_holiday_bucket`, `bucket_label`), but MUST NOT be required without a spec bump.
-
-#### 5.2.3 Keys, partitions & dictionary entry
-
-**Primary key (logical):**
-
-* `(manifest_fingerprint, scenario_id, bucket_index)`
-
-**Writer sort order:**
-
-* `scenario_id`, then `bucket_index` ascending.
-
-**Dictionary entry (sketch):**
-
-```yaml
-datasets:
-  - id: s1_time_grid_5B
-    owner_segment: 5B
-    layer: 2
-    schema_ref: "schemas.5B.yaml#/model/s1_time_grid_5B"
-    format: parquet
-    path: "data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet"
-    partition_keys: ["manifest_fingerprint", "scenario_id"]
-    version: "{manifest_fingerprint}"
-    final_in_segment: false
-```
-
-**Registry entry (sketch):**
-
-* Manifest key: `mlr.5B.model.s1_time_grid`
-* Role: `dataset`, `category: model`
-* Depends on:
-
-  * `mlr.5B.control.s0_gate_receipt`
-  * 5A scenario manifest
-  * 5B time-grid policy config
-
----
-
-### 5.3 `s1_grouping_5B` — schema & catalogue links
-
-#### 5.3.1 Schema anchor
-
-* **Dataset ID** (dictionary): `s1_grouping_5B`
-* **Schema anchor**:
-  `schemas.5B.yaml#/model/s1_grouping_5B`
-
-#### 5.3.2 Logical shape (required fields)
-
-` s1_grouping_5B` is a **group-membership table** for latent fields. Each row assigns one entity to exactly one group in a given scenario.
-
-Minimum required fields:
-
-* `manifest_fingerprint : string`
-
-* `parameter_hash : string`
-
-* `scenario_id : string`
-
-* `merchant_id : integer | string`
-
-  * Type via `$ref: schemas.layer1.yaml#/$defs/id64`.
-
-* `zone_representation : object | string`
-
-  * The chosen representation for “zone” in 5B (e.g. `tzid` or `(country_iso, tzid)`); the schema MUST fix this, e.g.:
-
-  ```yaml
-  zone_tzid:
-    $ref: "schemas.layer1.yaml#/$defs/iana_tzid"
-  ```
-
-  or
-
-  ```yaml
-  country_iso:
-    $ref: "schemas.layer1.yaml#/$defs/iso2"
-  tzid:
-    $ref: "schemas.layer1.yaml#/$defs/iana_tzid"
-  ```
-
-* Optional: `channel_group : string`
-
-  * If grouping policy distinguishes channels (e.g. POS vs e-com). If not used, the schema can omit or allow `null`.
-
-* `group_id : string | integer`
-
-  * Opaque ID; uniqueness rules defined in schema description (e.g. unique per `(mf, ph, scenario_id)`).
-
-Optional fields (for later use, not required):
-
-* `group_role : string` (e.g. `"self"`, `"pooled"`)
-* `group_hints : string` (small text / codes describing why grouping occurred)
-
-#### 5.3.3 Keys, partitions & dictionary entry
-
-**Primary key (logical):**
-
-* `(manifest_fingerprint, scenario_id, merchant_id, zone_representation[, channel_group])`
-
-  * Exact components MUST be fixed in the schema and dictionary; the key MUST be unique per row.
-
-**Writer sort order:**
-
-* `scenario_id`, `merchant_id`, `zone_representation` (and `channel_group` if present).
-
-**Dictionary entry (sketch):**
-
-```yaml
-datasets:
-  - id: s1_grouping_5B
-    owner_segment: 5B
-    layer: 2
-    schema_ref: "schemas.5B.yaml#/model/s1_grouping_5B"
-    format: parquet
-    path: "data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet"
-    partition_keys: ["manifest_fingerprint", "scenario_id"]
-    version: "{manifest_fingerprint}"
-    final_in_segment: false
-```
-
-**Registry entry (sketch):**
-
-* Manifest key: `mlr.5B.model.s1_grouping`
-* Role: `dataset`, `category: model`
-* Depends on:
-
-  * `mlr.5B.control.s0_gate_receipt`
-  * 5A scenario surfaces (for domain discovery)
-  * 2B/3A/3B metadata (for zone/virtual hints, if grouping uses them)
-  * 5B grouping policy config
-
----
-
-### 5.4 Catalogue usage rules
-
-* All discovery of `s1_time_grid_5B` and `s1_grouping_5B` by 5B.S2+ MUST go via `dataset_dictionary.layer2.5B.yaml` and the 5B artefact registry.
-* No alternate paths or naming must be assumed in code.
-* Both datasets MUST be treated as **non-final-in-segment** (they feed into later 5B states and are gated by the final 5B HashGate, not by S1).
-
-With these anchors and catalogue links, S1’s outputs are:
-
-* clearly typed (via `schemas.5B.yaml`),
-* discoverable (via dictionary/registry), and
-* consistent with the identity and partitioning rules already set for 5B and Layer-2.
-
----
-
+With these references, downstream agents can always consult the contract files for exact shapes, while this state spec captures the behavioural guarantees (determinism, dependency boundaries, and identity law).
 ## 6. Deterministic algorithm (RNG-free) *(Binding)*
 
 This section defines the **exact, RNG-free algorithm** for **5B.S1 — Time grid & grouping plan**. For a fixed:

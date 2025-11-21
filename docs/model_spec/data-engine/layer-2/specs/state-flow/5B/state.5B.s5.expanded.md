@@ -440,203 +440,54 @@ No other identity tokens (e.g. `seed`, `scenario_id`, `run_id`) may influence th
 
 ---
 
-## 5. Bundle shapes, schema anchors & catalogue links *(Binding)*
+## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-5.1 **Schema packs used by S5**
-S5 reuses the existing **Layer-2 validation schema pack** and, optionally, the 5B segment pack:
+All validation artefact contracts are defined in:
 
-* **Layer-2 pack (shared)**
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.layer2.yaml (validation schema pack used by 5A/5B)
 
-  * `schemas.layer2.yaml`
-  * MUST define the generic validation shapes for 5B:
+S5 produces four artefacts:
 
-    * `validation_bundle_index_5B`
-    * `validation_report_5B`
-    * `validation_issue_table_5B`
-    * `passed_flag_5B`
+1. `validation_bundle_index_5B` — JSON manifest for the bundle members.
+2. `validation_report_5B` — human/machine readable summary.
+3. `validation_issue_table_5B` — optional structured findings.
+4. `validation_passed_flag_5B` — HashGate flag (`_passed.flag_5B`) covering the bundle.
 
-* **5B segment pack (optional, for extra receipts)**
+### 5.1 `validation_bundle_index_5B`
 
-  * `schemas.5B.yaml`
-  * MAY define 5B-specific validation artefacts such as:
+* **Schema anchor:** `schemas.layer2.yaml#/validation/validation_bundle_index_5B`
+* **Dictionary entry:** `datasets[].id == "validation_bundle_index_5B"`
+* **Registry manifest key:** `mlr.5B.validation.bundle`
 
-    * `validation/s5_receipt_5B` (structured summary of 5B checks for `mf`)
+Binding rules: single JSON object per fingerprint, listing bundle members + SHA-256 digests exactly as described in the schema pack. File lives at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json` and must be sorted according to the Layer-2 HashGate contract.
 
-S5 MUST NOT introduce additional schema packs; any new 5B validation structures must be added to one of the two packs above.
+### 5.2 `validation_report_5B`
 
----
+* **Schema anchor:** `schemas.layer2.yaml#/validation/validation_report_5B`
+* **Dictionary entry:** `datasets[].id == "validation_report_5B"`
+* **Registry manifest key:** `mlr.5B.validation.report`
 
-5.2 **Bundle index schema (required)**
+Binding rules: report contents (metrics, pass/fail reasons) are governed by the shared schema. Any additional fields require a schema bump.
 
-The index of the bundle MUST be anchored at:
+### 5.3 `validation_issue_table_5B`
 
-* `schemas.layer2.yaml#/validation/validation_bundle_index_5B`
+* **Schema anchor:** `schemas.layer2.yaml#/validation/validation_issue_table_5B`
+* **Dictionary entry:** `datasets[].id == "validation_issue_table_5B"`
+* **Registry manifest key:** `mlr.5B.validation.issues`
 
-This anchor MUST define a **strict JSON object** whose role is to:
+Binding rules: optional dataset. When emitted it MUST follow the schema/dictionary exactly; when omitted the bundle index/report remain authoritative.
 
-* list all evidence files included in `validation_bundle_5B` as relative paths (paths are relative to the `fingerprint={mf}` validation directory), and
-* provide, for each file:
+### 5.4 `validation_passed_flag_5B`
 
-  * a logical identifier (e.g. `logical_id` or `role`),
-  * its relative `path`,
-  * its `sha256_hex` digest,
-  * its `schema_ref` (when applicable).
+* **Schema anchor:** `schemas.layer2.yaml#/validation/passed_flag_5B`
+* **Dictionary entry:** `datasets[].id == "validation_passed_flag_5B"`
+* **Registry manifest key:** `mlr.5B.validation.flag`
 
-Constraints:
+Binding rules: JSON object stored at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B`. Its digest must match the bundle index ordering contract. No other format (text, binary) is permitted.
 
-* `columns_strict: true` / strict properties for this schema.
-* The list of entries MUST be sorted in **ASCII-lexicographic order of `path`**; S5’s hash law later depends on this order.
-* `_passed.flag_5B` MUST NOT appear as a member in this index.
-
----
-
-5.3 **Report, issue table & flag schemas**
-
-5.3.1 **Validation report (required)**
-S5 MUST anchor a human/machine-readable report at:
-
-* `schemas.layer2.yaml#/validation/validation_report_5B`
-
-This schema describes a single JSON object that at least records:
-
-* `manifest_fingerprint`
-* `5B_spec_version`
-* summary of check families (S0–S4, RNG, routing, time, counts)
-* overall `status ∈ {"PASS","FAIL"}`
-* high-level metrics (e.g. number of seeds, scenarios, arrivals checked)
-
-5.3.2 **Issue table (optional)**
-If S5 emits a structured issue table, it MUST be anchored at:
-
-* `schemas.layer2.yaml#/validation/validation_issue_table_5B`
-
-This anchor defines a **strict table** (e.g. Parquet) with columns such as:
-
-* `manifest_fingerprint`
-* `check_id`
-* `issue_code`
-* `severity`
-* optional references to `parameter_hash`, `scenario_id`, `seed`, `merchant_id`, `bucket_index`, `site_id`, `edge_id`
-* `details` / `details_json`
-
-If no issues exist, S5 MAY omit this dataset or write an empty table; in both cases the index MUST reflect what was actually written.
-
-5.3.3 **Passed flag schema (required)**
-The `_passed.flag_5B` file MUST conform to:
-
-* `schemas.layer2.yaml#/validation/passed_flag_5B`
-
-This anchor describes a tiny JSON object, for example:
-
-```json
-{
-  "manifest_fingerprint": "<mf>",
-  "bundle_digest_sha256": "<64 lowercase hex chars>"
-}
-```
-
-The `bundle_digest_sha256` value is the digest computed over the bundle contents (hash law defined later). S5 MUST NOT embed any other content or whitespace beyond what the schema permits.
-
-5.3.4 **Optional 5B receipt**
-If implemented, a 5B-specific receipt MUST be anchored at:
-
-* `schemas.5B.yaml#/validation/s5_receipt_5B`
-
-This would typically summarise:
-
-* `manifest_fingerprint`
-* `5B_spec_version`
-* list of seeds / scenarios included
-* pointers (by `logical_id`) to key evidence files in the bundle
-
-It remains purely **informative**; the index + flag are the binding HashGate.
-
----
-
-5.4 **Catalogue entries in `dataset_dictionary.layer2.5B.yaml`**
-
-The Layer-2 dataset dictionary MUST include entries for each S5 artefact:
-
-1. **Bundle index**
-
-   * `id: "validation_bundle_index_5B"`
-   * `owner_layer: 2`
-   * `owner_segment: "5B"`
-   * `schema_ref: "schemas.layer2.yaml#/validation/validation_bundle_index_5B"`
-   * `path: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json"`
-   * `partitioning.keys: ["manifest_fingerprint"]`
-   * `status: "active"`
-   * `final_in_segment: true`
-   * `final_in_layer: true`
-
-2. **Validation report**
-
-   * `id: "validation_report_5B"`
-   * `schema_ref: "schemas.layer2.yaml#/validation/validation_report_5B"`
-   * `path: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json"`
-   * `partitioning.keys: ["manifest_fingerprint"]`
-   * `status: "active"`
-
-3. **Validation issue table`** (if implemented)
-
-   * `id: "validation_issue_table_5B"`
-   * `schema_ref: "schemas.layer2.yaml#/validation/validation_issue_table_5B"`
-   * `path: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet"`
-   * `partitioning.keys: ["manifest_fingerprint"]`
-   * `status: "active"`
-
-4. **Passed flag**
-
-   * `id: "validation_passed_flag_5B"`
-   * `schema_ref: "schemas.layer2.yaml#/validation/passed_flag_5B"`
-   * `path: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B"`
-   * `partitioning.keys: ["manifest_fingerprint"]`
-   * `status: "active"`
-   * `final_in_segment: true`
-   * `final_in_layer: true`
-
-Any optional receipt inside the bundle (e.g. `s5_receipt_5B.json`) SHOULD also have a dictionary entry, but MUST NOT be treated as a separate HashGate.
-
----
-
-5.5 **Artefact registry entries in `artefact_registry_5B.yaml`**
-
-The 5B artefact registry MUST register S5 artefacts with roles and dependencies, for example:
-
-* **`validation_bundle_5B` artefact**
-
-  * `artifact_id: "validation_bundle_5B"`
-  * `role: "validation_bundle"`
-  * `layer: 2`
-  * `segment: "5B"`
-  * `path_template: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/"`
-  * `schema_ref_index: "schemas.layer2.yaml#/validation/validation_bundle_index_5B"`
-  * `depends_on`:
-
-    * all S0–S4 artefacts (gate, grid, intensities, counts, arrivals),
-    * RNG logs for S2–S4,
-    * upstream HashGates (1A–3B, 5A).
-
-* **`validation_passed_flag_5B` artefact**
-
-  * `artifact_id: "validation_passed_flag_5B"`
-  * `role: "hashgate"`
-  * `layer: 2`
-  * `segment: "5B"`
-  * `path_template: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B"`
-  * `schema_ref: "schemas.layer2.yaml#/validation/passed_flag_5B"`
-  * `depends_on: ["validation_bundle_5B"]`
-
-Any optional receipt/report entries inside the bundle MUST be registered with `role: "validation_report"` / `"validation_issue_table"` / `"receipt"` accordingly, but MUST NOT be advertised as HashGates.
-
-Together, these anchors, dictionary entries and registry definitions ensure that:
-
-* the shape of the 5B validation bundle is explicit,
-* the on-disk layout is predictable and fingerprint-scoped, and
-* downstream systems can discover and trust `_passed.flag_5B` via catalogue/registry alone, without hard-coded paths.
-
----
-
+S5 MUST update or regenerate these artefacts together; partial writes violate the HashGate contract. Any changes to their shapes must originate in the schema pack before implementations are updated.
 ## 6. Deterministic algorithm (RNG-free validator & bundler) *(Binding)*
 
 6.1 **High-level phases**

@@ -822,270 +822,29 @@ Within this identity model, 5A.S1’s outputs are fully pinned to the same `(par
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-This section fixes **where** the 5A.S1 outputs live in the schema hierarchy, **what their row shapes are**, and **how the dataset dictionary and artefact registry must refer to them**. All rules here are **binding**.
+Schematics for the S1 outputs live in `schemas.5A.yaml` with matching entries in `dataset_dictionary.layer2.5A.yaml` and `artefact_registry_5A.yaml`. This section recaps roles and obligations without duplicating column lists.
 
-5A.S1 defines:
+Datasets:
 
-* one **required** modelling table: `merchant_zone_profile_5A`, and
-* one **optional** convenience table: `merchant_class_profile_5A`.
+1. `merchant_zone_profile_5A` (required)
+2. `merchant_class_profile_5A` (optional convenience)
 
----
+### 5.1 `merchant_zone_profile_5A`
 
-### 5.1 Schema files and sections
+* **Schema anchor:** `schemas.5A.yaml#/model/merchant_zone_profile_5A`
+* **Dictionary id:** `merchant_zone_profile_5A`
+* **Registry key:** `mlr.5A.model.merchant_zone_profile`
 
-5A.S1 row shapes MUST be defined in the 5A segment schema file:
+Binding notes: deterministic per `(parameter_hash, manifest_fingerprint)`; written at `data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/…` with the PK/order defined in the dictionary. Schema pack governs keys, demand classes, scale factors, and audit fields.
 
-* **File:** `schemas.5A.yaml`
+### 5.2 `merchant_class_profile_5A`
 
-This file MUST contain a top-level object with a `model` section in which the following anchors are defined:
+* **Schema anchor:** `schemas.5A.yaml#/model/merchant_class_profile_5A`
+* **Dictionary id:** `merchant_class_profile_5A`
+* **Registry key:** `mlr.5A.model.merchant_class_profile`
 
-* `schemas.5A.yaml#/model/merchant_zone_profile_5A`
-* `schemas.5A.yaml#/model/merchant_class_profile_5A` *(optional; only if implemented)*
+Binding notes: optional deterministic aggregation derived from the zone profile. When emitted it MUST follow the dictionary path, partitioning and schema. Downstream states MUST continue to rely on the zone-level profile as the authority.
 
-Each anchor MUST describe the row-level schema for the corresponding table, including:
-
-* required columns,
-* data types,
-* nullability,
-* primary-key semantics (expressed either in-schema or via dictionary metadata), and
-* any foreign-key references back to Layer-1 anchors (e.g. `zone_alloc`, merchant reference).
-
-These anchors are the **sole authority** for the shapes of the S1 datasets.
-
----
-
-### 5.2 `merchant_zone_profile_5A` — schema anchor & row shape
-
-**Anchor**
-
-* `schemas.5A.yaml#/model/merchant_zone_profile_5A`
-
-**Type**
-
-* A table-like JSON-Schema describing one row per `(merchant, zone)`.
-
-**Required columns (minimum set)**
-
-The schema MUST define at least the following required, non-nullable fields:
-
-* **Identity / join keys**
-
-  * `merchant_id`
-
-    * Type: integer or string, as defined in Layer-1 (MUST reuse the same `$defs` type, e.g. `id64`).
-  * `legal_country_iso`
-
-    * Type: string, 2-letter ISO; MUST `$ref` the Layer-1 ISO definition (e.g. `schemas.ingress.layer1.yaml#/iso3166_canonical_2024/properties/country_iso`).
-  * `tzid`
-
-    * Type: string; MUST `$ref` the Layer-1 IANA tzid definition (e.g. `schemas.layer1.yaml#/iana_tzid`).
-
-  Together, these three fields define the **zone key** and MUST align with `zone_alloc`’s key for the same fingerprint.
-
-* **Run identity**
-
-  * `manifest_fingerprint`
-
-    * Type: string; MUST match `fingerprint={manifest_fingerprint}` partition token.
-  * `parameter_hash`
-
-    * Type: string; MUST match the run’s parameter pack identity.
-
-* **Classification fields**
-
-  * `demand_class`
-
-    * Type: string enum or constrained string; the set of allowed values MUST be defined by the 5A classing policy, but the schema MUST at least define it as non-nullable string.
-  * Optional but RECOMMENDED:
-
-    * `demand_subclass` — string or nullable.
-    * `profile_id` — string or integer, representing a profile key derived from classing.
-
-* **Scale fields**
-
-  One of the following patterns MUST be used (and the schema MUST make it clear which):
-
-  * **Absolute weekly volume**:
-
-    * `weekly_volume_expected`
-
-      * Type: numeric (e.g. decimal); MUST be ≥ 0.
-
-    (Optionally accompanied by `weekly_volume_unit`, if multiple units are ever allowed, but default behaviour should be “arrivals per 7-day local week.”)
-
-  **or**
-
-  * **Dimensionless scale factor**:
-
-    * `scale_factor`
-
-      * Type: numeric; MUST be ≥ 0.
-      * Interpreted as a multiplicative factor applied to a normalised shape in later states.
-
-  Implementations MAY support both fields, but at least one MUST be present and non-null per row.
-
-* **Flags / attributes (optional but recommended)**
-
-  Optional fields may include:
-
-  * `high_variability_flag` — boolean.
-  * `low_volume_flag` — boolean.
-  * `virtual_preferred_flag` — boolean.
-  * `class_source` — short string indicating which branch of the policy produced this class.
-
-These MAY be nullable, but MUST NOT be required by downstream states unless explicitly documented.
-
-**Key & uniqueness**
-
-The schema MUST be compatible with the dictionary-declared key:
-
-* `primary_key: ["merchant_id","legal_country_iso","tzid"]`
-
-i.e. all three columns are required and non-null.
-
----
-
-### 5.3 `merchant_class_profile_5A` — schema anchor & row shape (optional)
-
-If implemented, the schema anchor MUST be:
-
-* `schemas.5A.yaml#/model/merchant_class_profile_5A`
-
-**Type**
-
-* A table-like JSON-Schema describing **one row per merchant**.
-
-**Required columns (minimum set)**
-
-* `merchant_id`
-
-  * Same type/ref as in `merchant_zone_profile_5A`.
-* `manifest_fingerprint` — string.
-* `parameter_hash` — string.
-
-At least one aggregate classification field, e.g.:
-
-* `primary_demand_class` — string (derived deterministically from `merchant_zone_profile_5A`).
-
-Optional but recommended:
-
-* `classes_seen` — array of strings or a compact encoding of all classes for that merchant.
-* `weekly_volume_total_expected` or `scale_factor_total` — numeric aggregate across zones.
-
-This schema MUST only encode information that can be derived deterministically from `merchant_zone_profile_5A` plus fixed policy; no new fundamental information may appear here.
-
-**Key & uniqueness**
-
-* Compatible with dictionary key:
-  `primary_key: ["merchant_id"]` (per fingerprint).
-
----
-
-### 5.4 Dataset dictionary entries (5A)
-
-The 5A dataset dictionary (e.g. `dataset_dictionary.layer2.5A.yaml`) MUST contain entries for these tables.
-
-#### 5.4.1 `merchant_zone_profile_5A`
-
-Dictionary entry MUST include:
-
-* `id: merchant_zone_profile_5A`
-* `owner_subsegment: "5A"`
-* `schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A`
-* `path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet`
-* `partitioning: ["fingerprint"]`
-* `primary_key: ["merchant_id","legal_country_iso","tzid"]`
-* `status: "required"`
-* `produced_by: ["5A.S1"]`
-* `consumed_by: ["5A.S2","5A.S3","5A.S4","5A.validation_*","5B","6A"]`
-
-Additional fields like `ordering` MAY specify a writer sort (e.g. `["merchant_id","legal_country_iso","tzid"]`) for reproducibility, but are informative.
-
-#### 5.4.2 `merchant_class_profile_5A` (optional)
-
-If materialised, the dictionary entry MUST include:
-
-* `id: merchant_class_profile_5A`
-* `owner_subsegment: "5A"`
-* `schema_ref: schemas.5A.yaml#/model/merchant_class_profile_5A`
-* `path: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet`
-* `partitioning: ["fingerprint"]`
-* `primary_key: ["merchant_id"]`
-* `status: "optional"`
-* `produced_by: ["5A.S1"]`
-* `consumed_by: ["5A.S2","5A.S3","5A.S4","5A.validation_*","5B","6A"]`
-
-Downstream components MUST NOT rely on this dataset unless the spec explicitly says so; they MUST treat it as a convenience surface.
-
----
-
-### 5.5 Artefact registry entries (5A)
-
-The 5A artefact registry (e.g. `artefact_registry_5A.yaml`) MUST register both modelling outputs as manifest-visible artefacts.
-
-#### 5.5.1 `merchant_zone_profile_5A` artefact
-
-Sample registry entry (fields may be named slightly differently, but semantics are binding):
-
-* `artifact_id: "merchant_zone_profile_5A"`
-* `name: "Layer-2 / 5A merchant×zone demand profile"`
-* `type: "dataset"`
-* `category: "model"`
-* `owner_subsegment: "5A"`
-* `manifest_key: "mlr.5A.model.merchant_zone_profile"`
-* `schema: "schemas.5A.yaml#/model/merchant_zone_profile_5A"`
-* `path_template: "data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet"`
-* `partition_keys: ["fingerprint"]`
-* `primary_key: ["merchant_id","legal_country_iso","tzid"]`
-* `produced_by: ["5A.S1"]`
-* `consumed_by: ["5A.S2","5A.S3","5A.S4","5A.validation_*","5B","6A"]`
-* `dependencies:` list, including:
-
-  * `zone_alloc` (3A)
-  * merchant reference surfaces
-  * 5A classing & scale policies
-  * scenario config artefacts
-
-`cross_layer` SHOULD be set to `true`, as this artefact is consumed by other layers.
-
-#### 5.5.2 `merchant_class_profile_5A` artefact (optional)
-
-If present:
-
-* `artifact_id: "merchant_class_profile_5A"`
-* `name: "Layer-2 / 5A merchant-level demand profile"`
-* `type: "dataset"`
-* `category: "model"`
-* `owner_subsegment: "5A"`
-* `manifest_key: "mlr.5A.model.merchant_class_profile"`
-* `schema: "schemas.5A.yaml#/model/merchant_class_profile_5A"`
-* `path_template: "data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet"`
-* `partition_keys: ["fingerprint"]`
-* `primary_key: ["merchant_id"]`
-* `produced_by: ["5A.S1"]`
-* `consumed_by: ["5A.S2","5A.S3","5A.S4","5A.validation_*","5B","6A"]`
-* `dependencies:` SHOULD list `merchant_zone_profile_5A` as a dependency, since it is derived from it.
-
----
-
-### 5.6 Foreign-key & compatibility constraints
-
-Finally, the schemas and dictionary entries MUST encode or be compatible with the following constraints:
-
-* `merchant_zone_profile_5A` rows MUST have a foreign-key relationship to:
-
-  * 3A `zone_alloc` on `(merchant_id, legal_country_iso, tzid, manifest_fingerprint)`, and
-  * merchant reference tables (for `merchant_id`).
-
-* Any additional FKs (e.g. to MCC tables or size-bucket reference) MUST reuse the Layer-1 ingress/Layer-2 ref anchors, not redefine their shapes.
-
-These constraints ensure that S1’s outputs are:
-
-* **schema-governed**,
-* **discoverable** via dictionary & registry, and
-* **cleanly joinable** with Layer-1 and other Layer-2 artefacts, without extra bloat or ambiguity.
-
----
 
 ## 6. Deterministic algorithm (RNG-free) *(Binding)*
 

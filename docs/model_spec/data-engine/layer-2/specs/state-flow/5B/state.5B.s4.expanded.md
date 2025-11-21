@@ -472,172 +472,56 @@ No other S4-owned dataset may be treated as egress for arrivals; any additional 
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-5.1 **Schema packs used by S4**
-S4-owned datasets MUST be described in the following schema packs:
+S4’s egress contracts live in the standard catalogue files:
 
-* **Layer-2 shared pack**
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml
+* docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml
 
-  * `schemas.layer2.yaml` (existing)
-  * Used for **validation artefacts only** (S5).
-  * S4 does **not** introduce new anchors here.
+This section summarises how those contracts are used; it does not restate column-by-column shapes.
 
-* **5B segment pack**
+S4 can emit up to three datasets:
 
-  * `schemas.5B.yaml` (new, binding for Segment 5B).
-  * All S4 data surfaces MUST be anchored under this pack, in the `egress` / `diagnostics` sections as specified below.
+1. `arrival_events_5B` — required canonical arrival stream.
+2. `s4_arrival_summary_5B` — optional per-entity/bucket summaries.
+3. `s4_arrival_anomalies_5B` — optional anomaly/event log.
 
-No additional schema packs may be introduced for S4 without updating this section and the 5B change-control section.
+### 5.1 `arrival_events_5B`
 
----
+* **Schema anchor:** `schemas.5B.yaml#/egress/s4_arrival_events_5B`
+* **Dictionary entry:** `datasets[].id == "arrival_events_5B"`
+* **Registry manifest key:** `mlr.5B.egress.arrival_events`
 
-5.2 **`s4_arrival_events_5B` schema anchor**
+Binding rules:
 
-5.2.1 **Anchor location**
-The arrival event stream MUST be anchored at:
+* Files live under `data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, with partition keys `[seed, fingerprint, scenario_id]`. S4 MUST NOT deviate from this layout.
+* Each row captures one realised arrival “skeleton” (merchant, zone/channel context, UTC/local timestamps, routing info). Column definitions and required orderings are governed by the schema pack; S4 MUST keep them byte-accurate.
+* The registry declares that this surface is final-in-layer and depends on S3 counts, routing metadata, and RNG policies. S4 MUST NOT read additional artefacts that aren’t declared and sealed.
+* Determinism: same `(seed, scenario_id, parameter_hash, manifest_fingerprint)` ⇒ byte-identical arrival stream.
 
-* `schemas.5B.yaml#/egress/s4_arrival_events_5B`
+### 5.2 `s4_arrival_summary_5B`
 
-5.2.2 **Shape (table contract)**
-The anchor `egress/s4_arrival_events_5B` MUST define a **strict table**:
+* **Schema anchor:** `schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B`
+* **Dictionary entry:** `datasets[].id == "s4_arrival_summary_5B"`
+* **Registry manifest key:** `mlr.5B.diagnostics.arrival_summary`
 
-* `type: table`
+Binding rules:
 
-* `columns_strict: true`
+* Optional dataset. When present it MUST follow the dictionary’s partitioning and the schema’s per-bucket metrics. When absent, downstream tooling MUST rely on `arrival_events_5B` alone.
+* Useful for observability pipelines; consumption/retention expectations defined in the registry MUST be honoured.
 
-* `primary_key`: one of:
+### 5.3 `s4_arrival_anomalies_5B`
 
-  * `[manifest_fingerprint, seed, scenario_id, arrival_seq]`, or
-  * `[manifest_fingerprint, seed, scenario_id, arrival_id]`
-    (exact choice fixed when we define the schema; either way, PK MUST uniquely identify each row within `(manifest_fingerprint, seed, scenario_id)`.)
+* **Schema anchor:** `schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B`
+* **Dictionary entry:** `datasets[].id == "s4_arrival_anomalies_5B"`
+* **Registry manifest key:** `mlr.5B.diagnostics.arrival_anomalies`
 
-* `partition_keys`:
+Binding rules:
 
-  * `[seed, manifest_fingerprint, scenario_id]`
+* Optional anomaly log for stress testing. Paths/partitions mirror the summary dataset; key and column semantics live in the schema.
+* Any anomaly codes/enums MUST be defined in the schema pack before use.
 
-* `sort_keys` (writer discipline):
-
-  * Recommended: `[scenario_id, merchant_id, ts_utc, arrival_seq]`
-    (or `[scenario_id, merchant_id, ts_utc, arrival_id]` if using `arrival_id`).
-
-5.2.3 **Column set (minimum)**
-The schema MUST include, at minimum, the following columns and types (references are indicative; exact `$ref` points will be specified in `schemas.5B.yaml`):
-
-* Identity & lineage:
-
-  * `manifest_fingerprint` → `schemas.layer1.yaml#/$defs/manifest_fingerprint`
-  * `parameter_hash` → `schemas.layer1.yaml#/$defs/parameter_hash`
-  * `seed` → `schemas.layer1.yaml#/$defs/seed`
-  * `scenario_id` → layer-2 `$defs/scenario_id` (or equivalent)
-  * `arrival_seq` **or** `arrival_id` → `schemas.layer1.yaml#/$defs/id64`
-
-* Link to S3 / entity context:
-
-  * `bucket_index` → integer (non-negative) referencing `s1_time_grid_5B`
-  * `merchant_id` → `schemas.layer1.yaml#/$defs/id64`
-  * `zone_representation` → enum/string consistent with 5A/5B zone key
-  * optional `channel` → small enum/string, if used in 5A/5B
-
-* Routing fields:
-
-  * `is_virtual` → boolean (required)
-  * `site_id` → `id64`, nullable (MUST be null when `is_virtual = true`)
-  * `edge_id` → `id64`, nullable (MUST be null when `is_virtual = false`)
-  * optional `tz_group_id` → small int / enum if S4 chooses to expose group identity
-  * optional `routing_universe_hash` → hex64, echo of 3A/3B hash for diagnostics
-
-* Time fields:
-
-  * `ts_utc` → RFC3339 with microseconds, e.g. `schemas.layer1.yaml#/$defs/rfc3339_micros`
-  * `tzid_primary` → IANA tzid string (e.g. `schemas.layer1.yaml#/$defs/iana_tzid`)
-  * `ts_local_primary` → RFC3339 timestamp consistent with `tzid_primary`
-  * Optional secondary local views (for virtual dual-clock scenarios), e.g.:
-
-    * `tzid_settlement`, `ts_local_settlement`
-    * `tzid_operational`, `ts_local_operational`
-
-* Optional intensity / provenance:
-
-  * optional `lambda_realised` → non-negative decimal (copy from S2/S3)
-  * optional `latent_group_id` / `field_id` if you want to trace back to S2
-
-Any additional columns MUST be explicitly added to the anchor and documented as either required or optional; consumers MUST NOT assume the presence of columns not declared here.
-
----
-
-5.3 **Optional diagnostics schema anchors**
-
-If S4 chooses to emit diagnostics, they MUST be anchored under:
-
-* `schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B`
-* `schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B`
-
-with the following constraints:
-
-* Both are `type: table`, `columns_strict: true`.
-* They MUST be **derivable** from `s4_arrival_events_5B` and upstream datasets; they MUST NOT contain new “authoritative” facts.
-
-Indicative shapes (to be finalised when/if used):
-
-* `s4_arrival_summary_5B`:
-
-  * PK: `[manifest_fingerprint, seed, scenario_id, merchant_id, zone_representation, bucket_index]`
-  * Columns: aggregated counts, physical vs virtual split, simple timing stats.
-
-* `s4_arrival_anomalies_5B`:
-
-  * PK: `[manifest_fingerprint, seed, scenario_id, anomaly_id]`
-  * Columns: `anomaly_code`, `severity`, optional references to merchant / bucket / site / edge, plus free-text `details`.
-
-If these diagnostics are not implemented, the corresponding anchors MUST NOT appear in the dictionary/registry.
-
----
-
-5.4 **Catalogue entries in `dataset_dictionary.layer2.5B.yaml`**
-
-The Layer-2 dataset dictionary MUST contain entries for all S4 datasets.
-
-For `s4_arrival_events_5B`, the dictionary entry MUST include:
-
-* `id: "arrival_events_5B"`
-* `owner_layer: 2`
-* `owner_segment: "5B"`
-* `status: "active"`
-* `schema_ref: "schemas.5B.yaml#/egress/s4_arrival_events_5B"`
-* `path: "data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet"`
-* `partitioning.keys: ["seed", "manifest_fingerprint", "scenario_id"]`
-* `ordering.keys`: as per §5.2.2 (`scenario_id, merchant_id, ts_utc, arrival_seq` or equivalent)
-* `final_in_segment: true`
-* `final_in_layer: true` (unless Layer-2 gains later segments that also output arrivals)
-* `consumed_by`: `["6A", "6B", "enterprise_ingestion"]` (or equivalent logical consumers)
-* `produced_by`: `["5B.S4"]`
-
-For any diagnostics datasets (if implemented), the dictionary entries MUST:
-
-* set `final_in_segment: false`, `final_in_layer: false`,
-* set `consumed_by` only to validation/observability components, not Layer-3 core.
-
----
-
-5.5 **Artefact registry entries for S4 outputs**
-
-`artefact_registry_5B.yaml` MUST register S4 datasets as 5B-owned artefacts, with:
-
-* `artifact_id` values aligned to dictionary IDs (e.g. `"arrival_events_5B"`).
-* `role`:
-
-  * `role: "egress"` for `arrival_events_5B`,
-  * `role: "diagnostic"` for summaries/anomalies.
-* `version_semver` / `spec_version` fields referencing the 5B spec version that defined the current schema.
-* `dependencies` listing:
-
-  * 5B states S0–S3 (`s0_gate_receipt_5B`, `s1_time_grid_5B`, `s1_grouping_5B`, `s2_realised_intensity_5B`, `s3_bucket_counts_5B`),
-  * upstream segments’ egress and policies (1B, 2A, 2B, 3A, 3B, 5A),
-  * 5B RNG policy artefacts used by S4.
-
-The registry MUST NOT list any additional S4 data surfaces beyond those declared here (and explicitly added later), ensuring that `s4_arrival_events_5B` remains the single authoritative arrival dataset for Segment 5B.
-
----
-
+All future changes to these artefacts MUST begin with the schema/dictionary/registry so that this spec never diverges from the authoritative contracts.
 ## 6. Deterministic algorithm (with RNG — micro-time & routing) *(Binding)*
 
 6.1 **Domain and iteration order**
