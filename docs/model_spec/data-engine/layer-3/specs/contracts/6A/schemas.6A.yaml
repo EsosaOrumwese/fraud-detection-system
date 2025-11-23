@@ -1,16 +1,118 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$comment: |
-  Template schema pack for Layer-3 Segment 6A.
-  Keep the structure aligned with Layer-1 packs: define one object per dataset under $defs.
-$defs:
-  placeholder_dataset:
-    type: array
-    description: "Placeholder dataset schema for Segment 6A."
-    items:
+$id: schemas.6A.yaml
+title: "Layer-3 / Segment 6A — business dataset schemas"
+description: >-
+  Anchors for the Layer-3 / Segment 6A business datasets. Each anchor is a
+  placeholder; implementation work will extend these schema nodes with the
+  concrete field definitions derived from the state specs.
+type: object
+additionalProperties: false
+
+s1:
+  description: "State 6A.S1 outputs"
+  additionalProperties: false
+  properties:
+    party_base:
+      $id: "#/s1/party_base"
       type: object
-      additionalProperties: false
-      required: [placeholder_field]
-      properties:
-        placeholder_field:
-          type: string
-          description: "Replace with real fields when Segment 6A is implemented."
+      description: "Party/customer base row for 6A"
+    party_summary:
+      $id: "#/s1/party_summary"
+      type: object
+      description: "Party-level diagnostic summary row (optional)"
+
+s2:
+  description: "State 6A.S2 outputs"
+  additionalProperties: false
+  properties:
+    account_base:
+      $id: "#/s2/account_base"
+      type: object
+      description: "Account/product base row"
+    party_product_holdings:
+      $id: "#/s2/party_product_holdings"
+      type: object
+      description: "Per-party holdings row"
+    merchant_account_base:
+      $id: "#/s2/merchant_account_base"
+      type: object
+      description: "Merchant-account subset (optional)"
+    account_summary:
+      $id: "#/s2/account_summary"
+      type: object
+      description: "Account summary / diagnostics (optional)"
+
+s3:
+  description: "State 6A.S3 outputs"
+  additionalProperties: false
+  properties:
+    instrument_base:
+      $id: "#/s3/instrument_base"
+      type: object
+      description: "Instrument/payment-credential base row"
+    account_instrument_links:
+      $id: "#/s3/account_instrument_links"
+      type: object
+      description: "Per-account instrument linkage row"
+    party_instrument_holdings:
+      $id: "#/s3/party_instrument_holdings"
+      type: object
+      description: "Per-party instrument holdings row (optional)"
+    instrument_summary:
+      $id: "#/s3/instrument_summary"
+      type: object
+      description: "Instrument diagnostics row (optional)"
+
+s4:
+  description: "State 6A.S4 outputs"
+  additionalProperties: false
+  properties:
+    device_base:
+      $id: "#/s4/device_base"
+      type: object
+      description: "Device base row"
+    ip_base:
+      $id: "#/s4/ip_base"
+      type: object
+      description: "IP/endpoint base row"
+    device_links:
+      $id: "#/s4/device_links"
+      type: object
+      description: "Device-to-entity edge row"
+    ip_links:
+      $id: "#/s4/ip_links"
+      type: object
+      description: "IP-to-entity edge row"
+    entity_neighbourhoods:
+      $id: "#/s4/entity_neighbourhoods"
+      type: object
+      description: "Per-entity graph neighbourhood row (optional)"
+    network_summary:
+      $id: "#/s4/network_summary"
+      type: object
+      description: "Graph diagnostics row (optional)"
+
+s5:
+  description: "State 6A.S5 outputs"
+  additionalProperties: false
+  properties:
+    party_fraud_roles:
+      $id: "#/s5/party_fraud_roles"
+      type: object
+      description: "Fraud posture row for a party"
+    account_fraud_roles:
+      $id: "#/s5/account_fraud_roles"
+      type: object
+      description: "Fraud posture row for an account"
+    merchant_fraud_roles:
+      $id: "#/s5/merchant_fraud_roles"
+      type: object
+      description: "Fraud posture row for a merchant"
+    device_fraud_roles:
+      $id: "#/s5/device_fraud_roles"
+      type: object
+      description: "Fraud posture row for a device"
+    ip_fraud_roles:
+      $id: "#/s5/ip_fraud_roles"
+      type: object
+      description: "Fraud posture row for an IP"

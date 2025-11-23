@@ -1,19 +1,431 @@
-# artefact_registry_6A.yaml — template placeholder (structure matches Layer-1 registries)
-artefacts:
-  - manifest_key: tbd.layer3.6A.placeholder
-    name: Segment 6A Placeholder Artefact
-    subsegment: 6A
-    type: dataset
-    category: planning
-    path: TBD
-    schema: TBD
-    semver: '0.0.0'
-    version: TBD
-    digest: TBD
-    dependencies: []
-    source: internal
-    owner: { team: TBD }
-    last_updated:
-    environment: [planning]
-    cross_layer: false
-    notes: Placeholder entry; replace with real artefact once Segment 6A is defined.
+# Artefact registry for Layer-3 / Segment 6A
+
+# --- S0 ---
+
+- manifest_key: engine.layer3.6A.s0_gate_receipt
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s0_gate_receipt_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A
+  produced_by: 6A.S0
+  dependencies:
+    - engine.layer1.1A.validation_bundle
+    - engine.layer1.1B.validation_bundle
+    - engine.layer1.2A.validation_bundle
+    - engine.layer1.2B.validation_bundle
+    - engine.layer1.3A.validation_bundle
+    - engine.layer1.3B.validation_bundle
+    - engine.layer2.5A.validation_bundle
+    - engine.layer2.5B.validation_bundle
+    - engine.layer3.6A.contracts       # schemas/dictionary/registry/prior packs
+  retention_class: engine_control_plane
+  pii_class: none
+
+- manifest_key: engine.layer3.6A.sealed_inputs
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: sealed_inputs_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
+  produced_by: 6A.S0
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.contracts
+    - engine.layer1.*.egress
+    - engine.layer2.*.egress
+  retention_class: engine_control_plane
+  pii_class: none
+
+# --- S1 ---
+
+- manifest_key: engine.layer3.6A.s1.party_base
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s1_party_base_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/s1_party_base_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s1/party_base
+  produced_by: 6A.S1
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.sealed_inputs
+    - engine.layer3.6A.prior.population
+    - engine.layer3.6A.prior.segmentation
+    - engine.layer3.6A.taxonomy.party
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s1.party_summary
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s1_party_summary_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s1_party_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/s1_party_summary_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s1/party_summary
+  produced_by: 6A.S1
+  dependencies:
+    - engine.layer3.6A.s1.party_base
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+# --- S2 ---
+
+- manifest_key: engine.layer3.6A.s2.account_base
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s2_account_base_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/s2_account_base_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s2/account_base
+  produced_by: 6A.S2
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.sealed_inputs
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.prior.product_mix
+    - engine.layer3.6A.prior.account_per_party
+    - engine.layer3.6A.taxonomy.account_types
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s2.party_product_holdings
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s2_party_product_holdings_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s2_party_product_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/s2_party_product_holdings_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s2/party_product_holdings
+  produced_by: 6A.S2
+  dependencies:
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s2.account_base
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s2.merchant_account_base
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s2_merchant_account_base_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/s2_merchant_account_base_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s2/merchant_account_base
+  produced_by: 6A.S2
+  dependencies:
+    - engine.layer3.6A.s2.account_base
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s2.account_summary
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s2_account_summary_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s2_account_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/s2_account_summary_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s2/account_summary
+  produced_by: 6A.S2
+  dependencies:
+    - engine.layer3.6A.s2.account_base
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+# --- S3 ---
+
+- manifest_key: engine.layer3.6A.s3.instrument_base
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s3_instrument_base_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/s3_instrument_base_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s3/instrument_base
+  produced_by: 6A.S3
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.sealed_inputs
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s2.account_base
+    - engine.layer3.6A.prior.instrument_mix
+    - engine.layer3.6A.prior.instrument_per_account
+    - engine.layer3.6A.taxonomy.instrument_types
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s3.account_instrument_links
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s3_account_instrument_links_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/s3_account_instrument_links_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s3/account_instrument_links
+  produced_by: 6A.S3
+  dependencies:
+    - engine.layer3.6A.s2.account_base
+    - engine.layer3.6A.s3.instrument_base
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s3.party_instrument_holdings
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s3_party_instrument_holdings_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/s3_party_instrument_holdings_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s3/party_instrument_holdings
+  produced_by: 6A.S3
+  dependencies:
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s2.account_base
+    - engine.layer3.6A.s3.instrument_base
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s3.instrument_summary
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s3_instrument_summary_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s3_instrument_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/s3_instrument_summary_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s3/instrument_summary
+  produced_by: 6A.S3
+  dependencies:
+    - engine.layer3.6A.s3.instrument_base
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+# --- S4 ---
+
+- manifest_key: engine.layer3.6A.s4.device_base
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s4_device_base_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/s4_device_base_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s4/device_base
+  produced_by: 6A.S4
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.sealed_inputs
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.prior.device_counts
+    - engine.layer3.6A.taxonomy.devices
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s4.ip_base
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s4_ip_base_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/s4_ip_base_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s4/ip_base
+  produced_by: 6A.S4
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.sealed_inputs
+    - engine.layer3.6A.prior.ip_counts
+    - engine.layer3.6A.taxonomy.ips
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s4.device_links
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s4_device_links_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/s4_device_links_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s4/device_links
+  produced_by: 6A.S4
+  dependencies:
+    - engine.layer3.6A.s4.device_base
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s2.account_base
+    - engine.layer3.6A.s3.instrument_base
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s4.ip_links
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s4_ip_links_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s4_ip_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/s4_ip_links_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s4/ip_links
+  produced_by: 6A.S4
+  dependencies:
+    - engine.layer3.6A.s4.ip_base
+    - engine.layer3.6A.s4.device_base
+    - engine.layer3.6A.s1.party_base
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s4.entity_neighbourhoods
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s4_entity_neighbourhoods_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/fingerprint={manifest_fingerprint}/s4_entity_neighbourhoods_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s4/entity_neighbourhoods
+  produced_by: 6A.S4
+  dependencies:
+    - engine.layer3.6A.s4.device_base
+    - engine.layer3.6A.s4.ip_base
+    - engine.layer3.6A.s4.device_links
+    - engine.layer3.6A.s4.ip_links
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s4.network_summary
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s4_network_summary_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s4_network_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/s4_network_summary_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s4/network_summary
+  produced_by: 6A.S4
+  dependencies:
+    - engine.layer3.6A.s4.device_base
+    - engine.layer3.6A.s4.ip_base
+    - engine.layer3.6A.s4.device_links
+    - engine.layer3.6A.s4.ip_links
+  retention_class: diagnostics
+  pii_class: none
+
+# --- S5 fraud roles ---
+
+- manifest_key: engine.layer3.6A.s5.party_fraud_roles
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s5_party_fraud_roles_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s5/party_fraud_roles
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.sealed_inputs
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s5.prior.party_roles
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s5.account_fraud_roles
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s5_account_fraud_roles_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/s5_account_fraud_roles_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s5/account_fraud_roles
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer3.6A.s2.account_base
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s5.prior.account_roles
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s5.merchant_fraud_roles
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s5_merchant_fraud_roles_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s5_merchant_fraud_roles_6A/fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
+  partition_keys: [fingerprint]
+  schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer1.1A.merchant_catalogue
+    - engine.layer3.6A.s5.prior.merchant_roles
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s5.device_fraud_roles
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s5_device_fraud_roles_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/s5_device_fraud_roles_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s5/device_fraud_roles
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer3.6A.s4.device_base
+    - engine.layer3.6A.s5.prior.device_roles
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: engine.layer3.6A.s5.ip_fraud_roles
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: s5_ip_fraud_roles_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/s5_ip_fraud_roles_6A.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6A.yaml#/s5/ip_fraud_roles
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer3.6A.s4.ip_base
+    - engine.layer3.6A.s5.prior.ip_roles
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+# --- S5 validation & HashGate ---
+
+- manifest_key: engine.layer3.6A.validation.bundle_6A
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: validation_bundle_index_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/validation/validation_bundle_index_6A
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer3.6A.s0_gate_receipt
+    - engine.layer3.6A.s1.party_base
+    - engine.layer3.6A.s2.account_base
+    - engine.layer3.6A.s3.instrument_base
+    - engine.layer3.6A.s4.device_base
+    - engine.layer3.6A.s4.ip_base
+    - engine.layer3.6A.s5.party_fraud_roles
+    - engine.layer3.6A.s5.account_fraud_roles
+    - engine.layer3.6A.s5.merchant_fraud_roles
+    - engine.layer3.6A.s5.device_fraud_roles
+    - engine.layer3.6A.s5.ip_fraud_roles
+  retention_class: engine_control_plane
+  pii_class: none
+
+- manifest_key: engine.layer3.6A.validation.passed_flag_6A
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: validation_passed_flag_6A
+  semver: 1.0.0
+  path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/validation/passed_flag_6A
+  produced_by: 6A.S5
+  dependencies:
+    - engine.layer3.6A.validation.bundle_6A
+  retention_class: engine_control_plane
+  pii_class: none
