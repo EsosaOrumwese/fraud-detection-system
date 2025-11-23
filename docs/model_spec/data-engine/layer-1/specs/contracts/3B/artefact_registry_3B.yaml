@@ -802,7 +802,7 @@ subsegments:
         digest: "{git_tree_hash}"
         manifest_key: mlr.3B.code.edge_sampler
         license: "{spdx_or_internal}"
-        role: Fenwick sampler building edge_catalogue parquet.
+        role: Builds edge_catalogue parquet using deterministic weighted routing law.
         dependencies: [ hrsl_raster ]
         source: internal
         owner: { engineering_team }
