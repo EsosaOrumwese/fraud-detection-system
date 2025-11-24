@@ -139,7 +139,7 @@
   description: >
     Catalogue of realised fraud/abuse campaigns with campaign_id, fraud_type,
     parameters and the flows affected.
-  version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+  version: '{seed}.{manifest_fingerprint}'
   format: parquet
   path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
   partitioning: [seed, fingerprint]
@@ -266,7 +266,7 @@
 - id: s4_case_timeline_6B
   owner_layer: 3
   owner_segment: 6B
-  status: optional
+  status: required
   description: >
     Case timeline events for flows promoted to manual review or automated cases.
   version: '{seed}.{manifest_fingerprint}'
@@ -277,8 +277,8 @@
     - seed
     - manifest_fingerprint
     - case_id
-    - timeline_seq
-  ordering: [case_id, timeline_seq]
+    - case_event_seq
+  ordering: [case_id, case_event_seq]
   schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
   lineage:
     produced_by: [ '6B.S4' ]
