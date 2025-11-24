@@ -1,16 +1,72 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$comment: |
-  Template schema pack for Layer-3 Segment 6B.
-  Keep the structure aligned with Layer-1 packs: define one object per dataset under $defs.
-$defs:
-  placeholder_dataset:
-    type: array
-    description: "Placeholder dataset schema for Segment 6B."
-    items:
+$id: schemas.6B.yaml
+title: "Layer-3 / Segment 6B — business dataset schemas"
+description: >-
+  Anchors for the Layer-3 / Segment 6B business datasets (S1–S4). Each anchor
+  will be fleshed out with concrete properties as implementation proceeds.
+type: object
+additionalProperties: false
+
+s1:
+  description: "State 6B.S1 outputs"
+  additionalProperties: false
+  properties:
+    arrival_entities_6B:
+      $id: "#/s1/arrival_entities_6B"
       type: object
-      additionalProperties: false
-      required: [placeholder_field]
-      properties:
-        placeholder_field:
-          type: string
-          description: "Replace with real fields when Segment 6B is implemented."
+      description: "Row in s1_arrival_entities_6B (arrival enriched with session + entity attachments)."
+    session_index_6B:
+      $id: "#/s1/session_index_6B"
+      type: object
+      description: "Row in s1_session_index_6B (one session entry with participants and anchor metadata)."
+
+s2:
+  description: "State 6B.S2 outputs"
+  additionalProperties: false
+  properties:
+    flow_anchor_baseline_6B:
+      $id: "#/s2/flow_anchor_baseline_6B"
+      type: object
+      description: "Baseline (all-legit) flow/transaction anchor row."
+    event_stream_baseline_6B:
+      $id: "#/s2/event_stream_baseline_6B"
+      type: object
+      description: "Baseline event stream row for authorisation/clearing/refund events."
+
+s3:
+  description: "State 6B.S3 outputs"
+  additionalProperties: false
+  properties:
+    campaign_catalogue_6B:
+      $id: "#/s3/campaign_catalogue_6B"
+      type: object
+      description: "Fraud/abuse campaign catalogue row."
+    flow_anchor_with_fraud_6B:
+      $id: "#/s3/flow_anchor_with_fraud_6B"
+      type: object
+      description: "Flow anchor row after fraud overlays have been applied."
+    event_stream_with_fraud_6B:
+      $id: "#/s3/event_stream_with_fraud_6B"
+      type: object
+      description: "Event stream row with injected fraud behaviours."
+
+s4:
+  description: "State 6B.S4 outputs"
+  additionalProperties: false
+  properties:
+    flow_truth_labels_6B:
+      $id: "#/s4/flow_truth_labels_6B"
+      type: object
+      description: "Flow-level ground truth row."
+    flow_bank_view_6B:
+      $id: "#/s4/flow_bank_view_6B"
+      type: object
+      description: "Flow view as seen by the bank/institution."
+    event_labels_6B:
+      $id: "#/s4/event_labels_6B"
+      type: object
+      description: "Event-level truth/bank view labels."
+    case_timeline_6B:
+      $id: "#/s4/case_timeline_6B"
+      type: object
+      description: "Timeline of case events produced during adjudication."

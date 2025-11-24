@@ -1,19 +1,267 @@
-# artefact_registry_6B.yaml — template placeholder (structure matches Layer-1 registries)
-artefacts:
-  - manifest_key: tbd.layer3.6B.placeholder
-    name: Segment 6B Placeholder Artefact
-    subsegment: 6B
-    type: dataset
-    category: planning
-    path: TBD
-    schema: TBD
-    semver: '0.0.0'
-    version: TBD
-    digest: TBD
-    dependencies: []
-    source: internal
-    owner: { team: TBD }
-    last_updated:
-    environment: [planning]
-    cross_layer: false
-    notes: Placeholder entry; replace with real artefact once Segment 6B is defined.
+# Artefact registry for Layer-3 / Segment 6B
+
+# --- S0 ---
+
+- manifest_key: s0_gate_receipt_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s0_gate_receipt_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
+  produced_by: 6B.S0
+  dependencies:
+    - sealed_inputs_6B
+    - contracts_6B
+    - upstream_validation_bundles
+  retention_class: engine_control_plane
+  pii_class: none
+
+- manifest_key: sealed_inputs_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: sealed_inputs_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
+  produced_by: 6B.S0
+  dependencies:
+    - s0_gate_receipt_6B
+    - contracts_6B
+  retention_class: engine_control_plane
+  pii_class: none
+
+# --- S1 ---
+
+- manifest_key: s1_arrival_entities_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s1_arrival_entities_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s1/arrival_entities_6B
+  produced_by: 6B.S1
+  dependencies:
+    - sealed_inputs_6B
+    - s0_gate_receipt_6B
+    - upstream.arrival_entities
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: s1_session_index_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s1_session_index_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s1/session_index_6B
+  produced_by: 6B.S1
+  dependencies:
+    - s1_arrival_entities_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+# --- S2 ---
+
+- manifest_key: s2_flow_anchor_baseline_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s2_flow_anchor_baseline_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s2/flow_anchor_baseline_6B
+  produced_by: 6B.S2
+  dependencies:
+    - s1_arrival_entities_6B
+    - s1_session_index_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: s2_event_stream_baseline_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s2_event_stream_baseline_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s2/event_stream_baseline_6B
+  produced_by: 6B.S2
+  dependencies:
+    - s2_flow_anchor_baseline_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+# --- S3 ---
+
+- manifest_key: s3_campaign_catalogue_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s3_campaign_catalogue_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
+  produced_by: 6B.S3
+  dependencies:
+    - s2_flow_anchor_baseline_6B
+    - s2_event_stream_baseline_6B
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+- manifest_key: s3_flow_anchor_with_fraud_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s3_flow_anchor_with_fraud_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
+  produced_by: 6B.S3
+  dependencies:
+    - s2_flow_anchor_baseline_6B
+    - s3_campaign_catalogue_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: s3_event_stream_with_fraud_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s3_event_stream_with_fraud_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
+  produced_by: 6B.S3
+  dependencies:
+    - s2_event_stream_baseline_6B
+    - s3_flow_anchor_with_fraud_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+# --- S4 ---
+
+- manifest_key: s4_flow_truth_labels_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s4_flow_truth_labels_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s4/flow_truth_labels_6B
+  produced_by: 6B.S4
+  dependencies:
+    - s3_flow_anchor_with_fraud_6B
+    - s3_event_stream_with_fraud_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: s4_flow_bank_view_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s4_flow_bank_view_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s4/flow_bank_view_6B
+  produced_by: 6B.S4
+  dependencies:
+    - s3_flow_anchor_with_fraud_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: s4_event_labels_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s4_event_labels_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
+  schema_ref: schemas.6B.yaml#/s4/event_labels_6B
+  produced_by: 6B.S4
+  dependencies:
+    - s3_event_stream_with_fraud_6B
+  retention_class: core_entity
+  pii_class: synthetic_customer
+
+- manifest_key: s4_case_timeline_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s4_case_timeline_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
+  partition_keys: [seed, fingerprint]
+  schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
+  produced_by: 6B.S4
+  dependencies:
+    - s4_flow_truth_labels_6B
+    - s4_flow_bank_view_6B
+    - s4_event_labels_6B
+  retention_class: diagnostics
+  pii_class: synthetic_customer
+
+# --- S5 ---
+
+- manifest_key: s5_validation_report_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s5_validation_report_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/validation/6B/s5_validation_report
+  produced_by: 6B.S5
+  dependencies:
+    - s4_flow_truth_labels_6B
+    - s4_flow_bank_view_6B
+    - s4_event_labels_6B
+    - s4_case_timeline_6B
+  retention_class: engine_control_plane
+  pii_class: none
+
+- manifest_key: s5_issue_table_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: s5_issue_table_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
+  produced_by: 6B.S5
+  dependencies:
+    - s5_validation_report_6B
+  retention_class: engine_control_plane
+  pii_class: none
+
+- manifest_key: validation_bundle_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: validation_bundle_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
+  produced_by: 6B.S5
+  dependencies:
+    - s5_validation_report_6B
+    - s5_issue_table_6B
+  retention_class: engine_control_plane
+  pii_class: none
+
+- manifest_key: validation_passed_flag_6B
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: validation_passed_flag_6B
+  semver: 1.0.0
+  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+  partition_keys: [fingerprint]
+  schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
+  produced_by: 6B.S5
+  dependencies:
+    - validation_bundle_6B
+  retention_class: engine_control_plane
+  pii_class: none
