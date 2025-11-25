@@ -320,7 +320,7 @@
     - check_id
     - issue_id
   ordering: [manifest_fingerprint, check_id, issue_id]
-  schema_ref: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
+  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
   lineage:
     produced_by: [ '6B.S5' ]
     consumed_by: [ '6B.S5_bundle', 'ops_tooling' ]

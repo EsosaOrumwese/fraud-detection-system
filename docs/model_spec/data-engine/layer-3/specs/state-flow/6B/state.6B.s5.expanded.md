@@ -937,7 +937,7 @@ schemas.layer3.yaml#/validation/6B/s5_validation_report
 * Issue table:
 
 ```text
-schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
+schemas.layer3.yaml#/validation/6B/s5_issue_table
 ```
 
 * Bundle index:
@@ -1044,7 +1044,7 @@ Optional fields MAY include `generated_at_utc`, tool version, or extra metadata,
 
 #### 5.3.1 Row model
 
-`schemas.layer3.yaml#/validation/6B/validation_issue_table_6B` MUST define a tabular schema with one row per issue.
+`schemas.layer3.yaml#/validation/6B/s5_issue_table` MUST define a tabular schema with one row per issue.
 
 Required fields (minimum):
 
@@ -1098,7 +1098,7 @@ In `dataset_dictionary.layer3.6B.yaml`:
   partitioning: [fingerprint]
   primary_key: [manifest_fingerprint, check_id, issue_id]
   ordering: [manifest_fingerprint, check_id, issue_id]
-  schema_ref: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
+  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
   produced_by: [6B.S5]
   consumed_by: [6B.S5_bundle, ops_tooling]
 ```
@@ -1114,7 +1114,7 @@ In `artefact_registry_6B.yaml`:
   environment: engine
   owner_layer: 3
   owner_segment: 6B
-  schema: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
+  schema: schemas.layer3.yaml#/validation/6B/s5_issue_table
   path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
   partitioning: [fingerprint]
   final_in_layer: true
@@ -3162,7 +3162,7 @@ S5 participates in the following version tracks:
    * `schemas.layer3.yaml`, containing S5 anchors:
 
      * `#/validation/6B/s5_validation_report`
-    * `#/validation/6B/validation_issue_table_6B`
+    * `#/validation/6B/s5_issue_table`
      * `#/validation/6B/validation_bundle_index_6B`
      * `#/validation/6B/passed_flag_6B`
    * Optionally `schemas.6B.yaml` if any S5-specific shapes live there instead.
