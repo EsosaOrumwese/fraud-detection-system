@@ -563,7 +563,7 @@ S1 MUST adopt and extend the **arrival identity** from 5B, not invent a new one.
 
   * `seed`, `manifest_fingerprint`, `scenario_id`, `merchant_id`, `arrival_seq` are exactly as defined in `arrival_events_5B`.
 
-* All columns required by `schemas.5B.yaml#/model/arrival_events_5B` that carry arrival identity and routing MUST be present and unchanged (S1 only adds columns, it does not modify 5B’s fields).
+* All columns required by `schemas.5B.yaml#/egress/s4_arrival_events_5B` that carry arrival identity and routing MUST be present and unchanged (S1 only adds columns, it does not modify 5B’s fields).
 
 The writer ordering MUST be:
 
@@ -772,7 +772,7 @@ These anchors are binding:
 
     ```json
     { "allOf": [
-      { "$ref": "schemas.5B.yaml#/s4/arrival_events_5B_core" },
+      { "$ref": "schemas.5B.yaml#/egress/s4_arrival_events_5B" },
       { "type": "object", "properties": { ... S1 additions ... } }
     ]}
     ```

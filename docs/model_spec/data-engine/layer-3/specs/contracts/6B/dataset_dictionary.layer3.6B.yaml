@@ -55,8 +55,9 @@
     - seed
     - manifest_fingerprint
     - scenario_id
-    - arrival_id
-  ordering: [scenario_id, arrival_id]
+    - merchant_id
+    - arrival_seq
+  ordering: [seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
   schema_ref: schemas.6B.yaml#/s1/arrival_entities_6B
   lineage:
     produced_by: [ '6B.S1' ]
@@ -78,7 +79,7 @@
     - manifest_fingerprint
     - scenario_id
     - session_id
-  ordering: [scenario_id, session_id]
+  ordering: [seed, manifest_fingerprint, scenario_id, session_id]
   schema_ref: schemas.6B.yaml#/s1/session_index_6B
   lineage:
     produced_by: [ '6B.S1' ]
@@ -102,7 +103,7 @@
     - manifest_fingerprint
     - scenario_id
     - flow_id
-  ordering: [scenario_id, flow_id]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
   schema_ref: schemas.6B.yaml#/s2/flow_anchor_baseline_6B
   lineage:
     produced_by: [ '6B.S2' ]
@@ -124,7 +125,7 @@
     - scenario_id
     - flow_id
     - event_seq
-  ordering: [scenario_id, flow_id, event_seq]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
   schema_ref: schemas.6B.yaml#/s2/event_stream_baseline_6B
   lineage:
     produced_by: [ '6B.S2' ]
@@ -168,7 +169,7 @@
     - manifest_fingerprint
     - scenario_id
     - flow_id
-  ordering: [scenario_id, flow_id]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
   schema_ref: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
   lineage:
     produced_by: [ '6B.S3' ]
@@ -191,7 +192,7 @@
     - scenario_id
     - flow_id
     - event_seq
-  ordering: [scenario_id, flow_id, event_seq]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
   schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
   lineage:
     produced_by: [ '6B.S3' ]
@@ -214,7 +215,7 @@
     - manifest_fingerprint
     - scenario_id
     - flow_id
-  ordering: [scenario_id, flow_id]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
   schema_ref: schemas.6B.yaml#/s4/flow_truth_labels_6B
   lineage:
     produced_by: [ '6B.S4' ]
@@ -235,7 +236,7 @@
     - manifest_fingerprint
     - scenario_id
     - flow_id
-  ordering: [scenario_id, flow_id]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
   schema_ref: schemas.6B.yaml#/s4/flow_bank_view_6B
   lineage:
     produced_by: [ '6B.S4' ]
@@ -257,7 +258,7 @@
     - scenario_id
     - flow_id
     - event_seq
-  ordering: [scenario_id, flow_id, event_seq]
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
   schema_ref: schemas.6B.yaml#/s4/event_labels_6B
   lineage:
     produced_by: [ '6B.S4' ]
