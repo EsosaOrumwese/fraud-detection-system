@@ -919,12 +919,12 @@ data/layer3/6A/validation/fingerprint={manifest_fingerprint}/...
 
   * `spec_version_6A` / S5 version fields
 
-  * `checks`: an array or map of:
+* `checks`: an array or map of:
 
     * `check_id`,
     * `check_description` (short text),
     * `severity ∈ {BLOCKING, WARN, INFO}`,
-    * `status ∈ {PASS, FAIL, WARN}` (or compatible encoding),
+    * `result ∈ {PASS, WARN, FAIL}`,
     * optional metrics per check (counts, ratios, tolerances, etc.).
 
   * `overall_status ∈ {PASS, FAIL, WARN}` — with `PASS` meaning “eligible for `_passed.flag_6A`” per S5 policy.
