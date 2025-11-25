@@ -319,8 +319,8 @@
     - manifest_fingerprint
     - check_id
     - issue_id
-  ordering: [check_id, issue_id]
-  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
+  ordering: [manifest_fingerprint, check_id, issue_id]
+  schema_ref: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
   lineage:
     produced_by: [ '6B.S5' ]
     consumed_by: [ '6B.S5_bundle', 'ops_tooling' ]
@@ -333,7 +333,7 @@
     World-level validation bundle for Segment 6B; directory of validation artefacts
     plus index.json and _passed.flag_6B.
   version: '{manifest_fingerprint}'
-  format: bundle
+  format: directory
   path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
   partitioning: [fingerprint]
   primary_key: [manifest_fingerprint]
@@ -350,7 +350,7 @@
   description: >
     Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.
   version: '{manifest_fingerprint}'
-  format: json
+  format: text
   path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
   partitioning: [fingerprint]
   primary_key: [manifest_fingerprint]

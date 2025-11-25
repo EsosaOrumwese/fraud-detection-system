@@ -749,7 +749,7 @@ A **directory of validation artefacts** for Segment 6B at this `manifest_fingerp
 
 * `s5_validation_report_6B.json`
 * `s5_issue_table_6B.parquet` (if present)
-* `validation_bundle_index_6B.json` (the index)
+* `index.json` (the `validation_bundle_index_6B` file)
 * Any additional evidence files specified in `segment_validation_policy_6B` (e.g. RNG summaries, coverage metrics, per-state digests).
 
 This bundle is the **payload** over which the HashGate digest is computed.
@@ -772,7 +772,7 @@ Registered as:
 
 Within that directory, S5 owns the layout of validation artefacts. It MUST at least produce:
 
-* `validation_bundle_index_6B.json` (the index; see next subsection)
+* `index.json` (the index; see next subsection)
 * `_passed.flag_6B` (HashGate flag; see §4.4)
 
 Other filenames and subdirectories are allowed as long as they are clearly described in the index and follow the hashing law.
@@ -786,8 +786,6 @@ The index is a JSON file within the bundle directory:
   ```text
   data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
   ```
-
-  or equivalently `validation_bundle_index_6B.json` if you prefer a more descriptive name (the spec must pick one and stick to it).
 
 * Schema anchor (for §5), e.g.:
 
@@ -939,7 +937,7 @@ schemas.layer3.yaml#/validation/6B/s5_validation_report
 * Issue table:
 
 ```text
-schemas.layer3.yaml#/validation/6B/s5_issue_table
+schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
 ```
 
 * Bundle index:
@@ -1046,7 +1044,7 @@ Optional fields MAY include `generated_at_utc`, tool version, or extra metadata,
 
 #### 5.3.1 Row model
 
-`schemas.layer3.yaml#/validation/6B/s5_issue_table` MUST define a tabular schema with one row per issue.
+`schemas.layer3.yaml#/validation/6B/validation_issue_table_6B` MUST define a tabular schema with one row per issue.
 
 Required fields (minimum):
 
@@ -1100,7 +1098,7 @@ In `dataset_dictionary.layer3.6B.yaml`:
   partitioning: [fingerprint]
   primary_key: [manifest_fingerprint, check_id, issue_id]
   ordering: [manifest_fingerprint, check_id, issue_id]
-  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
+  schema_ref: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
   produced_by: [6B.S5]
   consumed_by: [6B.S5_bundle, ops_tooling]
 ```
@@ -1116,7 +1114,7 @@ In `artefact_registry_6B.yaml`:
   environment: engine
   owner_layer: 3
   owner_segment: 6B
-  schema: schemas.layer3.yaml#/validation/6B/s5_issue_table
+  schema: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
   path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
   partitioning: [fingerprint]
   final_in_layer: true
@@ -1726,7 +1724,7 @@ All S5 artefacts are partitioned solely by `fingerprint={manifest_fingerprint}`:
   data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
   ```
 
-  (contains `index.json` or `validation_bundle_index_6B.json`, plus evidence files, plus `_passed.flag_6B`).
+  (contains `index.json`, the evidence files listed there, plus `_passed.flag_6B`).
 
 * `_passed.flag_6B`:
 
@@ -1830,7 +1828,7 @@ S5 writes its artefacts in the following logical order for a world:
 3. **Bundle index**
 
    * Compute per-file `sha256_hex` digests and build `validation_bundle_index_6B` (index JSON).
-   * Write the index file (`index.json` or `validation_bundle_index_6B.json`) and validate it against its schema.
+  * Write the index file (`index.json`) and validate it against its schema.
 
 4. **HashGate flag**
 
@@ -3164,7 +3162,7 @@ S5 participates in the following version tracks:
    * `schemas.layer3.yaml`, containing S5 anchors:
 
      * `#/validation/6B/s5_validation_report`
-     * `#/validation/6B/s5_issue_table`
+    * `#/validation/6B/validation_issue_table_6B`
      * `#/validation/6B/validation_bundle_index_6B`
      * `#/validation/6B/passed_flag_6B`
    * Optionally `schemas.6B.yaml` if any S5-specific shapes live there instead.

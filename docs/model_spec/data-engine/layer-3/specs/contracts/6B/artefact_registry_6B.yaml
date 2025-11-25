@@ -230,7 +230,7 @@
   semver: 1.0.0
   path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
   partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
+  schema_ref: schemas.layer3.yaml#/validation/6B/validation_issue_table_6B
   produced_by: 6B.S5
   dependencies:
     - s5_validation_report_6B
