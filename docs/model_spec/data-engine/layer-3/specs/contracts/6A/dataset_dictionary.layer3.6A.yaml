@@ -470,9 +470,9 @@
   description: >
     Static fraud posture for merchants in Layer-3 / Segment 6A.
     One row per merchant, keyed by merchant_id.
-  version: '{manifest_fingerprint}.{parameter_hash}'
-  path: data/layer3/6A/s5_merchant_fraud_roles_6A/fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
-  partitioning: [fingerprint]
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+  path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
+  partitioning: [seed, fingerprint]
   ordering: [merchant_id]
   schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
   columns_strict: true

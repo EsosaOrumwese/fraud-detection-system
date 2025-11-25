@@ -103,8 +103,8 @@
   owner_segment: 6B
   dataset_id: s3_campaign_catalogue_6B
   semver: 1.0.0
-  path_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
-  partition_keys: [seed, fingerprint]
+  path_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
   schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
   produced_by: 6B.S3
   dependencies:
@@ -193,8 +193,8 @@
   owner_segment: 6B
   dataset_id: s4_case_timeline_6B
   semver: 1.0.0
-  path_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
-  partition_keys: [seed, fingerprint]
+  path_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partition_keys: [seed, fingerprint, scenario_id]
   schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
   produced_by: 6B.S4
   dependencies:

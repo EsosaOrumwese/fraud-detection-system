@@ -140,13 +140,14 @@
   description: >
     Catalogue of realised fraud/abuse campaigns with campaign_id, fraud_type,
     parameters and the flows affected.
-  version: '{seed}.{manifest_fingerprint}'
+  version: '{seed}.{manifest_fingerprint}.{scenario_id}'
   format: parquet
-  path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
-  partitioning: [seed, fingerprint]
+  path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+  partitioning: [seed, fingerprint, scenario_id]
   primary_key:
     - seed
     - manifest_fingerprint
+    - scenario_id
     - campaign_id
   ordering: [campaign_id]
   schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
@@ -270,13 +271,14 @@
   status: required
   description: >
     Case timeline events for flows promoted to manual review or automated cases.
-  version: '{seed}.{manifest_fingerprint}'
+  version: '{seed}.{manifest_fingerprint}.{scenario_id}'
   format: parquet
-  path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
-  partitioning: [seed, fingerprint]
+  path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, scenario_id]
   primary_key:
     - seed
     - manifest_fingerprint
+    - scenario_id
     - case_id
     - case_event_seq
   ordering: [case_id, case_event_seq]

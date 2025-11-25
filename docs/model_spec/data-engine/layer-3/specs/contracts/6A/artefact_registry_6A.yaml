@@ -350,8 +350,8 @@
   owner_segment: 6A
   dataset_id: s5_merchant_fraud_roles_6A
   semver: 1.0.0
-  path_template: data/layer3/6A/s5_merchant_fraud_roles_6A/fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
-  partition_keys: [fingerprint]
+  path_template: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
+  partition_keys: [seed, fingerprint]
   schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
   produced_by: 6A.S5
   dependencies:
