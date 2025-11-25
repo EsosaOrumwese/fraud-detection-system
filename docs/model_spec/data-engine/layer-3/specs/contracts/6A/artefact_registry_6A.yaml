@@ -399,7 +399,7 @@
   semver: 1.0.0
   path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
   partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/validation_bundle_index_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
   produced_by: 6A.S5
   dependencies:
     - engine.layer3.6A.s0_gate_receipt
@@ -423,7 +423,7 @@
   semver: 1.0.0
   path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
   partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/passed_flag_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
   produced_by: 6A.S5
   dependencies:
     - engine.layer3.6A.validation.bundle_6A

@@ -61,6 +61,19 @@ gate:
                   schema_ref:  { type: string }
                   role:        { type: string }
             sealed_inputs_digest_6A: { $ref: "#/$defs/hex64" }
+            prior_packs:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [logical_id, version, role]
+                properties:
+                  logical_id: { type: string }
+                  version:    { type: string }
+                  role:       { type: string }
+                  schema_ref: { type: ["null", "string"] }
+                  path:       { type: ["null", "string"] }
+                  sha256_hex: { $ref: "#/$defs/hex64" }
 
         sealed_inputs_6A:
           type: object
