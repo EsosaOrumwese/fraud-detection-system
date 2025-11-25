@@ -540,7 +540,7 @@
   path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6A.json
   partitioning: [fingerprint]
   ordering: []
-  schema_ref: schemas.layer3.yaml#/validation/validation_report_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_report_6A
   columns_strict: true
   lineage:
     produced_by: [ '6A.S5' ]
@@ -560,8 +560,8 @@
   version: '{manifest_fingerprint}'
   path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet
   partitioning: [fingerprint]
-  ordering: [check_id, entity_type, entity_id]
-  schema_ref: schemas.layer3.yaml#/validation/validation_issue_table_6A
+  ordering: [check_id, scope_type, issue_id]
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_issue_table_6A
   columns_strict: true
   lineage:
     produced_by: [ '6A.S5' ]

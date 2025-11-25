@@ -937,10 +937,11 @@ data/layer3/6A/validation/fingerprint={manifest_fingerprint}/...
 
   * `manifest_fingerprint`
   * `check_id`
+  * `issue_id` (string or integer)
   * `severity`
-  * `entity_type` (e.g. PARTY, ACCOUNT, MERCHANT, DEVICE, IP, or GLOBAL)
-  * `entity_id` (or null for global checks)
-  * `issue_code` / `issue_message`
+  * `scope_type` (e.g. PARTY, ACCOUNT, MERCHANT, DEVICE, IP, or GLOBAL)
+  * optional context identifiers (`seed`, `scenario_id`, `flow_id`, `case_id`, `event_seq`, or a cell index)
+  * `message` describing the issue
   * optional fields: cell identifiers, numeric values for the failed check.
 
 These datasets are **inputs** to the validation bundle, not stand-alone gates; the actual gate is `_passed.flag_6A`.
@@ -954,12 +955,12 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
   Under `validation/fingerprint={manifest_fingerprint}/`, S5 must materialise:
 
-  * `validation_bundle_index_6A` — an index object that lists:
+  * `validation_bundle_index_6A` - an index object that lists:
 
     * every file in the bundle (relative paths),
     * its `sha256_hex` digest,
-    * its logical role (e.g. report, issue table, summary, digest file),
-    * optional `schema_ref` and `logical_id`.
+    * its `role` (e.g. report, issue_table, summary, digest),
+    * optional `schema_ref`.
 
   * evidence files referenced in the index, such as:
 
@@ -980,7 +981,7 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
 * **Domain & scope**
 
-  * One small object per `manifest_fingerprint`, stored under the same validation directory, e.g.:
+  * One small text file per `manifest_fingerprint`, stored under the same validation directory, e.g.:
 
     ```text
     data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
@@ -988,16 +989,13 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
 * **Required content**
 
-  * At minimum:
+  * `_passed.flag_6A` contains exactly one line:
 
-    * `manifest_fingerprint`
-    * `bundle_digest_sha256` — the SHA-256 digest computed over the evidence files listed in `validation_bundle_index_6A` according to the agreed law (canonical ordering, concatenation, etc.).
+    ```text
+    sha256_hex = {bundle_digest_sha256}
+    ```
 
-  * You may also include:
-
-    * `parameter_hash`,
-    * `spec_version_6A`,
-    * `created_utc`, etc., but these are not strictly required for the gate.
+    where `{bundle_digest_sha256}` is the SHA-256 digest computed over the evidence files listed in `validation_bundle_index_6A` according to the agreed law (canonical ordering, concatenation, etc.).
 
 * **Identity & invariants**
 
@@ -1126,7 +1124,7 @@ Each of these schemas MUST:
 
 Layer-3 validation primitives are shared across segments (you already have similar shapes for L1). For 6A, you must add anchors such as:
 
-* `schemas.layer3.yaml#/validation/validation_report_6A`
+* `schemas.layer3.yaml#/validation/6A/validation_report_6A`
 
   * Object schema for `s5_validation_report_6A`, with:
 
@@ -1135,29 +1133,29 @@ Layer-3 validation primitives are shared across segments (you already have simil
     * `checks` array/map with `check_id`, `severity`, `status`, metrics,
     * `overall_status`.
 
-* `schemas.layer3.yaml#/validation/validation_issue_table_6A`
+* `schemas.layer3.yaml#/validation/6A/validation_issue_table_6A`
 
   * Tabular schema for `s5_issue_table_6A` (if implemented), with per-issue rows:
 
     * `manifest_fingerprint`,
-    * `check_id`, `severity`, `entity_type`, `entity_id`,
-    * `issue_code`, `issue_message`, optional context fields.
+    * `check_id`, `issue_id`, `severity`, `scope_type`,
+    * optional `seed`, `scenario_id`, `flow_id`, `case_id`, `event_seq`,
+    * `message`, optional metrics/context fields.
 
-* `schemas.layer3.yaml#/validation/validation_bundle_index_6A`
+* `schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A`
 
   * The index object listing bundle members:
 
-    * `manifest_fingerprint`,
-    * `entries: [ { path, sha256_hex, logical_id, role, schema_ref? }, ... ]`,
-    * optional `index_version`, `created_utc`.
+    * `manifest_fingerprint`, `parameter_hash`, `spec_version_6A`,
+    * `items: [ { path, sha256_hex, role, schema_ref? }, ... ]` sorted lexicographically by `path`.
 
-* `schemas.layer3.yaml#/validation/passed_flag_6A`
+* `schemas.layer3.yaml#/validation/6A/passed_flag_6A`
 
-  * Small object representing `_passed.flag_6A`:
+  * `_passed.flag_6A` is a plain-text value whose entire content is exactly:
 
-    * `manifest_fingerprint`,
-    * `bundle_digest_sha256` (64 hex chars),
-    * optional `parameter_hash`, `spec_version_6A`, `created_utc`.
+    ```
+    sha256_hex = {bundle_digest_sha256}
+    ```
 
 These shapes MUST align with your pre-existing HashGate law (same digest rules used in 1A–3B; just extended for 6A).
 
@@ -1316,7 +1314,7 @@ Below are **informal sketches**; exact YAML follows your house style.
   path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6A.json
   partitioning: [fingerprint]
   ordering: []
-  schema_ref: schemas.layer3.yaml#/validation/validation_report_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_report_6A
   columns_strict: true
   lineage:
     produced_by: [ '6A.S5' ]
@@ -1338,8 +1336,8 @@ Below are **informal sketches**; exact YAML follows your house style.
   version: '{manifest_fingerprint}'
   path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet
   partitioning: [fingerprint]
-  ordering: [check_id, entity_type, entity_id]
-  schema_ref: schemas.layer3.yaml#/validation/validation_issue_table_6A
+  ordering: [check_id, scope_type, issue_id]
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_issue_table_6A
   columns_strict: true
   lineage:
     produced_by: [ '6A.S5' ]
@@ -1364,7 +1362,7 @@ Below are **informal sketches**; exact YAML follows your house style.
   path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
   partitioning: [fingerprint]
   ordering: []
-  schema_ref: schemas.layer3.yaml#/validation/validation_bundle_index_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
   columns_strict: true
   lineage:
     produced_by: [ '6A.S5' ]
@@ -1387,7 +1385,7 @@ Below are **informal sketches**; exact YAML follows your house style.
   path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
   partitioning: [fingerprint]
   ordering: []
-  schema_ref: schemas.layer3.yaml#/validation/passed_flag_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
   columns_strict: true
   lineage:
     produced_by: [ '6A.S5' ]
@@ -1453,7 +1451,7 @@ You’d mirror this pattern for account/merchant/device/ip fraud roles:
   semver: 1.0.0
   path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
   partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/validation_bundle_index_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
   produced_by: 6A.S5
   dependencies:
     - engine.layer3.6A.s0_gate_receipt
@@ -1479,7 +1477,7 @@ You’d mirror this pattern for account/merchant/device/ip fraud roles:
   semver: 1.0.0
   path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
   partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/passed_flag_6A
+  schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
   produced_by: 6A.S5
   dependencies:
     - engine.layer3.6A.validation.bundle_6A
@@ -1923,7 +1921,7 @@ Using:
 
      * compute required metrics (counts, proportions, min/mean/max, quantiles, etc.),
      * compare against thresholds/tolerances,
-     * determine `status ∈ {PASS, FAIL, WARN}` for that check.
+     * determine `result ∈ {PASS, WARN, FAIL}` for that check.
 
 2. **Populate report**
 
@@ -1936,7 +1934,7 @@ Using:
        * `check_id`, `description`, `severity`, `status`, metrics,
        * any derived flags (e.g. `threshold_exceeded`.
 
-     * `overall_status` determined by combining per-check statuses according to policy (e.g. any `BLOCKING` check with `FAIL` → `overall_status=FAIL`).
+     * `overall_status` determined by combining per-check results according to policy (e.g. any `BLOCKING` check with `FAIL` → `overall_status=FAIL`).
 
 3. **Populate issue table (if implemented)**
 
@@ -1944,10 +1942,9 @@ Using:
 
      * one row per failing/borderline entity or cell, with:
 
-       * `manifest_fingerprint`, `check_id`, `severity`,
-       * `entity_type`, `entity_id` (or cell index),
-       * `issue_code`, `issue_message`,
-       * optional metrics.
+       * `manifest_fingerprint`, `check_id`, `issue_id`, `severity`, `scope_type`,
+       * optional `seed`, `scenario_id`, `flow_id`, `case_id`, `event_seq` (or cell index keys),
+       * `message`, optional metrics.
 
 4. **Decide eligibility for HashGate**
 
@@ -2007,8 +2004,8 @@ For `manifest_fingerprint`:
 
    * Write `validation_bundle_index_6A` as:
 
-     * `manifest_fingerprint`,
-     * `entries: [ { path, sha256_hex, logical_id?, role?, schema_ref? }, ... ]`,
+     * `manifest_fingerprint`, `parameter_hash`, `spec_version_6A`,
+     * `items: [ { path, sha256_hex, role, schema_ref? }, ... ]`,
      * optional `index_version`, `created_utc`.
 
    * Persist it in the same validation directory.
@@ -2343,7 +2340,7 @@ In all fraud-role tables:
   * PK is typically:
 
     ```text
-    (manifest_fingerprint, check_id, entity_type, entity_id, issue_code)
+    (manifest_fingerprint, check_id, scope_type, issue_id)
     ```
 
   * This is primarily diagnostic; uniqueness semantics are mostly to avoid duplicate issue rows.
@@ -2352,7 +2349,7 @@ In all fraud-role tables:
 
   * Logical key: `(manifest_fingerprint)`.
   * Contains the bundle index; there MUST be exactly one index per world.
-  * Its `entries[].path` values must be unique, sorted in canonical order.
+  * Its `items[].path` values must be unique, sorted in canonical order.
 
 * **`validation_passed_flag_6A`**
 
@@ -2412,12 +2409,12 @@ For validation artefacts:
 * `s5_issue_table_6A`:
 
   ```text
-  ORDER BY check_id, severity, entity_type, entity_id
+  ORDER BY check_id, severity, scope_type, issue_id
   ```
 
 * `validation_bundle_index_6A`:
 
-  * `entries` MUST be sorted lexicographically by `path` (ASCII) — this is crucial for bundle digest law.
+  * `items` MUST be sorted lexicographically by `path` (ASCII) — this is crucial for bundle digest law.
 
 Writers MUST honour these canonical orderings. This ensures:
 
@@ -2718,7 +2715,7 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 * If `s5_issue_table_6A` is present:
 
   * it exists and validates against its schema,
-  * all `check_id`+`entity_type`+`entity_id` combinations refer to valid checks and valid entities,
+  * all `check_id`+`scope_type`+`issue_id` combinations refer to valid checks/scopes,
   * any issues summarised in the report are explainable via this table (if that’s part of the policy).
 
 #### 8.2.3 Validation bundle index & HashGate
@@ -2727,9 +2724,9 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 
 * `validation_bundle_index_6A` exists, validates against `#/validation/validation_bundle_index_6A`, and:
 
-  * its `entries[]` cover exactly all evidence files considered part of the 6A bundle for this `mf`,
-  * `entries[].path`s are unique and sorted lexicographically,
-  * `entries[].sha256_hex` matches recomputed SHA-256 digests of the corresponding files.
+  * its `items[]` cover exactly all evidence files considered part of the 6A bundle for this `mf`,
+  * `items[].path`s are unique and sorted lexicographically,
+  * `items[].sha256_hex` matches recomputed SHA-256 digests of the corresponding files.
 
 14. **HashGate digest matches evidence**
 
@@ -2975,7 +2972,7 @@ These indicate problems with the S5 validation checks and/or the 6A HashGate art
 * `6A.S5.VALIDATION_DIGEST_MISMATCH`
   *Meaning:* Digest consistency is broken:
 
-  * recomputing SHA-256 per file disagree with `validation_bundle_index_6A.entries[].sha256_hex`, or
+  * recomputing SHA-256 per file disagree with `validation_bundle_index_6A.items[].sha256_hex`, or
   * recomputing `bundle_digest_sha256` from evidence files disagrees with `validation_passed_flag_6A.bundle_digest_sha256`.
 
 These all mean: **“Either the world fails validation, or the validation bundle/flag is not trustworthy as a HashGate.”**
@@ -3658,10 +3655,10 @@ Schema versions:
 * `schemas.6A.yaml#/s5/merchant_fraud_roles`
 * `schemas.6A.yaml#/s5/device_fraud_roles`
 * `schemas.6A.yaml#/s5/ip_fraud_roles`
-* `schemas.layer3.yaml#/validation/validation_report_6A`
-* `schemas.layer3.yaml#/validation/validation_issue_table_6A`
-* `schemas.layer3.yaml#/validation/validation_bundle_index_6A`
-* `schemas.layer3.yaml#/validation/passed_flag_6A`
+* `schemas.layer3.yaml#/validation/6A/validation_report_6A`
+* `schemas.layer3.yaml#/validation/6A/validation_issue_table_6A`
+* `schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A`
+* `schemas.layer3.yaml#/validation/6A/passed_flag_6A`
 
 Catalogue versions:
 
@@ -4174,11 +4171,11 @@ S5’s validation layer uses:
 
   * combined status of all checks, e.g. one of `{PASS, WARN, FAIL}` determined by the validation policy (e.g. any BLOCKING FAIL → overall FAIL).
 
-* **`issue_code`** / **`issue_message`**
-  Coded and textual description of individual issues in `s5_issue_table_6A`.
+* **`issue_id`** / **`message`**
+  Identifier and textual description of individual issues in `s5_issue_table_6A`.
 
-* **`entity_type` / `entity_id`**
-  Identify which entity (or cell) an issue pertains to; type ∈ `{PARTY, ACCOUNT, MERCHANT, DEVICE, IP, CELL, GLOBAL}`.
+* **`scope_type`**
+  Identifies which entity (or cell) an issue pertains to; scope ∈ `{PARTY, ACCOUNT, MERCHANT, DEVICE, IP, CELL, GLOBAL}` (or similar policy-defined values).
 
 ---
 
@@ -4197,7 +4194,7 @@ S5’s validation layer uses:
 
   * JSON/record object listing bundle members:
 
-    * `entries[]` with `path`, `sha256_hex`, and maybe `logical_id`, `role`, `schema_ref`.
+    * `items[]` with `path`, `sha256_hex`, `role`, and optional `schema_ref`.
 
 * **`bundle_digest_sha256`**
 
