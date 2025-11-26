@@ -1,15 +1,15 @@
 # AGENTS.md - Data Engine Router (Specs sealed; implementation next)
 _As of 2025-11-25_
 
-This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A, 1B, 2A, and 2B** are online and sealed; specs for **3A, 3B, 5A, 5B, 6A, and 6B** are now sealed in `docs/model_spec/data-engine/**` and ready to drive implementation. Treat all spec trees as read-only authority surfaces unless the USER explicitly opens spec work.
+This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A, 1B, 2A, and 2B** are online and sealed. Specs for **3A and 3B** are sealed and **opened for implementation (3A first, then 3B)**. Specs for **5A, 5B, 6A, and 6B** are sealed but **remain locked** until the USER explicitly opens them.
 
 ---
 
 ## 0) Scope (you are here)
 - Package: packages/engine
-- Current posture: Layer-1 / Segments **1A-3B**, Layer-2 / Segments **5A-5B**, and Layer-3 / Segments **6A-6B** have sealed specs. Implementation lives here and must honour those specs.
+- Current posture: Layer-1 / Segments **1A-3B** have sealed specs; **3A then 3B** are next to build. Layer-2 / Segments **5A-5B** and Layer-3 / Segments **6A-6B** are spec-sealed but **locked until opened by the USER**.
 - Sealed references: Segments 1A, 1B, 2A, and 2B act as authority surfaces for downstream inputs.
-- Binding specs: 3A/3B (L1), 5A/5B (L2), 6A/6B (L3) expanded state documents and contract artefacts are spec-sealed; code changes must conform to them.
+- Binding specs: 3A/3B (L1) are spec-sealed and open for implementation; 5A/5B (L2) and 6A/6B (L3) are spec-sealed but locked. Code changes must conform to the governing specs for any opened segment.
 - Other segments (4A/4B overlays, future layers) remain locked until explicitly opened.
 
 **Environment posture.** We are intentionally deferring integration with the shared dev environment (full artefact replay and manifest hookups) until the **entire Data Engine**—all layers, segments, and states—is built and wired together. While we are still in that build-out phase, every new state must be treated as if the complete engine were already live: wire states together locally, exercise deterministic cross-state invariants, and extend regression tests so the chain remains ready to run end-to-end the moment we connect to real artefacts. No shortcuts.

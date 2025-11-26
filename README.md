@@ -21,14 +21,14 @@
 | 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
 | 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
 | 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-S7 | **Sealed (specs)** | Layer-1 cross-zone merchants; ready for implementation |
-| 3B | S0-S5 | **Sealed (specs)** | Layer-1 purely virtual merchants; ready for implementation |
-| 5A | S0-S5 | **Sealed (specs)** | Layer-2 arrival surfaces & calendar |
-| 5B | S0-S5 | **Sealed (specs)** | Layer-2 arrival realisation (LGCP + routing) |
-| 6A | S0-S5 | **Sealed (specs)** | Layer-3 entity & product world |
-| 6B | S0-S5 | **Sealed (specs)** | Layer-3 behaviour & fraud cascades |
+| 3A | S0-S7 | **Sealed (specs)** | Layer-1 cross-zone merchants; next to implement |
+| 3B | S0-S5 | **Sealed (specs)** | Layer-1 purely virtual merchants; follows 3A |
+| 5A | S0-S5 | **Sealed (specs, locked)** | Layer-2 arrival surfaces & calendar (locked until opened) |
+| 5B | S0-S5 | **Sealed (specs, locked)** | Layer-2 arrival realisation (LGCP + routing) (locked until opened) |
+| 6A | S0-S5 | **Sealed (specs, locked)** | Layer-3 entity & product world (locked until opened) |
+| 6B | S0-S5 | **Sealed (specs, locked)** | Layer-3 behaviour & fraud cascades (locked until opened) |
 
-Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main. Both 3A and 3B specs are green and parked under `docs/model_spec/data-engine/layer-1/specs/state-flow/3A|3B`, so implementation can begin immediately.
+Implementation sequence (next): build 3A first, then 3B; keep 1A/1B/2A/2B artefacts read-only. Segments 5A-6B are spec-sealed but remain locked until the USER explicitly opens them.
 
 ### Spec sources (repo layout)
 - **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.

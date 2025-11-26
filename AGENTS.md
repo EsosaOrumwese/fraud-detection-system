@@ -6,8 +6,8 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 ---
 
 ## 0) Scope (current focus)
-- Layer‑1 / Segments **1A‑3B** specs are sealed; treat their artefacts as read‑only authority surfaces for downstream states.
-- Layer‑2 / Segments **5A & 5B** and Layer‑3 / Segments **6A & 6B** have fully expanded specs and contracts; implementation is the next phase.
+- Layer-1 / Segments **1A-3B** specs are sealed; treat their artefacts as read-only authority surfaces for downstream states.
+- **Build sequencing:** we are about to proceed with **3A then 3B implementation**. Layer-2 / Segments **5A & 5B** and Layer-3 / Segments **6A & 6B** have fully expanded specs and contracts but remain **LOCKED until explicitly opened by the USER**.
 - All other packages/services remain LOCKED; check their nested `AGENTS.md` for status before making changes.
 - Need to work in a locked area? Ask the USER with a clear justification before touching it.
 
