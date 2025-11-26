@@ -48,7 +48,43 @@ def _build_dictionary(path: Path, policies: dict[str, Path]) -> Path:
                 "schema_ref": "schemas.3A.yaml#/validation/sealed_inputs_3A",
             },
         ],
-        "reference_data": [],
+        "reference_data": [
+            {
+                "id": "outlet_catalogue",
+                "path": "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/outlet_catalogue.parquet",
+                "schema_ref": "schemas.1A.yaml#/egress/outlet_catalogue",
+                "description": "Outlet catalogue",
+                "licence": "Proprietary-Internal",
+            },
+            {
+                "id": "site_timezones",
+                "path": "data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/site_timezones.parquet",
+                "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
+                "description": "Site timezones",
+                "licence": "Proprietary-Internal",
+            },
+            {
+                "id": "tz_timetable_cache",
+                "path": "data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/",
+                "schema_ref": "schemas.2A.yaml#/cache/tz_timetable_cache",
+                "description": "TZ timetable cache",
+                "licence": "Proprietary-Internal",
+            },
+            {
+                "id": "iso3166_canonical_2024",
+                "path": "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet",
+                "schema_ref": "schemas.ingress.layer1.yaml#/iso3166_canonical_2024",
+                "description": "ISO canonical table",
+                "licence": "CC-BY-4.0",
+            },
+            {
+                "id": "tz_world_2025a",
+                "path": "reference/spatial/tz_world/2025a/tz_world.parquet",
+                "schema_ref": "schemas.ingress.layer1.yaml#/tz_world_2025a",
+                "description": "TZ world polygons",
+                "licence": "ODbL-1.0",
+            },
+        ],
     }
     for policy_id, policy_path in policies.items():
         dict_payload["reference_data"].append(
@@ -102,6 +138,27 @@ def test_seg_3a_s0_gate_happy_path():
         bundle_dir_2a = base / f"data/layer1/2A/validation/fingerprint={upstream_fp}/bundle"
         _build_validation_bundle(bundle_dir_2a)
 
+        outlet_dir = base / f"data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={upstream_fp}"
+        outlet_dir.mkdir(parents=True, exist_ok=True)
+        pl.DataFrame(
+            {"merchant_id": [1], "legal_country_iso": ["US"], "site_order": [1]}
+        ).write_parquet(outlet_dir / "outlet_catalogue.parquet")
+
+        tz_dir = base / f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={upstream_fp}"
+        tz_dir.mkdir(parents=True, exist_ok=True)
+        pl.DataFrame(
+            {
+                "merchant_id": [1],
+                "legal_country_iso": ["US"],
+                "site_order": [1],
+                "tzid": ["America/New_York"],
+            }
+        ).write_parquet(tz_dir / "site_timezones.parquet")
+
+        tz_cache_dir = base / f"data/layer1/2A/tz_timetable_cache/fingerprint={upstream_fp}"
+        tz_cache_dir.mkdir(parents=True, exist_ok=True)
+        (tz_cache_dir / "tz_timetable_cache.json").write_text('{"tzdb_release_tag": "2025a"}', encoding="utf-8")
+
         runner = S0GateRunner()
         outputs = runner.run(
             S0GateInputs(
@@ -118,11 +175,21 @@ def test_seg_3a_s0_gate_happy_path():
         assert outputs.receipt_path.exists()
         assert outputs.sealed_inputs_path.exists()
         df = pl.read_parquet(outputs.sealed_inputs_path)
-        assert set(df["logical_id"]) == set(policy_paths.keys()) | {
+        expected_assets = {
+            "zone_mixture_policy",
+            "country_zone_alphas",
+            "zone_floor_policy",
+            "day_effect_policy_v1",
+            "outlet_catalogue",
+            "site_timezones",
+            "tz_timetable_cache",
+            "iso3166_canonical_2024",
+            "tz_world_2025a",
             "validation_bundle_1A",
             "validation_bundle_1B",
             "validation_bundle_2A",
         }
+        assert set(df["logical_id"]) == expected_assets
         # manifest hash shape
         assert len(outputs.manifest_fingerprint) == 64
         assert outputs.parameter_hash

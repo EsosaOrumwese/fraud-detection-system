@@ -232,6 +232,9 @@ SEG3A_ARGS = \
 	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
 	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
 	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--run-s1 \
+	--run-s2 \
+	--parameter-hash $$PARAM_HASH \
 	--result-json "$(SEG3A_RESULT_JSON)" \
 	--quiet-summary \
 	$(SEG3A_EXTRA)

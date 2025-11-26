@@ -61,6 +61,18 @@ def _print_summary(result: Segment3AResult) -> None:
         "determinism_receipt_path": str(result.determinism_receipt_path),
         "resumed": result.resumed,
     }
+    if result.s1_output_path:
+        payload["s1_output_path"] = str(result.s1_output_path)
+    if result.s1_run_report_path:
+        payload["s1_run_report_path"] = str(result.s1_run_report_path)
+    if result.s1_resumed:
+        payload["s1_resumed"] = result.s1_resumed
+    if result.s2_output_path:
+        payload["s2_output_path"] = str(result.s2_output_path)
+    if result.s2_run_report_path:
+        payload["s2_run_report_path"] = str(result.s2_run_report_path)
+    if result.s2_resumed:
+        payload["s2_resumed"] = result.s2_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -106,6 +118,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Explicit path to the Segment 2A validation bundle (fingerprint-scoped).",
     )
     parser.add_argument("--notes", type=str, help="Optional notes recorded in the S0 receipt.")
+    parser.add_argument("--run-s1", action="store_true", help="Run S1 escalation queue.")
+    parser.add_argument("--run-s2", action="store_true", help="Run S2 priors stage.")
+    parser.add_argument(
+        "--parameter-hash",
+        type=str,
+        help="Parameter hash required when running S2 if different from S0 hash.",
+    )
     parser.add_argument(
         "--resume",
         action="store_true",
@@ -143,6 +162,9 @@ def main(argv: list[str] | None = None) -> int:
         notes=args.notes,
         resume=args.resume,
         resume_manifest_fingerprint=args.resume_manifest_fingerprint,
+        run_s1=args.run_s1,
+        run_s2=args.run_s2,
+        parameter_hash=args.parameter_hash,
     )
 
     result = orchestrator.run(config)

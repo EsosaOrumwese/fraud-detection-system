@@ -87,6 +87,96 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: outlet_catalogue
+  status: approved
+  owner_subsegment: 1A
+  description: Outlet catalogue emitted by Segment 1A (per merchantxcountry site list).
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/outlet_catalogue.parquet
+  partitioning: [seed, manifest_fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+  lineage:
+    produced_by: 1A.S8
+    consumed_by: [3A]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: site_timezones
+  status: approved
+  owner_subsegment: 2A
+  description: Per-site tzid assignments from Segment 2A (optional pin for routing governance).
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.2A.yaml#/egress/site_timezones
+  lineage:
+    produced_by: 2A.S2
+    consumed_by: [3A]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: tz_timetable_cache
+  status: approved
+  owner_subsegment: 2A
+  description: Fingerprint-scoped civil-time cache manifest compiled by Segment 2A.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+  lineage:
+    produced_by: 2A.S3
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: iso3166_canonical_2024
+  status: approved
+  owner_subsegment: ingress
+  description: ISO 3166-1 alpha-2 canonical table (2024-12-31 release).
+  version: '2024-12-31'
+  format: parquet
+  path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+  lineage:
+    produced_by:
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: CC-BY-4.0
+
+- id: tz_world_2025a
+  status: approved
+  owner_subsegment: ingress
+  description: Time-zone polygons (GeoParquet) for the 2025a TZDB release.
+  version: '2025a'
+  format: parquet
+  path: reference/spatial/tz_world/2025a/tz_world.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
+  lineage:
+    produced_by:
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
+
 datasets:
 - id: s0_gate_receipt_3A
   status: draft

@@ -106,11 +106,45 @@ class GateOutputs:
 class S0GateRunner:
     """High-level helper that wires together the 3A S0 workflow."""
 
-    _POLICY_ASSET_IDS = {
-        "zone_mixture_policy": ("3A", "policy"),
-        "country_zone_alphas": ("3A", "policy"),
-        "zone_floor_policy": ("3A", "policy"),
-        "day_effect_policy_v1": ("2B", "policy"),
+    _ASSET_SPECS: Mapping[str, Mapping[str, object]] = {
+        "zone_mixture_policy": {"owner": "3A", "kind": "policy", "base": "repo"},
+        "country_zone_alphas": {"owner": "3A", "kind": "policy", "base": "repo"},
+        "zone_floor_policy": {"owner": "3A", "kind": "policy", "base": "repo"},
+        "day_effect_policy_v1": {"owner": "2B", "kind": "policy", "base": "repo"},
+        "outlet_catalogue": {
+            "owner": "1A",
+            "kind": "egress",
+            "base": "base",
+            "tokens": lambda inputs: {
+                "seed": inputs.seed,
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+            },
+        },
+        "site_timezones": {
+            "owner": "2A",
+            "kind": "egress",
+            "base": "base",
+            "tokens": lambda inputs: {
+                "seed": inputs.seed,
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+            },
+        },
+        "tz_timetable_cache": {
+            "owner": "2A",
+            "kind": "cache",
+            "base": "base",
+            "tokens": lambda inputs: {
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+            },
+        },
+        "iso3166_canonical_2024": {"owner": "ingress", "kind": "reference", "base": "repo"},
+        "tz_world_2025a": {"owner": "ingress", "kind": "reference", "base": "repo"},
+    }
+    _POLICY_IDS = {
+        "zone_mixture_policy",
+        "country_zone_alphas",
+        "zone_floor_policy",
+        "day_effect_policy_v1",
     }
 
     def run(self, inputs: GateInputs) -> GateOutputs:
@@ -231,22 +265,41 @@ class S0GateRunner:
         # policy assets from dictionary
         reference_data: Sequence[Mapping[str, object]] = dictionary.get("reference_data", [])  # type: ignore[arg-type]
         policy_index = {entry["id"]: entry for entry in reference_data if "id" in entry}
-        for asset_id, (owner_segment, artefact_kind) in self._POLICY_ASSET_IDS.items():
+        for asset_id, spec in self._ASSET_SPECS.items():
             entry = policy_index.get(asset_id)
-            if not entry:
-                raise err("E_POLICY_MISSING", f"missing policy '{asset_id}' in dictionary")
-            path = Path(entry["path"])
-            if not path.is_absolute():
-                path = (repo_root / entry["path"]).resolve()
-            if not path.exists():
-                raise err("E_POLICY_PATH", f"policy '{asset_id}' not found at {path}")
-            digests = tuple(hash_files([path], error_prefix=asset_id))
+            if entry is None:
+                raise err("E_POLICY_MISSING", f"missing policy or reference '{asset_id}' in dictionary")
+            token_builder = spec.get("tokens")
+            template_args: Mapping[str, object]
+            if callable(token_builder):
+                template_args = token_builder(inputs)  # type: ignore[arg-type]
+            else:
+                template_args = {}
+            relative_path = render_dataset_path(
+                dataset_id=asset_id,
+                template_args=template_args,
+                dictionary=dictionary,
+            )
+            resolved_path = Path(relative_path)
+            if not resolved_path.is_absolute():
+                base_choice = spec.get("base", "repo")
+                base_path = inputs.base_path if base_choice == "base" else repo_root
+                resolved_path = (base_path / resolved_path).resolve()
+            if not resolved_path.exists():
+                raise err("E_POLICY_PATH", f"asset '{asset_id}' not found at {resolved_path}")
+            if resolved_path.is_dir():
+                paths_to_hash = [p for p in resolved_path.rglob("*") if p.is_file()]
+                if not paths_to_hash:
+                    raise err("E_POLICY_PATH", f"asset '{asset_id}' directory '{resolved_path}' is empty")
+            else:
+                paths_to_hash = [resolved_path]
+            digests = tuple(hash_files(paths_to_hash, error_prefix=asset_id))
             assets.append(
                 SealedArtefact(
-                    owner_segment=owner_segment,
-                    artefact_kind=artefact_kind,
+                    owner_segment=str(spec["owner"]),
+                    artefact_kind=str(spec["kind"]),
                     logical_id=asset_id,
-                    path=path,
+                    path=resolved_path,
                     schema_ref=entry["schema_ref"],
                     role=entry.get("description", asset_id),
                     license_class=entry.get("licence", "Proprietary-Internal"),
@@ -333,7 +386,7 @@ class S0GateRunner:
             }
 
         for asset in sealed_assets:
-            if asset.logical_id in self._POLICY_ASSET_IDS:
+            if asset.logical_id in self._POLICY_IDS:
                 receipt_payload["sealed_policy_set"].append(
                     {
                         "logical_id": asset.logical_id,
