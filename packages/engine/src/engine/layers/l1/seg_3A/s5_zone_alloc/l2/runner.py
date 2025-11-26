@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import yaml
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,7 @@ from engine.layers.l1.seg_3A.shared.dictionary import load_dictionary
 
 _S0_RECEIPT_SCHEMA = Draft202012Validator(load_schema("#/validation/s0_gate_receipt_3A"))
 _SEALED_INPUT_VALIDATOR = Draft202012Validator(load_schema("#/validation/sealed_inputs_3A"))
+_ZONE_ALLOC_PLAN = load_schema("#/egress/zone_alloc")
 _UNIVERSE_SCHEMA = Draft202012Validator(load_schema("#/validation/zone_alloc_universe_hash"))
 
 
@@ -148,6 +150,7 @@ class ZoneAllocRunner:
                 raise err("E_IMMUTABILITY", f"zone_alloc exists at '{output_file}' with different content")
             resumed = True
         else:
+            self._validate_zone_alloc(result_df)
             result_df.write_parquet(output_file)
 
         universe_path = data_root / render_dataset_path(
@@ -317,3 +320,64 @@ class ZoneAllocRunner:
             status = gates.get(segment, {}).get("status")
             if status != "PASS":
                 raise err("E_UPSTREAM_GATE", f"{segment} status '{status}' is not PASS")
+
+    def _validate_zone_alloc(self, df: pl.DataFrame) -> None:
+        _validate_table_rows(df, _ZONE_ALLOC_PLAN, error_prefix="zone_alloc")
+
+
+def _validate_table_rows(df: pl.DataFrame, schema: Mapping[str, Any], *, error_prefix: str) -> None:
+    columns = schema.get("columns") or []
+    column_defs: dict[str, Mapping[str, Any]] = {col["name"]: col for col in columns if isinstance(col, Mapping)}
+
+    def _is_hex64(value: Any) -> bool:
+        return isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value) is not None
+
+    def _is_iso2(value: Any) -> bool:
+        return isinstance(value, str) and re.fullmatch(r"[A-Z]{2}", value) is not None
+
+    def _is_tzid(value: Any) -> bool:
+        return isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*", value) is not None
+
+    for row in df.to_dicts():
+        for name, col_def in column_defs.items():
+            nullable = bool(col_def.get("nullable", False))
+            val = row.get(name)
+            if val is None:
+                if not nullable:
+                    raise err("E_SCHEMA", f"{error_prefix} missing non-nullable field '{name}'")
+                continue
+            if "$ref" in col_def:
+                ref = str(col_def["$ref"])
+                if ref.endswith("hex64") and not _is_hex64(val):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be hex64")
+                if ref.endswith("iso2") and not _is_iso2(val):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be ISO2")
+                if ref.endswith("iana_tzid") and not _is_tzid(val):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be iana_tzid")
+                if ref.endswith("uint64") and not (isinstance(val, int) and val >= 0):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be uint64")
+                if ref.endswith("id64") and not (isinstance(val, int) and val >= 1):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be id64")
+                continue
+            ctype = col_def.get("type")
+            if ctype == "integer":
+                if not isinstance(val, int):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be integer")
+                if "minimum" in col_def and val < col_def["minimum"]:
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' below minimum")
+            elif ctype == "number":
+                if not isinstance(val, (int, float)):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be number")
+                if "minimum" in col_def and val < col_def["minimum"]:
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' below minimum")
+                if "exclusiveMinimum" in col_def and val <= col_def["exclusiveMinimum"]:
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' below exclusive minimum")
+                if "maximum" in col_def and val > col_def["maximum"]:
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' above maximum")
+            elif ctype == "string":
+                if not isinstance(val, str):
+                    raise err("E_SCHEMA", f"{error_prefix} field '{name}' must be string")
+            elif ctype is None:
+                continue
+            else:
+                continue

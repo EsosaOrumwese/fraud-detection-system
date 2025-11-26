@@ -15,6 +15,7 @@ from engine.layers.l1.seg_3A.s0_gate.exceptions import err
 from engine.layers.l1.seg_3A.s0_gate.l0 import aggregate_sha256, expand_files, hash_files
 from engine.layers.l1.seg_3A.shared import SegmentStateKey, load_schema, render_dataset_path, write_segment_state_run_report
 from engine.layers.l1.seg_3A.shared.dictionary import load_dictionary
+from engine.layers.l1.seg_3A.s5_zone_alloc.l2.runner import _validate_table_rows
 
 _S0_RECEIPT_SCHEMA = Draft202012Validator(load_schema("#/validation/s0_gate_receipt_3A"))
 _ZONE_ALLOC_SCHEMA = Draft202012Validator(load_schema("#/egress/zone_alloc"))
@@ -171,6 +172,21 @@ class ValidationRunner:
 
     def _run_checks(self, zone_alloc_df: pl.DataFrame) -> list[Mapping[str, Any]]:
         issues: list[Mapping[str, Any]] = []
+        # schema-level validation using table plan
+        try:
+            _validate_table_rows(zone_alloc_df, load_schema("#/egress/zone_alloc"), error_prefix="zone_alloc")
+        except Exception as exc:
+            issues.append(
+                {
+                    "issue_code": "SCHEMA_ZONE_ALLOC",
+                    "check_id": "schema",
+                    "severity": "ERROR",
+                    "message": str(exc),
+                    "merchant_id": None,
+                    "legal_country_iso": None,
+                    "tzid": None,
+                }
+            )
         # count conservation per pair
         grouped = zone_alloc_df.group_by(["merchant_id", "legal_country_iso"]).agg(
             [
@@ -202,6 +218,28 @@ class ValidationRunner:
         overall_status: str,
         issues: Sequence[Mapping[str, Any]],
     ) -> Mapping[str, Any]:
+        checks = []
+        if issues:
+            checks_failed = len(issues)
+            checks.append(
+                {
+                    "check_id": "schema_count",
+                    "status": "FAIL",
+                    "severity": "ERROR",
+                    "affected_count": checks_failed,
+                    "notes": "schema or count conservation failures",
+                }
+            )
+        else:
+            checks.append(
+                {
+                    "check_id": "schema_count",
+                    "status": "PASS",
+                    "severity": "INFO",
+                    "affected_count": 0,
+                    "notes": "",
+                }
+            )
         payload = {
             "manifest_fingerprint": manifest_fingerprint,
             "parameter_hash": parameter_hash,
@@ -209,7 +247,7 @@ class ValidationRunner:
             "checks_passed_count": 0 if issues else 1,
             "checks_failed_count": len(issues),
             "checks_warn_count": 0,
-            "checks": [],
+            "checks": checks,
         }
         try:
             _S6_VALIDATION_SCHEMA.validate(payload)
