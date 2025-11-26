@@ -1,13 +1,13 @@
 # AGENTS.md - Router for the Closed-World Enterprise Fraud System
-_As of 2025-10-14_
+_As of 2025-11-25_
 
 Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live.
 
 ---
 
 ## 0) Scope (current focus)
-- Transition to next build: Layer-1 / Segment **3A** (spec + pre-implementation planning) now that 2A/2B are sealed and ready for PR.
-- Segments **1A, 1B, 2A & 2B** are live and sealed; treat their artefacts as read-only authority surfaces for downstream states.
+- Layer‑1 / Segments **1A‑3B** specs are sealed; treat their artefacts as read‑only authority surfaces for downstream states.
+- Layer‑2 / Segments **5A & 5B** and Layer‑3 / Segments **6A & 6B** have fully expanded specs and contracts; implementation is the next phase.
 - All other packages/services remain LOCKED; check their nested `AGENTS.md` for status before making changes.
 - Need to work in a locked area? Ask the USER with a clear justification before touching it.
 
@@ -22,7 +22,7 @@ Read these in order before modifying code so you share the project context:
 ---
 
 ## 2) Project components
-- Data Engine — see `packages/engine/AGENTS.md` for the Segment 1B router.
+- Data Engine – see `packages/engine/AGENTS.md` for implementation guidance against the sealed specs (L1 1A‑3B, L2 5A‑5B, L3 6A‑6B).
 - Everything else is conceptual for now; treat those folders as read-only unless explicitly unlocked.
 
 ---

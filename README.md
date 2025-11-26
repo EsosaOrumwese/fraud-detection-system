@@ -1,6 +1,6 @@
 # Closed-World Enterprise Fraud Platform — Concept Overview
 
-> **Status:** Conceptual, non-binding.  
+> **Status:** Data Engine specs sealed; implementation phase next.  
 > **Mission:** Build a bank-grade, closed-world fraud platform. All data (train/test/stream/labels) comes **only** from the **Data Engine**. No third-party enrichment. Everything is governed by contracts, lineage, validation gates, and reproducible runs.
 > *Refer to `docs/references/closed-world-synthetic-data-engine-with-realism-conceptual-design.md` for more information*
 
@@ -14,22 +14,28 @@
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
-### Current build status (2025-11-12)
+### Current build status (2025-11-25)
 | Segment | States | Status | Notes |
 |---------|--------|--------|-------|
 | 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
 | 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
 | 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
 | 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-SX | **Spec Ready / In Progress** | Implementation underway; specs live at `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/` |
-| 3B | S0-SX | **Spec Ready** | Next after 3A; specs staged at `docs/model_spec/data-engine/layer-1/specs/state-flow/3B/` |
+| 3A | S0-S7 | **Sealed (specs)** | Layer-1 cross-zone merchants; ready for implementation |
+| 3B | S0-S5 | **Sealed (specs)** | Layer-1 purely virtual merchants; ready for implementation |
+| 5A | S0-S5 | **Sealed (specs)** | Layer-2 arrival surfaces & calendar |
+| 5B | S0-S5 | **Sealed (specs)** | Layer-2 arrival realisation (LGCP + routing) |
+| 6A | S0-S5 | **Sealed (specs)** | Layer-3 entity & product world |
+| 6B | S0-S5 | **Sealed (specs)** | Layer-3 behaviour & fraud cascades |
 
 Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main. Both 3A and 3B specs are green and parked under `docs/model_spec/data-engine/layer-1/specs/state-flow/3A|3B`, so implementation can begin immediately.
 
 ### Spec sources (repo layout)
-- **Layer-1** — `docs/model_spec/data-engine/layer-1/…` now holds every existing narrative, contract, and state-flow document (Segments 1A–3B). Anything that previously lived directly under `docs/model_spec/data-engine/` moved here byte-for-byte.
-- **Layer-2** — `docs/model_spec/data-engine/layer-2/…` mirrors the same structure for the upcoming 5A/5B planning work. Until those specs go green, Layer-1 remains the only binding contract set.
-- Future layers will follow the same convention (`layer-3/`, etc.) so each layer’s specs stay isolated while still referencing upstream authorities explicitly.
+- **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
+- **Layer-2** - `docs/model_spec/data-engine/layer-2/.` mirrors the same structure for Segments 5A/5B - **specs sealed; implementation next**.
+- **Layer-3** - `docs/model_spec/data-engine/layer-3/.` carries Segments 6A/6B - **specs sealed; implementation next**.
+
+All layers reference upstream authorities explicitly (via schemas, dataset dictionaries, and artefact registries); no ad-hoc paths.
 
 ---
 
@@ -283,10 +289,10 @@ fraud-enterprise/
 
 ```
 ============================ DATA ENGINE (progress) ============================
-[ Merchant-Location Realism ] | [ Arrival Mechanics ] | [ Flow Dynamics ]
-            [  ONLINE  ]      |       [  LOCKED ]     |     [  LOCKED ]
+[ Merchant-Location Realism ] | [ Arrival Mechanics ]            | [ Flow Dynamics ]
+            [  ONLINE  ]      | [ SPECS SEALED - NEXT UP ]      | [ SPECS SEALED - NEXT UP ]
 
-                          ^ focus now
+                  ^ implementation focus: 5A/5B and 6A/6B
 -------------------------------------------------------------------------------
 | 4A Reproducibility + 4B Validation = CROSS-CUTTING (baked into every box)   |
 | VALIDATION HARNESS: ON FROM DAY 0 (spans all layers; not a tail-end step)   |
@@ -343,7 +349,7 @@ S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (
 S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
 
 
-=========== 3A state-flow (8 states; spec ready / impl in progress) ===========
+=========== 3A state-flow (8 states; specs sealed) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7
 
 Where (short labels just to anchor the flow):
@@ -353,7 +359,7 @@ S4 Integerise w/ Floors & Bump S5 Bind Allocation + Universe Hash
 S6 Structural Validation       S7 Validation Bundle & `_passed.flag`
 
 
-=========== 3B state-flow (6 states; spec ready) ===========
+=========== 3B state-flow (6 states; specs sealed) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5
 
 Where (short labels just to anchor the flow):
@@ -369,40 +375,36 @@ Legend:
 ```
 
 ```markdown
-=========== Arrival Mechanics (Layer 2 — design) ===========
-Planned sub-segments:
-  5A  Arrival Surfaces & Calendar              [ CONCEPT READY ]
-  5B  Arrival Realisation (LGCP + Routing)     [ CONCEPT READY ]
+=========== Arrival Mechanics (Layer 2 - specs sealed) ===========
+Sub-segments:
+  5A  Arrival Surfaces & Calendar              [ SPECS SEALED - IMPLEMENTATION NEXT ]
+  5B  Arrival Realisation (LGCP + Routing)     [ SPECS SEALED - IMPLEMENTATION NEXT ]
 
 Notes:
-  • 5A will define deterministic intensity surfaces per merchant×zone×time bucket,
+  - 5A defines deterministic intensity surfaces per merchant/zone/time bucket,
     with calendar/scenario overlays (paydays, holidays, campaigns).
-  • 5B will realise arrivals from those surfaces using LGCP-style latent fields +
-    Poisson draws, then route each arrival through L1 alias tables and edges to a site.
+  - 5B realises arrivals from those surfaces using LGCP-style latent fields
+    plus Poisson draws, then routes each arrival through L1 alias tables and edges to a site.
 
 [4A/4B overlay]  >>> S0 gate + validation bundle pattern reused for 5A/5B
                    (same run sealing, RNG, and HashGate discipline as Layer 1)
-```
 
-```
-=========== Flow Dynamics (Layer 3 — concept) ===========
-Planned sub-segments:
-  6A  Entity & Product World                   [ CONCEPT READY ]
-  6B  Behaviour & Fraud Cascades               [ CONCEPT READY ]
+
+=========== Flow Dynamics (Layer 3 - specs sealed) ===========
+Sub-segments:
+  6A  Entity & Product World                   [ SPECS SEALED - IMPLEMENTATION NEXT ]
+  6B  Behaviour & Fraud Cascades               [ SPECS SEALED - IMPLEMENTATION NEXT ]
 
 Notes:
-  • 6A will build the entity graph: customers, accounts, instruments, devices, IPs,
+  - 6A builds the entity graph: customers, accounts, instruments, devices, IPs,
     merchant-side accounts, and static fraud roles (mules, synthetic IDs, risky merchants).
-  • 6B will map arrivals to entities, generate transactional flows (auth/clear/refund/
-    chargeback), overlay fraud & abuse campaigns, and produce truth + bank-view labels.
+  - 6B maps arrivals to entities, generates transactional flows (auth/clear/refund/
+    chargeback), overlays fraud and abuse campaigns, and produces truth plus bank-view labels.
 
 [4A/4B overlay]  >>> same governance rails in Layer 3:
                    sealed inputs, deterministic specs, validation bundles,
-                   and "no PASS → no read" for all L3 outputs
+                   and "no PASS -> no read" for all L3 outputs
 ```
-
-
-
 
 ---
 
