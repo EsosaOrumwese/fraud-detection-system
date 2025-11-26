@@ -1,0 +1,4 @@
+version: "v0.1.0"
+ip_country_tolerance: 0.1
+cutoff_tolerance_seconds: 900
+notes: "Baseline validation tolerances for virtual routing smoke tests"

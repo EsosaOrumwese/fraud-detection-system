@@ -247,9 +247,26 @@ SEG3A_ARGS = \
 	$(SEG3A_EXTRA)
 SEG3A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3a $(SEG3A_ARGS)
 
+SEG3B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml
+SEG3B_RESULT_JSON ?= $(SUMMARY_DIR)/segment3b_result.json
+SEG3B_EXTRA ?=
+SEG3B_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--seed $(SEED) \
+	--git-commit-hex $(GIT_COMMIT) \
+	--dictionary "$(SEG3B_DICTIONARY)" \
+	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
+	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
+	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
+	--result-json "$(SEG3B_RESULT_JSON)" \
+	$(SEG3B_EXTRA)
+SEG3B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3b $(SEG3B_ARGS)
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a profile-all profile-seg1b clean-results
+
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b
 
@@ -367,6 +384,32 @@ segment3a:
 		($(SEG3A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
 		$(SEG3A_CMD); \
+	 fi
+
+segment3b:
+	@if [ ! -d "$(RUN_ROOT)/data/layer1/3A" ]; then \
+		echo "Segment 3A outputs not found under '$(RUN_ROOT)/data/layer1/3A'. Run 'make segment3a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
+	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG3B_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG3B_CMD); \
 	 fi
 
 profile-all:

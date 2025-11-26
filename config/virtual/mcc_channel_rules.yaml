@@ -1,0 +1,10 @@
+version: "v0.1.0"
+rules:
+  - mcc: "742"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Sample rule driving virtual overlay for internet-only merchants"
+  - mcc: "742"
+    channel: "card_present"
+    decision: physical
+    notes: "Physical presence stays outside virtual overlay"

@@ -33,6 +33,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: zone_alloc
+  status: draft
+  owner_subsegment: 3A
+  description: Cross-layer zone allocation egress consumed by 3B routing.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/egress/zone_alloc
+  lineage:
+    produced_by: 3A.S5
+    consumed_by: [3B, routing_virtual]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: mcc_channel_rules
   status: draft
   owner_subsegment: 3B
@@ -105,6 +123,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: merchant_ids
+  status: approved
+  owner_subsegment: ingress
+  description: Merchant classification universe with MCC, channel, and home country anchors.
+  version: v2025-10-08
+  format: parquet
+  path: reference/layer1/transaction_schema_merchant_ids/v2025-10-08/transaction_schema_merchant_ids.parquet
+  partitioning: []
+  ordering: [merchant_id]
+  schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+  lineage:
+    produced_by: ingress
+    consumed_by: [3B.S1]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: hrsl_raster
   status: approved
   owner_subsegment: ingress
@@ -156,6 +192,25 @@ datasets:
   lineage:
     produced_by: 3B.S0
     consumed_by: [3B.S1, 3B.S2, 3B.S3, 3B.S4, 3B.S5]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+reports:
+- id: segment_state_runs
+  status: draft
+  owner_subsegment: 3B
+  description: Layer-1 segment-state run-report (JSONL), one row per state invocation.
+  version: latest
+  format: jsonl
+  path: reports/l1/segment_states/segment_state_runs.jsonl
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 3B.S0|3B.S1|3B.S2|3B.S3|3B.S4|3B.S5
+    consumed_by: [orchestrator, ops]
     final_in_layer: false
   retention_days: 365
   pii: false

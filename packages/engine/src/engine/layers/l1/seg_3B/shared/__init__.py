@@ -7,6 +7,7 @@ from .dictionary import (
     render_dataset_path,
     repository_root,
 )
+from .run_report import SegmentStateKey, write_segment_state_run_report
 from .schema import load_schema, load_schema_document
 
 __all__ = [
@@ -17,4 +18,6 @@ __all__ = [
     "repository_root",
     "load_schema",
     "load_schema_document",
+    "SegmentStateKey",
+    "write_segment_state_run_report",
 ]

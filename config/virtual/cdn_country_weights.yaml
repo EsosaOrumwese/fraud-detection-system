@@ -1,0 +1,9 @@
+version: "v0.1.0"
+edge_scale: 2
+countries:
+  - country_iso: "US"
+    weight: 0.6
+    notes: "Primary market weight for sample virtuals"
+  - country_iso: "GB"
+    weight: 0.4
+    notes: "Secondary weight used for smoke coverage"

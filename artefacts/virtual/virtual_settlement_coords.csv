@@ -1,0 +1,6 @@
+merchant_id,lat_deg,lon_deg,evidence_url,coord_source,tzid_settlement,notes
+4985011073782141558,40.7128,-74.0060,https://example.com/nyc,"governed_sample","America/New_York","Sample settlement anchor"
+4997362484493071042,34.0522,-118.2437,https://example.com/la,"governed_sample","America/Los_Angeles","Sample settlement anchor"
+7325591038570259835,51.5074,-0.1278,https://example.com/london,"governed_sample","Europe/London","Sample settlement anchor"
+14180418415767361986,37.7749,-122.4194,https://example.com/sf,"governed_sample","America/Los_Angeles","Sample settlement anchor"
+17885828960010452285,35.6895,139.6917,https://example.com/tokyo,"governed_sample","Asia/Tokyo","Sample settlement anchor"
