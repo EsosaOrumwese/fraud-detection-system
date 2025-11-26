@@ -220,6 +220,23 @@ SEG2B_ARGS = \
 	$(SEG2B_EXTRA)
 SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
 
+SEG3A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3A/layer1.3A.yaml
+SEG3A_RESULT_JSON ?= $(SUMMARY_DIR)/segment3a_result.json
+SEG3A_EXTRA ?=
+SEG3A_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--seed $(SEED) \
+	--git-commit-hex $(GIT_COMMIT) \
+	--dictionary "$(SEG3A_DICTIONARY)" \
+	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
+	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
+	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--result-json "$(SEG3A_RESULT_JSON)" \
+	--quiet-summary \
+	$(SEG3A_EXTRA)
+SEG3A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3a $(SEG3A_ARGS)
+
 
 
 .PHONY: all segment1a segment1b segment2a segment2b segment3a profile-all profile-seg1b clean-results
@@ -318,8 +335,29 @@ segment2b:
 	 fi
 
 segment3a:
-	@echo "Segment 3A automation is not wired yet. Implement segment3a target when the CLI is available." >&2
-	@exit 1
+	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
+		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG3A_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG3A_CMD); \
+	 fi
 
 profile-all:
 	PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
