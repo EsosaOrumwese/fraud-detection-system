@@ -1,360 +1,160 @@
-# Layer 3 — Segment 6B: Behaviour & Fraud Cascades
-Here’s a state-flow overview for **Layer 3 / Segment 6B** in the same style as 5A/5B and 6A — conceptual, non-binding, but structured and clear.
+# Layer-3 - Segment 6B - State Overview (S0-S5)
 
-**Role in the engine**
+Segment 6B builds behaviour and labels. It gates upstream worlds, attaches arrivals to entities and sessions, synthesises baseline flows, overlays fraud/abuse campaigns, derives truth/bank-view labels plus case timelines, and seals the segment with a PASS bundle. These surfaces are the sole authority for behaviour and labels for a given world.
 
-By the time 6B runs:
-
-* **Layer-1** has fixed the merchant/location/zone/edge world.
-* **Layer-2** has produced a **stream of arrivals** (when and where traffic hits).
-* **Layer-3 / 6A** has built the **entity & product world** (customers, accounts, instruments, devices, IPs, static fraud posture).
-
-**Segment 6B** takes all of that and turns it into:
-
-* event flows (auths, clearings, refunds, chargebacks…),
-* fraud campaigns and abuse patterns,
-* labels and outcomes that look like what a bank lives with.
-
-It doesn’t change *when* arrivals happen or *where* they land; it decides **who is involved and what happens**.
+## Segment role at a glance
+- Enforce HashGates for 1A-3B, 5A/5B, and 6A; seal what 6B may read.
+- Attach arrival events to entities and group them into sessions.
+- Generate baseline (all-legit) flows and events.
+- Overlay fraud/abuse campaigns to produce post-overlay flows/events.
+- Label flows/events (truth and bank-view) and publish case timelines; seal with `validation_bundle_6B` + `_passed.flag_6B`.
 
 ---
 
-## 6B.S0 — Gate & sealed inputs
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify upstream `_passed.flag_*` (1A-3B, 5A, 5B, 6A) for the target `manifest_fingerprint`; seal the artefacts 6B may read.
 
-**Purpose**
+**Preconditions & gates**  
+Upstream bundles/flags must match; Layer-3 schemas/dictionary/registry present; identities `{seed, parameter_hash, manifest_fingerprint}` fixed.
 
-Set the trust boundary for Layer-3 behaviour and freeze the exact universe of inputs 6B is allowed to use.
+**Inputs**  
+Upstream gated surfaces (listed in sealed manifest): 5B `arrival_events_5B`; 6A entities/posture (`s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, links, fraud-role surfaces); context from Layer-1/2 as needed; 6B priors/policies (behaviour, campaigns, labelling, RNG).
 
-**Upstream dependencies**
+**Outputs & identity**  
+`s0_gate_receipt_6B` at `data/layer3/6B/s0_gate_receipt_6B/fingerprint={manifest_fingerprint}/`; `sealed_inputs_6B` at `data/layer3/6B/sealed_inputs_6B/fingerprint={manifest_fingerprint}/`.
 
-* PASSed validation bundles (and flags) for:
+**RNG**  
+None.
 
-  * Layer-1 segments (1A–3B): merchant + routing world.
-  * Layer-2 segments (5A/5B): arrival surfaces + skeleton arrivals.
-  * Layer-3 / 6A: entity & product world.
-* Layer-3 contracts:
+**Key invariants**  
+Only artefacts in `sealed_inputs_6B` may be read; sealed digest verified by S1-S5; "no PASS -> no read" enforced for all upstream gates.
 
-  * schemas for 6B event/flow/label outputs,
-  * dataset dictionary entries,
-  * artefact registry entries for campaign/config surfaces.
-
-**Behaviour**
-
-* Verify that all required upstream segments have PASSed under the current `manifest_fingerprint`.
-* Resolve and seal:
-
-  * skeleton arrival stream from 5B,
-  * entity graph from 6A (customers, accounts, instruments, devices, IPs, merchants),
-  * behaviour priors (baseline spend profiles, channel mix, retry patterns),
-  * fraud/abuse campaign configs (types, parameters, scenarios),
-  * any label/outcome policies (e.g. dispute/chargeback delays).
-* Produce an explicit inventory 6B may read; refuse to run if required artefacts are missing or mismatched.
-
-**Outputs**
-
-* `s0_gate_receipt_6B`
-  – shows which Layer-1/2/6A bundles were honoured and which 6B policies were sealed.
-
-* `sealed_inputs_6B`
-  – table of all artefacts (ids, partitions, schema refs, digests) that 6B is allowed to touch.
+**Downstream consumers**  
+S1-S5 verify receipt/digest; 6B surfaces remain unreadable by downstream until `_passed.flag_6B`.
 
 ---
 
-## 6B.S1 — Entity & session assignment
+## S1 - Arrival-to-entity attachment & sessionisation
+**Purpose & scope**  
+Attach each arrival to entities and group arrivals into sessions.
 
-**Purpose**
+**Preconditions & gates**  
+S0 PASS; `arrival_events_5B` and required 6A bases/links/fraud roles listed in sealed inputs with appropriate scopes.
 
-Attach each arrival from Layer-2 to **real synthetic entities** and group arrivals into **sessions/flows**.
+**Inputs**  
+`arrival_events_5B` `[seed, fingerprint, scenario_id]`; 6A bases (`party/account/instrument/device/ip`); 6A links and fraud roles; attachment/session policies.
 
-**Inputs**
+**Outputs & identity**  
+`s1_arrival_entities_6B` at `data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, one row per arrival with entity ids, `session_id`, provenance.  
+`s1_session_index_6B` at `.../s1_session_index_6B/.../` with session windows and aggregates.
 
-* Skeleton arrival stream from 5B (`arrival_id`, `utc_ts`, `merchant_id`, site/edge, scenario_id, etc.).
-* Entity outputs from 6A:
+**RNG posture**  
+Philox streams for ambiguous attachments and session boundary choices; event families such as `rng_event_entity_attach`, `rng_event_session_boundary`; budgets logged and reconciled in trace.
 
-  * customers, accounts, instruments, devices, IPs, their relationships.
-* Behaviour priors:
+**Key invariants**  
+Every arrival appears exactly once in `s1_arrival_entities_6B`; every `session_id` appears in `s1_session_index_6B`; no new entities created; FKs to 6A hold.
 
-  * channel preferences per customer/segment,
-  * how often customers visit which merchant types,
-  * typical session structures for each scenario.
-
-**Behaviour**
-
-For each arrival:
-
-* Pick a plausible tuple:
-
-  * `(customer_id, account_id, instrument_id, device_id, ip_id)`
-    consistent with:
-
-    * the scenario (POS, e-com, mobile, ATM, etc.),
-    * the merchant type and region,
-    * the customer’s past behaviour profile.
-* Assign a **session_id** (or flow_id):
-
-  * new session, or
-  * continuation of an in-progress session from the same customer/channel.
-
-Over the whole stream, ensure:
-
-* realistic distribution of:
-
-  * customers per merchant,
-  * merchants per customer,
-  * devices/IPs per account/merchant.
-
-**Outputs**
-
-* `s1_arrival_entities_6B`
-  – arrival stream enriched with entity assignments and session/flow keys.
-
-* Optional:
-
-  * `s1_session_index_6B` summarising sessions (start/end, channel, merchant, customer).
+**Downstream consumers**  
+S2-S4 consume attachments/sessions; S5 validates coverage and RNG.
 
 ---
 
-## 6B.S2 — Baseline transactional flows (legitimate behaviour)
+## S2 - Baseline transactional flows (RNG)
+**Purpose & scope**  
+Generate baseline (all-legit) flows and events from attached arrivals/sessions.
 
-**Purpose**
+**Preconditions & gates**  
+S0, S1 PASS; flow/amount/timing policies sealed.
 
-Turn entity-attached arrivals into **baseline flows** of events that represent normal banking behaviour, assuming no fraud.
+**Inputs**  
+`s1_arrival_entities_6B`, `s1_session_index_6B`; behaviour policies (`flow_shape_policy_6B`, `amount_model_6B`, `timing_policy_6B`, `flow_rng_policy_6B`); context from 6A posture/features as permitted.
 
-**Inputs**
+**Outputs & identity**  
+`s2_flow_anchor_baseline_6B` at `data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, PK `(seed, fingerprint, scenario_id, flow_id)`, with flow metadata/timestamps/amounts.  
+`s2_event_stream_baseline_6B` at `.../s2_event_stream_baseline_6B/.../`, PK `(seed, fingerprint, scenario_id, flow_id, event_seq)`, ordered baseline events.
 
-* `s1_arrival_entities_6B` (arrivals with entities + session_id).
-* Behaviour priors:
+**RNG posture**  
+Philox streams for flow counts/types, event timing, amounts (`rng_event_flow_shape`, `rng_event_event_timing`, `rng_event_amount_draw`); budgets logged and reconciled.
 
-  * typical event sequences per scenario (e.g. POS, single e-com checkout, account login),
-  * retry patterns (how often customers retry after a decline),
-  * amount distributions, channel-specific quirks.
+**Key invariants**  
+Every baseline flow has >=1 baseline event; flow_ids unique per `(seed, fingerprint, scenario_id)`; flows injectively derived from sessions/arrivals per policy; S3/S4 cannot mutate S2 outputs.
 
-**Behaviour**
-
-For each arrival / session:
-
-* Decide what kind of flow it generates:
-
-  * simple POS auth→clearing,
-  * e-com checkout with multiple auth attempts,
-  * login-only session with no monetary flow,
-  * recurring bill payment, etc.
-* For each flow:
-
-  * Generate a **sequence of events**:
-
-    * auth requests and responses,
-    * possible 3-DS / step-up events,
-    * clearing/settlement,
-    * any immediate refunds or reversals,
-  * Assign monetary amounts and currencies consistent with customer/product/merchant characteristics.
-
-By the end of S2, you have a complete picture of what the bank would see **if everything were legitimate**.
-
-**Outputs**
-
-* `s2_event_stream_baseline_6B`
-  – event-level table: one row per event in each flow, with:
-
-  * timestamps,
-  * event_type (AUTH_REQUEST, AUTH_RESPONSE, CLEARING, REFUND, etc.),
-  * links to arrival_id, session_id, customer/account/instrument.
-
-* `s2_flow_anchor_baseline_6B`
-  – one row per flow/transaction anchor, summarising:
-
-  * merchant, customer, amount, channel,
-  * key timestamps (auth, clearing),
-  * any baseline outcome (e.g. approved/declined for normal reasons).
+**Downstream consumers**  
+S3 overlays campaigns; S4 labels; S5 audits parity and RNG accounting.
 
 ---
 
-## 6B.S3 — Fraud & abuse campaigns overlay
+## S3 - Fraud & abuse campaign overlay (RNG)
+**Purpose & scope**  
+Overlay structured fraud/abuse campaigns onto baseline flows/events; produce post-overlay flows/events and campaign catalogue.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S2 PASS; fraud/abuse campaign configs and RNG policy sealed; 6A posture available.
 
-Overlay **fraud and abuse patterns** onto the baseline flows to create realistic fraud stories and abnormal behaviour.
+**Inputs**  
+`s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`; `s1_arrival_entities_6B`, `s1_session_index_6B`; 6A fraud roles; campaign configs (`fraud_campaign_catalogue_config_6B`, `fraud_overlay_policy_6B`, `fraud_rng_policy_6B`).
 
-**Inputs**
+**Outputs & identity**  
+`s3_campaign_catalogue_6B` at `data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`.  
+`s3_flow_anchor_with_fraud_6B` at `.../s3_flow_anchor_with_fraud_6B/.../` (same PK as baseline, adds origin/campaign/fraud flags).  
+`s3_event_stream_with_fraud_6B` at `.../s3_event_stream_with_fraud_6B/.../` with post-overlay events and provenance.
 
-* Baseline flows from S2:
+**RNG posture**  
+Philox streams for campaign activation/targeting/mutation (`rng_event_campaign_activation`, `rng_event_campaign_targeting`, `rng_event_overlay_mutation`); budgets logged and reconciled.
 
-  * `s2_event_stream_baseline_6B`,
-  * `s2_flow_anchor_baseline_6B`.
-* 6A fraud posture:
+**Key invariants**  
+Every baseline flow appears in post-overlay anchors (possibly unchanged); pure-fraud flows are marked; overlays respect 6A posture and campaign config; S4 treats S3 as behavioural authority.
 
-  * static roles (mules, synthetic IDs, risky merchants).
-* Fraud campaign configs:
-
-  * card-testing templates,
-  * account takeover templates,
-  * merchant collusion scenarios,
-  * refund/chargeback abuse patterns.
-
-**Behaviour**
-
-* Instantiate **campaigns** based on their configs:
-
-  * decide which time windows, regions, merchant classes, and entity segments each campaign targets.
-* For each campaign:
-
-  * select affected flows and/or spawn new flows:
-
-    * card testing flows at low-value merchants,
-    * high-value fraud at electronics merchants,
-    * waves of logins from suspicious devices/IPs,
-    * unusual refund patterns at flagged merchants.
-  * mutate baseline flows where needed:
-
-    * flip amounts, change locations, alter device/IP usage, increase attempt counts, etc.
-* Tag all affected events/flows with:
-
-  * `campaign_id`,
-  * `fraud_pattern_type`,
-  * any internal fields needed for validation and analysis.
-
-**Outputs**
-
-* `s3_event_stream_with_fraud_6B`
-  – event stream with both baseline and fraud-modified events, including campaign tags.
-
-* `s3_flow_anchor_with_fraud_6B`
-  – updated flow anchors with flags/fields indicating participation in fraud/abuse.
-
-* `s3_campaign_catalogue_6B`
-  – table of campaign instances (start/end, type, target, intensity parameters).
+**Downstream consumers**  
+S4 labels/cases; S5 validates overlays and RNG usage.
 
 ---
 
-## 6B.S4 — Labels, decisions & life-cycle assembly
+## S4 - Labels, bank view, and case timelines (RNG)
+**Purpose & scope**  
+Derive truth labels, bank-view labels, and case timelines from S3 behaviour.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S3 PASS; labelling/bank-view/case policies and RNG sealed.
 
-Assign **truth labels** and **bank-view outcomes** to flows, and assemble the life-cycle for each transaction in a bank-realistic way.
+**Inputs**  
+`s3_flow_anchor_with_fraud_6B`, `s3_event_stream_with_fraud_6B`, `s3_campaign_catalogue_6B`; optional context from S1/S2/6A; labelling and delay policies (`truth_labelling_policy_6B`, `bank_view_policy_6B`, `delay_models_6B`, `case_policy_6B`, `label_rng_policy_6B`).
 
-**Inputs**
+**Outputs & identity**  
+`s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B` at `.../seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, one row per flow with truth/bank labels and provenance.  
+`s4_event_labels_6B` at `.../s4_event_labels_6B/.../`, one row per event with truth/bank flags.  
+`s4_case_timeline_6B` at `.../s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/` with case events per `case_id`.
 
-* `s3_flow_anchor_with_fraud_6B` and associated events (`s3_event_stream_with_fraud_6B`).
-* Bank decision logic config:
+**RNG posture**  
+Philox streams for ambiguous labels and delays (`rng_event_truth_label_ambiguity`, `rng_event_detection_delay`, `rng_event_dispute_delay`, `rng_event_chargeback_delay`, `rng_event_case_timeline`); budgets logged and reconciled.
 
-  * what rules or model outputs you want to simulate,
-  * how disputes and chargebacks arise,
-  * typical time-to-chargeback distributions.
+**Key invariants**  
+Exactly one truth row and one bank-view row per flow; exactly one event-label row per S3 event; case timeline events reference valid flows and align with bank-view/delay models.
 
-**Behaviour**
-
-For each flow / transaction anchor:
-
-1. **Truth label**
-
-   * Determine a ground-truth classification:
-
-     * LEGIT,
-     * FRAUD_AUTH (fraud caught at auth),
-     * FRAUD_SETTLED (fraud that clears and later chargebacks),
-     * ABUSE (e.g. refund abuse, friendly fraud),
-     * other nuanced labels as needed.
-
-2. **Bank-view dynamic label**
-
-   * Simulate how the bank *perceives* the transaction over time:
-
-     * initial decision at auth (approve/decline),
-     * whether a dispute or chargeback is filed,
-     * whether the case is investigated and reclassified.
-
-3. **Life-cycle stitching**
-
-   * Attach timestamps and reasons for:
-
-     * disputes,
-     * chargebacks,
-     * refunds,
-     * write-offs.
-
-**Outputs**
-
-* `s4_event_stream_final_6B`
-  – final event stream with labels and bank-view outcomes attached where relevant.
-
-* `s4_flow_labels_6B`
-  – label surface keyed by flow/transaction anchor:
-
-  * truth label,
-  * bank-view label,
-  * campaign_id (if any).
-
-* Optional:
-
-  * `s4_case_timeline_6B` for disputes/chargebacks (one record per case).
+**Downstream consumers**  
+S5 validation; downstream/enterprise consumers read only after `_passed.flag_6B`.
 
 ---
 
-## 6B.S5 — Validation & bundle (RNG-free)
+## S5 - Validation bundle & `_passed.flag_6B`
+**Purpose & scope**  
+Validate S0-S4 outputs and publish the 6B HashGate.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S4 PASS; all seeds/scenarios present; upstream gates still verify.
 
-Validate the behaviour & fraud layer and publish a **Layer-3 validation bundle + PASS flag** that downstream models and tools can rely on.
+**Inputs**  
+`s0_gate_receipt_6B`, `sealed_inputs_6B`; S1-S4 datasets (attachments/sessions, baseline/post-overlay flows/events, labels, case timelines); RNG logs/events/trace; validation policies/tolerances.
 
-**Inputs**
+**Outputs & identity**  
+`s5_validation_report_6B` and optional `s5_issue_table_6B` at `fingerprint={manifest_fingerprint}`; `validation_bundle_6B` at `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_6B`; `_passed.flag_6B` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
-* All 6B outputs:
+**RNG**  
+None (validator).
 
-  * arrival-to-entity assignment (S1),
-  * baseline and fraud-overlaid flows (S2/S3),
-  * labels/outcomes (S4),
-  * RNG logs for 6B (campaign draws, assignment draws, flow variations).
-* 6A outputs (entity graph, fraud roles).
-* Upstream context (L1/L2 bundles as needed for cross-layer checks).
+**Key invariants**  
+Schema/partition conformance; coverage and FK integrity across arrivals->entities->flows->events->labels/cases; overlays and labels consistent with policies; RNG accounting across S1-S4 closes; bundle digest matches `_passed.flag_6B`; enforces "no PASS -> no read" for all 6B artefacts.
 
-**Behaviour**
-
-* **Structural sanity**
-
-  * Check referential integrity between arrivals, entities, flows and events.
-  * Confirm no impossible state transitions (e.g. chargebacks without prior clearing).
-  * Ensure label surfaces are consistent with events (truth vs bank-view timelines).
-
-* **Statistical sanity**
-
-  * Compare realised fraud rates by segment against configured targets.
-  * Check that campaign intensity and targeting match their parameters.
-  * Confirm distributional properties (e.g. chargeback delays, refund rates) are within expected bands.
-
-* **RNG & replay**
-
-  * Reconcile 6B RNG logs:
-
-    * numbers of draws,
-    * counter monotonicity,
-    * correct labelling of RNG events by module/stream.
-
-* **Bundle**
-
-  * Assemble a `validation_bundle_6B` directory with:
-
-    * index file listing evidence and their checksums,
-    * summary reports and metrics,
-    * any diagnostic slices.
-  * Compute SHA-256 over indexed evidence and write `_passed.flag_6B` with that digest.
-
-**Outputs**
-
-* `validation_bundle_6B`
-  – evidence package for 6B’s behaviour & fraud realism.
-
-* `_passed.flag_6B`
-  – PASS flag; downstream consumers must enforce “no 6B PASS → no read of 6B outputs”.
-
----
-
-**After 6B**
-
-At the end of Segment 6B you have:
-
-* A **behavioural event stream** reflecting normal and abnormal flows.
-* A **transaction/flow anchor surface** summarising each story.
-* **Ground truth** and **bank-view** labels that reflect realistic fraud and dispute dynamics.
-* A Layer-3 validation bundle that proves those outputs are structurally and statistically sane.
-
-That’s the point where your engine’s outputs start to look like what a real bank’s data science and fraud teams handle day to day.
+**Downstream consumers**  
+Any consumer must verify `_passed.flag_6B` (and upstream gates) before using 6B surfaces.

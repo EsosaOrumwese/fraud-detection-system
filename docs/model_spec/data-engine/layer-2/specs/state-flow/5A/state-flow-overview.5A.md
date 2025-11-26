@@ -1,330 +1,155 @@
-# Layer 2 — Segment 5A: Arrival Surfaces & Calendar (Deterministic)
+# Layer-2 - Segment 5A - State Overview (S0-S5)
 
-Here’s a state-flow overview for **Layer 2 / Segment 5A** in the same spirit as your 1A–3B overviews, but deliberately non-binding and conceptual.
+Segment 5A builds deterministic intensity surfaces. It gates upstream Layer-1 segments, classifies merchantxzone demand, owns the weekly shape library, composes baseline intensities, applies calendar/scenario overlays, and seals everything with a PASS bundle. All states are RNG-free.
 
-**Role in the engine**
-
-Layer 1 has just finished: 1A–3B have sealed a fixed world of merchants, outlets, zones and edges, with their routing fabric and validation bundles in place.
-
-**Segment 5A is the first piece of Layer 2.**
-It does **not** generate events. Instead, it builds the **deterministic intensity surfaces** that say:
-
-> “For this merchant in this zone, at this local time, under this scenario, how busy should we expect it to be on average?”
-
-5A is fully RNG-free. All randomness in arrival mechanics is reserved for Segment 5B.
+## Segment role at a glance
+- Enforce upstream HashGates (1A-3B) and seal the artefacts/policies 5A may read.
+- Classify merchantxzone demand classes and base scales.
+- Publish the canonical weekly time grid and class/zone shapes (unit-mass).
+- Compose baseline per-merchantxzone intensities; overlay calendar/scenario shocks to produce final targets.
+- Validate and bundle outputs with `_passed.flag_5A` ("no PASS -> no read" for 5A surfaces).
 
 ---
 
-## State 5A.S0 — Gate & sealed inputs (RNG-free)
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify upstream `_passed.flag_*` for 1A-3B and seal the exact artefacts/policies 5A may touch for a fingerprint.
 
-**Purpose**
+**Preconditions & gates**  
+Layer schemas/dictionaries/registries present; `_passed.flag` + bundles for 1A, 1B, 2A, 2B, 3A, 3B match; identities `{parameter_hash, manifest_fingerprint}` fixed.
 
-Establish the trust boundary between Layer 1 and Layer 2, and freeze the configuration universe for 5A.
+**Inputs**  
+Upstream gated surfaces (discoverable via catalogues): merchant/outlet, site/timezone, routing surfaces, zone alloc + hash, virtual overlays. Parameter pack: demand class/scale policy, shape library config, scenario/calendar overlays.
 
-**Upstream dependencies**
+**Outputs & identity**  
+`s0_gate_receipt_5A` at `data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_5A` manifest at `data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/`. Optional `scenario_manifest_5A` if used to enumerate scenarios (fingerprint-scoped).
 
-* Layer-1 validation bundles + PASS flags for all the segments 5A cares about:
+**RNG**  
+None.
 
-  * 1A: outlet catalogue, merchant universe.
-  * 1B: site locations.
-  * 2A: site timezones and tz timetable cache.
-  * 2B: routing weights / alias tables (if used for volume priors).
-  * 3A: zone allocations and routing universe hash.
-  * 3B: virtual classification / settlement, edge catalogue, edge alias/universe hash.
-* Layer-1 and Layer-2 contracts:
+**Key invariants**  
+Only artefacts listed in `sealed_inputs_5A` are readable by 5A; sealed inputs digest verified by downstream states; path/embed parity holds.
 
-  * Layer-wide schemas, dataset dictionaries, artefact registries.
-  * 5A’s own policy/config surfaces (demand priors, weekly-shape library config, calendar/scenario config).
-
-**Behaviour**
-
-* Verify that all required Layer-1 segments have PASSed for the current `manifest_fingerprint`:
-
-  * Recompute hash of each upstream validation bundle; check the corresponding PASS flag.
-  * Refuse to run if any upstream layer-1 segment is not green.
-* Resolve and seal the set of artefacts 5A is allowed to touch:
-
-  * Merchant-level priors (e.g. expected daily volumes, class priors).
-  * Shape library definitions.
-  * Scenario/calendar configs (paydays, holidays, campaigns).
-  * Any classing rules / metadata used for demand classification.
-* Record the resolved catalogue entries (ids, schema refs, paths, digests) as **sealed inputs** for Segment 5A.
-
-**Outputs**
-
-* `s0_gate_receipt_5A`
-  A small, fingerprint-scoped receipt that says:
-
-  * which Layer-1 bundles were checked and PASSed,
-  * which dictionary/registry entries were resolved,
-  * which parameter set (`parameter_hash`) 5A is bound to.
-
-* `sealed_inputs_5A`
-  A tabular inventory of everything 5A is authorised to read (ids, partitions, schema refs, digests).
-
-**Notes**
-
-* No RNG.
-* Every later 5A state must treat `s0_gate_receipt_5A + sealed_inputs_5A` as the sole authority for what it can read from Layer 1 and from 5A’s own config universe.
+**Downstream consumers**  
+S1-S5 must verify the receipt/digest before reading; S5 bundles it.
 
 ---
 
-## State 5A.S1 — Merchant & zone demand classification (RNG-free)
+## S1 - Merchantxzone demand classification (RNG-free)
+**Purpose & scope**  
+Assign demand class and base scale per `(merchant, legal_country_iso, tzid[, channel])`.
 
-**Purpose**
+**Preconditions & gates**  
+S0 PASS; merchant/zone universe available via sealed inputs; demand class/scale policies sealed.
 
-Map each merchant and zone into a **demand class** plus scale factors, using only sealed Layer-1 reality and sealed priors.
+**Inputs**  
+Merchant attributes; zone/domain from `zone_alloc` (and timezones if needed); virtual flags if policy uses them; `demand_class_policy_5A` and `demand_scale_policy_5A`.
 
-**Inputs**
+**Outputs & identity**  
+`merchant_zone_profile_5A` at `data/layer2/5A/merchant_zone_profile_5A/fingerprint={manifest_fingerprint}/` with class id, scale params, flags. Optional `merchant_class_profile_5A` aggregation at the same partition.
 
-* From Layer 1:
+**RNG**  
+None.
 
-  * Merchant universe and attributes (segment, country, type, size).
-  * Zone universe per merchant (3A zone_alloc).
-  * Optional usage statistics from previous real/sim runs, if you decide to feed them as priors.
-* From sealed 5A configs:
+**Key invariants**  
+Coverage equals in-scope merchantxzone domain; class/scale decisions are deterministic functions of sealed data/policy; non-negative scales.
 
-  * Demand class definitions (e.g. small_local, medium_chain, big_box, virtual_24x7).
-  * Class assignment rules (criteria on merchant attributes, country, zone).
-  * Per-class volume priors (e.g. expected daily tx range by class).
-
-**Behaviour**
-
-* For each `(merchant, zone)` pair:
-
-  * Assign a **demand class** (e.g. “UK small café”, “US 24/7 exchange”).
-  * Attach a **volume scale** (e.g. expected daily/weekly counts, possibly by scenario family).
-  * Attach any flags 5B will need for grouping (e.g. salary-sensitive, holiday-sensitive, weekend-heavy).
-
-**Outputs**
-
-* `merchant_zone_profile_5A`
-  A param-scoped classification table keyed by `(merchant_id, tzid)` (or `(merchant_id, zone_id)`), with:
-
-  * `demand_class_id`
-  * volume scale parameters
-  * grouping flags / tags.
-
-**Notes**
-
-* No RNG.
-* This is the **single authority** in Layer 2 for “what kind of demand pattern does this merchant×zone have?”.
+**Downstream consumers**  
+S2 discovers needed class/zone combos; S3/S4 consume class/scale for intensities.
 
 ---
 
-## State 5A.S2 — Weekly shape library (RNG-free)
+## S2 - Weekly shape library (RNG-free)
+**Purpose & scope**  
+Define the canonical local-week grid and unit-mass shapes per `(demand_class, zone[, channel])` for each scenario.
 
-**Purpose**
+**Preconditions & gates**  
+S0, S1 PASS; shape config and scenario set sealed.
 
-Own the reusable **weekly shape functions** that define the *shape* of demand over a week (ignoring absolute level and calendar shocks).
+**Inputs**  
+`merchant_zone_profile_5A` (used to know which class/zone combos exist); shape grid config; shape templates/modifiers; scenario metadata.
 
-**Inputs**
+**Outputs & identity**  
+`shape_grid_definition_5A` at `data/layer2/5A/shape_grid_definition_5A/parameter_hash={parameter_hash}/scenario_id={scenario_id}/`.  
+`class_zone_shape_5A` at `data/layer2/5A/class_zone_shape_5A/parameter_hash={parameter_hash}/scenario_id={scenario_id}/` with unit-mass vectors per class/zone; optional `class_shape_catalogue_5A` same partitions.
 
-* From sealed 5A configs:
+**RNG**  
+None.
 
-  * Shape family definitions (e.g. “office-hours”, “commuter-rail”, “nightlife”, “24/7”).
-  * Any hyperparameters or spline coefficients for those shapes.
-* From classification (S1):
+**Key invariants**  
+Grid covers the local week without overlap; per class/zone vector sums to 1 (tolerance policy); non-negative shape values; scenario_id carried on all outputs.
 
-  * Which classes/zones need which shapes.
-
-**Behaviour**
-
-* For each relevant shape family and time zone:
-
-  * Construct a **normalised weekly curve**, e.g. an array of 168 points (one per hour of week) or whatever time grid you adopt.
-  * Ensure each curve is deterministic and integrates/sums to 1 over the week.
-* Optionally derive more compact bases (e.g. factor models), but still produce explicit per-class/per-zone weekly shapes for downstream consumption.
-
-**Outputs**
-
-* `class_zone_shape_5A`
-  A param-scoped library keyed by `(demand_class_id, tzid, hour_of_week)` (or equivalent), with:
-
-  * `shape_value` (non-negative, sums to 1 per class×tz),
-  * references back to the shape config that produced it.
-
-**Notes**
-
-* No RNG.
-* 5A.S3 and 5B will treat this as the **sole authority** on within-week shape.
+**Downstream consumers**  
+S3 uses grid/shapes to build baselines; S4 overlays reference same grid; 5B/6A adopt this grid (no redefinition).
 
 ---
 
-## State 5A.S3 — Baseline intensity surfaces (RNG-free)
+## S3 - Baseline intensities (RNG-free)
+**Purpose & scope**  
+Compose class/scale (S1) and shapes (S2) into baseline per-merchantxzone intensities per scenario.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S2 PASS; scenario set known; baseline policies sealed.
 
-Combine **who you are** (S1) and **what your weekly shape looks like** (S2) into per-merchant, per-zone **baseline intensity surfaces**.
+**Inputs**  
+`merchant_zone_profile_5A` (class, scale); `shape_grid_definition_5A`; `class_zone_shape_5A`; scenario metadata; optional adjustments/caps from policy.
 
-**Inputs**
+**Outputs & identity**  
+`merchant_zone_baseline_local_5A` at `data/layer2/5A/merchant_zone_baseline_local_5A/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` with `lambda_local_base` and decomposition fields. Optional `class_zone_baseline_local_5A` and `merchant_zone_baseline_utc_5A` (same partitions).
 
-* `merchant_zone_profile_5A` — classification + volume scale per `(merchant, zone)`.
-* `class_zone_shape_5A` — normalised weekly shape per `(demand_class, tzid)`.
-* Optional additional priors (e.g. per-merchant caps or per-zone adjustments).
+**RNG**  
+None.
 
-**Behaviour**
+**Key invariants**  
+Per `(merchant, zone, scenario)` baseline aligns with S1 scale and S2 shape; non-negative; weekly sum consistent with scale (policy tolerance); any UTC projection must derive deterministically from local baselines + 2A civil-time surfaces.
 
-For each `(merchant, tzid)` and each discrete time point in your weekly grid:
-
-* Look up:
-
-  * the class id and volume scale from S1,
-  * the shape value from S2.
-* Compute `λ_base(m, tz, t)` such that:
-
-  * over the week, the expected volume matches the scale, and
-  * the intra-week pattern matches the class shape.
-
-**Outputs**
-
-* `merchant_zone_baseline_local_5A`
-  Param-scoped baseline surfaces keyed by `(merchant_id, tzid, hour_of_week)` (or equivalent), with:
-
-  * `lambda_base` (baseline intensity),
-  * any decomposition you want (e.g. `scale × shape` columns, for debug and validation).
-
-**Notes**
-
-* No RNG.
-* This is the baseline that would apply in a world with “no calendar shocks”.
+**Downstream consumers**  
+S4 overlays; S5 validation; 5B reads as baseline authority.
 
 ---
 
-## State 5A.S4 — Calendar overlays & published target surfaces (RNG-free)
+## S4 - Calendar & scenario overlays (RNG-free)
+**Purpose & scope**  
+Apply deterministic calendar/scenario effects to produce final target intensities.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S3 PASS; overlay policies and calendars sealed.
 
-Warp the baseline surfaces through **calendar and scenario effects**, then publish the final **target intensity surfaces** for 5B.
+**Inputs**  
+`merchant_zone_baseline_local_5A`; `shape_grid_definition_5A`; scenario calendars/config; overlay policies (per event type, per merchant/zone/class/channel); optional UTC baselines if producing UTC outputs.
 
-**Inputs**
+**Outputs & identity**  
+`merchant_zone_scenario_local_5A` at `data/layer2/5A/merchant_zone_scenario_local_5A/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` with `lambda_local_scenario`, optional overlay factors. Optional `merchant_zone_overlay_factors_5A` and `merchant_zone_scenario_utc_5A` (same partitions).
 
-* `merchant_zone_baseline_local_5A` — baseline λ surfaces.
-* From sealed configs:
+**RNG**  
+None.
 
-  * Scenario calendar (global and per-region events).
-  * Per-event / per-scenario effect definitions (multipliers, decay patterns, eligibility).
-* From Layer 1 / other layers if desired:
+**Key invariants**  
+Non-negative intensities; where no events apply, scenario surface equals baseline; overlay factors bounded per policy; domain matches S3 grid and scenario config; any UTC surface is a deterministic transform of local + 2A civil time.
 
-  * Country/tz calendars (for local holidays/paydays).
-
-**Behaviour**
-
-* For each `(merchant, tzid, t)`:
-
-  * Determine which calendar/scenario effects apply at time `t`:
-
-    * salary day? weekend? public holiday? sale campaign? outage?
-  * Construct a combined **scenario multiplier** `Γ(m, tz, t)` as a deterministic function of those events.
-  * Compute final target intensity:
-
-    ```text
-    λ_target(m, tz, t) = λ_base(m, tz, t) × Γ(m, tz, t)
-    ```
-
-* Enforce simple sanity checks:
-
-  * λ_target non-negative,
-  * bounded ratios (e.g. events can’t arbitrarily blow up volume beyond governed limits),
-  * scenario surfaces exist for the full run window.
-
-**Outputs**
-
-* `merchant_zone_scenario_local_5A`
-  Param-scoped final intensity surfaces keyed by `(merchant_id, tzid, time_bucket)` (or weekly grid + calendar window), with:
-
-  * `lambda_target`,
-  * decomposition (`lambda_base`, `calendar_factor`, `scenario_id`/tags).
-* 5A validation bundle + PASS flag:
-
-  * proving that surfaces are structurally sound, consistent with S1/S2/S3, and in allowable ranges.
-
-**Notes**
-
-* This is what Segment 5B will read as its **sole deterministic authority** on “how busy should this outlet be on average at this time, under this scenario”.
-* No RNG here either; all randomness lives in 5B’s latent field / Poisson stages.
+**Downstream consumers**  
+S5 validation; 5B uses scenario/local (and UTC if present) as the sole deterministic target.
 
 ---
 
-## 5A.S5 — Segment Validation & HashGate (`validation_bundle_5A` / `_passed.flag_5A`)
+## S5 - Validation bundle & `_passed.flag_5A`
+**Purpose & scope**  
+Validate S0-S4 outputs and publish the 5A HashGate.
 
-**Role**
+**Preconditions & gates**  
+S0-S4 PASS for the fingerprint; required scenario partitions present; upstream gates still verify.
 
-* Final **validation + sealing** state for Segment 5A.
-* Performs cross-state checks over **S0–S4**, then emits:
+**Inputs**  
+`s0_gate_receipt_5A`, `sealed_inputs_5A`; all modelling outputs (`merchant_zone_profile_5A`, grid/shapes, baselines, overlays), optional catalogues; validation policies/tolerances.
 
-  * `validation_bundle_5A/fingerprint={manifest_fingerprint}/…`
-  * `_passed.flag_5A` (one per `manifest_fingerprint`)
-* Establishes the Layer-2 rule: **“No 5A PASS → No read of S1–S4 outputs.”**
+**Outputs & identity**  
+`validation_report_5A` and optional `validation_issue_table_5A` at `fingerprint={manifest_fingerprint}`; `validation_bundle_5A` at `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_5A`; `_passed.flag_5A` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
-**Inputs (conceptual)**
+**RNG**  
+None.
 
-* Control-plane:
+**Key invariants**  
+Schema/partition conformance for all datasets; unit-mass shapes; baseline/overlay consistency; bundle digest matches `_passed.flag_5A`; enforces "no PASS -> no read" for 5A surfaces.
 
-  * `s0_gate_receipt_5A`, `sealed_inputs_5A` (gate + sealed universe).
-* Modelling outputs:
-
-  * S1: `merchant_zone_profile_5A` (merchant×zone class + base scale).
-  * S2: `shape_grid_definition_5A`, `class_zone_shape_5A` (grid + unit-mass shapes).
-  * S3: `merchant_zone_baseline_local_5A` (and any optional class/UTC baselines).
-  * S4: `merchant_zone_scenario_local_5A` (plus any optional overlay diagnostics).
-* Policies:
-
-  * Any S0/S1/S2/S3/S4 validation policies (tolerances, domain contracts, etc.) required to check invariants.
-
-**Core behaviour (conceptual)**
-
-* **Structural checks**
-
-  * S0: gate identity, sealed_inputs digest, upstream 1A–3B `status="PASS"`.
-  * S1: PKs, domain keys, `demand_class` present for all in-scope `(merchant, zone)`, base scale non-negative / finite.
-  * S2: grid contiguity, `bucket_index` range, `shape_value ≥ 0`, Σ=1 per `(class, zone[, channel])`.
-  * S3: `lambda_local_base ≥ 0`, domain parity with S1×grid, weekly sum vs base scale within tolerance.
-  * S4: (once defined) structural sanity for horizon overlays (no negative intensities, domain alignment with S3, overlay policies applied where expected).
-
-* **Cross-state invariants**
-
-  * Every in-scope `(merchant, zone[, channel])` in S1 has:
-
-    * a matching `(class, zone[, channel])` shape in S2, and
-    * a full local-week baseline in S3, and
-    * (if S4 is present) a scenario-aware horizon intensity surface.
-  * Identity alignment:
-
-    * `parameter_hash`, `manifest_fingerprint`, `scenario_id` consistent across all 5A artefacts.
-  * (Optional) replay-style spot checks:
-
-    * Recompute a small sample of S3/S4 values from S1+S2+overlays and compare to stored results.
-
-* **Bundle construction**
-
-  * Assemble a `validation_bundle_5A` directory under
-    `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/…` containing:
-
-    * `index.json` (list of evidence files with `path` + `sha256_hex`).
-    * S5 validation report(s) summarising check results, metrics, error tables, spec versions, etc.
-    * Any per-state validation receipts you want to surface (S0–S4 summaries).
-  * Compute a deterministic digest over the bundle contents (same style as Layer-1):
-
-    * e.g. SHA-256 over concatenated bytes of all files listed in `index.json` in ASCII-lex order.
-
-* **PASS flag**
-
-  * Write `_passed.flag_5A` alongside the bundle (same fingerprint partition) with a single line, e.g.:
-
-    ```text
-    sha256_hex = <bundle_digest>
-    ```
-
-  * `_passed.flag_5A` is the **only thing** downstream segments (5B, 6A, etc.) need to check, along with bundle structure, to trust any 5A outputs.
-
-**Downstream gating**
-
-* 5B, 6A and any later layer MUST enforce:
-
-  > For a given `manifest_fingerprint`:
-  > **no verified `_passed.flag_5A` → no read** of any 5A modelling outputs (S1–S4).
-
-* 5A itself (S1–S4) MAY read its own outputs without `_passed.flag_5A` during construction, but any external consumer (Layer-3, evaluation harnesses, prod pipelines) MUST NOT treat 5A artefacts as authoritative unless 5A.S5 has passed.
-
----
+**Downstream consumers**  
+5B and 6A must verify `_passed.flag_5A` before reading 5A outputs.

@@ -1,275 +1,156 @@
-# Layer 3 — Segment 6A: Entity & Product World
-Here’s a conceptual **state-flow overview for Layer-3 / Segment 6A** in the same style as 5A/5B — high-level, non-binding, but structured enough that someone can see the flow.
+# Layer-3 - Segment 6A - State Overview (S0-S5)
 
-**Role in the engine**
+Segment 6A builds the entity and product world. It gates upstream layers, realises parties, accounts, instruments, devices/IPs, assigns static fraud posture, and seals the segment with a PASS bundle. Outputs are authoritative for 6B and any consumer.
 
-By the time 6A runs:
-
-* **Layer-1** has fixed the world of merchants, outlets, zones, and edges.
-* **Layer-2** has defined how busy that world is, but doesn’t know anything about *who* is transacting.
-
-**Segment 6A is where we build the cast:**
-
-* customers, accounts, cards, wallets, merchants as counterparties,
-* devices and IPs,
-* and the static fraud posture (mules, synthetic IDs, risky merchants).
-
-It produces a closed, synthetic entity graph that 6B and everything downstream will use.
+## Segment role at a glance
+- Enforce upstream HashGates (1A–3B, 5A, 5B) and seal 6A priors/policies before any read.
+- Realise the party/customer universe (ids, segments, geos).
+- Realise accounts/products and attach them to parties (and merchants where applicable).
+- Realise instruments, devices, IPs, and the static entity graph (links across all entities).
+- Assign static fraud roles and publish `validation_bundle_6A` + `_passed.flag_6A`.
 
 ---
 
-## 6A.S0 — Gate & sealed inputs
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify `_passed.flag_*` for 1A–3B and 5A/5B for the target `manifest_fingerprint`; seal all artefacts 6A may read.
 
-**Purpose**
+**Preconditions & gates**  
+Layer-3 schemas/dictionaries/registry present; upstream bundles/flags match; identities `{seed, parameter_hash, manifest_fingerprint}` fixed.
 
-Set the trust boundary for Layer-3 and freeze the configuration and priors 6A is allowed to use.
+**Inputs**  
+Upstream gated surfaces (for discovery/authority): merchant/site/zone/edge universes, routing hashes, intensity/arrival surfaces. 6A priors/policies: population/segment, product/account priors, instrument/device/IP taxonomies, fraud-role priors.
 
-**Upstream dependencies**
+**Outputs & identity**  
+`s0_gate_receipt_6A` at `data/layer3/6A/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_6A` at `data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/`.
 
-* PASSed validation bundles for:
+**RNG**  
+None.
 
-  * all relevant Layer-1 segments (1A–3B),
-  * Layer-2 segments (5A/5B) if you want entity priors to be consistent with volume.
-* Layer-3 contracts:
+**Key invariants**  
+Only artefacts in `sealed_inputs_6A` are readable; sealed digest verified by downstream states; upstream PASS enforced (“no PASS -> no read”).
 
-  * schemas for 6A/6B entities,
-  * dataset dictionary entries for entity outputs,
-  * artefact registry entries for priors/configs.
-
-**Behaviour**
-
-* Verify that required L1/L2 bundles are PASS for the current `manifest_fingerprint`.
-* Resolve and seal:
-
-  * population priors (how many customers/accounts/cards),
-  * product mix configs,
-  * device/IP distribution priors,
-  * initial fraud role priors (mule rates, collusive merchant rates),
-  * any taxonomies (customer segments, merchant risk classes).
-* Record which artefacts 6A is allowed to read (ids, partitions, digests).
-
-**Outputs**
-
-* `s0_gate_receipt_6A`
-  – small fingerprint-scoped receipt proving which upstream bundles/configs were checked.
-
-* `sealed_inputs_6A`
-  – inventory of all priors/configs and upstream datasets 6A can use.
+**Downstream consumers**  
+S1–S5 must verify receipt/digest; 6B uses it as upstream authority.
 
 ---
 
-## 6A.S1 — Customer & party base population
+## S1 - Party base (RNG)
+**Purpose & scope**  
+Realise the party/customer universe with ids, segments, and geos per `{seed, fingerprint}`.
 
-**Purpose**
+**Preconditions & gates**  
+S0 PASS; population/segment priors sealed.
 
-Instantiate the **universe of customers and parties** from high-level priors.
+**Inputs**  
+Population/segmentation priors; optional upstream context features (only if listed in `sealed_inputs_6A`).
 
-**Inputs**
+**Outputs & identity**  
+`s1_party_base_6A` at `data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/` with `party_id`, `party_type`, segments, geos, static attrs. Optional `s1_party_summary_6A`.
 
-* Sealed priors from S0:
+**RNG posture**  
+Philox streams for counts/attribute sampling (`party_count_realisation`, `party_attribute_sampling`); events/trace logged.
 
-  * region-level population sizes,
-  * segmentation priors (e.g. student, salaried, self-employed, SME, corporate),
-  * household vs individual mixes.
-* Layer-1 merchant metadata (for linking “home merchant” preferences later, if you want).
+**Key invariants**  
+Counts match priors (tolerance); FK domain for later states; deterministic given `(seed, parameter_hash, manifest_fingerprint)` + priors.
 
-**Behaviour**
-
-* Sample or derive:
-
-  * a set of **customers** with basic attributes (region, segment, rough income/wealth band).
-  * optionally, additional parties (e.g. business entities distinct from individual customers).
-* Attach stable IDs and link to region/segment taxonomies.
-
-**Outputs**
-
-* `s1_customers_6A`
-  – table/graph of customers/parties with attributes (segment, region, lifecycle flags).
-
-This becomes the root set of actors Layer-3 will build on.
+**Downstream consumers**  
+S2–S5 use parties as FK roots; 6B treats as authority for entities.
 
 ---
 
-## 6A.S2 — Accounts & products
+## S2 - Accounts & product holdings (RNG)
+**Purpose & scope**  
+Realise accounts/products and attach to parties (and merchants where applicable).
 
-**Purpose**
+**Preconditions & gates**  
+S0, S1 PASS; product/account priors and taxonomies sealed.
 
-Attach **accounts and products** to customers in a realistic way.
+**Inputs**  
+`s1_party_base_6A`; product/account priors (type mix, accounts-per-party distributions); taxonomies (types, families, currency lists).
 
-**Inputs**
+**Outputs & identity**  
+`s2_account_base_6A` at `data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/` with account ids, owners, types, currency, static flags.  
+`s2_party_product_holdings_6A` (same partitions) plus optional merchant account base/summaries.
 
-* `s1_customers_6A`.
-* Product mix priors:
+**RNG posture**  
+Philox streams for counts, allocation, attribute sampling; events/trace logged.
 
-  * distribution over products per segment (e.g. current account, credit card, personal loan, merchant account).
-  * cross-product correlations (e.g. cards+loans more common in certain segments).
+**Key invariants**  
+FK coverage to parties (and merchants if present); counts align with priors; no new accounts beyond S2 authority.
 
-**Behaviour**
-
-For each customer/party:
-
-* Decide:
-
-  * how many accounts they have (deposit, credit, loan, merchant),
-  * which products they hold, and what basic parameters those have (limits, pricing tier, opening date).
-* Instantiate:
-
-  * **accounts** (with IDs, types, links to customers),
-  * **merchant-side accounts** (e.g. merchant acquiring relationships, settlement accounts).
-
-**Outputs**
-
-* `s2_accounts_6A`
-  – accounts table keyed by `account_id`, linking to customers and product types.
-
-* `s2_product_links_6A`
-  – relationship surface between customers and products (one-to-many, many-to-many as needed).
-
-Now we know “who banks with us and what they hold”.
+**Downstream consumers**  
+S3 instruments attach to these accounts; S4 links incorporate accounts; S5 roles reference them.
 
 ---
 
-## 6A.S3 — Instruments & credentials
+## S3 - Instruments & payment credentials (RNG)
+**Purpose & scope**  
+Create instruments/credentials and link them to accounts/parties/merchants; set static instrument metadata.
 
-**Purpose**
+**Preconditions & gates**  
+S0–S2 PASS; instrument priors/taxonomies sealed.
 
-Create the **instruments** and high-level credentials that will be used in flows:
+**Inputs**  
+`s2_account_base_6A`, `s2_party_product_holdings_6A`; instrument priors (counts/mix) and taxonomies.
 
-* cards, account numbers, wallet identifiers,
-* login identities at a conceptual level.
+**Outputs & identity**  
+`s3_instrument_base_6A` at `data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/`; `s3_account_instrument_links_6A`; optional holdings/summaries.
 
-**Inputs**
+**RNG posture**  
+Philox streams for counts, allocation, attributes; events/trace logged.
 
-* `s2_accounts_6A`.
-* Instrument priors:
+**Key invariants**  
+FK coverage to accounts/parties/merchants; counts/attributes align with priors; instruments only created here.
 
-  * cards per account/customer distributions,
-  * which products get virtual cards or tokens,
-  * channel mix assumptions (card present vs card not present, wallet usage, etc.).
-
-**Behaviour**
-
-* Generate:
-
-  * card instruments (PANs/token IDs at a synthetic level),
-  * bank account identifiers,
-  * wallet IDs and any stored-card relationships.
-* Associate:
-
-  * primary + secondary instruments with accounts/customers,
-  * simple credential stubs (e.g. login handle types per account; actual secrets are not materialised).
-
-**Outputs**
-
-* `s3_instruments_6A`
-  – instrument table (cards, accounts, wallets) linked to `account_id`/`customer_id`.
-
-* `s3_account_instrument_links_6A`
-  – relationship surface mapping instruments to their owners and usage roles.
-
-This tells later layers “what can be used to transact”, without yet saying *when* or *how*.
+**Downstream consumers**  
+S4 links devices/IPs to instruments; S5 roles reference instruments.
 
 ---
 
-## 6A.S4 — Device & network graph
+## S4 - Devices, IPs & static graph (RNG)
+**Purpose & scope**  
+Realise devices and IP endpoints and build the static entity graph (links across parties/accounts/instruments/merchants).
 
-**Purpose**
+**Preconditions & gates**  
+S0–S3 PASS; device/IP priors/taxonomies sealed.
 
-Build the **device + IP footprint** that glues together customers, accounts and merchants in a realistic way.
+**Inputs**  
+`s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`; device/IP priors for counts/sharing; taxonomies for attributes.
 
-**Inputs**
+**Outputs & identity**  
+`s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` at `seed={seed}/fingerprint={manifest_fingerprint}/`; optional neighbourhood/network summaries.
 
-* `s1_customers_6A`, `s2_accounts_6A`, `s3_instruments_6A`.
-* Priors on:
+**RNG posture**  
+Philox streams for counts, allocation of links, attribute sampling; events/trace logged.
 
-  * devices per customer,
-  * IP address types (residential vs mobile vs corporate vs data centre),
-  * sharing patterns (shared devices in a household, shared IPs in cafés or workplaces).
+**Key invariants**  
+FK coverage across all links; sharing/degree profiles match priors; graph is deterministic given inputs + priors.
 
-**Behaviour**
-
-* Instantiate:
-
-  * devices with attributes (type, OS, risk tags),
-  * IPs with simple attributes (ASN, country, risk tags).
-* Link:
-
-  * devices to customers/accounts (some 1:1, some shared),
-  * IPs to customers/devices/merchants in plausible patterns (e.g. a café IP shows up with many customers and a specific merchant).
-
-**Outputs**
-
-* `s4_devices_6A`
-  – device table with device-level attributes.
-
-* `s4_ips_6A`
-  – IP table with network-level attributes.
-
-* `s4_device_links_6A`
-  – graph edges between devices, customers, accounts, merchants.
-
-This is where shared-device/shared-IP structure that powers a lot of fraud patterns comes from.
+**Downstream consumers**  
+S5 fraud roles; 6B uses graph as authority for entities/links.
 
 ---
 
-## 6A.S5 — Static fraud posture & validation
+## S5 - Static fraud posture & HashGate
+**Purpose & scope**  
+Assign static fraud roles to all entities and seal 6A with `validation_bundle_6A` + `_passed.flag_6A`.
 
-**Purpose**
+**Preconditions & gates**  
+S0–S4 PASS; fraud-role priors/policies sealed; upstream gates still verify.
 
-Assign **static risk roles** and sanity-check the entire entity graph before Layer-3 is allowed to use it.
+**Inputs**  
+`s0_gate_receipt_6A`, `sealed_inputs_6A`; all S1–S4 datasets; fraud-role priors/policies; RNG logs/events/trace.
 
-**Inputs**
+**Outputs & identity**  
+Fraud-role surfaces: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A` (`seed={seed}/fingerprint={manifest_fingerprint}/` except merchants which may be fingerprint-only).  
+Validation artefacts: `s5_validation_report_6A`, optional `s5_issue_table_6A`; `validation_bundle_6A` at `data/layer3/6A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_6A`; `_passed.flag_6A` containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
-* All prior outputs from 6A:
+**RNG posture**  
+Philox streams for role counts/assignments; events/trace logged; validator is RNG-free.
 
-  * `s1_customers_6A`, `s2_accounts_6A`, `s3_instruments_6A`, `s4_devices_6A`, `s4_device_links_6A`, etc.
-* Fraud-role priors:
+**Key invariants**  
+One role per entity; role distributions match priors (tolerance); cross-entity consistency holds; RNG budgets close; bundle digest matches `_passed.flag_6A`; enforces “no PASS -> no read” for all 6A artefacts.
 
-  * expected proportion of mules,
-  * expected proportion of synthetic identities,
-  * merchants that should be “risky” or collusive.
-
-**Behaviour**
-
-* Assign roles:
-
-  * tag some customers/accounts as suspected mules,
-  * tag some identities as synthetic,
-  * mark some merchants as high-risk or collusive prospects (in a way that’s consistent with their graph position).
-* Run structural checks:
-
-  * degree distributions (devices per account, accounts per customer, etc.),
-  * ensure there are no impossible patterns (e.g. zero devices for segments that should be device-heavy),
-  * confirm population sizes and product mixes match priors.
-* Summarise entity-level stats for a validation bundle.
-
-**Outputs**
-
-* `s5_fraud_roles_6A`
-  – a surface of static roles per `customer_id`/`account_id`/`merchant_id`.
-
-* `validation_bundle_6A` + `_passed.flag_6A`
-  – Layer-3 bundle and PASS flag, analogous to what you’ve done in L1/L2:
-
-  * index + SHA-256 for key 6A outputs,
-  * high-level metrics (population sizes, mix, role proportions),
-  * confirmation that the entity graph is structurally sound.
-
----
-
-**After 6A**
-
-At the end of Segment 6A you have:
-
-* A **sealed entity graph** (customers, accounts, instruments, devices, IPs, merchants as counterparties).
-* Static fraud roles (who *could* be involved in fraud, from a posture perspective).
-* A validation bundle + PASS flag that 6B must respect (“no 6A PASS → no entity read”).
-
-From there, **6B** can take the arrival stream from Layer-2 and:
-
-* attach those arrivals to 6A’s entities,
-* build flows,
-* overlay fraud campaigns,
-* and output transactions + labels,
-
-without needing to reinvent or modify the entity world.
+**Downstream consumers**  
+6B must verify `_passed.flag_6A` before using any 6A surface; enterprise consumers do the same.

@@ -1,327 +1,157 @@
-# Layer 2 — Segment 5B: Arrival Realisation (LGCP + Routing)
+# Layer-2 - Segment 5B - State Overview (S0-S5)
 
-Here’s a matching state-flow overview for **Layer 2 / Segment 5B** in the same style: conceptual, non-binding, but precise enough that someone knows what to expect.
+Segment 5B realises arrivals. It gates upstream segments (1A-3B, 5A), fixes the scenario time grid and grouping, draws latent intensities, converts them to bucket counts, expands to the canonical arrival stream, and seals the segment with a PASS bundle. This segment is RNG-bearing in S2-S4; everything else is deterministic.
 
-**Role in the engine**
-
-Segment 5A has just finished building deterministic **intensity surfaces** `λ_target(m, tz, t)` for every merchant×zone×time bucket.
-
-**Segment 5B is where time actually “ticks”.**
-It takes those surfaces and the Layer-1 routing fabric and **draws real arrivals**:
-
-> “How many arrivals really happen? At what exact times? At which site or edge do they land?”
-
-5B is where the LGCP / Poisson machinery lives and where the RNG budget is consumed. It still doesn’t know anything about fraud or transaction outcomes; it only generates the **skeleton event stream** Layer 3 will decorate.
+## Segment role at a glance
+- Enforce upstream HashGates and seal 5B inputs/policies before any read.
+- Define scenario time grid and grouping over merchantxzonexchannel.
+- Realise latent intensities (LGCP-style) on that grid and draw bucket counts.
+- Expand counts into `arrival_events_5B` with full routing/tz context.
+- Validate and publish `validation_bundle_5B` + `_passed.flag_5B` ("no PASS -> no read" for arrivals).
 
 ---
 
-## 5B.S0 — Gate & sealed inputs (RNG-free)
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify `_passed.flag_*` from 1A, 1B, 2A, 2B, 3A, 3B, and 5A for the target `manifest_fingerprint`; seal all artefacts/policies 5B may read.
 
-**Purpose**
+**Preconditions & gates**  
+Layer schemas/dictionaries/registries present; upstream bundles/flags match; identities `{seed, parameter_hash, manifest_fingerprint}` fixed; scenario set/config sealed.
 
-Establish the run boundary for Layer 2 and freeze everything 5B is allowed to depend on.
+**Inputs**  
+Upstream gated surfaces: 2A civil time; 2B routing surfaces; 3A `zone_alloc` + hash; 3B virtual routing/edge hash; 5A intensity surfaces (`shape_grid_definition_5A`, baseline/scenario intensities). 5B parameter pack: time grid config, grouping policy, LGCP config, count law, RNG policies, routing semantics.
 
-**Inputs**
+**Outputs & identity**  
+`s0_gate_receipt_5B` at `data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_5B` at `data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/`.
 
-From Layer 1 & 5A:
+**RNG**  
+None.
 
-* Validation bundles + PASS flags for:
+**Key invariants**  
+Only artefacts listed in `sealed_inputs_5B` may be read; sealed digest verified downstream; upstream HashGates enforce "no PASS -> no read".
 
-  * 1A–3B (Layer-1 world + routing).
-  * 5A (arrival surfaces & calendar).
-
-From Layer 2 contracts:
-
-* Layer-2 schemas, dictionary, registry.
-* LGCP / arrival realisation config:
-
-  * bucket size and horizon,
-  * LGCP hyperparameters (covariance kernels, variance scales),
-  * optional grouping structure (merchant clusters, zone clusters).
-
-**Behaviour**
-
-* Verify upstream segments are green:
-
-  * Re-hash required validation bundles, check PASS flags.
-* Resolve and seal:
-
-  * 5A’s intensity surfaces and metadata,
-  * Layer-1 routing artefacts (alias tables, zone allocations, virtual edge catalogues),
-  * LGCP / arrival config for 5B.
-* Record a canonical list of sealed inputs for this `{parameter_hash, manifest_fingerprint}`.
-
-**Outputs**
-
-* `s0_gate_receipt_5B`
-  – run-scoped receipt recording which bundles and config artefacts were checked and bound.
-
-* `sealed_inputs_5B`
-  – tabular list of all artefacts 5B may read, with versioning/digests.
-
-**Notes**
-
-* RNG-free.
-* Every later 5B state must treat this sealed set as its authority for inputs; no ad-hoc reads.
+**Downstream consumers**  
+S1-S5 verify the receipt/digest; S5 bundles it.
 
 ---
 
-## 5B.S1 — Time grid & grouping plan (RNG-free)
+## S1 - Time grid & grouping (RNG-free)
+**Purpose & scope**  
+Define the scenario time grid and grouping from `(merchant, zone_representation, channel_group)` to `group_id`.
 
-**Purpose**
+**Preconditions & gates**  
+S0 PASS; scenarios and horizons sealed; 5A scenario surfaces present.
 
-Define **how time is discretised** and how merchants/zones are grouped for shared latent variation.
+**Inputs**  
+`merchant_zone_scenario_local_5A`/`_utc_5A` to infer horizon; grouping policy (`arrival_grouping_policy_5B`); 2A civil time if UTC grid used.
 
-**Inputs**
+**Outputs & identity**  
+`s1_time_grid_5B` at `data/layer2/5B/s1_time_grid_5B/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` with bucket start/end/duration and tags.  
+`s1_grouping_5B` at `data/layer2/5B/s1_grouping_5B/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` mapping domain keys to `group_id` with group features.
 
-* `s0_gate_receipt_5B` + `sealed_inputs_5B`.
-* 5A’s intensity surfaces (`λ_target` over some time horizon).
-* LGCP config:
+**RNG**  
+None.
 
-  * bucket duration (e.g. 5/15 minutes),
-  * total duration (e.g. N days),
-  * grouping rules for merchants/zones.
+**Key invariants**  
+Grid covers the scenario horizon with contiguous, non-overlapping buckets; every domain row has exactly one `group_id`; later states must not re-grid or re-group.
 
-**Behaviour**
-
-* Define a **time grid** over the run horizon:
-
-  * e.g. `[start_utc, start_utc + Δ, …, end_utc)`.
-  * Map each bucket to:
-
-    * `utc_day`, `bucket_index`, and a link into 5A’s time coordinate (hour-of-week / scenario window).
-* Apply grouping rules to set up **LGCP groups**:
-
-  * e.g. clusters of merchants/zones that share a latent field (by region, class, or scenario).
-
-**Outputs**
-
-* `s1_time_grid_5B`
-  – a deterministic table describing each time bucket: start/end UTC, the corresponding local time features and scenario tags.
-
-* `s1_grouping_5B`
-  – mapping from `(merchant_id, tzid)` to a **group id** for LGCP purposes (or “self-grouped” if independent).
-
-**Notes**
-
-* RNG-free; pure geometry in time and grouping.
-* 5A surfaces are never changed here; S1 just decides how they’ll be sampled.
+**Downstream consumers**  
+S2-S4 operate strictly on this grid/group mapping; S5 validates against it.
 
 ---
 
-## 5B.S2 — Latent intensity fields (LGCP core, RNG-bearing)
+## S2 - Latent intensity realisation (RNG)
+**Purpose & scope**  
+Realise latent intensities (e.g., LGCP) on the S1 grid using 5A scenario surfaces as targets.
 
-**Purpose**
+**Preconditions & gates**  
+S0, S1 PASS; 5A intensities available; LGCP config and RNG policy sealed.
 
-Introduce **correlated stochastic variation** around 5A’s deterministic intensity surfaces.
+**Inputs**  
+`s1_time_grid_5B`, `s1_grouping_5B`; 5A scenario intensities aligned to the grid; LGCP parameters (covariance, variance, length scales).
 
-**Inputs**
+**Outputs & identity**  
+`s2_realised_intensity_5B` at `data/layer2/5B/s2_realised_intensity_5B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` with `lambda_realised`, baseline, and latent components per cell.  
+Optional `s2_latent_field_5B` (same partitions) with group-level latent values.
 
-* `s1_time_grid_5B` and `s1_grouping_5B`.
-* 5A target surfaces (`λ_target(m, tz, t)`).
-* LGCP hyperparameters:
+**RNG posture**  
+Philox streams per RNG policy for latent Gaussian draws; events logged with envelope (`blocks`, `draws`) and reconciled in trace.
 
-  * per-group variance,
-  * temporal correlation structure (kernel parameters).
+**Key invariants**  
+`lambda_realised >= 0`, finite; deterministic given `(seed, parameter_hash, manifest_fingerprint, scenario_id)` + config; S3/S4 must treat as fixed.
 
-**Behaviour**
-
-For each group (or merchant×zone, depending on design):
-
-* Construct a **latent Gaussian field** over the time grid:
-
-  * sample a multivariate normal with a governed covariance (e.g. OU, RBF kernel over time).
-* Convert this latent field into multiplicative noise:
-
-  * e.g. `ξ = exp(G)` where `G` is the Gaussian field, calibrated so `E[ξ] ≈ 1`.
-* Combine with 5A’s intensity:
-
-  * `λ_realised(m, tz, bucket) = λ_target(m, tz, bucket) × ξ(group, bucket)`.
-
-**Outputs**
-
-* `s2_latent_fields_5B`
-  – a run-scoped per-bucket latent field (or implicit if you only keep the resulting `λ_realised`).
-
-* `s2_realised_intensity_5B`
-  – per `(merchant, tz, bucket)` effective intensity after latent noise.
-
-* RNG logs:
-
-  * LGCP draw events (one event per group per “field draw”), with Philox counters, labels and trace entries.
-
-**Notes**
-
-* This is where **burstiness and co-movement** come from; 5A just gives average levels.
-* 5B.S2 consumes a significant chunk of the RNG budget; the Philox streams and budgets should be explicitly defined.
+**Downstream consumers**  
+S3 count draws; S5 audits RNG budgets.
 
 ---
 
-## 5B.S3 — Bucket-level arrival counts (RNG-bearing)
+## S3 - Bucket-level arrival counts (RNG)
+**Purpose & scope**  
+Draw integer arrival counts per bucket from realised intensities.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S2 PASS; count law and RNG policy sealed.
 
-Turn `λ_realised` into **actual counts** per time bucket.
+**Inputs**  
+`s2_realised_intensity_5B`; `s1_time_grid_5B` (bucket durations); count-law params.
 
-**Inputs**
+**Outputs & identity**  
+`s3_bucket_counts_5B` at `data/layer2/5B/s3_bucket_counts_5B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` with `count_N`, parameters, RNG provenance.
 
-* `s2_realised_intensity_5B` (intensity per bucket).
-* `s1_time_grid_5B` for bucket durations.
-* LGCP/Poisson config (e.g. which approximation method is used).
+**RNG posture**  
+Philox events (e.g., `rng_event_bucket_count`) with `blocks=1`, `draws="1"` per draw; budgets logged; trace reconciles totals.
 
-**Behaviour**
+**Key invariants**  
+Counts are non-negative integers; consistent with `lambda_realised` and bucket duration under the chosen law; S4 must not alter counts.
 
-For each `(merchant, tz, bucket)`:
-
-* Compute expected count for the bucket:
-  `μ = λ_realised × Δ_t`.
-* Draw `N ~ Poisson(μ)` (or use thinning/etc. as decided by the spec).
-* Record `N` and the RNG event.
-
-**Outputs**
-
-* `s3_bucket_counts_5B`
-  – run-scoped table keyed by `(merchant_id, tzid, bucket)`, with:
-
-  * `count`,
-  * `lambda_realised`,
-  * references to LGCP parameters if needed.
-
-* RNG logs:
-
-  * one Poisson event per bucket (or per bucket/group, depending on design), with proper Philox envelope and trace.
-
-**Notes**
-
-* This is the discrete “how many arrivals?” stage; no micro-timing yet.
-* Algebra here must be checkable in S5 by re-deriving Poisson probabilities and reconciling counts.
+**Downstream consumers**  
+S4 expands counts; S5 checks count vs arrival parity.
 
 ---
 
-## 5B.S4 — Micro-time & routing to sites/edges (RNG-bearing)
+## S4 - Arrival skeleton egress (RNG)
+**Purpose & scope**  
+Expand bucket counts into per-arrival events with timestamps and routing to produce `arrival_events_5B`.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S3 PASS; routing contracts (2B/3A/3B) and civil time surfaces available via sealed inputs.
 
-Expand bucket-level counts into **individual arrivals** and route them through Layer-1’s fabric.
+**Inputs**  
+`s3_bucket_counts_5B`; `s1_time_grid_5B`; routing surfaces (2B group weights/alias, 3A zone alloc + hash, 3B virtual routing + edge hash); 2A civil time.
 
-**Inputs**
+**Outputs & identity**  
+`arrival_events_5B` at `data/layer2/5B/arrival_events_5B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/` with per-arrival identity, UTC/local timestamps, routing context (`site_id` or `edge_id`, `tz_group_id`, hashes), and optional per-event intensity fields.  
+Optional summaries: `s4_arrival_summary_5B`, `s4_arrival_anomalies_5B` (same partitions).
 
-* `s3_bucket_counts_5B`.
-* `s1_time_grid_5B`.
-* Layer-1 routing artefacts:
+**RNG posture**  
+Additional draws for intra-bucket timing and routing picks (group/site, edge for virtuals) per configured RNG families; all events logged under `seed/parameter_hash/run_id`.
 
-  * 2B alias tables (physical site routing),
-  * 3A `zone_alloc` (zone shares),
-  * 3B edge catalogue + alias (virtual routing).
-* 5A scenario info (to tag arrivals with scenario_ids).
+**Key invariants**  
+Rows per cell equal `count_N`; routing consistent with 2B/3A/3B contracts; timestamps within bucket bounds; hashes (`routing_universe_hash`, `edge_universe_hash`) included where applicable.
 
-**Behaviour**
-
-For each `(merchant, tz, bucket)` with `N > 0`:
-
-1. **Micro-time within bucket**
-
-   * Draw `N` intra-bucket times:
-
-     * simplest: uniform in `[bucket_start, bucket_end)`,
-     * or use a simple within-bucket shape if you want (e.g. slight “shoulders” at the start/end of bucket).
-   * Convert `utc_ts` to local time for each arrival via `site_timezones` + tz timetable.
-
-2. **Routing to sites/edges**
-
-   * For physical merchants:
-
-     * Use 2B site alias tables and 3A zone_alloc to pick a `(site_id, tzid)` for each arrival.
-   * For virtual merchants:
-
-     * Use 3B’s edge alias tables / catalogue to pick an `(edge_id, ip_country, edge_lat, edge_lon)`, consistent with virtual routing policy.
-
-3. **Tagging**
-
-   * Attach scenario tags from 5A (e.g. `scenario_id`, `is_payday`, `is_holiday`, etc).
-
-**Outputs**
-
-* `s4_arrivals_5B`
-  – the **skeleton arrival stream** with one row per arrival:
-
-  * `arrival_id` (unique per run),
-  * `utc_ts`,
-  * `merchant_id`,
-  * `site_id` or `edge_id`,
-  * `tzid`,
-  * optional `zone_id`,
-  * `scenario_id` / flags.
-
-* RNG logs:
-
-  * intra-bucket time draws,
-  * site/edge alias picks, with envelopes and trace.
-
-**Notes**
-
-* This is the first place you see one row per *event*; everything before was per-bucket or per-group.
-* All constraints from Layer-1 (zone coverage, site ordering, virtual semantics) must be respected here.
+**Downstream consumers**  
+S5 validation; Layer-3/enterprise ingest `arrival_events_5B` only after PASS.
 
 ---
 
-## 5B.S5 — Validation & bundle (RNG-free)
+## S5 - Validation bundle & `_passed.flag_5B`
+**Purpose & scope**  
+Validate S0-S4 outputs and publish the 5B HashGate.
 
-**Purpose**
+**Preconditions & gates**  
+S0-S4 PASS for the fingerprint; all seeds/scenarios present; upstream gates still verify.
 
-Prove that 5B behaved as specified and produce a **Layer-2 validation bundle + PASS flag** that downstream layers and tools can gate on.
+**Inputs**  
+`s0_gate_receipt_5B`, `sealed_inputs_5B`; S1-S4 datasets (grids/grouping, realised intensities, latent field, bucket counts, arrivals, summaries); RNG logs/events/trace; validation policies/tolerances.
 
-**Inputs**
+**Outputs & identity**  
+`validation_report_5B` and optional `validation_issue_table_5B` at `fingerprint={manifest_fingerprint}`; `validation_bundle_5B` at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_5B`; `_passed.flag_5B` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
-* All 5B outputs:
+**RNG**  
+None (validator).
 
-  * `s1_time_grid_5B`, `s2_latent_fields_5B`/`s2_realised_intensity_5B`,
-  * `s3_bucket_counts_5B`,
-  * `s4_arrivals_5B`,
-  * RNG logs for LGCP, Poisson, intra-bucket and routing draws.
-* Sealed inputs from S0 (5A surfaces, L1 routing artefacts).
+**Key invariants**  
+Schema/partition conformance; grid/grouping parity; counts vs intensities vs arrivals match; routing semantics consistent with 2B/3A/3B contracts; RNG accounting closes; bundle digest matches `_passed.flag_5B`; enforces "no PASS -> no read" for 5B artefacts.
 
-**Behaviour**
-
-* **Structural checks**
-
-  * Rebuild bucket counts by grouping `s4_arrivals_5B`; confirm they match `s3_bucket_counts_5B`.
-  * Check routing invariants:
-
-    * all arrivals land on valid `(merchant,site)` or `(merchant,edge)` pairs from L1,
-    * zone and tz mappings remain consistent.
-
-* **Algebra / expectation checks**
-
-  * For sample subsets, verify realised counts are plausible given λ_target / LGCP settings (simple tests for extreme deviations, not full statistical testing).
-
-* **RNG checks**
-
-  * Reconcile RNG logs:
-
-    * expected vs actual event counts,
-    * monotone counters, no budget overrun.
-
-* **Bundle**
-
-  * Pack evidence (reports, summaries, slices of RNG accounting) into a **validation bundle** under `.../validation/fingerprint={manifest_fingerprint}/`.
-  * Produce a `index.json` with file paths + SHA-256s.
-  * Compute bundle SHA-256 and write `_passed.flag_5B` with `sha256_hex = ...`.
-
-**Outputs**
-
-* `validation_bundle_5B`
-  – L2 bundle with index and evidence (exact shape defined in Layer-2 contracts).
-
-* `_passed.flag_5B`
-  – single-line PASS flag that downstream layers must check:
-  “No PASS → No read” for any 5B outputs.
-
-**Notes**
-
-* RNG-free; pure replay/validation + hashing.
-* This is the Layer-2 equivalent of 1A.S9 / 3A.S7: it’s the gate that Layer-3 and any offline analysis should obey.
-
----
-
-That’s the 5B state-flow overview: S0–S5, clear responsibilities, deterministic vs RNG split, and a natural continuation of the S0 + validation bundle pattern you established in Layer-1.
+**Downstream consumers**  
+6A/6B and any external ingestors must verify `_passed.flag_5B` before using `arrival_events_5B` or other 5B outputs.
