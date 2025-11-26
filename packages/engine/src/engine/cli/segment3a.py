@@ -85,6 +85,22 @@ def _print_summary(result: Segment3AResult) -> None:
         payload["s4_run_report_path"] = str(result.s4_run_report_path)
     if result.s4_resumed:
         payload["s4_resumed"] = result.s4_resumed
+    if result.s5_output_path:
+        payload["s5_output_path"] = str(result.s5_output_path)
+    if result.s5_run_report_path:
+        payload["s5_run_report_path"] = str(result.s5_run_report_path)
+    if result.s5_universe_hash_path:
+        payload["s5_universe_hash_path"] = str(result.s5_universe_hash_path)
+    if result.s5_resumed:
+        payload["s5_resumed"] = result.s5_resumed
+    if result.s6_validation_bundle_path:
+        payload["s6_validation_bundle_path"] = str(result.s6_validation_bundle_path)
+    if result.s6_receipt_path:
+        payload["s6_receipt_path"] = str(result.s6_receipt_path)
+    if result.s6_run_report_path:
+        payload["s6_run_report_path"] = str(result.s6_run_report_path)
+    if result.s6_resumed:
+        payload["s6_resumed"] = result.s6_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -134,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-s2", action="store_true", help="Run S2 priors stage.")
     parser.add_argument("--run-s3", action="store_true", help="Run S3 Dirichlet share sampling.")
     parser.add_argument("--run-s4", action="store_true", help="Run S4 integer zone counts.")
+    parser.add_argument("--run-s5", action="store_true", help="Run S5 zone allocation egress.")
+    parser.add_argument("--run-s6", action="store_true", help="Run S6 validation bundle.")
     parser.add_argument(
         "--parameter-hash",
         type=str,
@@ -186,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
         run_s2=args.run_s2,
         run_s3=args.run_s3,
         run_s4=args.run_s4,
+        run_s5=args.run_s5,
+        run_s6=args.run_s6,
         parameter_hash=args.parameter_hash,
         run_id=args.run_id,
     )

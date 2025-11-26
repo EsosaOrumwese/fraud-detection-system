@@ -13,6 +13,8 @@ from engine.layers.l1.seg_3A.s1_escalation import EscalationInputs, EscalationRu
 from engine.layers.l1.seg_3A.s2_priors import PriorsInputs, PriorsRunner
 from engine.layers.l1.seg_3A.s3_zone_shares import ZoneSharesInputs, ZoneSharesRunner
 from engine.layers.l1.seg_3A.s4_zone_counts import ZoneCountsInputs, ZoneCountsRunner
+from engine.layers.l1.seg_3A.s5_zone_alloc import ZoneAllocInputs, ZoneAllocRunner
+from engine.layers.l1.seg_3A.s6_validation import ValidationInputs, ValidationRunner
 from engine.layers.l1.seg_3A.shared.dictionary import (
     load_dictionary,
     render_dataset_path,
@@ -40,6 +42,8 @@ class Segment3AConfig:
     run_s2: bool = False
     run_s3: bool = False
     run_s4: bool = False
+    run_s5: bool = False
+    run_s6: bool = False
     parameter_hash: Optional[str] = None
     run_id: str = "run-0"
 
@@ -66,6 +70,22 @@ class Segment3AResult:
     s4_output_path: Path | None = None
     s4_run_report_path: Path | None = None
     s4_resumed: bool = False
+    s5_output_path: Path | None = None
+    s5_run_report_path: Path | None = None
+    s5_universe_hash_path: Path | None = None
+    s5_resumed: bool = False
+    s6_validation_bundle_path: Path | None = None
+    s6_receipt_path: Path | None = None
+    s6_run_report_path: Path | None = None
+    s6_resumed: bool = False
+    s5_output_path: Path | None = None
+    s5_run_report_path: Path | None = None
+    s5_resumed: bool = False
+    s5_universe_hash_path: Path | None = None
+    s6_validation_bundle_path: Path | None = None
+    s6_receipt_path: Path | None = None
+    s6_run_report_path: Path | None = None
+    s6_resumed: bool = False
 
 
 class Segment3AOrchestrator:
@@ -77,6 +97,8 @@ class Segment3AOrchestrator:
         self._s2_runner = PriorsRunner()
         self._s3_runner = ZoneSharesRunner()
         self._s4_runner = ZoneCountsRunner()
+        self._s5_runner = ZoneAllocRunner()
+        self._s6_runner = ValidationRunner()
 
     def run(self, config: Segment3AConfig) -> Segment3AResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -104,6 +126,14 @@ class Segment3AOrchestrator:
         s4_output_path = None
         s4_run_report_path = None
         s4_resumed = False
+        s5_output_path = None
+        s5_run_report_path = None
+        s5_resumed = False
+        s5_universe_hash_path = None
+        s6_validation_bundle_path = None
+        s6_receipt_path = None
+        s6_run_report_path = None
+        s6_resumed = False
         parameter_hash_from_receipt: str | None = None
 
         if config.resume and resume_manifest:
@@ -204,6 +234,36 @@ class Segment3AOrchestrator:
             s4_output_path = s4_result.output_path
             s4_run_report_path = s4_result.run_report_path
             s4_resumed = s4_result.resumed
+        if config.run_s5:
+            parameter_hash_to_use = config.parameter_hash or parameter_hash
+            s5_result = self._s5_runner.run(
+                ZoneAllocInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=outputs.manifest_fingerprint,
+                    parameter_hash=parameter_hash_to_use,
+                    seed=config.seed,
+                    dictionary_path=config.dictionary_path,
+                )
+            )
+            s5_output_path = s5_result.output_path
+            s5_run_report_path = s5_result.run_report_path
+            s5_universe_hash_path = s5_result.universe_hash_path
+            s5_resumed = s5_result.resumed
+        if config.run_s6:
+            parameter_hash_to_use = config.parameter_hash or parameter_hash
+            s6_result = self._s6_runner.run(
+                ValidationInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=outputs.manifest_fingerprint,
+                    parameter_hash=parameter_hash_to_use,
+                    seed=config.seed,
+                    dictionary_path=config.dictionary_path,
+                )
+            )
+            s6_validation_bundle_path = s6_result.validation_bundle_path
+            s6_receipt_path = s6_result.receipt_path
+            s6_run_report_path = s6_result.run_report_path
+            s6_resumed = s6_result.resumed
 
         return Segment3AResult(
             manifest_fingerprint=outputs.manifest_fingerprint,
@@ -224,6 +284,14 @@ class Segment3AOrchestrator:
             s4_output_path=s4_output_path,
             s4_run_report_path=s4_run_report_path,
             s4_resumed=s4_resumed,
+            s5_output_path=s5_output_path,
+            s5_run_report_path=s5_run_report_path,
+            s5_universe_hash_path=s5_universe_hash_path,
+            s5_resumed=s5_resumed,
+            s6_validation_bundle_path=s6_validation_bundle_path,
+            s6_receipt_path=s6_receipt_path,
+            s6_run_report_path=s6_run_report_path,
+            s6_resumed=s6_resumed,
         )
 
     def _resolve_output_paths(

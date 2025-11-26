@@ -237,6 +237,8 @@ SEG3A_ARGS = \
 	--run-s2 \
 	--run-s3 \
 	--run-s4 \
+	--run-s5 \
+	--run-s6 \
 	--parameter-hash $$PARAM_HASH \
 	--run-id $(RUN_ID) \
 	--result-json "$(SEG3A_RESULT_JSON)" \
