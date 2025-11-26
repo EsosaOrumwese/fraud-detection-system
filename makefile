@@ -10,6 +10,7 @@ RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
 SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
 SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
+RUN_ID ?= run-0
 LOG ?= $(RUN_ROOT)/run_log_regen2.log
 SEED ?= 2025111101
 
@@ -234,7 +235,10 @@ SEG3A_ARGS = \
 	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
 	--run-s1 \
 	--run-s2 \
+	--run-s3 \
+	--run-s4 \
 	--parameter-hash $$PARAM_HASH \
+	--run-id $(RUN_ID) \
 	--result-json "$(SEG3A_RESULT_JSON)" \
 	--quiet-summary \
 	$(SEG3A_EXTRA)

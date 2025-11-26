@@ -11,6 +11,8 @@ from typing import Mapping, Optional
 from engine.layers.l1.seg_3A import S0GateInputs, S0GateRunner
 from engine.layers.l1.seg_3A.s1_escalation import EscalationInputs, EscalationRunner
 from engine.layers.l1.seg_3A.s2_priors import PriorsInputs, PriorsRunner
+from engine.layers.l1.seg_3A.s3_zone_shares import ZoneSharesInputs, ZoneSharesRunner
+from engine.layers.l1.seg_3A.s4_zone_counts import ZoneCountsInputs, ZoneCountsRunner
 from engine.layers.l1.seg_3A.shared.dictionary import (
     load_dictionary,
     render_dataset_path,
@@ -36,7 +38,10 @@ class Segment3AConfig:
     resume_manifest_fingerprint: Optional[str] = None
     run_s1: bool = False
     run_s2: bool = False
+    run_s3: bool = False
+    run_s4: bool = False
     parameter_hash: Optional[str] = None
+    run_id: str = "run-0"
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,12 @@ class Segment3AResult:
     s2_output_path: Path | None = None
     s2_run_report_path: Path | None = None
     s2_resumed: bool = False
+    s3_output_path: Path | None = None
+    s3_run_report_path: Path | None = None
+    s3_resumed: bool = False
+    s4_output_path: Path | None = None
+    s4_run_report_path: Path | None = None
+    s4_resumed: bool = False
 
 
 class Segment3AOrchestrator:
@@ -64,6 +75,8 @@ class Segment3AOrchestrator:
         self._s0_runner = S0GateRunner()
         self._s1_runner = EscalationRunner()
         self._s2_runner = PriorsRunner()
+        self._s3_runner = ZoneSharesRunner()
+        self._s4_runner = ZoneCountsRunner()
 
     def run(self, config: Segment3AConfig) -> Segment3AResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -85,6 +98,12 @@ class Segment3AOrchestrator:
         s2_output_path = None
         s2_report_path = None
         s2_resumed = False
+        s3_output_path = None
+        s3_run_report_path = None
+        s3_resumed = False
+        s4_output_path = None
+        s4_run_report_path = None
+        s4_resumed = False
         parameter_hash_from_receipt: str | None = None
 
         if config.resume and resume_manifest:
@@ -156,6 +175,35 @@ class Segment3AOrchestrator:
             s2_output_path = s2_result.output_path
             s2_report_path = s2_result.run_report_path
             s2_resumed = s2_result.resumed
+        if config.run_s3:
+            parameter_hash_to_use = config.parameter_hash or parameter_hash
+            s3_result = self._s3_runner.run(
+                ZoneSharesInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=outputs.manifest_fingerprint,
+                    parameter_hash=parameter_hash_to_use,
+                    seed=config.seed,
+                    run_id=config.run_id,
+                    dictionary_path=config.dictionary_path,
+                )
+            )
+            s3_output_path = s3_result.output_path
+            s3_run_report_path = s3_result.run_report_path
+            s3_resumed = s3_result.resumed
+        if config.run_s4:
+            parameter_hash_to_use = config.parameter_hash or parameter_hash
+            s4_result = self._s4_runner.run(
+                ZoneCountsInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=outputs.manifest_fingerprint,
+                    parameter_hash=parameter_hash_to_use,
+                    seed=config.seed,
+                    dictionary_path=config.dictionary_path,
+                )
+            )
+            s4_output_path = s4_result.output_path
+            s4_run_report_path = s4_result.run_report_path
+            s4_resumed = s4_result.resumed
 
         return Segment3AResult(
             manifest_fingerprint=outputs.manifest_fingerprint,
@@ -170,6 +218,12 @@ class Segment3AOrchestrator:
             s2_output_path=s2_output_path,
             s2_run_report_path=s2_report_path,
             s2_resumed=s2_resumed,
+            s3_output_path=s3_output_path,
+            s3_run_report_path=s3_run_report_path,
+            s3_resumed=s3_resumed,
+            s4_output_path=s4_output_path,
+            s4_run_report_path=s4_run_report_path,
+            s4_resumed=s4_resumed,
         )
 
     def _resolve_output_paths(

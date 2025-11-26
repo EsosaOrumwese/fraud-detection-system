@@ -73,6 +73,18 @@ def _print_summary(result: Segment3AResult) -> None:
         payload["s2_run_report_path"] = str(result.s2_run_report_path)
     if result.s2_resumed:
         payload["s2_resumed"] = result.s2_resumed
+    if result.s3_output_path:
+        payload["s3_output_path"] = str(result.s3_output_path)
+    if result.s3_run_report_path:
+        payload["s3_run_report_path"] = str(result.s3_run_report_path)
+    if result.s3_resumed:
+        payload["s3_resumed"] = result.s3_resumed
+    if result.s4_output_path:
+        payload["s4_output_path"] = str(result.s4_output_path)
+    if result.s4_run_report_path:
+        payload["s4_run_report_path"] = str(result.s4_run_report_path)
+    if result.s4_resumed:
+        payload["s4_resumed"] = result.s4_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -120,10 +132,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--notes", type=str, help="Optional notes recorded in the S0 receipt.")
     parser.add_argument("--run-s1", action="store_true", help="Run S1 escalation queue.")
     parser.add_argument("--run-s2", action="store_true", help="Run S2 priors stage.")
+    parser.add_argument("--run-s3", action="store_true", help="Run S3 Dirichlet share sampling.")
+    parser.add_argument("--run-s4", action="store_true", help="Run S4 integer zone counts.")
     parser.add_argument(
         "--parameter-hash",
         type=str,
         help="Parameter hash required when running S2 if different from S0 hash.",
+    )
+    parser.add_argument(
+        "--run-id",
+        type=str,
+        default="run-0",
+        help="Run identifier for RNG/event logs (S3).",
     )
     parser.add_argument(
         "--resume",
@@ -164,7 +184,10 @@ def main(argv: list[str] | None = None) -> int:
         resume_manifest_fingerprint=args.resume_manifest_fingerprint,
         run_s1=args.run_s1,
         run_s2=args.run_s2,
+        run_s3=args.run_s3,
+        run_s4=args.run_s4,
         parameter_hash=args.parameter_hash,
+        run_id=args.run_id,
     )
 
     result = orchestrator.run(config)
