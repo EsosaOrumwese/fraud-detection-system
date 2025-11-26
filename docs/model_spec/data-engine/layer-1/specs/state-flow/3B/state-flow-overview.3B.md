@@ -1,121 +1,159 @@
-# 3B — Purely Virtual Merchants (state-overview, 6 states)
+# Layer-1 - Segment 3B - State Overview (S0-S5)
 
-## S0 — Gate & environment seal (RNG-free)
+Segment 3B defines virtual merchants and CDN edges. It gates upstream segments, classifies virtual merchants and their settlement nodes, builds edge catalogues with RNG evidence, packages alias tables plus a virtual-edge universe hash, publishes the routing/validation contracts, and seals the segment with a PASS bundle. Inter-country order stays with 1A `s3_candidate_set`; 3A `zone_alloc` remains the zone authority.
 
-**Goal.** Prove we’re authorised to read inputs and fix identities for this run.
-**Must verify before any read.**
-
-* Global contract: producers publish a **validation bundle + `_passed.flag`; consumers refuse to read otherwise** (“no PASS → no read”). Record `{seed, manifest_fingerprint}` at open. 
-* Pin governed inputs you’ll rely on here: `mcc_channel_rules.yaml`, `virtual_settlement_coords.csv`, `cdn_country_weights.yaml`, HRSL raster, and (from 2A) the **tz-world/tzdata** digests you need to assign TZIDs to edges/settlement.
-
-**Outputs.** S0 receipt (JSON) capturing the exact digests you’ll reference later:
-`virtual_rules_digest, settlement_coord_digest, cdn_weights_digest, hrsl_digest, tz_overrides_digest?, tz_nudge_digest?, tzdata_archive_digest`.
+## Segment role at a glance
+- Enforce 1A/1B/2A/3A HashGates ("no PASS -> no read") and seal 3B policies before any work.
+- Classify merchants as virtual vs physical and create settlement nodes for virtuals.
+- Build RNG-bearing edge catalogues for virtual merchants; package alias tables and a virtual-edge universe hash.
+- Publish routing and validation contracts for virtual flows.
+- Validate and bundle everything into `validation_bundle_3B` + `_passed.flag_3B`.
 
 ---
 
-## S1 — Identify virtuals & build the **settlement node** (RNG-free)
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify `_passed.flag` from 1A, 1B, 2A, and 3A for the target `manifest_fingerprint`; seal the artefacts 3B may read.
 
-**Goal.** Decide which merchants are “virtual”, then create one **settlement node** per such merchant.
-**Inputs (authority).**
+**Preconditions & gates**  
+All upstream bundles/flags must match; otherwise abort ("no PASS -> no read").
 
-* **`mcc_channel_rules.yaml`** (policy; `virtual_rules_digest` recorded).
-* **`virtual_settlement_coords.csv`** with evidence URLs (governed; `settlement_coord_digest`).
+**Inputs**  
+Upstream gated surfaces: 1B `site_locations`/`outlet_catalogue`; 2A `site_timezones`/`tz_timetable_cache`; 3A `zone_alloc` + `zone_alloc_universe_hash`. Policies: virtual classification, settlement coord source, edge geography/budget policy, alias layout, virtual validation/routing policy, RNG policy.
 
-**Algorithm essentials.**
+**Outputs & identity**  
+`s0_gate_receipt_3B` at `data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_3B` at `data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/`.
 
-* Flag virtuals via `mcc_channel_rules.yaml` (MCC/channel predicates).
-* For each flagged merchant: create one settlement node with
-  `site_id := SHA1(merchant_id, "SETTLEMENT")`, `(lat,lon)` from the CSV, and **never** use these coordinates as customer origin. 
+**RNG**  
+None.
 
-**Outputs (egress #1).**
+**Key invariants**  
+No 3B reads without all upstream PASS; only artefacts in `sealed_inputs_3B` may be read; path/embed parity holds.
 
-* **`virtual_settlement.parquet`**: `[merchant_id, site_id, tzid_settlement, lat, lon, evidence_url]`, partitioned by `fingerprint={manifest_fingerprint}`. TZID is resolved using the same tz-world/override logic you use elsewhere, pinned by the tz digests captured in S0. 
-
----
-
-## S2 — Build the **CDN edge-catalogue** (HRSL sampling) (RNG-bounded)
-
-**Goal.** Instantiate a deterministic catalogue of CDN **edge nodes** per virtual merchant with weights by country.
-**Inputs (authority).**
-
-* **`cdn_country_weights.yaml`** (`cdn_weights_digest`), giving `country_iso → weight` and a global integer scale **E** (default 500) to size the catalogue.
-* **HRSL raster** (`hrsl_100m.tif`, governed; `hrsl_digest`) for coordinate sampling.
-
-**Algorithm essentials.**
-
-* For each virtual merchant, expand YAML weights into **E × weight_c** edge counts per country via largest-remainder rounding; total catalogue 50–800 nodes typical.
-* For each edge, **sample a coordinate** from HRSL within that country under your standard governed sampler (same replayable policy as 1B): counter-based RNG (Philox), open-interval mapping, and tagged sampling indices for exact replay. Emit one `raster_pick_cell` RNG event (module `3B.edge_sampler`, substream label carried over from 1B) per draw so the `blocks`/`draws` ledger stays compatible, then resolve `tzid_operational` for each coordinate via tz-world.
-
-**Outputs (egress #2).**
-
-* **`edge_catalogue/<merchant_id>.parquet`** with
-  `(edge_id=SHA1(merchant_id,country_iso,idx), country_iso, tzid_operational, lat, lon, edge_weight)`.
-  Record **`edge_digest_<merchant_id>`** and update **`edge_catalogue_index.csv`** (digest `edge_catalogue_index_digest`). 
-
-**RNG posture.** This state **consumes RNG** for coordinate sampling only; capture the RNG policy name and budget in the run header (family “CDN_EDGE”). The later selection of an edge **does not** happen here (that’s 2B). 
+**Downstream consumers**  
+All later 3B states rely on the receipt; S5 replays its digests.
 
 ---
 
-## S3 — Build **CDN alias tables** & freeze the **virtual universe hash** (RNG-free)
+## S1 - Virtual classification & settlement (deterministic)
+**Purpose & scope**  
+Classify merchants as virtual vs non-virtual and build one settlement node per virtual merchant.
 
-**Goal.** Make O(1) selection structures for edges and embed a **universe hash** so 2B can detect drift.
-**Algorithm essentials.**
+**Preconditions & gates**  
+S0 PASS; classification/settlement policies sealed; merchant universe available via upstream sealed inputs.
 
-* Per merchant, compute `p_e = edge_weight / Σ edge_weight` and build `<merchant_id>_cdn_alias.npz` (`prob, alias`).
-* Compute and embed **`universe_hash = SHA256(cdn_weights_digest ∥ edge_digest ∥ virtual_rules_digest)`** inside each alias. This mirrors the physical-routing universe hash pattern so open-time drift is caught instantly. 
+**Inputs**  
+Merchant attributes (MCC, channel, country) via sealed upstream datasets; virtual classification policy; settlement coordinate/timezone sources.
 
-**Outputs (egress #3).**
+**Outputs & identity**  
+`virtual_classification_3B` at `data/layer1/3B/virtual_classification_3B/seed={seed}/fingerprint={manifest_fingerprint}/` with `is_virtual`, reason codes.  
+`virtual_settlement_3B` at `data/layer1/3B/virtual_settlement_3B/seed={seed}/fingerprint={manifest_fingerprint}/` with `settlement_site_id`, lat/lon, `tzid_settlement`, provenance (one row per virtual merchant only).
 
-* **`cdn_alias/<merchant_id>_cdn_alias.npz`**, header contains `universe_hash` + manifest digests used. 
+**RNG**  
+None.
 
----
+**Key invariants**  
+Every merchant appears once in classification; settlement rows exist only for virtual merchants; settlement tz/coords follow policy and are deterministic.
 
-## S4 — Dual-TZ semantics & CI hooks (RNG-free)
-
-**Goal.** Declare **operational vs settlement** time-zones and wire validation hooks that will run once arrivals exist.
-**What to publish.**
-
-* **`virtual_routing_policy.json`** (per merchant): references `cdn_key_digest` (the SHA-256 of the sealed `route_rng_policy_v1` that defines the `SHA256(global_seed ∥ "CDN" ∥ merchant_id)` key derivation shared with 2B), the **two TZIDs** (`tzid_settlement` from S1 and per-edge `tzid_operational` from S2), and the daily settlement **cut-off** convention (“23:59:59 in settlement zone”).
-* Extend the transaction schema notes: **`ip_latitude/ip_longitude`** fields are used for virtuals (customer-facing geo), separate from physical `latitude/longitude`. Downstream pipelines coalesce appropriately. 
-
-**CI hooks (declared here, executed after L2 exists).**
-
-* **IP-country mix test:** empirical `ip_country` (from chosen edges) within tolerance of YAML weights over 30 days.
-* **Cut-off alignment test:** last UTC timestamp per day equals settlement 23:59:59 ± 5 s. Thresholds live in `virtual_validation.yml` (digest `virtual_validation_digest`). 
+**Downstream consumers**  
+S2 edge build uses the virtual set and settlements; S4 contracts reference settlement tz semantics.
 
 ---
 
-## S5 — Validation bundle & PASS gate (fingerprint-scoped)
+## S2 - Edge catalogue construction (RNG)
+**Purpose & scope**  
+Build static CDN edge nodes per virtual merchant with governed counts, geography, and RNG jitter/placement.
 
-**Goal.** Seal 3B so downstream readers can **hard-gate**.
-**Bundle contents (minimum).**
+**Preconditions & gates**  
+S0, S1 PASS; edge budget/geography policies sealed; required spatial/tz assets sealed.
 
-* `MANIFEST.json` including: `seed, manifest_fingerprint, virtual_rules_digest, settlement_coord_digest, cdn_weights_digest, edge_catalogue_index_digest, cdn_alias_index_digest?, hrsl_digest, tz_index_digest?, tzdata_archive_digest?, cdn_key_digest, virtual_validation_digest`.
-* Checksums for all published egress (edge catalogue files + alias files + settlement table), coverage counts (edges per country), and a legality summary (all edges resolve a single `tzid_operational`).
-* `index.json` + **`_passed.flag`** (ASCII-lex over `index.json` entries, flag excluded). **Consumers: no PASS → no read.**
+**Inputs**  
+`virtual_classification_3B`, `virtual_settlement_3B`; upstream spatial assets (tiles/weights, polygons, rasters); tz assets; edge policies.
 
----
+**Outputs & identity**  
+`edge_catalogue_3B` at `data/layer1/3B/edge_catalogue_3B/seed={seed}/fingerprint={manifest_fingerprint}/` with edge coords, country, tzid_operational, weights.  
+`edge_catalogue_index_3B` at `data/layer1/3B/edge_catalogue_index_3B/seed={seed}/fingerprint={manifest_fingerprint}/` with counts/digests per merchant and global.  
+RNG events for edge placement/jitter under `logs/rng/events/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/`.
 
-## Cross-state invariants (what keeps this green)
+**RNG posture**  
+Philox events for tile/cell choice and jitter (blocks/draws per event per spec); trace reconciled; non-RNG steps for budgets and integer allocations.
 
-* **Authority & identity.** All 3B artefacts bind to `{seed, fingerprint}`; **path tokens must byte-equal embedded lineage**. Do not hard-code paths; rely on your registry + dictionary. 
-* **RNG boundary.** Only **S2** consumes RNG (HRSL sampling). 2B will later consume RNG to **select an edge** at route time using `cdn_key_digest` and the alias files you froze here. 
-* **Universe hash discipline.** CDN alias embeds `SHA256(cdn_weights_digest ∥ edge_digest ∥ virtual_rules_digest)` so 2B can fail fast on drift. 
-* **Dual-TZ semantics.** Each row will carry both an **apparent** local offset (from the chosen edge’s zone) and a **settlement** UTC mapping for cut-offs; this split is explicitly documented and drives later CI. 
-* **Fallbacks for zero support.** If a country’s HRSL has **zero support**, fall back to the pinned population raster, tagging the fallback and recording its digest (same policy used upstream). 
+**Key invariants**  
+Edge counts per merchant/country follow policy; coords inside intended country; tzid_operational valid; digests in index match catalogue bytes; RNG budgets match logs/trace.
 
-## Failure vocabulary (deterministic aborts)
-
-* `VirtualRuleDigestMismatch` (mcc rules file digest mismatch). 
-* `SettlementCoordMissing` / `SettlementTZIDResolveError`.
-* `EdgeCatalogueDrift` (index digest mismatch or missing `edge_digest_<merchant_id>`). 
-* `EdgeTZIDResolveError` (edge coord returns 0 or >1 owners after nudge/override flow). 
-* `AliasUniverseHashMismatch` (alias open hash ≠ recomputed). 
+**Downstream consumers**  
+S3 builds alias/universe hash; S4 contracts; 2B virtual routing reads catalogue after 3B PASS.
 
 ---
 
-### Why this is practical to implement
+## S3 - Edge alias tables & virtual edge universe hash (deterministic)
+**Purpose & scope**  
+Transform edge catalogue into alias tables and compute a fingerprint-scoped universe hash tying policies + catalogue + alias bytes.
 
-* It matches your **narrative**: settlement node → edge-catalogue → CDN alias → dual TZ → PASS, with specific bytes and digests to freeze.
-* It keeps the **RNG line crisp** (S2 only), leaving per-event draws to 2B (edge selection keyed by policy). 
-* The **validation hooks** (ip-country tolerance, settlement cut-off alignment) are declared here and governed by a YAML with a tracked digest, so reviewers can tighten thresholds **without code changes**. 
+**Preconditions & gates**  
+S0-S2 PASS; alias layout policy sealed.
+
+**Inputs**  
+`edge_catalogue_3B`, `edge_catalogue_index_3B`; alias layout policy; sealed policy digests from S0.
+
+**Outputs & identity**  
+`edge_alias_blob_3B` and `edge_alias_index_3B` at `data/layer1/3B/edge_alias_{blob,index}_3B/seed={seed}/fingerprint={manifest_fingerprint}/`.  
+`edge_universe_hash_3B` at `data/layer1/3B/edge_universe_hash_3B/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json` capturing component digests and final `edge_universe_hash`.  
+`gamma_draw_log_3B` expected empty (proved RNG-free) at `logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl`.
+
+**RNG**  
+None (alias build is deterministic; gamma log remains empty unless spec changes).
+
+**Key invariants**  
+Alias tables align with catalogue weights; offsets/checksums match bytes; universe hash stable given inputs/policies; gamma log empty.
+
+**Downstream consumers**  
+S4 contracts and S5 validation; 2B uses alias/universe hash for virtual routing after PASS.
+
+---
+
+## S4 - Virtual routing semantics & validation contract (RNG-free)
+**Purpose & scope**  
+Publish binding contracts for virtual routing and validation (dual time zones, routing policy, validation thresholds).
+
+**Preconditions & gates**  
+S0-S3 PASS; validation/routing policy pack sealed.
+
+**Inputs**  
+`virtual_classification_3B`, `virtual_settlement_3B`; `edge_catalogue_3B`/`edge_catalogue_index_3B`; `edge_alias_blob_3B`/`edge_alias_index_3B`; `edge_universe_hash_3B`; validation/routing policy pack.
+
+**Outputs & identity**  
+`virtual_routing_policy_3B` and `virtual_validation_contract_3B` at `data/layer1/3B/{virtual_routing_policy_3B,virtual_validation_contract_3B}/fingerprint={manifest_fingerprint}/`; `s4_run_summary_3B` summarising versions/digests.
+
+**RNG**  
+None.
+
+**Key invariants**  
+Contracts reference sealed artefacts (catalogue, alias, universe hash); spell out settlement vs operational tz semantics; validation thresholds and metrics are explicit.
+
+**Downstream consumers**  
+2B virtual routing and validators consume these contracts after 3B PASS; S5 bundles them.
+
+---
+
+## S5 - Validation bundle & `_passed.flag_3B`
+**Purpose & scope**  
+Validate S0-S4 outputs and publish the 3B HashGate.
+
+**Preconditions & gates**  
+S0-S4 PASS for the fingerprint; upstream gates still verify; required audits/logs present.
+
+**Inputs**  
+Gate receipt, sealed inputs; all 3B datasets (`virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_*`, `edge_alias_*`, `edge_universe_hash_3B`, contracts) plus RNG logs from S2; audit/issue summaries (e.g., `s5_manifest_3B` if produced).
+
+**Outputs & identity**  
+`validation_bundle_3B` at `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_3B`; `_passed.flag_3B` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+
+**RNG**  
+None.
+
+**Key invariants**  
+Bundle index complete; digest matches `_passed.flag_3B`; all required artefacts present and coherent; enforces "no PASS -> no read" for 3B surfaces (catalogue, alias, universe hash, contracts).
+
+**Downstream consumers**  
+2B virtual routing and any downstream segment must verify `_passed.flag_3B` before using 3B artefacts.

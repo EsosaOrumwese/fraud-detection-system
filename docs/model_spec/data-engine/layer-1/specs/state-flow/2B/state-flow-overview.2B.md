@@ -1,112 +1,226 @@
-# 2B — Routing Through Sites (state-overview, 8 states)
+# Layer-1 - Segment 2B - State Overview (S0-S8)
 
-## S0 — Gate & environment seal (RNG-free)
+Segment 2B is the routing engine. It freezes per-site weights, builds alias tables, draws day effects, normalises group weights, provides a two-stage router (group -> site) and a virtual-edge branch, audits everything, and seals the segment with a PASS bundle. All plan tables are `[seed, fingerprint]`; runtime logs are `[seed, parameter_hash, run_id, utc_day]`; the bundle/flag are `[fingerprint]`. Inter-country order stays with 1A `s3_candidate_set`.
 
-**Goal.** Pin identities and prove we’re allowed to read inputs.
-**Must verify before any read.**
-
-* **1B PASS**: check `_passed.flag` for `site_locations` (fingerprint-scoped; “No PASS → no read”). 
-* Civil-time surfaces from **2A** (when available): tz tables/timetables manifests (pinned version + digests). (General “no PASS→no read” posture is in your top-level contract.) 
-  **Fix for the run.** `{seed, manifest_fingerprint}`; record routing RNG policy digests you will use in later states. 
-
-**Inputs (authority).**
-
-* **`site_locations`** (1B egress; order-free; `[seed, fingerprint]`). 
-* (If virtual merchants exist) **edge catalogues / weights** (governed). 
+## Segment role at a glance
+- Enforce the 1B HashGate ("no PASS -> no read") and seal routing policies before reading `site_locations`.
+- Deterministically derive long-run site weights and alias tables.
+- Introduce day-level gamma shocks per tz-group; renormalise group weights per merchant/day.
+- Route arrivals via two-stage alias (group, then site) with RNG evidence; branch for virtual-edge routing.
+- Audit structural/RNG parity and publish `validation_bundle_2B` + `_passed.flag_2B`.
 
 ---
 
-## S1 — Freeze per-merchant probability law (RNG-free)
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify 1B `_passed.flag_1B` for the target `manifest_fingerprint`; seal the inputs/policies 2B may read.
 
-**Goal.** Produce immutable `(site_id, p_i)` from foot-traffic scalars `F_i`; write canonical bytes with a digest.
-**Algorithm essentials.** `w_i := F_i`; `p_i := w_i / Σ_j w_j` (binary64); persist exact order (lexicographic `site_id`) so two machines produce byte-identical `p_i`. Emit `<merchant_id>_pweights.bin` and record `weight_digest` in `routing_manifest.json`. 
+**Preconditions & gates**  
+`validation_bundle_1B` + `_passed.flag_1B` must match; otherwise abort ("no PASS -> no read").
 
-**Outputs.** `pweights.bin` (+ `weight_digest` in manifest). 
+**Inputs**  
+`validation_bundle_1B`, `_passed.flag_1B`; 1B `site_locations` `[seed, fingerprint]`; policy artefacts `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`.
 
----
+**Outputs & identity**  
+`s0_gate_receipt_2B` at `data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_v1` at `data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet`.
 
-## S2 — Build alias tables (RNG-free)
+**RNG**  
+None.
 
-**Goal.** Build **O(1) alias** structures per merchant; freeze bytes + digest.
-**Algorithm essentials.** Standard small/large stacks → fill `prob`/`alias`; save uncompressed `<merchant_id>_alias.npz` with `alias_digest`. Compute and embed a **`universe_hash`** that concatenates governed digests (zone-alpha / θ / zone-floors / γ-variance / zone-alloc parquet) so drift is detectable at open.
+**Key invariants**  
+No 2B reads without 1B PASS; only sealed artefacts may be read; path tokens equal embedded lineage where present.
 
-**Outputs.** `<merchant_id>_alias.npz` (prob+alias), `universe_hash` in file header. 
-
----
-
-## S3 — Corporate-day modulation (RNG-bounded; one draw/day/merchant)
-
-**Goal.** Inject subtle cross-zone co-movement without changing century-scale shares.
-**Algorithm essentials.** Draw γ_d once per merchant per UTC day:
-[
-\log \gamma_d \sim \mathcal N!\bigl(-\tfrac12\sigma_\gamma^2,;\sigma_\gamma^2\bigr)
-]
-Seed derivation and Philox sub-stream policy per governed `rng_policy.yml`; first counter used for γ_d, subsequent uniforms for routing. Persist `gamma_variance_digest` and RNG policy digests in routing manifest. 
+**Downstream consumers**  
+All later 2B states must verify the receipt; S8 replays its digests.
 
 ---
 
-## S4 — Zone-group re-normalisation (RNG-free)
+## S1 - Per-merchant site weights (deterministic)
+**Purpose & scope**  
+Derive long-run per-site probabilities per merchant from `site_locations` using `alias_layout_policy_v1` floors/caps/quantisation.
 
-**Goal.** Keep **intra-zone** probabilities coherent under γ_d while preserving alias mechanics.
-**Algorithm essentials.** For a proposed local `t_local`, compute day `d`, scale `p_i ← γ_d·p_i` **within the originating site’s time-zone group**, then re-normalise s.t. Σ_group p_i = 1. (Alias lookup then uses the same tables with a scaled threshold—no rebuild.) 
+**Preconditions & gates**  
+S0 PASS; `site_locations` present for `{seed, fingerprint}`; policy sealed.
 
----
+**Inputs**  
+`site_locations`; `alias_layout_policy_v1`.
 
-## S5 — Router core (RNG-bounded; O(1) per event)
+**Outputs & identity**  
+`s1_site_weights` at `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`, PK `(merchant_id, legal_country_iso, site_order)`, with `p_weight`, provenance flags, quantisation bits.
 
-**Goal.** Turn each candidate local-time arrival into `(site_id, tzid)` deterministically.
-**Algorithm essentials.** Draw `u` from the Philox sub-stream; `k = ⌊u·N_m⌋`;
-`site_id = k if u < prob[k] else alias[k]`. Return `(site_id, tzid)` to the temporal engine, which handles UTC↔local and DST rules (from 2A). 
+**RNG**  
+None.
 
-**Interface to L2.** Input: `(merchant_id, t_local, tzid_origin)`; Output: `(site_id, tzid_origin)` (temporal converts to UTC and writes the row). 
+**Key invariants**  
+1:1 coverage with `site_locations`; per-merchant weights sum to 1 (within tolerance); floors/caps applied per policy and flagged.
 
----
-
-## S6 — Virtual-merchant edge routing (branch; RNG-bounded)
-
-**Goal.** For `is_virtual=1`, select a CDN **edge** (country-weighted) and expose IP geo while settlement TZ drives cut-off.
-**Algorithm essentials.** Use per-merchant **CDN alias** (built from `edge_weight`); Philox key `SHA256(global_seed ∥ "CDN" ∥ merchant_id)` per governed policy. Record `ip_country`, `ip_lat`, `ip_lon` from chosen edge; settlement zone sets `event_time_utc`. Validation later checks `ip_country` share against YAML weights and daily cut-off alignment.
-
----
-
-## S7 — Audits, replay checks & CI (RNG-free)
-
-**Goal.** Prove determinism and detect drift during long runs.
-**What to do.** Every ~10⁶ routed events compute
-`checksum = SHA256(merchant_id || batch_index || cumulative_counts_vector)` and append to `logs/routing/routing_audit.log` (rotation/retention governed). Nightly CI replays and expects matching checksums. 
+**Downstream consumers**  
+S2 alias build; S4 base shares; S5/S6 routing.
 
 ---
 
-## S8 — Validation bundle & PASS gate (fingerprint-scoped)
+## S2 - Alias tables (deterministic)
+**Purpose & scope**  
+Build O(1) alias tables per merchant from `s1_site_weights`; pack as blob + index with checksums.
 
-**Goal.** Seal routing assets so downstream readers can hard-gate.
-**Bundle contents (minimum).**
+**Preconditions & gates**  
+S0, S1 PASS; alias layout policy sealed.
 
-* MANIFEST: `seed, manifest_fingerprint, weight_digest, alias_digest, universe_hash, gamma_variance_digest, rng_policy_digests`.
-* **Determinism evidence:** audit checksums; alias open verifies `universe_hash`. 
-* **Distributional checks:** after removing γ_d (divide-out), empirical outlet shares track frozen `p_i` within governed tolerance. (For virtuals: `ip_country` tolerances & settlement cut-off CI.) 
-* `index.json` + `_passed.flag` (ASCII-lex SHA-256 over listed files; flag excluded). **No PASS → no read.**
+**Inputs**  
+`s1_site_weights`; `alias_layout_policy_v1`.
 
----
+**Outputs & identity**  
+`s2_alias_blob` and `s2_alias_index` at `data/layer1/2B/s2_alias_{blob,index}/seed={seed}/fingerprint={manifest_fingerprint}/`, index includes layout metadata, offsets, lengths, per-merchant checksums, and `blob_sha256_hex`.
 
-## Cross-state invariants (what keeps this green)
+**RNG**  
+None.
 
-* **Authority & identity.** Read `site_locations` only **after** 1B PASS; all routing artefacts bind to `{seed, manifest_fingerprint}`; path tokens and embedded lineage must byte-equal.
-* **RNG posture.** Counter-based Philox; open-interval mapping; sub-streams governed by `rng_policy.yml` for γ_d and (if virtual) CDN edges; per-event budgets consistent with your engine-wide rules. 
-* **Byte-for-byte freeze.** `pweights.bin` and alias `.npz` are canonical; **universe_hash** pins all priors/allocation knobs that could change routing behaviour. 
-* **Interface discipline.** Router returns `(site_id, tzid)`; civil-time legality and UTC conversion live in 2A/L2, not here. 
+**Key invariants**  
+Offsets non-overlapping and aligned per policy; per-merchant masses reconstructed from alias tables match quantised weights; blob/index digests match bytes.
 
-## Failure vocabulary (examples; deterministic aborts)
-
-* `RouterInputGateError` (missing 1B PASS / manifest mismatch). 
-* `AliasDriftError` (universe_hash mismatch when opening alias). 
-* `RoutingDeterminismError` (checksum replay mismatch in CI). 
-* `VirtualValidationError` (ip-country / settlement cut-off outside governed tolerances). 
+**Downstream consumers**  
+S5/S6 use alias tables for routing; S7 audits parity.
 
 ---
 
-### Why this is practical to implement
+## S3 - Day effects (RNG)
+**Purpose & scope**  
+Draw per-day gamma multipliers by tz-group per merchant to add short-run co-movement without biasing long-run shares.
 
-* It mirrors your documented pipeline (weights → alias → day-effect → O(1) selection), names the exact **bytes** to freeze, and ties them to digests.
-* It leaves civil-time logic where it belongs (2A/L2), keeping 2B fast and auditable. 
-* The PASS bundle + **universe_hash** gives reviewers a one-look drift answer and a clean consumer gate. 
+**Preconditions & gates**  
+S0, S1 PASS; `site_timezones` from 2A available; `day_effect_policy_v1` and RNG policy sealed.
+
+**Inputs**  
+`s1_site_weights` (merchant/site universe); `site_timezones` (tz grouping); `day_effect_policy_v1`; `route_rng_policy_v1`.
+
+**Outputs & identity**  
+`s3_day_effects` at `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`, with `utc_day`, `tz_group_id`, `gamma`, `log_gamma`, variance parameters, RNG provenance.
+
+**RNG posture**  
+Philox stream for `day_effect` family; typically one Gaussian -> gamma per `(merchant, utc_day, tz_group)`; budgets recorded in events/trace (anchor in layer RNG pack).
+
+**Key invariants**  
+E[gamma]=1 per policy; one event per group/day; only tz-groups present in `site_timezones`.
+
+**Downstream consumers**  
+S4 consumes gamma to scale group weights; S7 audits RNG budgets.
+
+---
+
+## S4 - Group weights per day (deterministic)
+**Purpose & scope**  
+Combine base shares and day effects to produce per-day tz-group weights per merchant; renormalise.
+
+**Preconditions & gates**  
+S0, S1, S3 PASS; `site_timezones` available.
+
+**Inputs**  
+Base shares derived from `s1_site_weights` + `site_timezones`; `s3_day_effects`.
+
+**Outputs & identity**  
+`s4_group_weights` at `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/`, with `p_group`, `gamma`, `base_share`, `mass_sum`, etc.
+
+**RNG**  
+None (pure function of inputs).
+
+**Key invariants**  
+For each `(merchant, utc_day)`, sum of `p_group` = 1 (tolerance per policy); groups align with `site_timezones` and `s3_day_effects`.
+
+**Downstream consumers**  
+S5 uses these weights for group sampling; S7 audits sums.
+
+---
+
+## S5 - Router core (RNG)
+**Purpose & scope**  
+Two-stage routing: sample tz-group per arrival/day, then sample site via alias; emit RNG evidence/logs.
+
+**Preconditions & gates**  
+S0-S4 PASS; alias blob/index and group weights available; `route_rng_policy_v1` governs streams/budgets.
+
+**Inputs**  
+`s4_group_weights`; `s2_alias_blob`/`s2_alias_index`; `s1_site_weights`; `site_timezones`; runtime arrivals (logical stream).
+
+**Outputs & identity**  
+Optional `s5_selection_log` at `data/layer1/2B/s5_selection_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/`; RNG events `alias_pick_group` and `alias_pick_site` under `logs/rng/events/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+
+**RNG posture**  
+Two single-uniform events per routed arrival (one group, one site); `blocks=1`, `draws="1"` per event; path/embed parity with `{seed, parameter_hash, run_id}`; trace reconciles totals.
+
+**Key invariants**  
+Selected group exists in `s4_group_weights`; selected site exists in `site_locations` and matches group tz; one event per draw; budgets equal logs.
+
+**Downstream consumers**  
+S7 audits; S8 bundles evidence.
+
+---
+
+## S6 - Virtual-edge routing (RNG, branch)
+**Purpose & scope**  
+For virtual merchants, route to CDN-style edges using a dedicated alias/policy; physical merchants bypass.
+
+**Preconditions & gates**  
+S0 PASS; `virtual_edge_policy_v1` sealed; edge catalogue/policy from 3B sealed in S0.
+
+**Inputs**  
+Virtual edge policy + edge weights/catalogue; arrivals marked `is_virtual=1`.
+
+**Outputs & identity**  
+Optional `s6_edge_log` at `data/layer1/2B/s6_edge_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/`; RNG events `cdn_edge_pick` under `logs/rng/events/cdn_edge_pick/...`.
+
+**RNG posture**  
+Single-uniform per virtual arrival; `blocks=1`, `draws="1"`; budgets logged and reconciled.
+
+**Key invariants**  
+Runs only for `is_virtual=1`; chosen `edge_id` exists in sealed catalogue; log IP/geo consistent with policy if recorded; budgets match trace.
+
+**Downstream consumers**  
+S7 audits; S8 includes edge logs/evidence.
+
+---
+
+## S7 - Audit report (deterministic)
+**Purpose & scope**  
+Aggregate structural and RNG checks across S1-S6 for each `{seed, fingerprint}`; emit `s7_audit_report`.
+
+**Preconditions & gates**  
+S0-S6 PASS for the seed/fingerprint; plan tables and RNG logs available.
+
+**Inputs**  
+`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, optional `s5_selection_log`, `s6_edge_log`, RNG logs (`rng_audit_log`, `rng_trace_log`, events), and all policies.
+
+**Outputs & identity**  
+`s7_audit_report` at `data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/` with overall status and findings.
+
+**RNG**  
+None.
+
+**Key invariants**  
+PASS only if structural checks (weights sums, alias/index parity), RNG budgets, and routing invariants succeed; required evidence present.
+
+**Downstream consumers**  
+S8 requires PASS reports for all seeds before issuing the HashGate.
+
+---
+
+## S8 - Validation bundle & PASS gate
+**Purpose & scope**  
+Seal Segment 2B for the fingerprint; publish `validation_bundle_2B` + `_passed.flag_2B`.
+
+**Preconditions & gates**  
+For the fingerprint: S0 PASS; all discovered seeds have S1-S7 PASS and `s7_audit_report` with PASS; 1B gate still verifies.
+
+**Inputs**  
+All `s7_audit_report` files; supporting evidence (e.g., RNG summaries); contracts in `schemas.layer1.yaml`/`schemas.2B.yaml`.
+
+**Outputs & identity**  
+`validation_bundle_2B` at `data/layer1/2B/validation/fingerprint={manifest_fingerprint}/` with `index.json`; `_passed.flag_2B` alongside containing `sha256_hex = <bundle_digest>` where the digest is over indexed files in ASCII-lex order (flag excluded).
+
+**RNG**  
+None.
+
+**Key invariants**  
+All required reports present and PASS; bundle digest matches `_passed.flag_2B`; enforces "no PASS -> no read" for 2B artefacts.
+
+**Downstream consumers**  
+Any consumer (5B, runtime routers, enterprise ingestion) must verify `_passed.flag_2B` before reading 2B plan tables or logs.

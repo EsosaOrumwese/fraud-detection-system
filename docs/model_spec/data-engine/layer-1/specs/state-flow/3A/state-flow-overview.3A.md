@@ -1,107 +1,202 @@
-# 3A — Capturing cross-zone merchants (state-overview, 7 states)
+# Layer-1 - Segment 3A - State Overview (S0-S7)
 
-## S0 — Gate & environment seal (RNG-free)
+Segment 3A is the zone allocation universe. It gates 1A/1B/2A, decides which merchant x country pairs need multi-zone splits, samples Dirichlet zone shares, integerises to per-zone outlet counts, publishes `zone_alloc` plus a routing universe hash, and seals the segment with a PASS bundle. Inter-country order remains with 1A `s3_candidate_set`.
 
-**Goal.** Prove we’re authorised to read 1A, pin identities, and fix governed inputs.
-**Must verify before any read.**
-
-* **1A PASS** for the fingerprint: recompute the 1A bundle hash from `index.json` (ASCII-lex order; flag excluded) and match `_passed.flag` → **No PASS → no read**. Then assert path↔embed equality when opening `outlet_catalogue`.
-* **1B + 2A PASS** for the same fingerprint: replay `_passed.flag` for **1B** (locks the `site_locations` geometry that downstream validations join against) and **2A** (locks `site_timezones`, `tz_overrides.yaml`, `tz_nudge.yml`, and the `tz_timetable_cache`). Even when 3A only records these digests, S0 must prove the upstream authority surfaces are sealed before referencing them in manifests handed to 2B/3B.
-  **Fix for the run.** `{seed, manifest_fingerprint}`; record digests for: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_world_2025a`, `tz_overrides.yaml`, `tz_nudge.yml`, `zone_mixture_policy.yml`, `country_zone_alphas.yaml`, `zone_floor.yml`, and the day-effect policy you’ll register later.
-
----
-
-## S1 — Mixture policy & escalation queue (RNG-free)
-
-**Goal.** Decide which countries **need** an internal split into multiple IANA zones.
-**Inputs.**
-
-* From 1A: per-merchant **country counts** (vector **v**, normalised to unit mass for policy decisions). 
-* **`zone_mixture_policy.yml`** (keys incl. `theta_mix`; digest recorded as `theta_digest`). Countries with mass ≥ θ enter the **escalation queue**; others remain **monolithic** in their country’s **largest-area TZID** from tz-world **after applying the same override precedence (`tz_overrides.yaml`) that 2A used when producing `site_timezones`**. 
-  **Notes.** Largest-area TZID is taken from the frozen `tz_world_2025a` polygons (deterministic index build) and reconciled with overrides so non-escalated countries stay byte-identical to 2A’s authority surface. 
+## Segment role at a glance
+- Enforce 1A/1B/2A HashGates ("no PASS -> no read") and seal priors/policies for zone allocation.
+- Determine escalation (multi-zone vs single-zone) per merchant x country and freeze counts.
+- Prepare country x tzid Dirichlet priors, draw zone shares (RNG), and integerise to zone counts.
+- Publish `zone_alloc` and `zone_alloc_universe_hash`; validate and bundle with `_passed.flag_3A`.
 
 ---
 
-## S2 — Load country→TZ Dirichlet priors (RNG-free)
+## S0 - Gate & sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify `_passed.flag` from 1A, 1B, and 2A for the target `manifest_fingerprint`; seal all artefacts 3A may read.
 
-**Goal.** Open the prior **α-ledger** and smooth as documented.
-**Inputs.**
+**Preconditions & gates**  
+`validation_bundle_{1A,1B,2A}` + flags must match; otherwise abort ("no PASS -> no read").
 
-* **`config/allocation/country_zone_alphas.yaml`** mapping `ISO → {TZID: α}`; digest recorded as **`zone_alpha_digest`**. The file is built from public settlement statistics and smoothed by a global constant **τ = 200** (governed; reviewer-tunable). 
+**Inputs**  
+Upstream gated egress: 1B `site_locations`/`outlet_catalogue`, 2A `site_timezones` and `tz_timetable_cache`; policy packs `zone_mixture_policy`, `country_zone_alphas`, `zone_floor_policy`, `day_effect_policy_v1`.
 
----
+**Outputs & identity**  
+`s0_gate_receipt_3A` at `data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_3A` at `data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/`.
 
-## S3 — Sample zone shares for escalated countries (RNG-bounded)
+**RNG**  
+None.
 
-**Goal.** For each **queued** country with Nₙ outlets, draw zone shares and produce **real-valued** expectations.
-**Algorithm essentials.**
+**Key invariants**  
+No 3A read without 1A/1B/2A PASS; only artefacts listed in `sealed_inputs_3A` are allowed; path/embed parity holds.
 
-* Draw **s ~ Dirichlet(α)** on a dedicated Philox sub-stream keyed by `(merchant_id, country_iso)`; compute expectations `E[count_z] = s_z · Nₙ` in binary64. 
-  **RNG posture.** Sub-stream policy follows your engine’s Philox/open-interval conventions; draws are replayable. 
-
----
-
-## S4 — Integerise with floors + bump rule (RNG-free)
-
-**Goal.** Turn expectations into **integers** that (a) sum to Nₙ, (b) don’t erase micro-zones, and (c) are deterministic.
-**Algorithm essentials.**
-
-* **Largest-remainder** rounding; fixed tie-break by alphabetical `TZID`.
-* **Bump rule:** if a zone’s fractional expectation > 0.8 but rounding would drop it to 0, reassign **one** outlet from the largest rounded zone in the same country.
-* **Zone floors:** enforce tiny global floors **φ_z** from `zone_floor.yml`; reallocate from the largest zone within the country if a floor would be violated. Floors are tiny (<0.1%), so realism shift is negligible.
+**Downstream consumers**  
+All later 3A states verify the receipt; S7 replays its digests.
 
 ---
 
-## S5 — Write allocation + bind to routing universe (RNG-free)
+## S1 - Escalation & requirements frame (deterministic)
+**Purpose & scope**  
+Decide which merchant x country pairs are escalated to multi-zone and record their outlet counts.
 
-**Goal.** Publish the per-merchant zone allocation and register digests used by the router to detect drift.
-**Outputs.**
+**Preconditions & gates**  
+S0 PASS; `site_locations` available for `{seed, fingerprint}`; `zone_mixture_policy` sealed.
 
-* **`zone_alloc.parquet`** per merchant with `(country_iso, tzid, outlet_count)`; update **`zone_alloc_index.csv`** and record digests. Router later recomputes a **universe hash** over exactly
-  `zone_alpha_digest ∥ theta_digest ∥ zone_floor_digest ∥ gamma_variance_digest ∥ zone_alloc_parquet_digest`
-  and embeds it into each alias file. 
-  **Corporate-day hook (no draw here).** Record the governed **day-effect variance** (`gamma_variance_digest`) so that 2B/L2 can realise the latent γ_d but the **universe hash** already covers the chosen policy.
+**Inputs**  
+`site_locations` (for `site_count` per merchant/country); `zone_mixture_policy` (thresholds/overrides).
 
----
+**Outputs & identity**  
+`s1_escalation_queue` at `data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, with `site_count`, `is_escalated`, `decision_reason`.
 
-## S6 — Structural validation & reports (RNG-free)
+**RNG**  
+None.
 
-**Goal.** Prove allocation integrity before anyone consumes it.
-**Checks.**
+**Key invariants**  
+Every `(merchant, country)` with outlets appears once; counts match 1B/1A; escalation decisions follow policy deterministically.
 
-* **Per-country sums match:** `Σ_z count_z == Nₙ` for every country in **v**.
-* **Escalation coherence:** non-queued countries produce exactly one `(country_iso, tzid)` (largest-area TZ). 
-* **Floors satisfied** and **bump rule** applied deterministically (prove via reproducible diff if applied).
-* **Index hygiene:** `zone_alloc_index.csv` lists **every** merchant once with a valid SHA-256 of its Parquet. 
-  *(The later “offset-barcode slope” and “share-fidelity” diagnostics run as part of the cross-segment validation harness after arrivals exist; see Cross-segment note.)*
-
----
-
-## S7 — Validation bundle & PASS gate (fingerprint-scoped, RNG-free)
-
-**Goal.** Seal 3A so downstream readers can **hard-gate**.
-**Bundle.** `data/layer1/3A/validation/fingerprint={manifest_fingerprint}/` with `MANIFEST.json`, `index.json`, allocation checks, digests (`theta_digest`, `zone_alpha_digest`, `zone_floor_digest`, `zone_alloc_index_digest`, `gamma_variance_digest`) and `_passed.flag` computed by the same **ASCII-lex + raw-bytes + SHA-256** law used in 1A/1B. **Consumers: no PASS → no read.**
+**Downstream consumers**  
+S3 uses escalated domain and counts; S4 integerises; S5 egress lineage.
 
 ---
 
-## Cross-state invariants (what keeps this green)
+## S2 - Country x zone priors (deterministic)
+**Purpose & scope**  
+Prepare parameter-scoped Dirichlet alpha vectors per country x tzid, applying floors/bump rules.
 
-* **Authority & identity.** 1A/1B/2A surfaces are read **only after** their gates PASS; all 3A artefacts bind to `{seed, manifest_fingerprint}` and enforce path↔embed equality. 
-* **RNG boundary.** Only **S3** consumes RNG (Dirichlet); everything else is deterministic. 
-* **Order boundary.** `s3_candidate_set.candidate_rank` remains the **sole inter-country order authority**—3A only redistributes counts **within** a country. 2B must continue to join S3 for cross-country sequencing.
-* **TZ coherence.** `zone_alloc` inherits the same tz-world polygons and override precedence (`tz_overrides.yaml`, `tz_nudge.yml`) that 2A froze in `site_timezones`, so counts and timezone identities never diverge downstream.
-* **Governance.** `theta_mix`, α-ledger and zone-floors are YAML-governed with recorded digests; allocation files are digested and indexed for router drift checks via **universe hash**.
+**Preconditions & gates**  
+S0 PASS; `country_zone_alphas` and `zone_floor_policy` sealed.
 
-## Failure vocabulary (deterministic aborts)
+**Inputs**  
+`country_zone_alphas`; `zone_floor_policy`; zone universe per country (from ingress/2A/3A config).
 
-* `GateFailure_1AFlagMismatch` / `GateFailure_1BFlagMismatch` / `GateFailure_2AFlagMismatch` (no PASS → no read). 
-* `ZoneAlphaMissing` / `PolicyLedgerDigestMismatch`. 
-* `AllocationSumMismatch` (Σ_z ≠ Nₙ for any country). 
-* `FloorInfeasible` (φ_z cannot be satisfied without violating Nₙ). 
-* `IndexDriftDetected` (zone_alloc_index.csv or per-merchant Parquet digest mismatch). 
+**Outputs & identity**  
+`s2_country_zone_priors` at `data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/` with `alpha_raw`, `alpha_effective`, `alpha_sum_country`, floor/bump flags.
+
+**RNG**  
+None.
+
+**Key invariants**  
+Only declared `(country, tzid)` pairs appear; `alpha_effective` respects floors; `alpha_sum_country` > 0 for valid countries.
+
+**Downstream consumers**  
+S3 Dirichlet draws use these priors; S5 hashes them into the universe digest.
 
 ---
 
-### Cross-segment note (where the realism tests happen)
+## S3 - Dirichlet zone shares (RNG)
+**Purpose & scope**  
+For each escalated merchant x country, draw zone share vectors over that country's tzids.
 
-Once L2 produces ~30 synthetic days, the harness runs the **offset-barcode slope** test (expect slope in −1…−0.5 offsets/hour) and a **share-fidelity** check (empirical zone shares vs integer allocations, ≤ 2 pp deviation). Failing either **aborts the build**; thresholds live in `cross_zone_validation.yml`. (This CI lives with the validation rails but is **driven by** 3A/2B outputs.)
+**Preconditions & gates**  
+S0, S1, S2 PASS; Layer-1 RNG envelope available.
+
+**Inputs**  
+`s1_escalation_queue` (escalated domain, `site_count`); `s2_country_zone_priors`; country zone universes.
+
+**Outputs & identity**  
+`s3_zone_shares` at `data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/`, one row per escalated `(merchant_id, legal_country_iso, tzid)` with `share_drawn`, sum fields, and RNG provenance.
+
+**RNG posture**  
+Gamma draws per zone -> normalise (Dirichlet); RNG event family `rng_event_zone_dirichlet` under `logs/rng/events/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`; budgets per alpha, trace reconciled.
+
+**Key invariants**  
+Shares non-negative; per `(merchant, country)` shares sum to 1 (tolerance per spec); only escalated pairs are drawn; S4 must not resample.
+
+**Downstream consumers**  
+S4 integer allocation; S6 validation; S5 hash.
+
+---
+
+## S4 - Integer zone allocation (deterministic)
+**Purpose & scope**  
+Convert zone shares and total outlets into integer zone counts via deterministic largest-remainder.
+
+**Preconditions & gates**  
+S0–S3 PASS; counts and shares available.
+
+**Inputs**  
+`s1_escalation_queue` (`site_count`), `s3_zone_shares` (`share_drawn`), zone universes.
+
+**Outputs & identity**  
+`s4_zone_counts` at `data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/`, one row per escalated `(merchant, country, tzid)` with `zone_site_count`.
+
+**RNG**  
+None.
+
+**Key invariants**  
+For each `(merchant, country)`, sum of `zone_site_count` equals `site_count`; tzid domain matches the country's zone universe; no zero-count rows emitted unless required by schema.
+
+**Downstream consumers**  
+S5 egress; S6 count checks; downstream segments rely on counts via `zone_alloc`.
+
+---
+
+## S5 - Zone egress & universe hash
+**Purpose & scope**  
+Publish `zone_alloc` as cross-layer authority and compute `zone_alloc_universe_hash` tying priors/policies/results into one digest.
+
+**Preconditions & gates**  
+S0–S4 PASS; policy packs sealed.
+
+**Inputs**  
+`s4_zone_counts`; `s2_country_zone_priors`; `zone_mixture_policy`; `zone_floor_policy`; `day_effect_policy_v1` (for routing universe hash).
+
+**Outputs & identity**  
+`zone_alloc` at `data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/`, with counts, per-pair sums, and policy lineage fields.  
+`zone_alloc_universe_hash` at `data/layer1/3A/zone_alloc_universe_hash/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json` containing component digests (alphas, mixture, floors, day-effect, `zone_alloc` parquet) and combined `routing_universe_hash`.
+
+**RNG**  
+None.
+
+**Key invariants**  
+`zone_alloc` matches `s4_zone_counts`; `routing_universe_hash` is stable for the same inputs; downstream (2B, 5B, 3B) must treat `zone_alloc` + universe hash as immutable authority.
+
+**Downstream consumers**  
+S6 validation; S7 bundle; routing/arrival segments consume `zone_alloc` after PASS.
+
+---
+
+## S6 - Validation report (deterministic)
+**Purpose & scope**  
+Audit 3A outputs (structure, counts, RNG accounting) and produce validation artefacts.
+
+**Preconditions & gates**  
+S0–S5 PASS; all datasets and RNG logs available.
+
+**Inputs**  
+`s0_gate_receipt_3A`, `sealed_inputs_3A`; `s1_escalation_queue`, `s2_country_zone_priors`, `s3_zone_shares`, `s4_zone_counts`, `zone_alloc`, `zone_alloc_universe_hash`; RNG logs `rng_event_zone_dirichlet`, `rng_audit_log`, `rng_trace_log`.
+
+**Outputs & identity**  
+`s6_validation_report_3A` at `data/layer1/3A/s6_validation_report_3A/fingerprint={manifest_fingerprint}/`; optional `s6_issue_table_3A`; `s6_receipt_3A` summarising status and digests.
+
+**RNG**  
+None (auditor only).
+
+**Key invariants**  
+Counts conserve across S1/S4/zone_alloc; domain checks pass; RNG budgets align with trace/events; `overall_status` must be PASS for gating.
+
+**Downstream consumers**  
+S7 requires PASS receipt before bundling; operators inspect issues.
+
+---
+
+## S7 - Validation bundle & `_passed.flag_3A`
+**Purpose & scope**  
+Seal Segment 3A for the fingerprint and publish the HashGate for downstream consumers.
+
+**Preconditions & gates**  
+S0–S6 PASS with `s6_receipt_3A.overall_status="PASS"`; upstream gates still verify.
+
+**Inputs**  
+Gate receipt and sealed inputs; all 3A datasets (`s1`–`s5`, universe hash); validation artefacts (`s6_*`).
+
+**Outputs & identity**  
+`validation_bundle_3A` at `data/layer1/3A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_3A`; `_passed.flag_3A` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+
+**RNG**  
+None.
+
+**Key invariants**  
+Bundle index is complete; recomputed digest matches `_passed.flag_3A`; enforces "no PASS -> no read" for `zone_alloc` and `zone_alloc_universe_hash`.
+
+**Downstream consumers**  
+Segments 2B, 3B, 5B must verify `_passed.flag_3A` before using 3A egress; routing uses the universe hash as authority.

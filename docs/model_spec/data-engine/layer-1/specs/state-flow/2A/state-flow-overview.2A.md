@@ -1,100 +1,153 @@
-# 2A — Deriving the civil time zone (state-overview, 6 states)
+# Layer-1 - Segment 2A - State Overview (S0-S5)
 
-## S0 — Gate & environment seal (RNG-free)
+Segment 2A is the civil-time engine. It trusts sealed 1B outputs, assigns authoritative tzids to sites, builds the tz transition cache, checks DST legality, and publishes a HashGate so downstream segments read only after PASS. Inter-country order stays with 1A `s3_candidate_set.candidate_rank`.
 
-**Goal.** Pin identities and prove we’re allowed to read inputs.
-**Inputs (authority).**
-
-* **`site_locations`** (1B egress; consumed by 2A) — ID→Schema from 1B; path/partition law `[seed, fingerprint]`; order-free.
-  **What to assert now.**
-* Schema conformance, **path↔embed equality**, partitions, writer sort; and verify 1B’s **validation bundle + `_passed.flag`** via the Dataset Dictionary before any read (**No PASS → No Read**).
-  **Outputs.** Gate receipt (`s0_gate_receipt_2A`) and mandatory sealed-inputs inventory (`sealed_inputs_v1`), both fingerprint-scoped.
-  **Determinism.** Fix `{seed, manifest_fingerprint}`; record artefact digests context at the run header.
+## Segment role at a glance
+- Enforce the 1B HashGate ("no PASS -> no read") and seal the ingress set 2A may touch.
+- Map each site to a provisional tz via polygons and nudges; apply governed overrides to produce authoritative `site_timezones`.
+- Compile the IANA tzdb into `tz_timetable_cache` for all tzids in use.
+- Produce per-seed DST legality reports and seal everything into `validation_bundle_2A` + `_passed.flag_2A`.
 
 ---
 
-## S1 — TZ polygon lookup (STR-tree + deterministic tie-break) (RNG-free)
+## S0 - Gate, manifest, sealed inputs (RNG-free)
+**Purpose & scope**  
+Verify 1B `_passed.flag_1B` for the target `manifest_fingerprint` and seal the exact artefacts 2A is allowed to read; emit the gate receipt and sealed-input manifest.
 
-**Goal.** Map each `(lat,lon)` to a **provisional `tzid`** via tz-world polygons; break border ties deterministically.
-**Inputs.**
+**Preconditions & gates**  
+`validation_bundle_1B` + `_passed.flag_1B` must match for the fingerprint; otherwise abort ("no PASS -> no read").
 
-* **`site_locations`** (coords) from 1B. 
-* **`tz_world_2025a`** polygons (GeoParquet), **EPSG:4326**, governed in ingress. Build a deterministic **STR-tree** and capture its digest in the manifest (`tz_index_digest`).
-  **Algorithm essentials.**
-* STR-tree shortlist → `prepared_polygon.contains(point)`; **0 owners ⇒ `TimeZoneLookupError`**, **2 owners ⇒ ε-nudge tie-break** with ε from governed `tz_nudge.yml`. Persist `nudge_lat/nudge_lon`.
-  **Outputs.**
-* **`s1_tz_lookup`** (plan table; proposed): key `[merchant_id, legal_country_iso, site_order]`, cols: `lat,lon, tzid_provisional, nudge_lat, nudge_lon`. Partition `[seed, fingerprint]`.
-  **Determinism.** Index build order is lexicographic by `TZID`; ε comes from config (not RNG). 
+**Inputs**  
+1B validation bundle/flag; 1B egress `site_locations` `[seed, fingerprint]`; ingress/policy artefacts: `tz_world_2025a`, `tzdb_release`, `tz_overrides`, `tz_nudge`, optional ISO/country refs.
 
----
+**Outputs & identity**  
+`s0_gate_receipt_2A` at `data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_v1` at `data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet` with digests and read scopes.
 
-## S2 — Overrides & finalisation (precedence: site → MCC → country) (RNG-free)
+**RNG**  
+None.
 
-**Goal.** Apply governed **`tz_overrides.yaml`** to replace polygon results where evidence says so; emit **final `tzid`**.
-**Inputs.**
+**Key invariants**  
+No 2A read of `site_locations` without 1B PASS; `sealed_inputs_v1` is the only whitelist; receipt digests equal the sealed manifest; path tokens equal embedded lineage where present.
 
-* `s1_tz_lookup` (from S1).
-* **`tz_overrides.yaml`** (scope, tzid, evidence_url, expiry; governed digest). Precedence: site-specific → MCC-wide → country-wide.
-  **Outputs (egress #1).**
-* **`site_timezones`** (egress; proposed): `[merchant_id, legal_country_iso, site_order]` + `tzid`, `tzid_source∈{polygon,override}`, `override_scope?`, `nudge_lat?`, `nudge_lon?`.
-  Path family: `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`.
-  **Checks.** override expiry valid; at least one active override still changes something (CI guard). 
+**Downstream consumers**  
+All later 2A states must verify the gate receipt; S5 replays its digests.
 
 ---
 
-## S3 — Build **tzdata** timetables (RLE cache) (RNG-free)
+## S1 - Provisional tz lookup (deterministic)
+**Purpose & scope**  
+Assign a provisional tzid per site via tz polygons, applying deterministic nudges for edge cases.
 
-**Goal.** Freeze the **IANA zoneinfo** version and build compact per-TZID timetables for the simulation horizon.
-**Inputs.**
+**Preconditions & gates**  
+S0 PASS; `site_locations` available for all seeds; `tz_world` and `tz_nudge` sealed.
 
-* **`tzdata2025a`** archive (governed; `zoneinfo_version.yml`, digest). 
-* Distinct `tzid` set from **`site_timezones`**.
-  **Algorithm essentials.**
-* Enumerate `_utc_transition_times` per TZ; write `(transition_epoch, offset_minutes)` and **run-length encode**. Record **exact cache byte size** for CI drift detection. 
-  **Outputs (egress #2).**
-* **`tz_timetable_cache`** (cache artefact; proposed): path `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/` with a manifest listing `tzdata_archive_digest`, `rle_cache_bytes`, and `tz_index_digest`. 
+**Inputs**  
+`site_locations` `[seed, fingerprint]`; `tz_world_2025a`; `tz_nudge` policy.
 
----
+**Outputs & identity**  
+`s1_tz_lookup` at `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/`, one row per site with `tzid_provisional`, optional `nudge_lat_deg`/`nudge_lon_deg`, and provenance.
 
-## S4 — Civil-time legality & DST conformance (RNG-free)
+**RNG**  
+None.
 
-**Goal.** Prove the **UTC↔local** mapping is unambiguous and lawful across gaps/folds; wire the **parity rule** for repeats.
-**What to verify.**
+**Key invariants**  
+1:1 with `site_locations`; nudged points remain inside tile and polygon; every `tzid_provisional` exists in `tz_world`.
 
-* **Gap handling:** if `t_local` lies in a forward gap, shift by `Δ = (o_post−o_pre)×60` seconds; mark `dst_adjusted=True` and return gap budget to arrivals. 
-* **Fold handling:** pick fold deterministically via `SHA256(global_seed‖site_id‖t_local) mod 2` (policy; still RNG-free). 
-* **DST wafer tests:** for each DST site, 48-hour wafer around spring/fall: no illegal minutes, both folds present; else **abort** with reproducer pointers. 
-  **Outputs.**
-* **`s4_legality_report`** (validation evidence; proposed): counts, wafer failures (zero expected), coverage over all `tzid` in catalogue.
+**Downstream consumers**  
+S2 applies overrides atop these provisional tzids; S4 uses tz usage.
 
 ---
 
-## S5 — Validation bundle & PASS gate (fingerprint-scoped)
+## S2 - Overrides and final `site_timezones` (deterministic)
+**Purpose & scope**  
+Apply governed overrides (site/MCC/country) to S1 tzids; emit authoritative per-site tzids.
 
-**Goal.** Seal 2A outputs so 2B/3A/3B can hard-gate.
-**Bundle contents (minimum).**
+**Preconditions & gates**  
+S0 PASS; S1 PASS; `tz_overrides` sealed; any MCC mapping required by policy available.
 
-* MANIFEST (`seed, manifest_fingerprint, tzdata_version, tz_index_digest, tz_overrides_digest, tz_nudge_digest, rle_cache_bytes`).
-* `legality_summary.json`, `coverage.json`, checksums for `site_timezones` and `tz_timetable_cache`, `index.json`, and **`_passed.flag`** = SHA-256 over files listed by `index.json` (ASCII-lex), flag excluded. **Consumers: no PASS → no read.** 
+**Inputs**  
+`s1_tz_lookup`; `tz_overrides`; `tz_world` for tzid validity; optional merchant/MCC surfaces if policy needs them.
+
+**Outputs & identity**  
+`site_timezones` at `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`, one row per site with final `tzid`, `tzid_source`, `override_scope`, override ids, and carried `nudge_*`.
+
+**RNG**  
+None.
+
+**Key invariants**  
+1:1 with `s1_tz_lookup`; overrides valid, in scope, and point to tzids in `tz_world`; if no override, `tzid` equals provisional and `tzid_source="polygon"`.
+
+**Downstream consumers**  
+All later segments treat `site_timezones` as the sole tz authority after 2A PASS; S4 counts tz usage.
 
 ---
 
-## Cross-state invariants (what keeps this green)
+## S3 - Tz timetable cache build (deterministic)
+**Purpose & scope**  
+Compile the sealed IANA tzdb release into a fingerprint-scoped transition cache for downstream legality and conversions.
 
-* **Inputs & lineage.** 2A reads only 1B’s `site_locations` and governed tz artefacts; all identities ride with `[seed, fingerprint]` and **path↔embed equality** holds.
-* **RNG posture.** 2A is **RNG-free**. (Fold parity uses a hash function on fixed inputs; no random draws.) 
-* **STR-tree reproducibility.** You record a binary **index digest** (`tz_index_digest`) to prove identical structure across machines. 
-* **Override governance.** All overrides/evidence are digested; CI asserts they’re not obsolete. 
-* **Zoneinfo pin.** Timetables come from a **pinned `tzdata20xxa`** archive recorded in the manifest. 
+**Preconditions & gates**  
+S0 PASS; tzdb archive bytes match the sealed digest.
 
-## Failure vocabulary (examples; deterministic aborts)
+**Inputs**  
+`tzdb_release` archive/tag; `tz_world` for tzid validation.
 
-* `TimeZoneLookupError` (zero owners), `DSTLookupTieError` (post-nudge still double-owned), `ZoneMismatchError` / `TimeTableCoverageError` (legality coverage). All are **hard fail, no partial publish**.
+**Outputs & identity**  
+`tz_timetable_cache` at `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/` with `tzdb_release_tag`, archive digest, per-tzid transition records, and `tz_index_digest`.
+
+**RNG**  
+None.
+
+**Key invariants**  
+Transitions strictly increasing per tzid; offsets are integer minutes; cache digests stable for the release and fingerprint.
+
+**Downstream consumers**  
+S4 legality checks; S5 bundle; later segments reuse cache for UTC<->local.
 
 ---
 
-### Why this is practical for implementation
+## S4 - Legality report (deterministic)
+**Purpose & scope**  
+Assess DST gaps/folds and tz coverage used by sites; one report per `{seed, fingerprint}`.
 
-* It matches your **ingress authorities** (tz-world, tzdata) and the **1B→2A hand-off** (`site_locations`).
-* It produces exactly the two things downstream need: a **per-site `tzid` egress** and a **compact tz timetable cache**, both sealed by a **PASS bundle**. 
-* The **DST edge passer** and **legality checks** are where bugs actually surface; keeping them pre-egress makes failures unambiguous and reproducible. 
+**Preconditions & gates**  
+S2 PASS (`site_timezones`), S3 PASS (`tz_timetable_cache`).
+
+**Inputs**  
+`site_timezones` for the seed/fingerprint; `tz_timetable_cache` for the fingerprint.
+
+**Outputs & identity**  
+`s4_legality_report` at `data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json`, with status, used tzids, gaps/folds summary, and missing-tz diagnostics.
+
+**RNG**  
+None.
+
+**Key invariants**  
+Every tzid in `site_timezones` appears in the cache; gaps/folds computed from transitions; status FAIL if any tzid missing.
+
+**Downstream consumers**  
+S5 aggregates reports into the bundle; operators inspect for DST issues.
+
+---
+
+## S5 - Validation bundle & PASS gate
+**Purpose & scope**  
+Seal 2A by bundling gate receipt, `tz_timetable_cache`, and all legality reports; publish `_passed.flag_2A`.
+
+**Preconditions & gates**  
+S0-S4 PASS for the fingerprint; every discovered seed has a legality report.
+
+**Inputs**  
+`s0_gate_receipt_2A`; `sealed_inputs_v1`; `tz_timetable_cache`; all `s4_legality_report` files for the fingerprint.
+
+**Outputs & identity**  
+`validation_bundle_2A` at `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_2A`; `_passed.flag_2A` alongside, containing `sha256_hex = <bundle_digest>` where the digest is over indexed files in ASCII-lex order (flag excluded).
+
+**RNG**  
+None.
+
+**Key invariants**  
+All required reports present and PASS; cache digest matches manifest; recomputed bundle digest equals `_passed.flag_2A`; gate text enforces "no PASS -> no read" for `site_timezones` and `tz_timetable_cache`.
+
+**Downstream consumers**  
+Segments 2B, 3A, 5A/5B, 6A/6B must verify `_passed.flag_2A` before reading 2A egress or cache.
