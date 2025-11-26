@@ -6,6 +6,7 @@ import pytest
 
 from engine.layers.l1.seg_3A.s5_zone_alloc import ZoneAllocInputs, ZoneAllocRunner
 from engine.layers.l1.seg_3A.s6_validation import ValidationInputs, ValidationRunner
+from engine.layers.l1.seg_3A.s7_bundle import BundleInputs, BundleRunner
 
 
 def _write_yaml(path: Path, payload: str) -> None:
@@ -75,6 +76,9 @@ datasets:
   - id: s4_zone_counts
     path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
     schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
+  - id: s2_country_zone_priors
+    path: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+    schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors
   - id: zone_alloc
     path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={fingerprint}/
     schema_ref: schemas.3A.yaml#/egress/zone_alloc
@@ -93,6 +97,9 @@ datasets:
   - id: validation_bundle_3A
     path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+  - id: _passed.flag_3A
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
 reports:
   - id: segment_state_runs
     path: reports/l1/segment_states/segment_state_runs.jsonl
@@ -184,6 +191,28 @@ def test_s5_zone_alloc_and_s6_validation():
         )
         s3_df.write_parquet(s3_dir / "part-0.parquet")
 
+        s2_dir = base / f"data/layer1/3A/s2_country_zone_priors/parameter_hash={param_hash}"
+        s2_dir.mkdir(parents=True, exist_ok=True)
+        s2_df = pl.DataFrame(
+            {
+                "parameter_hash": [param_hash, param_hash],
+                "country_iso": ["US", "US"],
+                "tzid": ["TZ_A", "TZ_B"],
+                "alpha_raw": [0.4, 0.6],
+                "alpha_effective": [0.4, 0.6],
+                "alpha_sum_country": [1.0, 1.0],
+                "prior_pack_id": ["priors", "priors"],
+                "prior_pack_version": ["1.0", "1.0"],
+                "floor_policy_id": ["floor", "floor"],
+                "floor_policy_version": ["1.0", "1.0"],
+                "floor_applied": [False, False],
+                "bump_applied": [False, False],
+                "share_effective": [0.4, 0.6],
+                "notes": [None, None],
+            }
+        )
+        s2_df.write_parquet(s2_dir / "part-0.parquet")
+
         s4_dir = base / f"data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest}"
         s4_dir.mkdir(parents=True, exist_ok=True)
         s4_df = pl.DataFrame(
@@ -238,3 +267,17 @@ def test_s5_zone_alloc_and_s6_validation():
         assert (bundle_root / "_passed.flag_3A").exists()
         assert (bundle_root / "s6_validation_report_3A.json").exists()
         assert s6_result.receipt_path.exists()
+
+        # S7
+        s7_runner = BundleRunner()
+        s7_result = s7_runner.run(
+            BundleInputs(
+                data_root=base,
+                manifest_fingerprint=manifest,
+                parameter_hash=param_hash,
+                seed=seed,
+                dictionary_path=dictionary_path,
+            )
+        )
+        assert (s7_result.bundle_path / "index.json").exists()
+        assert s7_result.passed_flag_path.exists()

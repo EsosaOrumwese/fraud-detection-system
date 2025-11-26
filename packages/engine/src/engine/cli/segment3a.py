@@ -101,6 +101,16 @@ def _print_summary(result: Segment3AResult) -> None:
         payload["s6_run_report_path"] = str(result.s6_run_report_path)
     if result.s6_resumed:
         payload["s6_resumed"] = result.s6_resumed
+    if result.s7_bundle_path:
+        payload["s7_bundle_path"] = str(result.s7_bundle_path)
+    if result.s7_passed_flag_path:
+        payload["s7_passed_flag_path"] = str(result.s7_passed_flag_path)
+    if result.s7_index_path:
+        payload["s7_index_path"] = str(result.s7_index_path)
+    if result.s7_run_report_path:
+        payload["s7_run_report_path"] = str(result.s7_run_report_path)
+    if result.s7_resumed:
+        payload["s7_resumed"] = result.s7_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -152,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-s4", action="store_true", help="Run S4 integer zone counts.")
     parser.add_argument("--run-s5", action="store_true", help="Run S5 zone allocation egress.")
     parser.add_argument("--run-s6", action="store_true", help="Run S6 validation bundle.")
+    parser.add_argument("--run-s7", action="store_true", help="Run S7 validation bundle + PASS flag.")
     parser.add_argument(
         "--parameter-hash",
         type=str,
@@ -206,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         run_s4=args.run_s4,
         run_s5=args.run_s5,
         run_s6=args.run_s6,
+        run_s7=args.run_s7,
         parameter_hash=args.parameter_hash,
         run_id=args.run_id,
     )

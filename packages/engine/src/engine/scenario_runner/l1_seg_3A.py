@@ -15,6 +15,7 @@ from engine.layers.l1.seg_3A.s3_zone_shares import ZoneSharesInputs, ZoneSharesR
 from engine.layers.l1.seg_3A.s4_zone_counts import ZoneCountsInputs, ZoneCountsRunner
 from engine.layers.l1.seg_3A.s5_zone_alloc import ZoneAllocInputs, ZoneAllocRunner
 from engine.layers.l1.seg_3A.s6_validation import ValidationInputs, ValidationRunner
+from engine.layers.l1.seg_3A.s7_bundle import BundleInputs, BundleRunner
 from engine.layers.l1.seg_3A.shared.dictionary import (
     load_dictionary,
     render_dataset_path,
@@ -44,6 +45,8 @@ class Segment3AConfig:
     run_s4: bool = False
     run_s5: bool = False
     run_s6: bool = False
+    run_s7: bool = False
+    run_s7: bool = False
     parameter_hash: Optional[str] = None
     run_id: str = "run-0"
 
@@ -78,6 +81,16 @@ class Segment3AResult:
     s6_receipt_path: Path | None = None
     s6_run_report_path: Path | None = None
     s6_resumed: bool = False
+    s7_bundle_path: Path | None = None
+    s7_passed_flag_path: Path | None = None
+    s7_index_path: Path | None = None
+    s7_run_report_path: Path | None = None
+    s7_resumed: bool = False
+    s7_bundle_path: Path | None = None
+    s7_passed_flag_path: Path | None = None
+    s7_index_path: Path | None = None
+    s7_run_report_path: Path | None = None
+    s7_resumed: bool = False
     s5_output_path: Path | None = None
     s5_run_report_path: Path | None = None
     s5_resumed: bool = False
@@ -99,6 +112,7 @@ class Segment3AOrchestrator:
         self._s4_runner = ZoneCountsRunner()
         self._s5_runner = ZoneAllocRunner()
         self._s6_runner = ValidationRunner()
+        self._s7_runner = BundleRunner()
 
     def run(self, config: Segment3AConfig) -> Segment3AResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -134,6 +148,11 @@ class Segment3AOrchestrator:
         s6_receipt_path = None
         s6_run_report_path = None
         s6_resumed = False
+        s7_bundle_path = None
+        s7_passed_flag_path = None
+        s7_index_path = None
+        s7_run_report_path = None
+        s7_resumed = False
         parameter_hash_from_receipt: str | None = None
 
         if config.resume and resume_manifest:
@@ -264,6 +283,22 @@ class Segment3AOrchestrator:
             s6_receipt_path = s6_result.receipt_path
             s6_run_report_path = s6_result.run_report_path
             s6_resumed = s6_result.resumed
+        if config.run_s7:
+            parameter_hash_to_use = config.parameter_hash or parameter_hash
+            s7_result = self._s7_runner.run(
+                BundleInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=outputs.manifest_fingerprint,
+                    parameter_hash=parameter_hash_to_use,
+                    seed=config.seed,
+                    dictionary_path=config.dictionary_path,
+                )
+            )
+            s7_bundle_path = s7_result.bundle_path
+            s7_passed_flag_path = s7_result.passed_flag_path
+            s7_index_path = s7_result.index_path
+            s7_run_report_path = s7_result.run_report_path
+            s7_resumed = s7_result.resumed
 
         return Segment3AResult(
             manifest_fingerprint=outputs.manifest_fingerprint,
@@ -292,6 +327,11 @@ class Segment3AOrchestrator:
             s6_receipt_path=s6_receipt_path,
             s6_run_report_path=s6_run_report_path,
             s6_resumed=s6_resumed,
+            s7_bundle_path=s7_bundle_path,
+            s7_passed_flag_path=s7_passed_flag_path,
+            s7_index_path=s7_index_path,
+            s7_run_report_path=s7_run_report_path,
+            s7_resumed=s7_resumed,
         )
 
     def _resolve_output_paths(

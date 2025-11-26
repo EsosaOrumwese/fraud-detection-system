@@ -77,6 +77,29 @@ class ValidationRunner:
         validation_bundle_dir.mkdir(parents=True, exist_ok=True)
 
         report_path = validation_bundle_dir / "s6_validation_report_3A.json"
+        issues_path = validation_bundle_dir / "s6_issue_table_3A.parquet"
+        receipt_path = validation_bundle_dir / "s6_receipt_3A.json"
+
+        # Also write to catalogued dictionary paths
+        report_dict_path = data_root / render_dataset_path(
+            dataset_id="s6_validation_report_3A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        report_dict_path.parent.mkdir(parents=True, exist_ok=True)
+        issues_dict_path = data_root / render_dataset_path(
+            dataset_id="s6_issue_table_3A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        issues_dict_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_dict_path = data_root / render_dataset_path(
+            dataset_id="s6_receipt_3A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        receipt_dict_path.parent.mkdir(parents=True, exist_ok=True)
+
         report_payload = self._write_validation_report(
             path=report_path,
             manifest_fingerprint=manifest_fingerprint,
@@ -84,10 +107,11 @@ class ValidationRunner:
             overall_status=overall_status,
             issues=issues,
         )
-        issues_path = validation_bundle_dir / "s6_issue_table_3A.parquet"
-        self._write_issue_table(issues_path, manifest_fingerprint, issues)
+        report_dict_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True), encoding="utf-8")
 
-        receipt_path = validation_bundle_dir / "s6_receipt_3A.json"
+        self._write_issue_table(issues_path, manifest_fingerprint, issues)
+        pl.read_parquet(issues_path).write_parquet(issues_dict_path)
+
         self._write_receipt(
             path=receipt_path,
             manifest_fingerprint=manifest_fingerprint,
@@ -96,6 +120,7 @@ class ValidationRunner:
             issues_path=issues_path,
             overall_status=overall_status,
         )
+        receipt_dict_path.write_text(receipt_path.read_text(encoding="utf-8"), encoding="utf-8")
 
         flag_path = validation_bundle_dir / "_passed.flag_3A"
         if overall_status == "PASS":
