@@ -201,6 +201,11 @@ class S0GateRunner:
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             files=[receipt_path, sealed_inputs_path],
         )
+        run_report_path = inputs.output_base_path / render_dataset_path(
+            dataset_id="segment_state_runs",
+            template_args={},
+            dictionary=dictionary,
+        )
         self._write_segment_run_report(
             inputs=inputs,
             manifest_fingerprint=manifest_result.manifest_fingerprint,
@@ -210,6 +215,7 @@ class S0GateRunner:
             gate_verify_ms=gate_verify_ms,
             sealed_inputs_path=sealed_inputs_path,
             receipt_path=receipt_path,
+            run_report_path=run_report_path,
         )
 
         return GateOutputs(
@@ -478,6 +484,7 @@ class S0GateRunner:
         gate_verify_ms: int,
         sealed_inputs_path: Path,
         receipt_path: Path,
+        run_report_path: Path,
     ) -> Path:
         key = SegmentStateKey(
             layer="layer1",
@@ -498,4 +505,4 @@ class S0GateRunner:
             "receipt_path": str(receipt_path),
             "notes": inputs.notes,
         }
-        return write_segment_state_run_report(base_path=inputs.output_base_path, key=key, payload=payload)
+        return write_segment_state_run_report(path=run_report_path, key=key, payload=payload)

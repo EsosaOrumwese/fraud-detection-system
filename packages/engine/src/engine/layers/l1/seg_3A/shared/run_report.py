@@ -49,10 +49,9 @@ def _keys_match(existing: Mapping[str, object], key: SegmentStateKey) -> bool:
 
 def write_segment_state_run_report(
     *,
-    base_path: Path,
+    path: Path,
     key: SegmentStateKey,
     payload: Mapping[str, object],
-    filename: str = "segment_state_runs.jsonl",
 ) -> Path:
     """Append (or idempotently keep) a segment-state run-report row.
 
@@ -60,22 +59,21 @@ def write_segment_state_run_report(
     If the same key exists with different content we raise to protect immutability.
     """
 
-    report_path = base_path / "reports" / "l1" / "segment_states" / filename
-    _ensure_parent(report_path)
-    rows = _load_existing(report_path)
+    _ensure_parent(path)
+    rows = _load_existing(path)
     for row in rows:
         if _keys_match(row, key):
             if row != payload:
                 raise err(
                     "E_RUN_REPORT_IMMUTABLE",
-                    f"segment-state run-report row for {key.state} already exists with different content at '{report_path}'",
+                    f"segment-state run-report row for {key.state} already exists with different content at '{path}'",
                 )
-            return report_path
+            return path
 
-    with report_path.open("a", encoding="utf-8") as handle:
+    with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, sort_keys=True))
         handle.write("\n")
-    return report_path
+    return path
 
 
 __all__ = ["SegmentStateKey", "write_segment_state_run_report"]

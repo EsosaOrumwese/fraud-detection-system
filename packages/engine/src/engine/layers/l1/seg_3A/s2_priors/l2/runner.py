@@ -130,6 +130,7 @@ class PriorsRunner:
         )
         self._write_segment_state_row(
             base_path=data_root,
+            dictionary=dictionary,
             manifest_fingerprint=manifest_fingerprint,
             parameter_hash=inputs.parameter_hash,
             run_report_path=run_report_path,
@@ -343,6 +344,7 @@ class PriorsRunner:
         self,
         *,
         base_path: Path,
+        dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         parameter_hash: str,
         run_report_path: Path,
@@ -370,4 +372,7 @@ class PriorsRunner:
             "floor_policy_id": floor_policy_id,
             "resumed": resumed,
         }
-        write_segment_state_run_report(base_path=base_path, key=key, payload=payload)
+        report_path = base_path / render_dataset_path(
+            dataset_id="segment_state_runs", template_args={}, dictionary=dictionary
+        )
+        write_segment_state_run_report(path=report_path, key=key, payload=payload)

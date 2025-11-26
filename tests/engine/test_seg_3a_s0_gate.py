@@ -48,6 +48,13 @@ def _build_dictionary(path: Path, policies: dict[str, Path]) -> Path:
                 "schema_ref": "schemas.3A.yaml#/validation/sealed_inputs_3A",
             },
         ],
+        "reports": [
+            {
+                "id": "segment_state_runs",
+                "path": "reports/l1/segment_states/segment_state_runs.jsonl",
+                "schema_ref": "schemas.layer1.yaml#/run_report/segment_state_run",
+            }
+        ],
         "reference_data": [
             {
                 "id": "outlet_catalogue",

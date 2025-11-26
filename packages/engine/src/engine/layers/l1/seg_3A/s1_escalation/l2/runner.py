@@ -142,6 +142,7 @@ class EscalationRunner:
             resumed=resumed,
         )
         self._write_segment_state_row(
+            dictionary=dictionary,
             base_path=data_root,
             manifest_fingerprint=manifest_fingerprint,
             parameter_hash=s0_receipt.get("parameter_hash", ""),
@@ -447,6 +448,7 @@ class EscalationRunner:
         self,
         *,
         base_path: Path,
+        dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         parameter_hash: str | None,
         seed: int,
@@ -474,4 +476,7 @@ class EscalationRunner:
             "run_report_path": str(run_report_path),
             "resumed": resumed,
         }
-        write_segment_state_run_report(base_path=base_path, key=key, payload=payload)
+        report_path = base_path / render_dataset_path(
+            dataset_id="segment_state_runs", template_args={}, dictionary=dictionary
+        )
+        write_segment_state_run_report(path=report_path, key=key, payload=payload)

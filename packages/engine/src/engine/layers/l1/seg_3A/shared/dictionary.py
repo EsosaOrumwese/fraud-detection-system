@@ -69,6 +69,7 @@ def _dictionary_sections() -> tuple[str, ...]:
         "reference",
         "model",
         "logs",
+        "reports",
     )
 
 

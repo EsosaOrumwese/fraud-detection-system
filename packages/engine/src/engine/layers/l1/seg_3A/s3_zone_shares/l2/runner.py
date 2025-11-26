@@ -19,6 +19,7 @@ from engine.layers.l1.seg_3A.shared import (
     write_segment_state_run_report,
 )
 from engine.layers.l1.seg_3A.shared.dictionary import load_dictionary
+from jsonschema import Draft202012Validator, ValidationError
 
 _S0_RECEIPT_SCHEMA = load_schema("#/validation/s0_gate_receipt_3A")
 _S0_RECEIPT_FIELDS = {"parameter_hash", "manifest_fingerprint", "seed", "upstream_gates"}
@@ -375,8 +376,11 @@ class ZoneSharesRunner:
             parameter_hash=parameter_hash,
             seed=seed,
         )
+        report_path = data_root / render_dataset_path(
+            dataset_id="segment_state_runs", template_args={}, dictionary=dictionary
+        )
         write_segment_state_run_report(
-            base_path=data_root,
+            path=report_path,
             key=key,
             payload={
                 **key.as_dict(),

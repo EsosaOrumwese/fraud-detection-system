@@ -98,6 +98,10 @@ datasets:
   - id: s2_country_zone_priors
     path: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
     schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors
+reports:
+  - id: segment_state_runs
+    path: reports/l1/segment_states/segment_state_runs.jsonl
+    schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
 """
 
 

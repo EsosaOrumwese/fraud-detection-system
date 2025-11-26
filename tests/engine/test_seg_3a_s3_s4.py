@@ -78,6 +78,10 @@ datasets:
   - id: s4_zone_counts
     path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
     schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
+reports:
+  - id: segment_state_runs
+    path: reports/l1/segment_states/segment_state_runs.jsonl
+    schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
 """
 
 

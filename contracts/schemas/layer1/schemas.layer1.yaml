@@ -804,20 +804,48 @@ policy:
       dp_resid:
         type: integer
         const: 8
-        description: Residual quantisation precision (S7 binding; keep at 8).
-      floors:
-        type: object
-        default: {}
-        propertyNames:
-          $ref: '#/$defs/iso2'
-        additionalProperties:
-          type: integer
-          minimum: 0
-      ceilings:
-        type: object
-        default: {}
-        propertyNames:
-          $ref: '#/$defs/iso2'
-        additionalProperties:
-          type: integer
-          minimum: 0
+    description: Residual quantisation precision (S7 binding; keep at 8).
+    floors:
+      type: object
+      default: {}
+      propertyNames:
+        $ref: '#/$defs/iso2'
+      additionalProperties:
+        type: integer
+        minimum: 0
+    ceilings:
+      type: object
+      default: {}
+      propertyNames:
+        $ref: '#/$defs/iso2'
+      additionalProperties:
+        type: integer
+        minimum: 0
+
+# Layer-1 segment-state run reports (shared across states)
+run_report:
+  segment_state_run:
+    type: object
+    additionalProperties: true
+    required:
+      - layer
+      - segment
+      - state
+      - parameter_hash
+      - manifest_fingerprint
+      - seed
+      - status
+    properties:
+      layer: {type: string}
+      segment: {type: string}
+      state: {type: string}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      seed: {$ref: '#/$defs/uint64'}
+      attempt: {type: integer, minimum: 1}
+      status: {type: string}
+      output_path: {type: string}
+      run_report_path: {type: string}
+      rng_trace_path: {type: string}
+      resumed: {type: boolean}
+      notes: {type: string}
