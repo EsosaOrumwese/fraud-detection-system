@@ -24,6 +24,7 @@ from ...shared.dictionary import (
     render_dataset_path,
     repository_root,
 )
+from ...shared.run_report import SegmentStateKey, write_segment_state_run_report
 from ..exceptions import S0GateError, err
 from ..l0 import (
     ArtifactDigest,
@@ -199,6 +200,16 @@ class S0GateRunner:
             inputs=inputs,
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             files=[receipt_path, sealed_inputs_path],
+        )
+        self._write_segment_run_report(
+            inputs=inputs,
+            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            parameter_hash=parameter_result.parameter_hash,
+            start_at=run_started_at,
+            verified_at=verified_at,
+            gate_verify_ms=gate_verify_ms,
+            sealed_inputs_path=sealed_inputs_path,
+            receipt_path=receipt_path,
         )
 
         return GateOutputs(
@@ -398,6 +409,9 @@ class S0GateRunner:
                     }
                 )
 
+        receipt_payload["sealed_policy_set"].sort(
+            key=lambda row: (row["owner_segment"], row["logical_id"])
+        )
         receipt_path = output_dir / "s0_gate_receipt_3A.json"
         receipt_path.write_text(json.dumps(receipt_payload, indent=2))
         return receipt_path, verified_at
@@ -416,6 +430,14 @@ class S0GateRunner:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         rows = [asset.as_row(manifest_fingerprint) for asset in sealed_assets]
+        rows.sort(
+            key=lambda row: (
+                row.get("owner_segment", ""),
+                row.get("artefact_kind", ""),
+                row.get("logical_id", ""),
+                row.get("path", ""),
+            )
+        )
         df = pl.DataFrame(rows)
         df.write_parquet(output_path)
         return output_path
@@ -444,3 +466,36 @@ class S0GateRunner:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(payload, indent=2))
         return payload, output_path
+
+    def _write_segment_run_report(
+        self,
+        *,
+        inputs: GateInputs,
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        start_at: datetime,
+        verified_at: datetime,
+        gate_verify_ms: int,
+        sealed_inputs_path: Path,
+        receipt_path: Path,
+    ) -> Path:
+        key = SegmentStateKey(
+            layer="layer1",
+            segment="3A",
+            state="S0",
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            seed=inputs.seed,
+        )
+        payload = {
+            **key.as_dict(),
+            "status": "PASS",
+            "attempt": 1,
+            "run_started_at_utc": start_at.isoformat(),
+            "verified_at_utc": verified_at.isoformat(),
+            "elapsed_ms": gate_verify_ms,
+            "sealed_inputs_path": str(sealed_inputs_path),
+            "receipt_path": str(receipt_path),
+            "notes": inputs.notes,
+        }
+        return write_segment_state_run_report(base_path=inputs.output_base_path, key=key, payload=payload)

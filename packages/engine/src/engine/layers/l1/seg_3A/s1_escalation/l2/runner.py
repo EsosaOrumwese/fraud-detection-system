@@ -15,7 +15,7 @@ from jsonschema import Draft202012Validator, ValidationError
 
 from engine.layers.l1.seg_3A.s0_gate.exceptions import err
 from engine.layers.l1.seg_3A.s0_gate.l0 import aggregate_sha256, expand_files, hash_files
-from engine.layers.l1.seg_3A.shared import load_schema
+from engine.layers.l1.seg_3A.shared import SegmentStateKey, load_schema, write_segment_state_run_report
 from engine.layers.l1.seg_3A.shared.dictionary import load_dictionary, render_dataset_path
 
 _S0_RECEIPT_VALIDATOR = Draft202012Validator(load_schema("#/validation/s0_gate_receipt_3A"))
@@ -132,13 +132,23 @@ class EscalationRunner:
             / f"runs/layer1/3A/s1_escalation/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
-        self._write_run_report(
+        run_report = self._write_run_report(
             run_report_path,
             policy=policy,
             result_df=classification,
             manifest_fingerprint=manifest_fingerprint,
             seed=seed,
             s0_receipt=s0_receipt,
+            resumed=resumed,
+        )
+        self._write_segment_state_row(
+            base_path=data_root,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=s0_receipt.get("parameter_hash", ""),
+            seed=seed,
+            elapsed_ms=run_report["elapsed_ms"],
+            result_path=output_file,
+            run_report_path=run_report_path,
             resumed=resumed,
         )
 
@@ -388,7 +398,7 @@ class EscalationRunner:
         seed: int,
         s0_receipt: Mapping[str, Any],
         resumed: bool,
-    ) -> None:
+    ) -> Mapping[str, object]:
         started = datetime.now(timezone.utc)
         total_rows = result_df.height
         escalated = int(result_df.filter(pl.col("is_escalated")).height)
@@ -431,3 +441,37 @@ class EscalationRunner:
         run_payload["resumed"] = resumed
 
         path.write_text(json.dumps(run_payload, indent=2, sort_keys=True), encoding="utf-8")
+        return run_payload
+
+    def _write_segment_state_row(
+        self,
+        *,
+        base_path: Path,
+        manifest_fingerprint: str,
+        parameter_hash: str | None,
+        seed: int,
+        elapsed_ms: int,
+        result_path: Path,
+        run_report_path: Path,
+        resumed: bool,
+    ) -> None:
+        if not parameter_hash:
+            return
+        key = SegmentStateKey(
+            layer="layer1",
+            segment="3A",
+            state="S1",
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            seed=seed,
+        )
+        payload = {
+            **key.as_dict(),
+            "status": "PASS",
+            "attempt": 1,
+            "elapsed_ms": elapsed_ms,
+            "output_path": str(result_path),
+            "run_report_path": str(run_report_path),
+            "resumed": resumed,
+        }
+        write_segment_state_run_report(base_path=base_path, key=key, payload=payload)

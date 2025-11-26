@@ -14,7 +14,7 @@ from jsonschema import Draft202012Validator, ValidationError
 
 from engine.layers.l1.seg_3A.s0_gate.exceptions import err
 from engine.layers.l1.seg_3A.s0_gate.l0 import aggregate_sha256, expand_files, hash_files
-from engine.layers.l1.seg_3A.shared import load_schema
+from engine.layers.l1.seg_3A.shared import SegmentStateKey, load_schema, write_segment_state_run_report
 from engine.layers.l1.seg_3A.shared.dictionary import load_dictionary, render_dataset_path
 
 _S0_RECEIPT_VALIDATOR = Draft202012Validator(load_schema("#/validation/s0_gate_receipt_3A"))
@@ -125,6 +125,16 @@ class PriorsRunner:
             parameter_hash=inputs.parameter_hash,
             prior_meta=prior_payload,
             floor_meta=floor_payload,
+            resumed=resumed,
+        )
+        self._write_segment_state_row(
+            base_path=data_root,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=inputs.parameter_hash,
+            run_report_path=run_report_path,
+            output_path=output_file,
+            prior_pack_id=prior_payload.get("policy_id") or prior_payload.get("id"),
+            floor_policy_id=floor_payload.get("policy_id") or floor_payload.get("id"),
             resumed=resumed,
         )
 
@@ -305,7 +315,7 @@ class PriorsRunner:
         prior_meta: Mapping[str, Any],
         floor_meta: Mapping[str, Any],
         resumed: bool,
-    ) -> None:
+    ) -> Mapping[str, object]:
         countries = result_df["country_iso"].n_unique()
         zones = result_df.height
         payload = {
@@ -325,3 +335,36 @@ class PriorsRunner:
         now = datetime.now(timezone.utc).isoformat()
         payload["completed_at_utc"] = now
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        return payload
+
+    def _write_segment_state_row(
+        self,
+        *,
+        base_path: Path,
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        run_report_path: Path,
+        output_path: Path,
+        prior_pack_id: str | None,
+        floor_policy_id: str | None,
+        resumed: bool,
+    ) -> None:
+        key = SegmentStateKey(
+            layer="layer1",
+            segment="3A",
+            state="S2",
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            seed=0,
+        )
+        payload = {
+            **key.as_dict(),
+            "status": "PASS",
+            "attempt": 1,
+            "output_path": str(output_path),
+            "run_report_path": str(run_report_path),
+            "prior_pack_id": prior_pack_id,
+            "floor_policy_id": floor_policy_id,
+            "resumed": resumed,
+        }
+        write_segment_state_run_report(base_path=base_path, key=key, payload=payload)
