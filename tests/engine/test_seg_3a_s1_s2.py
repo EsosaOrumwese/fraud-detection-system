@@ -308,6 +308,7 @@ floors:
                 data_root=base,
                 manifest_fingerprint=manifest,
                 parameter_hash=param_hash,
+                seed=0,
                 dictionary_path=dictionary_path,
             )
         )

@@ -149,6 +149,7 @@ class Segment3AOrchestrator:
                     data_root=data_root,
                     manifest_fingerprint=outputs.manifest_fingerprint,
                     parameter_hash=parameter_hash_to_use,
+                    seed=config.seed,
                     dictionary_path=config.dictionary_path,
                 )
             )

@@ -28,6 +28,7 @@ class PriorsInputs:
     data_root: Path
     manifest_fingerprint: str
     parameter_hash: str
+    seed: int
     dictionary_path: Optional[Path] = None
 
 
@@ -136,6 +137,7 @@ class PriorsRunner:
             prior_pack_id=prior_payload.get("policy_id") or prior_payload.get("id"),
             floor_policy_id=floor_payload.get("policy_id") or floor_payload.get("id"),
             resumed=resumed,
+            seed=inputs.seed,
         )
 
         return PriorsResult(
@@ -348,6 +350,7 @@ class PriorsRunner:
         prior_pack_id: str | None,
         floor_policy_id: str | None,
         resumed: bool,
+        seed: int,
     ) -> None:
         key = SegmentStateKey(
             layer="layer1",
@@ -355,7 +358,7 @@ class PriorsRunner:
             state="S2",
             manifest_fingerprint=manifest_fingerprint,
             parameter_hash=parameter_hash,
-            seed=0,
+            seed=seed,
         )
         payload = {
             **key.as_dict(),
