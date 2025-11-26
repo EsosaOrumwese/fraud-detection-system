@@ -60,7 +60,7 @@ def write_segment_state_run_report(
     If the same key exists with different content we raise to protect immutability.
     """
 
-    report_path = base_path / "runs" / "layer1" / "segment_states" / filename
+    report_path = base_path / "reports" / "l1" / "segment_states" / filename
     _ensure_parent(report_path)
     rows = _load_existing(report_path)
     for row in rows:
