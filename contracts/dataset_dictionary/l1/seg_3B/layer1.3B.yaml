@@ -253,7 +253,7 @@ reference_data:
   status: draft
   owner_subsegment: ingress
   description: Cloudflare Radar HTTP traffic share by country (snapshot) used to derive cdn_country_weights.
-  version: '{snapshot_date}'
+  version: 'radar_http_top_locations_30d'
   format: csv
   path: reference/web_traffic/cloudflare_radar/{snapshot_date}/traffic_by_country.csv
   partitioning: []
