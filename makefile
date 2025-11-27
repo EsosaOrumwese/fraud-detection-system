@@ -312,7 +312,7 @@ SEG5A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment5a $(SEG5
 
 .PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a profile-all profile-seg1b clean-results
 
-all: segment1a segment1b segment2a segment2b segment3a segment3b
+all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
