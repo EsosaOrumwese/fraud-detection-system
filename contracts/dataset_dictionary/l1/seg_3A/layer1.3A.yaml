@@ -93,7 +93,7 @@ reference_data:
   description: Outlet catalogue emitted by Segment 1A (per merchantxcountry site list).
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/outlet_catalogue.parquet
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/part-00000.parquet
   partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1A.yaml#/egress/outlet_catalogue

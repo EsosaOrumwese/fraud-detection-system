@@ -209,7 +209,7 @@ class S0GateRunner:
         defaults = {
             "1A": base / f"data/layer1/1A/validation/fingerprint={fingerprint}",
             "1B": base / f"data/layer1/1B/validation/fingerprint={fingerprint}",
-            "2A": base / f"data/layer1/2A/validation/fingerprint={fingerprint}/bundle",
+            "2A": base / f"data/layer1/2A/validation/fingerprint={fingerprint}",
             "3A": base / f"data/layer1/3A/validation/fingerprint={fingerprint}",
         }
         bundle_paths: dict[str, Path] = {
@@ -221,24 +221,47 @@ class S0GateRunner:
 
         results: dict[str, Mapping[str, object]] = {}
         for segment, bundle_path in bundle_paths.items():
-            if not bundle_path.exists() or not bundle_path.is_dir():
-                raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {bundle_path}")
-            bundle_index = load_index(bundle_path)
-            computed_flag = compute_index_digest(bundle_path, bundle_index)
-            declared_flag = read_pass_flag(bundle_path)
+            resolved = self._resolve_bundle_path(bundle_path)
+            if not resolved.exists() or not resolved.is_dir():
+                raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {resolved}")
+            bundle_index = load_index(resolved)
+            computed_flag = compute_index_digest(resolved, bundle_index)
+            flag_names: Sequence[str] = ["_passed.flag_3A", "_passed.flag"] if segment == "3A" else ["_passed.flag"]
+            declared_flag: str | None = None
+            for flag_name in flag_names:
+                if (resolved / flag_name).exists():
+                    declared_flag = read_pass_flag(resolved, flag_name=flag_name)
+                    break
+            if declared_flag is None:
+                raise err("E_PASS_MISSING", f"{segment} validation bundle missing pass flag")
             if computed_flag != declared_flag:
                 raise err("E_FLAG_HASH_MISMATCH", f"{segment} computed digest does not match _passed.flag")
             # persist resolved path on inputs for downstream use
             if segment == "1A":
-                object.__setattr__(inputs, "validation_bundle_1a", bundle_path)
+                object.__setattr__(inputs, "validation_bundle_1a", resolved)
             elif segment == "1B":
-                object.__setattr__(inputs, "validation_bundle_1b", bundle_path)
+                object.__setattr__(inputs, "validation_bundle_1b", resolved)
             elif segment == "2A":
-                object.__setattr__(inputs, "validation_bundle_2a", bundle_path)
+                object.__setattr__(inputs, "validation_bundle_2a", resolved)
             else:
-                object.__setattr__(inputs, "validation_bundle_3a", bundle_path)
-            results[segment] = {"path": bundle_path, "sha256_hex": declared_flag}
+                object.__setattr__(inputs, "validation_bundle_3a", resolved)
+            results[segment] = {"path": resolved, "sha256_hex": declared_flag}
         return results
+
+    def _resolve_bundle_path(self, bundle_path: Path) -> Path:
+        """Resolve the bundle directory even if callers point to parent/child paths."""
+
+        candidates: list[Path] = [bundle_path]
+        if bundle_path.name == "bundle":
+            candidates.append(bundle_path.parent)
+        else:
+            candidates.append(bundle_path / "bundle")
+
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_dir():
+                if (candidate / "index.json").exists():
+                    return candidate
+        return bundle_path
 
     def _collect_sealed_assets(
         self,
@@ -246,6 +269,12 @@ class S0GateRunner:
         dictionary: Mapping[str, object],
         upstream_bundles: Mapping[str, Mapping[str, object]],
     ) -> list[SealedArtefact]:
+        def _fingerprint_from_path(path: Path) -> str | None:
+            for part in path.parts:
+                if part.startswith("fingerprint="):
+                    return part.split("=", 1)[1]
+            return None
+
         assets: list[SealedArtefact] = []
         repo_root = repository_root()
 
@@ -257,7 +286,10 @@ class S0GateRunner:
                 raise err("E_POLICY_MISSING", f"missing policy or reference '{asset_id}' in dictionary")
             token_builder = spec.get("tokens")
             template_args: Mapping[str, object]
-            if callable(token_builder):
+            if asset_id == "site_locations":
+                fp = _fingerprint_from_path(Path(upstream_bundles.get("1B", {}).get("path", "")))
+                template_args = {"seed": inputs.seed, "manifest_fingerprint": fp or inputs.upstream_manifest_fingerprint}
+            elif callable(token_builder):
                 template_args = token_builder(inputs)  # type: ignore[arg-type]
             else:
                 template_args = {}

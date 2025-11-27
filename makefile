@@ -1,15 +1,18 @@
-SHELL := /bin/bash
+SHELL := C:/Progra~1/Git/bin/bash.exe
 .SHELLFLAGS := -eu -o pipefail -c
 
 PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
+# Paths and summaries
 RUN_ROOT ?= runs/local_layer1_regen3
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
 SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
 SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
+SEG3A_RESULT_JSON ?= $(SUMMARY_DIR)/segment3a_result.json
+SEG3B_RESULT_JSON ?= $(SUMMARY_DIR)/segment3b_result.json
 RUN_ID ?= run-0
 LOG ?= $(RUN_ROOT)/run_log_regen3.log
 SEED ?= 2025112701
@@ -25,6 +28,7 @@ MATH_PROFILE ?= reference/governance/math_profile/2025-10-08/math_profile_manife
 VALIDATION_POLICY ?= contracts/policies/l1/seg_1A/s2_validation_policy.yaml
 SEG1B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml
 
+# Segment 1A
 SEG1A_EXTRA ?=
 
 SEG1A_ARGS = \
@@ -50,6 +54,7 @@ SEG1A_ARGS = \
 	$(SEG1A_EXTRA)
 SEG1A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1a $(SEG1A_ARGS)
 
+# Segment 1B
 SEG1B_BASIS ?= population
 SEG1B_DP ?= 4
 SEG1B_S1_WORKERS ?= 8
@@ -71,6 +76,7 @@ SEG1B_ARGS = \
 	$(SEG1B_EXTRA)
 SEG1B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
 
+# Segment 2A
 SEG2A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml
 SEG2A_TZDB_RELEASE ?= 2025a
 SEG2A_EXTRA ?=
@@ -101,6 +107,7 @@ SEG2A_ARGS = \
 	$(SEG2A_EXTRA)
 SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
 
+# Segment 2B
 SEG2B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml
 SEG2B_EXTRA ?=
 SEG2B_PIN_TZ ?= 1
@@ -206,7 +213,6 @@ ifeq ($(strip $(SEG2B_S8_QUIET)),1)
 SEG2B_EXTRA += --s8-quiet-summary
 endif
 
-
 SEG2B_ARGS = \
 	--data-root "$(RUN_ROOT)" \
 	--seed $(SEED) \
@@ -221,12 +227,12 @@ SEG2B_ARGS = \
 	$(SEG2B_EXTRA)
 SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
 
+# Segment 3A
 SEG3A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3A/layer1.3A.yaml
-SEG3A_RESULT_JSON ?= $(SUMMARY_DIR)/segment3a_result.json
 SEG3A_EXTRA ?=
 SEG3A_ARGS = \
 	--data-root "$(RUN_ROOT)" \
-	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
 	--seed $(SEED) \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary "$(SEG3A_DICTIONARY)" \
@@ -240,28 +246,23 @@ SEG3A_ARGS = \
 	--run-s5 \
 	--run-s6 \
 	--run-s7 \
-	--parameter-hash $$PARAM_HASH \
 	--run-id $(RUN_ID) \
 	--result-json "$(SEG3A_RESULT_JSON)" \
 	--quiet-summary \
 	$(SEG3A_EXTRA)
 SEG3A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3a $(SEG3A_ARGS)
 
+# Segment 3B
 SEG3B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml
-SEG3B_RESULT_JSON ?= $(SUMMARY_DIR)/segment3b_result.json
 SEG3B_EXTRA ?=
-SEG3B_RUN_S0 ?= 1
 SEG3B_RUN_S1 ?= 1
 SEG3B_RUN_S2 ?= 1
 SEG3B_RUN_S3 ?= 1
 SEG3B_RUN_S4 ?= 0
 SEG3B_RUN_S5 ?= 0
 
-ifeq ($(strip $(SEG3B_RUN_S0)),1)
-SEG3B_EXTRA += --run-s0
-endif
-ifeq ($(strip $(SEG3B_RUN_S1)),1)
-SEG3B_EXTRA += --run-s1
+ifeq ($(strip $(SEG3B_RUN_S1)),0)
+SEG3B_EXTRA += --skip-s1
 endif
 ifeq ($(strip $(SEG3B_RUN_S2)),1)
 SEG3B_EXTRA += --run-s2
@@ -277,7 +278,7 @@ SEG3B_EXTRA += --run-s5
 endif
 SEG3B_ARGS = \
 	--data-root "$(RUN_ROOT)" \
-	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
 	--seed $(SEED) \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary "$(SEG3B_DICTIONARY)" \
@@ -403,6 +404,7 @@ segment3a:
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG2A_RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 UPSTREAM_MANIFEST_FINGERPRINT=$$SEG2A_MANIFEST_FINGERPRINT; \
 	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
@@ -432,7 +434,9 @@ segment3b:
 	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
+	 UPSTREAM_MANIFEST_FINGERPRINT=$$SEG3A_MANIFEST_FINGERPRINT; \
+	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG3B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \

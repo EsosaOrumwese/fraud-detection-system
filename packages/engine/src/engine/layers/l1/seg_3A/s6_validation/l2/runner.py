@@ -59,7 +59,7 @@ class ValidationRunner:
 
         zone_alloc_path = data_root / render_dataset_path(
             dataset_id="zone_alloc",
-            template_args={"seed": seed, "fingerprint": manifest_fingerprint},
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
             dictionary=dictionary,
         )
         if not zone_alloc_path.exists():

@@ -19,6 +19,33 @@ from engine.layers.l1.seg_3B.shared.dictionary import load_dictionary
 from engine.layers.l1.seg_3B.s0_gate.exceptions import err
 
 
+def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+    try:
+        return a.frame_equal(b)  # type: ignore[attr-defined]
+    except AttributeError:
+        try:
+            return a.equals(b)  # type: ignore[attr-defined]
+        except Exception:
+            return False
+
+
+_ALIAS_INDEX_SCHEMA = {
+    "scope": pl.Utf8,
+    "seed": pl.UInt64,
+    "fingerprint": pl.Utf8,
+    "merchant_id": pl.UInt64,
+    "blob_offset_bytes": pl.Int64,
+    "blob_length_bytes": pl.Int64,
+    "edge_count_total": pl.Int64,
+    "alias_table_length": pl.Int64,
+    "merchant_alias_checksum": pl.Utf8,
+    "alias_layout_version": pl.Utf8,
+    "universe_hash": pl.Utf8,
+    "blob_sha256_hex": pl.Utf8,
+    "notes": pl.Utf8,
+}
+
+
 @dataclass(frozen=True)
 class AliasInputs:
     data_root: Path
@@ -73,7 +100,7 @@ class AliasRunner:
         alias_index_path.parent.mkdir(parents=True, exist_ok=True)
         if alias_index_path.exists():
             existing = pl.read_parquet(alias_index_path)
-            if not existing.frame_equal(alias_index_df):
+            if not _frames_equal(existing, alias_index_df):
                 raise err("E_IMMUTABILITY", f"alias index exists at '{alias_index_path}' with different content")
             resumed = True
         else:
@@ -182,7 +209,11 @@ class AliasRunner:
         alias_entries: list[dict[str, Any]] = []
         blob_chunks: list[bytes] = []
         offset = 0
-        for merchant_id, group in edge_df.group_by("merchant_id"):
+        for merchant_key, group in edge_df.group_by("merchant_id"):
+            if isinstance(merchant_key, (list, tuple)):
+                merchant_id = int(merchant_key[0])
+            else:
+                merchant_id = int(merchant_key)
             weights = group.select("edge_weight").to_series().to_list()
             blob_section = json.dumps(
                 {"merchant_id": merchant_id, "weights": weights, "edge_ids": group["edge_id"].to_list()}
@@ -227,7 +258,7 @@ class AliasRunner:
         }
         alias_entries.append(global_entry)
         alias_index_df = (
-            pl.DataFrame(alias_entries)
+            pl.DataFrame(alias_entries, schema=_ALIAS_INDEX_SCHEMA)
             .select(
                 [
                     "scope",

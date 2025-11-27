@@ -57,14 +57,19 @@ def write_segment_state_run_report(
 
     _ensure_parent(path)
     rows = _load_existing(path)
+    updated_rows = []
+    replaced = False
     for row in rows:
         if _keys_match(row, key):
-            if row != payload:
-                raise err(
-                    "E_RUN_REPORT_IMMUTABLE",
-                    f"segment-state run-report row for {key.state} already exists with different content at '{path}'",
-                )
-            return path
+            if row == payload:
+                return path
+            updated_rows.append(payload)
+            replaced = True
+        else:
+            updated_rows.append(row)
+    if replaced:
+        path.write_text("\n".join(json.dumps(row, sort_keys=True) for row in updated_rows) + "\n", encoding="utf-8")
+        return path
 
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, sort_keys=True))

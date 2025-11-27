@@ -53,7 +53,7 @@ class SealedArtefact:
             "sha256_hex": self.sha256_hex,
             "role": self.role,
             "license_class": self.license_class,
-            "notes": self.notes,
+            "notes": self.notes or "",
         }
 
 

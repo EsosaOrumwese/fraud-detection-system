@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 import polars as pl
+import re
 
 from ....seg_1A.s0_foundations.l1.hashing import (
     ParameterHashResult,
@@ -38,6 +39,22 @@ from ..l1.sealed_inputs import SealedArtefact, ensure_unique_assets
 
 
 logger = logging.getLogger(__name__)
+_FINGERPRINT_RE = re.compile(r"fingerprint=([a-f0-9]{64})")
+
+
+def _format_utc(dt: datetime) -> str:
+    """Render a UTC timestamp with fixed microsecond precision and trailing Z."""
+
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _extract_fingerprint(path: Optional[Path]) -> Optional[str]:
+    """Parse a manifest fingerprint token from a validation bundle path."""
+
+    if path is None:
+        return None
+    match = _FINGERPRINT_RE.search(str(path))
+    return match.group(1) if match else None
 
 
 @dataclass(frozen=True)
@@ -118,7 +135,8 @@ class S0GateRunner:
             "base": "base",
             "tokens": lambda inputs: {
                 "seed": inputs.seed,
-                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+                "manifest_fingerprint": _extract_fingerprint(inputs.validation_bundle_1a)
+                or inputs.upstream_manifest_fingerprint,
             },
         },
         "site_timezones": {
@@ -127,7 +145,8 @@ class S0GateRunner:
             "base": "base",
             "tokens": lambda inputs: {
                 "seed": inputs.seed,
-                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+                "manifest_fingerprint": _extract_fingerprint(inputs.validation_bundle_2a)
+                or inputs.upstream_manifest_fingerprint,
             },
         },
         "tz_timetable_cache": {
@@ -135,7 +154,8 @@ class S0GateRunner:
             "kind": "cache",
             "base": "base",
             "tokens": lambda inputs: {
-                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+                "manifest_fingerprint": _extract_fingerprint(inputs.validation_bundle_2a)
+                or inputs.upstream_manifest_fingerprint,
             },
         },
         "iso3166_canonical_2024": {"owner": "ingress", "kind": "reference", "base": "repo"},
@@ -250,6 +270,7 @@ class S0GateRunner:
 
         results: dict[str, Mapping[str, object]] = {}
         for segment, bundle_path in bundle_paths.items():
+            logger.info("S0 bundle check: segment=%s, bundle_path=%s", segment, bundle_path)
             bundle_path = self._resolve_bundle_path(bundle_path)
             if not bundle_path.exists() or not bundle_path.is_dir():
                 raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {bundle_path}")
@@ -398,13 +419,10 @@ class S0GateRunner:
             "manifest_fingerprint": manifest_fingerprint,
             "parameter_hash": parameter_result.parameter_hash,
             "seed": int(inputs.seed),
-            "verified_at_utc": verified_at.isoformat(),
+            "verified_at_utc": _format_utc(verified_at),
             "upstream_gates": {},
             "catalogue_versions": {},
             "sealed_policy_set": [],
-            "run_started_at_utc": run_started_at.isoformat(),
-            "gate_duration_ms": gate_verify_ms,
-            "notes": inputs.notes,
         }
 
         for segment, bundle_info in upstream_bundles.items():
@@ -514,8 +532,8 @@ class S0GateRunner:
             **key.as_dict(),
             "status": "PASS",
             "attempt": 1,
-            "run_started_at_utc": start_at.isoformat(),
-            "verified_at_utc": verified_at.isoformat(),
+            "run_started_at_utc": _format_utc(start_at),
+            "verified_at_utc": _format_utc(verified_at),
             "elapsed_ms": gate_verify_ms,
             "sealed_inputs_path": str(sealed_inputs_path),
             "receipt_path": str(receipt_path),

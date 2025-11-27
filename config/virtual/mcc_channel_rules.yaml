@@ -1,7 +1,4 @@
 version: governed-v1
-source:
-  logical_id: transaction_schema_merchant_ids
-  notes: Derived from MCC catalogue with conservative channel heuristics; defaults are physical unless explicitly virtual-heavy.
 rules:
 - mcc: '4812'
   channel: card_not_present

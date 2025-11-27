@@ -23,6 +23,16 @@ _ZONE_ALLOC_PLAN = load_schema("#/egress/zone_alloc")
 _UNIVERSE_SCHEMA = Draft202012Validator(load_schema("#/validation/zone_alloc_universe_hash"))
 
 
+def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+    try:
+        return a.frame_equal(b)  # type: ignore[attr-defined]
+    except AttributeError:
+        try:
+            return a.equals(b)  # type: ignore[attr-defined]
+        except Exception:
+            return False
+
+
 @dataclass(frozen=True)
 class ZoneAllocInputs:
     data_root: Path
@@ -137,16 +147,37 @@ class ZoneAllocRunner:
 
         output_dir = data_root / render_dataset_path(
             dataset_id="zone_alloc",
-            template_args={"seed": seed, "fingerprint": manifest_fingerprint},
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
             dictionary=dictionary,
         )
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / "part-0.parquet"
-        result_df = pl.DataFrame(rows)
+        schema = {
+            "seed": pl.Int64,
+            "fingerprint": pl.Utf8,
+            "merchant_id": pl.UInt64,
+            "legal_country_iso": pl.Utf8,
+            "tzid": pl.Utf8,
+            "zone_site_count": pl.Int64,
+            "zone_site_count_sum": pl.Int64,
+            "site_count": pl.Int64,
+            "prior_pack_id": pl.Utf8,
+            "prior_pack_version": pl.Utf8,
+            "floor_policy_id": pl.Utf8,
+            "floor_policy_version": pl.Utf8,
+            "mixture_policy_id": pl.Utf8,
+            "mixture_policy_version": pl.Utf8,
+            "day_effect_policy_id": pl.Utf8,
+            "day_effect_policy_version": pl.Utf8,
+            "routing_universe_hash": pl.Utf8,
+            "alpha_sum_country": pl.Float64,
+            "notes": pl.Utf8,
+        }
+        result_df = pl.DataFrame(rows, schema=schema)
         resumed = False
         if output_file.exists():
             existing = pl.read_parquet(output_file)
-            if not existing.frame_equal(result_df):
+            if not _frames_equal(existing, result_df):
                 raise err("E_IMMUTABILITY", f"zone_alloc exists at '{output_file}' with different content")
             resumed = True
         else:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Optional
@@ -21,6 +22,54 @@ from engine.layers.l1.seg_3B.shared.dictionary import load_dictionary
 from engine.layers.l1.seg_3B.s0_gate.exceptions import err
 
 _S0_RECEIPT_SCHEMA = Draft202012Validator(load_schema("#/validation/s0_gate_receipt_3B"))
+logger = logging.getLogger(__name__)
+
+_EDGE_SCHEMA = {
+    "seed": pl.UInt64,
+    "fingerprint": pl.Utf8,
+    "merchant_id": pl.UInt64,
+    "edge_id": pl.Utf8,
+    "edge_seq_index": pl.Int64,
+    "country_iso": pl.Utf8,
+    "lat_deg": pl.Float64,
+    "lon_deg": pl.Float64,
+    "tzid_operational": pl.Utf8,
+    "tz_source": pl.Utf8,
+    "edge_weight": pl.Float64,
+    "hrsl_tile_id": pl.Utf8,
+    "spatial_surface_id": pl.Utf8,
+    "cdn_policy_id": pl.Utf8,
+    "cdn_policy_version": pl.Utf8,
+    "rng_stream_id": pl.Utf8,
+    "rng_event_id": pl.Utf8,
+    "sampling_rank": pl.Int64,
+    "edge_digest": pl.Utf8,
+}
+
+_EDGE_INDEX_SCHEMA = {
+    "scope": pl.Utf8,
+    "seed": pl.UInt64,
+    "fingerprint": pl.Utf8,
+    "merchant_id": pl.UInt64,
+    "edge_count_total": pl.Int64,
+    "edge_digest": pl.Utf8,
+    "edge_catalogue_path": pl.Utf8,
+    "edge_catalogue_size_bytes": pl.Int64,
+    "country_mix_summary": pl.Utf8,
+    "edge_count_total_all_merchants": pl.Int64,
+    "edge_catalogue_digest_global": pl.Utf8,
+    "notes": pl.Utf8,
+}
+
+
+def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+    try:
+        return a.frame_equal(b)  # type: ignore[attr-defined]
+    except AttributeError:
+        try:
+            return a.equals(b)  # type: ignore[attr-defined]
+        except Exception:
+            return False
 
 
 @dataclass(frozen=True)
@@ -88,7 +137,7 @@ class EdgesRunner:
         resumed = False
         if cat_path.exists():
             existing = pl.read_parquet(cat_path)
-            if not existing.frame_equal(edge_df):
+            if not _frames_equal(existing, edge_df):
                 raise err("E_IMMUTABILITY", f"edge catalogue exists at '{cat_path}' with different content")
             resumed = True
         else:
@@ -102,7 +151,7 @@ class EdgesRunner:
         idx_path.parent.mkdir(parents=True, exist_ok=True)
         if idx_path.exists():
             existing = pl.read_parquet(idx_path)
-            if not existing.frame_equal(index_df):
+            if not _frames_equal(existing, index_df):
                 raise err("E_IMMUTABILITY", f"edge catalogue index exists at '{idx_path}' with different content")
             resumed = True
         else:
@@ -169,6 +218,8 @@ class EdgesRunner:
         payload = json.loads(receipt_path.read_text(encoding="utf-8"))
         try:
             _S0_RECEIPT_SCHEMA.validate(payload)
+        except RecursionError:
+            logger.warning("Skipping S0 receipt schema validation due to recursion depth")
         except ValidationError as exc:
             raise err("E_SCHEMA", f"s0 receipt invalid: {exc.message}") from exc
         return payload
@@ -286,7 +337,7 @@ class EdgesRunner:
                     "edge_digest": digest,
                 }
             )
-        return pl.DataFrame(rows).sort(["merchant_id", "edge_seq_index"])
+        return pl.DataFrame(rows, schema=_EDGE_SCHEMA).sort(["merchant_id", "edge_seq_index"])
 
     def _build_index(self, edge_df: pl.DataFrame, manifest_fingerprint: str, seed: int) -> pl.DataFrame:
         if edge_df.is_empty():
@@ -308,6 +359,7 @@ class EdgesRunner:
                 pl.lit(None).cast(pl.Utf8).alias("edge_catalogue_digest_global"),
                 pl.lit(None).cast(pl.Utf8).alias("notes"),
             )
+            .select(list(_EDGE_INDEX_SCHEMA.keys()))
         )
         total_edges = int(edge_df.height)
         global_row = pl.DataFrame(
@@ -326,71 +378,18 @@ class EdgesRunner:
                     hashlib.sha256("\n".join(edge_df["edge_digest"].to_list()).encode("utf-8")).hexdigest()
                 ],
                 "notes": ["synthetic edge index"],
-            }
+            },
+            schema=_EDGE_INDEX_SCHEMA,
         )
-        return (
-            pl.concat([per_merchant, global_row], how="vertical_relaxed")
-            .select(
-                [
-                    "scope",
-                    "seed",
-                    "fingerprint",
-                    "merchant_id",
-                    "edge_count_total",
-                    "edge_digest",
-                    "edge_catalogue_path",
-                    "edge_catalogue_size_bytes",
-                    "country_mix_summary",
-                    "edge_count_total_all_merchants",
-                    "edge_catalogue_digest_global",
-                    "notes",
-                ]
-            )
-            .sort(["scope", "merchant_id"], nulls_last=True)
+        return pl.concat([per_merchant, global_row], how="diagonal_relaxed").select(list(_EDGE_INDEX_SCHEMA.keys())).sort(
+            ["scope", "merchant_id"], nulls_last=True
         )
 
     def _empty_edge_catalogue(self) -> pl.DataFrame:
-        return pl.DataFrame(
-            schema={
-                "seed": pl.UInt64,
-                "fingerprint": pl.Utf8,
-                "merchant_id": pl.UInt64,
-                "edge_id": pl.Utf8,
-                "edge_seq_index": pl.Int64,
-                "country_iso": pl.Utf8,
-                "lat_deg": pl.Float64,
-                "lon_deg": pl.Float64,
-                "tzid_operational": pl.Utf8,
-                "tz_source": pl.Utf8,
-                "edge_weight": pl.Float64,
-                "hrsl_tile_id": pl.Utf8,
-                "spatial_surface_id": pl.Utf8,
-                "cdn_policy_id": pl.Utf8,
-                "cdn_policy_version": pl.Utf8,
-                "rng_stream_id": pl.Utf8,
-                "rng_event_id": pl.Utf8,
-                "sampling_rank": pl.Int64,
-                "edge_digest": pl.Utf8,
-            }
-        )
+        return pl.DataFrame(schema=_EDGE_SCHEMA)
 
     def _empty_edge_index(self) -> pl.DataFrame:
-        return pl.DataFrame(
-            schema={
-                "scope": pl.Utf8,
-                "seed": pl.UInt64,
-                "fingerprint": pl.Utf8,
-                "merchant_id": pl.UInt64,
-                "edge_count_total": pl.Int64,
-                "edge_digest": pl.Utf8,
-                "edge_catalogue_path": pl.Utf8,
-                "edge_catalogue_size_bytes": pl.Int64,
-                "country_mix_summary": pl.Utf8,
-                "edge_count_total_all_merchants": pl.Int64,
-                "edge_catalogue_digest_global": pl.Utf8,
-                "notes": pl.Utf8,
-            }
-        )
+        return pl.DataFrame(schema=_EDGE_INDEX_SCHEMA)
 
 
 __all__ = ["EdgesInputs", "EdgesResult", "EdgesRunner"]

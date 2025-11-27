@@ -23,6 +23,16 @@ _S0_RECEIPT_SCHEMA = load_schema("#/validation/s0_gate_receipt_3A")
 _S0_RECEIPT_FIELDS = {"parameter_hash", "manifest_fingerprint", "seed", "upstream_gates"}
 
 
+def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+    try:
+        return a.frame_equal(b)  # type: ignore[attr-defined]
+    except AttributeError:
+        try:
+            return a.equals(b)  # type: ignore[attr-defined]
+        except Exception:
+            return False
+
+
 @dataclass(frozen=True)
 class ZoneCountsInputs:
     data_root: Path
@@ -187,10 +197,28 @@ class ZoneCountsRunner:
         )
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / "part-0.parquet"
-        result_df = pl.DataFrame(rows)
+        schema = {
+            "seed": pl.Int64,
+            "fingerprint": pl.Utf8,
+            "merchant_id": pl.UInt64,
+            "legal_country_iso": pl.Utf8,
+            "tzid": pl.Utf8,
+            "zone_site_count": pl.Int64,
+            "zone_site_count_sum": pl.Int64,
+            "share_sum_country": pl.Float64,
+            "fractional_target": pl.Float64,
+            "residual_rank": pl.Int64,
+            "prior_pack_id": pl.Utf8,
+            "prior_pack_version": pl.Utf8,
+            "floor_policy_id": pl.Utf8,
+            "floor_policy_version": pl.Utf8,
+            "alpha_sum_country": pl.Float64,
+            "notes": pl.Utf8,
+        }
+        result_df = pl.DataFrame(rows, schema=schema)
         if output_file.exists():
             existing = pl.read_parquet(output_file)
-            if not existing.frame_equal(result_df):
+            if not _frames_equal(existing, result_df):
                 raise err(
                     "E_IMMUTABILITY",
                     f"s4_zone_counts already exists at '{output_file}' with different content",

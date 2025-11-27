@@ -28,6 +28,16 @@ _POLICY_SCHEMA = Draft202012Validator(load_schema("#/policy/virtual_rules_policy
 logger = logging.getLogger(__name__)
 
 
+def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+    try:
+        return a.frame_equal(b)  # type: ignore[attr-defined]
+    except AttributeError:
+        try:
+            return a.equals(b)  # type: ignore[attr-defined]
+        except Exception:
+            return False
+
+
 @dataclass(frozen=True)
 class VirtualsInputs:
     data_root: Path
@@ -89,7 +99,7 @@ class VirtualsRunner:
         resumed = False
         if cls_path.exists():
             existing = pl.read_parquet(cls_path)
-            if not existing.frame_equal(classification_df):
+            if not _frames_equal(existing, classification_df):
                 raise err("E_IMMUTABILITY", f"classification exists at '{cls_path}' with different content")
             resumed = True
         else:
@@ -104,7 +114,7 @@ class VirtualsRunner:
         sett_path = sett_dir / "part-0.parquet"
         if sett_path.exists():
             existing = pl.read_parquet(sett_path)
-            if not existing.frame_equal(settlement_df):
+            if not _frames_equal(existing, settlement_df):
                 raise err("E_IMMUTABILITY", f"settlement exists at '{sett_path}' with different content")
             resumed = True
         else:

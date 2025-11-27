@@ -118,7 +118,7 @@ class EscalationRunner:
         resumed = False
         if output_file.exists():
             existing = pl.read_parquet(output_file)
-            if not existing.frame_equal(classification):
+            if not self._frames_equal(existing, classification):
                 raise err(
                     "E_IMMUTABILITY",
                     f"s1_escalation_queue already exists at '{output_file}' with different content",
@@ -160,6 +160,16 @@ class EscalationRunner:
         )
 
     # ------------------------------ helpers ------------------------------ #
+
+    @staticmethod
+    def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+        try:
+            return a.frame_equal(b)  # type: ignore[attr-defined]
+        except AttributeError:
+            try:
+                return a.equals(b)  # type: ignore[attr-defined]
+            except Exception:
+                return False
 
     def _resolve_dataset_path(
         self,
@@ -373,7 +383,22 @@ class EscalationRunner:
                 }
             )
 
-        return pl.DataFrame(records)
+        schema = {
+            "seed": pl.Int64,
+            "manifest_fingerprint": pl.Utf8,
+            "merchant_id": pl.UInt64,
+            "legal_country_iso": pl.Utf8,
+            "site_count": pl.Int64,
+            "zone_count_country": pl.Int64,
+            "is_escalated": pl.Boolean,
+            "decision_reason": pl.Utf8,
+            "mixture_policy_id": pl.Utf8,
+            "mixture_policy_version": pl.Utf8,
+            "theta_digest": pl.Utf8,
+            "eligible_for_escalation": pl.Boolean,
+            "dominant_zone_share_bucket": pl.Utf8,
+        }
+        return pl.DataFrame(records, schema=schema)
 
     def _detect_country_column(self, df: pl.DataFrame) -> str:
         for candidate in ("country_iso", "legal_country_iso", "iso"):

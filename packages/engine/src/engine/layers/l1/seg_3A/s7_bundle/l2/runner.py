@@ -198,7 +198,7 @@ class BundleRunner:
             elif dataset_id in ("s1_escalation_queue", "s3_zone_shares", "s4_zone_counts"):
                 template_args = {"seed": seed, "manifest_fingerprint": manifest_fingerprint}
             elif dataset_id == "zone_alloc":
-                template_args = {"seed": seed, "fingerprint": manifest_fingerprint}
+                template_args = {"seed": seed, "manifest_fingerprint": manifest_fingerprint}
             else:
                 template_args = {"manifest_fingerprint": manifest_fingerprint}
             rel_path = render_dataset_path(

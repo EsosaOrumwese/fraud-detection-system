@@ -23,6 +23,16 @@ _PRIOR_SCHEMA = Draft202012Validator(load_schema("#/policy/country_zone_alphas_v
 _FLOOR_SCHEMA = Draft202012Validator(load_schema("#/policy/zone_floor_policy_v1"))
 
 
+def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
+    try:
+        return a.frame_equal(b)  # type: ignore[attr-defined]
+    except AttributeError:
+        try:
+            return a.equals(b)  # type: ignore[attr-defined]
+        except Exception:
+            return False
+
+
 @dataclass(frozen=True)
 class PriorsInputs:
     data_root: Path
@@ -106,7 +116,7 @@ class PriorsRunner:
         resumed = False
         if output_file.exists():
             existing = pl.read_parquet(output_file)
-            if not existing.frame_equal(result_df):
+            if not _frames_equal(existing, result_df):
                 raise err(
                     "E_IMMUTABILITY",
                     f"s2_country_zone_priors already exists at '{output_file}' with different content",

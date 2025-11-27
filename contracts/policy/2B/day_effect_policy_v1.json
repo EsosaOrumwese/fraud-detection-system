@@ -1,0 +1,23 @@
+{
+  "base_counter_hi": 0,
+  "base_counter_lo": 0,
+  "calendar": "gregorian",
+  "created_utc_policy_echo": true,
+  "day_range": {
+    "end_day": "2024-12-31",
+    "start_day": "2024-01-01"
+  },
+  "draws_per_row": 1,
+  "notes": "Synthetic default seeded for deterministic tests; replace with governed pack.",
+  "record_fields": [
+    "merchant_id",
+    "utc_day",
+    "tz_group_id"
+  ],
+  "rng_engine": "philox",
+  "rng_key_hi": 12345,
+  "rng_key_lo": 67890,
+  "rng_stream_id": "day_effects_v1",
+  "sigma_gamma": 0.15,
+  "version_tag": "v2025-11-27"
+}

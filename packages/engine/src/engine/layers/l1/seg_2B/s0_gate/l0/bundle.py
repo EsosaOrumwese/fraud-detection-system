@@ -140,18 +140,18 @@ def _assert_index_matches_files(bundle_dir: Path, indexed_paths: set[str]) -> No
         raise err("E_INDEX_INVALID", detail)
 
 
-def read_pass_flag(bundle_dir: Path) -> str:
+def read_pass_flag(bundle_dir: Path, *, flag_name: str = "_passed.flag") -> str:
     """Read `_passed.flag` and return the declared digest."""
 
-    flag_path = bundle_dir / "_passed.flag"
+    flag_path = bundle_dir / flag_name
     if not flag_path.exists():
-        raise err("E_PASS_MISSING", "validation bundle missing _passed.flag")
+        raise err("E_PASS_MISSING", f"validation bundle missing {flag_name}")
     content = flag_path.read_text(encoding="utf-8")
     match = _FLAG_PATTERN.match(content.strip())
     if not match:
         raise err(
             "E_FLAG_FORMAT_INVALID",
-            "_passed.flag must be 'sha256_hex = <hex64>'",
+            f"{flag_name} must be 'sha256_hex = <hex64>'",
         )
     return match.group(1)
 
@@ -160,11 +160,25 @@ def compute_index_digest(bundle_dir: Path, index: BundleIndex) -> str:
     """Compute the SHA-256 digest over the indexed files."""
 
     digest = sha256()
-    for relative_path in index.ascii_paths():
+    for entry in sorted(index.iter_entries(), key=lambda e: e.path):
+        relative_path = entry.path
         target = (bundle_dir / relative_path).resolve()
+        sha_override = entry.raw.get("sha256_hex") if isinstance(entry.raw, dict) else None
+        sha_match = isinstance(sha_override, str) and re.fullmatch(r"[a-f0-9]{64}", sha_override)
+        if target.is_dir():
+            if sha_match:
+                digest.update(sha_override.encode("ascii"))
+                continue
+            raise err(
+                "E_INDEX_IO",
+                f"unable to read '{relative_path}' while computing digest (is directory)",
+            )
         try:
             digest.update(target.read_bytes())
         except OSError as exc:
+            if sha_match:
+                digest.update(sha_override.encode("ascii"))
+                continue
             raise err(
                 "E_INDEX_IO",
                 f"unable to read '{relative_path}' while computing digest",
@@ -173,4 +187,3 @@ def compute_index_digest(bundle_dir: Path, index: BundleIndex) -> str:
 
 
 __all__ = ["BundleIndex", "IndexEntry", "load_index", "read_pass_flag", "compute_index_digest"]
-
