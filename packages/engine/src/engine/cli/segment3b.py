@@ -100,6 +100,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip S1 virtual classification/settlement (runs S0 gate only).",
     )
+    parser.add_argument(
+        "--run-s2",
+        action="store_true",
+        help="Run S2 edge catalogue construction after S1.",
+    )
+    parser.add_argument(
+        "--run-s3",
+        action="store_true",
+        help="Run S3 alias/universe hash after S2.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -116,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
         validation_bundle_3a=args.validation_bundle_3a,
         notes=args.notes,
         run_s1=not args.skip_s1,
+        run_s2=args.run_s2,
+        run_s3=args.run_s3,
     )
 
     orchestrator = Segment3BOrchestrator()
