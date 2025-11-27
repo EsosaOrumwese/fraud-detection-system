@@ -6,6 +6,7 @@ from .l1_seg_2A import Segment2AConfig, Segment2AOrchestrator, Segment2AResult
 from .l1_seg_2B import Segment2BConfig, Segment2BOrchestrator, Segment2BResult
 from .l1_seg_3A import Segment3AConfig, Segment3AOrchestrator, Segment3AResult
 from .l1_seg_3B import Segment3BConfig, Segment3BOrchestrator, Segment3BResult
+from .l2_seg_5A import Segment5AConfig, Segment5AOrchestrator, Segment5AResult
 from .l1_seg_1A_contexts import (
     HurdleStateContext,
     S2StateContext,
@@ -55,6 +56,9 @@ __all__ = [
     "Segment3BConfig",
     "Segment3BOrchestrator",
     "Segment3BResult",
+    "Segment5AConfig",
+    "Segment5AOrchestrator",
+    "Segment5AResult",
     "build_hurdle_context",
     "build_s2_context",
     "build_s3_context",

@@ -290,9 +290,27 @@ SEG3B_ARGS = \
 	$(SEG3B_EXTRA)
 SEG3B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3b $(SEG3B_ARGS)
 
+# Segment 5A
+SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
+SEG5A_DICTIONARY ?= contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml
+SEG5A_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--run-id "$(RUN_ID)" \
+	--dictionary "$(SEG5A_DICTIONARY)" \
+	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
+	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
+	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--validation-bundle-2b "$$VALIDATION_BUNDLE_2B" \
+	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
+	--validation-bundle-3b "$$VALIDATION_BUNDLE_3B" \
+	--result-json "$(SEG5A_RESULT_JSON)"
+SEG5A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment5a $(SEG5A_ARGS)
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b profile-all profile-seg1b clean-results
+
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b
 
@@ -441,6 +459,26 @@ segment3b:
 		($(SEG3B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
 		$(SEG3B_CMD); \
+	 fi
+
+segment5a:
+	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
+		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['parameter_hash'])"); \
+	 UPSTREAM_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG5A_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG5A_CMD); \
 	 fi
 
 profile-all:
