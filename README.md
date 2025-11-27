@@ -14,21 +14,21 @@
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
-### Current build status (2025-11-25)
+### Current build status (2025-11-27)
 | Segment | States | Status | Notes |
 |---------|--------|--------|-------|
 | 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
 | 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
 | 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
 | 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-S7 | **Sealed (specs)** | Layer-1 cross-zone merchants; next to implement |
-| 3B | S0-S5 | **Sealed (specs)** | Layer-1 purely virtual merchants; follows 3A |
+| 3A | S0-S7 | **Online (sealed)** | Layer-1 cross-zone merchants; PASS bundle and `_passed.flag_3A` emitted |
+| 3B | S0-S5 | **Online (sealed)** | Layer-1 virtual merchants & CDN; PASS bundle and `_passed.flag_3B` emitted |
 | 5A | S0-S5 | **Sealed (specs, locked)** | Layer-2 arrival surfaces & calendar (locked until opened) |
 | 5B | S0-S5 | **Sealed (specs, locked)** | Layer-2 arrival realisation (LGCP + routing) (locked until opened) |
 | 6A | S0-S5 | **Sealed (specs, locked)** | Layer-3 entity & product world (locked until opened) |
 | 6B | S0-S5 | **Sealed (specs, locked)** | Layer-3 behaviour & fraud cascades (locked until opened) |
 
-Implementation sequence (next): build 3A first, then 3B; keep 1A/1B/2A/2B artefacts read-only. Segments 5A-6B are spec-sealed but remain locked until the USER explicitly opens them.
+Implementation sequence (next): Layer-1 is online (1A-3B). Next build frontier is Layer-2: 5A followed by 5B (segments remain locked until explicitly opened). Keep all Layer-1 artefacts read-only.
 
 ### Spec sources (repo layout)
 - **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
@@ -283,7 +283,7 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segments 1A–2B sealed and deterministic; the next build frontier is Segment 3A (spec + planning) before we unlock 3B.
+> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segments 1A–3B sealed and deterministic; the next build frontier is Layer-2 (Segments 5A then 5B) once unlocked.
 
 ## Data Engine Progress
 
