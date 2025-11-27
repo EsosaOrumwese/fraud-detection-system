@@ -102,6 +102,7 @@ class S0GateRunner:
         "cdn_country_weights": {"owner": "3B", "kind": "policy", "base": "repo"},
         "virtual_validation_policy": {"owner": "3B", "kind": "policy", "base": "repo"},
         "merchant_ids": {"owner": "ingress", "kind": "dataset", "base": "repo"},
+        "global_population_raster": {"owner": "ingress", "kind": "dataset", "base": "repo"},
         "site_locations": {
             "owner": "1B",
             "kind": "egress",

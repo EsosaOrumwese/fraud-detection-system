@@ -142,18 +142,59 @@ reference_data:
   licence: Proprietary-Internal
 
 - id: hrsl_raster
-  status: approved
+  status: deprecated
   owner_subsegment: ingress
-  description: HRSL 100 m raster pinned for virtual edge sampling.
+  description: >-
+    HRSL 100 m rasters (build-time external). Kept for backwards reference only;
+    superseded by aggregated tile_population_weights derived at build time.
   version: '{vintage}'
   format: tif
-  path: artefacts/rasters/hrsl_100m.tif
+  path: reference/spatial/population_raster/hrsl-2022-aws/country={country_iso3}/hrsl_{country_iso3}.tif
+  partitioning: [country_iso3]
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/population_raster
+  lineage:
+    produced_by: ingress
+    consumed_by: []
+    final_in_layer: false
+  retention_days: 90
+  pii: false
+  licence: CC-BY-4.0
+
+- id: global_population_raster
+  status: approved
+  owner_subsegment: ingress
+  description: >-
+    Global ~1km population raster (UN-adjusted 2020) used as the lightweight population prior for 3B.
+  version: '2025'
+  format: tif
+  path: artefacts/spatial/population_raster/2025/raw/global_2020_1km_UNadj_uncounstrained.tif
   partitioning: []
   ordering: []
   schema_ref: schemas.ingress.layer1.yaml#/population_raster
   lineage:
     produced_by: ingress
     consumed_by: [3B.S2]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: CC-BY-4.0
+
+- id: tile_population_weights
+  status: draft
+  owner_subsegment: 3B
+  description: >-
+    Per-tile population weights derived from the lightweight global population raster (or HRSL fallback)
+    at the engine tile grid; generated at build time and used by 3B for CDN edge weighting.
+  version: '{source_vintage}'
+  format: csv
+  path: reference/spatial/tile_weights/from_hrsl/{source_vintage}/tile_population_weights.csv
+  partitioning: [country_iso3]
+  ordering: [country_iso3, tile_id]
+  schema_ref: schemas.ingress.layer1.yaml#/tile_population_weights
+  lineage:
+    produced_by: 3B.build_hrsl_aggregation
+    consumed_by: [3B.S2, 3B.S3]
     final_in_layer: false
   retention_days: 1825
   pii: false
