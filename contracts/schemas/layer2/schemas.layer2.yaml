@@ -1,0 +1,200 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: schemas.layer2.yaml
+$comment: "Layer-2 shared schema pack — includes validation anchors for Segment 5A."
+version: '0.1.0'
+
+$defs:
+  hex64:
+    $ref: 'schemas.layer1.yaml#/$defs/hex64'
+  rfc3339_micros:
+    $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+
+validation:
+  validation_bundle_index_5A:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - segment_id
+      - s5_spec_version
+      - generated_utc
+      - entries
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      segment_id:
+        const: "5A"
+      s5_spec_version: { type: string }
+      generated_utc: { $ref: '#/$defs/rfc3339_micros' }
+      overall_status: { enum: [PASS, FAIL, WARN] }
+      summary:
+        type: object
+      entries:
+        type: array
+        minItems: 0
+        items:
+          type: object
+          additionalProperties: false
+          required: [path, sha256_hex]
+          properties:
+            path: { type: string }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+
+  validation_report_5A:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - s5_spec_version
+      - parameter_hashes
+      - scenarios
+      - checks
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      s5_spec_version: { type: string }
+      parameter_hashes:
+        type: array
+        items: { type: string }
+      scenarios:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [parameter_hash, scenario_id, status]
+          properties:
+            parameter_hash: { $ref: '#/$defs/hex64' }
+            scenario_id: { type: string }
+            status: { enum: [PASS, FAIL, WARN] }
+      checks:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+          required: [check_id, status, metrics]
+          properties:
+            check_id: { type: string }
+            status: { enum: [PASS, FAIL, WARN] }
+            metrics: { type: object }
+      issues_path: { type: string }
+      notes: { type: string }
+
+  validation_issue_table_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - segment
+        - check_id
+        - issue_code
+        - severity
+        - message
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        segment: { type: string }
+        check_id: { type: string }
+        issue_code: { type: string }
+        severity: { enum: [ERROR, WARN, INFO] }
+        context: { type: object }
+        message: { type: string }
+
+  passed_flag_5A:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - bundle_digest_sha256
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      bundle_digest_sha256: { $ref: '#/$defs/hex64' }
+
+  validation_bundle_index_5B:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - segment_id
+      - s5_spec_version
+      - generated_utc
+      - entries
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      segment_id:
+        const: "5B"
+      s5_spec_version: { type: string }
+      generated_utc: { $ref: '#/$defs/rfc3339_micros' }
+      status: { enum: [PASS, FAIL] }
+      summary: { type: object }
+      entries:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [path, sha256_hex]
+          properties:
+            path: { type: string }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+            schema_ref: { type: string }
+            role: { type: string }
+
+  validation_report_5B:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - spec_version
+      - status
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      spec_version: { type: string }
+      status: { enum: [PASS, FAIL] }
+      error_code: { type: string }
+      error_message: { type: string }
+      n_parameter_hashes: { type: integer, minimum: 0 }
+      n_scenarios: { type: integer, minimum: 0 }
+      n_seeds: { type: integer, minimum: 0 }
+      n_buckets_total: { type: integer, minimum: 0 }
+      n_buckets_nonzero: { type: integer, minimum: 0 }
+      n_arrivals_total: { type: integer, minimum: 0 }
+      n_arrivals_physical: { type: integer, minimum: 0 }
+      n_arrivals_virtual: { type: integer, minimum: 0 }
+      counts_match_s3: { type: boolean }
+      time_windows_ok: { type: boolean }
+      civil_time_ok: { type: boolean }
+      routing_ok: { type: boolean }
+      schema_partition_pk_ok: { type: boolean }
+      rng_accounting_ok: { type: boolean }
+      bundle_integrity_ok: { type: boolean }
+      bundle_sha256: { $ref: '#/$defs/hex64' }
+
+  validation_issue_table_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - issue_code
+        - severity
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        seed: { type: integer, minimum: 0 }
+        issue_code: { type: string }
+        severity: { enum: [ERROR, WARN, INFO] }
+        context: { type: object }
+        message: { type: string }
+
+  passed_flag_5B:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - bundle_digest_sha256
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      bundle_digest_sha256: { $ref: '#/$defs/hex64' }

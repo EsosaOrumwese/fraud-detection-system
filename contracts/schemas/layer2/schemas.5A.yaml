@@ -1,0 +1,461 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: schemas.5A.yaml
+$comment: "Layer-2 · Segment 5A schema pack. JSON-Schema is the shape authority for 5A datasets."
+version: '1.0.0'
+
+$defs:
+  hex64:
+    $ref: 'schemas.layer1.yaml#/$defs/hex64'
+  id64:
+    $ref: 'schemas.layer1.yaml#/$defs/id64'
+  iso2:
+    $ref: 'schemas.layer1.yaml#/$defs/iso2'
+  iana_tzid:
+    $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
+  rfc3339_micros:
+    $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+
+validation:
+  s0_gate_receipt_5A:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - run_id
+      - created_utc
+      - verified_upstream_segments
+      - scenario_id
+      - s0_spec_version
+      - sealed_inputs_digest
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash: { $ref: '#/$defs/hex64' }
+      run_id: { type: string }
+      created_utc: { $ref: '#/$defs/rfc3339_micros' }
+      s0_spec_version:
+        type: string
+        description: >
+          Semantic version of the 5A.S0 spec (MAJOR.MINOR.PATCH). Downstream states MUST
+          refuse to run if the MAJOR version is unsupported.
+      verified_upstream_segments:
+        type: object
+        additionalProperties:
+          type: object
+          additionalProperties: false
+          required: [status, bundle_id]
+          properties:
+            status: { enum: [PASS, FAIL, MISSING] }
+            bundle_id: { type: string }
+            bundle_path: { type: string }
+            bundle_sha256_hex: { $ref: '#/$defs/hex64' }
+            flag_sha256_hex: { $ref: '#/$defs/hex64' }
+      scenario_id:
+        oneOf:
+          - type: string
+          - type: array
+            items: { type: string }
+      scenario_pack_id: { type: string }
+      parameter_pack_id: { type: string }
+      sealed_inputs_digest: { $ref: '#/$defs/hex64' }
+
+  sealed_inputs_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - owner_layer
+        - owner_segment
+        - artifact_id
+        - manifest_key
+        - role
+        - schema_ref
+        - path_template
+        - partition_keys
+        - sha256_hex
+        - version
+        - source_dictionary
+        - source_registry
+        - status
+        - read_scope
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        owner_layer: { type: string }
+        owner_segment: { type: string }
+        artifact_id: { type: string }
+        manifest_key: { type: string }
+        role: { type: string }
+        schema_ref: { type: string }
+        path_template: { type: string }
+        partition_keys:
+          type: array
+          items: { type: string }
+        sha256_hex: { $ref: '#/$defs/hex64' }
+        version: { type: string }
+        source_dictionary: { type: string }
+        source_registry: { type: string }
+        status: { enum: [REQUIRED, OPTIONAL, IGNORED] }
+        read_scope: { enum: [ROW_LEVEL, METADATA_ONLY] }
+        notes: { type: string }
+        license_class: { type: string }
+        owner_team: { type: string }
+
+  scenario_manifest_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - manifest_fingerprint
+        - scenario_id
+        - scenario_version
+        - horizon_start_utc
+        - horizon_end_utc
+        - is_baseline
+        - is_stress
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        scenario_version: { type: string }
+        horizon_start_utc: { $ref: '#/$defs/rfc3339_micros' }
+        horizon_end_utc: { $ref: '#/$defs/rfc3339_micros' }
+        is_baseline: { type: boolean }
+        is_stress: { type: boolean }
+        labels:
+          type: array
+          items: { type: string }
+        scenario_config_ids:
+          type: array
+          items: { type: string }
+
+model:
+  merchant_zone_profile_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - merchant_id
+        - legal_country_iso
+        - tzid
+        - demand_class
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        demand_class: { type: string }
+        demand_subclass: { type: string }
+        profile_id: { type: string }
+        weekly_volume_expected:
+          type: number
+          minimum: 0
+        scale_factor:
+          type: number
+          minimum: 0
+        weekly_volume_unit: { type: string }
+        high_variability_flag: { type: boolean }
+        low_volume_flag: { type: boolean }
+        virtual_preferred_flag: { type: boolean }
+        class_source: { type: string }
+
+  merchant_class_profile_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - merchant_id
+        - primary_demand_class
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        primary_demand_class: { type: string }
+        classes_seen:
+          type: array
+          items: { type: string }
+        weekly_volume_total_expected:
+          type: number
+          minimum: 0
+        scale_factor_total:
+          type: number
+          minimum: 0
+
+  shape_grid_definition_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - parameter_hash
+        - scenario_id
+        - bucket_index
+        - local_day_of_week
+        - local_minutes_since_midnight
+        - bucket_duration_minutes
+      properties:
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        local_day_of_week: { type: integer, minimum: 1, maximum: 7 }
+        local_minutes_since_midnight: { type: integer, minimum: 0, maximum: 1439 }
+        bucket_duration_minutes: { type: integer, minimum: 1 }
+        is_weekend: { type: boolean }
+        is_nominal_open_hours: { type: boolean }
+        time_grid_version: { type: string }
+
+  class_zone_shape_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - parameter_hash
+        - scenario_id
+        - demand_class
+        - bucket_index
+        - shape_value
+        - s2_spec_version
+      properties:
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        demand_class: { type: string }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        shape_value:
+          type: number
+          minimum: 0
+        s2_spec_version: { type: string }
+        template_id: { type: string }
+        adjustment_flags:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+
+  class_shape_catalogue_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - parameter_hash
+        - scenario_id
+        - demand_class
+      properties:
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        demand_class: { type: string }
+        channel_group: { type: string }
+        template_id: { type: string }
+        template_type: { type: string }
+        template_params: { type: object }
+        policy_version: { type: string }
+
+  merchant_zone_baseline_local_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - merchant_id
+        - legal_country_iso
+        - tzid
+        - bucket_index
+        - s3_spec_version
+        - lambda_local_base
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        merchant_id: { $ref: '#/$defs/id64' }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel: { type: string }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        lambda_local_base:
+          type: number
+          minimum: 0
+        s3_spec_version: { type: string }
+        scale_source: { type: string }
+        weekly_volume_expected:
+          type: number
+          minimum: 0
+        scale_factor:
+          type: number
+          minimum: 0
+        baseline_clip_applied: { type: boolean }
+
+  class_zone_baseline_local_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - demand_class
+        - legal_country_iso
+        - tzid
+        - bucket_index
+        - lambda_local_base_class
+        - s3_spec_version
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        demand_class: { type: string }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel: { type: string }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        lambda_local_base_class:
+          type: number
+          minimum: 0
+        s3_spec_version: { type: string }
+
+  merchant_zone_baseline_utc_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - merchant_id
+        - legal_country_iso
+        - tzid
+        - utc_bucket_index
+        - s3_spec_version
+        - lambda_utc_base
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        merchant_id: { $ref: '#/$defs/id64' }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel: { type: string }
+        channel_group: { type: string }
+        utc_bucket_index: { type: integer, minimum: 0 }
+        utc_date: { type: string }
+        utc_bucket_within_date: { type: integer, minimum: 0 }
+        lambda_utc_base:
+          type: number
+          minimum: 0
+        s3_spec_version: { type: string }
+
+  merchant_zone_scenario_local_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - manifest_fingerprint
+        - scenario_id
+        - merchant_id
+        - legal_country_iso
+        - tzid
+        - local_horizon_bucket_index
+        - lambda_local_scenario
+        - s4_spec_version
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        merchant_id: { $ref: '#/$defs/id64' }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel: { type: string }
+        channel_group: { type: string }
+        local_horizon_bucket_index: { type: integer, minimum: 0 }
+        lambda_local_scenario:
+          type: number
+          minimum: 0
+        s4_spec_version: { type: string }
+        overlay_factor_total:
+          type: number
+          minimum: 0
+
+  merchant_zone_overlay_factors_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - scenario_id
+        - merchant_id
+        - legal_country_iso
+        - tzid
+        - local_horizon_bucket_index
+        - overlay_factor_total
+        - s4_spec_version
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        merchant_id: { $ref: '#/$defs/id64' }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel: { type: string }
+        channel_group: { type: string }
+        local_horizon_bucket_index: { type: integer, minimum: 0 }
+        overlay_factor_total:
+          type: number
+          minimum: 0
+        s4_spec_version: { type: string }
+
+  merchant_zone_scenario_utc_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - manifest_fingerprint
+        - scenario_id
+        - merchant_id
+        - legal_country_iso
+        - tzid
+        - utc_horizon_bucket_index
+        - lambda_utc_scenario
+        - s4_spec_version
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        merchant_id: { $ref: '#/$defs/id64' }
+        legal_country_iso: { $ref: '#/$defs/iso2' }
+        tzid: { $ref: '#/$defs/iana_tzid' }
+        zone_id: { type: string }
+        channel: { type: string }
+        channel_group: { type: string }
+        utc_horizon_bucket_index: { type: integer, minimum: 0 }
+        lambda_utc_scenario:
+          type: number
+          minimum: 0
+        s4_spec_version: { type: string }
