@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 
 import polars as pl
+from polars.exceptions import ComputeError
 from jsonschema import Draft202012Validator, ValidationError
 
 from engine.layers.l1.seg_3B.shared import (
@@ -285,7 +286,26 @@ class EdgesRunner:
         if match.is_empty():
             raise err("E_ASSET", "merchant_ids not present in sealed_inputs_3B")
         path_val = match.select("path").item()
-        df = pl.read_parquet(Path(str(path_val)))
+        path = Path(str(path_val))
+        try:
+            df = pl.read_parquet(path)
+        except (ComputeError, Exception):
+            csv_path = path.with_suffix(".csv")
+            if not csv_path.exists():
+                raise err(
+                    "E_IO",
+                    f"unable to read merchants parquet at '{path}' and no CSV fallback at '{csv_path}'",
+                )
+            df = pl.read_csv(
+                csv_path,
+                schema_overrides={
+                    "merchant_id": pl.UInt64,
+                    "mcc": pl.Utf8,
+                    "channel": pl.Utf8,
+                    "home_country_iso": pl.Utf8,
+                },
+                infer_schema_length=10000,
+            )
         if "home_country_iso" not in df.columns:
             raise err("E_SCHEMA", "merchant_ids missing home_country_iso")
         return df
