@@ -5,6 +5,7 @@ from .s1_virtuals import VirtualsInputs, VirtualsResult, VirtualsRunner
 from .s2_edges import EdgesInputs, EdgesResult, EdgesRunner
 from .s3_alias import AliasInputs, AliasResult, AliasRunner
 from .s4_routing import RoutingInputs, RoutingResult, RoutingRunner
+from .s5_validation import ValidationInputs, ValidationResult, ValidationRunner
 
 __all__ = [
     "S0GateInputs",
@@ -22,4 +23,7 @@ __all__ = [
     "RoutingInputs",
     "RoutingResult",
     "RoutingRunner",
+    "ValidationInputs",
+    "ValidationResult",
+    "ValidationRunner",
 ]

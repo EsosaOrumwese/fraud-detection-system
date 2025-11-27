@@ -22,6 +22,9 @@ from engine.layers.l1.seg_3B import (
     RoutingInputs,
     RoutingResult,
     RoutingRunner,
+    ValidationInputs,
+    ValidationResult,
+    ValidationRunner,
 )
 from engine.layers.l1.seg_3B.shared.dictionary import load_dictionary
 
@@ -47,6 +50,7 @@ class Segment3BConfig:
     run_s2: bool = False
     run_s3: bool = False
     run_s4: bool = False
+    run_s5: bool = False
 
 
 @dataclass(frozen=True)
@@ -76,6 +80,11 @@ class Segment3BResult:
     s4_run_report_path: Path | None = None
     s4_run_summary_path: Path | None = None
     s4_resumed: bool = False
+    s5_bundle_path: Path | None = None
+    s5_passed_flag_path: Path | None = None
+    s5_index_path: Path | None = None
+    s5_run_report_path: Path | None = None
+    s5_resumed: bool = False
 
 
 class Segment3BOrchestrator:
@@ -87,6 +96,7 @@ class Segment3BOrchestrator:
         self._s2_runner = EdgesRunner()
         self._s3_runner = AliasRunner()
         self._s4_runner = RoutingRunner()
+        self._s5_runner = ValidationRunner()
 
     def run(self, config: Segment3BConfig) -> Segment3BResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -131,6 +141,11 @@ class Segment3BOrchestrator:
         s4_run_report_path: Path | None = None
         s4_run_summary_path: Path | None = None
         s4_resumed = False
+        s5_bundle_path: Path | None = None
+        s5_passed_flag_path: Path | None = None
+        s5_index_path: Path | None = None
+        s5_run_report_path: Path | None = None
+        s5_resumed = False
         if config.run_s1:
             logger.info("Segment3B S1 starting (manifest=%s, seed=%s)", s0_outputs.manifest_fingerprint, config.seed)
             s1_inputs = VirtualsInputs(
@@ -188,6 +203,22 @@ class Segment3BOrchestrator:
             s4_run_report_path = s4_result.run_report_path
             s4_run_summary_path = s4_result.run_summary_path
             s4_resumed = s4_result.resumed
+        if config.run_s5:
+            logger.info("Segment3B S5 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s5_inputs = ValidationInputs(
+                data_root=data_root,
+                manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                parameter_hash=s0_outputs.parameter_hash,
+                seed=int(config.seed),
+                dictionary_path=config.dictionary_path,
+            )
+            s5_result = self._s5_runner.run(s5_inputs)
+            logger.info("Segment3B S5 completed (bundle=%s)", s5_result.bundle_path)
+            s5_bundle_path = s5_result.bundle_path
+            s5_passed_flag_path = s5_result.passed_flag_path
+            s5_index_path = s5_result.index_path
+            s5_run_report_path = s5_result.run_report_path
+            s5_resumed = s5_result.resumed
 
         return Segment3BResult(
             manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -213,4 +244,9 @@ class Segment3BOrchestrator:
             s4_run_report_path=s4_run_report_path,
             s4_run_summary_path=s4_run_summary_path,
             s4_resumed=s4_resumed,
+            s5_bundle_path=s5_bundle_path,
+            s5_passed_flag_path=s5_passed_flag_path,
+            s5_index_path=s5_index_path,
+            s5_run_report_path=s5_run_report_path,
+            s5_resumed=s5_resumed,
         )

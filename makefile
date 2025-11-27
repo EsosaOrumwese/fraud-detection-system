@@ -259,7 +259,7 @@ SEG3B_RUN_S1 ?= 1
 SEG3B_RUN_S2 ?= 1
 SEG3B_RUN_S3 ?= 1
 SEG3B_RUN_S4 ?= 1
-SEG3B_RUN_S5 ?= 0
+SEG3B_RUN_S5 ?= 1
 
 ifeq ($(strip $(SEG3B_RUN_S1)),0)
 SEG3B_EXTRA += --skip-s1

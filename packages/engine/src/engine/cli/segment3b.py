@@ -93,6 +93,16 @@ def _print_summary(result: Segment3BResult) -> None:
         payload["s4_run_summary_path"] = str(result.s4_run_summary_path)
     if result.s4_resumed:
         payload["s4_resumed"] = result.s4_resumed
+    if result.s5_bundle_path:
+        payload["s5_bundle_path"] = str(result.s5_bundle_path)
+    if result.s5_passed_flag_path:
+        payload["s5_passed_flag_path"] = str(result.s5_passed_flag_path)
+    if result.s5_index_path:
+        payload["s5_index_path"] = str(result.s5_index_path)
+    if result.s5_run_report_path:
+        payload["s5_run_report_path"] = str(result.s5_run_report_path)
+    if result.s5_resumed:
+        payload["s5_resumed"] = result.s5_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -144,6 +154,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Run S4 virtual routing policy and validation contract after S3.",
     )
+    parser.add_argument(
+        "--run-s5",
+        action="store_true",
+        help="Run S5 validation bundle and PASS flag after S4.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -163,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         run_s2=args.run_s2,
         run_s3=args.run_s3,
         run_s4=args.run_s4,
+        run_s5=args.run_s5,
     )
 
     orchestrator = Segment3BOrchestrator()
