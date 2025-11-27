@@ -132,6 +132,30 @@ validation:
           type: array
           items: { type: string }
 
+policy:
+  merchant_class_policy_5A:
+    type: object
+    additionalProperties: true
+  demand_scale_policy_5A:
+    type: object
+    additionalProperties: true
+  shape_library_5A:
+    type: object
+    additionalProperties: true
+
+scenario:
+  scenario_horizon_config_5A:
+    type: object
+    additionalProperties: true
+  scenario_calendar_5A:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+  scenario_overlay_policy_5A:
+    type: object
+    additionalProperties: true
+
 model:
   merchant_zone_profile_5A:
     type: array
