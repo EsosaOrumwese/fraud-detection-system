@@ -67,12 +67,41 @@ def _print_summary(result: Segment3BResult) -> None:
         payload["s1_run_report_path"] = str(result.s1_run_report_path)
     if result.s1_resumed:
         payload["s1_resumed"] = result.s1_resumed
+    if result.s2_output_path:
+        payload["s2_output_path"] = str(result.s2_output_path)
+    if result.s2_index_path:
+        payload["s2_index_path"] = str(result.s2_index_path)
+    if result.s2_run_report_path:
+        payload["s2_run_report_path"] = str(result.s2_run_report_path)
+    if result.s2_resumed:
+        payload["s2_resumed"] = result.s2_resumed
+    if result.s3_index_path:
+        payload["s3_index_path"] = str(result.s3_index_path)
+    if result.s3_universe_hash_path:
+        payload["s3_universe_hash_path"] = str(result.s3_universe_hash_path)
+    if result.s3_run_report_path:
+        payload["s3_run_report_path"] = str(result.s3_run_report_path)
+    if result.s3_resumed:
+        payload["s3_resumed"] = result.s3_resumed
+    if result.s4_routing_policy_path:
+        payload["s4_routing_policy_path"] = str(result.s4_routing_policy_path)
+    if result.s4_validation_contract_path:
+        payload["s4_validation_contract_path"] = str(result.s4_validation_contract_path)
+    if result.s4_run_report_path:
+        payload["s4_run_report_path"] = str(result.s4_run_report_path)
+    if result.s4_run_summary_path:
+        payload["s4_run_summary_path"] = str(result.s4_run_summary_path)
+    if result.s4_resumed:
+        payload["s4_resumed"] = result.s4_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
 def main(argv: list[str] | None = None) -> int:
     if not logging.getLogger().handlers:
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
 
     parser = argparse.ArgumentParser(
         description="Run Segment 3B S0 gate and optional S1 virtual classification."
@@ -110,6 +139,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Run S3 alias/universe hash after S2.",
     )
+    parser.add_argument(
+        "--run-s4",
+        action="store_true",
+        help="Run S4 virtual routing policy and validation contract after S3.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -128,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         run_s1=not args.skip_s1,
         run_s2=args.run_s2,
         run_s3=args.run_s3,
+        run_s4=args.run_s4,
     )
 
     orchestrator = Segment3BOrchestrator()

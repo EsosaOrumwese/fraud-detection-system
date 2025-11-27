@@ -19,6 +19,9 @@ from engine.layers.l1.seg_3B import (
     AliasInputs,
     AliasResult,
     AliasRunner,
+    RoutingInputs,
+    RoutingResult,
+    RoutingRunner,
 )
 from engine.layers.l1.seg_3B.shared.dictionary import load_dictionary
 
@@ -43,6 +46,7 @@ class Segment3BConfig:
     run_s1: bool = True
     run_s2: bool = False
     run_s3: bool = False
+    run_s4: bool = False
 
 
 @dataclass(frozen=True)
@@ -67,6 +71,11 @@ class Segment3BResult:
     s3_universe_hash_path: Path | None = None
     s3_run_report_path: Path | None = None
     s3_resumed: bool = False
+    s4_routing_policy_path: Path | None = None
+    s4_validation_contract_path: Path | None = None
+    s4_run_report_path: Path | None = None
+    s4_run_summary_path: Path | None = None
+    s4_resumed: bool = False
 
 
 class Segment3BOrchestrator:
@@ -77,6 +86,7 @@ class Segment3BOrchestrator:
         self._s1_runner = VirtualsRunner()
         self._s2_runner = EdgesRunner()
         self._s3_runner = AliasRunner()
+        self._s4_runner = RoutingRunner()
 
     def run(self, config: Segment3BConfig) -> Segment3BResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -116,6 +126,11 @@ class Segment3BOrchestrator:
         s3_universe_hash_path: Path | None = None
         s3_run_report_path: Path | None = None
         s3_resumed = False
+        s4_routing_policy_path: Path | None = None
+        s4_validation_contract_path: Path | None = None
+        s4_run_report_path: Path | None = None
+        s4_run_summary_path: Path | None = None
+        s4_resumed = False
         if config.run_s1:
             logger.info("Segment3B S1 starting (manifest=%s, seed=%s)", s0_outputs.manifest_fingerprint, config.seed)
             s1_inputs = VirtualsInputs(
@@ -158,6 +173,21 @@ class Segment3BOrchestrator:
             s3_universe_hash_path = s3_result.edge_universe_hash_path
             s3_run_report_path = s3_result.run_report_path
             s3_resumed = s3_result.resumed
+        if config.run_s4:
+            logger.info("Segment3B S4 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s4_inputs = RoutingInputs(
+                data_root=data_root,
+                manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                seed=int(config.seed),
+                dictionary_path=config.dictionary_path,
+            )
+            s4_result = self._s4_runner.run(s4_inputs)
+            logger.info("Segment3B S4 completed (routing_policy=%s)", s4_result.routing_policy_path)
+            s4_routing_policy_path = s4_result.routing_policy_path
+            s4_validation_contract_path = s4_result.validation_contract_path
+            s4_run_report_path = s4_result.run_report_path
+            s4_run_summary_path = s4_result.run_summary_path
+            s4_resumed = s4_result.resumed
 
         return Segment3BResult(
             manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -178,4 +208,9 @@ class Segment3BOrchestrator:
             s3_universe_hash_path=s3_universe_hash_path,
             s3_run_report_path=s3_run_report_path,
             s3_resumed=s3_resumed,
+            s4_routing_policy_path=s4_routing_policy_path,
+            s4_validation_contract_path=s4_validation_contract_path,
+            s4_run_report_path=s4_run_report_path,
+            s4_run_summary_path=s4_run_summary_path,
+            s4_resumed=s4_resumed,
         )
