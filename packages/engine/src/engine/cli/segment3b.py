@@ -172,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.result_json:
         args.result_json.parent.mkdir(parents=True, exist_ok=True)
         args.result_json.write_text(json.dumps(result.__dict__, default=str, indent=2), encoding="utf-8")
+        logger.info("Segment3B CLI: wrote summary to %s", args.result_json)
 
     return 0
 
