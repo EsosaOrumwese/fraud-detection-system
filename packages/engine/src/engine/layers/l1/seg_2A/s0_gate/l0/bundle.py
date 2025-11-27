@@ -49,13 +49,25 @@ def load_index(bundle_dir: Path) -> BundleIndex:
         raise err("E_INDEX_INVALID", f"index.json is not valid JSON: {exc}") from exc
 
     if isinstance(payload, dict):
-        artifacts = payload.get("artifacts")
-        if not isinstance(artifacts, list):
+        entries_key = None
+        if "artifacts" in payload:
+            entries_key = "artifacts"
+        elif "files" in payload:
+            entries_key = "files"
+
+        if entries_key is not None:
+            entries_payload = payload.get(entries_key)
+            if not isinstance(entries_payload, list):
+                raise err(
+                    "E_INDEX_INVALID",
+                    f"index.json `{entries_key}` section must be a JSON array",
+                )
+            payload = entries_payload
+        else:
             raise err(
                 "E_INDEX_INVALID",
-                "index.json `artifacts` section must be a JSON array",
+                "index.json must contain `artifacts` or `files` array",
             )
-        payload = artifacts
     elif not isinstance(payload, list):
         raise err("E_INDEX_INVALID", "index.json must be a JSON array")
 
