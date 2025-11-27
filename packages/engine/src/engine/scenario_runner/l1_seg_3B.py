@@ -82,6 +82,11 @@ class Segment3BOrchestrator:
         dictionary = load_dictionary(config.dictionary_path)
         data_root = config.data_root.expanduser().resolve()
 
+        logger.info(
+            "Segment3B S0 orchestrator invoked (upstream_manifest=%s, seed=%s)",
+            config.upstream_manifest_fingerprint,
+            config.seed,
+        )
         s0_inputs = S0GateInputs(
             base_path=data_root,
             output_base_path=data_root,
@@ -95,7 +100,9 @@ class Segment3BOrchestrator:
             validation_bundle_3a=config.validation_bundle_3a,
             notes=config.notes,
         )
+        logger.info("Segment3B S0 starting (upstream_manifest=%s)", config.upstream_manifest_fingerprint)
         s0_outputs = self._s0_runner.run(s0_inputs)
+        logger.info("Segment3B S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
 
         s1_output_path: Path | None = None
         s1_run_report: Path | None = None
@@ -110,6 +117,7 @@ class Segment3BOrchestrator:
         s3_run_report_path: Path | None = None
         s3_resumed = False
         if config.run_s1:
+            logger.info("Segment3B S1 starting (manifest=%s, seed=%s)", s0_outputs.manifest_fingerprint, config.seed)
             s1_inputs = VirtualsInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -117,10 +125,12 @@ class Segment3BOrchestrator:
                 dictionary_path=config.dictionary_path,
             )
             s1_result: VirtualsResult = self._s1_runner.run(s1_inputs)
+            logger.info("Segment3B S1 completed (classification=%s)", s1_result.classification_path)
             s1_output_path = s1_result.classification_path
             s1_run_report = s1_result.run_report_path
             s1_resumed = s1_result.resumed
         if config.run_s2:
+            logger.info("Segment3B S2 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             s2_inputs = EdgesInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -128,11 +138,13 @@ class Segment3BOrchestrator:
                 dictionary_path=config.dictionary_path,
             )
             s2_result: EdgesResult = self._s2_runner.run(s2_inputs)
+            logger.info("Segment3B S2 completed (edges=%s)", s2_result.edge_catalogue_path)
             s2_output_path = s2_result.edge_catalogue_path
             s2_index_path = s2_result.edge_catalogue_index_path
             s2_run_report_path = s2_result.run_report_path
             s2_resumed = s2_result.resumed
         if config.run_s3:
+            logger.info("Segment3B S3 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             s3_inputs = AliasInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -140,6 +152,7 @@ class Segment3BOrchestrator:
                 dictionary_path=config.dictionary_path,
             )
             s3_result: AliasResult = self._s3_runner.run(s3_inputs)
+            logger.info("Segment3B S3 completed (alias=%s)", s3_result.alias_index_path)
             s3_blob_path = s3_result.alias_blob_path
             s3_index_path = s3_result.alias_index_path
             s3_universe_hash_path = s3_result.edge_universe_hash_path

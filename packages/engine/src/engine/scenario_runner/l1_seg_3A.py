@@ -196,9 +196,12 @@ class Segment3AOrchestrator:
             validation_bundle_2a=config.validation_bundle_2a,
             notes=config.notes,
         )
+        logger.info("Segment3A S0 starting (upstream_manifest=%s)", config.upstream_manifest_fingerprint)
         outputs = self._s0_runner.run(inputs)
+        logger.info("Segment3A S0 completed (manifest=%s)", outputs.manifest_fingerprint)
         parameter_hash = outputs.parameter_hash
         if config.run_s1:
+            logger.info("Segment3A S1 starting (manifest=%s, seed=%s)", outputs.manifest_fingerprint, config.seed)
             s1_result = self._s1_runner.run(
                 EscalationInputs(
                     data_root=data_root,
@@ -207,11 +210,13 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S1 completed (output=%s)", s1_result.output_path)
             s1_output_path = s1_result.output_path
             s1_run_report_path = s1_result.run_report_path
             s1_resumed = s1_result.resumed
         if config.run_s2:
             parameter_hash_to_use = config.parameter_hash or parameter_hash
+            logger.info("Segment3A S2 starting (manifest=%s)", outputs.manifest_fingerprint)
             s2_result = self._s2_runner.run(
                 PriorsInputs(
                     data_root=data_root,
@@ -221,11 +226,13 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S2 completed (output=%s)", s2_result.output_path)
             s2_output_path = s2_result.output_path
             s2_report_path = s2_result.run_report_path
             s2_resumed = s2_result.resumed
         if config.run_s3:
             parameter_hash_to_use = config.parameter_hash or parameter_hash
+            logger.info("Segment3A S3 starting (manifest=%s, seed=%s)", outputs.manifest_fingerprint, config.seed)
             s3_result = self._s3_runner.run(
                 ZoneSharesInputs(
                     data_root=data_root,
@@ -236,11 +243,13 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S3 completed (output=%s)", s3_result.output_path)
             s3_output_path = s3_result.output_path
             s3_run_report_path = s3_result.run_report_path
             s3_resumed = s3_result.resumed
         if config.run_s4:
             parameter_hash_to_use = config.parameter_hash or parameter_hash
+            logger.info("Segment3A S4 starting (manifest=%s, seed=%s)", outputs.manifest_fingerprint, config.seed)
             s4_result = self._s4_runner.run(
                 ZoneCountsInputs(
                     data_root=data_root,
@@ -250,11 +259,13 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S4 completed (output=%s)", s4_result.output_path)
             s4_output_path = s4_result.output_path
             s4_run_report_path = s4_result.run_report_path
             s4_resumed = s4_result.resumed
         if config.run_s5:
             parameter_hash_to_use = config.parameter_hash or parameter_hash
+            logger.info("Segment3A S5 starting (manifest=%s, seed=%s)", outputs.manifest_fingerprint, config.seed)
             s5_result = self._s5_runner.run(
                 ZoneAllocInputs(
                     data_root=data_root,
@@ -264,12 +275,14 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S5 completed (output=%s)", s5_result.output_path)
             s5_output_path = s5_result.output_path
             s5_run_report_path = s5_result.run_report_path
             s5_universe_hash_path = s5_result.universe_hash_path
             s5_resumed = s5_result.resumed
         if config.run_s6:
             parameter_hash_to_use = config.parameter_hash or parameter_hash
+            logger.info("Segment3A S6 starting (manifest=%s)", outputs.manifest_fingerprint)
             s6_result = self._s6_runner.run(
                 ValidationInputs(
                     data_root=data_root,
@@ -279,12 +292,14 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S6 completed (bundle=%s)", s6_result.validation_bundle_path)
             s6_validation_bundle_path = s6_result.validation_bundle_path
             s6_receipt_path = s6_result.receipt_path
             s6_run_report_path = s6_result.run_report_path
             s6_resumed = s6_result.resumed
         if config.run_s7:
             parameter_hash_to_use = config.parameter_hash or parameter_hash
+            logger.info("Segment3A S7 starting (manifest=%s)", outputs.manifest_fingerprint)
             s7_result = self._s7_runner.run(
                 BundleInputs(
                     data_root=data_root,
@@ -294,6 +309,7 @@ class Segment3AOrchestrator:
                     dictionary_path=config.dictionary_path,
                 )
             )
+            logger.info("Segment3A S7 completed (bundle=%s)", s7_result.bundle_path)
             s7_bundle_path = s7_result.bundle_path
             s7_passed_flag_path = s7_result.passed_flag_path
             s7_index_path = s7_result.index_path
