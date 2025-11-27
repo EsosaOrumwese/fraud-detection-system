@@ -4,15 +4,15 @@ SHELL := /bin/bash
 PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
-RUN_ROOT ?= runs/local_layer1_regen2
+RUN_ROOT ?= runs/local_layer1_regen3
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
 SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
 SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
 RUN_ID ?= run-0
-LOG ?= $(RUN_ROOT)/run_log_regen2.log
-SEED ?= 2025111101
+LOG ?= $(RUN_ROOT)/run_log_regen3.log
+SEED ?= 2025112701
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
@@ -250,6 +250,31 @@ SEG3A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3a $(SEG3
 SEG3B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml
 SEG3B_RESULT_JSON ?= $(SUMMARY_DIR)/segment3b_result.json
 SEG3B_EXTRA ?=
+SEG3B_RUN_S0 ?= 1
+SEG3B_RUN_S1 ?= 1
+SEG3B_RUN_S2 ?= 1
+SEG3B_RUN_S3 ?= 1
+SEG3B_RUN_S4 ?= 0
+SEG3B_RUN_S5 ?= 0
+
+ifeq ($(strip $(SEG3B_RUN_S0)),1)
+SEG3B_EXTRA += --run-s0
+endif
+ifeq ($(strip $(SEG3B_RUN_S1)),1)
+SEG3B_EXTRA += --run-s1
+endif
+ifeq ($(strip $(SEG3B_RUN_S2)),1)
+SEG3B_EXTRA += --run-s2
+endif
+ifeq ($(strip $(SEG3B_RUN_S3)),1)
+SEG3B_EXTRA += --run-s3
+endif
+ifeq ($(strip $(SEG3B_RUN_S4)),1)
+SEG3B_EXTRA += --run-s4
+endif
+ifeq ($(strip $(SEG3B_RUN_S5)),1)
+SEG3B_EXTRA += --run-s5
+endif
 SEG3B_ARGS = \
 	--data-root "$(RUN_ROOT)" \
 	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
@@ -268,7 +293,7 @@ SEG3B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3b $(SEG3
 
 .PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b profile-all profile-seg1b clean-results
 
-all: segment1a segment1b segment2a segment2b
+all: segment1a segment1b segment2a segment2b segment3a segment3b
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
