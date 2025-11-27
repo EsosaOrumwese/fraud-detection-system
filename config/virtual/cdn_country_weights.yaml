@@ -1,9 +1,615 @@
-version: "v0.1.0"
-edge_scale: 2
 countries:
-  - country_iso: "US"
-    weight: 0.6
-    notes: "Primary market weight for sample virtuals"
-  - country_iso: "GB"
-    weight: 0.4
-    notes: "Secondary weight used for smoke coverage"
+- country_iso: LU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0400340289245859
+- country_iso: BM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0400340289245859
+- country_iso: IE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.03673122153830756
+- country_iso: CH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.034229094730520944
+- country_iso: 'NO'
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.029675223940349296
+- country_iso: SG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.026822799379472552
+- country_iso: US
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.023970374818595805
+- country_iso: AU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.023820247210128608
+- country_iso: DK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.02362007706550568
+- country_iso: XU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.02296952409548116
+- country_iso: MO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.022869439023169694
+- country_iso: QA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.022068758444677976
+- country_iso: IS
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.020267227143071612
+- country_iso: SE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.019966971926137216
+- country_iso: NL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.018465695841465245
+- country_iso: TC
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.017014462292949006
+- country_iso: HK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.016363909322924485
+- country_iso: AT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.015963569033678626
+- country_iso: GB
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.015913526497522895
+- country_iso: FI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.015663313816744233
+- country_iso: BE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.015663313816744233
+- country_iso: CG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.015463143672121303
+- country_iso: DE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.015363058599809838
+- country_iso: NZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.014962718310563979
+- country_iso: CA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.01476254816594105
+- country_iso: AE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.014011910123605064
+- country_iso: IL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.013761697442826402
+- country_iso: AD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.013461442225892009
+- country_iso: FR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.013461442225892009
+- country_iso: OE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.013211229545113347
+- country_iso: JP
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.013111144472801881
+- country_iso: XC
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.01075914527348246
+- country_iso: IT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.009958464694990742
+- country_iso: MT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.009658209478056347
+- country_iso: EU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.009658209478056347
+- country_iso: CY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00950808186958915
+- country_iso: BS
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.009357954261121954
+- country_iso: SX
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.009307911724966221
+- country_iso: GY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.009007656508031828
+- country_iso: PR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.008357103538007307
+- country_iso: ES
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00820697592954011
+- country_iso: BN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.007956763248761448
+- country_iso: SI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.007156082670269729
+- country_iso: BH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.006805784917179603
+- country_iso: SA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0065055297002452085
+- country_iso: KW
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.006055146874843617
+- country_iso: PT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.006055146874843617
+- country_iso: GR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.005754891657909223
+- country_iso: KN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.005654806585597758
+- country_iso: CZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0054045939048190965
+- country_iso: EE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.005254466296351899
+- country_iso: SK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.005204423760196167
+- country_iso: BB
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.005154381224040434
+- country_iso: LT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0050042536155732375
+- country_iso: UY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.004703998398638843
+- country_iso: PL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0046539558624831105
+- country_iso: HR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.004603913326327379
+- country_iso: AG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.004553870790171646
+- country_iso: LV
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.004353700645548716
+- country_iso: OM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.004253615573237252
+- country_iso: HU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00420357303708152
+- country_iso: PA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00420357303708152
+- country_iso: SC
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.004053445428614322
+- country_iso: TT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.003903317820147125
+- country_iso: TR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.003603062603212731
+- country_iso: CR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0035530200670569985
+- country_iso: CL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0034529349947455337
+- country_iso: CN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.003052594705499675
+- country_iso: RO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.003052594705499675
+- country_iso: AR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00295250963318821
+- country_iso: MY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0027523394885652806
+- country_iso: KZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0027523394885652806
+- country_iso: LC
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0027523394885652806
+- country_iso: MV
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0027523394885652806
+- country_iso: MU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.002652254416253816
+- country_iso: RU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0025021268077866188
+- country_iso: BG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.002402041735475154
+- country_iso: MX
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0023519991993194217
+- country_iso: GD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0023019566631636893
+- country_iso: BR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.002151829054696492
+- country_iso: VC
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00210178651854076
+- country_iso: DM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0020517439823850275
+- country_iso: DO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0020517439823850275
+- country_iso: ZJ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0020517439823850275
+- country_iso: NR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0019016163739178301
+- country_iso: RS
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0019016163739178301
+- country_iso: XJ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0019016163739178301
+- country_iso: ME
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0019016163739178301
+- country_iso: TM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.001751488765450633
+- country_iso: XF
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0016514036931391683
+- country_iso: LY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0016514036931391683
+- country_iso: SR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.001601361156983436
+- country_iso: CO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0015012760846719712
+- country_iso: BW
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0015012760846719712
+- country_iso: PE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014512335485162388
+- country_iso: MK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014512335485162388
+- country_iso: BY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014512335485162388
+- country_iso: GE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014512335485162388
+- country_iso: PY
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014512335485162388
+- country_iso: BA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014512335485162388
+- country_iso: GA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014011910123605065
+- country_iso: TH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014011910123605065
+- country_iso: BZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0014011910123605065
+- country_iso: EC
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0013011059400490417
+- country_iso: XP
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0013011059400490417
+- country_iso: MH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0012510634038933094
+- country_iso: FJ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0012510634038933094
+- country_iso: ZT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0012510634038933094
+- country_iso: XK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0012510634038933094
+- country_iso: AZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0012510634038933094
+- country_iso: IR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0012510634038933094
+- country_iso: XO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.001201020867737577
+- country_iso: AL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.001201020867737577
+- country_iso: ZA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.001201020867737577
+- country_iso: AM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0011509783315818446
+- country_iso: ZQ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0011509783315818446
+- country_iso: JM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0011009357954261123
+- country_iso: GQ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00105089325927038
+- country_iso: DZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0010008507231146475
+- country_iso: GT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0009508081869589151
+- country_iso: CV
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0009508081869589151
+- country_iso: SV
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0009508081869589151
+- country_iso: MN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0009508081869589151
+- country_iso: ID
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0009007656508031827
+- country_iso: WS
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0009007656508031827
+- country_iso: IQ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0008507231146474503
+- country_iso: JO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0008507231146474503
+- country_iso: LK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0008507231146474503
+- country_iso: EG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0008507231146474503
+- country_iso: TN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0008507231146474503
+- country_iso: VN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0008507231146474503
+- country_iso: PH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000800680578491718
+- country_iso: UZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000800680578491718
+- country_iso: MD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000800680578491718
+- country_iso: SZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000800680578491718
+- country_iso: MA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0007005955061802532
+- country_iso: DJ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0007005955061802532
+- country_iso: BO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0006505529700245209
+- country_iso: XQ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0006505529700245209
+- country_iso: FM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0006005104338687885
+- country_iso: HN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005504678977130561
+- country_iso: VU
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005504678977130561
+- country_iso: PG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005504678977130561
+- country_iso: LA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005504678977130561
+- country_iso: NI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005004253615573238
+- country_iso: CI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005004253615573238
+- country_iso: IN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005004253615573238
+- country_iso: AO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005004253615573238
+- country_iso: NG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0005004253615573238
+- country_iso: KI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00045038282540159135
+- country_iso: XH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00045038282540159135
+- country_iso: GH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00045038282540159135
+- country_iso: KH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00045038282540159135
+- country_iso: UA
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00045038282540159135
+- country_iso: PS
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00045038282540159135
+- country_iso: ZI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000400340289245859
+- country_iso: KE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000400340289245859
+- country_iso: SB
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000400340289245859
+- country_iso: BD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.000400340289245859
+- country_iso: SN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: ZH
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: TJ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: ZF
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: PK
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: CM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: XG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: MR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: ZG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: ZW
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: KM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0003502977530901266
+- country_iso: TL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: XI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: SL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: HT
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: NP
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: BJ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: ST
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: KG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: ZM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: TZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: MM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00030025521693439425
+- country_iso: TD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: RW
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: TG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: LS
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: XE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: ML
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: GW
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: UG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: GN
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: ET
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: XL
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002502126807786619
+- country_iso: GM
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: MZ
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: BF
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: NE
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: SD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: MW
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: MG
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: CD
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: LR
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: SO
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.0002001701446229295
+- country_iso: BI
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00015012760846719713
+- country_iso: CF
+  notes: synthetic weight from merchant home_country distribution
+  weight: 0.00015012760846719713
+edge_scale: 500
+version: synthetic-v0.1

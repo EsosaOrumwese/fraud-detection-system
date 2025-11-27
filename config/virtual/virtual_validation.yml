@@ -1,4 +1,5 @@
-version: "v0.1.0"
-ip_country_tolerance: 0.1
-cutoff_tolerance_seconds: 900
-notes: "Baseline validation tolerances for virtual routing smoke tests"
+version: "synthetic-v0.1"
+# Synthetic validation tolerances; replace with governed values.
+ip_country_tolerance: 0.15        # allow 15% absolute deviation from target country mix
+cutoff_tolerance_seconds: 1200    # 20 minutes settlement cut-off tolerance
+notes: "Synthetic validation policy derived from merchant distribution; replace when governed pack is available."

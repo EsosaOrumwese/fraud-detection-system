@@ -1,10 +1,108 @@
-version: "v0.1.0"
+version: "synthetic-v0.2"
+# Synthetic MCC×channel ladder derived from in-repo MCC codes (artefacts/data-intake/1A/.../mcc_codes.csv).
+# Goal: tighter realism for virtual-heavy industries (digital goods, telecom, SaaS, direct marketing) without overfitting.
+# Replace with governed pack when available.
 rules:
-  - mcc: "742"
+  # Telecom / data services (remote by nature)
+  - mcc: "4812"
     channel: "card_not_present"
     decision: virtual
-    notes: "Sample rule driving virtual overlay for internet-only merchants"
-  - mcc: "742"
+    notes: "Telecom equipment/phone sales → virtual for CNP"
+  - mcc: "4814"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Telecom/fax/data services → virtual for CNP"
+  - mcc: "4815"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "VisaPhone/telecom card sales → virtual for CNP"
+  - mcc: "4821"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Telegraph/data comms → virtual for CNP"
+  - mcc: "4899"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Cable/OTT/streaming → virtual for CNP"
+
+  # Software / IT / SaaS
+  - mcc: "5045"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Computers/peripherals/software → virtual for CNP"
+  - mcc: "5734"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Computer software stores → virtual for CNP"
+  - mcc: "7372"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Computer programming/data processing/SaaS → virtual for CNP"
+
+  # Digital goods (explicit MCCs)
+  - mcc: "5815"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Digital goods media/books/movies/music → virtual for CNP"
+  - mcc: "5816"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Digital goods games → virtual for CNP"
+  - mcc: "5817"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Digital goods apps → virtual for CNP"
+  - mcc: "5818"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Large digital goods merchant → virtual for CNP"
+
+  # Direct marketing / subscription / mail-order
+  - mcc: "5961"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Mail order/catalog/direct clubs → virtual for CNP"
+  - mcc: "5962"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Direct marketing travel-related → virtual for CNP"
+  - mcc: "5964"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Direct marketing catalog merchant → virtual for CNP"
+  - mcc: "5965"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Direct marketing catalog + retail → virtual for CNP"
+  - mcc: "5966"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Outbound telemarketing → virtual for CNP"
+  - mcc: "5967"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Inbound teleservices → virtual for CNP"
+  - mcc: "5968"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Continuity/subscription merchant → virtual for CNP"
+  - mcc: "5969"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Other direct marketing → virtual for CNP"
+
+  # Outlier online-heavy MCCs from the raw table
+  - mcc: "5994"
+    channel: "card_not_present"
+    decision: virtual
+    notes: "Newsstands/digital publications tilt virtual for CNP"
+
+  # Guardrails: everything else defaults to physical (both CP and CNP if unmatched).
+  - mcc: "*"
     channel: "card_present"
     decision: physical
-    notes: "Physical presence stays outside virtual overlay"
+    notes: "Default physical for CP"
+  - mcc: "*"
+    channel: "card_not_present"
+    decision: physical
+    notes: "Default physical for non-matched CNP MCCs"
