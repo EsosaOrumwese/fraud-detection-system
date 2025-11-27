@@ -1,5 +1,9 @@
-version: "synthetic-v0.1"
-# Synthetic validation tolerances; replace with governed values.
-ip_country_tolerance: 0.15        # allow 15% absolute deviation from target country mix
-cutoff_tolerance_seconds: 1200    # 20 minutes settlement cut-off tolerance
-notes: "Synthetic validation policy derived from merchant distribution; replace when governed pack is available."
+version: governed-v1
+# Governed virtual validation tolerances derived from spec contracts:
+# - ip_country_tolerance matches the 2% absolute error envelope enforced by virtual validation.
+# - cutoff_tolerance_seconds follows the 23:59:59 ±5s settlement check.
+ip_country_tolerance: 0.02          # allow up to 2 percentage points absolute deviation per country
+cutoff_tolerance_seconds: 5         # settlement cut-off must fall within ±5 seconds of the target
+notes: >
+  Governed policy for 3B virtual validation; aligns with spec expectations (ip-country ±2pp, cut-off ±5s)
+  and is sealed via S0 for downstream validation harnesses.
