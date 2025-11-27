@@ -325,11 +325,12 @@ class S0GateRunner:
             declared_flag = self._read_pass_flag(bundle_path)
             if computed_flag != declared_flag:
                 raise ValueError(f"{segment} computed digest does not match _passed.flag")
-            results[segment] = {
-                "path": bundle_path,
-                "bundle_sha256_hex": computed_flag,
-                "flag_sha256_hex": declared_flag,
-            }
+        results[segment] = {
+            "path": bundle_path,
+            "bundle_sha256_hex": computed_flag,
+            "flag_sha256_hex": declared_flag,
+            "manifest_fingerprint": self._extract_manifest_fingerprint(bundle_path),
+        }
         return results
 
     @staticmethod
@@ -502,11 +503,21 @@ class S0GateRunner:
                 raise DictionaryError(
                     f"dictionary entry '{spec.dataset_id}' in '{spec.dictionary_rel_path}' is missing schema_ref"
                 )
+            template_values: MutableMapping[str, object] = {
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+                "fingerprint": inputs.upstream_manifest_fingerprint,
+                "parameter_hash": inputs.parameter_hash,
+            }
+            segment_info = upstream_bundles.get(spec.owner_segment)
+            if segment_info and segment_info.get("manifest_fingerprint"):
+                segment_fp = segment_info["manifest_fingerprint"]
+                template_values["manifest_fingerprint"] = segment_fp
+                template_values["fingerprint"] = segment_fp
             base_dir = inputs.base_path if spec.base == "base" else repo_root
             files = self._expand_dataset_files(
                 base_path=base_dir,
                 template=path_template,
-                template_args=template_args,
+                template_args=template_values,
                 dataset_id=spec.dataset_id,
             )
             digests = tuple(hash_files(files, error_prefix=spec.dataset_id))
@@ -852,5 +863,10 @@ class S0GateRunner:
         if spec.manifest_scope == "fingerprint":
             return inputs.upstream_manifest_fingerprint
         return spec.manifest_scope
+
+    @staticmethod
+    def _extract_manifest_fingerprint(path: Path) -> str | None:
+        match = re.search(r"fingerprint=([a-f0-9]{64})", str(path))
+        return match.group(1) if match else None
 
 __all__ = ["S0GateRunner", "S0Inputs", "S0Outputs"]
