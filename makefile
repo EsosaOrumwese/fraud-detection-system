@@ -6,7 +6,6 @@ ENGINE_PYTHONPATH ?= packages/engine/src
 
 # Paths and summaries
 RUN_ROOT ?= runs/local_layer1_regen3
-RUN_ROOT_SHORT ?= C:/r3
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -295,7 +294,7 @@ SEG3B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3b $(SEG3
 SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5A_DICTIONARY ?= contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml
 SEG5A_ARGS = \
-	--data-root "$(RUN_ROOT_SHORT)" \
+	--data-root "$(RUN_ROOT)" \
 	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
 	--run-id "$(RUN_ID)" \
