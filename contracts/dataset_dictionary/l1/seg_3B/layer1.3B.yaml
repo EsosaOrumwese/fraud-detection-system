@@ -267,6 +267,42 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+- id: population_raster_hrsl
+  status: required
+  owner_subsegment: ingress
+  description: HRSL population rasters (Meta & CIESIN) per country, used for edge placement.
+  version: hrsl-cogs-2022-aws
+  format: geotiff
+  path: reference/spatial/population_raster/hrsl-2022-aws/country={country_iso3}/hrsl_{country_iso3}.tif
+  partitioning: [country_iso3]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/reference/population_raster_hrsl
+  lineage:
+    produced_by: ingress
+    consumed_by: [3B.S2]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: CC-BY
+
+- id: overture_places_base
+  status: required
+  owner_subsegment: 1A
+  description: Filtered Overture Maps Places theme (2025-11-19.0) as base POI universe.
+  version: '2025-11-19.0'
+  format: parquet
+  path: reference/poi/overture_places/2025-11-19.0/overture_places_filtered.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/reference/overture_places_base
+  lineage:
+    produced_by: ingress
+    consumed_by: [1A, 3B.S1]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Overture-Open
+
 
 datasets:
 - id: s0_gate_receipt_3B
