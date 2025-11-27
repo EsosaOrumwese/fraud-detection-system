@@ -177,6 +177,96 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+- id: country_polygons_admin0
+  status: draft
+  owner_subsegment: ingress
+  description: Admin-0 country polygons (Natural Earth or equivalent) used for country membership checks.
+  version: 2024-11-27
+  format: geojson
+  path: reference/spatial/world_countries/2024-11-27/ne_110m_admin_0_countries.geojson
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/reference/country_polygons_admin0
+  lineage:
+    produced_by: ingress
+    consumed_by: [3B.S2]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Public-Domain
+
+- id: tz_world_polygons
+  status: draft
+  owner_subsegment: ingress
+  description: Global timezone polygons (Timezone Boundary Builder release).
+  version: '2024b'
+  format: shapefile
+  path: artefacts/spatial/tz_world/2024b/raw/timezones.shapefile.zip
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/reference/tz_world_polygons
+  lineage:
+    produced_by: ingress
+    consumed_by: [2A, 3B.S2]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: ODbL
+
+- id: tzdb_archive
+  status: draft
+  owner_subsegment: ingress
+  description: Pinned IANA tzdb archive used for timezone rules.
+  version: '2024b'
+  format: tar.gz
+  path: reference/time/tzdb/2024b/tzdata2024b.tar.gz
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/reference/tzdb_archive
+  lineage:
+    produced_by: ingress
+    consumed_by: [2A, 3B.S2]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: IANA-TZDB
+
+- id: ip_geo_country_db
+  status: draft
+  owner_subsegment: ingress
+  description: MaxMind GeoLite2 Country database (external, licensed) for IP-country mapping in validation.
+  version: latest
+  format: mmdb
+  path: reference/ip_geo/maxmind_geolite2/{snapshot}/GeoLite2-Country.mmdb
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/reference/ip_geo_country_db
+  lineage:
+    produced_by: ingress
+    consumed_by: [3B.S4]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: MaxMind-GeoLite2
+
+- id: web_traffic_by_country
+  status: draft
+  owner_subsegment: ingress
+  description: Cloudflare Radar HTTP traffic share by country (snapshot) used to derive cdn_country_weights.
+  version: '{snapshot_date}'
+  format: csv
+  path: reference/web_traffic/cloudflare_radar/{snapshot_date}/traffic_by_country.csv
+  partitioning: []
+  ordering: [country_iso]
+  schema_ref: schemas.layer1.yaml#/reference/web_traffic_by_country
+  lineage:
+    produced_by: ingress
+    consumed_by: [3B.S2, policy]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: CC-BY-4.0
+
 
 datasets:
 - id: s0_gate_receipt_3B
