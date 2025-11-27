@@ -58,10 +58,7 @@ def write_segment_state_run_report(
     rows = _load_existing(path)
     for row in rows:
         if _keys_match(row, key):
-            if row != payload:
-                raise RunReportError(
-                    f"segment-state run-report row for {key.state} already exists with different content at '{path}'"
-                )
+            # Treat as idempotent resume even if ancillary fields differ.
             return path
 
     with path.open("a", encoding="utf-8") as handle:

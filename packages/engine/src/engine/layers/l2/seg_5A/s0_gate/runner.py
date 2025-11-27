@@ -164,7 +164,7 @@ class S0GateRunner:
                 index = load_index(bundle_path)
             except Exception:
                 index = self._load_index_lenient(bundle_path)
-            computed_flag = compute_index_digest(bundle_path, index)
+            computed_flag = self._compute_digest_for_segment(segment, bundle_path, index)
             declared_flag = self._read_pass_flag(bundle_path)
             if computed_flag != declared_flag:
                 logger.warning(
@@ -208,6 +208,26 @@ class S0GateRunner:
         if not candidates:
             raise FileNotFoundError(f"validation bundle missing _passed.flag at {bundle_path}")
         return sorted(candidates)[0]
+
+    def _compute_digest_for_segment(self, segment: str, bundle_path: Path, index: BundleIndex) -> str:
+        """Honor per-segment hashing laws when known."""
+
+        if segment == "3B":
+            index_path = bundle_path / "index.json"
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+            items = []
+            if isinstance(payload, dict):
+                items = payload.get("items") or payload.get("artifacts") or payload.get("files") or []
+            elif isinstance(payload, list):
+                items = payload
+            digests = [
+                item.get("sha256_hex")
+                for item in items
+                if isinstance(item, Mapping) and isinstance(item.get("sha256_hex"), str)
+            ]
+            if digests:
+                return hashlib.sha256("".join(digests).encode("utf-8")).hexdigest()
+        return compute_index_digest(bundle_path, index)
 
     @staticmethod
     def _load_index_lenient(bundle_path: Path) -> BundleIndex:
