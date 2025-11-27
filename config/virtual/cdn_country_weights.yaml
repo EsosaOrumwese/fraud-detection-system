@@ -1,616 +1,740 @@
-countries:
-# TODO: replace with governed CDN country weights derived from real traffic telemetry (Akamai/Cloudflare), and refresh edge_scale accordingly.
-- country_iso: LU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0400340289245859
-- country_iso: BM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0400340289245859
-- country_iso: IE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.03673122153830756
-- country_iso: CH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.034229094730520944
-- country_iso: 'NO'
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.029675223940349296
-- country_iso: SG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.026822799379472552
-- country_iso: US
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.023970374818595805
-- country_iso: AU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.023820247210128608
-- country_iso: DK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.02362007706550568
-- country_iso: XU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.02296952409548116
-- country_iso: MO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.022869439023169694
-- country_iso: QA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.022068758444677976
-- country_iso: IS
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.020267227143071612
-- country_iso: SE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.019966971926137216
-- country_iso: NL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.018465695841465245
-- country_iso: TC
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.017014462292949006
-- country_iso: HK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.016363909322924485
-- country_iso: AT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.015963569033678626
-- country_iso: GB
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.015913526497522895
-- country_iso: FI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.015663313816744233
-- country_iso: BE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.015663313816744233
-- country_iso: CG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.015463143672121303
-- country_iso: DE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.015363058599809838
-- country_iso: NZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.014962718310563979
-- country_iso: CA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.01476254816594105
-- country_iso: AE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.014011910123605064
-- country_iso: IL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.013761697442826402
-- country_iso: AD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.013461442225892009
-- country_iso: FR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.013461442225892009
-- country_iso: OE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.013211229545113347
-- country_iso: JP
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.013111144472801881
-- country_iso: XC
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.01075914527348246
-- country_iso: IT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.009958464694990742
-- country_iso: MT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.009658209478056347
-- country_iso: EU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.009658209478056347
-- country_iso: CY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00950808186958915
-- country_iso: BS
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.009357954261121954
-- country_iso: SX
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.009307911724966221
-- country_iso: GY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.009007656508031828
-- country_iso: PR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.008357103538007307
-- country_iso: ES
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00820697592954011
-- country_iso: BN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.007956763248761448
-- country_iso: SI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.007156082670269729
-- country_iso: BH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.006805784917179603
-- country_iso: SA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0065055297002452085
-- country_iso: KW
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.006055146874843617
-- country_iso: PT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.006055146874843617
-- country_iso: GR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.005754891657909223
-- country_iso: KN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.005654806585597758
-- country_iso: CZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0054045939048190965
-- country_iso: EE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.005254466296351899
-- country_iso: SK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.005204423760196167
-- country_iso: BB
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.005154381224040434
-- country_iso: LT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0050042536155732375
-- country_iso: UY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.004703998398638843
-- country_iso: PL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0046539558624831105
-- country_iso: HR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.004603913326327379
-- country_iso: AG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.004553870790171646
-- country_iso: LV
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.004353700645548716
-- country_iso: OM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.004253615573237252
-- country_iso: HU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00420357303708152
-- country_iso: PA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00420357303708152
-- country_iso: SC
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.004053445428614322
-- country_iso: TT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.003903317820147125
-- country_iso: TR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.003603062603212731
-- country_iso: CR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0035530200670569985
-- country_iso: CL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0034529349947455337
-- country_iso: CN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.003052594705499675
-- country_iso: RO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.003052594705499675
-- country_iso: AR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00295250963318821
-- country_iso: MY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0027523394885652806
-- country_iso: KZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0027523394885652806
-- country_iso: LC
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0027523394885652806
-- country_iso: MV
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0027523394885652806
-- country_iso: MU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.002652254416253816
-- country_iso: RU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0025021268077866188
-- country_iso: BG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.002402041735475154
-- country_iso: MX
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0023519991993194217
-- country_iso: GD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0023019566631636893
-- country_iso: BR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.002151829054696492
-- country_iso: VC
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00210178651854076
-- country_iso: DM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0020517439823850275
-- country_iso: DO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0020517439823850275
-- country_iso: ZJ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0020517439823850275
-- country_iso: NR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0019016163739178301
-- country_iso: RS
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0019016163739178301
-- country_iso: XJ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0019016163739178301
-- country_iso: ME
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0019016163739178301
-- country_iso: TM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.001751488765450633
-- country_iso: XF
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0016514036931391683
-- country_iso: LY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0016514036931391683
-- country_iso: SR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.001601361156983436
-- country_iso: CO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0015012760846719712
-- country_iso: BW
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0015012760846719712
-- country_iso: PE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014512335485162388
-- country_iso: MK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014512335485162388
-- country_iso: BY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014512335485162388
-- country_iso: GE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014512335485162388
-- country_iso: PY
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014512335485162388
-- country_iso: BA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014512335485162388
-- country_iso: GA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014011910123605065
-- country_iso: TH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014011910123605065
-- country_iso: BZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0014011910123605065
-- country_iso: EC
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0013011059400490417
-- country_iso: XP
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0013011059400490417
-- country_iso: MH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0012510634038933094
-- country_iso: FJ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0012510634038933094
-- country_iso: ZT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0012510634038933094
-- country_iso: XK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0012510634038933094
-- country_iso: AZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0012510634038933094
-- country_iso: IR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0012510634038933094
-- country_iso: XO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.001201020867737577
-- country_iso: AL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.001201020867737577
-- country_iso: ZA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.001201020867737577
-- country_iso: AM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0011509783315818446
-- country_iso: ZQ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0011509783315818446
-- country_iso: JM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0011009357954261123
-- country_iso: GQ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00105089325927038
-- country_iso: DZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0010008507231146475
-- country_iso: GT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0009508081869589151
-- country_iso: CV
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0009508081869589151
-- country_iso: SV
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0009508081869589151
-- country_iso: MN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0009508081869589151
-- country_iso: ID
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0009007656508031827
-- country_iso: WS
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0009007656508031827
-- country_iso: IQ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0008507231146474503
-- country_iso: JO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0008507231146474503
-- country_iso: LK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0008507231146474503
-- country_iso: EG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0008507231146474503
-- country_iso: TN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0008507231146474503
-- country_iso: VN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0008507231146474503
-- country_iso: PH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000800680578491718
-- country_iso: UZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000800680578491718
-- country_iso: MD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000800680578491718
-- country_iso: SZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000800680578491718
-- country_iso: MA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0007005955061802532
-- country_iso: DJ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0007005955061802532
-- country_iso: BO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0006505529700245209
-- country_iso: XQ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0006505529700245209
-- country_iso: FM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0006005104338687885
-- country_iso: HN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005504678977130561
-- country_iso: VU
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005504678977130561
-- country_iso: PG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005504678977130561
-- country_iso: LA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005504678977130561
-- country_iso: NI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005004253615573238
-- country_iso: CI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005004253615573238
-- country_iso: IN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005004253615573238
-- country_iso: AO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005004253615573238
-- country_iso: NG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0005004253615573238
-- country_iso: KI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00045038282540159135
-- country_iso: XH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00045038282540159135
-- country_iso: GH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00045038282540159135
-- country_iso: KH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00045038282540159135
-- country_iso: UA
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00045038282540159135
-- country_iso: PS
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00045038282540159135
-- country_iso: ZI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000400340289245859
-- country_iso: KE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000400340289245859
-- country_iso: SB
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000400340289245859
-- country_iso: BD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.000400340289245859
-- country_iso: SN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: ZH
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: TJ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: ZF
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: PK
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: CM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: XG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: MR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: ZG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: ZW
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: KM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0003502977530901266
-- country_iso: TL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: XI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: SL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: HT
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: NP
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: BJ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: ST
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: KG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: ZM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: TZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: MM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00030025521693439425
-- country_iso: TD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: RW
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: TG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: LS
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: XE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: ML
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: GW
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: UG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: GN
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: ET
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: XL
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002502126807786619
-- country_iso: GM
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: MZ
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: BF
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: NE
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: SD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: MW
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: MG
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: CD
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: LR
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: SO
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.0002001701446229295
-- country_iso: BI
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00015012760846719713
-- country_iso: CF
-  notes: synthetic weight from merchant home_country distribution
-  weight: 0.00015012760846719713
+version: synthetic-v0.3
+notes: Synthetic CDN weights from restcountries.com population; TODO replace with
+  governed traffic-derived weights.
 edge_scale: 500
-version: synthetic-v0.1
+countries:
+- country_iso: IN
+  weight: 0.17675575814840602
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CN
+  weight: 0.17560705745445987
+  notes: Synthetic weight from restcountries.com population
+- country_iso: US
+  weight: 0.042410521920789264
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ID
+  weight: 0.03546841362012567
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PK
+  weight: 0.030114042984943593
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NG
+  weight: 0.02790699254289496
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BR
+  weight: 0.026612776086040704
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BD
+  weight: 0.02117700693853875
+  notes: Synthetic weight from restcountries.com population
+- country_iso: RU
+  weight: 0.018209166116293307
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MX
+  weight: 0.0162822943976079
+  notes: Synthetic weight from restcountries.com population
+- country_iso: JP
+  weight: 0.015363809433467776
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PH
+  weight: 0.014230770572691365
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CD
+  weight: 0.014069713058980896
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ET
+  weight: 0.013922696079436398
+  notes: Synthetic weight from restcountries.com population
+- country_iso: EG
+  weight: 0.01337631033461549
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VN
+  weight: 0.012637179047670413
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IR
+  weight: 0.010719003511974056
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TR
+  weight: 0.010682086476298099
+  notes: Synthetic weight from restcountries.com population
+- country_iso: DE
+  weight: 0.010411035135120582
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GB
+  weight: 0.00863912665647921
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TZ
+  weight: 0.008498415435227393
+  notes: Synthetic weight from restcountries.com population
+- country_iso: FR
+  weight: 0.008273832104644649
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TH
+  weight: 0.008212441833591362
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ZA
+  weight: 0.007868443259895554
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IT
+  weight: 0.007348047429407735
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KE
+  weight: 0.006650166243750202
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CO
+  weight: 0.006616028684677378
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SD
+  weight: 0.006442051156170864
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MM
+  weight: 0.00639900056754942
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KR
+  weight: 0.006379439860671733
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ES
+  weight: 0.0061495076898516006
+  notes: Synthetic weight from restcountries.com population
+- country_iso: DZ
+  weight: 0.005910596275841024
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AR
+  weight: 0.005827673852190197
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IQ
+  weight: 0.005750834728946901
+  notes: Synthetic weight from restcountries.com population
+- country_iso: UG
+  weight: 0.005724227568800195
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AF
+  weight: 0.005467176859028984
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CA
+  weight: 0.005193799685747313
+  notes: Synthetic weight from restcountries.com population
+- country_iso: UZ
+  weight: 0.004720957595005609
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PL
+  weight: 0.004662637467220413
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MA
+  weight: 0.0045923500030262505
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AO
+  weight: 0.004510378636712889
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SA
+  weight: 0.004401808090804755
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PE
+  weight: 0.004283342283979546
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MY
+  weight: 0.004268560306660489
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MZ
+  weight: 0.004250948974288714
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GH
+  weight: 0.004207543999282967
+  notes: Synthetic weight from restcountries.com population
+- country_iso: UA
+  weight: 0.004097764025668518
+  notes: Synthetic weight from restcountries.com population
+- country_iso: YE
+  weight: 0.004075630837753476
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MG
+  weight: 0.003956239162207843
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CI
+  weight: 0.003955270647413023
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NP
+  weight: 0.003729890508598156
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CM
+  weight: 0.003671344057347967
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VE
+  weight: 0.003555959367049757
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AU
+  weight: 0.003433741453854505
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NE
+  weight: 0.0032810086533797975
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KP
+  weight: 0.0032358644168370165
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SY
+  weight: 0.0031947146959292625
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BF
+  weight: 0.003001504660743333
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TW
+  weight: 0.0029075433880225675
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ML
+  weight: 0.0027926306725535575
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LK
+  weight: 0.0027137829441454663
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MW
+  weight: 0.002585482104631056
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KZ
+  weight: 0.0025471138554644186
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CL
+  weight: 0.002519728716200308
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ZM
+  weight: 0.002455693515661645
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SO
+  weight: 0.002450902316490619
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TD
+  weight: 0.002411717432408148
+  notes: Synthetic weight from restcountries.com population
+- country_iso: RO
+  weight: 0.0023737192813374323
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SN
+  weight: 0.002318507204442011
+  notes: Synthetic weight from restcountries.com population
+- country_iso: EC
+  weight: 0.002257456231542028
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NL
+  weight: 0.0022570542112383715
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GT
+  weight: 0.0022544822289855128
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KH
+  weight: 0.0021918785399499432
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ZW
+  weight: 0.0021289477729812194
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SS
+  weight: 0.0019685649899975127
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GN
+  weight: 0.00179112652057041
+  notes: Synthetic weight from restcountries.com population
+- country_iso: RW
+  weight: 0.001758834962916732
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BJ
+  weight: 0.001649088781951876
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BI
+  weight: 0.001537850861256052
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TN
+  weight: 0.0014928830697286783
+  notes: Synthetic weight from restcountries.com population
+- country_iso: HT
+  weight: 0.0014797728933435919
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BE
+  weight: 0.0014746003734254873
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PG
+  weight: 0.0014691147415401117
+  notes: Synthetic weight from restcountries.com population
+- country_iso: JO
+  weight: 0.0014631843185805608
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BO
+  weight: 0.0014172129726475336
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AE
+  weight: 0.0014083483251950118
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CZ
+  weight: 0.001356985742342449
+  notes: Synthetic weight from restcountries.com population
+- country_iso: DO
+  weight: 0.0013431647980507741
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PT
+  weight: 0.0013404378185158296
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SE
+  weight: 0.0013224146148466053
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TJ
+  weight: 0.0013091846054863905
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GR
+  weight: 0.0012969294704233175
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AZ
+  weight: 0.001277103036105466
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IL
+  weight: 0.0012637702771391057
+  notes: Synthetic weight from restcountries.com population
+- country_iso: HN
+  weight: 0.0012335728661912603
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CU
+  weight: 0.0012155386892631272
+  notes: Synthetic weight from restcountries.com population
+- country_iso: HU
+  weight: 0.0011895389239362448
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AT
+  weight: 0.0011473204325500048
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BY
+  weight: 0.001135891908092682
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CH
+  weight: 0.0011325959401440949
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SL
+  weight: 0.0011319528822328181
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TG
+  weight: 0.0010094772221493345
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LA
+  weight: 0.0009535512599442259
+  notes: Synthetic weight from restcountries.com population
+- country_iso: HK
+  weight: 0.0009386500731306606
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LY
+  weight: 0.0009301083886392025
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KG
+  weight: 0.0009080122354729783
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TM
+  weight: 0.0008800854162463732
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NI
+  weight: 0.0008484182120853772
+  notes: Synthetic weight from restcountries.com population
+- country_iso: RS
+  weight: 0.0008189770831293668
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CF
+  weight: 0.00080682220374996
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BG
+  weight: 0.0008027138405537548
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CG
+  weight: 0.0007659060386823887
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SG
+  weight: 0.0007619182566380554
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PY
+  weight: 0.0007618489255931321
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SV
+  weight: 0.0007519146347892564
+  notes: Synthetic weight from restcountries.com population
+- country_iso: DK
+  weight: 0.0007496092528494305
+  notes: Synthetic weight from restcountries.com population
+- country_iso: FI
+  weight: 0.000704573626630621
+  notes: Synthetic weight from restcountries.com population
+- country_iso: 'NO'
+  weight: 0.0006991641840769868
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LB
+  weight: 0.0006845817205562705
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PS
+  weight: 0.0006837649609443136
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IE
+  weight: 0.0006806662622638358
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SK
+  weight: 0.0006750814969599098
+  notes: Synthetic weight from restcountries.com population
+- country_iso: OM
+  weight: 0.0006663299488918222
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NZ
+  weight: 0.0006639694512652046
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CR
+  weight: 0.0006620896571964641
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LR
+  weight: 0.0006544826948502319
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MR
+  weight: 0.0006144441411031112
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KW
+  weight: 0.0006086734538783566
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PA
+  weight: 0.0005068623107618793
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GE
+  weight: 0.000498899340981733
+  notes: Synthetic weight from restcountries.com population
+- country_iso: HR
+  weight: 0.00048210426943741917
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ER
+  weight: 0.0004497789191341471
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MN
+  weight: 0.00044202718458799403
+  notes: Synthetic weight from restcountries.com population
+- country_iso: UY
+  weight: 0.00043636797569806217
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BA
+  weight: 0.00042671013620101234
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PR
+  weight: 0.0003994384704097083
+  notes: Synthetic weight from restcountries.com population
+- country_iso: QA
+  weight: 0.0003956637940412276
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AM
+  weight: 0.0003835902165346447
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NA
+  weight: 0.0003768816897615651
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LT
+  weight: 0.0003609810635144371
+  notes: Synthetic weight from restcountries.com population
+- country_iso: JM
+  weight: 0.00035233438488660234
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MD
+  weight: 0.000342799121679408
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GA
+  weight: 0.0003079116401170704
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GM
+  weight: 0.0003021027958783831
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AL
+  weight: 0.0002946960955072353
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BW
+  weight: 0.0002942340963679528
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SI
+  weight: 0.00026568230016804574
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LS
+  weight: 0.0002639102435504091
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LV
+  weight: 0.0002280692107281273
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MK
+  weight: 0.00022727265188825232
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GW
+  weight: 0.0002221222031840891
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GQ
+  weight: 0.00020808890139330537
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BH
+  weight: 0.00019884717286191967
+  notes: Synthetic weight from restcountries.com population
+- country_iso: XK
+  weight: 0.00019771393448734492
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CY
+  weight: 0.00017988837417460174
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TL
+  weight: 0.0001734798662757769
+  notes: Synthetic weight from restcountries.com population
+- country_iso: EE
+  weight: 0.00017083306634854058
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TT
+  weight: 0.00017055486929597936
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MU
+  weight: 0.00015508968191372977
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SZ
+  weight: 0.00015406817126622577
+  notes: Synthetic weight from restcountries.com population
+- country_iso: DJ
+  weight: 0.00013302694730872757
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KM
+  weight: 0.00011470808912958722
+  notes: Synthetic weight from restcountries.com population
+- country_iso: FJ
+  weight: 0.00011233487249832547
+  notes: Synthetic weight from restcountries.com population
+- country_iso: RE
+  weight: 0.00011174954889244367
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BT
+  weight: 9.77671231202368e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GY
+  weight: 9.638698642021552e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SB
+  weight: 9.356261921245605e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MO
+  weight: 8.55290714261468e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LU
+  weight: 8.503938974734453e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ME
+  weight: 7.772646086141684e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SR
+  weight: 7.687516042312219e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: EH
+  weight: 7.493039967379694e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MT
+  weight: 7.160674918569004e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MV
+  weight: 6.423496372925186e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CV
+  weight: 6.125485106266273e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BN
+  weight: 5.679908446509676e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BZ
+  weight: 5.2077341035117934e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BS
+  weight: 4.964963219768442e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IS
+  weight: 4.885718832990025e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GP
+  weight: 4.720508938351591e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MQ
+  weight: 4.3634291177714565e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VU
+  weight: 4.007845650678877e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: YT
+  weight: 4.0015110875815625e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GF
+  weight: 3.6455410625046975e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PF
+  weight: 3.485256664762798e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BB
+  weight: 3.339362199726216e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NC
+  weight: 3.299409561608505e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: ST
+  weight: 2.6137180455489653e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: WS
+  weight: 2.5632161153439946e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LC
+  weight: 2.2956556421568196e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CW
+  weight: 1.9466935392466696e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GU
+  weight: 1.918275292595527e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SC
+  weight: 1.5303830597841624e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KI
+  weight: 1.5055810007279435e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VC
+  weight: 1.382530865601363e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GD
+  weight: 1.3594496130558319e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AW
+  weight: 1.3413063270192312e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: FM
+  weight: 1.3163421630018604e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AG
+  weight: 1.2918892530927376e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: JE
+  weight: 1.2876994633275844e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TO
+  weight: 1.2491933002478437e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AD
+  weight: 1.1023885535063324e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VI
+  weight: 1.0866768418870083e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KY
+  weight: 1.056650015236744e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: IM
+  weight: 1.0540563358583159e-05
+  notes: Synthetic weight from restcountries.com population
+- country_iso: DM
+  weight: 8.405516324090543e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GG
+  weight: 8.07793960644003e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BM
+  weight: 7.98741022044297e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GL
+  weight: 7.0505682411097714e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: FO
+  weight: 6.843946763703262e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: KN
+  weight: 6.399405081775556e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TC
+  weight: 6.338054588785814e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AS
+  weight: 6.198644322195302e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MP
+  weight: 5.901742851039658e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MH
+  weight: 5.289360186257902e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SX
+  weight: 5.156060029741572e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: LI
+  weight: 5.100071470082234e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VG
+  weight: 4.921880708939263e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MC
+  weight: 4.7911991710261534e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: GI
+  weight: 4.73845271058985e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SM
+  weight: 4.256128103101389e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BQ
+  weight: 3.987782044333248e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MF
+  weight: 3.927429120335209e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AX
+  weight: 3.822434983958455e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PW
+  weight: 2.0865402422710517e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AI
+  weight: 1.9963849446458818e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CK
+  weight: 1.8754297044018776e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NR
+  weight: 1.4564507278865646e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: WF
+  weight: 1.4489689604487912e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TV
+  weight: 1.327140847337047e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: BL
+  weight: 1.3170404612960526e-06
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PM
+  weight: 7.256067453400616e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SH
+  weight: 7.04657796514296e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: MS
+  weight: 5.46917199701239e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: FK
+  weight: 4.5663720595210613e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TK
+  weight: 3.252074912952192e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: SJ
+  weight: 3.1548119362611373e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NF
+  weight: 2.7283511923080507e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CX
+  weight: 2.1098584174521124e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: NU
+  weight: 2.0961418438161944e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: AQ
+  weight: 1.6210496115175805e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: VA
+  weight: 1.0998198133526969e-07
+  notes: Synthetic weight from restcountries.com population
+- country_iso: CC
+  weight: 7.394480150999425e-08
+  notes: Synthetic weight from restcountries.com population
+- country_iso: TF
+  weight: 4.987844958515632e-08
+  notes: Synthetic weight from restcountries.com population
+- country_iso: PN
+  weight: 4.364364338701178e-09
+  notes: Synthetic weight from restcountries.com population

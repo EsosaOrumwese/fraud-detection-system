@@ -1,108 +1,106 @@
-version: "synthetic-v0.2"
-# Synthetic MCC×channel ladder derived from in-repo MCC codes (artefacts/data-intake/1A/.../mcc_codes.csv).
-# Goal: tighter realism for virtual-heavy industries (digital goods, telecom, SaaS, direct marketing) without overfitting.
-# TODO: replace with governed, reviewed policy pack when available.
+version: synthetic-v0.3
 rules:
-  # Telecom / data services (remote by nature)
-  - mcc: "4812"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Telecom equipment/phone sales → virtual for CNP"
-  - mcc: "4814"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Telecom/fax/data services → virtual for CNP"
-  - mcc: "4815"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "VisaPhone/telecom card sales → virtual for CNP"
-  - mcc: "4821"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Telegraph/data comms → virtual for CNP"
-  - mcc: "4899"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Cable/OTT/streaming → virtual for CNP"
-
-  # Software / IT / SaaS
-  - mcc: "5045"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Computers/peripherals/software → virtual for CNP"
-  - mcc: "5734"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Computer software stores → virtual for CNP"
-  - mcc: "7372"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Computer programming/data processing/SaaS → virtual for CNP"
-
-  # Digital goods (explicit MCCs)
-  - mcc: "5815"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Digital goods media/books/movies/music → virtual for CNP"
-  - mcc: "5816"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Digital goods games → virtual for CNP"
-  - mcc: "5817"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Digital goods apps → virtual for CNP"
-  - mcc: "5818"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Large digital goods merchant → virtual for CNP"
-
-  # Direct marketing / subscription / mail-order
-  - mcc: "5961"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Mail order/catalog/direct clubs → virtual for CNP"
-  - mcc: "5962"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Direct marketing travel-related → virtual for CNP"
-  - mcc: "5964"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Direct marketing catalog merchant → virtual for CNP"
-  - mcc: "5965"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Direct marketing catalog + retail → virtual for CNP"
-  - mcc: "5966"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Outbound telemarketing → virtual for CNP"
-  - mcc: "5967"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Inbound teleservices → virtual for CNP"
-  - mcc: "5968"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Continuity/subscription merchant → virtual for CNP"
-  - mcc: "5969"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Other direct marketing → virtual for CNP"
-
-  # Outlier online-heavy MCCs from the raw table
-  - mcc: "5994"
-    channel: "card_not_present"
-    decision: virtual
-    notes: "Newsstands/digital publications tilt virtual for CNP"
-
-  # Guardrails: everything else defaults to physical (both CP and CNP if unmatched).
-  - mcc: "*"
-    channel: "card_present"
-    decision: physical
-    notes: "Default physical for CP"
-  - mcc: "*"
-    channel: "card_not_present"
-    decision: physical
-    notes: "Default physical for non-matched CNP MCCs"
+- mcc: '4812'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 4812 (Telecommunications Equipment including
+    telephone sales)'
+- mcc: '4814'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 4814 (Fax services, Telecommunication Services)'
+- mcc: '4815'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 4815 (VisaPhone)'
+- mcc: '4899'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 4899 (Cable and other pay television (previously
+    Cable Services))'
+- mcc: '5045'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5045 (Computers, Computer Peripheral Equipment,
+    Software)'
+- mcc: '5734'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5734 (Computer Software Stores)'
+- mcc: '5815'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5815 (Digital Goods: Media, Books, Movies,
+    Music)'
+- mcc: '5816'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5816 (Digital Goods: Games)'
+- mcc: '5817'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5817 (Digital Goods: Applications (Excludes
+    Games))'
+- mcc: '5818'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5818 (Digital Goods: Large Digital Goods
+    Merchant)'
+- mcc: '5961'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5961 (Mail Order Houses Including Catalog
+    Order Stores, Book/Record Clubs (No longer permitted for U.S. original presentments))'
+- mcc: '5964'
+  channel: card_not_present
+  decision: virtual
+  notes: "Synthetic: keyword match for MCC 5964 (Direct Marketing \u2013 Catalog Merchant)"
+- mcc: '5965'
+  channel: card_not_present
+  decision: virtual
+  notes: "Synthetic: keyword match for MCC 5965 (Direct Marketing \u2013 Catalog and\
+    \ Catalog and Retail Merchant)"
+- mcc: '5966'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 5966 (Direct Marketing- Outbound Telemarketing
+    Merchant)'
+- mcc: '5967'
+  channel: card_not_present
+  decision: virtual
+  notes: "Synthetic: keyword match for MCC 5967 (Direct Marketing \u2013 Inbound Teleservices\
+    \ Merchant)"
+- mcc: '5968'
+  channel: card_not_present
+  decision: virtual
+  notes: "Synthetic: keyword match for MCC 5968 (Direct Marketing \u2013 Continuity/Subscription\
+    \ Merchant)"
+- mcc: '7372'
+  channel: card_not_present
+  decision: virtual
+  notes: 'Synthetic: keyword match for MCC 7372 (Computer Programming, Integrated
+    Systems Design and Data Processing Services)'
+- mcc: '4821'
+  channel: card_not_present
+  decision: virtual
+  notes: Synthetic virtual-heavy MCC
+- mcc: '5962'
+  channel: card_not_present
+  decision: virtual
+  notes: Synthetic virtual-heavy MCC
+- mcc: '5969'
+  channel: card_not_present
+  decision: virtual
+  notes: Synthetic virtual-heavy MCC
+- mcc: '5994'
+  channel: card_not_present
+  decision: virtual
+  notes: Synthetic virtual-heavy MCC
+- mcc: '*'
+  channel: card_present
+  decision: physical
+  notes: Default physical for CP
+- mcc: '*'
+  channel: card_not_present
+  decision: physical
+  notes: Default physical for unmatched CNP
