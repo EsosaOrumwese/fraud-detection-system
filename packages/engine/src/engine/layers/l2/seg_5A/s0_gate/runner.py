@@ -52,8 +52,8 @@ class S0Inputs:
     notes: str | None = None
 
     def __post_init__(self) -> None:
-        base = self.base_path.resolve()
-        out = self.output_base_path.resolve()
+        base = Path(self.base_path).absolute()
+        out = Path(self.output_base_path).absolute()
         object.__setattr__(self, "base_path", base)
         object.__setattr__(self, "output_base_path", out)
         if len(self.upstream_manifest_fingerprint) != 64:

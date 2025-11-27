@@ -92,6 +92,7 @@ def render_dataset_path(
     raw_path = entry.get("path")
     if not isinstance(raw_path, str) or not raw_path:
         raise DictionaryError(f"dictionary entry '{dataset_id}' is missing a path template")
+    raw_path = raw_path.strip()
     try:
         return raw_path.format(**template_args)
     except KeyError as exc:
