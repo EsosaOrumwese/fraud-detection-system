@@ -1,7 +1,7 @@
 version: "synthetic-v0.2"
 # Synthetic MCC×channel ladder derived from in-repo MCC codes (artefacts/data-intake/1A/.../mcc_codes.csv).
 # Goal: tighter realism for virtual-heavy industries (digital goods, telecom, SaaS, direct marketing) without overfitting.
-# Replace with governed pack when available.
+# TODO: replace with governed, reviewed policy pack when available.
 rules:
   # Telecom / data services (remote by nature)
   - mcc: "4812"

@@ -1,4 +1,5 @@
 countries:
+# TODO: replace with governed CDN country weights derived from real traffic telemetry (Akamai/Cloudflare), and refresh edge_scale accordingly.
 - country_iso: LU
   notes: synthetic weight from merchant home_country distribution
   weight: 0.0400340289245859
