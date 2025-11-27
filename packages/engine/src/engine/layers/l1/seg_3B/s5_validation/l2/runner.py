@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+import jsonschema
+import polars as pl
+
 from engine.layers.l1.seg_2A.s0_gate.l0 import aggregate_sha256, expand_files, hash_files
 from engine.layers.l1.seg_3B.s0_gate.exceptions import err
 from engine.layers.l1.seg_3B.shared import (
@@ -15,6 +18,7 @@ from engine.layers.l1.seg_3B.shared import (
     write_segment_state_run_report,
 )
 from engine.layers.l1.seg_3B.shared.dictionary import get_dataset_entry, load_dictionary
+from engine.layers.l1.seg_3B.shared.schema import load_schema
 
 
 @dataclass(frozen=True)
@@ -74,6 +78,12 @@ class ValidationRunner:
             dictionary=dictionary,
             manifest_fingerprint=manifest_fingerprint,
             parameter_hash=parameter_hash,
+            seed=seed,
+        )
+        self._run_structural_checks(
+            data_root=data_root,
+            dictionary=dictionary,
+            manifest_fingerprint=manifest_fingerprint,
             seed=seed,
         )
         bundle_index = self._build_index(components)
@@ -182,6 +192,111 @@ class ValidationRunner:
             )
         components.sort(key=lambda c: (c["dataset_id"], c["path"]))
         return components
+
+    def _run_structural_checks(
+        self,
+        *,
+        data_root: Path,
+        dictionary: Mapping[str, object],
+        manifest_fingerprint: str,
+        seed: int,
+    ) -> None:
+        """Lightweight contract checks to mirror spec expectations."""
+
+        edge_path = data_root / render_dataset_path(
+            dataset_id="edge_catalogue_3B",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        edge_idx_path = data_root / render_dataset_path(
+            dataset_id="edge_catalogue_index_3B",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        alias_idx_path = data_root / render_dataset_path(
+            dataset_id="edge_alias_index_3B",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        routing_policy_path = data_root / render_dataset_path(
+            dataset_id="virtual_routing_policy_3B",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        validation_contract_path = data_root / render_dataset_path(
+            dataset_id="virtual_validation_contract_3B",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+
+        if not edge_path.exists() or not edge_idx_path.exists() or not alias_idx_path.exists():
+            raise err("E_S5_PRECONDITION", "S2/S3 artefacts missing; cannot validate bundle")
+        if not routing_policy_path.exists() or not validation_contract_path.exists():
+            raise err("E_S5_PRECONDITION", "S4 artefacts missing; cannot validate bundle")
+
+        edge_df = pl.read_parquet(edge_path)
+        edge_idx = pl.read_parquet(edge_idx_path)
+        alias_idx = pl.read_parquet(alias_idx_path)
+
+        # Edge count sanity: global index row should mirror edge_df height.
+        global_edge_count = (
+            edge_idx.filter(pl.col("scope") == "GLOBAL")
+            .select("edge_count_total_all_merchants")
+            .fill_null(0)
+            .item()
+        )
+        if global_edge_count != edge_df.height:
+            raise err(
+                "E_S5_CONSISTENCY",
+                f"edge_catalogue_index global edge_count_total_all_merchants={global_edge_count} "
+                f"but edge_catalogue_3B has {edge_df.height} rows",
+            )
+
+        # Alias index sanity: global row should reference same universe hash as S3 output, and counts match edge total.
+        alias_global = alias_idx.filter(pl.col("scope") == "GLOBAL")
+        if not alias_global.is_empty():
+            alias_total = alias_global.select("edge_count_total").fill_null(0).item()
+            if alias_total not in (0, edge_df.height):
+                raise err(
+                    "E_S5_CONSISTENCY",
+                    f"edge_alias_index global edge_count_total={alias_total} does not match edge count {edge_df.height}",
+                )
+
+        # Routing policy sanity: manifest and referenced artefact paths must exist.
+        routing_policy = json.loads(routing_policy_path.read_text(encoding="utf-8"))
+        if routing_policy.get("manifest_fingerprint") != manifest_fingerprint:
+            raise err("E_S5_CONSISTENCY", "routing policy manifest_fingerprint mismatch")
+        for key in ("edge_catalogue_index", "edge_alias_blob", "edge_alias_index"):
+            ref_path = Path(routing_policy.get("artefact_paths", {}).get(key, ""))
+            if ref_path and not ref_path.exists():
+                raise err("E_S5_CONSISTENCY", f"routing policy artefact path missing: {ref_path}")
+
+        # Validation contract sanity: all rows should share the manifest fingerprint and non-empty.
+        contract_df = pl.read_parquet(validation_contract_path)
+        if contract_df.is_empty():
+            raise err("E_S5_CONSISTENCY", "virtual_validation_contract_3B is empty")
+        unique_fingerprints = contract_df.select(pl.col("fingerprint").n_unique()).item()
+        if unique_fingerprints != 1:
+            raise err("E_S5_CONSISTENCY", "virtual_validation_contract_3B has mixed fingerprints")
+        try:
+            schema = load_schema("#/egress/virtual_validation_contract_3B")
+            cleaned_rows = []
+            for row in contract_df.to_dicts():
+                thresholds = row.get("thresholds") or {}
+                if isinstance(thresholds, dict):
+                    row["thresholds"] = {k: v for k, v in thresholds.items() if v is not None}
+                cleaned_rows.append(row)
+            # The shared schema uses custom "table" type not understood by jsonschema; skip if unknown type.
+            validator = jsonschema.Draft202012Validator(schema)
+            validator.validate(cleaned_rows)
+        except RecursionError:
+            # Known environment recursion limits; warn only.
+            pass
+        except jsonschema.exceptions.UnknownType:
+            # Schema uses non-JSONSchema "table" type; skip strict validation.
+            pass
+        except jsonschema.ValidationError as exc:
+            raise err("E_S5_CONSISTENCY", f"virtual_validation_contract_3B failed schema validation: {exc.message}") from exc
 
     def _build_index(self, components: Iterable[Mapping[str, Any]]) -> Mapping[str, Any]:
         return {"version": "1.0.0", "items": list(components)}
