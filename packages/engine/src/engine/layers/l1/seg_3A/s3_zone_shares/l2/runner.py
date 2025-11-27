@@ -376,7 +376,7 @@ class ZoneSharesRunner:
 
         run_report_path = (
             data_root
-            / f"runs/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+            / f"reports/l1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 import polars as pl
+from polars.exceptions import ComputeError
 import yaml
 from jsonschema import Draft202012Validator, ValidationError
 
@@ -122,7 +123,7 @@ class VirtualsRunner:
 
         run_report_path = (
             data_root
-            / f"runs/layer1/3B/s1_virtuals/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+            / f"reports/l1/3B/s1_virtuals/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {
@@ -227,7 +228,25 @@ class VirtualsRunner:
 
     def _load_merchants(self, sealed_index: pl.DataFrame) -> pl.DataFrame:
         path = self._resolve_asset_path(sealed_index, "merchant_ids")
-        df = pl.read_parquet(path)
+        try:
+            df = pl.read_parquet(path)
+        except (ComputeError, Exception):
+            csv_path = path.with_suffix(".csv")
+            if not csv_path.exists():
+                raise err(
+                    "E_IO",
+                    f"unable to read merchants parquet at '{path}' and no CSV fallback at '{csv_path}'",
+                )
+            df = pl.read_csv(
+                csv_path,
+                schema_overrides={
+                    "merchant_id": pl.UInt64,
+                    "mcc": pl.Utf8,
+                    "channel": pl.Utf8,
+                    "home_country_iso": pl.Utf8,
+                },
+                infer_schema_length=10000,
+            )
         required = {"merchant_id", "mcc", "channel", "home_country_iso"}
         missing = required.difference(df.columns)
         if missing:

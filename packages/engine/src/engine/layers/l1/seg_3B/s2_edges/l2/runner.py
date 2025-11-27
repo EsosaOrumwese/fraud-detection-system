@@ -159,7 +159,7 @@ class EdgesRunner:
 
         run_report_path = (
             data_root
-            / f"runs/layer1/3B/s2_edges/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+            / f"reports/l1/3B/s2_edges/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {
