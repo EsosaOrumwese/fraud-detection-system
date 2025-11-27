@@ -240,7 +240,7 @@ class S0GateRunner:
         defaults = {
             "1A": base / f"data/layer1/1A/validation/fingerprint={fingerprint}",
             "1B": base / f"data/layer1/1B/validation/fingerprint={fingerprint}",
-            "2A": base / f"data/layer1/2A/validation/fingerprint={fingerprint}/bundle",
+            "2A": base / f"data/layer1/2A/validation/fingerprint={fingerprint}",
         }
         bundle_paths: dict[str, Path] = {
             "1A": inputs.validation_bundle_1a or defaults["1A"],
@@ -250,6 +250,7 @@ class S0GateRunner:
 
         results: dict[str, Mapping[str, object]] = {}
         for segment, bundle_path in bundle_paths.items():
+            bundle_path = self._resolve_bundle_path(bundle_path)
             if not bundle_path.exists() or not bundle_path.is_dir():
                 raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {bundle_path}")
             bundle_index = load_index(bundle_path)
@@ -349,6 +350,21 @@ class S0GateRunner:
             )
 
         return ensure_unique_assets(assets)
+
+    def _resolve_bundle_path(self, bundle_path: Path) -> Path:
+        """Resolve the bundle directory even if callers point to parent/child paths."""
+
+        candidates: list[Path] = [bundle_path]
+        if bundle_path.name == "bundle":
+            candidates.append(bundle_path.parent)
+        else:
+            candidates.append(bundle_path / "bundle")
+
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_dir():
+                if (candidate / "index.json").exists():
+                    return candidate
+        return bundle_path
 
     def _collect_manifest_digests(self, sealed_assets: Iterable[SealedArtefact]) -> list[ArtifactDigest]:
         digests: list[ArtifactDigest] = []
