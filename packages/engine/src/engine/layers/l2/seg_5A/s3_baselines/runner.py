@@ -82,6 +82,7 @@ class BaselineRunner:
             parameter_hash=inputs.parameter_hash,
             dictionary_path=inputs.dictionary_path,
         )
+        self._assert_upstream_pass(receipt)
         scenarios = scenario_bindings or []
         if not scenarios:
             logger.warning("No scenario bindings resolved; defaulting to baseline")
@@ -107,17 +108,18 @@ class BaselineRunner:
                 data_root=data_root, dictionary=dictionary, manifest_fingerprint=inputs.manifest_fingerprint
             )
             shapes_df = self._load_shapes(
-                data_root=data_root,
-                dictionary=dictionary,
-                parameter_hash=inputs.parameter_hash,
-                scenario_id=scenario_id,
+                data_root=data_root, dictionary=dictionary, parameter_hash=inputs.parameter_hash, scenario_id=scenario_id
             )
             if shapes_df.is_empty():
                 raise RuntimeError(f"S3_SHAPE_JOIN_FAILED: no shapes available for scenario_id={scenario_id}")
+            grid_df = self._load_shape_grid(
+                data_root=data_root, dictionary=dictionary, parameter_hash=inputs.parameter_hash, scenario_id=scenario_id
+            )
 
             baseline_df = self._compose_baseline(
                 profiles=profile_df,
                 shapes=shapes_df,
+                grid=grid_df,
                 manifest_fingerprint=inputs.manifest_fingerprint,
                 parameter_hash=inputs.parameter_hash,
                 scenario_id=scenario_id,
@@ -184,7 +186,17 @@ class BaselineRunner:
             resumed=resumed,
         )
 
-    def _load_profiles(self, *, data_root: Path, dictionary: Mapping[str, object], manifest_fingerprint: str) -> pl.DataFrame:
+    def _assert_upstream_pass(self, receipt: Mapping[str, object]) -> None:
+        upstream = receipt.get("verified_upstream_segments") or {}
+        failing = [
+            seg for seg, info in upstream.items() if isinstance(info, Mapping) and info.get("status") != "PASS"
+        ]
+        if failing:
+            raise RuntimeError(f"S3_UPSTREAM_NOT_PASS: upstream segments not PASS: {failing}")
+
+    def _load_profiles(
+        self, *, data_root: Path, dictionary: Mapping[str, object], manifest_fingerprint: str
+    ) -> pl.DataFrame:
         path = data_root / render_dataset_path(
             dataset_id="merchant_zone_profile_5A",
             template_args={"manifest_fingerprint": manifest_fingerprint},
@@ -193,6 +205,8 @@ class BaselineRunner:
         if not path.exists():
             raise FileNotFoundError(f"S3_REQUIRED_INPUT_MISSING: merchant_zone_profile_5A missing at {path}")
         df = pl.read_parquet(path)
+        if df.is_empty():
+            raise RuntimeError("S3_REQUIRED_INPUT_MISSING: merchant_zone_profile_5A is empty")
         if "channel" not in df.columns:
             df = df.with_columns(pl.lit("").alias("channel"))
         return (
@@ -231,9 +245,8 @@ class BaselineRunner:
         )
         if not path.exists():
             raise FileNotFoundError(f"S3_REQUIRED_INPUT_MISSING: class_zone_shape_5A missing at {path}")
-        files = [path]
         df = pl.read_parquet(
-            files,
+            path,
             columns=[
                 "parameter_hash",
                 "scenario_id",
@@ -259,11 +272,34 @@ class BaselineRunner:
         )
         return df.filter(pl.col("scenario_id") == scenario_id)
 
+    def _load_shape_grid(
+        self, *, data_root: Path, dictionary: Mapping[str, object], parameter_hash: str, scenario_id: str
+    ) -> pl.DataFrame:
+        path = data_root / render_dataset_path(
+            dataset_id="shape_grid_definition_5A",
+            template_args={"parameter_hash": parameter_hash, "scenario_id": scenario_id},
+            dictionary=dictionary,
+        )
+        if not path.exists():
+            raise FileNotFoundError(f"S3_REQUIRED_INPUT_MISSING: shape_grid_definition_5A missing at {path}")
+        df = pl.read_parquet(path, columns=["parameter_hash", "scenario_id", "bucket_index"])
+        df = df.with_columns(
+            [
+                pl.col("parameter_hash").cast(pl.Utf8),
+                pl.col("scenario_id").cast(pl.Utf8),
+                pl.col("bucket_index").cast(pl.Int32),
+            ]
+        )
+        if df.is_empty():
+            raise RuntimeError("S3_REQUIRED_INPUT_MISSING: shape_grid_definition_5A is empty")
+        return df
+
     def _compose_baseline(
         self,
         *,
         profiles: pl.DataFrame,
         shapes: pl.DataFrame,
+        grid: pl.DataFrame,
         manifest_fingerprint: str,
         parameter_hash: str,
         scenario_id: str,
@@ -271,6 +307,10 @@ class BaselineRunner:
         if profiles.is_empty():
             return pl.DataFrame(schema=self._BASELINE_SCHEMA)
 
+        max_bucket = grid["bucket_index"].max()
+        bucket_span = int(max_bucket) + 1
+        if grid["bucket_index"].n_unique() != bucket_span:
+            raise RuntimeError("S3_REQUIRED_INPUT_MISSING: shape_grid_definition_5A has non-contiguous bucket_index")
         joined = profiles.join(
             shapes,
             on=["demand_class", "legal_country_iso", "tzid"],
@@ -281,6 +321,11 @@ class BaselineRunner:
 
         if joined.filter(pl.col("shape_value").is_null()).height > 0:
             raise RuntimeError("S3_SHAPE_JOIN_FAILED: null shape_value after join")
+        expected = profiles.height * bucket_span
+        if joined.height != expected:
+            raise RuntimeError(
+                f"S3_DOMAIN_ALIGNMENT_FAILED: expected {expected} rows (domain x buckets) but got {joined.height}"
+            )
 
         base = (
             joined.with_columns(
