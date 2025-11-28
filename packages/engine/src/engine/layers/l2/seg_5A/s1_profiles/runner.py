@@ -178,9 +178,15 @@ class ProfilesRunner:
 
     def _load_merchants(self, inventory: SealedInventory) -> pl.DataFrame:
         files = inventory.resolve_files("transaction_schema_merchant_ids")
+        try:
+            df = pl.read_parquet(files, columns=["merchant_id", "mcc", "channel", "home_country_iso"])
+        except Exception as exc:
+            logger.warning(
+                "Falling back to CSV for transaction_schema_merchant_ids due to parquet read issue: %s", exc
+            )
+            df = self._load_merchants_csv_fallback(files)
         return (
-            pl.read_parquet(files, columns=["merchant_id", "mcc", "channel", "home_country_iso"])
-            .with_columns(
+            df.with_columns(
                 [
                     pl.col("merchant_id").cast(pl.UInt64),
                     pl.col("mcc").cast(pl.Utf8).fill_null(""),
@@ -190,6 +196,24 @@ class ProfilesRunner:
             )
             .unique(subset=["merchant_id"])
         )
+
+    def _load_merchants_csv_fallback(self, files: list[Path]) -> pl.DataFrame:
+        """Gracefully handle legacy parquet encodings by reading the sibling CSV if present."""
+
+        for path in files:
+            csv_candidate = path.with_suffix(".csv")
+            if csv_candidate.exists():
+                return pl.read_csv(
+                    csv_candidate,
+                    columns=["merchant_id", "mcc", "channel", "home_country_iso"],
+                    dtypes={
+                        "merchant_id": pl.Utf8,
+                        "mcc": pl.Utf8,
+                        "channel": pl.Utf8,
+                        "home_country_iso": pl.Utf8,
+                    },
+                )
+        raise RuntimeError("S1_MERCHANT_LOAD_FAILED: unable to read transaction_schema_merchant_ids (parquet and CSV)")
 
     def _load_zone_domain(self, inventory: SealedInventory) -> pl.DataFrame:
         files = inventory.resolve_files("zone_alloc")
