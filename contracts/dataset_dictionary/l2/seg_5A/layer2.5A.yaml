@@ -80,6 +80,26 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  - id: baseline_intensity_policy_5A
+    status: required
+    owner_subsegment: 5A
+    description: >
+      Baseline intensity policy for 5A.S3; defines scale source, clipping, and weekly-sum tolerance semantics.
+    version: 'v1'
+    format: yaml
+    path: config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml
+    partitioning: []
+    primary_key: []
+    ordering: []
+    schema_ref: schemas.5A.yaml#/policy/baseline_intensity_policy_5A
+    lineage:
+      produced_by: []
+      consumed_by: [5A.S0, 5A.S3, 5A.S5]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
   - id: scenario_horizon_config_5A
     status: required
     owner_subsegment: 5A

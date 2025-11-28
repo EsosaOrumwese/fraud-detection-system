@@ -104,6 +104,23 @@ subsegments:
         cross_layer: false
         notes:
 
+      - manifest_key: mlr.5A.policy.baseline_intensity
+        name: Layer-2 / 5A baseline intensity policy
+        type: dataset
+        category: policy
+        path: config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml
+        schema: schemas.5A.yaml#/policy/baseline_intensity_policy_5A
+        semver: '1.0.0'
+        version: 'v1'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: false
+        notes:
+
       - manifest_key: mlr.5A.policy.shape_library
         name: Layer-2 / 5A shape library
         type: dataset

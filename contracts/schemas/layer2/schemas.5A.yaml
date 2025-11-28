@@ -142,6 +142,9 @@ policy:
   shape_library_5A:
     type: object
     additionalProperties: true
+  baseline_intensity_policy_5A:
+    type: object
+    additionalProperties: true
 
 scenario:
   scenario_horizon_config_5A:

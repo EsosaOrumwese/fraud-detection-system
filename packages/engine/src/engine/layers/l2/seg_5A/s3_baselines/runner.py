@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Mapping, Optional
 
 import polars as pl
+import yaml
 
-from engine.layers.l2.seg_5A.shared.control_plane import load_control_plane
+from engine.layers.l1.seg_3A.s0_gate.l0 import hash_files
+from engine.layers.l2.seg_5A.shared.control_plane import SealedInventory, load_control_plane, compute_sealed_inputs_digest
 from engine.layers.l2.seg_5A.shared.dictionary import load_dictionary, render_dataset_path
 from engine.layers.l2.seg_5A.shared.run_report import SegmentStateKey, write_segment_state_run_report
 
@@ -83,6 +85,35 @@ class BaselineRunner:
             dictionary_path=inputs.dictionary_path,
         )
         self._assert_upstream_pass(receipt)
+        sealed_df = self._ensure_sealed_outputs(
+            data_root=data_root,
+            dictionary=dictionary,
+            manifest_fingerprint=inputs.manifest_fingerprint,
+            parameter_hash=inputs.parameter_hash,
+            sealed_df=sealed_df,
+            receipt_path=data_root
+            / render_dataset_path(
+                dataset_id="s0_gate_receipt_5A",
+                template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
+                dictionary=dictionary,
+            ),
+            sealed_path=data_root
+            / render_dataset_path(
+                dataset_id="sealed_inputs_5A",
+                template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
+                dictionary=dictionary,
+            ),
+        )
+        inventory = SealedInventory(
+            dataframe=sealed_df,
+            base_path=data_root,
+            repo_root=Path.cwd(),
+            template_args={
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": inputs.parameter_hash,
+            },
+        )
         scenarios = scenario_bindings or []
         if not scenarios:
             logger.warning("No scenario bindings resolved; defaulting to baseline")
@@ -104,22 +135,20 @@ class BaselineRunner:
             )
             baseline_path.parent.mkdir(parents=True, exist_ok=True)
 
-            profile_df = self._load_profiles(
-                data_root=data_root, dictionary=dictionary, manifest_fingerprint=inputs.manifest_fingerprint
-            )
-            shapes_df = self._load_shapes(
-                data_root=data_root, dictionary=dictionary, parameter_hash=inputs.parameter_hash, scenario_id=scenario_id
-            )
+            profile_df = self._load_profiles(inventory=inventory)
+            shapes_df = self._load_shapes(inventory=inventory, scenario_id=scenario_id)
             if shapes_df.is_empty():
                 raise RuntimeError(f"S3_SHAPE_JOIN_FAILED: no shapes available for scenario_id={scenario_id}")
             grid_df = self._load_shape_grid(
-                data_root=data_root, dictionary=dictionary, parameter_hash=inputs.parameter_hash, scenario_id=scenario_id
+                inventory=inventory, scenario_id=scenario_id
             )
+            baseline_policy = self._load_baseline_policy(inventory=inventory)
 
             baseline_df = self._compose_baseline(
                 profiles=profile_df,
                 shapes=shapes_df,
                 grid=grid_df,
+                policy=baseline_policy,
                 manifest_fingerprint=inputs.manifest_fingerprint,
                 parameter_hash=inputs.parameter_hash,
                 scenario_id=scenario_id,
@@ -194,17 +223,9 @@ class BaselineRunner:
         if failing:
             raise RuntimeError(f"S3_UPSTREAM_NOT_PASS: upstream segments not PASS: {failing}")
 
-    def _load_profiles(
-        self, *, data_root: Path, dictionary: Mapping[str, object], manifest_fingerprint: str
-    ) -> pl.DataFrame:
-        path = data_root / render_dataset_path(
-            dataset_id="merchant_zone_profile_5A",
-            template_args={"manifest_fingerprint": manifest_fingerprint},
-            dictionary=dictionary,
-        )
-        if not path.exists():
-            raise FileNotFoundError(f"S3_REQUIRED_INPUT_MISSING: merchant_zone_profile_5A missing at {path}")
-        df = pl.read_parquet(path)
+    def _load_profiles(self, *, inventory: SealedInventory) -> pl.DataFrame:
+        files = inventory.resolve_files("merchant_zone_profile_5A")
+        df = pl.read_parquet(files)
         if df.is_empty():
             raise RuntimeError("S3_REQUIRED_INPUT_MISSING: merchant_zone_profile_5A is empty")
         if "channel" not in df.columns:
@@ -235,18 +256,10 @@ class BaselineRunner:
             .unique(subset=["merchant_id", "legal_country_iso", "tzid", "channel"])
         )
 
-    def _load_shapes(
-        self, *, data_root: Path, dictionary: Mapping[str, object], parameter_hash: str, scenario_id: str
-    ) -> pl.DataFrame:
-        path = data_root / render_dataset_path(
-            dataset_id="class_zone_shape_5A",
-            template_args={"parameter_hash": parameter_hash, "scenario_id": scenario_id},
-            dictionary=dictionary,
-        )
-        if not path.exists():
-            raise FileNotFoundError(f"S3_REQUIRED_INPUT_MISSING: class_zone_shape_5A missing at {path}")
+    def _load_shapes(self, *, inventory: SealedInventory, scenario_id: str) -> pl.DataFrame:
+        files = inventory.resolve_files("class_zone_shape_5A", template_overrides={"scenario_id": scenario_id})
         df = pl.read_parquet(
-            path,
+            files,
             columns=[
                 "parameter_hash",
                 "scenario_id",
@@ -272,17 +285,9 @@ class BaselineRunner:
         )
         return df.filter(pl.col("scenario_id") == scenario_id)
 
-    def _load_shape_grid(
-        self, *, data_root: Path, dictionary: Mapping[str, object], parameter_hash: str, scenario_id: str
-    ) -> pl.DataFrame:
-        path = data_root / render_dataset_path(
-            dataset_id="shape_grid_definition_5A",
-            template_args={"parameter_hash": parameter_hash, "scenario_id": scenario_id},
-            dictionary=dictionary,
-        )
-        if not path.exists():
-            raise FileNotFoundError(f"S3_REQUIRED_INPUT_MISSING: shape_grid_definition_5A missing at {path}")
-        df = pl.read_parquet(path, columns=["parameter_hash", "scenario_id", "bucket_index"])
+    def _load_shape_grid(self, *, inventory: SealedInventory, scenario_id: str) -> pl.DataFrame:
+        files = inventory.resolve_files("shape_grid_definition_5A", template_overrides={"scenario_id": scenario_id})
+        df = pl.read_parquet(files, columns=["parameter_hash", "scenario_id", "bucket_index"])
         df = df.with_columns(
             [
                 pl.col("parameter_hash").cast(pl.Utf8),
@@ -300,6 +305,7 @@ class BaselineRunner:
         profiles: pl.DataFrame,
         shapes: pl.DataFrame,
         grid: pl.DataFrame,
+        policy: Mapping[str, object],
         manifest_fingerprint: str,
         parameter_hash: str,
         scenario_id: str,
@@ -327,6 +333,12 @@ class BaselineRunner:
                 f"S3_DOMAIN_ALIGNMENT_FAILED: expected {expected} rows (domain x buckets) but got {joined.height}"
             )
 
+        scale_field = str(policy.get("scale_source") or "weekly_volume_expected")
+        if scale_field not in {"weekly_volume_expected", "scale_factor"}:
+            scale_field = "weekly_volume_expected"
+        clip_min = policy.get("clip_min")
+        clip_max = policy.get("clip_max")
+
         base = (
             joined.with_columns(
                 [
@@ -336,19 +348,110 @@ class BaselineRunner:
                     pl.concat_str(
                         [pl.col("legal_country_iso"), pl.lit("::"), pl.col("tzid")]
                     ).alias("zone_id"),
-                    (pl.col("weekly_volume_expected") * pl.col("shape_value")).alias("lambda_local_base"),
+                    (pl.col(scale_field).fill_null(0.0) * pl.col("shape_value")).alias("lambda_local_base"),
                     pl.lit(self._S3_SPEC_VERSION).alias("s3_spec_version"),
-                    pl.lit("weekly_volume_expected").alias("scale_source"),
+                    pl.lit(scale_field).alias("scale_source"),
                     pl.lit(False).alias("baseline_clip_applied"),
                 ]
             )
             .select(list(self._BASELINE_SCHEMA.keys()))
         )
 
-        self._assert_weekly_sums(base)
+        self._assert_weekly_sums(base, policy)
         return base
 
-    def _assert_weekly_sums(self, baseline: pl.DataFrame) -> None:
+    def _ensure_sealed_outputs(
+        self,
+        *,
+        data_root: Path,
+        dictionary: Mapping[str, object],
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        sealed_df: pl.DataFrame,
+        receipt_path: Path,
+        sealed_path: Path,
+    ) -> pl.DataFrame:
+        required = (
+            ("merchant_zone_profile_5A", {"manifest_fingerprint": manifest_fingerprint}),
+            ("shape_grid_definition_5A", {"parameter_hash": parameter_hash, "scenario_id": "baseline"}),
+            ("class_zone_shape_5A", {"parameter_hash": parameter_hash, "scenario_id": "baseline"}),
+            ("baseline_intensity_policy_5A", {}),
+        )
+        present = set(sealed_df["artifact_id"].to_list())
+        new_rows = []
+        for dataset_id, template_args in required:
+            if dataset_id in present:
+                continue
+            path = data_root / render_dataset_path(dataset_id=dataset_id, template_args=template_args, dictionary=dictionary)
+            if not path.exists():
+                continue
+            entry = dictionary
+            schema_ref = ""
+            partition_keys = []
+            if isinstance(entry, Mapping):
+                try:
+                    # naive lookup by id
+                    entries = entry.get("datasets") or []
+                    for item in entries:
+                        if isinstance(item, Mapping) and item.get("id") == dataset_id:
+                            schema_ref = str(item.get("schema_ref") or "")
+                            pk = item.get("partitioning") or item.get("partition_keys") or []
+                            if isinstance(pk, list):
+                                partition_keys = [str(v) for v in pk]
+                            break
+                except Exception:
+                    pass
+            digest = hash_files([path], error_prefix=dataset_id)[0].sha256_hex
+            new_rows.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "parameter_hash": parameter_hash,
+                    "owner_layer": "layer2",
+                    "owner_segment": "5A",
+                    "artifact_id": dataset_id,
+                    "manifest_key": dataset_id,
+                    "role": "model",
+                    "schema_ref": schema_ref,
+                    "path_template": render_dataset_path(dataset_id=dataset_id, template_args=template_args, dictionary=dictionary),
+                    "partition_keys": partition_keys,
+                    "sha256_hex": digest,
+                    "version": str(template_args.get("manifest_fingerprint") or template_args.get("parameter_hash") or "static"),
+                    "source_dictionary": "",
+                    "source_registry": "",
+                    "status": "REQUIRED",
+                    "read_scope": "ROW_LEVEL",
+                    "notes": "sealed_by=S3",
+                    "license_class": "",
+                    "owner_team": "",
+                }
+            )
+        if not new_rows:
+            return sealed_df
+        updated = pl.concat([sealed_df, pl.DataFrame(new_rows)]).sort(
+            ["owner_layer", "owner_segment", "artifact_id"]
+        )
+        # write updated sealed_inputs and patch receipt digest
+        updated.write_parquet(sealed_path)
+        from engine.layers.l2.seg_5A.shared.control_plane import compute_sealed_inputs_digest
+
+        digest = compute_sealed_inputs_digest(updated.sort(["owner_layer", "owner_segment", "artifact_id"]).to_dicts())
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["sealed_inputs_digest"] = digest
+            receipt_path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return updated
+
+    def _load_baseline_policy(self, *, inventory: SealedInventory) -> Mapping[str, object]:
+        files = inventory.resolve_files("baseline_intensity_policy_5A")
+        path = files[0]
+        return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+    def _assert_weekly_sums(self, baseline: pl.DataFrame, policy: Mapping[str, object]) -> None:
+        tol_conf = policy.get("weekly_sum_tolerance") if isinstance(policy, Mapping) else {}
+        tol_rel = float(tol_conf.get("rel", 1e-8)) if isinstance(tol_conf, Mapping) else 1e-8
+        tol_abs = float(tol_conf.get("abs", 1e-6)) if isinstance(tol_conf, Mapping) else 1e-6
         grouped = (
             baseline.group_by(["merchant_id", "legal_country_iso", "tzid", "channel"])
             .agg(
@@ -363,9 +466,7 @@ class BaselineRunner:
                 ]
             )
         )
-        violations = grouped.filter(
-            pl.col("delta").abs() > (pl.col("weekly_volume_expected").abs() * 1e-8 + 1e-6)
-        )
+        violations = grouped.filter(pl.col("delta").abs() > (pl.col("weekly_volume_expected").abs() * tol_rel + tol_abs))
         if violations.height > 0:
             sample = violations.head(5).to_dicts()
             raise RuntimeError(f"S3_INTENSITY_NUMERIC_INVALID: weekly sum mismatch for {violations.height} rows; sample={sample}")

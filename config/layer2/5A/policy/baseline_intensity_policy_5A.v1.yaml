@@ -1,0 +1,9 @@
+version: v1
+scale_source: weekly_volume_expected  # or scale_factor
+clip_min: 0.0
+clip_max: null
+weekly_sum_tolerance:
+  rel: 1e-8
+  abs: 1e-6
+notes: |
+  Governs S3 baseline composition: choose the base scale field and numeric tolerances.
