@@ -89,6 +89,7 @@ class OverlaysRunner:
 
             horizon_cfg = self._load_horizon_config(inventory=inventory, scenario_id=scenario_id)
             overlay_policy = self._load_overlay_policy(inventory=inventory)
+            calendar_df = self._load_calendar(inventory=inventory, scenario_id=scenario_id)
             horizon_df = self._build_horizon(horizon_cfg)
 
             scenario_df, factors_df = self._compose_scenario(
@@ -99,6 +100,7 @@ class OverlaysRunner:
                 parameter_hash=inputs.parameter_hash,
                 scenario_id=scenario_id,
                 overlay_policy=overlay_policy,
+                calendar=calendar_df,
             )
             scenario_local_path = data_root / render_dataset_path(
                 dataset_id="merchant_zone_scenario_local_5A",
@@ -118,23 +120,7 @@ class OverlaysRunner:
                 overlay_factors_path.parent.mkdir(parents=True, exist_ok=True)
                 self._write_parquet(overlay_factors_path, factors_df)
 
-            if baseline_df.is_empty():
-                scenario_utc_path = None
-            else:
-                utc_df = self._project_utc(
-                    scenario_df,
-                    manifest_fingerprint=inputs.manifest_fingerprint,
-                    parameter_hash=inputs.parameter_hash,
-                    scenario_id=scenario_id,
-                )
-                if utc_df is not None:
-                    scenario_utc_path = data_root / render_dataset_path(
-                        dataset_id="merchant_zone_scenario_utc_5A",
-                        template_args={"manifest_fingerprint": inputs.manifest_fingerprint, "scenario_id": scenario_id},
-                        dictionary=dictionary,
-                    )
-                    scenario_utc_path.parent.mkdir(parents=True, exist_ok=True)
-                    self._write_parquet(scenario_utc_path, utc_df)
+            # UTC projection deferred until governed civil-time mapping is available.
 
         run_report_path = (
             data_root / "reports/l2/5A/s4_overlays" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
@@ -235,17 +221,32 @@ class OverlaysRunner:
         files = inventory.resolve_files("scenario_overlay_policy_5A")
         return yaml.safe_load(Path(files[0]).read_text(encoding="utf-8")) or {}
 
+    def _load_calendar(self, *, inventory: SealedInventory, scenario_id: str) -> pl.DataFrame:
+        files = inventory.resolve_files("scenario_calendar_5A", template_overrides={"scenario_id": scenario_id})
+        df = pl.read_parquet(files)
+        # Expect flexible columns; normalize some likely names.
+        if "local_horizon_bucket_index" in df.columns:
+            df = df.with_columns(pl.col("local_horizon_bucket_index").cast(pl.Int32))
+        elif "bucket_index" in df.columns:
+            df = df.with_columns(pl.col("bucket_index").cast(pl.Int32).alias("local_horizon_bucket_index"))
+        return df
+
     def _build_horizon(self, cfg: Mapping[str, object]) -> pl.DataFrame:
         horizon_days = int(cfg.get("horizon_days") or 7)
         bucket_minutes = int(cfg.get("bucket_minutes") or 60)
         buckets = max(1, horizon_days * 24 * 60 // bucket_minutes)
-        rows = [
-            {
-                "local_horizon_bucket_index": idx,
-                "bucket_minutes": bucket_minutes,
-            }
-            for idx in range(buckets)
-        ]
+        rows = []
+        for idx in range(buckets):
+            day_index = (idx * bucket_minutes) // (24 * 60)
+            minutes_within_day = (idx * bucket_minutes) % (24 * 60)
+            rows.append(
+                {
+                    "local_horizon_bucket_index": idx,
+                    "bucket_minutes": bucket_minutes,
+                    "local_day_index": day_index,
+                    "local_minutes_since_midnight": minutes_within_day,
+                }
+            )
         return pl.DataFrame(rows)
 
     def _compose_scenario(
@@ -258,6 +259,7 @@ class OverlaysRunner:
         parameter_hash: str,
         scenario_id: str,
         overlay_policy: Mapping[str, object],
+        calendar: pl.DataFrame,
     ) -> tuple[pl.DataFrame, pl.DataFrame | None]:
         if horizon.is_empty():
             raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty")
@@ -276,6 +278,7 @@ class OverlaysRunner:
         overlay_factor = float(
             overlay_policy.get("overlays", {}).get(scenario_id, {}).get("factors", {}).get("default", 1.0)
         )
+        factors_by_bucket = self._resolve_calendar_factors(calendar, overlay_policy, scenario_id, overlay_factor)
         scenario_df = (
             joined.with_columns(
                 [
@@ -284,9 +287,16 @@ class OverlaysRunner:
                     pl.lit(scenario_id).alias("scenario_id"),
                     (pl.col("legal_country_iso") + pl.lit("::") + pl.col("tzid")).alias("zone_id"),
                     pl.col("local_horizon_bucket_index").cast(pl.Int32),
-                    (pl.col("lambda_local_base") * overlay_factor).alias("lambda_local_scenario"),
+                    (
+                        pl.col("lambda_local_base")
+                        * pl.col("local_horizon_bucket_index").map_elements(
+                            lambda idx: factors_by_bucket.get(int(idx), overlay_factor)
+                        )
+                    ).alias("lambda_local_scenario"),
                     pl.lit(self._S4_SPEC_VERSION).alias("s4_spec_version"),
-                    pl.lit(overlay_factor).alias("overlay_factor_total"),
+                    pl.col("local_horizon_bucket_index").map_elements(
+                        lambda idx: factors_by_bucket.get(int(idx), overlay_factor)
+                    ).alias("overlay_factor_total"),
                 ]
             )
             .select(
@@ -324,6 +334,39 @@ class OverlaysRunner:
             ]
         )
         return scenario_df, factors_df
+
+    def _resolve_calendar_factors(
+        self,
+        calendar: pl.DataFrame,
+        overlay_policy: Mapping[str, object],
+        scenario_id: str,
+        default_factor: float,
+    ) -> dict[int, float]:
+        factors: dict[int, float] = {}
+        if calendar.is_empty():
+            return factors
+        base_events = overlay_policy.get("overlays", {}).get(scenario_id, {}).get("events", []) or []
+        factor_map = {}
+        for event in base_events:
+            if not isinstance(event, Mapping):
+                continue
+            name = str(event.get("event_type") or "").strip()
+            factor = float(event.get("factor", 1.0))
+            if name:
+                factor_map[name] = factor
+        if "local_horizon_bucket_index" in calendar.columns:
+            if "event_type" in calendar.columns:
+                for row in calendar.select(["local_horizon_bucket_index", "event_type"]).to_dicts():
+                    idx = int(row.get("local_horizon_bucket_index", -1))
+                    event_type = str(row.get("event_type") or "").strip()
+                    factor = factor_map.get(event_type, default_factor)
+                    factors[idx] = factors.get(idx, 1.0) * factor
+            elif "factor" in calendar.columns:
+                for row in calendar.select(["local_horizon_bucket_index", "factor"]).to_dicts():
+                    idx = int(row.get("local_horizon_bucket_index", -1))
+                    factor = float(row.get("factor") or default_factor)
+                    factors[idx] = factors.get(idx, 1.0) * factor
+        return factors
 
     def _project_utc(
         self,
