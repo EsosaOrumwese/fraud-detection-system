@@ -374,7 +374,15 @@ def build_dataset(args: argparse.Namespace) -> None:
 
     enforce_global_mix(records, channel_policy)
 
-    df = pl.DataFrame(records).sort("merchant_id")
+    df = pl.DataFrame(
+        records,
+        schema={
+            "merchant_id": pl.UInt64,
+            "mcc": pl.Int32,
+            "channel": pl.Utf8,
+            "home_country_iso": pl.Utf8,
+        },
+    ).sort("merchant_id")
 
     # Policy gates from numeric manifest
     merchants_policy = numeric_policy.get("merchants", {})
