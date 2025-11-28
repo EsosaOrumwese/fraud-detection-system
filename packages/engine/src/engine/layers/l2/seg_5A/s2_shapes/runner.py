@@ -309,7 +309,6 @@ class ShapesRunner:
 
     @staticmethod
     def _render_shape(
-        self,
         *,
         template_type: str,
         buckets_per_week: int,
