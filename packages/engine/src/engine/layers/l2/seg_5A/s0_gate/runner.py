@@ -149,6 +149,14 @@ class ScenarioCalendarInfo:
 
 _LAYER1_DATASET_SPECS: tuple[Layer1DatasetSpec, ...] = (
     Layer1DatasetSpec(
+        owner_segment="1A",
+        dataset_id="transaction_schema_merchant_ids",
+        dictionary_rel_path="contracts/dataset_dictionary/l1/seg_1A/layer1.1A.yaml",
+        role="reference_data",
+        manifest_scope="static",
+        base="repo",
+    ),
+    Layer1DatasetSpec(
         owner_segment="2A",
         dataset_id="site_timezones",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml",
@@ -367,12 +375,12 @@ class S0GateRunner:
             declared_flag = self._read_pass_flag(bundle_path)
             if computed_flag != declared_flag:
                 raise ValueError(f"{segment} computed digest does not match _passed.flag")
-        results[segment] = {
-            "path": bundle_path,
-            "bundle_sha256_hex": computed_flag,
-            "flag_sha256_hex": declared_flag,
-            "manifest_fingerprint": self._extract_manifest_fingerprint(bundle_path),
-        }
+            results[segment] = {
+                "path": bundle_path,
+                "bundle_sha256_hex": computed_flag,
+                "flag_sha256_hex": declared_flag,
+                "manifest_fingerprint": self._extract_manifest_fingerprint(bundle_path),
+            }
         return results
 
     @staticmethod
@@ -469,6 +477,7 @@ class S0GateRunner:
             self._seal_layer1_inputs(
                 inputs=inputs,
                 repo_root=repo_root,
+                upstream_bundles=upstream_bundles,
             )
         )
         layer2_assets, scenario_info = self._seal_layer2_inputs(
@@ -541,6 +550,7 @@ class S0GateRunner:
         *,
         inputs: S0Inputs,
         repo_root: Path,
+        upstream_bundles: Mapping[str, Mapping[str, object]],
     ) -> list[SealedArtefact]:
         assets: list[SealedArtefact] = []
         template_values: MutableMapping[str, object] = {
@@ -558,11 +568,17 @@ class S0GateRunner:
                     f"dictionary entry '{spec.dataset_id}' in '{spec.dictionary_rel_path}' is missing schema_ref"
                 )
             base_dir = inputs.base_path if spec.base == "base" else repo_root
+            dataset_args = dict(template_values)
+            segment_info = upstream_bundles.get(spec.owner_segment)
+            if segment_info and segment_info.get("manifest_fingerprint"):
+                segment_fp = str(segment_info["manifest_fingerprint"])
+                dataset_args["manifest_fingerprint"] = segment_fp
+                dataset_args["fingerprint"] = segment_fp
             try:
                 files = self._expand_dataset_files(
                     base_path=base_dir,
                     template=path_template,
-                    template_args=template_values,
+                    template_args=dataset_args,
                     dataset_id=spec.dataset_id,
                 )
             except FileNotFoundError as err:
@@ -590,6 +606,7 @@ class S0GateRunner:
                     source_registry=self._registry_rel_path(spec.owner_segment),
                     status=spec.status,
                     read_scope=spec.read_scope,
+                    notes=f"source_manifest={dataset_args.get('manifest_fingerprint', '')}",
                 )
             )
         return assets
@@ -634,6 +651,10 @@ class S0GateRunner:
                 for scenario in scenario_plan.scenarios:
                     scenario_values = dict(template_values)
                     scenario_values["scenario_id"] = scenario.scenario_id
+                    fallback_values = dict(scenario_values)
+                    fallback_values["manifest_fingerprint"] = "baseline"
+                    fallback_values["fingerprint"] = "baseline"
+                    last_error: FileNotFoundError | None = None
                     try:
                         files = self._expand_dataset_files(
                             base_path=repo_root,
@@ -642,10 +663,19 @@ class S0GateRunner:
                             dataset_id=f"{dataset_id}:{scenario.scenario_id}",
                         )
                     except FileNotFoundError as err:
-                        if status == "OPTIONAL":
-                            logger.warning("Skipping optional scenario calendar %s: %s", scenario.scenario_id, err)
-                            continue
-                        raise
+                        last_error = err
+                        try:
+                            files = self._expand_dataset_files(
+                                base_path=repo_root,
+                                template=path_template,
+                                template_args=fallback_values,
+                                dataset_id=f"{dataset_id}:{scenario.scenario_id}",
+                            )
+                        except FileNotFoundError:
+                            if status == "OPTIONAL":
+                                logger.warning("Skipping optional scenario calendar %s: %s", scenario.scenario_id, err)
+                                continue
+                            raise last_error
                     scenario_info.per_scenario_paths.setdefault(scenario.scenario_id, []).extend(files)
                     digests = tuple(hash_files(files, error_prefix=f"{dataset_id}:{scenario.scenario_id}"))
                     assets.append(
@@ -873,8 +903,9 @@ class S0GateRunner:
         df = pl.DataFrame(rows)
         if output_path.exists():
             existing = pl.read_parquet(output_path)
-            if existing.frame_equal(df):
+            if existing.to_dicts() == df.to_dicts():
                 return output_path
+            raise RuntimeError("scenario_manifest_5A already exists with different content; remove stale output first")
         df.write_parquet(output_path)
         return output_path
 

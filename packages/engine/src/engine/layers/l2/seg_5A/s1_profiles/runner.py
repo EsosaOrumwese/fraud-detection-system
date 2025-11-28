@@ -11,7 +11,11 @@ from typing import Mapping, Optional
 import polars as pl
 import yaml
 
-from engine.layers.l2.seg_5A.shared.dictionary import load_dictionary, render_dataset_path
+from engine.layers.l2.seg_5A.shared.control_plane import (
+    SealedInventory,
+    load_control_plane,
+)
+from engine.layers.l2.seg_5A.shared.dictionary import load_dictionary, render_dataset_path, repository_root
 from engine.layers.l2.seg_5A.shared.run_report import SegmentStateKey, write_segment_state_run_report
 
 logger = logging.getLogger(__name__)
@@ -68,6 +72,24 @@ class ProfilesRunner:
     def run(self, inputs: ProfilesInputs) -> ProfilesResult:
         dictionary = load_dictionary(inputs.dictionary_path)
         data_root = inputs.data_root.absolute()
+        receipt, sealed_df, scenario_bindings = load_control_plane(
+            data_root=data_root,
+            manifest_fingerprint=inputs.manifest_fingerprint,
+            parameter_hash=inputs.parameter_hash,
+            dictionary_path=inputs.dictionary_path,
+        )
+        repo_root = repository_root()
+        template_args = {
+            "manifest_fingerprint": inputs.manifest_fingerprint,
+            "fingerprint": inputs.manifest_fingerprint,
+            "parameter_hash": inputs.parameter_hash,
+        }
+        inventory = SealedInventory(
+            dataframe=sealed_df,
+            base_path=data_root,
+            repo_root=repo_root,
+            template_args=template_args,
+        )
 
         profile_path = data_root / render_dataset_path(
             dataset_id="merchant_zone_profile_5A",
@@ -82,23 +104,29 @@ class ProfilesRunner:
         profile_path.parent.mkdir(parents=True, exist_ok=True)
         class_profile_path.parent.mkdir(parents=True, exist_ok=True)
 
+        scenario_label = scenario_bindings[0].scenario_id if scenario_bindings else "baseline"
         resumed = profile_path.exists()
         if not resumed:
-            class_policy = self._load_policy(data_root, dictionary, "merchant_class_policy_5A")
-            scale_policy = self._load_policy(data_root, dictionary, "demand_scale_policy_5A")
-            merchants = self._load_merchants()
+            class_policy = self._load_policy(inventory, "merchant_class_policy_5A")
+            scale_policy = self._load_policy(inventory, "demand_scale_policy_5A")
+            merchants = self._load_merchants(inventory)
+            zones = self._load_zone_domain(inventory)
             profiles = self._build_profiles(
+                zones=zones,
                 merchants=merchants,
                 manifest_fingerprint=inputs.manifest_fingerprint,
                 parameter_hash=inputs.parameter_hash,
                 class_policy=class_policy,
                 scale_policy=scale_policy,
+                scenario_label=scenario_label,
             )
             class_profiles = self._summarise_classes(profiles)
             profiles.write_parquet(profile_path)
             class_profiles.write_parquet(class_profile_path)
 
-        run_report_path = data_root / "reports/l2/5A/s1_profiles" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
+        run_report_path = (
+            data_root / "reports/l2/5A/s1_profiles" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
+        )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {
             "layer": "layer2",
@@ -111,6 +139,8 @@ class ProfilesRunner:
             "profile_path": str(profile_path),
             "class_profile_path": str(class_profile_path),
             "resumed": resumed,
+            "sealed_inputs_digest": receipt.get("sealed_inputs_digest"),
+            "scenario_ids": [binding.scenario_id for binding in scenario_bindings],
         }
         run_report_path.write_text(json.dumps(run_report, indent=2, sort_keys=True), encoding="utf-8")
         key = SegmentStateKey(
@@ -141,24 +171,42 @@ class ProfilesRunner:
             resumed=resumed,
         )
 
-    def _load_policy(self, data_root: Path, dictionary: Mapping[str, object], dataset_id: str) -> Mapping[str, object]:
-        policy_path = data_root / render_dataset_path(dataset_id=dataset_id, template_args={}, dictionary=dictionary)
-        if not policy_path.exists():
-            raise FileNotFoundError(f"policy '{dataset_id}' missing at {policy_path}")
+    def _load_policy(self, inventory: SealedInventory, dataset_id: str) -> Mapping[str, object]:
+        files = inventory.resolve_files(dataset_id)
+        policy_path = files[0]
         return yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
 
-    def _load_merchants(self) -> pl.DataFrame:
-        base = Path("reference/layer1/transaction_schema_merchant_ids/v2025-10-09/transaction_schema_merchant_ids")
-        parquet_path = base.with_suffix(".parquet")
-        csv_path = base.with_suffix(".csv")
-        if parquet_path.exists():
-            return pl.read_parquet(parquet_path)
-        if csv_path.exists():
-            return pl.read_csv(
-                csv_path, dtypes={"merchant_id": pl.UInt64, "mcc": pl.Utf8, "channel": pl.Utf8, "home_country_iso": pl.Utf8}
+    def _load_merchants(self, inventory: SealedInventory) -> pl.DataFrame:
+        files = inventory.resolve_files("transaction_schema_merchant_ids")
+        return (
+            pl.read_parquet(files, columns=["merchant_id", "mcc", "channel", "home_country_iso"])
+            .with_columns(
+                [
+                    pl.col("merchant_id").cast(pl.UInt64),
+                    pl.col("mcc").cast(pl.Utf8).fill_null(""),
+                    pl.col("channel").cast(pl.Utf8).fill_null(""),
+                    pl.col("home_country_iso").cast(pl.Utf8).fill_null(""),
+                ]
             )
-        logger.warning("Merchant reference not found; emitting empty profiles.")
-        return pl.DataFrame(schema={"merchant_id": pl.UInt64, "mcc": pl.Utf8, "channel": pl.Utf8, "home_country_iso": pl.Utf8})
+            .unique(subset=["merchant_id"])
+        )
+
+    def _load_zone_domain(self, inventory: SealedInventory) -> pl.DataFrame:
+        files = inventory.resolve_files("zone_alloc")
+        lazy = pl.scan_parquet([str(path) for path in files]).select(
+            ["merchant_id", "legal_country_iso", "tzid"]
+        )
+        return (
+            lazy.collect()
+            .with_columns(
+                [
+                    pl.col("merchant_id").cast(pl.UInt64),
+                    pl.col("legal_country_iso").cast(pl.Utf8),
+                    pl.col("tzid").cast(pl.Utf8),
+                ]
+            )
+            .unique(subset=["merchant_id", "legal_country_iso", "tzid"])
+        )
 
     def _class_for_row(self, row: Mapping[str, object], class_policy: Mapping[str, object]) -> str:
         default_class = class_policy.get("default_class", "retail_daytime")
@@ -188,7 +236,9 @@ class ProfilesRunner:
         if not isinstance(selected, Mapping):
             selected = {}
         return {
-            "weekly_volume_expected": float(selected.get("weekly_volume_expected", defaults.get("weekly_volume_expected", 100.0))),
+            "weekly_volume_expected": float(
+                selected.get("weekly_volume_expected", defaults.get("weekly_volume_expected", 100.0))
+            ),
             "weekly_volume_unit": str(selected.get("weekly_volume_unit", defaults.get("weekly_volume_unit", "transactions"))),
             "scale_factor": float(selected.get("scale_factor", defaults.get("scale_factor", 1.0))),
             "high_variability_flag": bool(selected.get("high_variability_flag", False)),
@@ -198,26 +248,45 @@ class ProfilesRunner:
     def _build_profiles(
         self,
         *,
+        zones: pl.DataFrame,
         merchants: pl.DataFrame,
         manifest_fingerprint: str,
         parameter_hash: str,
         class_policy: Mapping[str, object],
         scale_policy: Mapping[str, object],
+        scenario_label: str,
     ) -> pl.DataFrame:
-        if merchants.is_empty():
+        if zones.is_empty():
+            logger.warning("zone_alloc resolved to zero rows; emitting empty profile table")
+            return pl.DataFrame(schema=self._PROFILE_SCHEMA)
+
+        domain = zones.join(merchants, on="merchant_id", how="left")
+        if domain.is_empty():
             return pl.DataFrame(schema=self._PROFILE_SCHEMA)
 
         class_udf = pl.struct(["mcc", "channel"]).map_elements(lambda s: self._class_for_row(s, class_policy))
-        df = merchants.select(
+        df = domain.select(
             [
                 pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                 pl.lit(parameter_hash).alias("parameter_hash"),
                 pl.col("merchant_id").cast(pl.UInt64),
-                pl.col("home_country_iso").cast(pl.Utf8).alias("legal_country_iso"),
-                pl.lit("Etc/UTC").alias("tzid"),
+                pl.col("legal_country_iso").cast(pl.Utf8),
+                pl.col("tzid").cast(pl.Utf8).fill_null("Etc/UTC"),
+                pl.col("mcc").cast(pl.Utf8).fill_null("").alias("mcc"),
+                pl.col("channel").cast(pl.Utf8).fill_null("").alias("channel"),
+            ]
+        ).with_columns(
+            [
                 class_udf.alias("demand_class"),
                 pl.lit(None, dtype=pl.Utf8).alias("demand_subclass"),
-                pl.lit(None, dtype=pl.Utf8).alias("profile_id"),
+                pl.concat_str(
+                    [
+                        pl.col("merchant_id").cast(pl.Utf8),
+                        pl.lit("-"),
+                        pl.col("tzid"),
+                        pl.lit(f"-{scenario_label}"),
+                    ]
+                ).alias("profile_id"),
                 pl.lit(0.0).alias("weekly_volume_expected"),
                 pl.lit(1.0).alias("scale_factor"),
                 pl.lit("transactions").alias("weekly_volume_unit"),
@@ -237,13 +306,14 @@ class ProfilesRunner:
             row["low_volume_flag"] = scale["low_volume_flag"]
             return row
 
-        records = [apply_scale(r) for r in df.to_dicts()]
-        return pl.DataFrame(records, schema=self._PROFILE_SCHEMA)
+        records = [apply_scale(record) for record in df.to_dicts()]
+        profile_df = pl.DataFrame(records, schema=self._PROFILE_SCHEMA)
+        return profile_df
 
     def _summarise_classes(self, profiles: pl.DataFrame) -> pl.DataFrame:
         if profiles.is_empty():
             return pl.DataFrame(schema=self._CLASS_PROFILE_SCHEMA)
-        return (
+        aggregates = (
             profiles.group_by("merchant_id")
             .agg(
                 [
@@ -257,6 +327,7 @@ class ProfilesRunner:
             )
             .select(self._CLASS_PROFILE_SCHEMA.keys())
         )
+        return aggregates
 
 
 __all__ = ["ProfilesRunner", "ProfilesInputs", "ProfilesResult"]
