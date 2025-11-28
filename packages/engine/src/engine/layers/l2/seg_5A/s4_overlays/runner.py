@@ -82,25 +82,25 @@ class OverlaysRunner:
             baseline_df = self._load_baseline(inventory=inventory, scenario_id=scenario_id)
             if baseline_df.is_empty():
                 raise RuntimeError(f"S4_REQUIRED_INPUT_MISSING: baseline empty for scenario_id={scenario_id}")
-            grid_df = self._load_shape_grid(inventory=inventory, scenario_id=scenario_id)
-            bucket_span = int(grid_df["bucket_index"].max()) + 1
-            if grid_df["bucket_index"].n_unique() != bucket_span:
-                raise RuntimeError("S4_GRID_CONTIGUITY_FAILED: shape_grid_definition_5A bucket_index not contiguous")
+        grid_df = self._load_shape_grid(inventory=inventory, scenario_id=scenario_id)
+        bucket_span = int(grid_df["bucket_index"].max()) + 1
+        if grid_df["bucket_index"].n_unique() != bucket_span:
+            raise RuntimeError("S4_GRID_CONTIGUITY_FAILED: shape_grid_definition_5A bucket_index not contiguous")
 
-            horizon_cfg = self._load_horizon_config(inventory=inventory, scenario_id=scenario_id)
-            overlay_policy = self._load_overlay_policy(inventory=inventory)
-            calendar_df = self._load_calendar(inventory=inventory, scenario_id=scenario_id)
-            horizon_df = self._build_horizon(horizon_cfg)
+        horizon_cfg = self._load_horizon_config(inventory=inventory, scenario_id=scenario_id)
+        overlay_policy = self._load_overlay_policy(inventory=inventory)
+        calendar_df = self._load_calendar(inventory=inventory, scenario_id=scenario_id)
+        horizon_df = self._build_horizon(horizon_cfg)
 
-            scenario_df, factors_df = self._compose_scenario(
-                baseline=baseline_df,
-                horizon=horizon_df,
-                bucket_span=bucket_span,
-                manifest_fingerprint=inputs.manifest_fingerprint,
-                parameter_hash=inputs.parameter_hash,
-                scenario_id=scenario_id,
-                overlay_policy=overlay_policy,
-                calendar=calendar_df,
+        scenario_df, factors_df = self._compose_scenario(
+            baseline=baseline_df,
+            horizon=horizon_df,
+            grid=grid_df,
+            manifest_fingerprint=inputs.manifest_fingerprint,
+            parameter_hash=inputs.parameter_hash,
+            scenario_id=scenario_id,
+            overlay_policy=overlay_policy,
+            calendar=calendar_df,
             )
             scenario_local_path = data_root / render_dataset_path(
                 dataset_id="merchant_zone_scenario_local_5A",
@@ -197,12 +197,25 @@ class OverlaysRunner:
 
     def _load_shape_grid(self, *, inventory: SealedInventory, scenario_id: str) -> pl.DataFrame:
         files = inventory.resolve_files("shape_grid_definition_5A", template_overrides={"scenario_id": scenario_id})
-        df = pl.read_parquet(files, columns=["parameter_hash", "scenario_id", "bucket_index"])
+        df = pl.read_parquet(
+            files,
+            columns=[
+                "parameter_hash",
+                "scenario_id",
+                "bucket_index",
+                "local_day_of_week",
+                "local_minutes_since_midnight",
+                "bucket_duration_minutes",
+            ],
+        )
         return df.with_columns(
             [
                 pl.col("parameter_hash").cast(pl.Utf8),
                 pl.col("scenario_id").cast(pl.Utf8),
                 pl.col("bucket_index").cast(pl.Int32),
+                pl.col("local_day_of_week").cast(pl.Int32),
+                pl.col("local_minutes_since_midnight").cast(pl.Int32),
+                pl.col("bucket_duration_minutes").cast(pl.Int32),
             ]
         )
 
@@ -254,7 +267,7 @@ class OverlaysRunner:
         *,
         baseline: pl.DataFrame,
         horizon: pl.DataFrame,
-        bucket_span: int,
+        grid: pl.DataFrame,
         manifest_fingerprint: str,
         parameter_hash: str,
         scenario_id: str,
@@ -263,13 +276,23 @@ class OverlaysRunner:
     ) -> tuple[pl.DataFrame, pl.DataFrame | None]:
         if horizon.is_empty():
             raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty")
-        mapping = horizon.with_columns(
-            (pl.col("local_horizon_bucket_index") % bucket_span).alias("baseline_bucket_index")
+        if grid.is_empty():
+            raise RuntimeError("S4_GRID_INVALID: shape grid is empty")
+        # Join baseline with grid to attach local day/time
+        baseline_with_time = baseline.join(
+            grid,
+            on=["parameter_hash", "scenario_id", "bucket_index"],
+            how="inner",
         )
-        joined = baseline.join(
-            mapping,
-            left_on="bucket_index",
-            right_on="baseline_bucket_index",
+        if baseline_with_time.is_empty():
+            raise RuntimeError("S4_GRID_JOIN_EMPTY: baseline lacks grid time mapping")
+        horizon_map = horizon.with_columns(
+            (pl.col("local_day_index") % 7 + 1).alias("local_day_of_week"),
+            pl.col("local_minutes_since_midnight"),
+        )
+        joined = baseline_with_time.join(
+            horizon_map,
+            on=["local_day_of_week", "local_minutes_since_midnight"],
             how="inner",
         )
         if joined.is_empty():
@@ -376,48 +399,8 @@ class OverlaysRunner:
         parameter_hash: str,
         scenario_id: str,
     ) -> pl.DataFrame | None:
-        if scenario_df.is_empty():
-            return None
-        # Placeholder mapping: align UTC horizon index to local index until civil-time mapping is governed.
-        return (
-            scenario_df.select(
-                [
-                    "merchant_id",
-                    "legal_country_iso",
-                    "tzid",
-                    "zone_id",
-                    "channel",
-                    "channel_group",
-                    pl.col("local_horizon_bucket_index").alias("utc_horizon_bucket_index"),
-                    pl.col("lambda_local_scenario").alias("lambda_utc_scenario"),
-                    pl.col("overlay_factor_total"),
-                ]
-            )
-            .with_columns(
-                [
-                    pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
-                    pl.lit(parameter_hash).alias("parameter_hash"),
-                    pl.lit(scenario_id).alias("scenario_id"),
-                    pl.lit(self._S4_SPEC_VERSION).alias("s4_spec_version"),
-                ]
-            )
-            .select(
-                [
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "scenario_id",
-                    "merchant_id",
-                    "legal_country_iso",
-                    "tzid",
-                    "zone_id",
-                    "channel",
-                    "channel_group",
-                    "utc_horizon_bucket_index",
-                    "lambda_utc_scenario",
-                    "s4_spec_version",
-                ]
-            )
-        )
+        # UTC projection deferred until civil-time mapping is governed; return None.
+        return None
 
     def _write_parquet(self, path: Path, df: pl.DataFrame) -> None:
         if path.exists():
