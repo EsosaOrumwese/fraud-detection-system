@@ -31,6 +31,7 @@ class Segment5AConfig:
     notes: Optional[str] = None
     run_s1: bool = True
     run_s2: bool = True
+    run_s3: bool = True
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,10 @@ class Segment5AResult:
     s2_catalogue_path: Path | None = None
     s2_run_report_path: Path | None = None
     s2_resumed: bool = False
+    s3_baseline_path: Path | None = None
+    s3_class_baseline_path: Path | None = None
+    s3_run_report_path: Path | None = None
+    s3_resumed: bool = False
 
 
 class Segment5AOrchestrator:
@@ -98,6 +103,10 @@ class Segment5AOrchestrator:
         s2_catalogue_path = None
         s2_run_report_path = None
         s2_resumed = False
+        s3_baseline_path = None
+        s3_class_baseline_path = None
+        s3_run_report_path = None
+        s3_resumed = False
 
         if config.run_s1:
             logger.info("Segment5A S1 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
@@ -136,6 +145,24 @@ class Segment5AOrchestrator:
             s2_run_report_path = s2_result.run_report_path
             s2_resumed = s2_result.resumed
 
+        if config.run_s3 and config.run_s1 and config.run_s2:
+            logger.info("Segment5A S3 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            from engine.layers.l2.seg_5A.s3_baselines.runner import BaselineInputs, BaselineRunner  # lazy import
+
+            s3_inputs = BaselineInputs(
+                data_root=data_root,
+                manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                parameter_hash=s0_outputs.parameter_hash,
+                run_id=config.run_id,
+                dictionary_path=config.dictionary_path,
+            )
+            s3_result = BaselineRunner().run(s3_inputs)
+            logger.info("Segment5A S3 completed (baseline=%s)", s3_result.baseline_path)
+            s3_baseline_path = s3_result.baseline_path
+            s3_class_baseline_path = s3_result.class_baseline_path
+            s3_run_report_path = s3_result.run_report_path
+            s3_resumed = s3_result.resumed
+
         return Segment5AResult(
             manifest_fingerprint=s0_outputs.manifest_fingerprint,
             parameter_hash=s0_outputs.parameter_hash,
@@ -152,6 +179,10 @@ class Segment5AOrchestrator:
             s2_catalogue_path=s2_catalogue_path,
             s2_run_report_path=s2_run_report_path,
             s2_resumed=s2_resumed,
+            s3_baseline_path=s3_baseline_path,
+            s3_class_baseline_path=s3_class_baseline_path,
+            s3_run_report_path=s3_run_report_path,
+            s3_resumed=s3_resumed,
         )
 
 

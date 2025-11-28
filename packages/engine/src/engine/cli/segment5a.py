@@ -59,6 +59,14 @@ def _print_summary(result: Segment5AResult) -> None:
         payload["s2_run_report_path"] = str(result.s2_run_report_path)
     if result.s2_resumed:
         payload["s2_resumed"] = result.s2_resumed
+    if result.s3_baseline_path:
+        payload["s3_baseline_path"] = str(result.s3_baseline_path)
+    if result.s3_class_baseline_path:
+        payload["s3_class_baseline_path"] = str(result.s3_class_baseline_path)
+    if result.s3_run_report_path:
+        payload["s3_run_report_path"] = str(result.s3_run_report_path)
+    if result.s3_resumed:
+        payload["s3_resumed"] = result.s3_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -82,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--validation-bundle-3b", type=Path, required=False, help="Override 3B validation bundle path.")
     parser.add_argument("--skip-s1", action="store_true", help="Skip S1 demand profiles (runs S0 only).")
     parser.add_argument("--skip-s2", action="store_true", help="Skip S2 shapes (runs S0/S1 only).")
+    parser.add_argument("--skip-s3", action="store_true", help="Skip S3 baselines (runs S0/S1/S2 only).")
     parser.add_argument("--notes", type=str, required=False, help="Optional run notes for receipts.")
     parser.add_argument("--result-json", type=Path, required=False, help="Path to write a JSON summary.")
 
@@ -103,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         notes=args.notes,
         run_s1=not args.skip_s1,
         run_s2=not args.skip_s2,
+        run_s3=not args.skip_s3,
     )
 
     orchestrator = Segment5AOrchestrator()
