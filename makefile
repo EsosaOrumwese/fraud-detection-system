@@ -19,7 +19,11 @@ SEED ?= 2025112701
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
-MERCHANT_TABLE ?= reference/layer1/transaction_schema_merchant_ids/v2025-10-09/transaction_schema_merchant_ids.parquet
+MERCHANT_VERSION ?= 2025-11-28
+MERCHANT_TABLE ?= reference/layer1/transaction_schema_merchant_ids/v$(MERCHANT_VERSION)/transaction_schema_merchant_ids.parquet
+MERCHANT_ISO_VERSION ?= 2025-10-08
+MERCHANT_GDP_VERSION ?= 2025-10-07
+MERCHANT_BUCKET_VERSION ?= 2025-10-07
 ISO_TABLE ?= reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet
 GDP_TABLE ?= reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet
 BUCKET_TABLE ?= reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet
@@ -308,11 +312,21 @@ SEG5A_ARGS = \
 	--result-json "$(SEG5A_RESULT_JSON)"
 SEG5A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment5a $(SEG5A_ARGS)
 
+MERCHANT_BUILD_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) scripts/build_transaction_schema_merchant_ids.py \
+	--version $(MERCHANT_VERSION) \
+	--iso-version $(MERCHANT_ISO_VERSION) \
+	--gdp-version $(MERCHANT_GDP_VERSION) \
+	--bucket-version $(MERCHANT_BUCKET_VERSION)
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a profile-all profile-seg1b clean-results
+
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
+
+merchant_ids:
+	@echo "Building transaction_schema_merchant_ids version $(MERCHANT_VERSION)"
+	$(MERCHANT_BUILD_CMD)
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
