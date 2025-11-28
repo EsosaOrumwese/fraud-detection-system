@@ -32,6 +32,7 @@ from engine.layers.l2.seg_5A.shared.dictionary import (
     render_dataset_path,
     repository_root,
 )
+from engine.layers.l2.seg_5A.shared.scenario_assets import ensure_scenario_calendar
 from engine.layers.l2.seg_5A.shared.run_report import SegmentStateKey, write_segment_state_run_report
 from engine.layers.l2.seg_5A.s0_gate.inputs import SealedArtefact, ensure_unique_assets
 
@@ -647,35 +648,33 @@ class S0GateRunner:
             role = self._infer_role(dataset_id)
             read_scope = self._infer_read_scope(entry)
             status = self._normalise_status(entry.get("status"))
+            base_dir = self._layer2_dataset_base(
+                path_template=path_template,
+                repo_root=repo_root,
+                run_base_path=inputs.base_path,
+            )
             if dataset_id == "scenario_calendar_5A":
                 for scenario in scenario_plan.scenarios:
                     scenario_values = dict(template_values)
                     scenario_values["scenario_id"] = scenario.scenario_id
-                    fallback_values = dict(scenario_values)
-                    fallback_values["manifest_fingerprint"] = "baseline"
-                    fallback_values["fingerprint"] = "baseline"
-                    last_error: FileNotFoundError | None = None
+                    ensure_scenario_calendar(
+                        repo_root=repo_root,
+                        run_base_path=inputs.base_path,
+                        manifest_fingerprint=inputs.upstream_manifest_fingerprint,
+                        scenario_id=scenario.scenario_id,
+                    )
                     try:
                         files = self._expand_dataset_files(
-                            base_path=repo_root,
+                            base_path=base_dir,
                             template=path_template,
                             template_args=scenario_values,
                             dataset_id=f"{dataset_id}:{scenario.scenario_id}",
                         )
                     except FileNotFoundError as err:
-                        last_error = err
-                        try:
-                            files = self._expand_dataset_files(
-                                base_path=repo_root,
-                                template=path_template,
-                                template_args=fallback_values,
-                                dataset_id=f"{dataset_id}:{scenario.scenario_id}",
-                            )
-                        except FileNotFoundError:
-                            if status == "OPTIONAL":
-                                logger.warning("Skipping optional scenario calendar %s: %s", scenario.scenario_id, err)
-                                continue
-                            raise last_error
+                        if status == "OPTIONAL":
+                            logger.warning("Skipping optional scenario calendar %s: %s", scenario.scenario_id, err)
+                            continue
+                        raise
                     scenario_info.per_scenario_paths.setdefault(scenario.scenario_id, []).extend(files)
                     digests = tuple(hash_files(files, error_prefix=f"{dataset_id}:{scenario.scenario_id}"))
                     assets.append(
@@ -700,18 +699,19 @@ class S0GateRunner:
                         )
                     )
                 continue
-            try:
-                files = self._expand_dataset_files(
-                    base_path=repo_root,
-                    template=path_template,
-                    template_args=template_values,
-                    dataset_id=dataset_id,
-                )
-            except FileNotFoundError as err:
-                if status == "OPTIONAL":
-                    logger.warning("Skipping optional dataset %s: %s", dataset_id, err)
-                    continue
-                raise
+            else:
+                try:
+                    files = self._expand_dataset_files(
+                        base_path=base_dir,
+                        template=path_template,
+                        template_args=template_values,
+                        dataset_id=dataset_id,
+                    )
+                except FileNotFoundError as err:
+                    if status == "OPTIONAL":
+                        logger.warning("Skipping optional dataset %s: %s", dataset_id, err)
+                        continue
+                    raise
             digests = tuple(hash_files(files, error_prefix=dataset_id))
             assets.append(
                 SealedArtefact(
@@ -1258,6 +1258,14 @@ class S0GateRunner:
     @staticmethod
     def _normalize_contract_path(raw: str) -> str:
         return raw.replace("\\", "/").strip()
+
+    @staticmethod
+    def _layer2_dataset_base(path_template: str, repo_root: Path, run_base_path: Path) -> Path:
+        normalized = path_template.strip().replace("\\", "/")
+        repo_prefixes = ("config/", "contracts/", "reference/", "docs/", "packages/", "scripts/")
+        if normalized.startswith(repo_prefixes):
+            return repo_root
+        return run_base_path
 
     @staticmethod
     def _resolve_version_from_scope(scope: str, inputs: S0Inputs) -> str:

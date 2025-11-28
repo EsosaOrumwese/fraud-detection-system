@@ -107,7 +107,7 @@ datasets:
       Scenario calendar for 5A.S4. Defines dated events (holidays, campaigns, outages, stress scenarios) and their scope.
     version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
-    path: config/layer2/5A/scenario/calendar/fingerprint={manifest_fingerprint}/scenario={scenario_id}/scenario_calendar_5A.parquet
+    path: data/layer2/5A/scenario/calendar/fingerprint={manifest_fingerprint}/scenario={scenario_id}/scenario_calendar_5A.parquet
     partitioning: [manifest_fingerprint, scenario_id]
     primary_key: [manifest_fingerprint, scenario_id, event_id]
     ordering: []
