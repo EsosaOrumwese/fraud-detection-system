@@ -9,10 +9,10 @@ import re
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from string import Formatter
-from typing import Mapping, MutableMapping, Sequence
+from typing import Mapping, MutableMapping, Sequence, Iterable
 
 import polars as pl
 import yaml
@@ -27,6 +27,7 @@ from engine.layers.l1.seg_3A.s0_gate.l0 import (
 from engine.layers.l2.seg_5A.shared.dictionary import (
     DictionaryError,
     default_dictionary_path,
+    get_dataset_entry,
     load_dictionary,
     render_dataset_path,
     repository_root,
@@ -80,203 +81,171 @@ class S0Outputs:
     sealed_inputs_path: Path
     sealed_inputs_digest: str
     run_report_path: Path
+    scenario_manifest_path: Path | None = None
 
 
 @dataclass(frozen=True)
-class CandidateSpec:
-    """Declarative description of a dataset that must be sealed for 5A."""
+class Layer1DatasetSpec:
+    """Description of a Layer-1 artefact that 5A must seal manually."""
 
-    owner_layer: str
     owner_segment: str
     dataset_id: str
     dictionary_rel_path: str
     role: str = "upstream_egress"
-    status: str = "REQUIRED"
-    read_scope: str = "ROW_LEVEL"
     manifest_scope: str = "fingerprint"
-    manifest_key: str | None = None
+    read_scope: str = "ROW_LEVEL"
+    status: str = "REQUIRED"
     base: str = "base"
+    manifest_key: str | None = None
+    owner_layer: str = "layer1"
 
 
-_UPSTREAM_DATASET_SPECS: tuple[CandidateSpec, ...] = (
-    CandidateSpec(
-        owner_layer="layer1",
-        owner_segment="1A",
-        dataset_id="outlet_catalogue",
-        dictionary_rel_path="contracts/dataset_dictionary/l1/seg_1A/layer1.1A.yaml",
-    ),
-    CandidateSpec(
-        owner_layer="layer1",
-        owner_segment="1B",
-        dataset_id="site_locations",
-        dictionary_rel_path="contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml",
-    ),
-    CandidateSpec(
-        owner_layer="layer1",
+@dataclass(frozen=True)
+class ScenarioDefinition:
+    """Scenario declaration parsed from the horizon config."""
+
+    scenario_id: str
+    version: str
+    labels: tuple[str, ...]
+    is_baseline: bool
+    is_stress: bool
+    horizon_days: int | None
+    bucket_minutes: int | None
+    timezone: str | None
+    horizon_start_utc: str | None
+    horizon_end_utc: str | None
+
+
+@dataclass(frozen=True)
+class ScenarioPlan:
+    """Parsed scenario plan used to drive binding + manifest generation."""
+
+    version: str
+    config_path: Path
+    scenarios: tuple[ScenarioDefinition, ...]
+    pack_id: str
+
+
+@dataclass(frozen=True)
+class ScenarioBinding:
+    """Final scenario binding that feeds the manifest + receipt."""
+
+    scenario_id: str
+    scenario_version: str
+    horizon_start_utc: str
+    horizon_end_utc: str
+    is_baseline: bool
+    is_stress: bool
+    labels: tuple[str, ...]
+    scenario_config_ids: tuple[str, ...]
+
+
+@dataclass
+class ScenarioCalendarInfo:
+    """Resolved scenario calendar artefacts keyed by scenario_id."""
+
+    per_scenario_paths: dict[str, list[Path]]
+
+
+_LAYER1_DATASET_SPECS: tuple[Layer1DatasetSpec, ...] = (
+    Layer1DatasetSpec(
         owner_segment="2A",
         dataset_id="site_timezones",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="2A",
         dataset_id="tz_timetable_cache",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml",
+        role="reference_data",
         read_scope="METADATA_ONLY",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="2B",
         dataset_id="s1_site_weights",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="2B",
         dataset_id="s2_alias_index",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
         read_scope="METADATA_ONLY",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="2B",
         dataset_id="s2_alias_blob",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
         read_scope="METADATA_ONLY",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="2B",
         dataset_id="s3_day_effects",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="2B",
         dataset_id="s4_group_weights",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3A",
         dataset_id="zone_alloc",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3A/layer1.3A.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3A",
         dataset_id="zone_alloc_universe_hash",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3A/layer1.3A.yaml",
+        role="reference_data",
         read_scope="METADATA_ONLY",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="virtual_classification_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="virtual_settlement_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="edge_catalogue_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="edge_alias_index_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
         read_scope="METADATA_ONLY",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="edge_alias_blob_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
         read_scope="METADATA_ONLY",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="edge_universe_hash_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
         read_scope="METADATA_ONLY",
+        role="reference_data",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="virtual_routing_policy_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
         read_scope="METADATA_ONLY",
+        role="contract",
     ),
-    CandidateSpec(
-        owner_layer="layer1",
+    Layer1DatasetSpec(
         owner_segment="3B",
         dataset_id="virtual_validation_contract_3B",
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
         read_scope="METADATA_ONLY",
-    ),
-    # Layer-2 policy/config inputs for 5A
-    CandidateSpec(
-        owner_layer="layer2",
-        owner_segment="5A",
-        dataset_id="merchant_class_policy_5A",
-        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
-        role="policy",
-        manifest_scope="static",
-        read_scope="METADATA_ONLY",
-    ),
-    CandidateSpec(
-        owner_layer="layer2",
-        owner_segment="5A",
-        dataset_id="demand_scale_policy_5A",
-        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
-        role="policy",
-        manifest_scope="static",
-        read_scope="METADATA_ONLY",
-    ),
-    CandidateSpec(
-        owner_layer="layer2",
-        owner_segment="5A",
-        dataset_id="shape_library_5A",
-        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
-        role="policy",
-        manifest_scope="static",
-        read_scope="METADATA_ONLY",
-    ),
-    CandidateSpec(
-        owner_layer="layer2",
-        owner_segment="5A",
-        dataset_id="scenario_horizon_config_5A",
-        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
-        role="config",
-        manifest_scope="static",
-        read_scope="METADATA_ONLY",
-    ),
-    CandidateSpec(
-        owner_layer="layer2",
-        owner_segment="5A",
-        dataset_id="scenario_overlay_policy_5A",
-        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
-        role="policy",
-        manifest_scope="static",
-        read_scope="METADATA_ONLY",
-    ),
-    CandidateSpec(
-        owner_layer="layer2",
-        owner_segment="5A",
-        dataset_id="scenario_calendar_5A",
-        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
-        role="config",
-        manifest_scope="fingerprint",
-        read_scope="ROW_LEVEL",
-        status="OPTIONAL",
+        role="contract",
     ),
 )
 
@@ -294,6 +263,7 @@ class S0GateRunner:
     def run(self, inputs: S0Inputs) -> S0Outputs:
         dictionary = load_dictionary(inputs.dictionary_path)
         repo_root = repository_root()
+        scenario_plan = self._load_scenario_plan(inputs=inputs, dictionary=dictionary, repo_root=repo_root)
         run_started_at = datetime.now(timezone.utc)
         gate_timer = time.perf_counter()
 
@@ -310,10 +280,12 @@ class S0GateRunner:
         )
         gate_verify_ms = int(round((time.perf_counter() - gate_timer) * 1000))
 
-        sealed_assets = self._collect_sealed_assets(
+        sealed_assets, scenario_calendar_info = self._collect_sealed_assets(
             inputs=inputs,
             upstream_bundles=upstream_bundles,
             repo_root=repo_root,
+            dictionary=dictionary,
+            scenario_plan=scenario_plan,
         )
         sealed_rows = self._prepare_sealed_rows(sealed_assets)
         sealed_inputs_digest = self._compute_sealed_inputs_digest(sealed_rows)
@@ -323,6 +295,16 @@ class S0GateRunner:
             rows=sealed_rows,
             expected_digest=sealed_inputs_digest,
         )
+        scenario_bindings = self._build_scenario_bindings(
+            inputs=inputs,
+            scenario_plan=scenario_plan,
+            calendar_info=scenario_calendar_info,
+        )
+        scenario_manifest_path = self._write_scenario_manifest(
+            inputs=inputs,
+            dictionary=dictionary,
+            scenario_bindings=scenario_bindings,
+        )
         receipt_path = self._write_receipt(
             inputs=inputs,
             dictionary=dictionary,
@@ -331,6 +313,8 @@ class S0GateRunner:
             sealed_rows=sealed_rows,
             gate_verify_ms=gate_verify_ms,
             run_started_at=run_started_at,
+            scenario_bindings=scenario_bindings,
+            scenario_pack_id=scenario_plan.pack_id,
         )
         run_report_path = self._write_segment_run_report(
             inputs=inputs,
@@ -338,6 +322,7 @@ class S0GateRunner:
             receipt_path=receipt_path,
             gate_verify_ms=gate_verify_ms,
             sealed_inputs_digest=sealed_inputs_digest,
+            scenario_manifest_path=scenario_manifest_path,
         )
 
         return S0Outputs(
@@ -347,6 +332,7 @@ class S0GateRunner:
             sealed_inputs_path=sealed_inputs_path,
             sealed_inputs_digest=sealed_inputs_digest,
             run_report_path=run_report_path,
+            scenario_manifest_path=scenario_manifest_path,
         )
 
     # -------------------- helpers --------------------
@@ -474,12 +460,26 @@ class S0GateRunner:
         inputs: S0Inputs,
         upstream_bundles: Mapping[str, Mapping[str, object]],
         repo_root: Path,
-    ) -> list[SealedArtefact]:
+        dictionary: Mapping[str, object],
+        scenario_plan: ScenarioPlan,
+    ) -> tuple[list[SealedArtefact], ScenarioCalendarInfo]:
         assets: list[SealedArtefact] = []
         assets.extend(self._seal_upstream_validation_assets(inputs=inputs, upstream_bundles=upstream_bundles))
-        assets.extend(self._seal_candidate_datasets(inputs=inputs, repo_root=repo_root, upstream_bundles=upstream_bundles))
+        assets.extend(
+            self._seal_layer1_inputs(
+                inputs=inputs,
+                repo_root=repo_root,
+            )
+        )
+        layer2_assets, scenario_info = self._seal_layer2_inputs(
+            inputs=inputs,
+            repo_root=repo_root,
+            dictionary=dictionary,
+            scenario_plan=scenario_plan,
+        )
+        assets.extend(layer2_assets)
         assets.extend(self._seal_contract_assets(inputs=inputs, repo_root=repo_root))
-        return ensure_unique_assets(assets)
+        return ensure_unique_assets(assets), scenario_info
 
     def _seal_upstream_validation_assets(
         self,
@@ -536,39 +536,27 @@ class S0GateRunner:
             )
         return assets
 
-    def _seal_candidate_datasets(
+    def _seal_layer1_inputs(
         self,
         *,
         inputs: S0Inputs,
         repo_root: Path,
-        upstream_bundles: Mapping[str, Mapping[str, object]],
     ) -> list[SealedArtefact]:
         assets: list[SealedArtefact] = []
-        template_args = {
+        template_values: MutableMapping[str, object] = {
             "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+            "fingerprint": inputs.upstream_manifest_fingerprint,
             "parameter_hash": inputs.parameter_hash,
         }
-        for spec in _UPSTREAM_DATASET_SPECS:
-            if spec.owner_segment in self._UPSTREAM_SEGMENTS and spec.owner_segment not in upstream_bundles:
-                continue
+        for spec in _LAYER1_DATASET_SPECS:
             entry = self._dictionary_entry(spec.dictionary_rel_path, spec.dataset_id)
-            path_template = self._extract_path_template(entry, spec)
+            path_template = self._extract_path_template(entry, spec.dataset_id)
             partition_keys = tuple(entry.get("partitioning") or entry.get("partition_keys") or ())
             schema_ref = entry.get("schema_ref")
             if not isinstance(schema_ref, str) or not schema_ref.strip():
                 raise DictionaryError(
                     f"dictionary entry '{spec.dataset_id}' in '{spec.dictionary_rel_path}' is missing schema_ref"
                 )
-            template_values: MutableMapping[str, object] = {
-                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
-                "fingerprint": inputs.upstream_manifest_fingerprint,
-                "parameter_hash": inputs.parameter_hash,
-            }
-            segment_info = upstream_bundles.get(spec.owner_segment)
-            if segment_info and segment_info.get("manifest_fingerprint"):
-                segment_fp = segment_info["manifest_fingerprint"]
-                template_values["manifest_fingerprint"] = segment_fp
-                template_values["fingerprint"] = segment_fp
             base_dir = inputs.base_path if spec.base == "base" else repo_root
             try:
                 files = self._expand_dataset_files(
@@ -591,12 +579,12 @@ class S0GateRunner:
                     owner_layer=spec.owner_layer,
                     owner_segment=spec.owner_segment,
                     artifact_id=spec.dataset_id,
-                    manifest_key=manifest_key or f"mlr.{spec.owner_segment.lower()}.{spec.dataset_id}",
+                    manifest_key=manifest_key or f"mlr.{spec.owner_segment}.{spec.dataset_id}",
                     role=spec.role,
                     schema_ref=schema_ref.strip(),
                     path_template=path_template,
                     partition_keys=partition_keys,
-                    version=self._resolve_version(spec, inputs),
+                    version=self._resolve_version_from_scope(spec.manifest_scope, inputs),
                     digests=digests,
                     source_dictionary=spec.dictionary_rel_path,
                     source_registry=self._registry_rel_path(spec.owner_segment),
@@ -605,6 +593,117 @@ class S0GateRunner:
                 )
             )
         return assets
+
+    def _seal_layer2_inputs(
+        self,
+        *,
+        inputs: S0Inputs,
+        repo_root: Path,
+        dictionary: Mapping[str, object],
+        scenario_plan: ScenarioPlan,
+    ) -> tuple[list[SealedArtefact], ScenarioCalendarInfo]:
+        assets: list[SealedArtefact] = []
+        dictionary_rel_path = str(default_dictionary_path().relative_to(repo_root))
+        scenario_info = ScenarioCalendarInfo(per_scenario_paths={})
+        entries = dictionary.get("datasets")
+        if not isinstance(entries, Sequence):
+            return assets, scenario_info
+        template_values: MutableMapping[str, object] = {
+            "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+            "fingerprint": inputs.upstream_manifest_fingerprint,
+            "parameter_hash": inputs.parameter_hash,
+        }
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                continue
+            dataset_id = entry.get("id")
+            if not isinstance(dataset_id, str) or not dataset_id:
+                continue
+            if not self._is_consumed_by_s0(entry):
+                continue
+            schema_ref = entry.get("schema_ref")
+            if not isinstance(schema_ref, str) or not schema_ref.strip():
+                raise DictionaryError(f"dictionary entry '{dataset_id}' missing schema_ref")
+            path_template = self._extract_path_template(entry, dataset_id)
+            partition_keys = tuple(entry.get("partitioning") or entry.get("partition_keys") or ())
+            manifest_key = self._registry_manifest_key("5A", path_template)
+            role = self._infer_role(dataset_id)
+            read_scope = self._infer_read_scope(entry)
+            status = self._normalise_status(entry.get("status"))
+            if dataset_id == "scenario_calendar_5A":
+                for scenario in scenario_plan.scenarios:
+                    scenario_values = dict(template_values)
+                    scenario_values["scenario_id"] = scenario.scenario_id
+                    try:
+                        files = self._expand_dataset_files(
+                            base_path=repo_root,
+                            template=path_template,
+                            template_args=scenario_values,
+                            dataset_id=f"{dataset_id}:{scenario.scenario_id}",
+                        )
+                    except FileNotFoundError as err:
+                        if status == "OPTIONAL":
+                            logger.warning("Skipping optional scenario calendar %s: %s", scenario.scenario_id, err)
+                            continue
+                        raise
+                    scenario_info.per_scenario_paths.setdefault(scenario.scenario_id, []).extend(files)
+                    digests = tuple(hash_files(files, error_prefix=f"{dataset_id}:{scenario.scenario_id}"))
+                    assets.append(
+                        SealedArtefact(
+                            manifest_fingerprint=inputs.upstream_manifest_fingerprint,
+                            parameter_hash=inputs.parameter_hash,
+                            owner_layer="layer2",
+                            owner_segment="5A",
+                            artifact_id=f"{dataset_id}::{scenario.scenario_id}",
+                            manifest_key=(manifest_key or "mlr.5A.scenario.calendar") + f":{scenario.scenario_id}",
+                            role=role,
+                            schema_ref=schema_ref.strip(),
+                            path_template=path_template,
+                            partition_keys=partition_keys,
+                            version=self._render_declared_version(entry.get("version"), scenario_values),
+                            digests=digests,
+                            source_dictionary=dictionary_rel_path,
+                            source_registry=self._registry_rel_path("5A"),
+                            status=status,
+                            read_scope=read_scope,
+                            notes=f"scenario_id={scenario.scenario_id}",
+                        )
+                    )
+                continue
+            try:
+                files = self._expand_dataset_files(
+                    base_path=repo_root,
+                    template=path_template,
+                    template_args=template_values,
+                    dataset_id=dataset_id,
+                )
+            except FileNotFoundError as err:
+                if status == "OPTIONAL":
+                    logger.warning("Skipping optional dataset %s: %s", dataset_id, err)
+                    continue
+                raise
+            digests = tuple(hash_files(files, error_prefix=dataset_id))
+            assets.append(
+                SealedArtefact(
+                    manifest_fingerprint=inputs.upstream_manifest_fingerprint,
+                    parameter_hash=inputs.parameter_hash,
+                    owner_layer="layer2",
+                    owner_segment="5A",
+                    artifact_id=dataset_id,
+                    manifest_key=manifest_key or f"mlr.5A.dataset.{dataset_id}",
+                    role=role,
+                    schema_ref=schema_ref.strip(),
+                    path_template=path_template,
+                    partition_keys=partition_keys,
+                    version=self._render_declared_version(entry.get("version"), template_values),
+                    digests=digests,
+                    source_dictionary=dictionary_rel_path,
+                    source_registry=self._registry_rel_path("5A"),
+                    status=status,
+                    read_scope=read_scope,
+                )
+            )
+        return assets, scenario_info
 
     def _seal_contract_assets(self, *, inputs: S0Inputs, repo_root: Path) -> list[SealedArtefact]:
         assets: list[SealedArtefact] = []
@@ -638,6 +737,210 @@ class S0GateRunner:
                 )
             )
         return assets
+
+    def _load_scenario_plan(
+        self,
+        *,
+        inputs: S0Inputs,
+        dictionary: Mapping[str, object],
+        repo_root: Path,
+    ) -> ScenarioPlan:
+        entry = get_dataset_entry("scenario_horizon_config_5A", dictionary=dictionary)
+        path_template = self._extract_path_template(entry, "scenario_horizon_config_5A")
+        files = self._expand_dataset_files(
+            base_path=repo_root,
+            template=path_template,
+            template_args={
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+                "fingerprint": inputs.upstream_manifest_fingerprint,
+                "parameter_hash": inputs.parameter_hash,
+            },
+            dataset_id="scenario_horizon_config_5A",
+        )
+        config_path = files[0]
+        payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        if not isinstance(payload, Mapping):
+            raise DictionaryError("scenario_horizon_config_5A must decode to a mapping")
+        version = str(payload.get("version") or "v1")
+        pack_id = str(payload.get("pack_id") or version)
+        scenarios_raw = payload.get("scenarios") or []
+        definitions: list[ScenarioDefinition] = []
+        for item in scenarios_raw:
+            if not isinstance(item, Mapping):
+                continue
+            scenario_id = item.get("id")
+            if not isinstance(scenario_id, str) or not scenario_id.strip():
+                continue
+            labels = tuple(
+                sorted({str(label).strip() for label in item.get("labels") or [] if isinstance(label, (str, int))})
+            )
+            horizon_days = item.get("horizon_days")
+            bucket_minutes = item.get("bucket_minutes")
+            timezone_value = item.get("timezone")
+            scenario_version = str(item.get("version") or version)
+            definitions.append(
+                ScenarioDefinition(
+                    scenario_id=scenario_id,
+                    version=scenario_version,
+                    labels=labels,
+                    is_baseline=bool(item.get("is_baseline")) or scenario_id.lower() == "baseline" or "baseline" in labels,
+                    is_stress=bool(item.get("is_stress")) or "stress" in labels,
+                    horizon_days=int(horizon_days) if isinstance(horizon_days, int) else None,
+                    bucket_minutes=int(bucket_minutes) if isinstance(bucket_minutes, int) else None,
+                    timezone=str(timezone_value) if isinstance(timezone_value, str) else None,
+                    horizon_start_utc=str(item.get("horizon_start_utc")) if item.get("horizon_start_utc") else None,
+                    horizon_end_utc=str(item.get("horizon_end_utc")) if item.get("horizon_end_utc") else None,
+                )
+            )
+        if not definitions:
+            raise DictionaryError("scenario_horizon_config_5A defines no scenarios")
+        definitions.sort(key=lambda definition: definition.scenario_id)
+        return ScenarioPlan(
+            version=version,
+            config_path=config_path,
+            scenarios=tuple(definitions),
+            pack_id=pack_id,
+        )
+
+    def _build_scenario_bindings(
+        self,
+        *,
+        inputs: S0Inputs,
+        scenario_plan: ScenarioPlan,
+        calendar_info: ScenarioCalendarInfo,
+    ) -> list[ScenarioBinding]:
+        bindings: list[ScenarioBinding] = []
+        for definition in scenario_plan.scenarios:
+            paths = calendar_info.per_scenario_paths.get(definition.scenario_id, [])
+            calendar_start, calendar_end = self._calculate_calendar_bounds(paths)
+            start_utc = definition.horizon_start_utc or calendar_start or self._default_horizon_start()
+            end_utc = (
+                definition.horizon_end_utc
+                or calendar_end
+                or self._compute_horizon_end(start_utc, definition.horizon_days)
+            )
+            is_baseline = definition.is_baseline
+            is_stress = definition.is_stress
+            labels = self._merge_labels(definition.labels, is_baseline, is_stress)
+            bindings.append(
+                ScenarioBinding(
+                    scenario_id=definition.scenario_id,
+                    scenario_version=definition.version or scenario_plan.version,
+                    horizon_start_utc=start_utc,
+                    horizon_end_utc=end_utc,
+                    is_baseline=is_baseline,
+                    is_stress=is_stress,
+                    labels=labels,
+                    scenario_config_ids=(
+                        "scenario_horizon_config_5A",
+                        "scenario_overlay_policy_5A",
+                        f"scenario_calendar_5A::{definition.scenario_id}",
+                    ),
+                )
+            )
+        bindings.sort(key=lambda binding: binding.scenario_id)
+        return bindings
+
+    def _write_scenario_manifest(
+        self,
+        *,
+        inputs: S0Inputs,
+        dictionary: Mapping[str, object],
+        scenario_bindings: Sequence[ScenarioBinding],
+    ) -> Path | None:
+        if not scenario_bindings:
+            return None
+        rows = [
+            {
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+                "scenario_id": binding.scenario_id,
+                "scenario_version": binding.scenario_version,
+                "horizon_start_utc": binding.horizon_start_utc,
+                "horizon_end_utc": binding.horizon_end_utc,
+                "is_baseline": binding.is_baseline,
+                "is_stress": binding.is_stress,
+                "labels": list(binding.labels),
+                "scenario_config_ids": list(binding.scenario_config_ids),
+            }
+            for binding in scenario_bindings
+        ]
+        output_path = inputs.output_base_path / render_dataset_path(
+            dataset_id="scenario_manifest_5A",
+            template_args={"manifest_fingerprint": inputs.upstream_manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        df = pl.DataFrame(rows)
+        if output_path.exists():
+            existing = pl.read_parquet(output_path)
+            if existing.frame_equal(df):
+                return output_path
+        df.write_parquet(output_path)
+        return output_path
+
+    def _calculate_calendar_bounds(self, paths: Sequence[Path]) -> tuple[str | None, str | None]:
+        min_start: str | None = None
+        max_end: str | None = None
+        for path in paths:
+            if not path.exists():
+                continue
+            try:
+                df = pl.read_parquet(path, columns=["start_utc", "end_utc"])
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Unable to read scenario calendar %s: %s", path, exc)
+                continue
+            if "start_utc" in df.columns:
+                start_series = df["start_utc"].drop_nulls()
+                if start_series.len() > 0:
+                    candidate = str(start_series.min())
+                    if not min_start or candidate < min_start:
+                        min_start = candidate
+            if "end_utc" in df.columns:
+                end_series = df["end_utc"].drop_nulls()
+                if end_series.len() > 0:
+                    candidate = str(end_series.max())
+                    if not max_end or candidate > max_end:
+                        max_end = candidate
+        return min_start, max_end
+
+    @staticmethod
+    def _default_horizon_start() -> str:
+        return "1970-01-01T00:00:00Z"
+
+    def _compute_horizon_end(self, start_utc: str, horizon_days: int | None) -> str:
+        start_dt = self._parse_utc(start_utc) or datetime(1970, 1, 1, tzinfo=timezone.utc)
+        delta = timedelta(days=horizon_days if horizon_days and horizon_days > 0 else 7)
+        return self._format_utc(start_dt + delta)
+
+    @staticmethod
+    def _merge_labels(
+        base_labels: tuple[str, ...],
+        is_baseline: bool,
+        is_stress: bool,
+    ) -> tuple[str, ...]:
+        labels = {label for label in base_labels if label}
+        if is_baseline:
+            labels.add("baseline")
+        if is_stress:
+            labels.add("stress")
+        return tuple(sorted(labels))
+
+    @staticmethod
+    def _parse_utc(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            cleaned = value.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(cleaned)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _format_utc(value: datetime) -> str:
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
     @staticmethod
     def _prepare_sealed_rows(sealed_assets: Sequence[SealedArtefact]) -> list[Mapping[str, object]]:
@@ -697,6 +1000,8 @@ class S0GateRunner:
         sealed_rows: Sequence[Mapping[str, object]],
         gate_verify_ms: int,
         run_started_at: datetime,
+        scenario_bindings: Sequence[ScenarioBinding],
+        scenario_pack_id: str,
     ) -> Path:
         output_dir = (
             inputs.output_base_path
@@ -709,6 +1014,7 @@ class S0GateRunner:
         output_dir.mkdir(parents=True, exist_ok=True)
         created_at = datetime.now(timezone.utc)
         role_counts = Counter(row.get("role", "unknown") for row in sealed_rows)
+        scenario_ids = [binding.scenario_id for binding in scenario_bindings]
         receipt_payload: MutableMapping[str, object] = {
             "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
             "parameter_hash": inputs.parameter_hash,
@@ -718,7 +1024,8 @@ class S0GateRunner:
             "sealed_inputs_digest": sealed_inputs_digest,
             "sealed_inputs_total": len(sealed_rows),
             "sealed_inputs_roles": dict(sorted(role_counts.items())),
-            "scenario_id": ["baseline"],
+            "scenario_id": scenario_ids[0] if len(scenario_ids) == 1 else scenario_ids,
+            "scenario_pack_id": scenario_pack_id,
             "verified_upstream_segments": {},
             "notes": inputs.notes or "",
             "gate_verify_ms": gate_verify_ms,
@@ -748,6 +1055,7 @@ class S0GateRunner:
         receipt_path: Path,
         gate_verify_ms: int,
         sealed_inputs_digest: str,
+        scenario_manifest_path: Path | None,
     ) -> Path:
         run_report_path = inputs.output_base_path / "reports/l2/segment_states/segment_state_runs.jsonl"
         key = SegmentStateKey(
@@ -769,6 +1077,8 @@ class S0GateRunner:
             "sealed_inputs_digest": sealed_inputs_digest,
             "notes": inputs.notes,
         }
+        if scenario_manifest_path is not None:
+            payload["scenario_manifest_path"] = str(scenario_manifest_path)
         return write_segment_state_run_report(path=run_report_path, key=key, payload=payload)
 
     def _dictionary_entry(self, rel_path: str, dataset_id: str) -> Mapping[str, object]:
@@ -812,10 +1122,10 @@ class S0GateRunner:
         return index
 
     @staticmethod
-    def _extract_path_template(entry: Mapping[str, object], spec: CandidateSpec) -> str:
+    def _extract_path_template(entry: Mapping[str, object], dataset_id: str) -> str:
         raw_path = entry.get("path")
         if not isinstance(raw_path, str) or not raw_path.strip():
-            raise DictionaryError(f"dictionary entry '{spec.dataset_id}' missing path template")
+            raise DictionaryError(f"dictionary entry '{dataset_id}' missing path template")
         return raw_path.strip()
 
     def _expand_dataset_files(
@@ -919,12 +1229,65 @@ class S0GateRunner:
         return raw.replace("\\", "/").strip()
 
     @staticmethod
-    def _resolve_version(spec: CandidateSpec, inputs: S0Inputs) -> str:
-        if spec.manifest_scope == "parameter_hash":
+    def _resolve_version_from_scope(scope: str, inputs: S0Inputs) -> str:
+        token = scope.strip().lower()
+        if token == "parameter_hash":
             return inputs.parameter_hash
-        if spec.manifest_scope == "fingerprint":
+        if token == "fingerprint":
             return inputs.upstream_manifest_fingerprint
-        return spec.manifest_scope
+        if token == "static":
+            return "static"
+        return scope
+
+    @staticmethod
+    def _normalise_status(raw_value: object) -> str:
+        if isinstance(raw_value, str):
+            candidate = raw_value.strip().upper()
+            if candidate in {"REQUIRED", "OPTIONAL", "IGNORED"}:
+                return candidate
+        return "REQUIRED"
+
+    @staticmethod
+    def _infer_role(dataset_id: str) -> str:
+        lowered = dataset_id.lower()
+        if "policy" in lowered or lowered.endswith("shape_library_5a"):
+            return "policy"
+        if lowered.startswith("scenario_") or "scenario" in lowered:
+            return "scenario_config"
+        return "reference_data"
+
+    @staticmethod
+    def _infer_read_scope(entry: Mapping[str, object]) -> str:
+        fmt = str(entry.get("format") or "").lower()
+        if fmt in {"yaml", "json", "text", "flag", "directory"}:
+            return "METADATA_ONLY"
+        return "ROW_LEVEL"
+
+    @staticmethod
+    def _is_consumed_by_s0(entry: Mapping[str, object]) -> bool:
+        lineage = entry.get("lineage")
+        if not isinstance(lineage, Mapping):
+            return False
+        consumers = lineage.get("consumed_by")
+        if isinstance(consumers, Sequence):
+            return any(isinstance(value, str) and value.startswith("5A.S0") for value in consumers)
+        return False
+
+    def _render_declared_version(self, raw_version: object, template_values: Mapping[str, object]) -> str:
+        if isinstance(raw_version, str) and raw_version.strip():
+            return self._format_with_defaults(raw_version.strip(), template_values)
+        return "static"
+
+    @staticmethod
+    def _format_with_defaults(template: str, values: Mapping[str, object]) -> str:
+        class _Default(dict):
+            def __missing__(self, key: str) -> str:
+                return "{" + key + "}"
+
+        try:
+            return template.format_map(_Default(values))
+        except Exception:
+            return template
 
     @staticmethod
     def _extract_manifest_fingerprint(path: Path) -> str | None:
