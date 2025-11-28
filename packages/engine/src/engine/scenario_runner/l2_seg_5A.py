@@ -58,6 +58,11 @@ class Segment5AResult:
     s3_class_baseline_path: Path | None = None
     s3_run_report_path: Path | None = None
     s3_resumed: bool = False
+    s4_scenario_local_path: Path | None = None
+    s4_overlay_factors_path: Path | None = None
+    s4_scenario_utc_path: Path | None = None
+    s4_run_report_path: Path | None = None
+    s4_resumed: bool = False
 
 
 class Segment5AOrchestrator:
@@ -169,6 +174,30 @@ class Segment5AOrchestrator:
             s3_run_report_path = s3_result.run_report_path
             s3_resumed = s3_result.resumed
 
+        s4_scenario_local_path = None
+        s4_overlay_factors_path = None
+        s4_scenario_utc_path = None
+        s4_run_report_path = None
+        s4_resumed = False
+        if config.run_s3 and config.run_s1 and config.run_s2:
+            logger.info("Segment5A S4 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            from engine.layers.l2.seg_5A.s4_overlays.runner import OverlaysInputs, OverlaysRunner  # lazy import
+
+            s4_inputs = OverlaysInputs(
+                data_root=data_root,
+                manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                parameter_hash=s0_outputs.parameter_hash,
+                run_id=config.run_id,
+                dictionary_path=config.dictionary_path,
+            )
+            s4_result = OverlaysRunner().run(s4_inputs)
+            logger.info("Segment5A S4 completed (scenario_local=%s)", s4_result.scenario_local_path)
+            s4_scenario_local_path = s4_result.scenario_local_path
+            s4_overlay_factors_path = s4_result.overlay_factors_path
+            s4_scenario_utc_path = s4_result.scenario_utc_path
+            s4_run_report_path = s4_result.run_report_path
+            s4_resumed = s4_result.resumed
+
         return Segment5AResult(
             manifest_fingerprint=s0_outputs.manifest_fingerprint,
             parameter_hash=s0_outputs.parameter_hash,
@@ -190,6 +219,11 @@ class Segment5AOrchestrator:
             s3_run_report_path=s3_run_report_path,
             s3_resumed=s3_resumed,
             sealed_outputs_path=sealed_outputs_path,
+            s4_scenario_local_path=s4_scenario_local_path,
+            s4_overlay_factors_path=s4_overlay_factors_path,
+            s4_scenario_utc_path=s4_scenario_utc_path,
+            s4_run_report_path=s4_run_report_path,
+            s4_resumed=s4_resumed,
         )
 
 
