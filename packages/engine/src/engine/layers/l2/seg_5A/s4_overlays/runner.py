@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Mapping, Optional
+from zoneinfo import ZoneInfo
 
 import polars as pl
 import yaml
@@ -82,25 +84,27 @@ class OverlaysRunner:
             baseline_df = self._load_baseline(inventory=inventory, scenario_id=scenario_id)
             if baseline_df.is_empty():
                 raise RuntimeError(f"S4_REQUIRED_INPUT_MISSING: baseline empty for scenario_id={scenario_id}")
-        grid_df = self._load_shape_grid(inventory=inventory, scenario_id=scenario_id)
-        bucket_span = int(grid_df["bucket_index"].max()) + 1
-        if grid_df["bucket_index"].n_unique() != bucket_span:
-            raise RuntimeError("S4_GRID_CONTIGUITY_FAILED: shape_grid_definition_5A bucket_index not contiguous")
+            grid_df = self._load_shape_grid(inventory=inventory, scenario_id=scenario_id)
+            bucket_span = int(grid_df["bucket_index"].max()) + 1
+            if grid_df["bucket_index"].n_unique() != bucket_span:
+                raise RuntimeError("S4_GRID_CONTIGUITY_FAILED: shape_grid_definition_5A bucket_index not contiguous")
 
-        horizon_cfg = self._load_horizon_config(inventory=inventory, scenario_id=scenario_id)
-        overlay_policy = self._load_overlay_policy(inventory=inventory)
-        calendar_df = self._load_calendar(inventory=inventory, scenario_id=scenario_id)
-        horizon_df = self._build_horizon(horizon_cfg)
+            horizon_cfg = self._load_horizon_config(inventory=inventory, scenario_id=scenario_id)
+            overlay_policy = self._load_overlay_policy(inventory=inventory)
+            calendar_df = self._load_calendar(inventory=inventory, scenario_id=scenario_id)
+            horizon_df = self._build_horizon(horizon_cfg)
+            if horizon_df.is_empty():
+                raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty after build")
 
-        scenario_df, factors_df = self._compose_scenario(
-            baseline=baseline_df,
-            horizon=horizon_df,
-            grid=grid_df,
-            manifest_fingerprint=inputs.manifest_fingerprint,
-            parameter_hash=inputs.parameter_hash,
-            scenario_id=scenario_id,
-            overlay_policy=overlay_policy,
-            calendar=calendar_df,
+            scenario_df, factors_df = self._compose_scenario(
+                baseline=baseline_df,
+                horizon=horizon_df,
+                grid=grid_df,
+                manifest_fingerprint=inputs.manifest_fingerprint,
+                parameter_hash=inputs.parameter_hash,
+                scenario_id=scenario_id,
+                overlay_policy=overlay_policy,
+                calendar=calendar_df,
             )
             scenario_local_path = data_root / render_dataset_path(
                 dataset_id="merchant_zone_scenario_local_5A",
@@ -368,7 +372,12 @@ class OverlaysRunner:
         factors: dict[int, float] = {}
         if calendar.is_empty():
             return factors
-        base_events = overlay_policy.get("overlays", {}).get(scenario_id, {}).get("events", []) or []
+        policy_conf = overlay_policy.get("overlays", {}).get(scenario_id, {}) if isinstance(overlay_policy, Mapping) else {}
+        base_events = policy_conf.get("events", []) or []
+        precedence = policy_conf.get("precedence", []) or []
+        bounds = policy_conf.get("bounds", {}) or {}
+        factor_min = float(bounds.get("min", 0.0))
+        factor_max = float(bounds.get("max", float("inf")))
         factor_map = {}
         for event in base_events:
             if not isinstance(event, Mapping):
@@ -378,18 +387,36 @@ class OverlaysRunner:
             if name:
                 factor_map[name] = factor
         if "local_horizon_bucket_index" in calendar.columns:
-            if "event_type" in calendar.columns:
-                for row in calendar.select(["local_horizon_bucket_index", "event_type"]).to_dicts():
-                    idx = int(row.get("local_horizon_bucket_index", -1))
-                    event_type = str(row.get("event_type") or "").strip()
-                    factor = factor_map.get(event_type, default_factor)
-                    factors[idx] = factors.get(idx, 1.0) * factor
-            elif "factor" in calendar.columns:
-                for row in calendar.select(["local_horizon_bucket_index", "factor"]).to_dicts():
-                    idx = int(row.get("local_horizon_bucket_index", -1))
-                    factor = float(row.get("factor") or default_factor)
-                    factors[idx] = factors.get(idx, 1.0) * factor
+            for row in calendar.to_dicts():
+                idx = int(row.get("local_horizon_bucket_index", -1))
+                if idx < 0:
+                    continue
+                events: list[tuple[str, float]] = []
+                event_type = str(row.get("event_type") or "").strip()
+                if event_type:
+                    events.append((event_type, factor_map.get(event_type, default_factor)))
+                if "factor" in row and row.get("factor") is not None:
+                    events.append(("factor", float(row.get("factor"))))
+                if not events:
+                    events.append(("default", default_factor))
+                # apply precedence: ordered by precedence list then name
+                events.sort(key=lambda ev: (precedence.index(ev[0]) if ev[0] in precedence else len(precedence), ev[0]))
+                factor_value = 1.0
+                for _, f in events:
+                    factor_value *= f
+                factor_value = max(factor_min, min(factor_value, factor_max))
+                factors[idx] = factor_value
         return factors
+
+    @staticmethod
+    def _utc_offset_minutes(tzid: str) -> int:
+        try:
+            tz = ZoneInfo(tzid)
+            dt = datetime(2025, 1, 1)
+            offset = tz.utcoffset(dt)
+            return int(offset.total_seconds() // 60) if offset else 0
+        except Exception:
+            return 0
 
     def _project_utc(
         self,
