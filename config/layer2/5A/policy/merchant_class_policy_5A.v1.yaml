@@ -10,17 +10,41 @@ rules:
     when:
       mcc_prefix: [300, 400, 410, 451]
     class: travel
+  - name: lodging
+    when:
+      mcc_prefix: [350, 360, 370, 380]
+    class: travel
   - name: food_bev
     when:
-      mcc_prefix: [500, 541, 542, 581]
+      mcc_prefix: [500, 541, 542, 544, 549, 581]
     class: food_bev
+  - name: grocery
+    when:
+      mcc_prefix: [541, 542, 549]
+    class: grocery
+  - name: fuel
+    when:
+      mcc_prefix: [554]
+    class: fuel
   - name: transport
     when:
       mcc_prefix: [411, 412, 413, 478]
     class: transport
+  - name: entertainment
+    when:
+      mcc_prefix: [780, 792, 793, 799]
+    class: entertainment
+  - name: utilities
+    when:
+      mcc_prefix: [490, 481]
+    class: utilities
   - name: services
     when:
       mcc_prefix: [700, 721, 729, 899, 939]
+    class: services
+  - name: healthcare
+    when:
+      mcc_prefix: [800, 801, 802, 803, 804]
     class: services
 notes: |
   TODO: Replace with governed policy once real classing rules are available.

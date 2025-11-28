@@ -276,6 +276,31 @@ class ShapesRunner:
                 hour = idx % 24
                 values.append(2.0 if 8 <= hour <= 20 else 0.3)
             return values
+        if template_type == "morning_evening":
+            values = []
+            for idx in range(buckets_per_week):
+                hour = idx % 24
+                values.append(2.0 if hour in (7, 8, 17, 18, 19) else 0.5)
+            return values
+        if template_type == "lunch_dinner":
+            values = []
+            for idx in range(buckets_per_week):
+                hour = idx % 24
+                values.append(2.0 if hour in (12, 13, 19, 20) else 0.6)
+            return values
+        if template_type == "weekend_evening":
+            values = []
+            for idx in range(buckets_per_week):
+                day = idx // 24
+                hour = idx % 24
+                values.append(2.2 if day >= 5 and 18 <= hour <= 23 else 0.6)
+            return values
+        if template_type == "late_evening":
+            values = []
+            for idx in range(buckets_per_week):
+                hour = idx % 24
+                values.append(1.8 if 20 <= hour <= 23 else 0.7)
+            return values
         # Fallback to flat
         return [1.0 for _ in range(buckets_per_week)]
 

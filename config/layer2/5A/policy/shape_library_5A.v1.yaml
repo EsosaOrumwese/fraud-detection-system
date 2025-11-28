@@ -11,13 +11,23 @@ templates:
     type: flat
   - demand_class: travel
     type: weekday_peaks
+  - demand_class: lodging
+    type: late_evening
   - demand_class: food_bev
-    type: weekend_heavy
+    type: lunch_dinner
+  - demand_class: grocery
+    type: daytime_skew
   - demand_class: transport
     type: commute_peaks
   - demand_class: services
     type: weekday_flat
   - demand_class: retail_daytime
     type: daytime_skew
+  - demand_class: fuel
+    type: morning_evening
+  - demand_class: entertainment
+    type: weekend_evening
+  - demand_class: utilities
+    type: flat
 notes: |
   TODO: Replace with governed shapes; current templates are interpreted by S2 as simple deterministic curves.
