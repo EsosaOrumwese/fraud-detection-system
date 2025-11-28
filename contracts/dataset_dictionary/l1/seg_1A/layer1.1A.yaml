@@ -7,7 +7,7 @@ reference:
   transaction_schema_merchant_ids:
     description: Normalised merchant universe used to seed S0 ingress.
     format: parquet
-    path: reference/layer1/transaction_schema_merchant_ids/v2025-10-08/transaction_schema_merchant_ids.parquet
+    path: reference/layer1/transaction_schema_merchant_ids/v2025-11-28/transaction_schema_merchant_ids.parquet
     schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
     partitioning: []
     owner: reference
