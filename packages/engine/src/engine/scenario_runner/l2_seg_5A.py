@@ -44,6 +44,7 @@ class Segment5AResult:
     sealed_inputs_path: Path
     sealed_inputs_digest: str
     run_report_path: Path
+    sealed_outputs_path: Path | None = None
     s1_profile_path: Path | None = None
     s1_class_profile_path: Path | None = None
     s1_run_report_path: Path | None = None
@@ -145,6 +146,11 @@ class Segment5AOrchestrator:
             s2_run_report_path = s2_result.run_report_path
             s2_resumed = s2_result.resumed
 
+        sealed_outputs_path = None
+        if config.run_s3 and config.run_s1 and config.run_s2:
+            # Keep sealed_inputs immutable by sealing post-S2 artefacts before S3.
+            sealed_outputs_path = self._s0_runner.refresh_sealed_outputs(s0_inputs)
+
         if config.run_s3 and config.run_s1 and config.run_s2:
             logger.info("Segment5A S3 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             from engine.layers.l2.seg_5A.s3_baselines.runner import BaselineInputs, BaselineRunner  # lazy import
@@ -183,6 +189,7 @@ class Segment5AOrchestrator:
             s3_class_baseline_path=s3_class_baseline_path,
             s3_run_report_path=s3_run_report_path,
             s3_resumed=s3_resumed,
+            sealed_outputs_path=sealed_outputs_path,
         )
 
 

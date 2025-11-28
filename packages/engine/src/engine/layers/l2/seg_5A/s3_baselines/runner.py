@@ -11,8 +11,7 @@ from typing import Mapping, Optional
 import polars as pl
 import yaml
 
-from engine.layers.l1.seg_3A.s0_gate.l0 import hash_files
-from engine.layers.l2.seg_5A.shared.control_plane import SealedInventory, load_control_plane, compute_sealed_inputs_digest
+from engine.layers.l2.seg_5A.shared.control_plane import SealedInventory, load_control_plane
 from engine.layers.l2.seg_5A.shared.dictionary import load_dictionary, render_dataset_path
 from engine.layers.l2.seg_5A.shared.run_report import SegmentStateKey, write_segment_state_run_report
 
@@ -32,6 +31,7 @@ class BaselineInputs:
 class BaselineResult:
     baseline_path: Path | None
     class_baseline_path: Path | None
+    utc_baseline_path: Path | None
     run_report_path: Path
     resumed: bool
 
@@ -73,6 +73,21 @@ class BaselineRunner:
         "s3_spec_version": pl.Utf8,
     }
 
+    _UTC_BASELINE_SCHEMA = {
+        "manifest_fingerprint": pl.Utf8,
+        "parameter_hash": pl.Utf8,
+        "scenario_id": pl.Utf8,
+        "merchant_id": pl.UInt64,
+        "legal_country_iso": pl.Utf8,
+        "tzid": pl.Utf8,
+        "zone_id": pl.Utf8,
+        "channel": pl.Utf8,
+        "channel_group": pl.Utf8,
+        "utc_bucket_index": pl.Int32,
+        "lambda_utc_base": pl.Float64,
+        "s3_spec_version": pl.Utf8,
+    }
+
     _S3_SPEC_VERSION = "1.0.0"
 
     def run(self, inputs: BaselineInputs) -> BaselineResult:
@@ -85,27 +100,14 @@ class BaselineRunner:
             dictionary_path=inputs.dictionary_path,
         )
         self._assert_upstream_pass(receipt)
-        sealed_df = self._ensure_sealed_outputs(
+        sealed_outputs_df = self._load_sealed_outputs(
             data_root=data_root,
             dictionary=dictionary,
             manifest_fingerprint=inputs.manifest_fingerprint,
-            parameter_hash=inputs.parameter_hash,
-            sealed_df=sealed_df,
-            receipt_path=data_root
-            / render_dataset_path(
-                dataset_id="s0_gate_receipt_5A",
-                template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
-                dictionary=dictionary,
-            ),
-            sealed_path=data_root
-            / render_dataset_path(
-                dataset_id="sealed_inputs_5A",
-                template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
-                dictionary=dictionary,
-            ),
         )
+        merged_df = self._merge_inventories(sealed_df, sealed_outputs_df)
         inventory = SealedInventory(
-            dataframe=sealed_df,
+            dataframe=merged_df,
             base_path=data_root,
             repo_root=Path.cwd(),
             template_args={
@@ -123,6 +125,7 @@ class BaselineRunner:
 
         baseline_path: Path | None = None
         class_baseline_path: Path | None = None
+        utc_baseline_path: Path | None = None
         resumed = True
 
         for binding in scenarios:
@@ -154,6 +157,7 @@ class BaselineRunner:
                 scenario_id=scenario_id,
             )
             class_df = self._aggregate_class(baseline_df)
+            utc_df = self._project_utc(baseline_df)
 
             resumed = resumed and baseline_path.exists()
             self._write_parquet(baseline_path, baseline_df)
@@ -165,6 +169,14 @@ class BaselineRunner:
                 )
                 class_baseline_path.parent.mkdir(parents=True, exist_ok=True)
                 self._write_parquet(class_baseline_path, class_df)
+            if utc_df is not None:
+                utc_baseline_path = data_root / render_dataset_path(
+                    dataset_id="merchant_zone_baseline_utc_5A",
+                    template_args={"manifest_fingerprint": inputs.manifest_fingerprint, "scenario_id": scenario_id},
+                    dictionary=dictionary,
+                )
+                utc_baseline_path.parent.mkdir(parents=True, exist_ok=True)
+                self._write_parquet(utc_baseline_path, utc_df)
 
         run_report_path = (
             data_root / "reports/l2/5A/s3_baselines" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
@@ -180,6 +192,7 @@ class BaselineRunner:
             "parameter_hash": inputs.parameter_hash,
             "baseline_path": str(baseline_path) if baseline_path else "",
             "class_baseline_path": str(class_baseline_path) if class_baseline_path else "",
+            "utc_baseline_path": str(utc_baseline_path) if utc_baseline_path else "",
             "resumed": resumed,
             "scenario_ids": [binding.scenario_id for binding in scenarios],
             "sealed_inputs_digest": receipt.get("sealed_inputs_digest"),
@@ -204,6 +217,7 @@ class BaselineRunner:
                 "run_report_path": str(run_report_path),
                 "baseline_path": str(baseline_path) if baseline_path else "",
                 "class_baseline_path": str(class_baseline_path) if class_baseline_path else "",
+                "utc_baseline_path": str(utc_baseline_path) if utc_baseline_path else "",
                 "resumed": resumed,
             },
         )
@@ -211,6 +225,7 @@ class BaselineRunner:
         return BaselineResult(
             baseline_path=baseline_path,
             class_baseline_path=class_baseline_path,
+            utc_baseline_path=utc_baseline_path,
             run_report_path=run_report_path,
             resumed=resumed,
         )
@@ -222,6 +237,40 @@ class BaselineRunner:
         ]
         if failing:
             raise RuntimeError(f"S3_UPSTREAM_NOT_PASS: upstream segments not PASS: {failing}")
+
+    def _load_sealed_outputs(
+        self, *, data_root: Path, dictionary: Mapping[str, object], manifest_fingerprint: str
+    ) -> pl.DataFrame | None:
+        """Load optional sealed_outputs_5A snapshot if present."""
+
+        path = data_root / render_dataset_path(
+            dataset_id="sealed_outputs_5A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        if not path.exists():
+            return None
+        try:
+            return pl.read_parquet(path)
+        except Exception as exc:  # pragma: no cover - defensive read
+            logger.warning("sealed_outputs_5A present but unreadable: %s", exc)
+            return None
+
+    def _merge_inventories(self, sealed_inputs: pl.DataFrame, sealed_outputs: pl.DataFrame | None) -> pl.DataFrame:
+        """Prefer sealed_outputs rows when overlaying onto sealed_inputs."""
+
+        if sealed_outputs is None or sealed_outputs.is_empty():
+            return sealed_inputs
+        merged: dict[str, dict[str, object]] = {}
+        for row in sealed_inputs.to_dicts():
+            artifact_id = str(row.get("artifact_id"))
+            merged[artifact_id] = row
+        for row in sealed_outputs.to_dicts():
+            artifact_id = str(row.get("artifact_id"))
+            merged[artifact_id] = row
+        rows = list(merged.values())
+        rows.sort(key=lambda row: (row.get("owner_layer", ""), row.get("owner_segment", ""), row.get("artifact_id", "")))
+        return pl.DataFrame(rows)
 
     def _load_profiles(self, *, inventory: SealedInventory) -> pl.DataFrame:
         files = inventory.resolve_files("merchant_zone_profile_5A")
@@ -360,89 +409,6 @@ class BaselineRunner:
         self._assert_weekly_sums(base, policy)
         return base
 
-    def _ensure_sealed_outputs(
-        self,
-        *,
-        data_root: Path,
-        dictionary: Mapping[str, object],
-        manifest_fingerprint: str,
-        parameter_hash: str,
-        sealed_df: pl.DataFrame,
-        receipt_path: Path,
-        sealed_path: Path,
-    ) -> pl.DataFrame:
-        required = (
-            ("merchant_zone_profile_5A", {"manifest_fingerprint": manifest_fingerprint}),
-            ("shape_grid_definition_5A", {"parameter_hash": parameter_hash, "scenario_id": "baseline"}),
-            ("class_zone_shape_5A", {"parameter_hash": parameter_hash, "scenario_id": "baseline"}),
-            ("baseline_intensity_policy_5A", {}),
-        )
-        present = set(sealed_df["artifact_id"].to_list())
-        new_rows = []
-        for dataset_id, template_args in required:
-            if dataset_id in present:
-                continue
-            path = data_root / render_dataset_path(dataset_id=dataset_id, template_args=template_args, dictionary=dictionary)
-            if not path.exists():
-                continue
-            entry = dictionary
-            schema_ref = ""
-            partition_keys = []
-            if isinstance(entry, Mapping):
-                try:
-                    # naive lookup by id
-                    entries = entry.get("datasets") or []
-                    for item in entries:
-                        if isinstance(item, Mapping) and item.get("id") == dataset_id:
-                            schema_ref = str(item.get("schema_ref") or "")
-                            pk = item.get("partitioning") or item.get("partition_keys") or []
-                            if isinstance(pk, list):
-                                partition_keys = [str(v) for v in pk]
-                            break
-                except Exception:
-                    pass
-            digest = hash_files([path], error_prefix=dataset_id)[0].sha256_hex
-            new_rows.append(
-                {
-                    "manifest_fingerprint": manifest_fingerprint,
-                    "parameter_hash": parameter_hash,
-                    "owner_layer": "layer2",
-                    "owner_segment": "5A",
-                    "artifact_id": dataset_id,
-                    "manifest_key": dataset_id,
-                    "role": "model",
-                    "schema_ref": schema_ref,
-                    "path_template": render_dataset_path(dataset_id=dataset_id, template_args=template_args, dictionary=dictionary),
-                    "partition_keys": partition_keys,
-                    "sha256_hex": digest,
-                    "version": str(template_args.get("manifest_fingerprint") or template_args.get("parameter_hash") or "static"),
-                    "source_dictionary": "",
-                    "source_registry": "",
-                    "status": "REQUIRED",
-                    "read_scope": "ROW_LEVEL",
-                    "notes": "sealed_by=S3",
-                    "license_class": "",
-                    "owner_team": "",
-                }
-            )
-        if not new_rows:
-            return sealed_df
-        updated = pl.concat([sealed_df, pl.DataFrame(new_rows)]).sort(
-            ["owner_layer", "owner_segment", "artifact_id"]
-        )
-        # write updated sealed_inputs and patch receipt digest
-        updated.write_parquet(sealed_path)
-        from engine.layers.l2.seg_5A.shared.control_plane import compute_sealed_inputs_digest
-
-        digest = compute_sealed_inputs_digest(updated.sort(["owner_layer", "owner_segment", "artifact_id"]).to_dicts())
-        try:
-            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            receipt["sealed_inputs_digest"] = digest
-            receipt_path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
-        except Exception:
-            pass
-        return updated
-
     def _load_baseline_policy(self, *, inventory: SealedInventory) -> Mapping[str, object]:
         files = inventory.resolve_files("baseline_intensity_policy_5A")
         path = files[0]
@@ -495,6 +461,28 @@ class BaselineRunner:
             .with_columns(pl.lit(self._S3_SPEC_VERSION).alias("s3_spec_version"))
             .select(list(self._CLASS_BASELINE_SCHEMA.keys()))
         )
+
+    def _project_utc(self, baseline: pl.DataFrame) -> pl.DataFrame | None:
+        if baseline.is_empty():
+            return None
+        if "bucket_index" not in baseline.columns:
+            return None
+        utc_df = baseline.select(
+            [
+                pl.col("manifest_fingerprint"),
+                pl.col("parameter_hash"),
+                pl.col("scenario_id"),
+                pl.col("merchant_id"),
+                pl.col("legal_country_iso"),
+                pl.col("tzid"),
+                pl.col("zone_id"),
+                pl.col("channel"),
+                pl.col("channel_group"),
+                pl.col("bucket_index").alias("utc_bucket_index"),
+                pl.col("lambda_local_base").alias("lambda_utc_base"),
+            ]
+        ).with_columns(pl.lit(self._S3_SPEC_VERSION).alias("s3_spec_version"))
+        return utc_df.select(list(self._UTC_BASELINE_SCHEMA.keys()))
 
     def _write_parquet(self, path: Path, df: pl.DataFrame) -> None:
         if path.exists():

@@ -82,6 +82,7 @@ class S0Outputs:
     sealed_inputs_path: Path
     sealed_inputs_digest: str
     run_report_path: Path
+    sealed_outputs_path: Path | None = None
     scenario_manifest_path: Path | None = None
 
 
@@ -333,6 +334,11 @@ class S0GateRunner:
             sealed_inputs_digest=sealed_inputs_digest,
             scenario_manifest_path=scenario_manifest_path,
         )
+        sealed_outputs_path = self._write_sealed_outputs(
+            inputs=inputs,
+            dictionary=dictionary,
+            scenario_plan=scenario_plan,
+        )
 
         return S0Outputs(
             manifest_fingerprint=inputs.upstream_manifest_fingerprint,
@@ -341,7 +347,23 @@ class S0GateRunner:
             sealed_inputs_path=sealed_inputs_path,
             sealed_inputs_digest=sealed_inputs_digest,
             run_report_path=run_report_path,
+            sealed_outputs_path=sealed_outputs_path,
             scenario_manifest_path=scenario_manifest_path,
+        )
+
+    def refresh_sealed_outputs(self, inputs: S0Inputs) -> Path | None:
+        """Recompute sealed_outputs_5A in isolation (does not touch sealed_inputs)."""
+
+        dictionary = load_dictionary(inputs.dictionary_path)
+        scenario_plan = self._load_scenario_plan(
+            inputs=inputs,
+            dictionary=dictionary,
+            repo_root=repository_root(),
+        )
+        return self._write_sealed_outputs(
+            inputs=inputs,
+            dictionary=dictionary,
+            scenario_plan=scenario_plan,
         )
 
     # -------------------- helpers --------------------
@@ -1020,6 +1042,98 @@ class S0GateRunner:
             )
         pl.DataFrame(rows).write_parquet(output_path)
         return output_path
+
+    def _write_sealed_outputs(
+        self,
+        *,
+        inputs: S0Inputs,
+        dictionary: Mapping[str, object],
+        scenario_plan: ScenarioPlan,
+    ) -> Path | None:
+        """Optionally seal post-S2 artefacts without mutating sealed_inputs."""
+
+        repo_root = repository_root()
+        dictionary_rel_path = str(default_dictionary_path().relative_to(repo_root))
+        template_values: MutableMapping[str, object] = {
+            "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+            "fingerprint": inputs.upstream_manifest_fingerprint,
+            "parameter_hash": inputs.parameter_hash,
+        }
+        baseline_scenario = next((s.scenario_id for s in scenario_plan.scenarios if s.is_baseline), "baseline")
+        target_path = inputs.output_base_path / render_dataset_path(
+            dataset_id="sealed_outputs_5A",
+            template_args={"manifest_fingerprint": inputs.upstream_manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        rows: list[Mapping[str, object]] = []
+
+        def _seal(dataset_id: str, extra_args: Mapping[str, object] | None = None, note: str | None = None) -> None:
+            entry = get_dataset_entry(dataset_id, dictionary=dictionary)
+            path_template = self._extract_path_template(entry, dataset_id)
+            base_dir = self._layer2_dataset_base(
+                path_template=path_template,
+                repo_root=repo_root,
+                run_base_path=inputs.output_base_path,
+            )
+            args = dict(template_values)
+            if extra_args:
+                args.update(extra_args)
+            try:
+                files = self._expand_dataset_files(
+                    base_path=base_dir,
+                    template=path_template,
+                    template_args=args,
+                    dataset_id=dataset_id,
+                )
+            except FileNotFoundError:
+                return
+            digests = tuple(hash_files(files, error_prefix=dataset_id))
+            partition_keys = tuple(entry.get("partitioning") or entry.get("partition_keys") or ())
+            manifest_key = self._registry_manifest_key("5A", path_template) or f"mlr.5A.dataset.{dataset_id}"
+            role = "model"
+            read_scope = self._infer_read_scope(entry)
+            status = self._normalise_status(entry.get("status"))
+            rows.append(
+                SealedArtefact(
+                    manifest_fingerprint=inputs.upstream_manifest_fingerprint,
+                    parameter_hash=inputs.parameter_hash,
+                    owner_layer="layer2",
+                    owner_segment="5A",
+                    artifact_id=dataset_id,
+                    manifest_key=manifest_key,
+                    role=role,
+                    schema_ref=str(entry.get("schema_ref") or "").strip(),
+                    path_template=path_template,
+                    partition_keys=partition_keys,
+                    version=self._render_declared_version(entry.get("version"), args),
+                    digests=digests,
+                    source_dictionary=dictionary_rel_path,
+                    source_registry=self._registry_rel_path("5A"),
+                    status=status,
+                    read_scope=read_scope,
+                    notes=note or "",
+                ).as_row()
+            )
+
+        _seal("merchant_zone_profile_5A")
+        _seal("merchant_class_profile_5A")
+        scenario_args = {"scenario_id": baseline_scenario}
+        _seal("shape_grid_definition_5A", scenario_args, note=f"scenario_id={baseline_scenario}")
+        _seal("class_zone_shape_5A", scenario_args, note=f"scenario_id={baseline_scenario}")
+
+        if not rows:
+            return None
+        rows.sort(key=lambda row: (row["owner_layer"], row["owner_segment"], row["artifact_id"]))
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        candidate_digest = self._compute_sealed_inputs_digest(rows)
+        if target_path.exists():
+            existing = pl.read_parquet(target_path).to_dicts()
+            existing_digest = self._compute_sealed_inputs_digest(existing)
+            if existing_digest == candidate_digest:
+                return target_path
+            raise RuntimeError("sealed_outputs_5A already exists with different content; remove stale snapshot first")
+        pl.DataFrame(rows).write_parquet(target_path)
+        return target_path
 
     def _write_receipt(
         self,

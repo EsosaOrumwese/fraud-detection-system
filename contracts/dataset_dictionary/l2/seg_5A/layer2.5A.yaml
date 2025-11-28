@@ -218,6 +218,25 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  - id: sealed_outputs_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Inventory of post-S2 artefacts sealed for reuse within Segment 5A (e.g., S1/S2 outputs).
+    version: '{manifest_fingerprint}'
+    format: parquet
+    path: data/layer2/5A/sealed_outputs/fingerprint={manifest_fingerprint}/sealed_outputs_5A.parquet
+    partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint, owner_segment, artifact_id]
+    ordering: []
+    schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
+    lineage:
+      produced_by: [5A.S0]
+      consumed_by: [5A.S3]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
   # S1 — demand profiles
   - id: merchant_zone_profile_5A
     status: required
