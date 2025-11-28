@@ -1,0 +1,10 @@
+# Scenario horizon config (5A.S4) - v1
+version: v1
+scenarios:
+  - id: baseline
+    horizon_days: 7
+    bucket_minutes: 60
+    timezone: local
+    description: Baseline horizon aligned to the weekly shape grid.
+notes: |
+  TODO: Extend with additional scenarios and UTC mappings once S4 is implemented.

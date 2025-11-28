@@ -1,0 +1,23 @@
+# Shape library (5A.S2) - v1
+version: v1
+time_grid:
+  bucket_minutes: 60
+  buckets_per_week: 168
+  tz_reference: local
+  bucket_label: hour_of_week
+templates:
+  - demand_class: digital
+    channel_group: online
+    type: flat
+  - demand_class: travel
+    type: weekday_peaks
+  - demand_class: food_bev
+    type: weekend_heavy
+  - demand_class: transport
+    type: commute_peaks
+  - demand_class: services
+    type: weekday_flat
+  - demand_class: retail_daytime
+    type: daytime_skew
+notes: |
+  TODO: Replace with governed shapes; current templates are interpreted by S2 as simple deterministic curves.

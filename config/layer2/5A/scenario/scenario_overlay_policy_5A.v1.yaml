@@ -1,0 +1,9 @@
+# Scenario overlay policy (5A.S4) - v1
+version: v1
+overlays:
+  baseline:
+    factors:
+      default: 1.0
+    precedence: []
+notes: |
+  TODO: Replace with governed overlay rules (holidays, campaigns, outages) when scenario calendars are populated.

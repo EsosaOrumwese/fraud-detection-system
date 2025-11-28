@@ -222,6 +222,62 @@ _UPSTREAM_DATASET_SPECS: tuple[CandidateSpec, ...] = (
         dictionary_rel_path="contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
         read_scope="METADATA_ONLY",
     ),
+    # Layer-2 policy/config inputs for 5A
+    CandidateSpec(
+        owner_layer="layer2",
+        owner_segment="5A",
+        dataset_id="merchant_class_policy_5A",
+        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+        role="policy",
+        manifest_scope="static",
+        read_scope="METADATA_ONLY",
+    ),
+    CandidateSpec(
+        owner_layer="layer2",
+        owner_segment="5A",
+        dataset_id="demand_scale_policy_5A",
+        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+        role="policy",
+        manifest_scope="static",
+        read_scope="METADATA_ONLY",
+    ),
+    CandidateSpec(
+        owner_layer="layer2",
+        owner_segment="5A",
+        dataset_id="shape_library_5A",
+        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+        role="policy",
+        manifest_scope="static",
+        read_scope="METADATA_ONLY",
+    ),
+    CandidateSpec(
+        owner_layer="layer2",
+        owner_segment="5A",
+        dataset_id="scenario_horizon_config_5A",
+        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+        role="config",
+        manifest_scope="static",
+        read_scope="METADATA_ONLY",
+    ),
+    CandidateSpec(
+        owner_layer="layer2",
+        owner_segment="5A",
+        dataset_id="scenario_overlay_policy_5A",
+        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+        role="policy",
+        manifest_scope="static",
+        read_scope="METADATA_ONLY",
+    ),
+    CandidateSpec(
+        owner_layer="layer2",
+        owner_segment="5A",
+        dataset_id="scenario_calendar_5A",
+        dictionary_rel_path="contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+        role="config",
+        manifest_scope="fingerprint",
+        read_scope="ROW_LEVEL",
+        status="OPTIONAL",
+    ),
 )
 
 
@@ -514,12 +570,18 @@ class S0GateRunner:
                 template_values["manifest_fingerprint"] = segment_fp
                 template_values["fingerprint"] = segment_fp
             base_dir = inputs.base_path if spec.base == "base" else repo_root
-            files = self._expand_dataset_files(
-                base_path=base_dir,
-                template=path_template,
-                template_args=template_values,
-                dataset_id=spec.dataset_id,
-            )
+            try:
+                files = self._expand_dataset_files(
+                    base_path=base_dir,
+                    template=path_template,
+                    template_args=template_values,
+                    dataset_id=spec.dataset_id,
+                )
+            except FileNotFoundError as err:
+                if spec.status.upper() == "OPTIONAL":
+                    logger.warning("Skipping optional dataset %s: %s", spec.dataset_id, err)
+                    continue
+                raise
             digests = tuple(hash_files(files, error_prefix=spec.dataset_id))
             manifest_key = spec.manifest_key or self._registry_manifest_key(spec.owner_segment, path_template)
             assets.append(

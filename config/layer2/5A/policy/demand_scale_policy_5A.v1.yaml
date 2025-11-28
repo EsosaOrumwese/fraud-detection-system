@@ -1,0 +1,29 @@
+# Demand scale policy (5A.S1/S3) - v1
+version: v1
+defaults:
+  weekly_volume_expected: 120.0
+  weekly_volume_unit: transactions
+  scale_factor: 1.0
+classes:
+  digital:
+    weekly_volume_expected: 200.0
+    scale_factor: 1.2
+    high_variability_flag: true
+  travel:
+    weekly_volume_expected: 60.0
+    scale_factor: 0.9
+    high_variability_flag: true
+  food_bev:
+    weekly_volume_expected: 150.0
+    scale_factor: 1.1
+  transport:
+    weekly_volume_expected: 80.0
+    scale_factor: 1.0
+  services:
+    weekly_volume_expected: 90.0
+    scale_factor: 1.0
+  retail_daytime:
+    weekly_volume_expected: 110.0
+    scale_factor: 1.0
+notes: |
+  TODO: Replace with governed scale policy once empirical baselines are available.

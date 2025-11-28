@@ -1,0 +1,27 @@
+# Merchant class policy (5A.S1) - v1
+version: v1
+default_class: retail_daytime
+rules:
+  - name: ecommerce
+    when:
+      channel_group: [online, ecommerce]
+    class: digital
+  - name: travel_air
+    when:
+      mcc_prefix: [300, 400, 410, 451]
+    class: travel
+  - name: food_bev
+    when:
+      mcc_prefix: [500, 541, 542, 581]
+    class: food_bev
+  - name: transport
+    when:
+      mcc_prefix: [411, 412, 413, 478]
+    class: transport
+  - name: services
+    when:
+      mcc_prefix: [700, 721, 729, 899, 939]
+    class: services
+notes: |
+  TODO: Replace with governed policy once real classing rules are available.
+  This stub is deterministic and channel/MCC-driven only.
