@@ -1,0 +1,16 @@
+version: vdev
+overlays:
+  baseline:
+    precedence: [outage, promo, night, default]
+    bounds:
+      min: 0.05
+      max: 2.0
+    events:
+      - event_type: outage
+        factor: 0.2
+      - event_type: promo
+        factor: 1.3
+      - event_type: night
+        factor: 0.5
+    factors:
+      default: 1.0
