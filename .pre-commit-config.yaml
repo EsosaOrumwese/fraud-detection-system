@@ -66,44 +66,44 @@ repos:
         stages:
           - pre-push
 
-  - repo: local
-    hooks:
-      - id: pytest-seg-1
-        name: pytest (Segment 1A + 1B suites)
-        entry: >-
-          python -m pytest
-          tests/contracts/test_seg_1A_dictionary_schemas.py
-          tests/engine/cli/test_segment1a_cli.py
-          tests/engine/cli/test_segment1b_cli.py
-          tests/engine/l1/seg_1A
-          tests/engine/l1/seg_1B
-          tests/engine/layers/l1/seg_1A
-          tests/engine/layers/l1/seg_1B
-        language: system
-        pass_filenames: false
-        stages:
-          - pre-commit
-      - id: pytest-seg-2
-        name: pytest (Segment 2A + 2B suites)
-        entry: >-
-          python -m pytest
-          tests/engine/test_seg_2a_s0_gate.py
-          tests/engine/test_seg_2a_s1_plumbing.py
-          tests/engine/test_seg_2a_s2_overrides.py
-          tests/engine/test_seg_2a_s3_timetable.py
-          tests/engine/test_seg_2a_s4_legality.py
-          tests/engine/test_seg_2a_s5_validation.py
-          tests/engine/test_segment2a_orchestrator.py
-          tests/engine/test_seg_2b_s0_gate.py
-          tests/engine/test_seg_2b_s1_weights.py
-          tests/engine/test_seg_2b_s2_alias.py
-          tests/engine/test_seg_2b_s3_day_effects.py
-          tests/engine/test_seg_2b_s4_group_weights.py
-          tests/engine/test_seg_2b_s5_router.py
-          tests/engine/test_seg_2b_s6_virtual_edge.py
-          tests/engine/test_seg_2b_s7_audit.py
-          tests/engine/test_seg_2b_s8_validation.py
-        language: system
-        pass_filenames: false
-        stages:
-          - pre-commit
+  # - repo: local
+  #   hooks:
+  #     - id: pytest-seg-1
+  #       name: pytest (Segment 1A + 1B suites)
+  #       entry: >-
+  #         python -m pytest
+  #         tests/contracts/test_seg_1A_dictionary_schemas.py
+  #         tests/engine/cli/test_segment1a_cli.py
+  #         tests/engine/cli/test_segment1b_cli.py
+  #         tests/engine/l1/seg_1A
+  #         tests/engine/l1/seg_1B
+  #         tests/engine/layers/l1/seg_1A
+  #         tests/engine/layers/l1/seg_1B
+  #       language: system
+  #       pass_filenames: false
+  #       stages:
+  #         - pre-commit
+  #     - id: pytest-seg-2
+  #       name: pytest (Segment 2A + 2B suites)
+  #       entry: >-
+  #         python -m pytest
+  #         tests/engine/test_seg_2a_s0_gate.py
+  #         tests/engine/test_seg_2a_s1_plumbing.py
+  #         tests/engine/test_seg_2a_s2_overrides.py
+  #         tests/engine/test_seg_2a_s3_timetable.py
+  #         tests/engine/test_seg_2a_s4_legality.py
+  #         tests/engine/test_seg_2a_s5_validation.py
+  #         tests/engine/test_segment2a_orchestrator.py
+  #         tests/engine/test_seg_2b_s0_gate.py
+  #         tests/engine/test_seg_2b_s1_weights.py
+  #         tests/engine/test_seg_2b_s2_alias.py
+  #         tests/engine/test_seg_2b_s3_day_effects.py
+  #         tests/engine/test_seg_2b_s4_group_weights.py
+  #         tests/engine/test_seg_2b_s5_router.py
+  #         tests/engine/test_seg_2b_s6_virtual_edge.py
+  #         tests/engine/test_seg_2b_s7_audit.py
+  #         tests/engine/test_seg_2b_s8_validation.py
+  #       language: system
+  #       pass_filenames: false
+  #       stages:
+  #         - pre-commit

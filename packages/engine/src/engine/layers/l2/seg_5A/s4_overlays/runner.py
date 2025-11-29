@@ -96,7 +96,7 @@ class OverlaysRunner:
             if horizon_df.is_empty():
                 raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty after build")
 
-            scenario_df, factors_df = self._compose_scenario(
+            scenario_df, factors_df, bucket_minutes = self._compose_scenario(
                 baseline=baseline_df,
                 horizon=horizon_df,
                 grid=grid_df,
@@ -124,7 +124,23 @@ class OverlaysRunner:
                 overlay_factors_path.parent.mkdir(parents=True, exist_ok=True)
                 self._write_parquet(overlay_factors_path, factors_df)
 
-            # UTC projection deferred until governed civil-time mapping is available.
+            # UTC projection using fixed offset per tzid (civil-time tables pending).
+            utc_df = self._project_utc(
+                scenario_df,
+                manifest_fingerprint=inputs.manifest_fingerprint,
+                parameter_hash=inputs.parameter_hash,
+                scenario_id=scenario_id,
+                bucket_minutes=bucket_minutes,
+                horizon_len=horizon_df.height,
+            )
+            if utc_df is not None:
+                scenario_utc_path = data_root / render_dataset_path(
+                    dataset_id="merchant_zone_scenario_utc_5A",
+                    template_args={"manifest_fingerprint": inputs.manifest_fingerprint, "scenario_id": scenario_id},
+                    dictionary=dictionary,
+                )
+                scenario_utc_path.parent.mkdir(parents=True, exist_ok=True)
+                self._write_parquet(scenario_utc_path, utc_df)
 
         run_report_path = (
             data_root / "reports/l2/5A/s4_overlays" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
@@ -277,7 +293,7 @@ class OverlaysRunner:
         scenario_id: str,
         overlay_policy: Mapping[str, object],
         calendar: pl.DataFrame,
-    ) -> tuple[pl.DataFrame, pl.DataFrame | None]:
+    ) -> tuple[pl.DataFrame, pl.DataFrame | None, int]:
         if horizon.is_empty():
             raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty")
         if grid.is_empty():
@@ -305,7 +321,11 @@ class OverlaysRunner:
         overlay_factor = float(
             overlay_policy.get("overlays", {}).get(scenario_id, {}).get("factors", {}).get("default", 1.0)
         )
-        factors_by_bucket = self._resolve_calendar_factors(calendar, overlay_policy, scenario_id, overlay_factor)
+        bucket_minutes = int(horizon["bucket_minutes"][0]) if "bucket_minutes" in horizon.columns else 60
+        horizon_len = int(horizon.height)
+        factors_by_bucket = self._resolve_calendar_factors(
+            calendar, overlay_policy, scenario_id, overlay_factor, horizon_len=horizon_len
+        )
         scenario_df = (
             joined.with_columns(
                 [
@@ -316,13 +336,19 @@ class OverlaysRunner:
                     pl.col("local_horizon_bucket_index").cast(pl.Int32),
                     (
                         pl.col("lambda_local_base")
-                        * pl.col("local_horizon_bucket_index").map_elements(
-                            lambda idx: factors_by_bucket.get(int(idx), overlay_factor)
+                        * pl.struct(["tzid", "local_horizon_bucket_index"]).map_elements(
+                            lambda s: factors_by_bucket.get(
+                                (str(s["tzid"]), int(s["local_horizon_bucket_index"])),
+                                overlay_factor,
+                            )
                         )
                     ).alias("lambda_local_scenario"),
                     pl.lit(self._S4_SPEC_VERSION).alias("s4_spec_version"),
-                    pl.col("local_horizon_bucket_index").map_elements(
-                        lambda idx: factors_by_bucket.get(int(idx), overlay_factor)
+                    pl.struct(["tzid", "local_horizon_bucket_index"]).map_elements(
+                        lambda s: factors_by_bucket.get(
+                            (str(s["tzid"]), int(s["local_horizon_bucket_index"])),
+                            overlay_factor,
+                        )
                     ).alias("overlay_factor_total"),
                 ]
             )
@@ -360,7 +386,7 @@ class OverlaysRunner:
                 "s4_spec_version",
             ]
         )
-        return scenario_df, factors_df
+        return scenario_df, factors_df, bucket_minutes
 
     def _resolve_calendar_factors(
         self,
@@ -368,8 +394,9 @@ class OverlaysRunner:
         overlay_policy: Mapping[str, object],
         scenario_id: str,
         default_factor: float,
-    ) -> dict[int, float]:
-        factors: dict[int, float] = {}
+        horizon_len: int,
+    ) -> dict[tuple[str, int], float]:
+        factors: dict[tuple[str, int], float] = {}
         if calendar.is_empty():
             return factors
         policy_conf = overlay_policy.get("overlays", {}).get(scenario_id, {}) if isinstance(overlay_policy, Mapping) else {}
@@ -391,6 +418,8 @@ class OverlaysRunner:
                 idx = int(row.get("local_horizon_bucket_index", -1))
                 if idx < 0:
                     continue
+                tzid = str(row.get("tzid") or "")
+                key = (tzid, idx % horizon_len)
                 events: list[tuple[str, float]] = []
                 event_type = str(row.get("event_type") or "").strip()
                 if event_type:
@@ -405,7 +434,7 @@ class OverlaysRunner:
                 for _, f in events:
                     factor_value *= f
                 factor_value = max(factor_min, min(factor_value, factor_max))
-                factors[idx] = factor_value
+                factors[key] = factor_value
         return factors
 
     @staticmethod
@@ -425,9 +454,47 @@ class OverlaysRunner:
         manifest_fingerprint: str,
         parameter_hash: str,
         scenario_id: str,
+        bucket_minutes: int,
+        horizon_len: int,
     ) -> pl.DataFrame | None:
-        # UTC projection deferred until civil-time mapping is governed; return None.
-        return None
+        if scenario_df.is_empty():
+            return None
+
+        def _utc_index(tzid: str, local_idx: int) -> int:
+            offset = self._utc_offset_minutes(tzid)
+            utc_idx = (local_idx * bucket_minutes - offset) // bucket_minutes
+            return int(utc_idx % horizon_len)
+
+        return (
+            scenario_df.with_columns(
+                [
+                    pl.struct(["tzid", "local_horizon_bucket_index"])
+                    .map_elements(lambda s: _utc_index(str(s["tzid"]), int(s["local_horizon_bucket_index"])))
+                    .alias("utc_horizon_bucket_index"),
+                    pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
+                    pl.lit(parameter_hash).alias("parameter_hash"),
+                    pl.lit(scenario_id).alias("scenario_id"),
+                    pl.col("lambda_local_scenario").alias("lambda_utc_scenario"),
+                    pl.lit(self._S4_SPEC_VERSION).alias("s4_spec_version"),
+                ]
+            )
+            .select(
+                [
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "scenario_id",
+                    "merchant_id",
+                    "legal_country_iso",
+                    "tzid",
+                    "zone_id",
+                    "channel",
+                    "channel_group",
+                    "utc_horizon_bucket_index",
+                    "lambda_utc_scenario",
+                    "s4_spec_version",
+                ]
+            )
+        )
 
     def _write_parquet(self, path: Path, df: pl.DataFrame) -> None:
         if path.exists():
