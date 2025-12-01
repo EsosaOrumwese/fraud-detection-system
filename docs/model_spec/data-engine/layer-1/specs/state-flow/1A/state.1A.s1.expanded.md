@@ -13,7 +13,7 @@ S1 does **not** specify downstream sampling (NB, ZTP, Dirichlet, etc.) nor CI/mo
 
 **Feature vector (logistic):**
 
-* **Block order (fixed):** $[\,\text{intercept}\,] \;\Vert\; \text{onehot(MCC)} \;\Vert\; \text{onehot(channel)} \;\Vert\; \text{onehot(GDP_bucket)}$.
+* **Block order (fixed):** $[\,\text{intercept}\,] \;\Vert\; \text{onehot(MCC)} \;\Vert\; \text{onehot(channel)} \;\Vert\; \text{onehot(GDP\_bucket)}$.
 * **Channel encoder (dim=2):** labels/order exactly $[\,\mathrm{CP},\,\mathrm{CNP}\,]$ (from S0).
 * **GDP bucket encoder (dim=5):** labels/order exactly $[\,1,2,3,4,5\,]$ (S0 Jenks-5).
 * **MCC encoder (dim $=C_{\text{mcc}}$):** **column order is frozen by S0.5** (the fitting bundle). S1 never derives order from map iteration.
@@ -52,7 +52,7 @@ S0 has already established the **run identifiers** and RNG environment S1 uses:
 **PRNG use model (order-invariant).** All RNG use in 1A is via **label-keyed substreams**. The **base counter** for a given label/merchant pair is derived by S0’s keyed-substream mapping from the tuple
 
 $$
-(\texttt{seed},\ \texttt{manifest_fingerprint},\ \texttt{substream_label},\ \texttt{merchant_id}),
+(\texttt{seed},\ \texttt{manifest\_fingerprint},\ \texttt{substream\_label},\ \texttt{merchant\_id}),
 $$
 
 independent of execution order or other labels. There is **no** cross-label counter chaining in S1.
@@ -75,8 +75,8 @@ Each hurdle record **must** include the layer envelope fields (names and types p
 **Budget identity (unsigned 128-bit):**
 
 $$
-\Delta \;\equiv\; \mathrm{u128}(\text{after_hi},\text{after_lo}) - \mathrm{u128}(\text{before_hi},\text{before_lo})
-\;=\; \texttt{parse_u128(draws)}.
+\Delta \;\equiv\; \mathrm{u128}(\text{after\_hi},\text{after\_lo}) - \mathrm{u128}(\text{before\_hi},\text{before\_lo})
+\;=\; \texttt{parse\_u128(draws)}.
 $$
 
 This identity is **scoped to the hurdle family only**. For hurdle, `draws ∈ {"0","1"}`; `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`. Other RNG families may have `draws ≠ blocks` while still satisfying S0’s counter rules.
@@ -300,7 +300,7 @@ The single S1 Validator Checklist (referenced once from S1) must be able to **re
 Given $\pi_m$ from S1.2, consume **at most one** uniform $u_m\in(0,1)$ from the merchant-keyed substream labeled `"hurdle_bernoulli"`, decide
 
 $$
-\text{is_multi}(m)\;=\;[\,u_m < \pi_m\,],
+\text{is\_multi}(m)\;=\;[\,u_m < \pi\_m\,],
 $$
 
 and emit exactly one hurdle event (payload in S1.4). The keyed-substream mapping, lane policy, and open-interval $U(0,1)$ are owned by **S0.3** and are referenced here without redefinition.
@@ -321,12 +321,12 @@ and emit exactly one hurdle event (payload in S1.4). The keyed-substream mapping
 ### Label
 
 $$
-\ell := \text{"hurdle_bernoulli"} \quad\text{(registry literal; appears verbatim in the event envelope).}
+\ell := \text{"hurdle\_bernoulli"} \quad\text{(registry literal; appears verbatim in the event envelope).}
 $$
 
 ### Base counter & independence (via S0 primitive)
 
-The **base counter** for each $(\ell, m)$ and the **keyed substream** are obtained **only** through S0’s mapping (pure in $(\texttt{seed}, \texttt{manifest_fingerprint}, \ell, m)$) and therefore **order-invariant** across partitions/shards. S1.3 **does not** chain counters across labels or merchants.
+The **base counter** for each $(\ell, m)$ and the **keyed substream** are obtained **only** through S0’s mapping (pure in $(\texttt{seed}, \texttt{manifest\_fingerprint}, \ell, m)$) and therefore **order-invariant** across partitions/shards. S1.3 **does not** chain counters across labels or merchants.
 
 ---
 
@@ -335,8 +335,8 @@ The **base counter** for each $(\ell, m)$ and the **keyed substream** are obtain
 For hurdle events, the envelope must satisfy the S0 budgeting identity:
 
 $$
-\mathrm{u128}(\texttt{after_hi},\texttt{after_lo}) - \mathrm{u128}(\texttt{before_hi},\texttt{before_lo})
-\;=\; \texttt{parse_u128(draws)},
+\mathrm{u128}(\texttt{after\_hi},\texttt{after\_lo}) - \mathrm{u128}(\texttt{before\_hi},\texttt{before\_lo})
+\;=\; \texttt{parse\_u128(draws)},
 $$
 
 with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {"0","1"}` (the number of uniforms consumed).
@@ -451,7 +451,7 @@ For each hurdle record in the run, the validator performs:
 
 ## Invariants (S1/H) guaranteed here
 
-* **Bit-replay:** Fixing $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, both the envelope counters and the pair $(u,\text{is_multi})$ are **bit-identical** under replay.
+* **Bit-replay:** Fixing $(x_m,\beta,\texttt{seed},\texttt{parameter\_hash},\texttt{manifest\_fingerprint})$, both the envelope counters and the pair $(u,\text{is\_multi})$ are **bit-identical** under replay.
 * **Consumption:** `draws="1"` **iff** $0<\pi<1$; else `"0"`.
 * **Schema conformance:** `u` and `deterministic` comply with the hurdle event schema: `u=null` iff $\pi\in\{0.0,1.0\}$; `is_multi` is **boolean** only.
 * **Order-invariance:** `before` equals the keyed **base counter** for `(label, merchant)`—never a prior label’s `after`.
@@ -690,9 +690,9 @@ Freeze the invariants that must hold for every merchant’s hurdle decision so d
 ## I-H1 — Bit-replay (per merchant, per run)
 
 **Statement.** For fixed inputs
-$(x_m,\ \beta,\ \texttt{seed},\ \texttt{parameter_hash},\ \texttt{manifest_fingerprint})$, the pair $(u_m,\ \text{is_multi}(m))$ and the envelope counters $(C^{\text{pre}}_m,\ C^{\text{post}}_m)$ are **bit-identical** across replays and **independent of emission order** or sharding.
+$(x_m,\ \beta,\ \texttt{seed},\ \texttt{parameter\_hash},\ \texttt{manifest\_fingerprint})$, the pair $(u_m,\ \text{is\_multi}(m))$ and the envelope counters $(C^{\text{pre}}_m,\ C^{\text{post}}_m)$ are **bit-identical** across replays and **independent of emission order** or sharding.
 
-**Why it holds.** The keyed-substream primitive derives a **base counter** for $(\ell=\text{"hurdle_bernoulli"}, m)$ that depends only on the run keys and $(\ell,m)$. The draw budget is a pure function of $\pi_m$. The uniform $u_m$ is obtained by the S0 **open-interval** mapping from the substream (low-lane) and therefore deterministic.
+**Why it holds.** The keyed-substream primitive derives a **base counter** for $(\ell=\text{"hurdle\_bernoulli"}, m)$ that depends only on the run keys and $(\ell,m)$. The draw budget is a pure function of $\pi_m$. The uniform $u_m$ is obtained by the S0 **open-interval** mapping from the substream (low-lane) and therefore deterministic.
 
 **Validator.** Rebuild the base counter from `(seed, manifest_fingerprint, substream_label="hurdle_bernoulli", merchant_id)`; assert envelope `before` matches.
 If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counters match exactly.
@@ -1084,7 +1084,7 @@ Maintain a **cumulative** `rng_trace_log` row per `(module, substream_label)` wi
 S1 does not persist a “state table”; it yields a **typed tuple** per merchant to the orchestrator:
 
 $$
-\boxed{\ \Xi_m \;=\; \big(\ \text{is_multi}:\mathbf{bool},\ N:\mathbb{N},\ K:\mathbb{N},\ \mathcal{C}:\text{set[ISO_3166-1 alpha-2]},\ C^{\star}:\text{u128}\ \big)\ }.
+\boxed{\ \Xi_m \;=\; \big(\ \text{is\_multi}:\mathbf{bool},\ N:\mathbb{N},\ K:\mathbb{N},\ \mathcal{C}:\text{set[ISO\_3166-1 alpha-2]},\ C^{\star}:\text{u128}\ \big)\ }.
 $$
 
 **Field semantics (normative):**
@@ -1298,7 +1298,7 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 
 ## V6. Cross-stream gating (branch purity)
 
-Let $\mathcal{H}_1=\{m\mid \text{hurdle.is_multi}(m)=\text{true}\}$.
+Let $\mathcal{H}_1=\{m\mid \text{hurdle.is\_multi}(m)=\text{true}\}$.
 Build the **set of gated 1A RNG streams** **programmatically** from the dataset dictionary (`owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"`); if the dictionary is legacy and lacks `gating`, **fall back** to the artefact-registry enumeration. For **every** row in any gated stream, assert `merchant_id ∈ 𝓗₁`. For merchants **not** in $𝓗_1$, assert **no** gated rows exist. *(Presence-based; no temporal ordering requirement.)*
 
 ---
