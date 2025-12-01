@@ -456,6 +456,7 @@ counter span **must** satisfy `u128(last_after) − u128(first_before) = blocks_
 There is **no** identity deriving `draws` (or `draws_total`) from counter deltas.
 Validators compare `draws_total` to the sampler budgets (Gamma/Poisson as specified),
 and verify the counter-span equality for `blocks_total`. `nb_final` is non-consuming.
+
 ---
 
 ## 7) Determinism & ordering (MUST)
