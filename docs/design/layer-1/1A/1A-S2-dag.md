@@ -14,11 +14,13 @@ Authoritative inputs (read-only at S2 entry)
     - frozen encoders & column dictionaries from S0:
       · one-hot MCC block Φ_mcc(mcc_m)
       · one-hot channel block Φ_ch(channel_sym_m)
-      · GDP-derived features (e.g. ln g_c, GDP bucket from gdp_bucket_map_2024)
       · intercept term
+    - GDP term for dispersion only:
+      · g_c > 0 (GDP-per-capita for home ISO c)
+      · ln g_c appears only in the dispersion design
     - S2 constructs, in-memory, per-merchant design vectors:
-      · x^(μ)_m  for NB mean (uses MCC, channel, GDP features, intercept)
-      · x^(φ)_m  for dispersion (may share or extend x^(μ)_m)
+      · x^(μ)_m  for NB mean = [1, Φ_mcc(mcc_m), Φ_ch(channel_sym_m)]
+      · x^(φ)_m  for dispersion = [1, Φ_mcc(mcc_m), Φ_ch(channel_sym_m), ln g_c]
     - no new dataset; shape & encoders are governed by S0
 
 [C] Model coefficients (governed artefacts):
@@ -64,15 +66,17 @@ Optional diagnostics (non-authoritative):
 [M],[D],[C],
 [N],[G],[Dict] ->  (S2.1) Scope, Preconditions & NB Context Assembly
                       - Entry gate (per merchant m):
-                          * require exactly one rng_event_hurdle_bernoulli row
+                          * require exactly one rng_event_hurdle_bernoulli row under {seed, parameter_hash, run_id}
+                          * verify hurdle.envelope.manifest_fingerprint == current run's manifest_fingerprint
                           * if missing → ERR_S2_ENTRY_MISSING_HURDLE (skip S2 for m)
                           * if is_multi == false → ERR_S2_ENTRY_NOT_MULTI (branch purity; skip S2 for m)
                       - Load feature primitives:
                           * mcc_m, channel_sym_m from merchant_ids / S0 feature prep
-                          * GDP g_c, GDP bucket from reference surfaces fixed in S0
+                          * GDP g_c > 0 from reference surfaces fixed in S0 (home ISO)
                       - Build NB design vectors (in-memory, not persisted):
-                          * x^(μ)_m = [1, Φ_mcc(mcc_m), Φ_ch(channel_sym_m), f_GDP(g_c, bucket_m), …]
-                          * x^(φ)_m similarly, per spec
+                          * x^(μ)_m = [1, Φ_mcc(mcc_m), Φ_ch(channel_sym_m)]
+                          * x^(φ)_m = [1, Φ_mcc(mcc_m), Φ_ch(channel_sym_m), ln g_c]
+                          * NB mean excludes GDP; dispersion includes ln g_c only (per S0.5 / S2.2)
                           * missing feature → ERR_S2_INPUTS_INCOMPLETE (skip S2 for m)
                       - Load NB coefficient vectors:
                           * β_μ from hurdle_coefficients.yaml (key=beta_mu)
@@ -104,20 +108,23 @@ x^(μ)_m,x^(φ)_m,
                       - Substream labels (NB-only):
                           * ℓ_γ = "gamma_nb" (for gamma_component, context="nb")
                           * ℓ_π = "poisson_nb" (for poisson_component, context="nb")
-                      - Base counter per (m, ℓ) from S0/S2.6:
-                          * c_base = SHA256("ctr:1A" || manifest_fingerprint || seed || ℓ || merchant_id)[0:128 bits]
+                      - Base counter per (m, ℓ) from S0.3.3 / S2.6:
+                          * c_base = keyed_substream_counter(seed, manifest_fingerprint, ℓ, merchant_id)
+                            (exact SHA-256/encoding recipe lives in S0.3.3/S2.6)
                       - For each attempt t (t = 0,1,2,…):
-                          1) Sample Gamma G ~ Gamma(α=φ_m, 1) using Marsaglia–Tsang style sampler:
-                              · variable number of uniforms per variate
-                              · emit gamma_component event:
-                                  - envelope: full RNG envelope (before/after counters, blocks, draws, labels)
-                                  - payload: { merchant_id, context="nb", index=0, alpha=φ_m, gamma_value=G }
-                          2) Compute λ_t = (μ_m / φ_m) * G in binary64.
-                          3) Sample K_t ~ Poisson(λ_t) via λ-dependent sampler (inversion vs PTRS):
+                          1) Sample Gamma G ~ Gamma(α=φ_m, 1) using the NB Gamma sampler:
+                              · variable number of uniforms per attempt
+                          2) Compute λ_t = (μ_m / φ_m) * G in binary64 and guard before any emission:
+                              · if λ_t is non-finite or λ_t ≤ 0 → ERR_S2_NUMERIC_INVALID
+                                (abort S2 for m; no S2 events for this merchant)
+                          3) Emit gamma_component event:
+                              - envelope: full RNG envelope (before/after counters, blocks, draws, labels)
+                              - payload: { merchant_id, context="nb", index=0, alpha=φ_m, gamma_value=G }
+                          4) Sample K_t ~ Poisson(λ_t) via λ-dependent sampler (inversion vs PTRS):
                               · variable uniforms per attempt
-                              · emit poisson_component event:
-                                  - payload: { merchant_id, context="nb", lambda=λ_t, k=K_t, attempt: t+1 }
-                          4) Envelope per event:
+                          5) Emit poisson_component event:
+                              - payload: { merchant_id, context="nb", lambda=λ_t, k=K_t, attempt: t+1 }
+                          6) Envelope per event:
                               · blocks = u128(after) − u128(before)    (block-span)
                               · draws  = decimal uint128 of U(0,1) draws consumed by the sampler(s)
                       - S2.3 defines a *single attempt*; S2.4 controls how many attempts are performed.
