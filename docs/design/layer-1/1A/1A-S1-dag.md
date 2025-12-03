@@ -1,5 +1,5 @@
 ```
-                LAYER 1 – SEGMENT 1A - STATE S1 (HURDLE: SINGLE vs MULTI-SITE)  [RNG]
+                LAYER 1 · SEGMENT 1A — STATE S1 (HURDLE: SINGLE vs MULTI-SITE)  [RNG]
 
 Authoritative inputs (read-only at S1 entry)
 --------------------------------------------
@@ -14,7 +14,7 @@ Authoritative inputs (read-only at S1 entry)
 
 [C] Model coefficients (governed artefact):
     - hurdle_coefficients.yaml
-      - single logistic hurdle vector beta, shape == dim(x_m)
+      - single logistic hurdle vector β, shape == dim(x_m)
       - registry-backed; included in parameter_hash input set
 
 [N] Numeric / math policy artefacts:
@@ -38,15 +38,15 @@ Authoritative inputs (read-only at S1 entry)
     - schemas.layer1.yaml#/rng/events/hurdle_bernoulli (event envelope + payload authority)
 
 Optional diagnostics (non-authoritative):
-    - hurdle_pi_probs @ [parameter_hash] (if present; S0-built pi cache)
+    - hurdle_pi_probs @ [parameter_hash] (if present; S0-built π cache)
       - S1 MAY compare for sanity; **events remain sole authority**.
 
 
------------------------------------------------------------------ DAG (S1.1-S1.7, single Bernoulli family)
+----------------------------------------------------------------- DAG (S1.1–S1.7, single Bernoulli family)
 [M],[D],[C],
 [N],[G]      ->  (S1.1) Inputs, Preconditions & Write Targets
                    - Assert design/coeff alignment:
-                       * dim(beta) == dim(x_m) for every merchant (block dictionaries match S0.5)
+                       * dim(β) == dim(x_m) for every merchant (block dictionaries match S0.5)
                    - Assert numeric environment attested by S0.8 (binary64, RN-even, no FMA/FTZ/DAZ).
                    - Assert run context is fixed:
                        * rng_audit_log row exists for {seed, parameter_hash, run_id}
@@ -56,44 +56,52 @@ Optional diagnostics (non-authoritative):
                        * rng_trace_log (rows for module="1A.hurdle_sampler", substream_label="hurdle_bernoulli")
                    - Any precondition failure → escalate to S0.9 failure law (no hurdle events emitted).
 
-[D],[C],[N]  ->  (S1.2) Logistic Map: x_m → (eta_m, pi_m) (Deterministic)
+[D],[C],[N]  ->  (S1.2) Logistic Map η → π (Deterministic)
                    - For each merchant m:
-                       * compute eta_m = beta · x_m using fixed-order Neumaier reduction (binary64)
-                       * compute pi_m  = logistic(eta_m) via S0.8 two-branch logistic (no ad-hoc clamps)
+                       * compute η_m = βᵀ x_m using fixed-order Neumaier reduction (binary64)
+                       * compute π_m = logistic(η_m) via S0.8 two-branch logistic (no ad-hoc clamps)
                    - Classify branches:
-                       * deterministic if pi_m ∈ {0.0, 1.0} (exact binary64 endpoints)
-                       * stochastic if 0 < pi_m < 1
-                   - Guard against NaN/Inf in eta_m or pi_m → hard numeric failure under S0.9.
-                   - Outputs (ephemeral, not persisted): (eta_m, pi_m) per merchant handed to S1.3/S1.4.
+                       * deterministic if π_m ∈ {0.0, 1.0} (exact binary64 endpoints)
+                       * stochastic if 0 < π_m < 1
+                   - Guard against NaN/Inf in η or π → hard numeric failure under S0.9.
+                   - Outputs (ephemeral, not persisted): (η_m, π_m) per merchant handed to S1.3/S1.4.
 
-pi_m,[M],[G],
+π_m,[M],[G],
 [N]          ->  (S1.3) RNG Substream & Bernoulli Decision
                    - Derive base counter for each merchant:
-                       * label l = "hurdle_bernoulli"
-                       * keyed-substream mapping from S0.3 using (seed, manifest_fingerprint, l, merchant_id)
-                   - Deterministic branch (pi_m ∈ {0.0,1.0}):
+                       * label ℓ = "hurdle_bernoulli"
+                       * keyed-substream mapping from S0.3 using (seed, manifest_fingerprint, ℓ, merchant_id)
+                   - Deterministic branch (π_m ∈ {0.0,1.0}):
                        * draws = "0", blocks = 0
                        * after_counter = before_counter  (no Philox call)
-                       * is_multi = (pi_m == 1.0)
-                   - Stochastic branch (0 < pi_m < 1):
+                       * is_multi = (π_m == 1.0)
+                   - Stochastic branch (0 < π_m < 1):
                        * consume exactly one uniform u ∈ (0,1) via open-interval mapping
                        * draws = "1", blocks = 1
                        * after_counter = before_counter + 1
-                       * is_multi = (u < pi_m)
+                       * is_multi = (u < π_m)
                    - Enforce per-event budget identity (hurdle family only):
-                       * u128(after) - u128(before) == parse_u128(draws)
+                       * u128(after) − u128(before) == parse_u128(draws)
                        * for hurdle, draws ∈ {"0","1"} and blocks ∈ {0,1} and blocks == draws.
 
-[M],pi_m,u,
+[M],π_m,u,
 is_multi,[G] ->  (S1.4) Event Emission & Trace Updates
                    - Emit exactly one flat JSON hurdle event per merchant to rng_event_hurdle_bernoulli:
-                       * envelope: ts_utc, run_id, seed, parameter_hash, manifest_fingerprint,
-                                   module="1A.hurdle_sampler",
-                                   substream_label="hurdle_bernoulli",
-                                   rng_counter_before/after (hi/lo), draws, blocks
-                       * body: merchant_id, pi, is_multi, deterministic, u (nullable)
-                   - Ensure pi in payload matches pi_m (binary64 round-trip)
-                   - Enforce u is null iff pi_m ∈ {0.0,1.0}, and u ∈ (0,1) iff 0 < pi_m < 1
+                       * Envelope (from schemas.layer1.yaml#/rng/events/hurdle_bernoulli):
+                           - ts_utc (RFC-3339, Z, 6 fractional digits)
+                           - run_id, seed, parameter_hash, manifest_fingerprint
+                           - module="1A.hurdle_sampler"
+                           - substream_label="hurdle_bernoulli"
+                           - rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}
+                           - draws (u128 decimal string), blocks (uint64)
+                       * Payload:
+                           - merchant_id (id64 integer)
+                           - pi (binary64 copy of π_m)
+                           - is_multi (boolean)
+                           - deterministic (boolean; true iff π_m ∈ {0.0,1.0})
+                           - u:
+                               · null  iff π_m ∈ {0.0,1.0}
+                               · ∈ (0,1) iff 0 < π_m < 1
                    - Append / update rng_trace_log row for (module="1A.hurdle_sampler",
                      substream_label="hurdle_bernoulli"):
                        * events_total  += 1
@@ -102,7 +110,7 @@ is_multi,[G] ->  (S1.4) Event Emission & Trace Updates
                    - Enforce partition/embedding equality:
                        * path keys {seed, parameter_hash, run_id} == embedded columns where present.
 
-[M],pi_m,u,
+[M],π_m,u,
 is_multi,[Dict]
 ,[G]          ->  (S1.5) Downstream RNG Gating Surface (via Dictionary)
                    - Treat rng_event_hurdle_bernoulli as the **gate** for all other 1A RNG streams:
@@ -121,16 +129,16 @@ is_multi,[Dict]
 [M],[D],[C],
 [N],[G]      ->  (S1.6) Determinism & Invariants (Hurdle Family)
                    - Bit-replay guarantee:
-                       * Fix (x_m, beta, seed, parameter_hash, manifest_fingerprint) →
-                         eta_m, pi_m, u (if drawn), is_multi are reproducible bit-for-bit.
+                       * Fix (x_m, β, seed, parameter_hash, manifest_fingerprint) ⇒
+                         η_m, π_m, u (if drawn), is_multi are reproducible bit-for-bit.
                    - Budget & branch invariants:
-                       * draws = "1"   ⇔   0 < pi_m < 1
-                       * draws = "0"   ⇔   pi_m ∈ {0.0,1.0}
-                       * after-before == draws (as u128) for every event
+                       * draws = "1"   ⇔   0 < π_m < 1
+                       * draws = "0"   ⇔   π_m ∈ {0.0,1.0}
+                       * after−before == draws (as u128) for every event
                    - Cardinality:
                        * exactly one hurdle event per merchant per {seed, parameter_hash, run_id}
                    - Payload invariants:
-                       * deterministic flag matches pi_m endpoint vs interior
+                       * deterministic flag matches π_m endpoint vs interior
                        * u null vs numeric matches deterministic vs stochastic classification.
 
 rng_event_hurdle_bernoulli,
@@ -140,19 +148,19 @@ rng_trace_log,[G]
                        * design/coeff mismatch, numeric overflow/NaN, envelope violations,
                          budget mismatches, duplicate/missing events, partition-embed mismatches.
                    - Validator responsibilities (S1.V):
-                       * re-compute (eta_m, pi_m) and replay Bernoulli where draws="1"
+                       * re-compute (η_m, π_m) and replay Bernoulli where draws="1"
                        * check budget identity per event and cumulative trace tallies
                        * enforce one-and-only-one hurdle event per merchant
                        * enforce dictionary-driven gating constraints over all 1A RNG streams.
-                   - Any hard failure → run invalid under S0.9; downstream states must treat 1A as failed.
+                   - Any hard failure ⇒ run invalid under S0.9; downstream states must treat 1A as failed.
 
 State boundary (authoritative outputs of S1)
 -------------------------------------------
 - rng_event_hurdle_bernoulli     @ [seed, parameter_hash, run_id]
-    * one row per merchant; sole authority for is_multi decisions and pi payload.
+    * one row per merchant; sole authority for is_multi decisions and π payload.
 - rng_trace_log (hurdle substream rows) @ [seed, parameter_hash, run_id]
     * cumulative trace for (module="1A.hurdle_sampler", substream_label="hurdle_bernoulli").
-- No new Parquet surfaces are owned by S1; any pi caches (e.g. hurdle_pi_probs) remain optional diagnostics.
+- No new Parquet surfaces are owned by S1; any π caches (e.g. hurdle_pi_probs) remain optional diagnostics.
 
 Downstream touchpoints (from S1 outputs)
 ----------------------------------------
@@ -170,4 +178,3 @@ Downstream touchpoints (from S1 outputs)
     * replays S1 logistic + Bernoulli decisions from rng_event_hurdle_bernoulli and rng_trace_log,
       and verifies all gating/branch invariants before writing validation_bundle_1A.
 ```
-
