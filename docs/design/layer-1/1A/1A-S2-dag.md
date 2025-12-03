@@ -1,302 +1,269 @@
 ```
-      LAYER 1 – SEGMENT 1A - STATE S2 (NB MIXTURE: TOTAL OUTLET COUNT N >= 2)
+                LAYER 1 · SEGMENT 1A — STATE S2 (NB MIXTURE: TOTAL OUTLETS N_m ≥ 2)  [RNG]
 
-Authoritative inputs at S2 entry (read-only)
--------------------------------------------
-[H] rng_event.hurdle_bernoulli
-      path: logs/rng/events/hurdle_bernoulli/
-            seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-      role:
-        - gate: only merchants with is_multi = true may enter S2
-        - branch purity: single-site merchants MUST have no S2 events
-
-[X_mu], [X_phi] NB design surfaces (from S0 feature prep)
-      role:
-        - fixed design vectors x_mu(m), x_phi(m) per merchant
-        - built deterministically from merchant_ids + GDP map + encoders
-        - not a separate dataset; derived from S0.4/S0.5 universe
-
-[B] Model coefficients
-      files:
-        - hurdle_coefficients.yaml         (key: beta_mu  → NB mean)
-        - nb_dispersion_coefficients.yaml  (key: beta_phi → NB dispersion)
-      role:
-        - governed beta_mu, beta_phi vectors for NB mean/dispersion links
-        - sole authority for mu_m, phi_m in S2
-
-[K] lineage keys (from S0)
-      { seed, parameter_hash, manifest_fingerprint, run_id }
-
-[L] RNG + numeric law (from S0)
-      - Philox2x64-10, open-interval U(0,1)
-      - shared rng_envelope (counters, blocks, draws, module, substream_label, ts_utc, …)
-      - numeric_policy.json & math_profile_manifest.json
-        (binary64, RNE, FMA-off, deterministic libm, Neumaier sums)
-
-[D] Data dictionary & schemas
-      - schemas.layer1.yaml#/rng/events/gamma_component
-      - schemas.layer1.yaml#/rng/events/poisson_component
-      - schemas.layer1.yaml#/rng/events/nb_final
-      - dataset_dictionary.layer1.1A.yaml entries:
-          * rng_event_gamma_component
-          * rng_event_poisson_component
-          * rng_event_nb_final
-        all:
-          * partitioned by [seed, parameter_hash, run_id]
-          * gated_by: rng_event_hurdle_bernoulli (is_multi == true)
-
-
-Segment-level context (where S2 sits)
--------------------------------------
-
-(S0) Universe, lineage, design, RNG & numeric law (no RNG draws)
-    ⇒ hurdle_design_matrix, GDP/bucket features, NB design view (x_mu, x_phi)
-    ⇒ crossborder_eligibility_flags (later S4/S6)
-    ⇒ {seed, parameter_hash, manifest_fingerprint, run_id} + RNG/numeric contracts
-
-(S1) Hurdle: single vs multi  [RNG-bounded]
-    - Consumes: hurdle_design_matrix + hurdle_coefficients
-    - Emits: rng_event.hurdle_bernoulli @ [seed, parameter_hash, run_id]
-        · exactly 1 per merchant
-        · is_multi flag gates all downstream 1A RNG streams
-
-[H] + [X_mu,X_phi] + [B] + [K] + [L]
-                |
-                v
-
-(S2) NB mixture → total multi-site outlets N >= 2  [RNG-bounded]
-
-    Conceptual steps (per multi-site merchant):
-
-      1) Evaluate NB links (deterministic; S2.2)
-           - eta_mu  = beta_mu  · x_mu(m)
-           - eta_phi = beta_phi · x_phi(m)
-           - mu_m  = exp(eta_mu)   > 0   (NB mean)
-           - phi_m = exp(eta_phi)  > 0   (NB dispersion)
-
-      2) Attempt loop (Gamma + Poisson mixture; S2.3–S2.4)
-           - draw G ~ Gamma(shape = phi_m, scale = 1)
-                 → emit gamma_component (context="nb")
-           - set lambda = (mu_m / phi_m) * G
-           - draw k ~ Poisson(lambda)
-                 → emit poisson_component (context="nb")
-           - if k in {0,1}:
-                 · reject, increment nb_rejections, loop
-             else:
-                 · accept N_m := k (N_m >= 2)
-
-      3) Finalise (non-consuming echo; S2.5)
-           - emit nb_final with:
-               merchant_id,
-               mu           = mu_m,
-               dispersion_k = phi_m,
-               n_outlets    = N_m (N_m >= 2),
-               nb_rejections (number of rejected {0,1}),
-               method       = "poisson_gamma_mixture"
-           - nb_final's envelope has blocks = 0, draws = "0"
-             (echo-only; proves which parameters and outcome were used)
-
-    Outputs (persisted streams):
-      -> rng_event.gamma_component
-             path: logs/rng/events/gamma_component/
-                   seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-             body (conceptual): merchant_id, context="nb",
-                                alpha=phi_m, gamma_value
-
-      -> rng_event.poisson_component
-             path: logs/rng/events/poisson_component/
-                   seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-             body (conceptual): merchant_id, context="nb",
-                                lambda=lambda_m, k, attempt
-
-      -> rng_event.nb_final  (non-consuming final echo)
-             path: logs/rng/events/nb_final/
-                   seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-             body: merchant_id, mu, dispersion_k,
-                   n_outlets (N_m >= 2), nb_rejections, method
-
-
-Downstream touchpoints (who depends on S2)
-------------------------------------------
-- S3 - Candidate universe & order (deterministic):
-    · reads nb_final to obtain N_m per multi-site merchant
-
-- S4 - ZTP foreign K_target (logs only):
-    · uses N_m to parameterise lambda_extra (how many foreign countries we target)
-
-- S7 / S8 - Allocation & outlet_catalogue:
-    · S7/S8 must respect N_m as the total outlet count for the merchant
-      when splitting across countries and materialising stubs
-
-- S9 - Validation / replay:
-    · replays NB2 parameters from (x_mu, x_phi, beta_mu, beta_phi)
-    · verifies:
-         * each multi-site merchant has exactly one nb_final
-         * gamma_component + poisson_component budgets match RNG trace
-         * nb_final.mu and nb_final.dispersion_k echo S2.2’s mu_m, phi_m
-         * reconstructed N_m / nb_rejections match logged values
-
-Legend
-------
-(Sx)           = state
-[name]         = dataset or artefact
-@[keys]        = partition keys
-[RNG-bounded]  = state that consumes RNG; events logged under [seed, parameter_hash, run_id]
-mu_m           = NB mean (expected outlet count)
-phi_m          = NB dispersion (controls over-dispersion; Var(N) ≈ mu_m + mu_m^2 / phi_m)
-```
-
----
-
-```
-      LAYER 1 – SEGMENT 1A - S2.DAG-B
-      INTERNAL FLOW: S2.1 → S2.2 → (S2.3 ↔ S2.4 loop) → S2.5 → S2.7 → S2.9
-      (S2.6, S2.8 are cross-cutting discipline / failure rails)
-
-Inputs at S2 entry (from S0/S1, read-only)
------------------------------------------
-- rng_event.hurdle_bernoulli  (exactly 1 per merchant; is_multi gate)
-- merchant features / encoders from S0   (mcc, channel_sym, GDP g_c, bucket, etc.)
-- NB coefficient bundles: beta_mu, beta_phi
-- lineage keys: { seed, parameter_hash, manifest_fingerprint, run_id }
-- RNG engine + envelope contract (Philox, counters, blocks, draws)
-- numeric policy (binary64, RNE, deterministic libm, FMA off)
-
-
-Per-merchant internal flow
---------------------------
-
-  +-----------------------------------------------------------+
-  |  S2.1 - Scope, Preconditions, Inputs                      |
-  |-----------------------------------------------------------|
-  | - Read hurdle record for merchant m                       |
-  |     · require exactly 1 row in hurdle_bernoulli           |
-  |     · require is_multi == true (else S2 MUST NOT run)     |
-  | - Assemble design vectors from frozen encoders:           |
-  |     · x_mu(m)  = [1, Phi_mcc(mcc_m), Phi_ch(channel_sym)] |
-  |     · x_phi(m) = [1, Phi_mcc(mcc_m), Phi_ch(channel_sym), |
-  |                   ln g_c(home_country_iso_m)]             |
-  | - Load governed coefficient vectors beta_mu, beta_phi     |
-  | - Pin RNG & schema contracts for gamma/poisson/nb_final   |
-  | - On any missing input / wrong branch:                    |
-  |     · emit ERR_S2_ENTRY_* and SKIP S2 for m               |
-  | - Hand-off context to S2.2:                               |
-  |     (x_mu, x_phi, beta_mu, beta_phi, seed,                |
-  |      parameter_hash, manifest_fingerprint, run_id)        |
-  +----------------------------+------------------------------+
-                               |
-                               v
-  +-----------------------------------------------------------+
-  |  S2.2 - NB2 Parameterisation (mu_m, phi_m)                 |
-  |-----------------------------------------------------------|
-  | - Compute eta_mu  = beta_mu  · x_mu  (fixed-order Neumaier)|
-  | - Compute eta_phi = beta_phi · x_phi                       |
-  | - Exponentiate in binary64:                               |
-  |     mu_m  = exp(eta_mu)                                   |
-  |     phi_m = exp(eta_phi)                                  |
-  | - Guards (MUST): mu_m > 0, phi_m > 0, both finite         |
-  | - On failure → ERR_S2_NUMERIC_INVALID, merchant-level     |
-  | - Hand-off to S2.3 / S2.4: (mu_m, phi_m, seed, lineage)   |
-  +----------------------------+------------------------------+
-                               |
-                               v
-        +------------------------------------------------+
-        | S2.3 - Poisson-Gamma Attempt (one try)  [RNG]  |
-        |------------------------------------------------|
-        | - Use S2.6 mapping to derive base counters for |
-        |   labels "gamma_nb" and "poisson_nb"           |
-        | - Draw one Gamma variate G ~ Gamma(phi_m, 1)   |
-        |     → emit gamma_component event (context="nb")|
-        | - Compute lambda = (mu_m / phi_m) * G          |
-        | - Draw K ~ Poisson(lambda)                     |
-        |     → emit poisson_component event             |
-        | - Both events carry full RNG envelope:         |
-        |     ts_utc, seed, parameter_hash,              |
-        |     manifest_fingerprint, run_id, module,      |
-        |     substream_label, counters before/after,    |
-        |     blocks, draws (actual U(0,1) count)        |
-        +----------------------+-------------------------+
-                               |
-                               v
-        +------------------------------------------------+
-        | S2.4 - Rejection Rule, r_m, N_m (loop control) |
-        |------------------------------------------------|
-        | - Inspect latest Poisson draw K:               |
-        |     if K in {0,1}:                             |
-        |        · increment rejection counter r_m       |
-        |        · go back to S2.3 for another attempt   |
-        |     if K >= 2:                                 |
-        |        · accept N_m := K                       |
-        |        · exit loop with final (N_m, r_m)       |
-        | - Attempts are geometric with acceptance prob  |
-        |   alpha_m = 1 - P(K=0) - P(K=1) > 0            |
-        | - Loop terminates almost surely; corridor      |
-        |   limits for r_m are checked in S2.7           |
-        +----------------------+-------------------------+
-                               |
-                               v
-  +-----------------------------------------------------------+
-  |  S2.5 - `nb_final` Event (non-consuming echo)             |
-  |-----------------------------------------------------------|
-  | - Construct authoritative final row per merchant:         |
-  |     merchant_id,                                          |
-  |     mu           = mu_m  (from S2.2),                     |
-  |     dispersion_k = phi_m (from S2.2),                     |
-  |     n_outlets    = N_m   (>= 2),                          |
-  |     nb_rejections= r_m   (>= 0)                           |
-  | - Envelope (non-consuming):                               |
-  |     · module        = "1A.nb_sampler"                     |
-  |     · substream_lbl = "nb_final"                          |
-  |     · rng_counter_before == rng_counter_after             |
-  |     · blocks = 0, draws = "0"                             |
-  | - Append exactly ONE JSONL row to rng_event.nb_final      |
-  |   under [seed, parameter_hash, run_id]                    |
-  +----------------------------+------------------------------+
-                               |
-                               v
-  +-----------------------------------------------------------+
-  |  S2.7 - Monitoring Corridors (run gate; no RNG)           |
-  |-----------------------------------------------------------|
-  | - Using {mu_m, phi_m} and {N_m, r_m} across merchants:    |
-  |     · compute rejection rate statistics                   |
-  |     · compute 99th percentile of r_m                      |
-  |     · run one-sided CUSUM for upward drift in r_m         |
-  | - If any corridor is breached:                            |
-  |     · raise run-level ERR_S2_CORRIDOR_*                   |
-  |     · mark S2 contribution as failed in validation        |
-  | - No new events or RNG; feeds S9's validation bundle      |
-  +----------------------------+------------------------------+
-                               |
-                               v
-  +-----------------------------------------------------------+
-  |  S2.9 - Outputs & Handoff to S3                           |
-  |-----------------------------------------------------------|
-  | - Persist ONLY:                                           |
-  |     · rng_event.gamma_component    (>=1 per attempt)      |
-  |     · rng_event.poisson_component  (>=1 per attempt)      |
-  |     · rng_event.nb_final           (exactly 1 per merchant)|
-  | - All 3 streams:                                          |
-  |     · partitioned by [seed, parameter_hash, run_id]       |
-  |     · envelopes obey S0 RNG contract                      |
-  | - Handoff to S3:                                          |
-  |     · N_m comes from nb_final.n_outlets (N_m >= 2)        |
-  |     · S3 is deterministic given nb_final (no resampling)  |
-  +-----------------------------------------------------------+
-
-
-Cross-cutting rails (applies over S2.2–S2.5)
+Authoritative inputs (read-only at S2 entry)
 --------------------------------------------
-- S2.6 - RNG substreams & consumption discipline
-    · Defines SHA256-based keyed mapping (seed, fingerprint, label, merchant)
-      → base counters for gamma_nb / poisson_nb.
-    · Enforces that event counters, `blocks`, and `draws` match sampler use.
-    · Requires a trace row after each RNG event (rng_trace_log duty).
+[M] Merchant universe & hurdle gate (from S0/S1):
+    - merchant_ids (canonical merchants for this manifest_fingerprint)
+    - rng_event_hurdle_bernoulli @ [seed, parameter_hash, run_id]
+      · exactly one event per merchant
+      · payload: { merchant_id, pi, is_multi, deterministic, u }
+      · S2 only runs for is_multi == true
 
-- S2.8 - Failure modes & actions
-    · Enumerates merchant-scoped vs run-scoped errors:
-        - entry gate violations, numeric invalids, sampler schema issues,
-          envelope/counter mismatches, corridor breaches, etc.
-    · Specifies evidence (which JSONL rows / fields prove the failure)
-      and whether to skip merchant vs abort run (ties into S0.9 / S9).
+[D] NB design surface (deterministic, implied by S0.5):
+    - frozen encoders & column dictionaries from S0:
+      · one-hot MCC block Φ_mcc(mcc_m)
+      · one-hot channel block Φ_ch(channel_sym_m)
+      · GDP-derived features (e.g. ln g_c, GDP bucket from gdp_bucket_map_2024)
+      · intercept term
+    - S2 constructs, in-memory, per-merchant design vectors:
+      · x^(μ)_m  for NB mean (uses MCC, channel, GDP features, intercept)
+      · x^(φ)_m  for dispersion (may share or extend x^(μ)_m)
+    - no new dataset; shape & encoders are governed by S0
+
+[C] Model coefficients (governed artefacts):
+    - hurdle_coefficients.yaml
+      · key beta_mu → NB mean vector β_μ
+    - nb_dispersion_coefficients.yaml
+      · key beta_phi → dispersion vector β_φ
+    - (β_μ, β_φ) are the *only* sources for (μ_m, φ_m) in S2.2
+
+[N] Numeric / math policy artefacts:
+    - numeric_policy_attest.json
+    - math_profile_manifest.json
+      · assert S0.8 policy: IEEE-754 binary64, RN-even, FMA-OFF, no FTZ/DAZ
+      · deterministic libm profile, fixed-order reductions
+
+[G] Run & RNG context (from S0):
+    - { seed, parameter_hash, manifest_fingerprint, run_id }
+    - rng_audit_log @ [seed, parameter_hash, run_id] (one row for the run)
+    - rng_trace_log   @ [seed, parameter_hash, run_id] (per (module, substream_label))
+    - RNG engine + envelope law from S0.3 (Philox 2x64-10, open-interval U(0,1))
+
+[Dict] Registry / dictionary anchors:
+    - dataset_dictionary.layer1.1A.yaml
+      · gating for NB streams:
+          * rng_event_gamma_component.gating:
+              gated_by: rng_event_hurdle_bernoulli, predicate: is_multi == true
+          * rng_event_poisson_component.gating:
+              gated_by: rng_event_hurdle_bernoulli, predicate: is_multi == true
+          * rng_event_nb_final.gating:
+              gated_by: rng_event_hurdle_bernoulli, predicate: is_multi == true
+      · partitions & paths for gamma_component, poisson_component, nb_final
+    - schemas.layer1.yaml:
+      · #/rng/events/gamma_component
+      · #/rng/events/poisson_component
+      · #/rng/events/nb_final
+      (envelope + payload contracts for these streams)
+
+Optional diagnostics (non-authoritative):
+    - GDP priors, corridor configs for monitoring (used in S2.7/validation only).
+
+
+----------------------------------------------------------------- DAG (S2.1–S2.9, NB mixture with RNG consumption)
+[M],[D],[C],
+[N],[G],[Dict] ->  (S2.1) Scope, Preconditions & NB Context Assembly
+                      - Entry gate (per merchant m):
+                          * require exactly one rng_event_hurdle_bernoulli row
+                          * if missing → ERR_S2_ENTRY_MISSING_HURDLE (skip S2 for m)
+                          * if is_multi == false → ERR_S2_ENTRY_NOT_MULTI (branch purity; skip S2 for m)
+                      - Load feature primitives:
+                          * mcc_m, channel_sym_m from merchant_ids / S0 feature prep
+                          * GDP g_c, GDP bucket from reference surfaces fixed in S0
+                      - Build NB design vectors (in-memory, not persisted):
+                          * x^(μ)_m = [1, Φ_mcc(mcc_m), Φ_ch(channel_sym_m), f_GDP(g_c, bucket_m), …]
+                          * x^(φ)_m similarly, per spec
+                          * missing feature → ERR_S2_INPUTS_INCOMPLETE (skip S2 for m)
+                      - Load NB coefficient vectors:
+                          * β_μ from hurdle_coefficients.yaml (key=beta_mu)
+                          * β_φ from nb_dispersion_coefficients.yaml (key=beta_phi)
+                          * dim(β_μ) == len(x^(μ)_m); dim(β_φ) == len(x^(φ)_m) (must)
+                      - Pin NB RNG streams & schemas:
+                          * gamma_component (context="nb")
+                          * poisson_component (context="nb")
+                          * nb_final (non-consuming)
+                      - Successful S2.1 yields NB design context for S2.2; no RNG used, no events written.
+
+x^(μ)_m,x^(φ)_m,
+β_μ,β_φ,[N]      ->  (S2.2) NB2 Parameters (μ_m, φ_m) — Deterministic
+                      - Compute linear predictors in binary64, FMA-OFF:
+                          * η^(μ)_m = β_μᵀ x^(μ)_m
+                          * η^(φ)_m = β_φᵀ x^(φ)_m
+                      - Exponentiate:
+                          * μ_m = exp(η^(μ)_m)
+                          * φ_m = exp(η^(φ)_m)
+                      - Guards:
+                          * η, μ, φ must be finite; μ_m > 0, φ_m > 0
+                          * else → ERR_S2_NUMERIC_INVALID (merchant-scoped abort; no S2 events for m)
+                      - Outputs (ephemeral NB2 context):
+                          * (μ_m, φ_m) handed to S2.3–S2.4 (and echoed later in nb_final)
+                      - No RNG consumption; nothing persisted here.
+
+(μ_m,φ_m),
+[M],[G],[N]     ->  (S2.3) Single NB Attempt — Gamma + Poisson Components  [RNG]
+                      - Substream labels (NB-only):
+                          * ℓ_γ = "gamma_nb" (for gamma_component, context="nb")
+                          * ℓ_π = "poisson_nb" (for poisson_component, context="nb")
+                      - Base counter per (m, ℓ) from S0/S2.6:
+                          * c_base = SHA256("ctr:1A" || manifest_fingerprint || seed || ℓ || merchant_id)[0:128 bits]
+                      - For each attempt t (t = 0,1,2,…):
+                          1) Sample Gamma G ~ Gamma(α=φ_m, 1) using Marsaglia–Tsang style sampler:
+                              · variable number of uniforms per variate
+                              · emit gamma_component event:
+                                  - envelope: full RNG envelope (before/after counters, blocks, draws, labels)
+                                  - payload: { merchant_id, context="nb", index=0, alpha=φ_m, gamma_value=G }
+                          2) Compute λ_t = (μ_m / φ_m) * G in binary64.
+                          3) Sample K_t ~ Poisson(λ_t) via λ-dependent sampler (inversion vs PTRS):
+                              · variable uniforms per attempt
+                              · emit poisson_component event:
+                                  - payload: { merchant_id, context="nb", lambda=λ_t, k=K_t, attempt: t+1 }
+                          4) Envelope per event:
+                              · blocks = u128(after) − u128(before)    (block-span)
+                              · draws  = decimal uint128 of U(0,1) draws consumed by the sampler(s)
+                      - S2.3 defines a *single attempt*; S2.4 controls how many attempts are performed.
+
+γ/π components,
+K_t sequence   ->  (S2.4) Rejection Rule & Attempt Loop (Enforce N_m ≥ 2)
+                      - For each merchant m with valid (μ_m, φ_m):
+                          * initialise t = 0, r_m = 0
+                          * repeat:
+                              - run one attempt via S2.3 → (G_t, λ_t, K_t)
+                              - if K_t ≥ 2:
+                                  · accept; set N_m = K_t
+                                  · stop loop
+                              - else:
+                                  · rejection; r_m := r_m + 1
+                                  · t := t + 1; continue
+                      - S2.4 consumes **no** RNG itself (all draws come from S2.3 events).
+                      - Evidence requirements (checked later):
+                          * ≥1 gamma_component(context="nb") and ≥1 poisson_component(context="nb") for any merchant with nb_final
+                          * per attempt, exactly 2 events in order: Gamma → Poisson
+                      - Hand-off to S2.5:
+                          * (N_m ≥ 2, r_m ≥ 0) plus (μ_m, φ_m) for final echo.
+
+(N_m,r_m,
+ μ_m,φ_m),
+[G]           ->  (S2.5) Emit nb_final (N_m, r_m, μ_m, φ_m) — Non-consuming Event
+                      - For each merchant that accepted in S2.4:
+                          * derive envelope with current counters; **must be non-consuming**:
+                              · rng_counter_before == rng_counter_after
+                              · blocks = 0, draws = "0"
+                          * emit exactly one nb_final row to:
+                              · logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+                          - Payload (schema layer1#/rng/events/nb_final):
+                              · { merchant_id,
+                                  mu=μ_m, dispersion_k=φ_m,
+                                  n_outlets=N_m, nb_rejections=r_m }
+                              · domains: mu>0, dispersion_k>0, n_outlets≥2, nb_rejections≥0
+                          - Idempotency:
+                              · composite key (seed, parameter_hash, run_id, merchant_id) appears exactly once.
+
+[G],[Dict],
+rng streams   ->  (S2.6) RNG Substreams & Counter Discipline (Bit-Replay Contract)
+                      - Label→module mapping (registry-closed):
+                          * gamma_component(context="nb")  ← module "1A.nb_and_dirichlet_sampler", substream_label="gamma_nb"
+                          * poisson_component(context="nb") ← module "1A.nb_poisson_component", substream_label="poisson_nb"
+                          * nb_final                        ← module "1A.nb_sampler", substream_label="nb_final"
+                      - Substream base counter law (per merchant & label):
+                          * c_base = f(seed, manifest_fingerprint, label, merchant_id)
+                          * b-th block: (c_hi, c_lo) = (c_base_hi, c_base_lo + b) with 64-bit carry into hi
+                      - Envelope arithmetic (per event):
+                          * blocks := u128(after) − u128(before)
+                          * draws  := uniforms actually consumed (uint128-dec string)
+                          * non-consuming finalisers (nb_final) have blocks=0, draws="0"
+                      - Interval discipline (per (m, label)):
+                          * intervals [before_e, after_e) are disjoint and monotone:
+                              · no overlap
+                              · next.before ≥ prev.after
+                      - rng_trace_log:
+                          * per (module, substream_label), maintain blocks_total and draws_total
+                          * validators reconcile:
+                              · blocks_total == total counter span
+                              · draws_total == Σ draws_event implied by samplers
+
+(μ_m,φ_m,
+ N_m,r_m,
+ attempt log) ->  (S2.7) Monitoring Corridors & Run-Level Gates (No RNG)
+                      - Compute run-level corridor metrics over all merchants with nb_final:
+                          * overall rejection rate:
+                              · total_rejections / total_attempts
+                          * high quantile of r_m (e.g. 99th percentile)
+                          * one-sided CUSUM for excess rejections vs model-expected α_m
+                      - Model-expected α_m derived from NB2 parameters (μ_m, φ_m) via closed forms.
+                      - If any corridor exceeds configured threshold:
+                          * treat as run-scoped failure (F_S2_CORRIDOR)
+                          * validators MUST mark run invalid; no `_passed.flag` for 1A
+
+All above,
+[G],[Dict]    ->  (S2.8) Failure Modes & Error Classes
+                      - Merchant-scoped aborts (no NB events for m):
+                          * ERR_S2_ENTRY_MISSING_HURDLE  – no S1 hurdle record for m
+                          * ERR_S2_ENTRY_NOT_MULTI       – S1 hurdle present but is_multi == false
+                          * ERR_S2_INPUTS_INCOMPLETE     – missing feature(s) or coeffs
+                          * ERR_S2_NUMERIC_INVALID       – μ or φ non-finite/≤0
+                      - Run-scoped structural failures (abort run):
+                          * schema violations in gamma_component / poisson_component / nb_final
+                          * gating violations (S2 events present for is_multi == false merchants)
+                          * counter overlap/regression within any NB substream
+                          * coverage breaches (nb_final exists but components missing)
+                          * corridor breaches from S2.7
+                      - Validators map these into S0.9’s global failure contract.
+
+rng_event_gamma_component,
+rng_event_poisson_component,
+rng_event_nb_final,
+rng_trace_log,[G] ->  (S2.9) Outputs (State Boundary) & Hand-off to S3
+                      - Persisted authoritative NB RNG streams (per dataset_dictionary):
+                          1) gamma_component (context="nb")
+                             · path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…
+                             · schema: layer1#/rng/events/gamma_component
+                             · cardinality: ≥1 per multi-site merchant (one per attempt)
+                          2) poisson_component (context="nb")
+                             · path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…
+                             · schema: layer1#/rng/events/poisson_component
+                             · cardinality: ≥1 per attempt (same attempts as Gamma)
+                          3) nb_final
+                             · path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…
+                             · schema: layer1#/rng/events/nb_final
+                             · cardinality: exactly 1 per merchant with S2 success
+                      - In-memory export per merchant with nb_final:
+                          * N_m ∈ {2,3,…}    (authoritative domestic outlet count, must NOT be resampled)
+                          * r_m ∈ ℕ₀        (number of rejections; diagnostics only)
+                          * (μ_m, φ_m)      (NB2 parameters; echoed in nb_final)
+                      - Boundary invariants:
+                          * if nb_final exists for m ⇒ ≥1 Gamma and ≥1 Poisson component rows for m under same keys
+                          * all NB event paths/embeds respect {seed, parameter_hash, run_id, manifest_fingerprint}
+                          * nb_final is non-consuming (before==after, blocks=0, draws="0")
+
+
+State boundary (authoritative outputs of S2)
+-------------------------------------------
+- rng_event_gamma_component (context="nb")   @ [seed, parameter_hash, run_id]
+    * one row per NB attempt (≥1 per multi-site merchant).
+- rng_event_poisson_component (context="nb") @ [seed, parameter_hash, run_id]
+    * one row per NB attempt (aligned 1:1 with gamma_component).
+- rng_event_nb_final                          @ [seed, parameter_hash, run_id]
+    * exactly one row per merchant that successfully left S2.
+- rng_trace_log rows for:
+    * ("1A.nb_and_dirichlet_sampler","gamma_nb")
+    * ("1A.nb_poisson_component","poisson_nb")
+    * ("1A.nb_sampler","nb_final")
+- No new Parquet tables are introduced by S2; N_m and r_m are exported in-memory to S3 and validation.
+
+Downstream touchpoints (from S2 outputs)
+----------------------------------------
+- S3 (Candidate universe & cross-border eligibility):
+    * consumes N_m (domestic outlet count) for each multi-site merchant that has nb_final.
+    * runs only for merchants with:
+        - rng_event_hurdle_bernoulli.is_multi == true, and
+        - an nb_final row (S2 success).
+- S4 (ZTP foreign K_target, later):
+    * typically uses N_m (often via log N_m) as part of λ_extra features.
+    * reuses the poisson_component stream id with context="ztp" for its own Poisson draws (dictionary-separated from context="nb").
+- S9 (Validation bundle for 1A):
+    * replays NB sampling using:
+        - rng_event_gamma_component, rng_event_poisson_component, rng_event_nb_final
+        - rng_trace_log (NB substreams)
+        - S2.1/2.2 deterministic NB context
+    * checks all S2.6/S2.7/S2.8 invariants before allowing `_passed.flag_1A` to be written.
 ```
-
