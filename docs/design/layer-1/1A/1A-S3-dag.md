@@ -164,3 +164,190 @@ Legend
 [DETERMINISTIC; NO RNG] = no Philox substreams, no RNG events; pure functions of inputs
 ```
 
+---
+
+```
+      LAYER 1 · SEGMENT 1A — S3.DAG-B
+      INTERNAL FLOW: S3.0 → S3.1 → S3.2 → S3.3 → (S3.4?) → (S3.5?) → S3.6
+      All steps are PURELY DETERMINISTIC — NO RNG, NO RNG EVENTS
+
+Inputs at S3 entry (from S0/S1/S2, read-only)
+---------------------------------------------
+- merchant_ids (ingress row for this merchant)
+- rng_event.hurdle_bernoulli (S1; exactly 1 row; must have is_multi = true)
+- rng_event.nb_final (S2; exactly 1 row; N = n_outlets ≥ 2)
+- iso3166_canonical_2024
+- policy.s3.rule_ladder.yaml (+ any named sets / tags / reason codes)
+- static.currency_to_country.map.json (if used by ladder)
+- (optional) policy.s3.base_weight.yaml, etc. (if S3 owns priors)
+- lineage: { parameter_hash, manifest_fingerprint, seed, run_id }
+- numeric policy (for deterministic comparisons only; no new numbers created aside from priors/allocs)
+
+Internal flow (one merchant at a time)
+--------------------------------------
+
+  +--------------------------------------------------------------+
+  |  S3.0 — Load scopes & build Context (deterministic)          |
+  |--------------------------------------------------------------|
+  | - Resolve all inputs via artefact registry + dataset dict.   |
+  | - Enforce gates:                                             |
+  |     • exactly 1 hurdle row (is_multi == true)                |
+  |     • exactly 1 nb_final row with N ≥ 2                      |
+  |     • all governed artefacts present with expected digests   |
+  |     • path partitions == embedded {seed, parameter_hash,     |
+  |       run_id} on S1/S2 rows                                  |
+  | - Validate vocabularies & ISO codes (merchant home in ISO).  |
+  | - Build immutable Context Ctx with fields like:              |
+  |     { merchant_id, home_country_iso, mcc, channel, N,        |
+  |       seed, parameter_hash, manifest_fingerprint,            |
+  |       artefact digests (…) }                                 |
+  | - On any violation → ERR_S3_* and STOP S3 for this merchant. |
+  +------------------------------+-------------------------------+
+                                 |
+                                 v
+  +--------------------------------------------------------------+
+  |  S3.1 — Rule ladder evaluation (deterministic policy)        |
+  |--------------------------------------------------------------|
+  | - Input: Ctx + full rule_ladder.rules[] (ordered).           |
+  | - For each rule r in ladder order:                           |
+  |     • evaluate r.predicate(Ctx) (no I/O, no RNG)             |
+  |     • if true, add to Fired[] with metadata:                 |
+  |           {rule_id, precedence_class, priority,              |
+  |            is_decision_bearing, reason_code, tags[]}         |
+  | - Resolve precedence:                                        |
+  |     • DENY ≻ ALLOW ≻ {CLASS, LEGAL, THRESHOLD, DEFAULT}     |
+  |     • within a class: priority ascending, then rule_id A→Z   |
+  | - Output:                                                    |
+  |     • eligible_crossborder : bool                            |
+  |     • decision_source      : rule_id                         |
+  |     • rule_trace[]         : ordered list of fired rules     |
+  | - No writes; no RNG.                                         |
+  +------------------------------+-------------------------------+
+                                 |
+                                 v
+  +--------------------------------------------------------------+
+  |  S3.2 — Candidate universe (unordered C)                     |
+  |--------------------------------------------------------------|
+  | - Start with C := { home_country_iso }                       |
+  |     • emit row with is_home = true; add tag "HOME"           |
+  | - If eligible_crossborder == true:                           |
+  |     • expand named sets / admit lists from ladder:           |
+  |         – add extra ISO country codes to C (foreigns)        |
+  |         – for each country, accumulate tags & reason_codes   |
+  |           from all contributing rules (stable union, A→Z)    |
+  | - Enforce domain constraints:                                |
+  |     • all country_iso in C must exist in iso3166 artefact    |
+  |     • C is non-empty and contains home                       |
+  | - Output (still unordered):                                  |
+  |     candidate rows:                                          |
+  |       { merchant_id, country_iso, is_home,                   |
+  |         filter_tags[], reason_codes[],                       |
+  |         (optional) base_weight_inputs }                      |
+  | - On any invalid expansion → ERR_S3_CANDIDATE_*; stop S3     |
+  |   for this merchant.                                         |
+  +------------------------------+-------------------------------+
+                                 |
+                                 v
+  +--------------------------------------------------------------+
+  |  S3.3 — Ordering & tie-break (total order)                   |
+  |--------------------------------------------------------------|
+  | - Input: unordered C from S3.2 + Ctx (home_country_iso).     |
+  | - Define deterministic comparator over candidates:           |
+  |     1) home row first (is_home=true → rank 0)                |
+  |     2) then foreigns; order determined by:                   |
+  |          • precedence of reason_codes / tags (ladder rules)  |
+  |          • ISO / rule_id / explicit policy-defined keys      |
+  |        (exact key spec in doc; sort is stable)               |
+  | - Apply stable sort with that comparator.                    |
+  | - Assign candidate_rank:                                     |
+  |     • 0 to the home row                                      |
+  |     • 1..K_foreign to foreign rows, contiguous, no gaps      |
+  | - Augment each candidate row with candidate_rank (and        |
+  |   optional non-emitted order_key debug struct).              |
+  | - Output: ranked candidate list R with candidate_rank.       |
+  | - Invariants:                                                |
+  |     • candidate_rank(home) = 0                               |
+  |     • ranks are contiguous per merchant, no duplicates       |
+  +------------------------------+-------------------------------+
+                                 |
+                                 v
+  +--------------------------------------------------------------+
+  |  S3.4 — Integerisation (optional: only if S3 owns counts)    |
+  |--------------------------------------------------------------|
+  | - Input: Ctx.N (total outlets), ranked candidates R,         |
+  |          optional deterministic priors w_i (quantised dp).   |
+  | - Path A (priors present):                                   |
+  |     • normalise priors: s_i = w_i / Σ_j w_j                  |
+  |     • ideal fractional counts: a_i = N · s_i                 |
+  | - Path B (no priors):                                        |
+  |     • use uniform or policy-defined fallback to build a_i    |
+  | - Quantise residuals to dp_resid = 8 and run largest-        |
+  |   remainder scheme:                                          |
+  |     • b_i = floor(a_i)                                       |
+  |     • d = N - Σ_i b_i                                        |
+  |     • compute residuals r_i = a_i - b_i                      |
+  |     • order residuals by r_i desc, then ISO / candidate_rank |
+  |       to get residual_rank (1..M)                            |
+  |     • bump the top d countries: count_i = b_i + 1            |
+  | - Outputs per candidate:                                     |
+  |     • count_i (≥0), residual_rank_i (1..M)                   |
+  | - Invariants:                                                |
+  |     • Σ_i count_i = N                                        |
+  |     • candidate_rank(home) still 0 (order not changed)       |
+  | - On errors (e.g. Σ w_i = 0, infeasible bounds):             |
+  |     → ERR_S3_INTEGER_* and stop S3 for this merchant.        |
+  +------------------------------+-------------------------------+
+                                 |
+                                 v
+  +--------------------------------------------------------------+
+  |  S3.5 — Sequencing & IDs (optional: if S3 owns sequencing)   |
+  |--------------------------------------------------------------|
+  | - Input: ranked candidates R + counts per country.           |
+  | - For each (merchant_id, country_iso) with count_i ≥ 1:      |
+  |     • emit site_order = 1..count_i                           |
+  |     • optionally derive site_id = zero-padded 6-digit        |
+  |         "{site_order:06d}"                                   |
+  | - Invariants:                                                |
+  |     • within each (merchant, country):                       |
+  |         – site_order is exactly {1..count_i}                 |
+  |         – no duplicates of site_order                        |
+  |     • if site_id present: unique within that block           |
+  |     • if count_i > 999999 → ERR_S3_SITE_SEQUENCE_OVERFLOW    |
+  |       and no sequencing for that merchant                    |
+  | - Output (optional): in-memory sequence rows or              |
+  |   s3_site_sequence records to be emitted in S3.6.            |
+  +------------------------------+-------------------------------+
+                                 |
+                                 v
+  +--------------------------------------------------------------+
+  |  S3.6 — Emit tables (authoritative, parameter-scoped)        |
+  |--------------------------------------------------------------|
+  | - Resolve physical paths via dataset_dictionary only.        |
+  | - Partition scope: parameter_hash={…} (no seed partition).   |
+  | - Always emit:                                               |
+  |     • s3_candidate_set                                       |
+  |         merchant_id, country_iso, is_home, candidate_rank,   |
+  |         filter_tags[], reason_codes[], parameter_hash, …     |
+  | - Optionally emit (if configured / implemented):             |
+  |     • s3_base_weight_priors (fixed-dp strings)               |
+  |     • s3_integerised_counts (count, residual_rank)           |
+  |     • s3_site_sequence (site_order, optional site_id)        |
+  | - Enforce:                                                   |
+  |     • embedded parameter_hash matches path                   |
+  |     • ordering guarantees per table (e.g. candidate_set:     |
+  |       (merchant_id, candidate_rank, country_iso))            |
+  |     • atomic publish (stage → fsync → rename)                |
+  |     • identical inputs ⇒ byte-identical outputs             |
+  +--------------------------------------------------------------+
+
+
+State-boundary invariants (what downstream relies on)
+-----------------------------------------------------
+- S3 defines **no RNG**; there are zero rng_event.* streams from S3.
+- `s3_candidate_set.candidate_rank` is the **only authority** for cross-country order in 1A.
+- All S3 outputs are parameter-scoped (partitioned by `parameter_hash` only).
+- Any integer counts or sequences emitted by S3:
+    • respect Σ_i count_i = N and candidate_rank(home)=0
+    • never encode a second notion of inter-country order.
+- Failure in any S3.x step for a merchant ⇒ **no S3 rows** for that merchant; other merchants are unaffected.
+```
