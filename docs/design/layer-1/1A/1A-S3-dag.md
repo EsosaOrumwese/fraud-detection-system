@@ -280,5 +280,4 @@ Downstream touchpoints (from S3 outputs)
         - re-sums any s3_integerised_counts to N from nb_final
         - cross-checks optional s3_site_sequence contiguity and uniqueness.
     * Treats S3 tables, not legacy country_set/ranking_residual_cache, as the authority.
-
 ```
