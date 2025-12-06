@@ -52,9 +52,7 @@ Authoritative inputs (read-only at S9 entry)
 [Convenience & receipts (gated reads)]
     - (opt) s6_membership              @ [seed, parameter_hash]
     - s6_validation_receipt + _passed.flag @ …/s6/seed={seed}/parameter_hash={parameter_hash}/
-    - S5 receipt: S5_VALIDATION.json + _passed.flag @
-         data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
-      (S9 never revalidates S5 weights but may rely on PASS gate when reading S5 for replay checks.)
+      (required only when using s6_membership; **no PASS → no read** of s6_membership.)
 
 [Upstream behaviour surfaces]
     - All S0–S8 surfaces required for replay:
@@ -62,13 +60,12 @@ Authoritative inputs (read-only at S9 entry)
         · S2: nb design + rng_event.gamma_component / poisson_component / nb_final
         · S3: s3_candidate_set (+ optional counts/sequence)
         · S4: rng_event.poisson_component(context="ztp"), ztp_rejection, ztp_retry_exhausted, ztp_final
-        · S5: ccy_country_weights_cache (+ S5 receipt)  [read only when needed for replay]
         · S6: rng_event.gumbel_key (+ optional s6_membership)
         · S7: rng_event.residual_rank (+ optional dirichlet_gamma_vector)
         · S8: outlet_catalogue, rng_event.sequence_finalize, rng_event.site_sequence_overflow
 
 [Prev-layer gates]
-    - 1A S5 PASS receipt (parameter-scoped).
+    - 1A S5 PASS receipt (parameter-scoped; independent of S9 gate — **S9 does not read S5 weight surfaces**).
     - 1A S6 PASS receipt (when using s6_membership).
     - Any other state-scoped receipts referenced in artefact_registry_1A.yaml.
 
@@ -97,8 +94,8 @@ Authoritative inputs (read-only at S9 entry)
                           * If s6_membership is to be used:
                               – require s6_validation_receipt + _passed.flag for same {seed,parameter_hash};
                               – verify _passed.flag hash == SHA256(S6_VALIDATION.json).
-                          * If S5 weights are used for replay:
-                              – require S5 _passed.flag for parameter_hash.
+                          * S9 NEVER reads S5 weight surfaces; selection/allocation replay uses only S6 events
+                            (or gated s6_membership) and S7 evidence (“no weights in S9” law).
                       - Open all required subjects via Dictionary paths (no hard-coded paths), including:
                           * outlet_catalogue, S3 tables, rng_audit_log, rng_trace_log, rng_event.* families.
                       - Enforce **path↔embed equality** on lineage for every opened dataset/log:
