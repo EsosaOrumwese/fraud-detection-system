@@ -233,10 +233,10 @@ All S4 inputs
                           - Merchant-scoped aborts (no S4 rows for m):
                               * UPSTREAM_MISSING_S1     – no hurdle event for merchant
                               * UPSTREAM_MISSING_S2     – no nb_final event for merchant
-                              * UPSTREAM_MISSING_S3     – missing eligibility or candidate_set
+                              * UPSTREAM_MISSING_A      – s3_candidate_set missing/ill-formed (cannot derive A)
                               * NUMERIC_INVALID         – non-finite or ≤0 λ_extra
-                          - Branch purity failures (run-scoped):
-                              * BRANCH_PURITY           – any S4 event exists for:
+                          - Branch purity failures (merchant-scoped; validator may escalate to run-fail):
+                              * BRANCH_PURITY           – any S4 event exists for a merchant with:
                                   – is_multi == false, or
                                   – is_eligible == false
                           - Structural RNG failures (run-scoped):
