@@ -23,7 +23,7 @@ Authoritative inputs (read-only at S5 entry)
         · ISO2 → primary legal tender; schema: schemas.ingress.layer1.yaml#/iso_legal_tender_2024
 
 [P] Policy / config (parameter-scoped; contributes to parameter_hash):
-    - configs/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
+    - config/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
         · dp ∈ [0,18] (fixed decimals for output weights)
         · defaults: { blend_weight∈[0,1], alpha≥0, obs_floor≥0, min_share∈[0,1], shrink_exponent≥0 }
         · per_currency: optional overrides per ISO-4217 code
@@ -183,7 +183,7 @@ Authoritative inputs (read-only at S5 entry)
 
 [I],[P],[N],
 [Dict],[G]      ->  (S5.8) Write authority surfaces & enforce invariants
-                       - ccy_country_weights_cache (required if S5 succeeds):
+                        - ccy_country_weights_cache (required if S5 succeeds):
                            · schema: schemas.1A.yaml#/prep/ccy_country_weights_cache
                            · path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
                            · partitioning: [parameter_hash] only
@@ -196,9 +196,9 @@ Authoritative inputs (read-only at S5 entry)
                            - Writer discipline:
                                · rows sorted (currency ASC, country_iso ASC) for byte-stable reruns
                                · embedded parameter_hash column == partition key, byte-for-byte
-                               · for each currency:
-                                   – set of country_iso matches the working set C_cur unless narrowed by explicit policy
-                                   – Σ_c weight == 1.0 at dp (group sum), and each weight ∈ [0,1]
+                                · for each currency:
+                                    – set of country_iso matches the working set C_cur unless narrowed by explicit policy
+                                    – Σ_c weight is within numeric tolerance (≈1.0) and the decimal sum at dp is exactly 1.0 after quantisation; each weight ∈ [0,1]
                        - merchant_currency (optional; from S5.0):
                            · if produced, MUST be complete (one row per merchant_id in universe) or absent; no partials.
                        - sparse_flag (optional):
@@ -242,8 +242,9 @@ Downstream touchpoints (from S5 outputs)
         - Σ weights at dp, PK/FK, domains, path↔embed equality.
         - alignment of any observed narrows / overrides / degrade_mode with policy & metrics.
     * Enforce read gate:
-        - no consumer (including 1A internals) may rely on S5 outputs unless the S5 run is included in a PASSing validation bundle
-          for the corresponding manifest_fingerprint (no PASS → no read).
+        - parameter-scoped readers (e.g. S6/S7) MUST see the S5 receipt (S5_VALIDATION.json + _passed.flag)
+          under the same parameter_hash before reading ccy_country_weights_cache (no PASS → no read).
+        - egress/validation of outlet_catalogue remains gated by the fingerprint-scoped validation_bundle_1A from S9.
 
 - Order authority:
     * All downstream states that require inter-country order MUST continue to use:
