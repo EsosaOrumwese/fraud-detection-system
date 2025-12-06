@@ -108,7 +108,7 @@ D,[N]           ->  (S7.3) Share vector over D (ephemeral; not persisted)
                        - Read full κₘ weight vector from ccy_country_weights_cache (weights over all ISO for that currency).
                        - Restrict weights to domain D:
                            * s_i_raw = weight(κₘ, country_i) for each i ∈ D
-                           * if any country_i in D has no S5 weight row ⇒ E_WEIGHT_SUPPORT_MISMATCH (per-merchant FAIL).
+                           * if any country_i in D has no S5 weight row ⇒ E_UPSTREAM_MISSING (per-merchant FAIL).
                        - Renormalise to probabilities within D:
                            * s_i = s_i_raw / Σ_{j∈D} s_j in binary64.
                            * if Σ_{j∈D} s_j == 0 ⇒ E_ZERO_SUPPORT (merchant hard-fail).
@@ -185,11 +185,11 @@ residual_rank_i,
                        - Update rng_trace_log for (module="1A.integerisation", substream_label="residual_rank"):
                            * append one cumulative row after each event append:
                                · events_total, blocks_total, draws_total (saturating); blocks_total and draws_total remain 0 for this family.
-                       - Optional **Dirichlet lane** (feature-flag; default OFF):
-                           * If enabled by policy, S7 MAY emit rng_event.dirichlet_gamma_vector once per merchant:
-                               · mean-anchored to S5 weights restricted to D
-                               · consumes its own RNG draws under module="1A.dirichlet_sampler"
-                               · does **not** change allocation counts or residual_rank events; default remains deterministic-only.   
+                        - Optional **Dirichlet lane** (feature-flag; default OFF):
+                            * If enabled by policy, S7 MAY emit rng_event.dirichlet_gamma_vector once per merchant:
+                                · mean-anchored to S5 weights restricted to D
+                                · consumes its own RNG draws under module="1A.dirichlet_allocator", substream_label="dirichlet_gamma_vector"
+                                · does **not** change allocation counts or residual_rank events; default remains deterministic-only.   
 
 all above,
 [G],[Dict]      ->  (S7.8) Invariants, failure modes & hand-off to S8/S9
@@ -208,7 +208,7 @@ all above,
                            * if Dirichlet lane enabled, its blocks/draws obey global RNG envelope law and have isolated (module,substream_label).
                        - Failure classes (examples; mapped to S0/S9 global errors):
                            * E_UPSTREAM_MISSING / E_SCHEMA_INVALID / E_PATH_EMBED_MISMATCH
-                           * E_ZERO_SUPPORT / E_FLOOR_REMAINDER / E_BOUNDS_INFEASIBLE
+                            * E_ZERO_SUPPORT / E_FLOOR_REMAINDER / E_BOUNDS_INFEASIBLE / E_BOUNDS_CAP_EXHAUSTED
                            * E_S3_DOMAIN_VIOLATION (D contains non-S3 candidate or missing home)
                            * RNG_ACCOUNTING_FAIL (for Dirichlet lane if enabled)
                        - On any **hard FAIL**:
