@@ -35,7 +35,7 @@ Authoritative inputs (read-only at S6 entry)
       · canonical ISO-2 FK table; all country_iso must FK here
 
 [P] S6 policy (governed, participates in parameter_hash):
-    - one or more S6 policy files (𝓟), e.g. configs/s6_policy*.yaml
+    - s6_selection_policy @ config/allocation/s6_selection_policy.yaml
       · validated against S6 policy JSON-Schema; unknown keys are hard FAIL
       · global defaults + per-currency overrides:
           * emit_membership_dataset : bool (default false)
@@ -216,7 +216,7 @@ S_m, Ctx₆,
                                – **no table** is written; S6 outputs only RNG events + receipt
                            * if emit_membership_dataset=true:
                                – write s6_membership under:
-                                     data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/…
+                                      data/layer1/1A/s6_membership/seed={seed}/parameter_hash={parameter_hash}/…
                                – schema: schemas.1A.yaml#/s6/membership
                                – partitioning: [seed, parameter_hash]
                                – sort_keys: [merchant_id, country_iso] (writer policy only)
@@ -293,7 +293,7 @@ all checks pass,
                                  or per selected candidate (false)
                                – sole RNG evidence for S6 keys & selection
                        - Optional convenience table:
-                           * s6_membership @ [seed, parameter_hash]  (if emit_membership_dataset=true)
+            * s6_membership @ [seed, parameter_hash]  (if emit_membership_dataset=true)
                                – PK: (merchant_id, country_iso)
                                – encodes membership only; no order
                        - S6 PASS receipt (gate for convenience reads):
