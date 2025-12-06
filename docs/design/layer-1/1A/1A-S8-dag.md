@@ -120,8 +120,8 @@ Authoritative inputs (read-only at S8 entry)
                                       – read rng_event.residual_rank rows for (merchant,country) in Dₘ
                                       – derive nᵢ from payload (per S7 spec) for each country in Dₘ
                               3) Structural checks:
-                                  · nᵢ ≥ 0 for all i; sum law: Σ_{i∈Dₘ} nᵢ == N from nb_final
-                                  · if any nᵢ < 0 or sum ≠ N ⇒ E_COUNTS_MISMATCH (merchant FAIL)
+                              · nᵢ ≥ 0 for all i; sum law: Σ_{i∈Dₘ} nᵢ == N from nb_final
+                              · if any nᵢ < 0 or sum ≠ N ⇒ E_SUM_MISMATCH (merchant FAIL)
                               4) Membership / domain integrity:
                                   · Dₘ countries must be subset of S3 candidate_set domain
                                   · no rows for countries outside Dₘ
@@ -234,7 +234,7 @@ all above,
                               * rng_trace_log totals for these substreams reconcile with per-event envelopes
                           - Failure classes (mapped to S0/S9 error contract), e.g.:
                               * E_PASS_GATE_MISSING (S6 receipt missing for s6_membership read)
-                              * E_COUNTS_SOURCE_MISSING / E_COUNTS_MISMATCH
+                              * E_COUNTS_SOURCE_MISSING / E_SUM_MISMATCH
                               * E_SEQUENCE_DIVERGENCE (when s3_site_sequence exists but disagrees)
                               * E_SCHEMA_INVALID / E_PATH_EMBED_MISMATCH
                               * E_EVENT_COVERAGE (sequence_finalize/site_sequence_overflow coverage or trace mismatches)
