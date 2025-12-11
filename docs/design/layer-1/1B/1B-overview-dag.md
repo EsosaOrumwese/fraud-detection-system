@@ -134,11 +134,10 @@ DAG
    (All planning tables + RNG logs + egress) --> (S9) Replay validation & PASS gate for 1B (no RNG)
                 -> validation_bundle_1B/ @ [fingerprint]
                      - includes:
-                         · S7↔S8 parity & FK checks
-                         · coverage vs outlet_catalogue (after 1A gate)
-                         · geometry checks vs tile_index/world_countries
-                         · RNG accounting for `site_tile_assign` and `in_cell_jitter`
-                         · path↔embed equality & partition law checks
+                         · S7↔S8 row/key parity & egress schema/partition/order checks
+                         · RNG accounting & envelope/trace reconciliation for `site_tile_assign` and `in_cell_jitter`
+                         · egress file checksums for `site_locations`
+                         · path↔embed equality & Dictionary/Schema coherence checks
                 -> _passed.flag_1B       @ [fingerprint]
                      - content: `sha256_hex = <SHA256(bundle)>`
                      - hash is SHA-256 over raw bytes of files listed in `index.json`
