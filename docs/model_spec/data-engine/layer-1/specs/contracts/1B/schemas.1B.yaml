@@ -49,12 +49,6 @@ $defs:
 # state-specific specs and will be inlined as we promote 1B to beta.
 model: {}
 
-prep: {}
-
-egress: {}
-
-plan: {}
-
 policy:
   jitter_policy:
     type: object
