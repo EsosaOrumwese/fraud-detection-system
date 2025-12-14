@@ -5,7 +5,7 @@ PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
 # Paths and summaries
-RUN_ROOT ?= runs/local_layer1_regen3
+RUN_ROOT ?= runs/local_layer1_regen4
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -14,8 +14,8 @@ SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
 SEG3A_RESULT_JSON ?= $(SUMMARY_DIR)/segment3a_result.json
 SEG3B_RESULT_JSON ?= $(SUMMARY_DIR)/segment3b_result.json
 RUN_ID ?= run-0
-LOG ?= $(RUN_ROOT)/run_log_regen3.log
-SEED ?= 2025112701
+LOG ?= $(RUN_ROOT)/run_log_regen4.log
+SEED ?= 2025121401
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
