@@ -120,10 +120,10 @@ __all__ = ["JitterContext", "build_context", "execute_jitter"]
 @dataclass(frozen=True)
 class _TileBoundsArray:
     tile_ids: np.ndarray
-    west: np.ndarray
-    east: np.ndarray
-    south: np.ndarray
-    north: np.ndarray
+    min_lon: np.ndarray
+    max_lon: np.ndarray
+    min_lat: np.ndarray
+    max_lat: np.ndarray
 
     def lookup(self, tile_id: int) -> TileBoundsRecord | None:
         if self.tile_ids.size == 0:
@@ -132,10 +132,10 @@ class _TileBoundsArray:
         if idx >= self.tile_ids.size or self.tile_ids[idx] != tile_id:
             return None
         return TileBoundsRecord(
-            west_lon=float(self.west[idx]),
-            east_lon=float(self.east[idx]),
-            south_lat=float(self.south[idx]),
-            north_lat=float(self.north[idx]),
+            min_lon_deg=float(self.min_lon[idx]),
+            max_lon_deg=float(self.max_lon[idx]),
+            min_lat_deg=float(self.min_lat[idx]),
+            max_lat_deg=float(self.max_lat[idx]),
         )
 
 
@@ -181,35 +181,81 @@ class _TileBoundsCache:
         self._cache.pop(str(iso).upper(), None)
 
     def _load_iso(self, iso: str) -> _TileBoundsArray:
-        table = self._partition.dataset.to_table(
-            columns=["tile_id", "west_lon", "east_lon", "south_lat", "north_lat"],
-            filter=ds.field("country_iso") == iso,
-        )
-        if table.num_rows == 0:
-            empty = np.empty(0, dtype=np.float64)
-            return _TileBoundsArray(
-                tile_ids=np.empty(0, dtype=np.uint64),
-                west=empty,
-                east=empty,
-                south=empty,
-                north=empty,
-            )
+        canonical_cols = [
+            "tile_id",
+            "min_lon_deg",
+            "max_lon_deg",
+            "min_lat_deg",
+            "max_lat_deg",
+        ]
+        legacy_cols = [
+            "tile_id",
+            "west_lon",
+            "east_lon",
+            "south_lat",
+            "north_lat",
+        ]
+        schema_lookup = {name.lower(): name for name in self._partition.dataset.schema.names}
+        filter_expr = ds.field("country_iso") == iso
 
-        tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
-        west = np.asarray(table.column("west_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
-        east = np.asarray(table.column("east_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
-        south = np.asarray(table.column("south_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
-        north = np.asarray(table.column("north_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
+        if all(col.lower() in schema_lookup for col in canonical_cols):
+            columns = [schema_lookup[col.lower()] for col in canonical_cols]
+            table = self._partition.dataset.to_table(columns=columns, filter=filter_expr)
+            if table.num_rows == 0:
+                empty = np.empty(0, dtype=np.float64)
+                return _TileBoundsArray(
+                    tile_ids=np.empty(0, dtype=np.uint64),
+                    min_lon=empty,
+                    max_lon=empty,
+                    min_lat=empty,
+                    max_lat=empty,
+                )
+
+            tile_ids = np.asarray(table.column(columns[0]).to_numpy(zero_copy_only=False), dtype=np.uint64)
+            min_lon = np.asarray(table.column(columns[1]).to_numpy(zero_copy_only=False), dtype=np.float64)
+            max_lon = np.asarray(table.column(columns[2]).to_numpy(zero_copy_only=False), dtype=np.float64)
+            min_lat = np.asarray(table.column(columns[3]).to_numpy(zero_copy_only=False), dtype=np.float64)
+            max_lat = np.asarray(table.column(columns[4]).to_numpy(zero_copy_only=False), dtype=np.float64)
+        elif all(col.lower() in schema_lookup for col in legacy_cols):
+            columns = [schema_lookup[col.lower()] for col in legacy_cols]
+            table = self._partition.dataset.to_table(columns=columns, filter=filter_expr)
+            if table.num_rows == 0:
+                empty = np.empty(0, dtype=np.float64)
+                return _TileBoundsArray(
+                    tile_ids=np.empty(0, dtype=np.uint64),
+                    min_lon=empty,
+                    max_lon=empty,
+                    min_lat=empty,
+                    max_lat=empty,
+                )
+
+            tile_ids = np.asarray(table.column(columns[0]).to_numpy(zero_copy_only=False), dtype=np.uint64)
+            min_lon = np.asarray(table.column(columns[1]).to_numpy(zero_copy_only=False), dtype=np.float64)
+            max_lon = np.asarray(table.column(columns[2]).to_numpy(zero_copy_only=False), dtype=np.float64)
+            min_lat = np.asarray(table.column(columns[3]).to_numpy(zero_copy_only=False), dtype=np.float64)
+            max_lat = np.asarray(table.column(columns[4]).to_numpy(zero_copy_only=False), dtype=np.float64)
+        else:
+            raise err(
+                "E606_FK_TILE_INDEX",
+                f"tile_bounds partition missing expected geometry columns for ISO {iso}: "
+                f"{sorted(self._partition.dataset.schema.names)}",
+            )
 
         if tile_ids.size:
             order = np.argsort(tile_ids, kind="mergesort")
             tile_ids = tile_ids[order]
-            west = west[order]
-            east = east[order]
-            south = south[order]
-            north = north[order]
+            min_lon = min_lon[order]
+            max_lon = max_lon[order]
+            min_lat = min_lat[order]
+            max_lat = max_lat[order]
 
-        return _TileBoundsArray(tile_ids=tile_ids, west=west, east=east, south=south, north=north)
+        return _TileBoundsArray(
+            tile_ids=tile_ids,
+            min_lon=min_lon,
+            max_lon=max_lon,
+            min_lat=min_lat,
+            max_lat=max_lat,
+        )
 
 
 class _TileCentroidCache:

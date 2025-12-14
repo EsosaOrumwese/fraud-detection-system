@@ -38,39 +38,88 @@ class TileBoundsPartition:
     dataset: ds.Dataset
 
     def collect_country(self, iso: str) -> pl.DataFrame:
-        table = self.dataset.to_table(
-            columns=[
-                "country_iso",
-                "tile_id",
-                "west_lon",
-                "east_lon",
-                "south_lat",
-                "north_lat",
-            ],
-            filter=ds.field("country_iso") == iso,
-        )
-        if table.num_rows == 0:
-            return pl.DataFrame(
-                {
-                    "country_iso": pl.Series([], dtype=pl.Utf8),
-                    "tile_id": pl.Series([], dtype=pl.UInt64),
-                    "west_lon": pl.Series([], dtype=pl.Float64),
-                    "east_lon": pl.Series([], dtype=pl.Float64),
-                    "south_lat": pl.Series([], dtype=pl.Float64),
-                    "north_lat": pl.Series([], dtype=pl.Float64),
-                }
+        iso = str(iso).upper()
+        if not iso:
+            return _empty_tile_bounds_frame()
+
+        canonical_cols = [
+            "country_iso",
+            "tile_id",
+            "min_lon_deg",
+            "max_lon_deg",
+            "min_lat_deg",
+            "max_lat_deg",
+            "centroid_lon_deg",
+            "centroid_lat_deg",
+        ]
+        legacy_cols = [
+            "country_iso",
+            "tile_id",
+            "west_lon",
+            "east_lon",
+            "south_lat",
+            "north_lat",
+        ]
+        schema_lookup = {name.lower(): name for name in self.dataset.schema.names}
+
+        if all(col in schema_lookup for col in (name.lower() for name in canonical_cols)):
+            columns = [schema_lookup[col.lower()] for col in canonical_cols]
+            table = self.dataset.to_table(columns=columns, filter=ds.field("country_iso") == iso)
+            if table.num_rows == 0:
+                return _empty_tile_bounds_frame()
+            frame = pl.from_arrow(table, rechunk=False).with_columns(
+                [
+                    pl.col(columns[0]).cast(pl.Utf8).alias("country_iso"),
+                    pl.col(columns[1]).cast(pl.UInt64).alias("tile_id"),
+                    pl.col(columns[2]).cast(pl.Float64).alias("min_lon_deg"),
+                    pl.col(columns[3]).cast(pl.Float64).alias("max_lon_deg"),
+                    pl.col(columns[4]).cast(pl.Float64).alias("min_lat_deg"),
+                    pl.col(columns[5]).cast(pl.Float64).alias("max_lat_deg"),
+                    pl.col(columns[6]).cast(pl.Float64).alias("centroid_lon_deg"),
+                    pl.col(columns[7]).cast(pl.Float64).alias("centroid_lat_deg"),
+                ]
             )
-        frame = pl.from_arrow(table, rechunk=False)
-        return frame.with_columns(
-            [
-                pl.col("country_iso").cast(pl.Utf8),
-                pl.col("tile_id").cast(pl.UInt64),
-                pl.col("west_lon").cast(pl.Float64),
-                pl.col("east_lon").cast(pl.Float64),
-                pl.col("south_lat").cast(pl.Float64),
-                pl.col("north_lat").cast(pl.Float64),
-            ]
+            return frame.select(canonical_cols).sort("tile_id")
+
+        if all(col in schema_lookup for col in (name.lower() for name in legacy_cols)):
+            columns = [schema_lookup[col.lower()] for col in legacy_cols]
+            table = self.dataset.to_table(columns=columns, filter=ds.field("country_iso") == iso)
+            if table.num_rows == 0:
+                return _empty_tile_bounds_frame()
+            frame = pl.from_arrow(table, rechunk=False).with_columns(
+                [
+                    pl.col(columns[0]).cast(pl.Utf8).alias("country_iso"),
+                    pl.col(columns[1]).cast(pl.UInt64).alias("tile_id"),
+                    pl.col(columns[2]).cast(pl.Float64).alias("min_lon_deg"),
+                    pl.col(columns[3]).cast(pl.Float64).alias("max_lon_deg"),
+                    pl.col(columns[4]).cast(pl.Float64).alias("min_lat_deg"),
+                    pl.col(columns[5]).cast(pl.Float64).alias("max_lat_deg"),
+                    ((pl.col(columns[2]) + pl.col(columns[3])) / 2.0).alias("centroid_lon_deg"),
+                    ((pl.col(columns[4]) + pl.col(columns[5])) / 2.0).alias("centroid_lat_deg"),
+                ]
+            )
+            return frame.select(canonical_cols).sort("tile_id")
+
+        raise err(
+            "E606_FK_TILE_INDEX",
+            f"tile_bounds partition missing expected geometry columns for ISO {iso}: "
+            f"{sorted(self.dataset.schema.names)}",
         )
+
+
+def _empty_tile_bounds_frame() -> pl.DataFrame:
+    return pl.DataFrame(
+        {
+            "country_iso": pl.Series([], dtype=pl.Utf8),
+            "tile_id": pl.Series([], dtype=pl.UInt64),
+            "min_lon_deg": pl.Series([], dtype=pl.Float64),
+            "max_lon_deg": pl.Series([], dtype=pl.Float64),
+            "min_lat_deg": pl.Series([], dtype=pl.Float64),
+            "max_lat_deg": pl.Series([], dtype=pl.Float64),
+            "centroid_lon_deg": pl.Series([], dtype=pl.Float64),
+            "centroid_lat_deg": pl.Series([], dtype=pl.Float64),
+        }
+    )
 
 
 @dataclass(frozen=True)

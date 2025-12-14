@@ -24,10 +24,10 @@ from .rng import MODULE_NAME, SUBSTREAM_LABEL, derive_jitter_substream
 
 @dataclass(frozen=True)
 class TileBoundsRecord:
-    west_lon: float
-    east_lon: float
-    south_lat: float
-    north_lat: float
+    min_lon_deg: float
+    max_lon_deg: float
+    min_lat_deg: float
+    max_lat_deg: float
 
 
 @dataclass(frozen=True)
@@ -220,8 +220,8 @@ def compute_jitter(
                         f"{blocks_consumed} blocks / {draws_consumed} draws",
                     )
 
-                lon = _interpolate_lon(bounds.west_lon, bounds.east_lon, u_lon)
-                lat = bounds.south_lat + u_lat * (bounds.north_lat - bounds.south_lat)
+                lon = _interpolate_lon(bounds.min_lon_deg, bounds.max_lon_deg, u_lon)
+                lat = bounds.min_lat_deg + u_lat * (bounds.max_lat_deg - bounds.min_lat_deg)
                 inside_pixel = _point_inside_pixel(lon, lat, bounds)
                 inside_country = _point_inside_country(lon, lat, polygon_record)
 
@@ -309,8 +309,8 @@ def compute_jitter(
                     batch_meta = batch_meta[:batch_size]
                     break
 
-            lon_batch = _vector_interpolate_lon(bounds.west_lon, bounds.east_lon, u_lon_batch)
-            lat_batch = bounds.south_lat + u_lat_batch * (bounds.north_lat - bounds.south_lat)
+            lon_batch = _vector_interpolate_lon(bounds.min_lon_deg, bounds.max_lon_deg, u_lon_batch)
+            lat_batch = bounds.min_lat_deg + u_lat_batch * (bounds.max_lat_deg - bounds.min_lat_deg)
             pixel_mask = _vector_inside_pixel(lon_batch, lat_batch, bounds)
             country_mask = _vector_inside_country(lon_batch, lat_batch, polygon_record)
             accepted_mask = pixel_mask & country_mask
@@ -505,8 +505,8 @@ def _vector_interpolate_lon(west: float, east: float, u: np.ndarray) -> np.ndarr
 
 
 def _point_inside_pixel(lon: float, lat: float, bounds: TileBoundsRecord) -> bool:
-    min_lon, max_lon = bounds.west_lon, bounds.east_lon
-    min_lat, max_lat = bounds.south_lat, bounds.north_lat
+    min_lon, max_lon = bounds.min_lon_deg, bounds.max_lon_deg
+    min_lat, max_lat = bounds.min_lat_deg, bounds.max_lat_deg
     if max_lon < min_lon:
         max_lon += 360.0
         lon = lon if lon >= min_lon else lon + 360.0
@@ -521,8 +521,8 @@ def _vector_inside_pixel(lon: np.ndarray, lat: np.ndarray, bounds: TileBoundsRec
 
     lon = np.asarray(lon, dtype=np.float64)
     lat = np.asarray(lat, dtype=np.float64)
-    min_lon, max_lon = bounds.west_lon, bounds.east_lon
-    min_lat, max_lat = bounds.south_lat, bounds.north_lat
+    min_lon, max_lon = bounds.min_lon_deg, bounds.max_lon_deg
+    min_lat, max_lat = bounds.min_lat_deg, bounds.max_lat_deg
     if max_lon < min_lon:
         lon_cmp = np.where(lon >= min_lon, lon, lon + 360.0)
         max_lon_cmp = max_lon + 360.0

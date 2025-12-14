@@ -111,7 +111,16 @@ class S1TileIndexValidator:
         missing = required_columns - set(tile_df.columns)
         if missing:
             raise ValidationError(f"tile_index missing required columns: {sorted(missing)}")
-        bounds_columns = {"country_iso", "tile_id", "west_lon", "east_lon", "south_lat", "north_lat"}
+        bounds_columns = {
+            "country_iso",
+            "tile_id",
+            "min_lon_deg",
+            "max_lon_deg",
+            "min_lat_deg",
+            "max_lat_deg",
+            "centroid_lon_deg",
+            "centroid_lat_deg",
+        }
         missing_bounds = bounds_columns - set(bounds_df.columns)
         if missing_bounds:
             raise ValidationError(f"tile_bounds missing required columns: {sorted(missing_bounds)}")
@@ -228,10 +237,10 @@ class S1TileIndexValidator:
                 raise ValidationError(f"Missing bounds row for country {country_iso}, tile {metrics.tile_id}")
             bounds = metrics.bounds
             for name, reported, expected in (
-                ("west_lon", float(bounds_row["west_lon"]), bounds.west),
-                ("east_lon", float(bounds_row["east_lon"]), bounds.east),
-                ("south_lat", float(bounds_row["south_lat"]), bounds.south),
-                ("north_lat", float(bounds_row["north_lat"]), bounds.north),
+                ("min_lon_deg", float(bounds_row["min_lon_deg"]), bounds.west),
+                ("max_lon_deg", float(bounds_row["max_lon_deg"]), bounds.east),
+                ("min_lat_deg", float(bounds_row["min_lat_deg"]), bounds.south),
+                ("max_lat_deg", float(bounds_row["max_lat_deg"]), bounds.north),
             ):
                 if not math.isfinite(reported):
                     raise ValidationError(f"tile_bounds.{name} is not finite for {country_iso}, tile {metrics.tile_id}")

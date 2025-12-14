@@ -69,19 +69,23 @@ _TILE_SCHEMA: dict[str, pl.DataType] = {
 _BOUNDS_COLUMNS = (
     "country_iso",
     "tile_id",
-    "west_lon",
-    "east_lon",
-    "south_lat",
-    "north_lat",
+    "min_lon_deg",
+    "max_lon_deg",
+    "min_lat_deg",
+    "max_lat_deg",
+    "centroid_lon_deg",
+    "centroid_lat_deg",
 )
 
 _BOUNDS_SCHEMA: dict[str, pl.DataType] = {
     "country_iso": pl.Utf8,
     "tile_id": pl.UInt64,
-    "west_lon": pl.Float64,
-    "east_lon": pl.Float64,
-    "south_lat": pl.Float64,
-    "north_lat": pl.Float64,
+    "min_lon_deg": pl.Float64,
+    "max_lon_deg": pl.Float64,
+    "min_lat_deg": pl.Float64,
+    "max_lat_deg": pl.Float64,
+    "centroid_lon_deg": pl.Float64,
+    "centroid_lat_deg": pl.Float64,
 }
 
 _BATCH_SIZE = 200_000
@@ -794,10 +798,12 @@ class S1TileIndexRunner:
                     bounds_writer.append_batch(
                         country_iso=country_values,
                         tile_id=tile_ids,
-                        west_lon=west,
-                        east_lon=east,
-                        south_lat=south,
-                        north_lat=north,
+                        min_lon_deg=west,
+                        max_lon_deg=east,
+                        min_lat_deg=south,
+                        max_lat_deg=north,
+                        centroid_lon_deg=centroid_lon,
+                        centroid_lat_deg=centroid_lat,
                     )
 
                     summary.record_included_tiles(tile_ids)

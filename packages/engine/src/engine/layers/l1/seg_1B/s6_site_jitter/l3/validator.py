@@ -264,10 +264,10 @@ def _build_tile_bounds_map(
         for row in frame.iter_rows(named=True):
             key = (iso_key, int(row["tile_id"]))
             bounds[key] = {
-                "west_lon": float(row["west_lon"]),
-                "east_lon": float(row["east_lon"]),
-                "south_lat": float(row["south_lat"]),
-                "north_lat": float(row["north_lat"]),
+                "min_lon_deg": float(row["min_lon_deg"]),
+                "max_lon_deg": float(row["max_lon_deg"]),
+                "min_lat_deg": float(row["min_lat_deg"]),
+                "max_lat_deg": float(row["max_lat_deg"]),
             }
     return bounds
 
@@ -827,10 +827,10 @@ def _wrap_longitude(value: float) -> float:
 
 
 def _point_inside_pixel(lon: float, lat: float, bounds: Mapping[str, float]) -> bool:
-    west = bounds["west_lon"]
-    east = bounds["east_lon"]
-    south = bounds["south_lat"]
-    north = bounds["north_lat"]
+    west = bounds["min_lon_deg"]
+    east = bounds["max_lon_deg"]
+    south = bounds["min_lat_deg"]
+    north = bounds["max_lat_deg"]
     if east < west:
         east += 360.0
         if lon < west:
