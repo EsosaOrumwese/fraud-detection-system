@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S7 entry)
       · schema: schemas.layer1.yaml#/rng/events/nb_final
       · one row per resolved merchant
       · payload (core): merchant_id, n_outlets (N ≥ 2), mu, dispersion_k, nb_rejections
-      · non-consuming finaliser (before==after; blocks=0; draws="0")  :contentReference[oaicite:0]{index=0}  
+      · non-consuming finaliser (before==after; blocks=0; draws="0")    
 
 [S3] Order & domain base (sole inter-country order authority):
     - s3_candidate_set @ [parameter_hash]
@@ -24,7 +24,7 @@ Authoritative inputs (read-only at S7 entry)
     - rng_event_ztp_final @ [seed, parameter_hash, run_id]
       · schema: schemas.layer1.yaml#/rng/events/ztp_final
       · payload: merchant_id, K_target ≥ 0, lambda_extra > 0, attempts, exhausted:bool, regime, reason?
-      · non-consuming finaliser (before==after; blocks=0; draws="0")  :contentReference[oaicite:2]{index=2}  
+      · non-consuming finaliser (before==after; blocks=0; draws="0")    
 
 [S5] Weights authority (currency→country; no persistence beyond S5):
     - ccy_country_weights_cache @ [parameter_hash]
@@ -47,9 +47,9 @@ Authoritative inputs (read-only at S7 entry)
       · _passed.flag SHA-256 over S6_VALIDATION.json; **no PASS → no read** of s6_membership.   
 
 [N] Numeric / quantisation policy:
-    - numeric_policy.json, math_profile_manifest.json  (from S0)  :contentReference[oaicite:8]{index=8}  
+    - numeric_policy.json, math_profile_manifest.json  (from S0)    
       · IEEE-754 binary64, RNE, FMA-OFF, no FTZ/DAZ; deterministic libm; fixed-order reductions.
-    - residual_quantisation_policy (registry id)  :contentReference[oaicite:9]{index=9}  
+    - residual_quantisation_policy (registry id)    
       · dp_resid = 8 for residuals; ties-to-even decimal rounding; deterministic total-order tie-breaks.
 
 [G] Run / lineage context:
@@ -61,7 +61,7 @@ Authoritative inputs (read-only at S7 entry)
     - dataset_dictionary.layer1.1A.yaml
       · IDs/paths for all above datasets; `outlet_catalogue`, candidate_set, etc.   
     - artefact_registry_1A.yaml
-      · rng_event_residual_rank log, dependencies, module/substream labels. :contentReference[oaicite:12]{index=12}  
+      · rng_event_residual_rank log, dependencies, module/substream labels.   
 
 
 ----------------------------------------------------------------- DAG (S7.1–S7.8 · domain → weights → counts → residual_rank events)
@@ -123,7 +123,7 @@ D, s_i, N,
                                · b_i = floor(a_i)  (integer ≥ 0)
                        - Compute remainder:
                            * d = N − Σ_{i∈D} b_i
-                           * enforce: 0 ≤ d < |D|; else E_FLOOR_REMAINDER (merchant FAIL). :contentReference[oaicite:15]{index=15}  
+                           * enforce: 0 ≤ d < |D|; else E_FLOOR_REMAINDER (merchant FAIL).   
                        - Residuals:
                            * raw residual r_i = a_i − b_i  (0 ≤ r_i < 1 in exact reals)
                            * quantise at dp_resid = 8 via ties-to-even:
@@ -159,7 +159,7 @@ D, c_i,
                            * During bump:
                                · only countries with c_i < U_i are eligible to receive +1,
                                  ranked by the same residual order; tie-break unchanged.
-                       - Bounds variant MUST NOT introduce new datasets or order surfaces; all other contracts identical. :contentReference[oaicite:17]{index=17}  
+                       - Bounds variant MUST NOT introduce new datasets or order surfaces; all other contracts identical.   
 
 D, c_i,
 residual_rank_i,
@@ -197,7 +197,7 @@ all above,
                            * Σ_{i∈D} c_i = N  (sum law)
                            * ∀i, c_i ≥ 0
                            * ∀i, |c_i − N·s_i| ≤ 1  (proximity law)
-                           * if bounds enabled: L_i ≤ c_i ≤ U_i for all i. :contentReference[oaicite:20]{index=20}  
+                           * if bounds enabled: L_i ≤ c_i ≤ U_i for all i.   
                        - Domain & authority invariants:
                            * D = {home} ∪ (S6-selected foreigns); if K_target=0 or no foreign membership ⇒ D={home}.
                            * S3.candidate_rank remains **sole** cross-country order authority.

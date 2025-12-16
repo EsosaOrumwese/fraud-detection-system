@@ -14,7 +14,7 @@ Authoritative inputs (read-only at S5 entry)
     - schemas.2A.yaml                   (shapes for s0_gate_receipt_2A, site_timezones, tz_timetable_cache,
                                          s4_legality_report, validation_bundle_2A, bundle_index_v1, passed_flag)  
     - dataset_dictionary.layer1.2A.yaml (IDs/paths/partitions for site_timezones, tz_timetable_cache,
-                                         s4_legality_report, validation_bundle_2A, validation_passed_flag_2A)  :contentReference[oaicite:2]{index=2}
+                                         s4_legality_report, validation_bundle_2A, validation_passed_flag_2A)  
     - artefact_registry_2A.yaml         (bindings/licences/lineage for the same artefacts)  
 
 [S2 Egress · discovery surface]
