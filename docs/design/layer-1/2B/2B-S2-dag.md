@@ -9,8 +9,10 @@ Authoritative inputs (read-only at S2 entry)
       · binds this run identity: { seed, manifest_fingerprint, parameter_hash } for 2B
       · carries: catalogue_resolution, determinism_receipt (engine + alias policy IDs/digests)
     - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
-      · canonical inventory of every artefact S0 sealed for 2B under this fingerprint
-      · S2 MUST treat its read set as a subset of this inventory (subset-of-S0 rule)
+      · canonical inventory of every cross-layer/policy artefact S0 sealed for 2B under this fingerprint
+      · For cross-layer or policy artefacts, S2 MUST treat its read set as a subset of this inventory (subset-of-S0 rule);
+        within-segment datasets (e.g. `s1_site_weights`) are not S0-sealed but must be read at the exact
+        `[seed, fingerprint]` partition via the Dictionary.
 
 [Schema+Dict]
     - schemas.2B.yaml                     (shape authority for s1_site_weights, s2_alias_index, s2_alias_blob)
@@ -19,10 +21,10 @@ Authoritative inputs (read-only at S2 entry)
     - schemas.layer1.yaml, schemas.ingress.layer1.yaml
       · supply core types (id64, hex64, rfc3339_micros, etc.) and bundle/index laws
 
-[Required sealed inputs (and nothing else)]
+[Required inputs (and nothing else)]
     - s1_site_weights
         · producer: 2B.S1
-        · identity: seed={seed} / fingerprint={manifest_fingerprint}
+        · identity: `seed={seed} / fingerprint={manifest_fingerprint}`
         · PK: [merchant_id, legal_country_iso, site_order]
         · columns: p_weight ∈ [0,1], weight_source, quantised_bits, floor_applied, created_utc
         · role here: static per-site probability law per merchant; S2 SHALL NOT recompute weights from site_locations.
@@ -41,7 +43,9 @@ Authoritative inputs (read-only at S2 entry)
 [Explicit prohibitions & scope fences]
     - Inputs:
         · S2 MAY NOT read 2A pins (`site_timezones`, `tz_timetable_cache`) or any other artefacts.
-        · Every input S2 resolves MUST appear in sealed_inputs_v1 for this fingerprint.
+        · Every cross-layer or policy input S2 resolves (here: `alias_layout_policy_v1`) MUST appear in `sealed_inputs_v1`
+          for this fingerprint; within-segment datasets (here: `s1_site_weights`) MUST be read at the exact
+          `[seed, fingerprint]` partition but are not S0-sealed.
     - Behaviours:
         · No literal paths, no globs, no network I/O, no re-hashing of 1B (S0 is the sole 1B gate).
         · S2 is RNG-free: it SHALL NOT consume Philox; downstream states handle RNG.
@@ -82,7 +86,6 @@ s1_site_weights,
 alias_layout_policy_v1
                 ->  (S2.2) Resolve inputs & basic sanity
                     - Resolve s1_site_weights for this {seed, fingerprint} via Dictionary; confirm:
-                        · it appears in sealed_inputs_v1 for this fingerprint,
                         · schema matches schemas.2B.yaml#/plan/s1_site_weights,
                         · PK [merchant_id, legal_country_iso, site_order] is unique.
                     - Resolve alias_layout_policy_v1 via the exact path/digest sealed by S0:

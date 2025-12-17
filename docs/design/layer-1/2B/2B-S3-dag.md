@@ -10,7 +10,9 @@ Authoritative inputs (read-only at S3 entry)
       · provides: canonical created_utc = verified_at_utc (echoed into all S3 rows)
     - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
       · inventory of all artefacts S0 sealed for this fingerprint
-      · S3 MUST treat its read set as a strict subset (subset-of-S0 rule)
+      · S3 MUST treat any cross-layer or policy artefact it reads as part of this inventory (subset-of-S0 rule);
+        within-segment datasets (e.g. `s1_site_weights`) are not S0-sealed but must be read at the exact
+        `[seed, fingerprint]` partition via the Dictionary.
 
 [Schema+Dict]
     - schemas.2B.yaml                     (shape authority for s1_site_weights, s3_day_effects, day_effect_policy_v1)
@@ -20,7 +22,7 @@ Authoritative inputs (read-only at S3 entry)
     - dataset_dictionary.layer1.2A.yaml   (ID → path/partitions/format for site_timezones)
     - artefact_registry_2B.yaml           (existence/licence/retention; non-authoritative for paths)
 
-[Required sealed inputs (S3 MAY read, and nothing else)]
+[Required inputs (S3 MAY read, and nothing else)]
     - s1_site_weights
         · producer: 2B.S1
         · partition: seed={seed} / fingerprint={manifest_fingerprint}
@@ -62,7 +64,7 @@ Authoritative inputs (read-only at S3 entry)
         · deterministic libm for erf⁻¹, exp, etc.; no FMA/FTZ/DAZ; serial reductions only
     - Catalogue discipline:
         · all inputs resolved by Dataset Dictionary IDs; no literal paths, no network I/O
-        · every input must appear in sealed_inputs_v1 for this fingerprint
+        · cross-layer/policy inputs must appear in sealed_inputs_v1; within-segment datasets are read at [seed,fingerprint] only
 
 
 ----------------------------------------------------------------------
@@ -80,7 +82,8 @@ DAG — 2B.S3 (s1_site_weights × site_timezones × day_range → s3_day_effects
                     - Derive canonical created_utc ← s0_gate_receipt_2B.verified_at_utc.
                         · S3 SHALL echo this into every s3_day_effects row.
                     - Confirm posture:
-                        · subset-of-S0: S3 SHALL NOT resolve any asset that is not listed in sealed_inputs_v1.
+                        · subset-of-S0 for cross-layer/policy inputs: S3 SHALL NOT resolve any cross-layer or policy
+                          artefact that is not listed in `sealed_inputs_v1`.
                         · no network I/O; no re-hash of 1B bundles.
 
 [S0 Gate & Identity],
@@ -93,8 +96,10 @@ day_effect_policy_v1
                         · s1_site_weights@seed={seed}/fingerprint={manifest_fingerprint}
                         · site_timezones@seed={seed}/fingerprint={manifest_fingerprint}
                         · day_effect_policy_v1 (token-less; exact S0-sealed path + digest)
-                    - Enforce subset-of-S0:
-                        · each resolved ID MUST appear in sealed_inputs_v1 for this fingerprint.
+                    - Enforce subset-of-S0 for cross-layer/policy inputs:
+                        · `site_timezones` and `day_effect_policy_v1` MUST appear in `sealed_inputs_v1` for this fingerprint;
+                        · `s1_site_weights` is a within-segment dataset and MUST be resolved by ID at
+                          `seed={seed}/fingerprint={manifest_fingerprint}` but is not S0-sealed.
                     - Validate shapes:
                         · s1_site_weights and site_timezones match their schema anchors,
                           with PK [merchant_id, legal_country_iso, site_order].

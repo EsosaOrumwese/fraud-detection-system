@@ -80,7 +80,8 @@ DAG — 2B.S0 (Upstream 1B gate → sealed inputs inventory → 2B gate receipt)
                 ->  (S0.3) Resolve & seal minimum 2B inputs (site + policies)
                     - Resolve required 2B ingress assets **by ID** only:
                         · `site_locations @ seed={seed} / fingerprint={manifest_fingerprint}`,
-                        · `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1 @ fingerprint={manifest_fingerprint}`.
+                        · `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`
+                          (token-less; each resolved by the exact path + sha256_hex sealed in S0, not by {seed,fingerprint}).
                     - For each resolved asset:
                         · capture its **partition** object (e.g. `{seed, fingerprint}` or `{fingerprint}`),
                         · attach the governing `schema_ref` from the Dictionary,
