@@ -18,9 +18,9 @@ Concretely, 3A.S3:
 
   * treats S1 as the **only** authority on whether that pair is in scope for zone allocation;
   * treats `legal_country_iso` as the country key `c`, and uses S2’s `s2_country_zone_priors@parameter_hash` to obtain the effective α-vector
-    [
+    $$
     \boldsymbol{\alpha}(c) = \big(\alpha_\text{effective}(c,z)\big)_{z \in Z(c)},
-    ]
+    $$
     where `Z(c)` is the authoritative zone set for that country;
   * MUST NOT re-evaluate the mixture policy (S1) or reconstruct α from raw configs (S2 inputs) on its own.
 
@@ -29,9 +29,9 @@ Concretely, 3A.S3:
 
   * uses the Layer-1 Philox RNG engine and a dedicated, reproducible substream keyed by `(merchant_id, country_iso)` (exact keying defined later) to generate the required uniform variates;
   * transforms those variates into independent Gamma variates and normalises them to produce a **Dirichlet sample**:
-    [
+    $$
     \Theta(m,c,z) \in (0,1), \quad z \in Z(c), \quad \sum_{z \in Z(c)} \Theta(m,c,z) = 1,
-    ]
+    $$
     where `Θ(m,c,·)` is the drawn zone-share vector for merchant×country `(m,c)`;
   * records per-zone shares in a seed+fingerprint-scoped dataset (e.g. `s3_zone_shares`), with one row per `(merchant_id, legal_country_iso, tzid)` for escalated pairs only.
 
@@ -184,7 +184,7 @@ Within the sealed universe established by S0 and the 3A catalogue, S3 MAY read a
    * S3 MUST use this dataset to obtain α-vectors for each country:
 
      * For each country `c`, α-vector is
-       (\boldsymbol{\alpha}(c) = {\alpha_\text{effective}(c,z)}_{z \in Z(c)}).
+       $\boldsymbol{\alpha}(c) = {\alpha_\text{effective}(c,z)}_{z \in Z(c)}$.
      * S3 MUST NOT derive α from `country_zone_alphas` or `zone_floor_policy` artefacts directly.
 
 3. **Country & zone universe references (structural)**
@@ -349,9 +349,9 @@ Within the 3A segment, S3 depends on two internal surfaces:
    Authority:
 
    * Defines the full set of merchant×country pairs with outlets:
-     [
+     $$
      D = {(m,c)}
-     ]
+     $$
    * For each `(merchant_id=m, legal_country_iso=c)`:
 
      * `site_count(m,c)` — outlet count in 1A,
@@ -361,9 +361,9 @@ Within the 3A segment, S3 depends on two internal surfaces:
    S3 MUST:
 
    * derive its **Dirichlet worklist** as:
-     [
-     D_{\text{esc}} = {(m,c) \in D \mid is_escalated(m,c) = true}
-     ]
+     $$
+     D_{\text{esc}} = {(m,c) \in D \mid is\_escalated(m,c) = true}
+     $$
    * use **only** `D_esc` as the set of merchant×country pairs for which it draws Dirichlet zone shares.
 
    S3 MUST NOT:
@@ -382,9 +382,9 @@ Within the 3A segment, S3 depends on two internal surfaces:
    Authority:
 
    * For each `country_iso = c`, defines the **effective Dirichlet α-vector**:
-     [
+     $$
      \boldsymbol{\alpha}(c) = \big(\alpha_\text{effective}(c,z)\big)_{z \in Z(c)}
-     ]
+     $$
    * `Z(c)` is implicitly determined by the set of `tzid` values present for that `country_iso`.
 
    S3 MUST:
@@ -579,17 +579,17 @@ For a given `{seed, manifest_fingerprint}`:
 
 * Let `D_esc` be the set of escalated merchant×country pairs:
 
-  [
-  D_{\text{esc}} = { (m,c) \mid (m,c) \in s1_escalation_queue,, is_escalated(m,c) = true }.
-  ]
+  $$
+  D_{\text{esc}} = { (m,c) \mid (m,c) \in s1\_escalation\_queue, is\_escalated(m,c) = true }.
+  $$
 
 * For each `c`, let `Z(c)` be the zone set for that country as implied by `s2_country_zone_priors` (set of `tzid` values where `country_iso=c`).
 
 Then the **domain** of `s3_zone_shares` is:
 
-[
-D_{\text{S3}} = { (m,c,z) \mid (m,c) \in D_{\text{esc}},, z \in Z(c) }.
-]
+$$
+D_{\text{S3}} = { (m,c,z) \mid (m,c) \in D_{\text{esc}}, z \in Z(c) }.
+$$
 
 Binding requirements:
 
@@ -601,9 +601,9 @@ Binding requirements:
 
 **Logical primary key** (within a `{seed, fingerprint}` partition):
 
-[
-(\text{merchant_id}, \text{legal_country_iso}, \text{tzid})
-]
+$$
+(\text{merchant\_id}, \text{legal\_country\_iso}, \text{tzid})
+$$
 
 There MUST NOT be duplicate rows for a given `(merchant_id, legal_country_iso, tzid)`.
 
@@ -1158,9 +1158,9 @@ S3 MUST:
 
 * validate this dataset;
 * treat its domain
-  [
+  $$
   D = {(m,c)}
-  ]
+  $$
   and `is_escalated` flags as authoritative for merchant×country escalation.
 
 **Step 4 – Load S2 prior surface**
@@ -1174,9 +1174,9 @@ S3 MUST:
 * validate it,
 * derive, for each `country_iso = c`, the zone set:
 
-  [
-  Z(c) = {z \mid (c,z)\ \text{appears in}\ s2_country_zone_priors}.
-  ]
+  $$
+  Z(c) = {z \mid (c,z)\ \text{appears in}\ s2\_country\_zone\_priors}.
+  $$
 
 ---
 
@@ -1186,9 +1186,9 @@ S3 MUST:
 
 From `s1_escalation_queue`, S3 defines:
 
-[
-D_{\text{esc}} = { (m,c) \in D \mid is_escalated(m,c) = true }.
-]
+$$
+D_{\text{esc}} = { (m,c) \in D \mid is\_escalated(m,c) = true }.
+$$
 
 S3 MUST:
 
@@ -1217,9 +1217,9 @@ For each country `c` that appears in `C_esc`, S3 MUST:
 
   * gather all rows with `country_iso = c`,
   * sort them by `tzid` ascending (ASCII) to obtain an ordered list
-    [
+    $$
     Z_{\text{ord}}(c) = [z_1, z_2, \dots, z_{k(c)}].
-    ]
+    $$
 
 * construct the corresponding α-vector:
 
@@ -1307,9 +1307,9 @@ S3 MUST construct a Dirichlet sample for this `(m,c)` using the Layer-1 Gamma ma
 
   * Draw a Gamma variate:
 
-    [
+    $$
     G_i \sim \mathrm{Gamma}(\alpha_i, 1)
-    ]
+    $$
 
     using Philox `u01` uniforms and the Layer-1 Gamma implementation.
 
@@ -1323,18 +1323,18 @@ The Gamma algorithm implementation is defined at Layer-1 (e.g. Marsaglia–Tsang
 
 Compute:
 
-[
+$$
 S = \sum_{i=1}^K G_i.
-]
+$$
 
 S3 MUST:
 
 * ensure `S > 0` (if not, treat as a numeric failure and abort the run),
 * compute the Dirichlet components:
 
-[
+$$
 \Theta(m,c,z_i) = \frac{G_i}{S}, \quad i = 1..K.
-]
+$$
 
 These are the `share_drawn` values for each `(m,c,z_i)`.
 
@@ -1523,27 +1523,27 @@ For a given `{seed, manifest_fingerprint}`, define:
 
 * From S1:
 
-  [
-  D = {(m,c)} = {(merchant_id,legal_country_iso) \mid site_count(m,c) \ge 1}
-  ]
+  $$
+  D = {(m,c)} = {(merchant\_id,legal\_country\_iso) \mid site_count(m,c) \ge 1}
+  $$
 
 * Escalated subset:
 
-  [
-  D_{\text{esc}} = {(m,c) \in D \mid is_escalated(m,c) = true}
-  ]
+  $$
+  D_{\text{esc}} = {(m,c) \in D \mid is\_escalated(m,c) = true}
+  $$
 
 * From S2, for each country `c`:
 
-  [
-  Z(c) = {\ tzid\ \mid (country_iso=c, tzid) \in s2_country_zone_priors}
-  ]
+  $$
+  Z(c) = {\ tzid\ \mid (country\_iso=c, tzid) \in s2\_country\_zone\_priors}
+  $$
 
 Then the **intended domain** for `s3_zone_shares` is:
 
-[
+$$
 D_{\text{S3}} = {(m,c,z) \mid (m,c) \in D_{\text{esc}},\ z \in Z(c)}.
-]
+$$
 
 Binding requirements:
 
@@ -1560,9 +1560,9 @@ Binding requirements:
 Within a given `{seed, manifest_fingerprint}` partition:
 
 * Logical PK:
-  [
-  (\text{merchant_id}, \text{legal_country_iso}, \text{tzid})
-  ]
+  $$
+  (\text{merchant\_id}, \text{legal\_country\_iso}, \text{tzid})
+  $$
 * There MUST NOT be duplicate rows for the same triple.
 
 ---
@@ -1618,9 +1618,9 @@ Within a `{seed, manifest_fingerprint}` partition:
    * `s3_zone_shares` MUST satisfy:
 
      * Projection onto `(merchant_id, legal_country_iso)` equals `D_esc`:
-       [
+       $$
        {(m,c)\ \text{seen in S3 rows}} = D_{\text{esc}}
-       ]
+       $$
      * No `(m,c)` from S1 with `is_escalated = false` may appear in S3.
 
 2. **Alignment with S2**
@@ -1707,9 +1707,9 @@ S3 does not own the RNG log datasets, but its use of them is constrained.
 * Within a given `(seed, parameter_hash, run_id)`:
 
   * *Identity* of a Dirichlet event is given by the tuple:
-    [
-    (\text{module="3A.S3"},\ \text{substream_label="zone_dirichlet"},\ \text{rng_stream_id})
-    ]
+    $$
+    (\text{module="3A.S3"},\ \text{substream\_label="zone\_dirichlet"},\ \text{rng\_stream\_id})
+    $$
     plus associated `merchant_id` and `country_iso`.
 
 * For S3, there MUST be **exactly one** `rng_event_zone_dirichlet` event for each escalated `(merchant_id, country_iso)` in `D_esc`.
@@ -1861,9 +1861,9 @@ S3 is PASS only if:
 
 * Let:
 
-  [
-  \tilde{S}(m,c) = \sum_{z \in Z(c)} share_drawn(m,c,z).
-  ]
+  $$
+  \tilde{S}(m,c) = \sum_{z \in Z(c)} share\_drawn(m,c,z).
+  $$
 
   Then `share_sum_country(m,c) = \tilde{S}(m,c)`, and `\tilde{S}(m,c)` is within a small numeric tolerance of 1 (tolerance defined by validation state; S3 MUST NOT renormalise in a way that changes the sample).
 
