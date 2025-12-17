@@ -343,3 +343,98 @@ The platform should follow the same pattern:
 * **Guiding spec where implementation detail can evolve** without breaking the conceptual model.
 
 This is intended to be a **living planning doc**, not a spec in itself. As components are actually specified, they can reference this document to justify how deep (or light) they go.
+
+---
+
+## Spec build order (to avoid circular design)
+
+The list below gives a recommended **specification order** for platform components, assuming the **Data Engine (1A–6B)** is already fully spec’d. The aim is to ensure that, for any component, its upstream dependencies are already defined, and to minimise re-specification and contradictions.
+
+1. **Cross-cutting Rails (platform edition)**
+   Define platform-wide laws: JSON-Schema authority, identity (`parameter_hash`, `manifest_fingerprint`, `seed`, `scenario_id`), HashGate verification (“no PASS → no read”), security/privacy posture, and minimum SLO/observability expectations.
+
+2. **Authority Surfaces (RO) + Platform-facing Engine Products**
+   Define the platform-facing view of engine outputs: which read-only surfaces (sites, zones/DST, routing universes/hashes, entity graph products, world metadata, labels/outcomes) exist and how they are exposed/referenced. Explicitly state they are never re-derived.
+
+3. **Ingestion Gate**
+   Hard spec: input contracts for engine egress, schema and lineage checks, HashGate enforcement, idempotency semantics, and error taxonomy (reject vs quarantine vs retry). Define what the gate emits downstream (receipts + admitted datasets/events).
+
+4. **Canonical Event Contracts (platform envelopes)**
+   Define the canonical event types/envelopes that the platform uses internally (e.g., transaction/auth events, decision events, action/effect events, outcome/label events). Specify required IDs, timestamps, lineage pointers (fingerprint/seed/scenario), and partitioning keys. This is the anchor that prevents bus/features/labels drifting.
+
+5. **Event Bus**
+   Define streams/topics, keys/partitions, ordering/retention/replay expectations, and consumer contracts, *based on the canonical event contracts* and what the Ingestion Gate emits.
+
+6. **Decision Log & Audit Store**
+   Hard spec the decision/audit record contract: what must be captured (input event refs, feature snapshot hash/refs, model/policy versions, decision, reasons, action/effect refs, timings, world IDs), immutability expectations, and access/query patterns.
+
+7. **Online Feature Plane (core contract)**
+   Specify core feature families and keying (how features are indexed by entities/merchants/world IDs), freshness/TTL and latency SLOs, and—critically—**feature snapshot semantics at decision time**. Leave compute/store mechanics flexible.
+
+8. **Decision Fabric (core behaviour + Degrade Ladder)**
+   Define the decision pipeline structure (guardrails → primary model → optional second stage), decision object (approve/step-up/decline/queue + reasons + provenance), and how degrade modes are invoked and handled (feature missing, model unavailable, latency breach).
+
+9. **Actions Layer (effects + idempotency)**
+   Define mapping from decisions to actions, idempotency rules, retry behaviour, and what is recorded/emitted as action/effect events for downstream use (audit, labels, cases).
+
+10. **Label Store (semantics first)**
+    Hard spec label semantics: truth vs bank-view, lag/observed-vs-occurred timestamps, lifecycle state machines (fraud/FP/dispute/chargeback), and join keys back to events/flows/decisions/actions. Define retention and “training-safe” point-in-time rules. Implementation can remain flexible.
+
+11. **Offline Feature Plane**
+    Define how offline feature snapshots are constructed with parity to online: dataset shapes, joins with events/labels/authority surfaces, replay semantics, and leakage constraints.
+
+12. **Model/Policy Registry**
+    Define bundle metadata (IDs, versions, hashes, feature schema compatibility, training world set), compatibility rules with Decision Fabric inputs, and lookup rules for “current” vs “candidate” models/policies.
+
+13. **Model Factory**
+    Define training dataset contracts (columns, labels, world IDs, time windows), evaluation modes (batch, replay, shadow, canary), and rules for promotion into the Registry.
+
+14. **Scenario Runner (platform control contract)**
+    Define how a “scenario run” is described (`parameter_hash`, manifest template/fingerprint, seed set, scenario_ids, duration), how completion/identities are surfaced, and how it triggers/coordinates engine + ingestion. Keep execution mechanics flexible.
+
+15. **Identity & Entity Graph (platform usage)**
+    Define how the platform queries and uses the 6A/6B entity products: API shape, typical query patterns, latency expectations, and basic consistency guarantees. (Deep resolution algorithms can remain open initially.)
+
+16. **Run / Operate Plane (high-level)**
+    Describe how runs are physically executed: orchestration (e.g., Airflow/MWAA → ECS tasks), where components run, where bundles/logs are stored (S3 etc.), and high-level retry/failure behaviour.
+
+17. **Observability & Governance**
+    Define golden signals per plane (ingestion, bus, features, decisions, actions, labels, model factory), how SLO breaches trigger the Degrade Ladder, CI contract checks for schema/contract changes, HashGate verification processes, and replay/DR strategy.
+
+18. **Case Management / Workbench (light spec initially)**
+    Define the case data model, basic state machine, queue semantics, and how cases link back to events/flows/entities and to Label Store entries (and optionally 6B case timelines).
+
+19. **Analytics / Query layer, Experiment Manager, Policy distribution runtime (light spec initially)**
+    Define at a high level:
+
+    * how analysts/data scientists query history (audit logs, events, features, labels);
+    * how experiment/traffic allocation is handled conceptually;
+    * how Decision Fabric consumes policies/models via Registry APIs.
+      Internal mechanics can evolve later.
+
+### Spec dependency spine (avoid circular design)
+
+```
+Data Engine (sealed truth)
+        |
+        v
+[1] Ingestion Gate  --->  [2] Canonical Event Contracts  --->  [3] Event Bus
+        |                          |                               |
+        v                          v                               v
+[4] Audit/Decision Record      [5] Feature Contracts          [6] Label Semantics
+        |                          |                               |
+        +------------+-------------+---------------+---------------+
+                     v
+            [7] Decision Fabric (incl. Degrade Ladder)
+                     |
+                     v
+              [8] Actions + Effects Events
+                     |
+                     v
+         [9] Offline Train/Replay Views + Eval Contract
+                     |
+                     v
+         [10] Model Bundle + Registry  <----  [11] Model Factory
+                     |
+                     +--> feeds back into [7] Decision Fabric
+```
