@@ -165,4 +165,46 @@ Least-privilege IAM, key rotation, encrypted data in motion/at rest, default red
 
 Engine emits an event → ingestion verifies & receipts → online features compute within SLO → guardrails + primary model (maybe 2nd stage) → policy returns action + reasons + provenance → action executes idempotently → simulated outcome lands in Label Store → training plane learns and safely promotes the next model → monitors watch latency, quality, and drift; replay is always possible from lineage.
 
+## What parts of the platform’s operation this design conceptually covers
+
+You can view the conceptual operation as four big “planes” and a meta layer(which the DAG above try to hit):
+
+### 1) Cross-cutting rails (what every component must obey)
+
+* Contracts / JSON-Schema authority
+* Lineage + validation (“no PASS → no read”)
+* Deterministic replay (parameter_hash + manifest_fingerprint + seed)
+* Privacy/security + SLOs/observability
+
+### 2) Control & ingress (how a run starts, and how data is admitted)
+
+* **Scenario Runner** (rates/seed/manifest/campaigns; controlled replays)
+* **Data Engine** (the only reality; sealed outputs + lineage)
+* **Authority Surfaces (RO)** as sidecars (read-only truths, never re-derived)
+* **Ingestion Gate** (schema+lineage verify, idempotency, tokenize)
+
+### 3) Real-time decision loop (what happens “during the day”)
+
+* **Event Bus**
+* **Online Feature Plane** (low-latency counters/windows/TTL/freshness)
+* **Offline Feature Plane** (batch parity; train/replay assembly)
+* **Identity & Entity Graph** (linking/device/person/account; rings/collusion)
+* **Decision Log & Audit Store** (immutable, queryable provenance)
+* **Decision Fabric** (guardrails → primary model → optional second stage)
+* **Actions Layer** (approve/step-up/decline/queue; idempotent + audited)
+* **Label Store** (fraud/FP/disputes; lagged states)
+* **Case Mgmt / Workbench**
+* **Degrade Ladder** (automatic fallback policy to protect SLOs)
+
+### 4) Learning & evolution loop (how the platform improves safely)
+
+* **Model Factory** (train/eval/pkg; shadow→canary→ramp)
+* **Model/Policy Registry** (versioned bundles; deploy linkage back into Decision Fabric)
+* Feedback paths from **labels/metrics** back into training + monitoring
+
+And then you also include the “how it runs” meta layer:
+
+* **Run / Operate Plane** (orchestration + storage + bus + secrets + registries)
+* **Observability & Governance** (golden signals, data health, drift, replay/DR, change control)
+
 ---
