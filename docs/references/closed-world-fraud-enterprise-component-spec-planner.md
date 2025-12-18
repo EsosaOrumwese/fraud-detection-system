@@ -12,6 +12,7 @@ Design constraints (explicit):
 - **Solo builder**, with **Codex as implementer**.
 - **Time-boxed**: focus on a shippable closed-loop first.
 - This is a **planning guide**, not an exhaustive spec: it exists to prevent semantic drift in the few places drift would be fatal.
+- **Tool-agnostic specs by default**: core specs describe behaviour and contracts, not vendor tools or specific products.
 
 The intent is to **only nail down what truly needs to be nailed down**, and leave reasonable room for the implementer (Codex) to make design choices elsewhere.
 
@@ -71,6 +72,7 @@ Suitable for areas where iteration is expected, or where a deep spec is not crit
 - Error taxonomy exists (reject vs retry vs quarantine vs partial).
 - Acceptance checks are listed (what S5 validators or runtime checks must enforce).
 - Minimum observability hooks are defined (what must be logged/audited).
+- Core behaviour is described in **tool-agnostic** terms (no vendor-specific APIs).
 
 **Level 2 DoD (Goals & guides)**
 - Purpose, boundaries, and responsibilities are clear.
@@ -78,11 +80,35 @@ Suitable for areas where iteration is expected, or where a deep spec is not crit
 - 5–15 “must/must-not” rules exist (key invariants only).
 - One or two example flows (happy path + one failure path).
 - Explicit non-goals prevent over-spec creep.
+- Any mention of tools is clearly marked as **non-normative** implementation guidance.
 
 **Level 1 DoD (Narrative)**
 - Story of the component is clear to a non-technical reader.
 - Interfaces are named (even loosely).
 - A few constraints/non-goals are stated.
+
+---
+
+### Tool-agnostic principle (how to write these specs)
+
+All platform specs in this planner are intended to be **tool-agnostic by default**.
+
+**Normative rule:**
+- Specs MUST describe **behaviour, contracts and guarantees** in implementation-neutral terms.
+- Specs MUST NOT depend on a particular vendor or product (e.g. “Kinesis”, “Kafka”, “DynamoDB”, “Airflow”) for their core correctness.
+
+Instead, specs should talk in terms of **capabilities**, for example:
+- “durable append-only event log with partitioned ordering and at-least-once delivery”
+- “low-latency key/value store with TTL and per-key atomic upsert”
+- “batch/DAG runner with retries and backoff”
+
+Tool/product choices (AWS/GCP, Airflow/Prefect, etc.) can be captured later as:
+- **non-normative implementation notes**, or
+- **separate implementation guides** that reference the tool-agnostic spec.
+
+If tool-specific assumptions need to be mentioned, they MUST be:
+- clearly marked as **non-normative** (e.g., under an `Implementation Notes` heading), and
+- written so that the core spec remains valid if the underlying tools change.
 
 ---
 
