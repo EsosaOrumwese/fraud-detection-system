@@ -6,8 +6,6 @@
 		- iso3166_canonical_2024
 		- world_bank_gdp_per_capita_20250415
 		- gdp_bucket_map_2024 (Jenks K=5 buckets, precomputed)
-		- (opt) static.currency_to_country.map.json
-			· currency_code → [country_iso]; deterministic, no RNG
 
 	[C] Model coeffs:
 		- hurdle_coefficients.yaml
@@ -26,7 +24,6 @@
 	[N] Numeric / math policy artefacts:
 		- numeric_policy.json
 		- math_profile_manifest.json
-		- residual_quantisation.yaml        (S7 / legacy integerisation)
 
 	[I] Share surfaces & ISO enumerations:
 		- settlement_shares_2024Q4
@@ -49,6 +46,12 @@
 		- world_countries                     (country polygons)
 		- population_raster_2025              (population raster)
 		- tz_world_2025a                      (TZ polygons; used later by 2A/2B)
+
+	[Policies · 1B]
+		- jitter_policy
+			· path: config/policy/1B.jitter.yaml
+			· schema: schemas.1B.yaml#/policy/jitter_policy
+			· role: Jitter σ (deg) policy by latitude band / merchant class (deterministic)
 
 	
 * Layer-1 Segment 2A
@@ -439,3 +442,14 @@
 			and keying scheme:
 					- which tuple (mf, parameter_hash, seed, scenario_id, flow_id, case_key, etc.)
 					maps to each family’s substream.
+
+	[6B configuration & validation policy for S5]
+		- segment_validation_policy_6B
+			· defines:
+					- which structural, behavioural, and RNG checks S5 must run,
+					- severity per check (REQUIRED, WARN, INFO),
+					- numeric thresholds / bounds (fraud rate, detection rate, campaign coverage, etc.),
+					- sealing rules (when WARN is acceptable, when FAIL blocks `_passed.flag_6B`).
+		- behaviour_config_6B (if used at validation time)
+			· may restrict which seeds/scenarios are in scope,
+			· may scope particular checks to subsets of flows, campaigns, or cases.
