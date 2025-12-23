@@ -95,8 +95,6 @@
 		- Validation policy packs:
 			· virtual_validation_config @ config/virtual/virtual_validation.yaml
 				(tolerances for virtual/CDN behaviour)
-		- Civil-time manifest for tz provenance:
-			· civil_time_manifest (2A-level roll-up of tz polygons / tzdb / overrides / tz_index)
 		- Geospatial & tz assets (transitively used by S1–S3):
 			· hrsl_raster (HRSL population tiles),
 			· pelias_cached_bundle_v1 (Pelias geocoder DB),
