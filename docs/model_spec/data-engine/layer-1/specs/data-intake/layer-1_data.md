@@ -19,7 +19,7 @@
 		- (opt) policy.s3.thresholds.yaml
 			· deterministic integerisation bounds / feasibility thresholds (L_i, U_i, etc.)
 		- config/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
-		- s6_selection_policy @ config/allocation/s6_selection_policy.yaml
+		- s6_selection_policy @ config/policy.s6.selection.yaml
 
 	[N] Numeric / math policy artefacts:
 		- numeric_policy.json
