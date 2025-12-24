@@ -215,6 +215,10 @@ Include:
 * `dict_dev5 == [1,2,3,4,5]`
 * `len(beta) == 1 + |dict_mcc| + 2 + 5`
 * `len(beta_mu) == 1 + |dict_mcc| + 2`
+* `design.beta_order` is exactly:
+  - `["intercept","mcc_onehot(dict_mcc)","ch_onehot(['CP','CNP'])","gdp_bucket_onehot([1,2,3,4,5])"]`
+* `design.beta_mu_order` is exactly:
+  - `["intercept","mcc_onehot(dict_mcc)","ch_onehot(['CP','CNP'])"]`
 
 ### 6.2 Numeric sanity checks (MUST)
 
@@ -231,10 +235,13 @@ On the training universe:
 * mean predicted `π` is within a plausible band (you set this band in the simulation priors; check it matches)
 * mean/median predicted `μ` for multi-site merchants is within a plausible band (again, pinned by priors)
 
+**Production stance (MUST):** because these bands are pinned by `hurdle_simulation.priors.yaml`, these checks MUST fail closed for production exports (no PASS -> no publish).
+
 ### 6.4 Provenance checks (MUST)
 
 * `metadata.simulation_manifest` path exists and is readable
 * manifest records: config path, seed, input reference paths/versions
+* manifest records sha256 digests for: priors YAML bytes, each resolved input snapshot/file, and each emitted corpus parquet file
 
 ### 6.5 Post-export bundle lock (MUST)
 
@@ -247,6 +254,8 @@ This bundle is only considered publishable if the paired dispersion bundle is al
 ---
 
 ## 7) Working links (repo paths Codex uses)
+
+**Informative note:** keep these paths accurate to your repo. If they do not exist yet, remove this section or mark it explicitly as TODO to avoid misleading implementers.
 
 **Export entry point**
 

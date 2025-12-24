@@ -171,6 +171,13 @@ Your existing approach is the right one:
    ]
    with `ε > 0` pinned to avoid division by zero.
 
+**Pinned knobs (MUST):** the following values MUST be sourced from `hurdle_simulation.priors.yaml` (or a referenced trainer config) and recorded in the training `manifest.json`:
+
+* `epsilon` (ε)
+* `phi_min`, `phi_max`
+* `n_min` (small-cell pooling threshold)
+* `cell_weight_rule` (e.g., `n_cell` vs `sqrt(n_cell)`)
+
 **Pinned stability rules (Codex enforced):**
 
 * if `Var(Y) <= μ + ε`, set `φ_hat = φ_max` (near-Poisson cell)
@@ -228,7 +235,11 @@ Codex must compute, over the same universe used for corpus/design:
 * predicted `μ` (from `hurdle_coefficients.beta_mu`)
 * predicted `φ` (from `beta_phi`)
 * implied `P(N ≤ 1)` under NB2
-  and assert the **expected rejection load** stays below your pinned threshold (whatever threshold you use internally today, formalize it here and fail closed if exceeded).
+  and assert the **expected rejection load** stays below a threshold pinned in `hurdle_simulation.priors.yaml`, e.g.:
+  * `corridor_locks.rho_hat_max`
+  * `corridor_locks.p_rej_max`
+  * `corridor_locks.infl_max`
+Fail closed if exceeded (no PASS -> no publish).
 
 ### 6.4 Provenance checks (MUST)
 
@@ -372,7 +383,7 @@ For each merchant `m`:
 
 Compute run-level expected rejection ratio (attempt-weighted):
 [
-\widehat{\rho}=\frac{\sum_m w_m; p_{\text{rej},m}}{\sum_m w_m}
+\widehat{\rho}=\frac{\sum_m w_m \cdot p_{\text{rej},m}}{\sum_m w_m}
 ]
 
 **FAIL if** `ρ̂ > 0.055`
