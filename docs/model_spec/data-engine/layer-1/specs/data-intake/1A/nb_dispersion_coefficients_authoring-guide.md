@@ -235,11 +235,8 @@ Codex must compute, over the same universe used for corpus/design:
 * predicted `μ` (from `hurdle_coefficients.beta_mu`)
 * predicted `φ` (from `beta_phi`)
 * implied `P(N ≤ 1)` under NB2
-  and assert the **expected rejection load** stays below a threshold pinned in `hurdle_simulation.priors.yaml`, e.g.:
-  * `corridor_locks.rho_hat_max`
-  * `corridor_locks.p_rej_max`
-  * `corridor_locks.infl_max`
-Fail closed if exceeded (no PASS -> no publish).
+  and assert corridor safety by running the **Belt-and-braces lock** in this document (rho_hat / p_rej / infl thresholds).
+Fail closed if the lock fails (no PASS -> no publish).
 
 ### 6.4 Provenance checks (MUST)
 

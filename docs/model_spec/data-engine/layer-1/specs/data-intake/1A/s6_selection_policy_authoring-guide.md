@@ -52,14 +52,23 @@ The `defaults` block MUST define:
 
 ## 4) `per_currency` overrides (optional)
 
-If present, `per_currency` maps **ISO-4217 alphabetic currency codes** (uppercase) to an object containing any subset of the `defaults` keys above.
+If present, `per_currency` maps **ISO-4217 alphabetic currency codes** (uppercase) to an object containing overrides for a **restricted subset** of `defaults`.
+
+**Global-only keys (MUST NOT be overridden):**
+* `log_all_candidates`
+* `dp_score_print`
 
 Override precedence per merchant MUST be:
 
 1. `per_currency[merchant_currency]` (if present), else
 2. `defaults`
 
-Unknown currency keys, non-uppercase keys, or unknown fields are policy validation failures (fail closed).
+Allowed per-currency override keys (only):
+* `emit_membership_dataset`
+* `max_candidates_cap`
+* `zero_weight_rule`
+
+Unknown currency keys, non-uppercase keys, attempts to override global-only keys, or unknown fields are policy validation failures (fail closed).
 
 ---
 
@@ -114,9 +123,10 @@ per_currency: {}
 ## 7) Acceptance checklist (Codex must enforce)
 
 * YAML parses with **no duplicate keys**
-* Top-level keys are exactly: `{defaults, per_currency}`
+* Top-level keys are exactly: `{defaults}` or `{defaults, per_currency}`
 * `defaults` contains all required keys, with domains enforced
 * `per_currency` currency keys are uppercase ISO-4217 alpha-3
+* `per_currency` override blocks contain only: `{emit_membership_dataset, max_candidates_cap, zero_weight_rule}`
 * `zero_weight_rule` is one of `{"exclude","include"}`
 * This policy does not introduce any scoring model independent of S5 weights (scoring is fixed by S6 spec)
 
