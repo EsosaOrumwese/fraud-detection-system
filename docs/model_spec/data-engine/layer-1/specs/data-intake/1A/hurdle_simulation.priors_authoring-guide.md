@@ -28,7 +28,7 @@ This file does **not** define those datasets; it defines how to use them.
 
 ---
 
-## 3) Required top-level keys (strict)
+## 3) Required top-level keys (strict; fail closed)
 
 ```yaml
 semver: "<MAJOR.MINOR.PATCH>"
@@ -38,14 +38,14 @@ rng:
   algorithm: "philox2x64-10"
   seed: <uint64>
 
+# Required (but can be "disabled" deterministically):
+calibration: { ... }   # set enabled=false to bypass
+noise: { ... }         # set sds to 0.0 to remove stochasticity
+clamps: { ... }        # always required (keeps corpus corridor-safe)
+
 hurdle: { ... }
 nb_mean: { ... }
 dispersion: { ... }
-
-# Strongly recommended:
-calibration: { ... }
-noise: { ... }
-clamps: { ... }
 ```
 
 Reject unknown top-level keys (fail closed).
@@ -68,7 +68,6 @@ For merchant *m*:
 * `bucket_offsets` (1..5)
 * `mcc_offsets` (sparse overrides; default 0)
 * `mcc_range_offsets` (recommended; see §6)
-* `target_mean_pi` (recommended, used by calibration)
 
 ### 4.2 NB mean block (log-mean prior)
 
@@ -83,7 +82,6 @@ For merchant *m* (only if `is_multi=1`):
 * `channel_offsets`
 * `mcc_offsets`
 * `mcc_range_offsets` (recommended)
-* `target_mean_mu_multi` (recommended)
 
 ### 4.3 Dispersion block (log-φ prior)
 
@@ -99,7 +97,26 @@ For merchant *m* (only if `is_multi=1`):
 * `channel_offsets`
 * `mcc_offsets`
 * `mcc_range_offsets` (recommended)
-* `target_median_phi` (recommended)
+
+## 4.4 Corpus generation semantics (PINNED; MUST match runtime intent)
+
+The offline corpus MUST generate labels and counts consistently with the runtime model family:
+
+1. Compute `pi_m` from `hurdle` (including noise + clamps), then draw:
+   * `is_multi ~ Bernoulli(pi_m)` using Philox/open-interval `u in (0,1)`.
+
+2. If `is_multi=1`, compute `(mu_m, phi_m)` from `nb_mean` and `dispersion` (including noise + clamps), then draw outlet counts using NB2:
+
+   * Use the NB2 gamma-Poisson mixture parameterization:
+     - `lambda ~ Gamma(shape=phi_m, scale=mu_m/phi_m)`
+     - `N ~ Poisson(lambda)`
+
+3. Truncation rule (MUST be explicit):
+   * For the training corpus, enforce `N >= 2` for multi-site merchants by **rejection sampling** (repeat NB2 draw until `N>=2`), matching the engine's "multi-site means >=2 outlets" semantics.
+   * Record `nb_rejections` per merchant in the corpus (recommended) so corridor diagnostics are possible.
+
+Fail-closed rules:
+* if any required covariate is missing (`home_country_iso` not in ISO spine, missing GDPpc, missing bucket), FAIL the training run (do not impute silently).
 
 ---
 
@@ -163,6 +180,13 @@ Pinned method:
 * evaluate over the training merchant universe deterministically (stable ordering)
 * if calibration disabled, use the provided base_* values as-is
 
+Pinned calibration order (MUST):
+1) Solve `hurdle.base_logit` to hit `mean_pi_target` using the **mean of pi_m** (not realised Bernoulli labels).
+2) Solve `nb_mean.base_log_mean` to hit `mean_mu_target_multi` using merchants with `pi_m >= 0.5` (same convention as downstream corridor locks).
+3) Solve `dispersion.base_log_phi` to hit `median_phi_target` using merchants with `pi_m >= 0.5`.
+
+This removes seed-sensitive dependence on realised `is_multi` draws while keeping calibration deterministic.
+
 ---
 
 ## 8) Noise and clamps (prevents pathological corpora)
@@ -179,6 +203,10 @@ noise:
 ```
 
 * Noise is additive in the latent linear predictor space and is drawn deterministically from Philox.
+
+**Noise distribution (MUST):**
+* `e_logit`, `e_log_mu`, `e_log_phi` are i.i.d. `Normal(0, sd)` in their respective latent spaces.
+* The Normal generator must be deterministic and pinned (e.g., Box-Muller on Philox open-interval uniforms); do not use platform RNGs.
 
 ### Clamps
 
@@ -454,7 +482,7 @@ $defs:
 hurdle_simulation_priors:
   type: object
   additionalProperties: false
-  required: [semver, version, rng, hurdle, nb_mean, dispersion]
+  required: [semver, version, rng, calibration, noise, clamps, hurdle, nb_mean, dispersion]
   properties:
     semver: {$ref: '#/$defs/semver'}
     version: {type: string, minLength: 1}
@@ -466,6 +494,73 @@ hurdle_simulation_priors:
       properties:
         algorithm: {$ref: '#/$defs/rng_algorithm'}
         seed: {$ref: '#/$defs/uint64'}
+
+    calibration:
+      type: object
+      additionalProperties: false
+      required: [enabled, mean_pi_target, mean_mu_target_multi, median_phi_target, fixed_iters, brackets]
+      properties:
+        enabled: {type: boolean}
+        mean_pi_target: {type: number, minimum: 0.0, maximum: 1.0}
+        mean_mu_target_multi: {type: number, exclusiveMinimum: 0.0}
+        median_phi_target: {type: number, exclusiveMinimum: 0.0}
+        fixed_iters: {type: integer, minimum: 1, maximum: 1024}
+        brackets:
+          type: object
+          additionalProperties: false
+          required: [base_logit, base_log_mean, base_log_phi]
+          properties:
+            base_logit:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items: {type: number}
+            base_log_mean:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items: {type: number}
+            base_log_phi:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items: {type: number}
+
+    noise:
+      type: object
+      additionalProperties: false
+      required: [per_merchant_logit_sd, per_merchant_log_mu_sd, per_merchant_log_phi_sd]
+      properties:
+        per_merchant_logit_sd: {type: number, minimum: 0.0}
+        per_merchant_log_mu_sd: {type: number, minimum: 0.0}
+        per_merchant_log_phi_sd: {type: number, minimum: 0.0}
+
+    clamps:
+      type: object
+      additionalProperties: false
+      required: [pi, mu, phi]
+      properties:
+        pi:
+          type: object
+          additionalProperties: false
+          required: [min, max]
+          properties:
+            min: {type: number, minimum: 0.0, maximum: 1.0}
+            max: {type: number, minimum: 0.0, maximum: 1.0}
+        mu:
+          type: object
+          additionalProperties: false
+          required: [min, max]
+          properties:
+            min: {type: number, exclusiveMinimum: 0.0}
+            max: {type: number, exclusiveMinimum: 0.0}
+        phi:
+          type: object
+          additionalProperties: false
+          required: [min, max]
+          properties:
+            min: {type: number, exclusiveMinimum: 0.0}
+            max: {type: number, exclusiveMinimum: 0.0}
 
     hurdle:
       type: object
