@@ -16,6 +16,7 @@ Key rule: **this artefact is never recomputed at runtime**. It is treated like a
 * **Version label:** `2024`
 * **Format:** Parquet
 * **Target path:** `reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet`
+* **Schema anchor:** `schemas.ingress.layer1.yaml#/gdp_bucket_map`
 
 ### 1.2 Required schema (must match your ingress schema for `gdp_bucket_map_2024`)
 
@@ -95,6 +96,8 @@ No imputation is implied here. If a country has no GDP value in 2024, it is **no
 * Sort values ascending before classification.
 * Use an algorithm that does not depend on random starts/samples.
 * If multiple optimal solutions exist (ties), apply a documented tie-break rule (e.g., choose the lexicographically smallest break vector).
+
+**Determinism + non-degeneracy (MUST):** the chosen implementation MUST be **non-sampled** and MUST yield **exactly 5 non-empty buckets**. If ties/degeneracy produce fewer than 5 distinct classes, the build MUST fail closed (do not silently change `k`).
 
 ### 4.3 Assign bucket IDs (stable interval semantics)
 
@@ -196,7 +199,7 @@ https://pysal.org/mapclassify/api.html
 
 ---
 
-[1]: https://data.worldbank.org/indicator/NY.GDP.PCAP.KD?utm_source=chatgpt.com "GDP per capita (constant 2015 US$)"
-[2]: https://pro.arcgis.com/en/pro-app/3.4/help/mapping/layer-properties/data-classification-methods.htm?utm_source=chatgpt.com "Data classification methods—ArcGIS Pro | Documentation"
-[3]: https://pysal.org/mapclassify/_modules/mapclassify/classifiers.html?utm_source=chatgpt.com "Source code for mapclassify.classifiers"
-[4]: https://pysal.org/mapclassify/api.html?utm_source=chatgpt.com "API reference — mapclassify v2.10.0 Manual"
+[1]: https://data.worldbank.org/indicator/NY.GDP.PCAP.KD "GDP per capita (constant 2015 US$)"
+[2]: https://pro.arcgis.com/en/pro-app/3.4/help/mapping/layer-properties/data-classification-methods.htm "Data classification methods—ArcGIS Pro | Documentation"
+[3]: https://pysal.org/mapclassify/_modules/mapclassify/classifiers.html "Source code for mapclassify.classifiers"
+[4]: https://pysal.org/mapclassify/api.html "API reference — mapclassify v2.10.0 Manual"

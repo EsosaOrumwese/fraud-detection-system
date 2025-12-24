@@ -189,5 +189,5 @@ Write `reference/spatial/tz_world/2025a/tz_world.provenance.json` containing:
 
 [1]: https://github.com/evansiroky/timezone-boundary-builder "GitHub - evansiroky/timezone-boundary-builder: A tool to extract data from Open Street Map (OSM) to build the boundaries of the world's timezones."
 [2]: https://github.com/evansiroky/timezone-boundary-builder/releases "Releases · evansiroky/timezone-boundary-builder · GitHub"
-[3]: https://lists.iana.org/hyperkitty/list/tz-announce%40iana.org/thread/MWII7R3HMCEDNUCIYQKSSTYYR7UWK4OQ/?utm_source=chatgpt.com "2025a release of tz code and data available"
-[4]: https://datasette.io/tutorials/spatialite?utm_source=chatgpt.com "Building a location to time zone API with SpatiaLite - Tutorial"
+[3]: https://lists.iana.org/hyperkitty/list/tz-announce@iana.org/thread/MWII7R3HMCEDNUCIYQKSSTYYR7UWK4OQ/ "2025a release of tz code and data available"
+[4]: https://datasette.io/tutorials/spatialite "Building a location to time zone API with SpatiaLite - Tutorial"

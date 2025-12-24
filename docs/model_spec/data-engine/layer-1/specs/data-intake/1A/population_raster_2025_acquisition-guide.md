@@ -173,4 +173,4 @@ https://www.worldpop.org/faq/
 
 [1]: https://hub.worldpop.org/geodata/summary?id=80031 "WorldPop :: Population Counts"
 [2]: https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2025/0_Mosaicked/v1/1km/constrained/ "Index of /GIS/Population/Global_2015_2030/R2025A/2025/0_Mosaicked/v1/1km/constrained"
-[3]: https://www.worldpop.org/faq/?utm_source=chatgpt.com "faq"
+[3]: https://www.worldpop.org/faq/ "faq"

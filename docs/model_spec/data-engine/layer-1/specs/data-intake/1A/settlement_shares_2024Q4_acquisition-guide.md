@@ -22,6 +22,7 @@ It is **not produced by the engine**. It is a pinned reference artefact in the m
 * **Version:** `2024Q4`
 * **Format:** Parquet
 * **Path:** `reference/network/settlement_shares/2024Q4/settlement_shares.parquet`
+* **Schema anchor:** `schemas.ingress.layer1.yaml#/settlement_shares`
 * **Partitioning:** none
 * **Licence:** `Proprietary-Internal` (you build/own it; you can still cite public priors in provenance)
 

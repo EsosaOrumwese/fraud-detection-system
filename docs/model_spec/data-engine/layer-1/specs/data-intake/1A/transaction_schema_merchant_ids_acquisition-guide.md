@@ -78,6 +78,13 @@ Use this if you do **not** have (or do not want) any real merchant feed.
 
 You explicitly **author** the merchant universe as a governed input:
 
+#### Realism bar (SHOULD, to avoid "toy" universes)
+
+* MUST be **non-degenerate**: >1 distinct `home_country_iso`, >1 distinct `channel`, and a meaningful spread of `mcc` values (not a handful).
+* SHOULD be **skewed** (not uniform): home countries and MCCs should follow long-tailed / Zipf-like frequency, reflecting real commerce concentration.
+* SHOULD include **correlations**: e.g., channel mix varies by MCC (online-heavy vs in-person-heavy categories).
+* SHOULD include **coverage** beyond "top countries only" so cross-border logic has realistic candidate sets.
+
 * Decide `|𝓜|` (merchant count)
 * Assign `(mcc, channel, home_country_iso)` from governed distributions
 * Emit `transaction_schema_merchant_ids/{version}/` as the pinned universe
@@ -107,6 +114,7 @@ Rules:
 ### 4.2 MCC policy (MUST)
 
 * MCC must be an int in `[0,9999]`.
+* SHOULD validate MCC membership against your pinned `mcc_canonical_<vintage>` table (recommended for realism + governance).
 * If upstream provides MCC as string, you must parse and validate deterministically.
 * If upstream MCC is missing/invalid: you MUST choose **one** of:
 

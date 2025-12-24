@@ -21,6 +21,7 @@ Indicator definition and licensing are published on the World Bank indicator pag
 * **Version label:** `2025-04-15`
 * **Format:** Parquet
 * **Target path:** `reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet`
+* **Schema anchor:** `schemas.ingress.layer1.yaml#/world_bank_gdp`
 * **License:** **CC-BY-4.0** (must be recorded in metadata) ([World Bank Open Data][1])
 
 ### 1.2 Required series (MUST)
@@ -114,7 +115,8 @@ WDI dataset licensing/coverage are also stated in the Data Catalog entry. ([Worl
 
 1. Go to the **WDI Archives** page.
 2. Pick the archive closest to your target vintage (e.g., April 2025 is listed on the page). ([Data Topics][3])
-3. Download the archive zip from the DataBank “download/Archive” link (the page lists direct `.zip` links). ([Data Topics][3])
+3. Download the archive zip from the DataBank "download/Archive" link (the page lists direct `.zip` links). ([Data Topics][3])
+4. Record the **exact archive filename** you downloaded (do not assume it equals the version label), plus SHA-256 of the raw zip.
 
 ### 5.2 Extract the indicator (MUST)
 
@@ -233,4 +235,4 @@ Record:
 [5]: https://datacatalog.worldbank.org/search/dataset/0037712/world-development-indicators "World Development Indicators - World Bank Data Catalog"
 [6]: https://data.worldbank.org/products/wdi "WDI - Home"
 [7]: https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures "API Basic Call Structures – World Bank Data Help Desk"
-[8]: https://databank.worldbank.org/metadataglossary/sustainable-development-goals-%28sdgs%29/series/NY.GDP.PCAP.KD?utm_source=chatgpt.com "Metadata Glossary - DataBank - World Bank"
+[8]: https://databank.worldbank.org/metadataglossary/sustainable-development-goals-%28sdgs%29/series/NY.GDP.PCAP.KD "Metadata Glossary - DataBank - World Bank"

@@ -61,7 +61,7 @@ Why:
 
 Why:
 
-* Provides **global country boundaries**, downloadable via GUI or API; CC-BY 4.0. ([geoBoundaries][3])
+* Provides **global country boundaries**, downloadable via GUI or API; CC-BY 4.0. ([geoBoundaries][4])
 * Use their “Global Files” or API if Natural Earth endpoints are flaky.
 
 ---
@@ -76,7 +76,7 @@ Why:
 
 ### 3.2 geoBoundaries fallback
 
-1. Use the geoBoundaries download page “Global Files” or the API to obtain the ADM0 global dataset. ([geoBoundaries][3])
+1. Use the geoBoundaries download page “Global Files” or the API to obtain the ADM0 global dataset. ([geoBoundaries][4])
 2. Proceed to the same shaping rules below.
 
 ---
@@ -159,7 +159,7 @@ Store next to the parquet:
 2. `reference/spatial/world_countries/2024/world_countries.provenance.json` (or yaml)
 
 [1]: https://registry.opendata.aws/naturalearth/ "Natural Earth - Registry of Open Data on AWS"
-[2]: https://docs.ropensci.org/rnaturalearth/reference/countries.html?utm_source=chatgpt.com "world country polygons from Natural Earth - Docs - rOpenSci"
+[2]: https://docs.ropensci.org/rnaturalearth/reference/countries.html "world country polygons from Natural Earth - Docs - rOpenSci"
 [3]: https://www.geoboundaries.org/countryDownloads.html "geoBoundaries"
 
 ---
@@ -199,12 +199,12 @@ https://www.geoboundaries.org/
 
 Notes:
 
-* Natural Earth “Admin 0 – Countries” is small (the site lists the ZIP around ~4.7 MB at 10m). ([Natural Earth Data][1])
-* The NACIS CDN URLs are widely referenced as the canonical direct downloads. ([CRAN][2])
-* AWS registry confirms the `naturalearth` S3 bucket and `--no-sign-request` access pattern. ([Registry of Open Data][3])
-* geoBoundaries API supports `ALL` for global files and documents the endpoint format. ([geoboundaries.org][4])
+* Natural Earth "Admin 0 - Countries" is small (the site lists the ZIP around ~4.7 MB at 10m). ([Natural Earth Data][3])
+* The NACIS CDN URLs are widely referenced as the canonical direct downloads. ([rOpenSci][2])
+* AWS registry confirms the `naturalearth` S3 bucket and `--no-sign-request` access pattern. ([Registry of Open Data][1])
+* geoBoundaries API supports `ALL` for global files and documents the endpoint format. ([geoBoundaries][4])
 
-[1]: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/?utm_source=chatgpt.com "Admin 0 – Countries - Free vector and raster map data at 1: ..."
-[2]: https://cran.r-project.org/web/packages/rnaturalearth/refman/rnaturalearth.html "Help for package rnaturalearth"
-[3]: https://registry.opendata.aws/naturalearth/ "Natural Earth - Registry of Open Data on AWS"
-[4]: https://www.geoboundaries.org/api.html "geoBoundaries"
+[1]: https://registry.opendata.aws/naturalearth/ "Natural Earth - Registry of Open Data on AWS"
+[2]: https://docs.ropensci.org/rnaturalearth/reference/countries.html "world country polygons from Natural Earth - Docs - rOpenSci"
+[3]: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/ "Admin 0 - Countries - Natural Earth"
+[4]: https://www.geoboundaries.org/api.html "geoBoundaries API"

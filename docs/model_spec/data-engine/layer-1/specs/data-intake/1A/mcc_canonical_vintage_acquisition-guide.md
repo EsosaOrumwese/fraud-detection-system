@@ -207,7 +207,7 @@ https://www.mastercard.com/content/dam/mccom/shared/business/support/rules-pdfs/
 If you want the cleanest flow: **use Route A (Alipay+ A1 ISO table) as the canonical base**, tag anything else as “cross-check only”, then we can immediately move to the **merchant_ids acquisition plan** that uses `mcc_canonical_<vintage>` to validate/shape the merchant universe deterministically.
 
 [1]: https://www.mastercard.com/content/dam/mccom/shared/business/support/rules-pdfs/mastercard-quick-reference-booklet-merchant.pdf "Quick Reference Booklet"
-[2]: https://www.iso.org/standard/79450.html?utm_source=chatgpt.com "ISO 18245:2023 - Merchant category codes"
+[2]: https://www.iso.org/standard/79450.html "ISO 18245:2023 - Merchant category codes"
 [3]: https://docs.alipayplus.com/alipayplus/alipayplus/mcc-standards/mcc-lists "MCC list | Alipay+ MCC Standards | Alipay+ Docs"
 [4]: https://www.checkout.com/docs/developer-resources/codes/merchant-category-codes "Merchant category codes - Docs"
 [5]: https://www.mastercard.us/content/dam/public/mastercardcom/na/global-site/documents/quick-reference-booklet-merchant.pdf "Quick Reference Booklet"

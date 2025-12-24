@@ -18,7 +18,7 @@ This dataset is **not settlement flow**; it is a **structural prior** (“who co
 * **Path:** `reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet`  
 * **Partitions:** none 
 
-### 1.2 Schema (MUST match `schemas.ingress.layer1.yaml#/ccy_country_shares_2024Q4`)
+### 1.2 Schema (MUST match `schemas.ingress.layer1.yaml#/ccy_country_shares`)
 
 * **PK:** `(currency, country_iso)`
 * Columns:
@@ -70,7 +70,9 @@ https://www.six-group.com/en/products-services/financial-information/market-refe
 https://www.iso.org/iso-4217-currency-codes.html
 ```
 
-List One includes the relevant columns (“ENTITY”, “Currency”, “Alphabetic Code”, etc.). ([SIX][3])
+List One includes the relevant columns ("ENTITY", "Currency", "Alphabetic Code", etc.). ([SIX][3])
+
+**Vintage note (MUST):** ISO 4217 List One is a **living** list. Record the **retrieval timestamp** and SHA-256 of the raw file you used, and store it in the provenance sidecar.
 
 ### 3.2 Country weighting prior (defensible for splits)
 
@@ -122,6 +124,8 @@ https://www.bis.org/statistics/rpfx25.htm
 * collapse whitespace
 
 If collisions occur (two ISO2 candidates match the same normalized entity), fail the build (do not guess).
+
+**Explicit override mechanism (MUST):** if a small number of known entity-name mismatches require manual mapping, maintain an explicit `entity_name_overrides` map (string → ISO2) stored in provenance and applied **before** collision checks. Do not guess or fuzzy-match silently.
 
 ### 4.2 For each currency κ, determine its currency-area member set
 
@@ -258,8 +262,8 @@ If SIX List One publish date is not within 2024Q4:
 
 ---
 
-[1]: https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html?utm_source=chatgpt.com "Global Financial Data Standards - SIX"
-[2]: https://www.iso.org/iso-4217-currency-codes.html?utm_source=chatgpt.com "ISO 4217 — Currency codes"
-[3]: https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xls?utm_source=chatgpt.com "List one: Currency, fund and precious metal codes - SIX"
-[4]: https://data.worldbank.org/indicator/NY.GDP.MKTP.CD?utm_source=chatgpt.com "GDP (current US$)"
-[5]: https://www.bis.org/statistics/rpfx25.htm?utm_source=chatgpt.com "Triennial Central Bank Survey of foreign exchange and ..."
+[1]: https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html "Global Financial Data Standards - SIX"
+[2]: https://www.iso.org/iso-4217-currency-codes.html "ISO 4217 — Currency codes"
+[3]: https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xls "List one: Currency, fund and precious metal codes - SIX"
+[4]: https://data.worldbank.org/indicator/NY.GDP.MKTP.CD "GDP (current US$)"
+[5]: https://www.bis.org/statistics/rpfx25.htm "Triennial Central Bank Survey of foreign exchange and ..."
