@@ -2,13 +2,15 @@
 
 ## 0) Purpose and role in the engine
 
-`settlement_shares_2024Q4` is an **ingress reference surface** consumed by **1A.S5** to build currency→country weights (and later blend with `ccy_country_shares_2024Q4`). For each **ISO-4217 currency**, it provides a **probability vector over settlement countries**.
+`settlement_shares_2024Q4` is an **ingress reference surface** consumed by **1A.S5** to build currency→country weights (and blend with `ccy_country_shares_2024Q4`). For each **ISO-4217 currency**, it provides a **probability vector over settlement countries**.
 
 Think of it as:
 
 > “If a transaction settles in currency **κ**, what’s the empirical share that the settlement is attributed to country **c**?”
 
 It is **not produced by the engine**. It is a pinned reference artefact in the manifest.
+
+**Important dependency note (Proxy Route B):** the governed proxy route is **explicitly anchored to** `ccy_country_shares_2024Q4`. This removes “invented” country candidates and makes the surface fully deterministic.
 
 ---
 
@@ -59,7 +61,7 @@ A “good” `settlement_shares_2024Q4` has:
 
 ### Route A (preferred): Derive from real settlement observations
 
-Use this if you have **any** settlement/clearing event source (even synthetic but “transaction-like”):
+Use this if you have **any** settlement/clearing event source (even synthetic but “transaction-like”).
 
 **Raw inputs you need (minimum)**
 
@@ -70,7 +72,7 @@ Use this if you have **any** settlement/clearing event source (even synthetic bu
 
 **Method (spec, not code)**
 
-1. Filter events to **2024-10-01..2024-12-31** (UTC; define your boundary precisely).
+1. Filter events to **2024-10-01..2024-12-31** (UTC; define boundaries precisely).
 2. Group by `(currency, country_iso)` → `obs_count`.
 3. For each `currency`: `share = obs_count / Σ obs_count(currency, *)`.
 4. Validate group-sums and FK rules; write parquet.
@@ -79,91 +81,122 @@ Use this if you have **any** settlement/clearing event source (even synthetic bu
 
 ---
 
-### Route B (bootstrap): Build a governed proxy surface (closed-world baseline)
+### Route B (bootstrap / closed-world baseline): Governed proxy anchored to `ccy_country_shares_2024Q4`
 
-If you have no settlement data (likely at this stage), you can still create a **credible** proxy by anchoring it to **public macro priors** and making every rule explicit.
+If you have no settlement data (likely at this stage), you can create a **credible** proxy by anchoring it to:
 
-This route is acceptable because your dictionary already classifies the artefact as **Proprietary-Internal** (it’s something you own), but you must be honest in provenance that it’s a proxy.
+* the **currency-area prior** (`ccy_country_shares_2024Q4`) for per-currency country membership and base weights, and
+* a **macro hub prior** (BIS Triennial) for settlement concentration.
+
+This route is acceptable because the artefact is **Proprietary-Internal**, but you must be explicit in provenance that it’s a proxy.
 
 ---
 
-## 4) Recommended proxy design (deterministic and defensible)
+## 4) Proxy design (Route B) — deterministic and dependency-anchored
 
-### 4.1 Currency universe (MUST define)
+### 4.0 Prerequisites (MUST)
 
-Pick **C**, the set of currencies you will include. Practical choices:
+Route B requires these upstream artefacts to exist:
 
-* **C = currencies needed by your merchant universe**, i.e., currencies you expect `merchant_currency` (S5.0) to produce; or
-* **C = currencies appearing in your `ccy_country_shares_2024Q4`** (once built).
+* `ccy_country_shares_2024Q4`
+* `iso3166_canonical_2024`
+* ISO-4217 List One (SIX) (for currency validation)
 
-**Validation:** ensure every `currency` is a real ISO-4217 code (not just `^[A-Z]{3}$`). The ISO 4217 maintenance agency (SIX) publishes “List One” in machine-readable form. ([SIX][1])
+### 4.1 Currency universe (PINNED)
 
-### 4.2 Settlement hub prior (SHOULD)
+Define the currency set **C** as:
 
-Settlement tends to concentrate in major financial centres. A solid public proxy for “hub-ness” is **FX turnover by country** from the BIS Triennial Survey tables (public, downloadable, API-accessible). ([BIS Data Portal][2])
+* **C = { κ : κ appears in `ccy_country_shares_2024Q4.currency` }**
 
-Define a stable hub set **H** (example: top 10–20 countries by FX turnover share in the latest pre-2024 release you choose).
+This makes Route B currency coverage fully determined by the currency-area prior surface.
 
-### 4.3 Country candidates per currency (MUST define)
+### 4.2 Settlement hub prior (PINNED)
+
+Use **BIS Triennial Survey** “FX turnover by country” as the hubness proxy.
+
+Define the hub set:
+
+* **H = top 20 countries by BIS D11.2 value at TIME_PERIOD=2022**, after mapping BIS country labels to ISO2.
+
+Define hub weights:
+
+* Let `p_hub(c)` be the BIS value normalized over `c ∈ H`.
+
+### 4.3 Country candidates per currency (PINNED)
 
 For each currency κ:
 
-* Define candidate country set **Uκ** (where κ can plausibly “settle”).
-* In a clean design, **Uκ should come from your currency→country prior surface** (`ccy_country_shares_2024Q4`), and settlement shares are a “hub-concentrated” reinterpretation of it (so the two surfaces have a meaningful difference).
+* Define **Uκ = { country_iso : (κ, country_iso) ∈ ccy_country_shares_2024Q4 }**
 
-If you haven’t built `ccy_country_shares_2024Q4` yet, you can temporarily define:
+No fallback like “issuing country ∪ H” is permitted in Route B. If you want that behaviour, it must be introduced later as an explicit policy extension (not an implicit fallback).
 
-* **Uκ = {currency-issuing country} ∪ H**, plus any additional countries you explicitly choose to include.
+### 4.4 Share construction (PINNED)
 
-### 4.4 Share construction rule (MUST)
+For each currency κ:
 
-For each currency κ, define a deterministic mixture:
+* Let `p_baseκ(c)` be the normalized base distribution from `ccy_country_shares_2024Q4` restricted to Uκ.
+* Let `p_hubκ(c)` be `p_hub(c)` restricted to `(Uκ ∩ H)` and renormalized over that set.
 
-* Let **hub_mass(κ)** be a fixed scalar in [0,1] (policy decision, recorded in provenance).
-* Let **p_hubκ(c)** be hub weights over c∈(Uκ∩H) (from BIS hub shares, renormalised inside κ’s hub set).
-* Let **p_baseκ(c)** be a base distribution over Uκ (e.g., from `ccy_country_shares_2024Q4`, renormalised to Uκ).
+Define hub mass:
 
-Then:
+* Default: `hub_mass(κ) = 0.70`
+* Override: if `max_c p_baseκ(c) ≥ 0.90`, set `hub_mass(κ) = 0.40`
+
+If `(Uκ ∩ H)` is empty:
+
+* set `shareκ(c) = p_baseκ(c)` (i.e., ignore the hub term for that κ).
+
+Otherwise compute:
 
 * `shareκ(c) = hub_mass(κ) * p_hubκ(c) + (1 - hub_mass(κ)) * p_baseκ(c)`
 
 Finally enforce:
 
-* Σc shareκ(c) = 1.0 (within tolerance)
-* shareκ(c)∈[0,1]
+* `shareκ(c) ∈ [0,1]`
+* `abs(Σc∈Uκ shareκ(c) - 1.0) ≤ 1e-6` (renormalize within κ if needed)
 
-### 4.5 Evidence mass (`obs_count`) rule (MUST)
+### 4.5 Evidence mass (`obs_count`) totals per currency (PINNED)
 
-Pick a deterministic **total evidence per currency** `Nκ`, then set:
+Use BIS Triennial Survey **D11.3 “FX turnover by currency”** at `TIME_PERIOD=2022` as the currency-importance prior.
 
-* `obs_countκ(c) = round(Nκ * shareκ(c))`, with a deterministic “fixup” so Σ obs_countκ(c) = Nκ exactly.
+Define totals:
 
-How to choose `Nκ` without real settlement logs:
+* `N_total = 10,000,000`
+* For currencies κ in BIS D11.3, let `sκ` be the normalized BIS share over supported κ.
+* Set: `Nκ = clamp(round(N_total * sκ), min=25,000, max=2,000,000)`
+* For κ not present in BIS (rare after intersection), set `Nκ = 25,000`.
 
-* Scale `Nκ` by **currency importance in international payments** (SWIFT-based series published in an official Fed note’s accessible data). ([Federal Reserve][3])
-  (This is not “settlement counts”, but it’s a defensible proxy for relative evidence mass by currency.)
+### 4.6 Allocate `obs_count` within each currency (PINNED)
+
+For each κ:
+
+* `raw(c) = Nκ * shareκ(c)`
+* `obs_count(c) = floor(raw(c))`
+* Let `R = Nκ - Σ floor(raw(c))`
+* Distribute `R` remaining units by **largest residual** `raw(c) - floor(raw(c))`
+* Tie-break residual ties by `country_iso` ascending
 
 ---
 
 ## 5) Engine-fit validation checklist (MUST pass)
 
-Per row:
+### 5.1 Per-row
 
 * `currency` is valid ISO-4217 (use SIX list)
 * `country_iso` ∈ `iso3166_canonical_2024`
-* `0 ≤ share ≤ 1`
+* `0 ≤ share ≤ 1` and finite
 * `obs_count` integer ≥ 0
 * PK uniqueness: no duplicate `(currency, country_iso)`
 
-Per currency:
+### 5.2 Per-currency
 
 * `abs(Σ share - 1.0) ≤ 1e-6`
-* no NaN/Inf shares
 * non-empty country set (at least 1 row per currency)
 
-Cross-dataset sanity (SHOULD):
+### 5.3 Cross-dataset sanity (Route B MUST)
 
-* Any currency you expect to appear in merchant currency resolution has at least one share vector (or you knowingly rely on the degrade path where only `ccy_country_shares_2024Q4` exists).
+* Every `currency` in `settlement_shares_2024Q4` must exist in `ccy_country_shares_2024Q4`.
+* For each κ, the set of `(κ, country_iso)` in settlement output must be a subset of Uκ as defined from `ccy_country_shares_2024Q4`.
 
 ---
 
@@ -171,12 +204,16 @@ Cross-dataset sanity (SHOULD):
 
 Store a sidecar next to the parquet with:
 
-* definition of an “observation” (and whether it’s proxy or empirical)
+* route used (`A` empirical / `B` proxy)
 * time window (2024Q4)
-* currency universe definition
-* hub source chosen + date
-* `hub_mass(κ)` rule (and any overrides)
-* `Nκ` rule
+* currency universe definition (and resulting currency count)
+* **input dependency digests**:
+
+  * digest/checksum of the exact `ccy_country_shares_2024Q4` used
+* hub source identifier (BIS D11.2) + `TIME_PERIOD=2022`
+* currency-importance source identifier (BIS D11.3) + `TIME_PERIOD=2022`
+* hub policy (`hub_top_n`, `hub_mass` rules)
+* evidence policy (`N_total`, clamp bounds, rounding/fixup rule)
 * raw source URLs + timestamps + checksums
 * output parquet checksum
 
@@ -192,19 +229,16 @@ https://www.six-group.com/dam/download/financial-information/data-center/iso-cur
 https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml
 https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html
 
-# BIS Triennial Survey (FX turnover by country) + BIS developer/help pages
+# BIS Triennial Survey (FX turnover by country/currency)
+# D11.2 (by country)
 https://data.bis.org/topics/DER/tables-and-dashboards/BIS%2CDER_D11_2%2C1.0
+# D11.3 (by currency)
+https://data.bis.org/topics/DER/tables-and-dashboards/BIS%2CDER_D11_3%2C1.0
+
+# BIS bulk download + help
 https://data.bis.org/bulkdownload
 https://data.bis.org/help/tools
 https://www.bis.org/terms_statistics.htm
-
-# SWIFT-based currency importance series (official Fed accessible table)
-https://www.federalreserve.gov/econres/notes/feds-notes/the-international-role-of-the-u-s-dollar-2025-edition-accessible-20250718.htm
 ```
----
-
-[1]: https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html?utm_source=chatgpt.com "Global Financial Data Standards - SIX"
-[2]: https://data.bis.org/topics/DER/tables-and-dashboards/BIS%2CDER_D11_2%2C1.0 "Triennial Survey publication table: BIS,DER_D11_2,1.0"
-[3]: https://www.federalreserve.gov/econres/notes/feds-notes/the-international-role-of-the-u-s-dollar-2025-edition-accessible-20250718.htm "Federal Reserve Board - The International Role of the U.S. Dollar – 2025 Edition, Accessible Data"
 
 ---
