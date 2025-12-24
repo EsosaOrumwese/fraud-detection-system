@@ -2,9 +2,9 @@
 
 This is the **third model** in the 1A trio. It supplies `beta_phi`, the coefficients used to compute **NB2 dispersion**:
 
-* **Dispersion (“size”)**:
+* **Dispersion ("size")**:
   [
-  \phi_m = \exp(\beta_\phi^\top x^{(\phi)}_m) ;>; 0
+  \phi_m = \exp(\beta_\phi^\top x^{(\phi)}_m) > 0
   ]
 * Under NB2, a common parameterization is:
   [
@@ -13,6 +13,15 @@ This is the **third model** in the 1A trio. It supplies `beta_phi`, the coeffici
   so **higher φ ⇒ less overdispersion** (more Poisson-like).
 
 This file is produced **offline** and consumed **read-only** at runtime by 1A.S2. Runtime never trains.
+
+### 0.1 Realism bar (MUST)
+
+Because this is authored offline, Codex MUST NOT "cheat" by driving dispersion to near-Poisson everywhere (e.g., by forcing phi -> phi_max broadly) just to reduce S2 rejections.
+
+Before sealing an export, enforce at minimum:
+
+* **Non-degeneracy:** predicted phi_m must not be constant-like across merchants, and must not be clamped to phi_max for the majority of the multi-site universe.
+* **Meaningful overdispersion:** on an evaluation universe, the implied overdispersion term mu_m/phi_m should have a non-trivial tail for multi-site merchants (see corridor/realism locks in the Belt-and-braces section).
 
 ---
 
@@ -167,6 +176,7 @@ Your existing approach is the right one:
 * if `Var(Y) <= μ + ε`, set `φ_hat = φ_max` (near-Poisson cell)
 * clamp `φ_hat` to `[φ_min, φ_max]` before logging
 * define weights per cell as a deterministic function of cell count (e.g., `w = n_cell` or `w = sqrt(n_cell)`)
+* **Small-cell rule (MUST):** pin a minimum sample count `n_min`. If `n_cell < n_min`, pool the cell into a deterministic parent (e.g., `(mcc, channel)` or global) before computing `var_y` / `φ_hat` to avoid unstable dispersion targets.
 
 ### Step E — Fit `beta_phi` via weighted ridge on `log(φ_hat)`
 
@@ -343,6 +353,13 @@ For each merchant `m`:
 
 * `P0_m = p_m ^ φ_m`
 * `P1_m = φ_m * (1 - p_m) * p_m ^ φ_m`
+
+**Numeric stability (MUST):** do not compute `p_m ^ φ_m` directly. Compute in log-space:
+
+* `logP0 = φ_m * log(p_m)`
+* `logP1 = log(φ_m) + log1p(-p_m) + φ_m * log(p_m)`
+* then `P0_m = exp(logP0)`, `P1_m = exp(logP1)`.
+
 * `p_rej_m = P0_m + P1_m`  (probability a draw yields N ≤ 1)
 
 3. Expected attempts inflation for that merchant in S2:
@@ -377,11 +394,13 @@ Compute:
 
 * `mean_pi = mean(π_m)`
 * `q90_mu = 90th_percentile(μ_m | π_m ≥ 0.5)` *(approx multi-site segment)*
+* `median_mu_over_phi = median(μ_m / φ_m | π_m ≥ 0.5)` *(overdispersion strength; Poisson -> 0)*
 
 **FAIL if:**
 
 * `mean_pi` not in `[0.05, 0.30]`
 * `q90_mu` not in `[3.0, 40.0]`
+* `median_mu_over_phi < 0.02`  *(too close to Poisson for most multi-site merchants)*
 
 ---
 
@@ -395,7 +414,7 @@ Containing:
 
 * digests of both YAML files
 * dict lengths + vector lengths
-* summary stats: `mean_pi`, `q90_mu`, `median_phi`, `rho_hat`, max `infl_m`, max `p_rej_m`
+* summary stats: `mean_pi`, `q90_mu`, `median_mu_over_phi`, `median_phi`, `rho_hat`, max `infl_m`, max `p_rej_m`
 * PASS/FAIL + canonical error code if fail
 
 No PASS → export is considered invalid.

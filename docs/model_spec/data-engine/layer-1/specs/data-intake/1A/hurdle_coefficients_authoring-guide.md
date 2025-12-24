@@ -15,6 +15,14 @@ This bundle also carries the **frozen dictionaries** that define the **authorita
 
 It is produced **offline** and treated as a **parameter artefact** (its bytes must participate in `parameter_hash`).
 
+### 0.1 Hard prohibition & realism bar (MUST)
+
+This is an authored external, but **not** hand-authored numbers. Codex MUST:
+
+* produce this bundle as the output of a recorded offline training run (simulation -> corpus -> deterministic design matrices -> deterministic fit).
+* persist the sealed training corpus + `manifest.json`, and reference it via `metadata.simulation_manifest`.
+* fail closed on placeholder or degenerate bundles (e.g., all-zeros vectors, repeated constants, NaN/Inf, or near-constant predicted pi/mu across merchants).
+
 ---
 
 ## 1) Where it must land (binding path)
@@ -39,9 +47,11 @@ Where:
 * `metadata.simulation_manifest` (string path pointer to the exact training manifest)
 * `dict_mcc` (list[int]) — **authoritative order**
 * `dict_ch` (list[str]) — must be exactly `["CP","CNP"]`
-* `dict_dev5` (list[int]) — must be exactly `[1,2,3,4,5]`
-* `beta` (list[float]) — logistic hurdle vector
-* `beta_mu` (list[float]) — NB mean vector
+* `dict_dev5` (list[int]) - must be exactly `[1,2,3,4,5]`
+* `beta` (list[float]) - logistic hurdle vector
+* `beta_mu` (list[float]) - NB mean vector
+* `design.beta_order` (list[str]) - explicit coefficient order tokens for `beta` (must match section 4.2).
+* `design.beta_mu_order` (list[str]) - explicit coefficient order tokens for `beta_mu` (must match section 4.2).
 
 ### 2.2 Optional but strongly recommended keys
 
@@ -49,7 +59,6 @@ Where:
 * `metadata.seed`
 * `metadata.created_utc`
 * `metadata.inputs` (resolved input paths + digests)
-* `design.beta_order` and `design.beta_mu_order` (explicit, see §4)
 
 ---
 
@@ -67,6 +76,12 @@ That manifest must record (at minimum):
   * `world_bank_gdp_per_capita` snapshot path/version
   * `gdp_bucket_map` snapshot path/version
   * `iso3166_canonical` snapshot path/version
+
+The manifest MUST also record **digests** (sha256) for:
+
+* the simulation priors/config file bytes
+* each resolved input snapshot/file used to build the corpus
+* each emitted corpus parquet file (so the fit is reproducible from bytes, not just paths).
 
 This is what makes the coefficients reproducible and auditable.
 
@@ -220,6 +235,14 @@ On the training universe:
 
 * `metadata.simulation_manifest` path exists and is readable
 * manifest records: config path, seed, input reference paths/versions
+
+### 6.5 Post-export bundle lock (MUST)
+
+This bundle is only considered publishable if the paired dispersion bundle is also present and the cross-bundle selfcheck passes:
+
+* run the "Belt-and-braces lock - `hurdle_coefficients.yaml` + `nb_dispersion_coefficients.yaml`" (as defined in the dispersion guide),
+* write `bundle_selfcheck.json` next to the export directory, and
+* require PASS (no PASS -> export is invalid).
 
 ---
 
