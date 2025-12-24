@@ -118,9 +118,11 @@ WorldPop states a general **CC BY 4.0** licence for its datasets. ([WorldPop][3]
 It also states that datasets **derived from OpenStreetMap and/or Microsoft Building Footprints/Roads Detection** are under **ODbL**. ([hub.worldpop.org][1])
 The R2025A release statement lists **Microsoft Building Footprints** as an input to settlement modelling, which is why you should treat licensing carefully. 
 
-**Actionable rule for now (PINNED):**
+**Pinned licence for this artefact (MUST):** record **CC-BY-4.0** in provenance for WorldPop Population Counts downloads.
 
-* Record licence as **ODbL** in your provenance unless you can confirm (from WorldPop’s own release metadata for this specific file) that it is CC BY only.
+If you intentionally substitute a dataset explicitly licensed under ODbL, that is a **different artefact** and must not be written to `population_raster_2025`.
+
+**Contract alignment (MUST):** ensure `artefact_registry` and `dataset_dictionary` licence fields for `population_raster_2025` both equal `CC-BY-4.0`.
 
 ---
 

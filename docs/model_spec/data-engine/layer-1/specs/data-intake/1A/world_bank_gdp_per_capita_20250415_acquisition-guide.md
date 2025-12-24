@@ -59,7 +59,14 @@ Acceptable sources MUST be:
 
 ---
 
-## 3) Recommended acquisition routes (pick one)
+## 3) Recommended acquisition routes (decision-free)
+
+### 3.0 Routing policy (MUST; decision-free)
+
+* **Default:** Route A (WDI Archives bulk snapshot).
+* **Fallback (ONLY if default fails):** Route B (Indicators API).
+* **Default failure triggers:** archive link 404/410, archive zip download fails, or extracted files contain no `NY.GDP.PCAP.KD` rows for year 2024.
+* If fallback is used, provenance MUST set `is_exact_vintage=false` and record the exact API URL + retrieval timestamp + raw bytes sha256.
 
 ### Route A (recommended for “true vintage” reproducibility): WDI Archives (bulk snapshot)
 
@@ -128,6 +135,7 @@ From the bulk archive contents:
 ### 5.3 Shape to engine schema (MUST)
 
 * Map country code to **ISO2 (`country_iso`)**
+* MUST map World Bank ISO3 codes -> ISO2 via `iso3166_canonical_2024.alpha3` (drop non-matching rows and all aggregates).
 * Keep rows where `observation_year` is within the needed range (engine pins 2024; you may keep the full series, but 2024 MUST be present where required)
 * Rename value column to `gdp_pc_usd_2015`
 * Add `source_series = NY.GDP.PCAP.KD`

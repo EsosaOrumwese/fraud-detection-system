@@ -87,7 +87,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: ODbL-1.0
+  licence: Public Domain
 
 - id: tz_world_2025a
   status: approved
@@ -123,7 +123,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: ODbL-1.0
+  licence: CC-BY-4.0
 
 - id: gdp_bucket_map_2024
   status: approved

@@ -188,7 +188,7 @@ subsegments:
     version: '2024'
     digest: '{sha256}'
     manifest_key: mlr.ref.spatial.world_countries_2024
-    license: ODbL-1.0
+    license: Public Domain
     role: Country polygons for downstream TZ & geovalidations.
     dependencies: []
     source: external

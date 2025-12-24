@@ -10,7 +10,9 @@ Yes — **`world_countries` should be small** (MBs to a few 10s of MB), *as long
 * spatial joins / clipping,
 * later downstream uses (1B placement sanity checks; 2A provenance pins).
 
-This is **not** a “world map” raster and **not** OSM planet data.
+This is **not** a "world map" raster and **not** OSM planet data.
+
+**Pinned licence for this artefact (MUST):** if using Natural Earth as Route A, record licence as **Public Domain** and align `artefact_registry` + `dataset_dictionary` accordingly (do not claim ODbL).
 
 ---
 
@@ -36,6 +38,12 @@ Columns:
 ---
 
 ## 2) Recommended source (small, stable, automatable)
+
+### 2.1 Routing policy (MUST; decision-free)
+
+* **Default:** Route A (Natural Earth Admin 0 Countries).
+* **Fallback (ONLY if default fails):** Route B (geoBoundaries).
+* Default failure triggers: download 404/410, unreadable archive, or post-shaping coverage check fails to include every ISO2 needed by the join spine (`iso3166_canonical_2024` and merchant home countries).
 
 ### Route A (PRIMARY): Natural Earth Admin 0 Countries (10m)
 

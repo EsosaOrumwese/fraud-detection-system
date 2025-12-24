@@ -99,7 +99,12 @@ So for `2025a`, the default asset is expected at:
 https://github.com/evansiroky/timezone-boundary-builder/releases/download/2025a/timezones-with-oceans.shapefile.zip
 ```
 
-(That naming pattern is stable across releases; it’s explicitly used in public tutorials.) ([Datasette][4])
+**Fallback if 404 (MUST):** enumerate the release assets for tag `2025a` and select the asset filename matching the pinned preference order:
+1) `timezones-with-oceans.shapefile.zip`
+2) else `timezones-with-oceans.geojson.zip`
+Fail closed if neither exists.
+
+(That naming pattern is stable across releases; it's explicitly used in public tutorials.) ([Datasette][4])
 
 ---
 
@@ -128,7 +133,7 @@ Because PK is `(tzid, polygon_id)` and one `tzid` can have multiple polygons:
 1. For each feature, explode MultiPolygon → individual Polygon parts.
 2. For each `tzid`, sort polygon parts by this deterministic key:
 
-   * `area(desc)` in EPSG:4326 **computed consistently** (geodesic area preferred; if planar, document it and keep it stable)
+   * `area(desc)` in EPSG:4326 **computed consistently** (MUST use geodesic area; alternatively use one pinned equal-area projection and record it in provenance)
    * then `bbox(minx, miny, maxx, maxy)` ascending
    * then `centroid(x, y)` ascending
    * then final tie-break: `sha256(WKB)` ascending (WKB emitted in a stable canonical form by the chosen GIS stack)

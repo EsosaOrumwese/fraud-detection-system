@@ -95,6 +95,7 @@ No imputation is implied here. If a country has no GDP value in 2024, it is **no
 
 * Sort values ascending before classification.
 * Use an algorithm that does not depend on random starts/samples.
+* MUST use a deterministic **optimal** Jenks implementation (e.g., Fisher-Jenks DP); MUST NOT use sampled variants (e.g., `FisherJenksSampled`).
 * If multiple optimal solutions exist (ties), apply a documented tie-break rule (e.g., choose the lexicographically smallest break vector).
 
 **Determinism + non-degeneracy (MUST):** the chosen implementation MUST be **non-sampled** and MUST yield **exactly 5 non-empty buckets**. If ties/degeneracy produce fewer than 5 distinct classes, the build MUST fail closed (do not silently change `k`).

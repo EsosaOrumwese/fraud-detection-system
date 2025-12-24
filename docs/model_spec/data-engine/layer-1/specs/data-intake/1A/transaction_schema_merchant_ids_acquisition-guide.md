@@ -54,9 +54,14 @@ This dataset is best treated as an **Ingress Authoring artefact** owned by the *
 
 ---
 
-## 3) Acquisition / authoring routes (choose one)
+## 3) Acquisition / authoring routes (decision-free)
 
-### Route A — Derive from a “transaction schema” or merchant master (most literal)
+### 3.0 Routing policy (MUST; decision-free)
+
+* **Default:** Route B (closed-world authored ingress) so Codex can run without depending on an external merchant master.
+* Route A is permitted only if you explicitly provide an upstream merchant master/transaction schema dataset (out of scope for this guide).
+
+### Route A - Derive from a "transaction schema" or merchant master (most literal)
 
 Use this if you already have an upstream dataset that represents “merchant identity + attributes” (even if synthetic), or a merchant master table.
 

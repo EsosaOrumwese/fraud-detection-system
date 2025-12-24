@@ -58,7 +58,13 @@ A “good” `settlement_shares_2024Q4` has:
 
 ---
 
-## 3) Acquisition routes (choose the best you can actually support)
+## 3) Acquisition routes (decision-free)
+
+### 3.0 Routing policy (MUST; decision-free)
+
+* If a real settlement/clearing event source is explicitly provided **and** passes schema checks, use Route A.
+* Otherwise, use Route B (proxy) and record `is_proxy=true` in provenance.
+* Fail closed only if Route B inputs (BIS + `ccy_country_shares_2024Q4`) are unavailable.
 
 ### Route A (preferred): Derive from real settlement observations
 

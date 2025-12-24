@@ -78,7 +78,14 @@ Cross-check (high value, but typically proprietary / rights-reserved):
 
 ---
 
-## 3) Acquisition routes (choose one primary route)
+## 3) Acquisition routes (decision-free)
+
+### 3.0 Routing policy (MUST; decision-free)
+
+* **Default:** Route A (Alipay+ MCC list).
+* **Fallback (ONLY if default fails):** Route B (Citi PDF).
+* Failure triggers: download 404/410, file unreadable, or extracted table missing MCC codes/descriptions.
+* Vintage policy: set the artefact `version` to the upstream retrieval date (YYYY-MM-DD) and record `raw_bytes_sha256` + `upstream_url` in provenance.
 
 ### Route A (recommended): Alipay+ ISO table as the base
 

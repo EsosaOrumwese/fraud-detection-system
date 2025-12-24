@@ -42,7 +42,7 @@ Optional columns (may be NULL):
 
 Every `country_iso` appearing in:
 
-* `merchant_ids.home_country_iso`
+* `transaction_schema_merchant_ids.home_country_iso`
 * `world_bank_gdp_per_capita_20250415.country_iso`
 * `settlement_shares_2024Q4.country_iso`
 * `ccy_country_shares_2024Q4.country_iso`
@@ -199,18 +199,15 @@ Row count should be in the ballpark of the full ISO3166-1 assigned universe (inc
 
 GeoNames’ file is “current” and can change over time. The engine needs a **frozen snapshot**.
 
-Your options:
+### 7.1 Default policy (MUST; decision-free)
 
-* **Strict**: obtain/restore the exact snapshot corresponding to `2024-12-31` (if you already archived it).
-* **Practical**: freeze what you download today, but MUST record:
+* Always write the output to the contracted path/version `2024-12-31/`.
+* If you do **not** possess an archived snapshot known to correspond to 2024-12-31, set `is_exact_vintage=false` in provenance (see 7.2) and freeze the bytes you download today.
+* If you **do** possess an archived 2024-12-31 snapshot, you MAY use it and set `is_exact_vintage=true` (still record its raw sha256).
 
-  * `downloaded_at_utc`
-  * `source_url`
-  * `raw_sha256`
-  * `output_sha256`
-  * and either (a) rename the version to the true snapshot date, or (b) explicitly document that `2024-12-31` is a “policy label” not a factual download date.
+### 7.2 Provenance fields (MUST)
 
-The key rule: **no silent mismatch** between the version label and what you actually froze.
+Provenance MUST record: `is_exact_vintage`, `upstream_retrieved_utc`, `upstream_url`, `upstream_version_label` (or null), `raw_bytes_sha256`, `output_sha256`, and `notes` (include exclusions like XK/UK).
 
 ---
 

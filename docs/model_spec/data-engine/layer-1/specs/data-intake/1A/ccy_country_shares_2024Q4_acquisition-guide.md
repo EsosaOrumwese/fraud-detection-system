@@ -230,6 +230,8 @@ These remove all “choose a constant” ambiguity so Codex can run without aski
 
 ### 8.1 Membership source
 
+**Routing policy (MUST; decision-free):** use SIX List One **XLS** by default; if XLS download fails, use the XML endpoint; fail closed if both fail.
+
 * Use SIX **List One (XLS)** as primary; XML as fallback. ([SIX][3])
 
 ### 8.2 GDP weighting
