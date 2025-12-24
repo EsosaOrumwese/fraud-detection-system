@@ -1,198 +1,123 @@
-# Authoring Guide — `config/allocation/s6_selection_policy.yaml` (S6 membership selection policy)
+# Authoring Guide - `config/policy.s6.selection.yaml` (S6 membership selection policy)
 
-This file governs **1A.S6**: selecting which foreign candidate countries become members for a merchant, given:
+This file governs **1A.S6** policy knobs for *membership selection* behaviour and logging, given:
 
 * the ordered candidate set from **S3** (`s3_candidate_set` with `candidate_rank`)
-* the target foreign count from **S4** (`K_target`, possibly 0)
-* optional eligibility flags / sparse mode signals
+* the foreign target count from **S4** (`K_target`)
+* the currency-country weights from **S5** (`ccy_country_weights_cache`)
 
-Selection is RNG-driven (Gumbel keys), but the **policy** is deterministic and participates in `parameter_hash`.
+**Important:** the selection *mechanism* is fixed by the S6 state spec (Gumbel-top-k over **S5 weights**) and MUST NOT be redefined by this policy. This file only provides deterministic knobs (caps + logging mode + zero-weight handling).
 
 ---
 
 ## 1) File identity
 
 * **Artefact id:** `s6_selection_policy`
-* **Path:** `config/allocation/s6_selection_policy.yaml`
-* **Governance:** sealed policy input → affects `parameter_hash`
+* **Path (per artefact registry):** `config/policy.s6.selection.yaml`
+* **Governance:** sealed policy input -> affects `parameter_hash`
 
 ---
 
-## 2) What S6 needs this policy to define
-
-S6 must deterministically construct, for each merchant:
-
-1. **Selection domain**: which candidate rows are eligible for selection
-2. **Sampling mechanism**: how to turn candidates into an ordered pick list, driven by RNG (`rng_event_gumbel_key`)
-3. **Tie-breaks**: how to resolve equal keys deterministically (should be impossible in continuous, but must be defined)
-4. **Failure behaviour**: what to do if `K_target > |eligible_foreign|` or if domain is empty
-
----
-
-## 3) Required top-level structure (MUST)
+## 2) Required top-level structure (MUST)
 
 Top-level keys (no extras):
 
-* `semver` : string
-* `version` : string (`YYYY-MM-DD`)
-* `domain` : object
-* `scoring` : object
-* `sampling` : object
-* `bounds` : object
-* `failure` : object
+* `defaults` : object (required)
+* `per_currency` : object (optional; currency overrides)
 
 Reject unknown keys / duplicates.
 
 ---
 
-## 4) `domain` (who can be selected)
+## 3) Required keys inside `defaults` (MUST)
 
-Required fields:
+The `defaults` block MUST define:
 
-* `include_home` : boolean (must be `false` for S6; home is not selected)
-* `min_candidate_rank` : int ≥ 1 (rank 0 is home)
-* `max_candidate_rank` : int ≥ min_candidate_rank (or `null` for “no cap”)
-* `require_eligible_crossborder` : boolean
-  If true: merchants with `eligible_crossborder=false` force `K_target=0` selection.
-* `allow_sparse_mode` : boolean
-  If false: any merchant marked sparse must select `K_target=0` (conservative).
+* `emit_membership_dataset : bool` (default: `false`)
+  *If true, S6 emits the optional `s6_membership` dataset. Authority note still applies: it must be re-derivable from RNG events + upstream inputs.*
 
-Semantics:
+* `log_all_candidates : bool` (default: `true`)
+  *If true, S6 writes one `rng_event.gumbel_key` for every **considered** candidate (recommended). If false, keys are written only for selected candidates and the validator must replay counters to reconstruct missing keys.*
 
-* Eligible foreign candidates = all rows in `s3_candidate_set` satisfying:
+* `max_candidates_cap : int >= 0` (default: `0`)
+  *If >0, S6 considers only the first `max_candidates_cap` candidates by `candidate_rank` (no re-order). If 0, no cap.*
 
-  * `candidate_rank >= min_candidate_rank`
-  * `candidate_rank <= max_candidate_rank` if cap exists
-  * plus merchant-level gating per the two booleans above
+* `zero_weight_rule : enum{"exclude","include"}` (default: `"exclude"`)
+  *Defines how candidates with S5 weight==0 are handled (see 5.1).*
 
----
-
-## 5) `scoring` (deterministic base score before RNG)
-
-This policy must specify how each candidate gets a **deterministic base score** that is then perturbed by Gumbel keys.
-
-v1 pinned minimal scoring:
-
-* score is a monotone function of `candidate_rank` only (keeps S6 independent of other surfaces).
-
-Required fields:
-
-* `kind`: `"rank_decay"`
-* `decay`: float > 0
-* `score_floor`: float > 0
-
-Semantics:
-
-* For candidate rank r (>=1):
-
-  * `base_score(r) = max(score_floor, exp(-decay * r))`
+* `dp_score_print : int >= 0` (optional; diagnostic-only)
+  *If present, printed diagnostics may include fixed-dp score strings. This MUST NOT affect selection, RNG budgets, or validation.*
 
 ---
 
-## 6) `sampling` (how selection is performed)
+## 4) `per_currency` overrides (optional)
 
-Required fields:
+If present, `per_currency` maps **ISO-4217 alphabetic currency codes** (uppercase) to an object containing any subset of the `defaults` keys above.
 
-* `method`: `"gumbel_topk"`
-* `k_source`: `"K_target"`
-* `gumbel_scale`: float > 0 (typically 1.0)
-* `key_form`: `"log_score_plus_gumbel"`
-* `tie_break`: `"candidate_rank_asc"` (deterministic)
+Override precedence per merchant MUST be:
 
-Semantics:
+1. `per_currency[merchant_currency]` (if present), else
+2. `defaults`
 
-* For each eligible candidate i:
-
-  * draw `g ~ Gumbel(0, gumbel_scale)` (logged via `rng_event_gumbel_key`)
-  * compute `key_i = log(base_score_i) + g`
-* select the **top K_target** candidates by `key_i` descending
-* if ties (rare): smaller `candidate_rank` wins
+Unknown currency keys, non-uppercase keys, or unknown fields are policy validation failures (fail closed).
 
 ---
 
-## 7) `bounds` (safety constraints)
+## 5) Fixed semantics (what the policy is controlling)
 
-Required fields:
+### 5.1 Considered vs eligible sets (binding)
 
-* `max_k_per_merchant`: int ≥ 0
-* `min_k_per_merchant`: int ≥ 0
-* `k_cap_policy`: `"cap_to_available"` | `"fail"`
+Given S3 candidate rows in `candidate_rank` order:
 
-Semantics:
+* Apply `max_candidates_cap` (if >0) to define the **considered set**.
+* Apply `zero_weight_rule`:
 
-* enforce:
+  * `"exclude"`: drop weight==0 candidates from the considered set entirely (no events written; not selectable).
+  * `"include"`: keep weight==0 in the considered set (events may be written), but they are not eligible for selection (treated as `key=-inf`).
 
-  * `K_target = min(K_target, max_k_per_merchant)`
-  * `K_target = max(K_target, min_k_per_merchant)` only if domain has enough candidates; otherwise follow failure policy
-* if `K_target > |eligible|`:
-
-  * `cap_to_available`: set `K_target = |eligible|`
-  * `fail`: abort merchant
+The **eligible set** is the considered set with `weight > 0`.
 
 ---
 
-## 8) `failure` behaviour (must be explicit)
+### 5.2 Selection mechanism is not configurable
 
-Required fields:
+For every eligible candidate with weight `w_c>0`, S6 computes a Gumbel key consistent with the state law:
 
-* `on_empty_domain`: `"select_none"` | `"fail"`
-* `on_nan_score`: `"fail"`
-* `on_nonfinite_key`: `"fail"`
+`key_c = ln(w_c) - ln(-ln(u_c))` where `u_c` in (0,1) is produced under the Philox/open-interval regime and logged as `rng_event.gumbel_key`.
 
-Rules:
-
-* Any NaN/Inf in score or key is a hard error (consistent with numeric policy).
-* Empty domain:
-
-  * v1 recommend `select_none` (safe).
+S6 then selects the top `K_target` keys (ties broken deterministically by `candidate_rank` asc). If `K_target > |eligible|`, S6 realizes `K_realized = |eligible|`.
 
 ---
 
-## 9) Minimal v1 file (Codex can author verbatim)
+### 5.3 Logging mode (`log_all_candidates`)
+
+* If `log_all_candidates=true`: write one `rng_event.gumbel_key` per considered candidate.
+* If `log_all_candidates=false`: write keys only for selected candidates; the validator replays counters for missing keys.
+
+---
+
+## 6) Minimal v1 file (Codex can author verbatim)
 
 ```yaml
-semver: "1.0.0"
-version: "2024-12-31"
+defaults:
+  emit_membership_dataset: false
+  log_all_candidates: true
+  max_candidates_cap: 0
+  zero_weight_rule: "exclude"
+  # dp_score_print: 8   # optional diagnostic-only
 
-domain:
-  include_home: false
-  min_candidate_rank: 1
-  max_candidate_rank: null
-  require_eligible_crossborder: true
-  allow_sparse_mode: true
-
-scoring:
-  kind: "rank_decay"
-  decay: 0.35
-  score_floor: 1.0e-12
-
-sampling:
-  method: "gumbel_topk"
-  k_source: "K_target"
-  gumbel_scale: 1.0
-  key_form: "log_score_plus_gumbel"
-  tie_break: "candidate_rank_asc"
-
-bounds:
-  max_k_per_merchant: 50
-  min_k_per_merchant: 0
-  k_cap_policy: "cap_to_available"
-
-failure:
-  on_empty_domain: "select_none"
-  on_nan_score: "fail"
-  on_nonfinite_key: "fail"
+per_currency: {}
 ```
 
 ---
 
-## 10) Acceptance checklist (Codex must enforce)
+## 7) Acceptance checklist (Codex must enforce)
 
-* schema keys exactly as specified; no duplicates
-* `decay > 0`, `score_floor > 0`, `gumbel_scale > 0`
-* `max_k_per_merchant >= min_k_per_merchant`
-* `k_cap_policy` valid
-* `require_eligible_crossborder=true` implies merchant-level eligibility gate is applied before sampling
-* selection is deterministic given RNG stream + candidate_rank ordering + tie-break
+* YAML parses with **no duplicate keys**
+* Top-level keys are exactly: `{defaults, per_currency}`
+* `defaults` contains all required keys, with domains enforced
+* `per_currency` currency keys are uppercase ISO-4217 alpha-3
+* `zero_weight_rule` is one of `{"exclude","include"}`
+* This policy does not introduce any scoring model independent of S5 weights (scoring is fixed by S6 spec)
 
 ---

@@ -30,6 +30,16 @@ Unknown top-level keys SHOULD be rejected (keep this strict; it prevents silent 
 
 ---
 
+### 2.1 Realism & policy-coherence constraints (MUST)
+
+Because this is an **authored** input (not downloaded), Codex MUST NOT choose the "easiest" values. Before sealing a version, you MUST validate that the implied behaviour is **non-degenerate and plausible**:
+
+* Eligibility MUST be neither ~0% nor ~100% across your merchant universe (unless your scenario explicitly calls for that extreme).
+* Eligibility SHOULD vary by `channel` and `mcc` (at minimum), so cross-border is not a flat random switch.
+* Coherence SHOULD hold with `policy.s3.rule_ladder.yaml`: if S0 marks a merchant as ineligible, the S3 rule ladder SHOULD not later admit a large foreign candidate set for the same merchant. If your design allows disagreement, document it and quantify it (e.g., "< X% of merchants disagree").
+
+---
+
 ## 3) `eligibility` block (S0 apply-eligibility rules)
 
 ### 3.1 Required fields
@@ -100,6 +110,8 @@ ztp:
 ```
 
 ### 4.2 Semantics (what S4 computes)
+
+**Realism sanity (MUST):** choose `theta` so that for typical `(N, X)` values in your merchant population, `lambda_extra = exp(eta)` stays in a reasonable numeric range (finite, not extreme), and produces a plausible foreign-count distribution. As a minimum, self-test `eta`/`lambda_extra` on a grid over `N` and `X` before sealing.
 
 S4 evaluates (binary64, fixed operation order):
 

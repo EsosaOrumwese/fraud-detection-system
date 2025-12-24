@@ -35,6 +35,12 @@ If feasibility fails, the policy must dictate what happens (v1: fail merchant).
 
 ---
 
+### 2.1 Realism sanity (MUST)
+
+If you enable bounds, you MUST ensure they do not cause large-scale infeasibility for realistic `(N, |C|)` pairs produced by your upstream states. A bounded policy that fails a large fraction of merchants will destroy realism.
+
+---
+
 ## 3) Required top-level structure (MUST)
 
 ```yaml
@@ -161,6 +167,8 @@ This baseline is:
 * `on_infeasible == "fail"`
 
 Runtime sanity checks (policy self-test; SHOULD):
+
+* Using expected ranges of `N` (from S2) and `|C|` (from S6), verify that infeasibility is rare and explain any intended failure regime.
 
 * For a grid of `(N, M)` values (e.g., N=1..50, M=1..min(10,N+5)), compute bounds and verify:
 

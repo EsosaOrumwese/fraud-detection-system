@@ -29,6 +29,8 @@ This file must satisfy the layer governance shape for the “numeric policy prof
 
 You may include additional keys (allowed by the schema), but **they must not contradict** the required four fields.
 
+**Anti-drift rule (SHOULD):** avoid writing multiple synonymous keys for the same concept (e.g., `rounding` and `rounding_mode`) unless you also enforce an equality constraint in CI. Fewer keys -> fewer ways for the policy to contradict itself.
+
 ---
 
 ## 4) Normative semantics that the policy must declare

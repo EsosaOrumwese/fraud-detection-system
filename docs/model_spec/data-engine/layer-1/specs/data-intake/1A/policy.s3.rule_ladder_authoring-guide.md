@@ -8,7 +8,17 @@ This policy is the **only authority** for **S3.1 (rule ladder)** and drives **S3
 
 * **Registry id:** `policy.s3.rule_ladder.yaml`
 * **Path:** `config/policy/s3.rule_ladder.yaml` 
-* **Governance:** must be opened atomically with other S3 authorities and must be part of the run’s sealed inputs; changing bytes must be treated as a policy change (new lineage). 
+* **Governance:** must be opened atomically with other S3 authorities and must be part of the run's sealed inputs; changing bytes must be treated as a policy change (new lineage). 
+
+---
+
+### 1.1 Realism bar (MUST)
+
+As an authored policy, this MUST not remain in a toy state:
+
+* At least one admit-bearing rule SHOULD admit a **non-trivial** foreign candidate set for eligible merchants (so S6/S7 have real work to do), while still allowing domestic-only merchants.
+* Any set like `SANCTIONED` / `HIGH_RISK` SHOULD be derived from a pinned external source and frozen to a dated vintage (do not hard-code a tiny hand list unless it is explicitly a placeholder and clearly marked as such).
+* This policy SHOULD be kept broadly coherent with S0's `crossborder_hyperparams.yaml` gating: large systematic disagreements should be treated as a realism defect unless explicitly intended.
 
 ---
 
@@ -139,6 +149,8 @@ All operations must be evaluated deterministically; numeric comparisons follow t
 ---
 
 ## 8) Minimal v1 file (Codex can author verbatim)
+
+> **Note:** this minimal file is sufficient for plumbing/validation, but it is **not** a production-realistic country policy. Treat it as a starter template and expand the country sets + rules for realism before you rely on synthetic outputs.
 
 ```yaml
 precedence_order: ["DENY","ALLOW","CLASS","LEGAL","THRESHOLD","DEFAULT"]

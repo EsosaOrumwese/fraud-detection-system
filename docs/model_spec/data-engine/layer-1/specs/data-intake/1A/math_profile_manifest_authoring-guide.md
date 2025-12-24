@@ -24,6 +24,7 @@ For v1, pin:
 * **vendor:** `JuliaMath/openlibm`
 * **vendor_version:** `v0.8.7`
 * **math_profile_id:** `openlibm-v0.8.7`
+* **path_version:** `openlibm-v0.8.7` (recommended: keep directory name equal to `math_profile_id`)
 * **functions (sorted):**
   `atan2, cos, exp, expm1, lgamma, log, log1p, pow, sin, sqrt, tanh`
 
@@ -66,6 +67,8 @@ Codex must build OpenLibm under a pinned toolchain that respects your numeric re
 * stable flags recorded into the manifest `build` string
 
 ### 4.2 Artifact digests (MUST)
+
+**Archive bytes rule (MUST):** treat upstream URLs as *untrusted* for checksum stability. Always hash and store the **exact bytes you downloaded** as `openlibm-v0.8.7.tar.gz`, and never assume the same URL will yield identical bytes in the future.
 
 Codex must compute sha256 for:
 
@@ -127,6 +130,7 @@ Codex can write this file as the final output after building + hashing:
 * `artifacts` contains **exactly** the two pinned names above (for v1) and each `sha256` is 64-hex
 * `checksum` is 64-hex and equals the checksum rule in §4.3
 * No placeholder strings remain (`<...>`)
+* A basic libm regression/self-test was executed under the same toolchain (recorded in CI logs or provenance) before sealing, to avoid silently pinning a broken build.
 
 ---
 
@@ -142,7 +146,7 @@ https://github.com/JuliaMath/openlibm/releases
 # Tag page
 https://github.com/JuliaMath/openlibm/releases/tag/v0.8.7
 
-# Source archive (one of these will exist for the tag)
+# Source archive (preferred tar.gz for the tag)
 https://github.com/JuliaMath/openlibm/archive/refs/tags/v0.8.7.tar.gz
 https://github.com/JuliaMath/openlibm/archive/refs/tags/v0.8.7.zip
 ```

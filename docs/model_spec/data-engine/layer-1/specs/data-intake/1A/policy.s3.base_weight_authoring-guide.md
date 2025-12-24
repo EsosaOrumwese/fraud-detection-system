@@ -42,7 +42,15 @@ Unknown top-level keys SHOULD be rejected (avoid silent drift).
 
 ---
 
-## 4) Deterministic model (v1 pinned, minimal but “real”)
+## 4) Deterministic model (v1 pinned, minimal but "real")
+
+### 4.0 Realism sanity (MUST)
+
+Even though this is deterministic, the parameter choices affect realism. Before sealing:
+
+* Ensure `beta_home` creates a meaningful domestic bias (home should usually be competitive, not drowned by foreigns).
+* Ensure `beta_rank` is not so negative that ranks > ~10 become effectively impossible in practice (unless you intentionally want that).
+* Run a quick policy self-test on a candidate-rank grid (e.g., ranks 0..50) and confirm weights remain positive and not numerically degenerate after quantisation.
 
 To keep S3 green and avoid coupling this policy to rule-ladder reason/tag vocabularies, v1 SHOULD depend only on fields always present in S3:
 
@@ -123,6 +131,7 @@ This is sufficient for S3.4 to compute and emit `s3_base_weight_priors` with `ba
 * `model.kind == "loglinear_rank_home"` and `coeffs` contains exactly `beta0`, `beta_home`, `beta_rank`.
 * `bounds` contains `log_w_min < log_w_max`, `0 < w_min < w_max`.
 * For any candidate set, computed `w_i^⋄ > 0` and `Σ w_i^⋄ > 0` (policy sanity).
+* Coefficients pass the realism sanity checks in section 4.0 (home bias present; decay not pathological).
 * Quantisation semantics match S3: `round_to_dp(…, dp)` under binary64/RNE, and emit fixed-dp string with exactly `dp` places. 
 
 ---

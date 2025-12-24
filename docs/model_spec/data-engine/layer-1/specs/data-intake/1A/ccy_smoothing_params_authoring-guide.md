@@ -13,6 +13,16 @@ Changing this file **must flip `parameter_hash`** (it is a governed parameter in
 
 ---
 
+### Realism bar (MUST)
+
+This policy controls whether currency-to-country weights look like the real world or like a toy. Before sealing defaults, you MUST:
+
+* Calibrate `blend_weight` / `alpha` / `obs_floor` / `shrink_exponent` so the output is neither nearly-uniform nor dominated by noise.
+* Provide `per_currency` overrides for major multi-country currencies where a single global default is not credible (e.g., shared-currency areas with very uneven member sizes).
+* Validate that the output weight distributions look plausible for a small audit sample of major currencies (top shares sensible; long tail present; sum=1 at dp).
+
+---
+
 ## 1) File identity
 
 * **Artefact id:** `ccy_smoothing_params`
@@ -179,3 +189,4 @@ overrides: {}
 * `overrides` contains only `alpha_iso` / `min_share_iso`
 * For any currency with `min_share_iso`, verify feasibility `Σ floors ≤ 1.0`
 * Deterministic quantisation rules (half-even + residual fixup) are implemented exactly
+* Output weights are non-degenerate for major currencies (not flat-uniform, not single-country collapse unless the currency is truly single-country in the input surfaces).

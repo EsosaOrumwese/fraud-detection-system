@@ -18,6 +18,17 @@ This dataset must be **deterministic, auditable, and tiny** (MB-scale).
 * **Format:** Parquet
 * **Path:** `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet`
 
+* **Schema anchor:** `schemas.ingress.layer1.yaml#/iso_legal_tender_2024` *(must exist; add if missing)*
+
+### 1.1.1 Contract alignment note (MUST)
+
+This dataset is referenced in the **artefact registry**, but to keep contracts aligned you MUST also:
+
+* add a dataset dictionary entry for `iso_legal_tender_2024` (path + version + schema anchor), and
+* add the schema anchor `schemas.ingress.layer1.yaml#/iso_legal_tender_2024` (or an explicit compatibility alias) to `schemas.ingress.layer1.yaml`.
+
+Until those two are aligned, this artefact should be treated as **"optional / not wired"** even if the parquet exists.
+
 ### 1.2 Schema (MUST)
 
 Primary key: **`country_iso`**
@@ -223,6 +234,6 @@ If you later see unmapped entities in provenance, you extend this alias list det
 
 If you want the cleanest build pipeline: **reuse the same downloaded SIX List One file** for both `ccy_country_shares_2024Q4` and `iso_legal_tender_2024`, so Codex only pulls ISO-4217 once.
 
-[1]: https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xls?utm_source=chatgpt.com "List one: Currency, fund and precious metal codes - SIX"
-[2]: https://www.iso.org/iso-4217-currency-codes.html?utm_source=chatgpt.com "ISO 4217 — Currency codes"
-[3]: https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml?utm_source=chatgpt.com "List One (XML) - SIX"
+[1]: https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xls "List one: Currency, fund and precious metal codes - SIX"
+[2]: https://www.iso.org/iso-4217-currency-codes.html "ISO 4217 - Currency codes"
+[3]: https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml "List One (XML) - SIX"
