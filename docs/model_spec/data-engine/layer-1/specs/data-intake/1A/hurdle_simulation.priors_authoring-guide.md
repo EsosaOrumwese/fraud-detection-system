@@ -1,0 +1,655 @@
+# Authoring Guide — `hurdle_simulation.priors.yaml` (Offline corpus priors for 1A GLMs)
+
+## 1) Purpose and contract
+
+This file defines the **synthetic ground-truth priors** used to materialise the training corpus for the 3 fitted models:
+
+1. **Hurdle (logistic)**: `is_multi ~ Bernoulli(π)`
+2. **NB mean**: `μ = E[N | is_multi]`
+3. **Dispersion**: `φ` for NB2 variance
+
+It must be:
+
+* deterministic given `{algorithm, seed}` and pinned inputs
+* realistic enough that fitted coefficients produce sensible runtime behaviour
+* explicit about **clamps** and **noise** to prevent pathological training data
+
+---
+
+## 2) Inputs the training run must already have (read-only)
+
+The simulation uses *realistic covariates* from your pinned reference universe:
+
+* `transaction_schema_merchant_ids` (merchant_id, mcc, channel, home_country_iso)
+* `world_bank_gdp_per_capita` (to get `gdp_pc_usd_2015` and `ln_gdp_pc`)
+* `gdp_bucket_map_2024` (GDP bucket 1..5)
+
+This file does **not** define those datasets; it defines how to use them.
+
+---
+
+## 3) Required top-level keys (strict)
+
+```yaml
+semver: "<MAJOR.MINOR.PATCH>"
+version: "<YYYY-MM-DD>"
+
+rng:
+  algorithm: "philox2x64-10"
+  seed: <uint64>
+
+hurdle: { ... }
+nb_mean: { ... }
+dispersion: { ... }
+
+# Strongly recommended:
+calibration: { ... }
+noise: { ... }
+clamps: { ... }
+```
+
+Reject unknown top-level keys (fail closed).
+
+---
+
+## 4) Model semantics (what each block means)
+
+### 4.1 Hurdle block (logistic prior)
+
+For merchant *m*:
+
+* `logit(π_m) = base_logit + channel_offset + bucket_offset + mcc_offset + ε_logit`
+* `is_multi ~ Bernoulli( clamp_pi( sigmoid(logit(π_m)) ) )`
+
+**Required keys**
+
+* `base_logit`
+* `channel_offsets` (CP, CNP)
+* `bucket_offsets` (1..5)
+* `mcc_offsets` (sparse overrides; default 0)
+* `mcc_range_offsets` (recommended; see §6)
+* `target_mean_pi` (recommended, used by calibration)
+
+### 4.2 NB mean block (log-mean prior)
+
+For merchant *m* (only if `is_multi=1`):
+
+* `log(μ_m) = base_log_mean + channel_offset + mcc_offset + ε_log_mu`
+* `μ_m = clamp_mu( exp(log(μ_m)) )`
+
+**Required keys**
+
+* `base_log_mean`
+* `channel_offsets`
+* `mcc_offsets`
+* `mcc_range_offsets` (recommended)
+* `target_mean_mu_multi` (recommended)
+
+### 4.3 Dispersion block (log-φ prior)
+
+For merchant *m* (only if `is_multi=1`):
+
+* `log(φ_m) = base_log_phi + gdp_log_slope * ln_gdp_pc(home_country) + channel_offset + mcc_offset + ε_log_phi`
+* `φ_m = clamp_phi( exp(log(φ_m)) )`
+
+**Required keys**
+
+* `base_log_phi`
+* `gdp_log_slope`
+* `channel_offsets`
+* `mcc_offsets`
+* `mcc_range_offsets` (recommended)
+* `target_median_phi` (recommended)
+
+---
+
+## 5) The missing piece in your old priors (why it felt “thin”)
+
+Your old file is structurally fine, but it’s missing two things that make it “feel real” and remain stable across different merchant mixes:
+
+1. **Range-based MCC effects** (so realism isn’t driven by 4 hand-picked MCCs)
+2. **Calibration targets** (so intercepts adjust deterministically to hit realistic global rates)
+
+Also: your example `base_log_phi: -0.70` implies `φ ≈ 0.5` before offsets, which is *extremely overdispersed* and tends to create lots of 0/1 counts (bad for the S2 corridor unless you explicitly design around it). For realism, φ should usually be comfortably > 5 for this kind of “number of outlets” process.
+
+---
+
+## 6) MCC range offsets (the realism lever that stays deterministic)
+
+Instead of listing thousands of MCCs, define a **small deterministic set of range rules**:
+
+### Format (recommended)
+
+```yaml
+mcc_range_offsets:
+  - range: "4000-4799"   # travel/transport
+    offset: <float>
+  - range: "4800-4999"   # telecom/utilities
+    offset: <float>
+  ...
+```
+
+Semantics:
+
+* For a given MCC code, sum the offsets of all ranges that contain it (usually ranges are disjoint).
+* Then apply `mcc_offsets` as explicit overrides (additive or “replace”; choose one and pin it—recommended: additive).
+
+This gives “broad realism” without a huge file.
+
+---
+
+## 7) Calibration (PINNED deterministic; removes hand-tuning)
+
+Add a `calibration` block so Codex can **solve intercepts** deterministically from targets on the actual merchant universe used for simulation.
+
+### Required keys
+
+```yaml
+calibration:
+  enabled: true
+  mean_pi_target: 0.12
+  mean_mu_target_multi: 4.5
+  median_phi_target: 20.0
+  fixed_iters: 64
+  brackets:
+    base_logit: [-10.0, 2.0]
+    base_log_mean: [-2.0, 4.0]
+    base_log_phi: [1.0, 5.0]
+```
+
+Pinned method:
+
+* bisection with `fixed_iters` (no tolerance-based early stop)
+* evaluate over the training merchant universe deterministically (stable ordering)
+* if calibration disabled, use the provided base_* values as-is
+
+---
+
+## 8) Noise and clamps (prevents pathological corpora)
+
+These are what keep the synthetic corpus “alive” but controlled.
+
+### Noise
+
+```yaml
+noise:
+  per_merchant_logit_sd: 0.35
+  per_merchant_log_mu_sd: 0.25
+  per_merchant_log_phi_sd: 0.20
+```
+
+* Noise is additive in the latent linear predictor space and is drawn deterministically from Philox.
+
+### Clamps
+
+```yaml
+clamps:
+  pi: { min: 0.01, max: 0.80 }
+  mu: { min: 2.0,  max: 40.0 }
+  phi: { min: 8.0, max: 80.0 }
+```
+
+These bounds are corridor-safe and avoid “ridiculous chains” or “infinite dispersion”.
+
+---
+
+## 9) A proper v1 prior file (synthetic-realistic, deterministic)
+
+This is a **complete** example Codex can author and use.
+
+```yaml
+semver: "1.0.0"
+version: "2025-10-09"
+
+rng:
+  algorithm: "philox2x64-10"
+  seed: 9248923
+
+calibration:
+  enabled: true
+  mean_pi_target: 0.12
+  mean_mu_target_multi: 4.5
+  median_phi_target: 20.0
+  fixed_iters: 64
+  brackets:
+    base_logit: [-10.0, 2.0]
+    base_log_mean: [-2.0, 4.0]
+    base_log_phi: [1.0, 5.0]
+
+noise:
+  per_merchant_logit_sd: 0.35
+  per_merchant_log_mu_sd: 0.25
+  per_merchant_log_phi_sd: 0.20
+
+clamps:
+  pi: { min: 0.01, max: 0.80 }
+  mu: { min: 2.0,  max: 40.0 }
+  phi: { min: 8.0, max: 80.0 }
+
+hurdle:
+  # base_logit is calibrated when calibration.enabled=true
+  base_logit: -1.20
+
+  channel_offsets:
+    CP: 0.0
+    CNP: -0.85
+
+  bucket_offsets:
+    "1": -0.70
+    "2": -0.35
+    "3": 0.0
+    "4": 0.35
+    "5": 0.70
+
+  mcc_range_offsets:
+    - { range: "1500-1799", offset: 0.10 }  # contractors
+    - { range: "4000-4799", offset: 0.40 }  # travel/transport
+    - { range: "4800-4999", offset: 0.20 }  # telecom/utilities
+    - { range: "5000-5999", offset: 0.20 }  # broad retail
+    - { range: "5300-5399", offset: 0.45 }  # department/discount
+    - { range: "5400-5599", offset: 0.55 }  # grocery/fuel/pharmacy
+    - { range: "8000-8999", offset: -0.45 } # professional/medical
+    - { range: "9000-9999", offset: -0.55 } # govt/nonprofit
+
+  mcc_offsets:
+    "5411": 0.80
+    "5541": 0.70
+    "5542": 0.70
+    "5812": 0.35
+    "5814": 0.35
+    "5912": 0.60
+    "7011": 0.55
+    "7995": -0.35
+    "6011": -0.10
+
+nb_mean:
+  base_log_mean: 0.95
+
+  channel_offsets:
+    CP: 0.05
+    CNP: -0.15
+
+  mcc_range_offsets:
+    - { range: "1500-1799", offset: 0.10 }
+    - { range: "4000-4799", offset: 0.45 }
+    - { range: "5000-5999", offset: 0.20 }
+    - { range: "5300-5399", offset: 0.40 }
+    - { range: "5400-5599", offset: 0.55 }
+    - { range: "8000-8999", offset: -0.25 }
+    - { range: "9000-9999", offset: -0.30 }
+
+  mcc_offsets:
+    "5411": 0.75
+    "5541": 0.60
+    "5542": 0.60
+    "5812": 0.30
+    "5814": 0.30
+    "7011": 0.55
+    "7995": -0.20
+    "6011": -0.10
+
+dispersion:
+  base_log_phi: 2.90          # ~18.2; calibrated if enabled=true
+  gdp_log_slope: 0.08         # richer → slightly higher phi (less dispersion)
+
+  channel_offsets:
+    CP: 0.00
+    CNP: -0.05                # slightly more dispersion online
+
+  mcc_range_offsets:
+    - { range: "4000-4799", offset: 0.10 }
+    - { range: "4800-4999", offset: 0.15 }
+    - { range: "5300-5399", offset: 0.20 }
+    - { range: "5400-5599", offset: 0.25 }
+    - { range: "8000-8999", offset: -0.15 }
+    - { range: "9000-9999", offset: -0.20 }
+
+  mcc_offsets:
+    "5411": 0.30
+    "5541": 0.30
+    "5542": 0.30
+    "7011": 0.15
+    "7995": -0.25
+```
+
+This prior:
+
+* produces realistic variation across sectors and wealth buckets
+* keeps dispersion in a corridor-safe band
+* is deterministic and self-calibrating (no hand-tuning required)
+
+---
+
+## 10) What to change in your coefficient guides
+
+Update the offline-training routes so they explicitly say:
+
+* “The training corpus is generated using `config/models/hurdle/hurdle_simulation.priors.yaml` as a sealed input.”
+* “This prior file must include calibration/noise/clamps and range-based MCC effects.”
+
+---
+
+## Appendix A — `artefact_registry_training_1A.yaml`
+
+```yaml
+subsegments:
+- id: training.1A
+  name: Offline Training · 1A Hurdle GLMs
+  artifacts:
+
+  - name: hurdle_simulation_priors
+    path: config/models/hurdle/hurdle_simulation.priors.yaml
+    type: config
+    category: training_priors
+    semver: '{semver}'
+    version: '{simulation_version}'
+    digest: '{sha256}'
+    license: '{spdx_or_internal}'
+    role: >
+      Training-plane priors used to materialise the synthetic corpus for fitting:
+      (1) hurdle logistic beta, (2) NB mean beta_mu, (3) dispersion beta_phi.
+    dependencies:
+      - transaction_schema_merchant_ids
+      - world_bank_gdp_per_capita_20250415
+      - gdp_bucket_map_2024
+      - iso3166_canonical_2024
+    source: internal
+    owner: {ml_platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [training]
+    schema: schemas.training.layer1.yaml#/hurdle_simulation_priors
+    cross_layer: false
+    notes: Training-only. Its sha256 MUST be recorded in the training manifest.
+
+  - name: hurdle_simulation_manifest
+    path: artefacts/training/1A/hurdle_sim/simulation_version={simulation_version}/seed={seed}/{iso8601_timestamp}/manifest.json
+    type: manifest
+    category: training_manifest
+    semver: '{semver}'
+    version: '{simulation_version}'
+    digest: '{sha256}'
+    license: '{spdx_or_internal}'
+    role: >
+      Sealed training manifest capturing: priors config path + sha256, RNG seed,
+      resolved input references (paths + sha256), corpus outputs, export outputs,
+      and bundle selfcheck results.
+    dependencies:
+      - hurdle_simulation_priors
+    source: internal
+    owner: {ml_platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [training]
+    schema: schemas.training.layer1.yaml#/training_manifest_1A_hurdle_sim
+    cross_layer: false
+    notes: Export YAMLs MUST embed metadata.simulation_manifest pointing here.
+```
+
+---
+
+## Appendix B — `schemas.training.layer1.yaml`
+
+```yaml
+version: '1.0'
+$id: schemas.training.layer1.yaml
+description: Training-plane schemas for Layer-1 offline simulations and manifests (1A hurdle training).
+
+$defs:
+  semver: {type: string, pattern: '^\d+\.\d+\.\d+$'}
+  sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+  rng_algorithm: {type: string, enum: [philox2x64-10]}
+  uint64: {type: integer, minimum: 0, maximum: 18446744073709551615}
+
+  iso8601_utc:
+    type: string
+    anyOf:
+      - {pattern: '^\d{8}T\d{6}Z$'}
+      - {pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'}
+
+  channel_offsets:
+    type: object
+    additionalProperties: false
+    required: [CP, CNP]
+    properties:
+      CP: {type: number}
+      CNP: {type: number}
+
+  bucket_offsets_1_to_5:
+    type: object
+    additionalProperties: false
+    required: ["1","2","3","4","5"]
+    properties:
+      "1": {type: number}
+      "2": {type: number}
+      "3": {type: number}
+      "4": {type: number}
+      "5": {type: number}
+
+  mcc_offsets:
+    type: object
+    patternProperties:
+      '^[0-9]{4}$': {type: number}
+    additionalProperties: false
+
+  mcc_range_offsets:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [range, offset]
+      properties:
+        range: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+        offset: {type: number}
+
+  artifact_ref:
+    type: object
+    additionalProperties: false
+    required: [path, sha256]
+    properties:
+      path: {type: string, minLength: 1}
+      sha256: {$ref: '#/$defs/sha256'}
+
+# ----------------------------
+# A) Priors file schema
+# ----------------------------
+hurdle_simulation_priors:
+  type: object
+  additionalProperties: false
+  required: [semver, version, rng, hurdle, nb_mean, dispersion]
+  properties:
+    semver: {$ref: '#/$defs/semver'}
+    version: {type: string, minLength: 1}
+
+    rng:
+      type: object
+      additionalProperties: false
+      required: [algorithm, seed]
+      properties:
+        algorithm: {$ref: '#/$defs/rng_algorithm'}
+        seed: {$ref: '#/$defs/uint64'}
+
+    hurdle:
+      type: object
+      additionalProperties: false
+      required: [base_logit, channel_offsets, bucket_offsets, mcc_offsets]
+      properties:
+        base_logit: {type: number}
+        channel_offsets: {$ref: '#/$defs/channel_offsets'}
+        bucket_offsets: {$ref: '#/$defs/bucket_offsets_1_to_5'}
+        mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+        mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+
+    nb_mean:
+      type: object
+      additionalProperties: false
+      required: [base_log_mean, channel_offsets, mcc_offsets]
+      properties:
+        base_log_mean: {type: number}
+        channel_offsets: {$ref: '#/$defs/channel_offsets'}
+        mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+        mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+
+    dispersion:
+      type: object
+      additionalProperties: false
+      required: [base_log_phi, gdp_log_slope, channel_offsets, mcc_offsets]
+      properties:
+        base_log_phi: {type: number}
+        gdp_log_slope: {type: number}
+        channel_offsets: {$ref: '#/$defs/channel_offsets'}
+        mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+        mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+
+# ----------------------------
+# B) Training manifest schema
+# ----------------------------
+training_manifest_1A_hurdle_sim:
+  type: object
+  additionalProperties: false
+  required:
+    - manifest_semver
+    - simulation_version
+    - created_utc
+    - rng
+    - simulation_config
+    - inputs
+    - outputs
+    - exports
+  properties:
+    manifest_semver: {$ref: '#/$defs/semver'}
+    simulation_version: {type: string, minLength: 1}
+    created_utc: {$ref: '#/$defs/iso8601_utc'}
+
+    rng:
+      type: object
+      additionalProperties: false
+      required: [algorithm, seed]
+      properties:
+        algorithm: {$ref: '#/$defs/rng_algorithm'}
+        seed: {$ref: '#/$defs/uint64'}
+
+    simulation_config:
+      type: object
+      additionalProperties: false
+      required: [config_path, sha256]
+      properties:
+        config_path: {type: string, minLength: 1}
+        sha256: {$ref: '#/$defs/sha256'}
+        semver: {$ref: '#/$defs/semver'}
+        version: {type: string, minLength: 1}
+
+    inputs:
+      type: object
+      additionalProperties: false
+      required:
+        - transaction_schema_merchant_ids
+        - world_bank_gdp_per_capita
+        - gdp_bucket_map
+        - iso3166_canonical
+      properties:
+        transaction_schema_merchant_ids: {$ref: '#/$defs/artifact_ref'}
+        world_bank_gdp_per_capita: {$ref: '#/$defs/artifact_ref'}
+        gdp_bucket_map: {$ref: '#/$defs/artifact_ref'}
+        iso3166_canonical: {$ref: '#/$defs/artifact_ref'}
+
+    outputs:
+      type: object
+      additionalProperties: false
+      required: [logistic_parquet, nb_mean_parquet]
+      properties:
+        logistic_parquet: {$ref: '#/$defs/artifact_ref'}
+        nb_mean_parquet: {$ref: '#/$defs/artifact_ref'}
+        notes: {type: string}
+
+    exports:
+      type: object
+      additionalProperties: false
+      required: [hurdle_coefficients_yaml, nb_dispersion_coefficients_yaml, bundle_selfcheck_json]
+      properties:
+        hurdle_coefficients_yaml: {$ref: '#/$defs/artifact_ref'}
+        nb_dispersion_coefficients_yaml: {$ref: '#/$defs/artifact_ref'}
+        bundle_selfcheck_json: {$ref: '#/$defs/artifact_ref'}
+
+    git_commit_hex:
+      type: string
+      pattern: '^(?:[0-9a-f]{40}|[0-9a-f]{64})$'
+```
+
+---
+
+## Appendix C — Training manifest template (`manifest.json`)
+
+This is the **file Codex writes per training run** at:
+
+`artefacts/training/1A/hurdle_sim/simulation_version={simulation_version}/seed={seed}/{iso8601_timestamp}/manifest.json`
+
+…and validates against:
+`schemas.training.layer1.yaml#/training_manifest_1A_hurdle_sim`
+
+```json
+{
+  "manifest_semver": "1.0.0",
+  "simulation_version": "{simulation_version}",
+  "created_utc": "{iso8601_timestamp}",
+
+  "rng": {
+    "algorithm": "philox2x64-10",
+    "seed": {seed}
+  },
+
+  "simulation_config": {
+    "config_path": "config/models/hurdle/hurdle_simulation.priors.yaml",
+    "sha256": "{sha256_priors}",
+    "semver": "{priors_semver}",
+    "version": "{priors_version}"
+  },
+
+  "inputs": {
+    "transaction_schema_merchant_ids": {
+      "path": "{path_transaction_schema_merchant_ids}",
+      "sha256": "{sha256_transaction_schema_merchant_ids}"
+    },
+    "world_bank_gdp_per_capita": {
+      "path": "{path_world_bank_gdp_per_capita}",
+      "sha256": "{sha256_world_bank_gdp_per_capita}"
+    },
+    "gdp_bucket_map": {
+      "path": "{path_gdp_bucket_map}",
+      "sha256": "{sha256_gdp_bucket_map}"
+    },
+    "iso3166_canonical": {
+      "path": "{path_iso3166_canonical}",
+      "sha256": "{sha256_iso3166_canonical}"
+    }
+  },
+
+  "outputs": {
+    "logistic_parquet": {
+      "path": "{path_logistic_parquet}",
+      "sha256": "{sha256_logistic_parquet}"
+    },
+    "nb_mean_parquet": {
+      "path": "{path_nb_mean_parquet}",
+      "sha256": "{sha256_nb_mean_parquet}"
+    },
+    "notes": "Synthetic training corpus for 1A hurdle/mean/dispersion fits."
+  },
+
+  "exports": {
+    "hurdle_coefficients_yaml": {
+      "path": "{path_hurdle_coefficients_yaml}",
+      "sha256": "{sha256_hurdle_coefficients_yaml}"
+    },
+    "nb_dispersion_coefficients_yaml": {
+      "path": "{path_nb_dispersion_coefficients_yaml}",
+      "sha256": "{sha256_nb_dispersion_coefficients_yaml}"
+    },
+    "bundle_selfcheck_json": {
+      "path": "{path_bundle_selfcheck_json}",
+      "sha256": "{sha256_bundle_selfcheck_json}"
+    }
+  },
+
+  "git_commit_hex": "{git_commit_hex}"
+}
+```
+
