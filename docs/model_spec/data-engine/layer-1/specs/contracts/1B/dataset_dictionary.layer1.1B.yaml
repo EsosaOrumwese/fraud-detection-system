@@ -107,6 +107,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: validation_passed_flag
+  status: approved
+  owner_subsegment: 1A
+  description: 1A PASS gate flag (_passed.flag) used by 1B.S0 before any read of outlet_catalogue.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: outlet_catalogue
   status: approved
   owner_subsegment: 1A

@@ -57,7 +57,7 @@ subsegments:
     owner: {owner_team: "mlr-1a-validation"}
     last_updated: '{iso8601_timestamp}'
     environment: [ci, runtime]
-    schema:
+    schema: schemas.1B.yaml#/validation/passed_flag
     cross_layer: true
     notes: 'Content is a single line: "sha256_hex = <hex64>". Digest equals SHA-256 of the bundle = concat(raw bytes of all files listed in index.json in ASCII-lex path order), excluding the flag itself.'
 
@@ -175,6 +175,25 @@ subsegments:
     environment: [runtime]
     schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
+    notes:
+
+  - name: jitter_policy
+    path: config/policy/1B.jitter.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.policy.jitter
+    license: Proprietary-Internal
+    role: Jitter ε (deg) policy by latitude band / merchant class (deterministic) used by S6.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/policy/jitter_policy
+    cross_layer: false
     notes:
 
   - name: tile_index
@@ -380,8 +399,7 @@ subsegments:
     license: Proprietary-Internal
     role: "Fingerprint-scoped PASS bundle for 1B; consumers MUST verify _passed.flag before reading site_locations (No PASS → no read)."
     dependencies: [s7_site_synthesis, site_locations, rng_event_site_tile_assign, rng_event_in_cell_jitter, rng_audit_log, rng_trace_log]
-    schema:
-      index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    schema: schemas.1B.yaml#/validation/validation_bundle_1B
     source: internal
     owner: { owner_team: "mlr-1b-core" }
     last_updated: '{iso8601_timestamp}'
@@ -391,6 +409,25 @@ subsegments:
       Partitioning: fingerprint={manifest_fingerprint}
       Publish posture: write-once; stage → fsync → single atomic move; file order non-authoritative.
       Hashing law: _passed.flag = SHA-256 over raw bytes of files listed in index.json, in ASCII-lex order of 'path' (flag excluded).
+
+  - name: validation_passed_flag_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1B.validation.passed
+    license: Proprietary-Internal
+    role: Boolean hash gate for 1B bundle; consumers MUST verify before reading site_locations.
+    dependencies: [validation_bundle_1B]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: 'Content is a single line: "sha256_hex = <hex64>". Digest equals SHA-256 of the bundle per bundle hashing law.'
 
   - name: rng_event_site_tile_assign
     path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
