@@ -1,10 +1,10 @@
-Offline Training Walkthrough: hurdle_coefficients.yaml + nb_dispersion_coefficients.yaml
+[DEPRECATED] Offline Training Walkthrough: hurdle_coefficients.yaml + nb_dispersion_coefficients.yaml
 ======================================================================================
 
 Purpose
 -------
 This is a concrete, file-referenced walkthrough of how the offline training pipeline
-materializes the coefficient bundles that the data engine consumes for 1A:
+materializes the coefficient bundles that the data engine consumes for 1A. This might soon be deprecated but it reflects the build as at 25th December 2025:
 
 - `config/models/hurdle/exports/version=.../hurdle_coefficients.yaml`
 - `config/models/hurdle/exports/version=.../nb_dispersion_coefficients.yaml`
