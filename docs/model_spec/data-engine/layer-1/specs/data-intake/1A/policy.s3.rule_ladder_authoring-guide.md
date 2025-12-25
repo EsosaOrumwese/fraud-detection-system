@@ -20,6 +20,8 @@ As an authored policy, this MUST not remain in a toy state:
 * Any set like `SANCTIONED` / `HIGH_RISK` SHOULD be derived from a pinned external source and frozen to a dated vintage (do not hard-code a tiny hand list unless it is explicitly a placeholder and clearly marked as such).
 * This policy SHOULD be kept broadly coherent with S0's `crossborder_hyperparams.yaml` gating: large systematic disagreements should be treated as a realism defect unless explicitly intended.
 
+If no external country-set source is wired yet, `country_sets` may be authored directly for v1, but the file MUST include a clear provenance note (e.g., a top comment block) stating `source=authored` and a `vintage` date for each such set.
+
 ---
 
 ## 2) What this file must contain (binding minimum)

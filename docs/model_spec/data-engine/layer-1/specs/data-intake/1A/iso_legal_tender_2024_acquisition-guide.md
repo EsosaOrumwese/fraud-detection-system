@@ -156,7 +156,7 @@ Write:
 
 Coverage sanity (SHOULD):
 
-* For any country you expect to appear in `merchant_ids.home_country_iso`, there is a row here **if** you plan to use this as your `merchant_currency` fallback.
+* For any country you expect to appear in `transaction_schema_merchant_ids.home_country_iso`, there is a row here **if** you plan to use this as your `merchant_currency` fallback.
 
 ---
 

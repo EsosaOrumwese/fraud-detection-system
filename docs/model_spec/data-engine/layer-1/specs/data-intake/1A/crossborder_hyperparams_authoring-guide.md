@@ -22,9 +22,10 @@ It is **not** a “downloaded dataset”. It is authored, versioned, and pinned.
 
 `crossborder_hyperparams.yaml` MUST contain:
 
-* `version` (semver string)
-* `eligibility` (object) — used by S0 eligibility flags
-* `ztp` (object) — used by S4 ZTP link + exhaustion
+* `semver` (semver string)
+* `version` (date label `YYYY-MM-DD`)
+* `eligibility` (object) - used by S0 eligibility flags
+* `ztp` (object) - used by S4 ZTP link + exhaustion
 
 Unknown top-level keys SHOULD be rejected (keep this strict; it prevents silent drift).
 
@@ -166,7 +167,8 @@ So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structu
 ## 6) Minimal v1 example file (Codex can write verbatim)
 
 ```yaml
-version: "1.0.0"
+semver: "1.0.0"
+version: "2024-12-31"
 
 eligibility:
   rule_set_id: "eligibility.v1.2025-04-15"

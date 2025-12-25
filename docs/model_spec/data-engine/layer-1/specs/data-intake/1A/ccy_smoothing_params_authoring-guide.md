@@ -99,6 +99,10 @@ If present: map ISO-4217 currency code (uppercase) → object containing any sub
 
 Reject unknown fields inside each currency block.
 
+**Currency universe guard (MUST):** every currency key in `per_currency` MUST exist in the input currency universe
+used by S5, i.e. it MUST appear in `ccy_country_shares_2024Q4.currency` (and therefore be eligible to produce rows in
+`ccy_country_weights_cache`). If any `per_currency` key is absent from that universe, FAIL CLOSED (do not ignore it).
+
 ### 4.4 `overrides` (optional)
 
 If present, it may contain **only**:
@@ -170,8 +174,22 @@ defaults:
   # Shrink large evidence masses: N_eff = max(obs_floor, N0^(1/max(shrink_exponent,1)))
   shrink_exponent: 2.0
 
-# Optional; omit entirely if unused
-per_currency: {}
+# Optional in schema, but v1 includes minimal overrides for major multi-country currencies (realism bar).
+per_currency:
+  EUR:
+    blend_weight: 0.75
+    alpha: 0.30
+    obs_floor: 2000
+    shrink_exponent: 2.0
+  XOF:
+    blend_weight: 0.70
+    alpha: 0.35
+  XAF:
+    blend_weight: 0.70
+    alpha: 0.35
+  XCD:
+    blend_weight: 0.70
+    alpha: 0.35
 
 # Optional; omit entirely if unused
 overrides: {}
@@ -186,6 +204,7 @@ overrides: {}
 * `dp ∈ [0,18]`
 * `defaults` contains all five required fields with correct domains
 * `per_currency` currency keys are uppercase ISO-4217
+* For every `cur` in `per_currency`, verify `cur ∈ distinct(ccy_country_shares_2024Q4.currency)`; else **hard FAIL**
 * `overrides` contains only `alpha_iso` / `min_share_iso`
 * For any currency with `min_share_iso`, verify feasibility `Σ floors ≤ 1.0`
 * Deterministic quantisation rules (half-even + residual fixup) are implemented exactly
