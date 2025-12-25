@@ -18,7 +18,7 @@ If the Dirichlet lane is disabled, this policy may be present but is **not consu
 
 * **Path:** `config/models/allocation/dirichlet_alpha_policy.yaml`
 * **Type:** authored policy/config (not hunted)
-* **Lineage:** bytes MUST participate in `parameter_hash` **only if** the Dirichlet lane is enabled; otherwise the engine MUST NOT claim it affects lineage.
+* **Lineage:** bytes MUST participate in `parameter_hash` whenever this file is **opened**. The engine MUST only open/consume this file when `enabled=true`; if `enabled=false`, the lane is disabled and this file must not be opened/claimed as consumed.
 
 ---
 

@@ -120,6 +120,25 @@ subsegments:
     cross_layer: false
     notes: Optional; only if bounds are enabled.
 
+  - name: validation_policy
+    path: config/policy/validation_policy.yaml
+    type: policy
+    category: validation
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.cusum_policy
+    license: '{spdx_or_internal}'
+    role: CUSUM corridor parameters (reference_k, threshold_h) for 1A.S2 run-scoped validation; missing => fail closed.
+    dependencies: []
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/policy/validation_policy
+    cross_layer: false
+    notes:
+
   - name: s6_selection_policy
     path: config/policy.s6.selection.yaml
     type: policy

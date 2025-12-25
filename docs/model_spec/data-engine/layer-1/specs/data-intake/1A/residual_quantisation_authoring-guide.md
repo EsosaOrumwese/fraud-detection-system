@@ -89,7 +89,7 @@ Interpretation:
 * If two rows have equal `residual_q`, break ties by deterministic secondary keys.
 * The secondary keys chosen must be keys that always exist in the consumer frame.
 
-**Important:** because different states may have different frames, this policy supports a small set of allowed tiebreak keys; the consumer must choose the right one(s) for its frame (see §6).
+**Binding:** consumers MUST use `tiebreak.keys` exactly as listed. If any listed key is absent from the consumer frame, hard fail (no silent ignore / no substitution).
 
 ---
 
@@ -116,7 +116,7 @@ Any consumer state that uses residual sorting MUST:
 
 * quantise residuals using `dp_resid` and `rounding`
 * sort using `sort.primary_key`
-* apply `tiebreak.keys` that are valid for its frame
+* apply `tiebreak.keys` exactly as listed (no consumer override)
 
 ### Allowed tiebreak keys (v1 closed set)
 

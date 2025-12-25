@@ -177,5 +177,6 @@ Codex must ensure these files exist:
 * every `text_path` exists in repo
 * every license key used anywhere in artefact registries / dataset dictionaries is present in this map
 * no license key is “invented” outside this map (fail closed)
+* missing/invalid `licenses/license_map.yaml` is a hard fail (no warn-only path)
 
 ---
