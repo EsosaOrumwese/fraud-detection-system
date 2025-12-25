@@ -776,17 +776,15 @@ The folder name is the **identity** (partition `[fingerprint]`). Any `manifest_f
 The bundle’s `index.json` **lists every non-flag file exactly once** with a **relative**, ASCII-sortable `path`. Example (illustrative only):
 
 ```json
-{
-  "artifacts": [
-    { "artifact_id": "manifest",        "path": "MANIFEST.json",                     "sha256_hex": "<hex64>" },
-    { "artifact_id": "param_hash",      "path": "parameter_hash_resolved.json",      "sha256_hex": "<hex64>" },
-    { "artifact_id": "fingerprint",     "path": "manifest_fingerprint_resolved.json","sha256_hex": "<hex64>" },
-    { "artifact_id": "rng_accounting",  "path": "rng_accounting.json",               "sha256_hex": "<hex64>" },
-    { "artifact_id": "s9_summary",      "path": "s9_summary.json",                   "sha256_hex": "<hex64>" },
-    { "artifact_id": "egress_checksums","path": "egress_checksums.json",             "sha256_hex": "<hex64>" },
-    { "artifact_id": "self_index",      "path": "index.json",                        "sha256_hex": "<hex64>" }
-  ]
-}
+[
+  { "artifact_id": "manifest",        "kind": "summary", "path": "MANIFEST.json",                     "mime": "application/json" },
+  { "artifact_id": "param_hash",      "kind": "summary", "path": "parameter_hash_resolved.json",      "mime": "application/json" },
+  { "artifact_id": "fingerprint",     "kind": "summary", "path": "manifest_fingerprint_resolved.json","mime": "application/json" },
+  { "artifact_id": "rng_accounting",  "kind": "summary", "path": "rng_accounting.json",               "mime": "application/json" },
+  { "artifact_id": "s9_summary",      "kind": "summary", "path": "s9_summary.json",                   "mime": "application/json" },
+  { "artifact_id": "egress_checksums","kind": "summary", "path": "egress_checksums.json",             "mime": "application/json" },
+  { "artifact_id": "self_index",      "kind": "summary", "path": "index.json",                        "mime": "application/json", "notes": "Index file is itself indexed." }
+]
 ```
 
 Validators rely on the **1A bundle-index schema** (shape + constraints) when checking this file.

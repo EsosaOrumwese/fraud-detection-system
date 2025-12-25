@@ -106,31 +106,19 @@ validation:
       - {name: notes, type: string, nullable: true, description: 'Optional free-text.'}
 
   validation_bundle_1B:
-    description: "Bundle certifying a 1B publish for a given manifest_fingerprint."
-    type: object
-    additionalProperties: false
-    properties:
-      index_json:   { $ref: '#/validation/bundle_index_v1' }
-      checks_json:  { $ref: '#/validation/checks_v1' }
-      metrics_json: { $ref: '#/validation/metrics_v1' }
-    required: [index_json]
-
-  # Index shape used to recompute the bundle hash
-  bundle_index_v1:
-    type: object
-    additionalProperties: false
-    properties:
-      files:
-        type: array
-        minItems: 1
-        items:
-          type: object
-          additionalProperties: false
-          properties:
-            path:       { type: string, minLength: 1 }
-            sha256_hex: { $ref: '#/$defs/hex64' }
-          required: [path, sha256_hex]
-    required: [files]
+    type: bundle
+    description: "Validator outputs for 1B packed as a fingerprint-scoped bundle (gates egress)."
+    partition_keys: [fingerprint]
+    index_schema:
+      type: table
+      description: Logical index stored inside the bundle as index.json (1A-compatible).
+      primary_key: [artifact_id]
+      columns:
+      - {name: artifact_id, type: string, nullable: false, description: Unique artifact within bundle.}
+      - {name: kind, type: string, nullable: false, description: Type (plot|table|diff|text|summary).}
+      - {name: path, type: string, nullable: false, description: Relative path inside the bundle.}
+      - {name: mime, type: string, nullable: true, description: MIME type (if known).}
+      - {name: notes, type: string, nullable: true, description: Optional description.}
 
   # Optional summary documents (structure is modest on purpose)
   checks_v1:
