@@ -33,7 +33,42 @@ reference_data:
   retention_days: 365
   pii: false
   licence: Proprietary-Internal
-# (optionally also list validation_bundle_1B / validation_passed_flag_1B for visibility)
+
+- id: validation_bundle_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 'Validation bundle for 1B publish (fingerprint-scoped). Gate evidence for 2A.S0.'
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 'PASS gate flag; equals SHA-256 of 1B bundle per S9 index law.'
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
 
 # Time-zone polygons used by 2A (sealed by S0)
 - id: tz_world_2025a
