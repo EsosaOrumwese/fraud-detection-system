@@ -17,7 +17,7 @@
 **Normative cross-references (Binding):**
 
 * Upstream gate: **`validation_bundle_1B/`** (root) + companion **`_passed.flag`**; egress **`site_locations`** (Layer-1 · 1B).
-* Optional pins (if declared for this fingerprint): **`site_timezones`**, **`tz_timetable_cache`** (Layer-2 · 2A).
+* Required pin (v1): **`site_timezones`**; optional cache **`tz_timetable_cache`** (Layer-2 · 2A).
 * Segment overview: `state-flow-overview.2B.txt` (context only; this spec governs).
 * Layer-1/Layer-2 **Identity & Gate** laws (No PASS → No read; path↔embed equality).
 
@@ -38,7 +38,7 @@
 * **Seal the minimum input set** required to start routing work:
   (a) `site_locations` for this `{seed, manifest_fingerprint}`,
   (b) governed **RNG policy pack(s)** for 2B (e.g., route/alias/day-effect policies; each with `version_tag` and `sha256_hex`).
-  **Optional pins (all-or-none):** `site_timezones`, `tz_timetable_cache` (read-only) for tz-group coherence checks used later in 2B.
+  **Required pin (v1):** `site_timezones` (read-only) for tz-grouping/day-effects in S3-S5. **Optional cache:** `tz_timetable_cache` (read-only) if present.
 * **Bind run identity** (`seed`, `manifest_fingerprint`) and assert **path↔embed equality** for S0 outputs.
 * **Materialise proof artefacts** of authority and identity: a gate **receipt** and a **sealed-inputs inventory** enumerating every sealed asset with IDs, tags, digests, paths, and partitions.
 * **Constrain resolution to the Catalogue**: all inputs resolve by **Dictionary IDs**; literal paths are forbidden.
@@ -70,23 +70,27 @@ S0 seals the following assets into the run context (each with **`asset_id`**, **
 
    * **`site_locations`** — Layer-1 · 1B egress at `seed={seed} / fingerprint={manifest_fingerprint}`
 
-3. **Governed RNG policy pack(s) for 2B (fingerprint-only):**
+3. **Required pins from 2A (seed + fingerprint):**
+
+   * **`site_timezones`** - Layer-2 · 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (required for 2B v1)
+
+4. **Governed RNG policy pack(s) for 2B (fingerprint-only):**
 
    * **`route_rng_policy_v1`** (sub-streams/budgets for S5/S6)
    * **`alias_layout_policy_v1`** (byte layout, endianness, alignment for alias tables)
    * **`day_effect_policy_v1`** (draw cadence, variance, clipping for S3)
+   * **`virtual_edge_policy_v1`** (eligible edges + weights/attrs for S6 virtual edge routing)
      *(Names illustrative; the concrete **IDs** and counts are whatever the Dictionary declares for this fingerprint. Each MUST carry `version_tag` and `sha256_hex`.)*
 
 > **All listed assets MUST be present and resolvable by ID.** Any additional diagnostics sealed by the Dictionary MAY appear but confer no extra authority.
 
-### 3.3 Optional pins (all-or-none set)
+### 3.3 Optional cache (read-only)
 
-If declared for this fingerprint, S0 MAY seal the following **as a set** (either **all present** or **all absent**):
+If declared for this fingerprint, S0 MAY seal:
 
-* **`site_timezones`** — Layer-2 · 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (read-only)
-* **`tz_timetable_cache`** — Layer-2 · 2A cache at `fingerprint={manifest_fingerprint}` (read-only)
+* **`tz_timetable_cache`** - Layer-2 · 2A cache at `fingerprint={manifest_fingerprint}` (read-only)
 
-These pins are used only for coherence/audit in later 2B states; they confer no additional read authority beyond the verified 1B gate.
+This cache is used only for coherence/audit in later 2B states; it confers no additional read authority beyond the verified 1B gate.
 
 ### 3.4 Hashing & verification law (Binding)
 
@@ -124,15 +128,18 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 2. **Cross-segment egress (seed + fingerprint):**
 
    * `site_locations` — Layer-1 · 1B egress at `seed={seed} / fingerprint={manifest_fingerprint}`
-3. **Governed policies for 2B (fingerprint-only):**
+3. **Required pins from 2A (seed + fingerprint):**
+
+   * `site_timezones` — Layer-2 · 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}`
+4. **Governed policies for 2B (fingerprint-only):**
 
    * `route_rng_policy_v1`
    * `alias_layout_policy_v1`
    * `day_effect_policy_v1`
+   * `virtual_edge_policy_v1`
      *(Concrete IDs/names are those listed in the Dictionary for this fingerprint; each policy MUST carry `version_tag` and `sha256_hex`.)*
-4. **Optional pins (all-or-none set; read-only):**
+5. **Optional cache (read-only):**
 
-   * `site_timezones` — Layer-2 · 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}`
    * `tz_timetable_cache` — Layer-2 · 2A cache at `fingerprint={manifest_fingerprint}`
 
 ### 4.3 Prohibited resources & reads
@@ -155,7 +162,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
   1. Resolve both by ID via the Dictionary.
   2. Recompute the bundle hash from the index (ASCII-lex on `index.path`; hash raw bytes; exclude the flag).
   3. **Abort** on any mismatch.
-     Only after (2) succeeds may S0 resolve/read `site_locations` or optional pins.
+     Only after (2) succeeds may S0 resolve/read `site_locations`, `site_timezones`, or the optional cache.
 
 ### 4.6 Inventory boundary
 
@@ -204,7 +211,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 
 ### 5.7 Content constraints
 
-* `sealed_inputs_v1` **MUST** enumerate **every** asset trusted or read by S0 (gate bundle, flag, `site_locations`, policy pack(s), and any optional pins if present). No extras; no omissions.
+* `sealed_inputs_v1` **MUST** enumerate **every** asset trusted or read by S0 (gate bundle, flag, `site_locations`, `site_timezones`, policy pack(s), and optional cache if present). No extras; no omissions.
 * Duplicate physical bytes referenced by multiple IDs are represented as **distinct rows** (same `sha256_hex`, different `asset_id`).
 
 ### 5.8 Downstream visibility
@@ -289,16 +296,20 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
   * `schemas.1A.yaml#/validation/validation_bundle.index_schema` — bundle index shape used for hash recomputation.
   * `schemas.1B.yaml#/egress/site_locations` — 1B egress consumed by 2B.
 
-* **Optional pins (Layer-2 / 2A)**
+* **Required pins (Layer-2 / 2A)**
 
   * `schemas.2A.yaml#/egress/site_timezones`
-  * `schemas.2A.yaml#/egress/tz_timetable_cache`
+
+* **Optional cache (Layer-2 / 2A)**
+
+  * `schemas.2A.yaml#/cache/tz_timetable_cache`
 
 * **2B policy packs (shape IDs live in the 2B schema pack)**
 
   * `schemas.2B.yaml#/policy/route_rng_policy_v1`
   * `schemas.2B.yaml#/policy/alias_layout_policy_v1`
   * `schemas.2B.yaml#/policy/day_effect_policy_v1`
+  * `schemas.2B.yaml#/policy/virtual_edge_policy_v1`
 
 ---
 
@@ -341,18 +352,18 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 
 9. **Resolve by ID** (no content reads yet):
    a) `site_locations` at `seed={seed} / fingerprint={manifest_fingerprint}`;
-   b) governed **2B policy pack(s)** (`route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, as declared in the Dictionary).
+   b) `site_timezones` at `seed={seed} / fingerprint={manifest_fingerprint}`;
+   c) governed **2B policy pack(s)** (`route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`, as declared in the Dictionary).
 10. **Compute per-asset digests** for the inventory row (`sha256_hex`) using this rule, in order of preference:
     i) **Published canonical digest** provided by the producing segment (if present in its manifest/receipt); else
     ii) **Byteset digest**: SHA-256 over the **raw bytes** of all leaf files under the asset’s path, taken in **ASCII-lex order of relative path**; exclude transient control files (e.g., `_passed.flag`).
 11. **Assign `version_tag`** from the catalogue for each asset (e.g., release label or `{seed}.{manifest_fingerprint}` where that is the declared tag).
 
-### 7.4 Optional pins (all-or-none set)
+### 7.4 Optional cache (read-only)
 
-12. If the fingerprint declares optional pins, resolve **both** by ID:
-    a) `site_timezones` at `seed={seed} / fingerprint={manifest_fingerprint}`,
-    b) `tz_timetable_cache` at `fingerprint={manifest_fingerprint}`.
-13. **All-or-none rule.** If exactly one is resolvable, record the **WARN** condition for validation; continue. If both are present, include both in the inventory (apply the same digest/tag rules as §7.3).
+12. If the fingerprint declares the optional cache, resolve by ID:
+    a) `tz_timetable_cache` at `fingerprint={manifest_fingerprint}`.
+13. If present, include it in the inventory (apply the same digest/tag rules as §7.3); absence is permitted.
 
 ### 7.5 Materialise outputs (atomic; write-once)
 
@@ -465,11 +476,11 @@ Recomputed SHA-256 over the bundle index (ASCII-lex by `index.path`, raw bytes; 
 **V-03 — Dictionary-only resolution (Abort).**
 Every input read/Trusted asset was resolved by **Dictionary ID**; zero literal paths.
 
-**V-04 — Minimum sealed set present (Abort).**
-Sealed assets include: bundle root, `_passed.flag`, `site_locations` at `seed={seed}/fingerprint={manifest_fingerprint}`, and all required 2B policy pack IDs declared for this fingerprint.
+**V-04 - Minimum sealed set present (Abort).**
+Sealed assets include: bundle root, `_passed.flag`, `site_locations` and `site_timezones` at `seed={seed}/fingerprint={manifest_fingerprint}`, and all required 2B policy pack IDs declared for this fingerprint.
 
-**V-05 — Optional pins all-or-none (Warn).**
-If any of `{site_timezones, tz_timetable_cache}` is present, both are present; otherwise none. Mixed presence → WARN.
+**V-05 - Optional cache present (Warn).**
+If `tz_timetable_cache` is present, it must validate and be recorded in the inventory; absence is permitted (no WARN).
 
 **V-06 — Receipt shape valid (Abort).**
 ` s0_gate_receipt_2B` validates against `schemas.2B.yaml#/validation/s0_gate_receipt_v1` (fields-strict), including `verified_at_utc` and `catalogue_resolution`.
@@ -486,8 +497,8 @@ Every `sealed_inputs_v1` row has **non-empty** `version_tag` and `sha256_hex` (h
 **V-10 — Policy capture coherent (Abort).**
 `determinism_receipt.policy_ids`/`policy_digests` are present, equal-length, and each pair matches the corresponding `sealed_inputs_v1` rows for the 2B policy pack(s).
 
-**V-11 — Partition selection exact (Abort).**
-Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}` and fingerprint-only selection for bundle/flag/policies (no wildcards, no cross-seed reads).
+**V-11 - Partition selection exact (Abort).**
+Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}`, `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}`, and fingerprint-only selection for bundle/flag/policies (and optional cache if present) with no wildcards or cross-seed reads.
 
 **V-12 — No duplicate IDs (Abort).**
 `sealed_inputs_v1.asset_id` has no duplicates. (Multiple IDs may reference identical bytes; same-ID duplicates are illegal.)
@@ -514,7 +525,7 @@ Execution performed with network I/O disabled and accessed **only** the assets e
 
 ### 10.1 Gate & hashing law
 
-* **2B-S0-010 MINIMUM_SET_MISSING (Abort)** — One or more required gate/inputs are absent (`validation_bundle_1B/`, `_passed.flag`, `site_locations@seed,fingerprint`, or required policy pack IDs).
+* **2B-S0-010 MINIMUM_SET_MISSING (Abort)** - One or more required gate/inputs are absent (`validation_bundle_1B/`, `_passed.flag`, `site_locations@seed,fingerprint`, `site_timezones@seed,fingerprint`, or required policy pack IDs).
   *Context:* `missing_ids[]`.  *(V-04)*
 
 * **2B-S0-011 BUNDLE_FLAG_HASH_MISMATCH (Abort)** — Recomputed SHA-256 of bundle contents (ASCII-lex by `index.path`, raw bytes, flag excluded) ≠ value in `_passed.flag`.
@@ -562,7 +573,7 @@ Execution performed with network I/O disabled and accessed **only** the assets e
 
 ### 10.4 Identity, partitions, immutability
 
-* **2B-S0-050 PARTITION_SELECTION_INCORRECT (Abort)** — Read didn’t target exactly `site_locations@seed={seed}/fingerprint={fingerprint}` or a fingerprint-only partition for bundle/flag/policies.
+* **2B-S0-050 PARTITION_SELECTION_INCORRECT (Abort)** - Read didn't target exactly `site_locations@seed={seed}/fingerprint={fingerprint}` and `site_timezones@seed={seed}/fingerprint={fingerprint}`, or used non-fingerprint partitions for bundle/flag/policies/optional cache.
   *Context:* `id`, `expected_partition`, `actual_partition`.  *(V-11)*
 
 * **2B-S0-070 PATH_EMBED_MISMATCH (Abort)** — Embedded `fingerprint` in an S0 output ≠ the path token.
@@ -577,10 +588,10 @@ Execution performed with network I/O disabled and accessed **only** the assets e
 * **2B-S0-082 ATOMIC_PUBLISH_FAILED (Abort)** — Staging/rename could not guarantee atomic publish.
   *Context:* `id`, `staging_path`, `final_path`.  *(Runtime)*
 
-### 10.5 Optional pins
+### 10.5 Optional cache
 
-* **2B-S0-090 OPTIONAL_PINS_MIXED (Warn)** — Exactly one of `{site_timezones, tz_timetable_cache}` present.
-  *Context:* `present_ids[]`, `absent_ids[]`.  *(V-05)*
+* **2B-S0-090 OPTIONAL_CACHE_INVALID (Warn)** - `tz_timetable_cache` present but missing or invalid (e.g., schema/manifest/digest issues).
+  *Context:* `id`, `reason`.  *(V-05)*
 
 ### 10.6 Standard message fields (Binding)
 
@@ -598,7 +609,7 @@ For each failure, the payload **MUST** include:
 | **V-02 Bundle hash = flag**          | 2B-S0-011, 2B-S0-012, 2B-S0-013     |
 | **V-03 Dictionary-only resolution**  | 2B-S0-020, 2B-S0-021                |
 | **V-04 Minimum sealed set present**  | 2B-S0-010                           |
-| **V-05 Optional pins all-or-none**   | 2B-S0-090 *(Warn)*                  |
+| **V-05 Optional cache present**      | 2B-S0-090 *(Warn)*                  |
 | **V-06 Receipt shape valid**         | 2B-S0-030                           |
 | **V-07 Inventory shape valid**       | 2B-S0-031                           |
 | **V-08 Receipt ↔ inventory match**   | 2B-S0-040                           |
@@ -645,7 +656,7 @@ A run-report **MUST** contain the following top-level fields:
 
   * `inputs_total`: `<int>`
   * `required_present`: `<int>`
-  * `optional_pins_present`: `<int>` *(0 or 2)*
+  * `optional_cache_present`: `<int>` *(0 or 1)*
   * `policy_ids`: `[<string>…]`
   * `policy_digests`: `[<hex64>…]` *(1:1 with `policy_ids`)*
 * `inventory_summary`:
@@ -684,7 +695,7 @@ Field values in samples **MUST** be copied from the authoritative artefacts; no 
 
 S0 **MUST** emit the following counters; units are integers unless noted:
 
-* `inputs_total`, `required_present`, `optional_pins_present`
+* `inputs_total`, `required_present`, `optional_cache_present`
 * `inventory_rows`, `digests_recorded`, `duplicate_byte_sets`
 * `bundle_index_count`
 * `publish_bytes_total` *(sum of published artefact sizes)*
@@ -734,7 +745,7 @@ Let:
 
 * **B** = number of files listed in the upstream **1B bundle index**
 * **Σbundle** = total bytes of those B files (raw, as read for hashing)
-* **N** = number of assets recorded in `sealed_inputs_v1` (gate artefacts + `site_locations` + policy packs [+ optional pins])
+* **N** = number of assets recorded in `sealed_inputs_v1` (gate artefacts + `site_locations` + `site_timezones` + policy packs [+ optional cache])
 * **Σdigest** = additional bytes hashed for assets that **lack** a canonical digest (ideally small; e.g., policy packs)
 
 S0 is predominantly **I/O-bound**. CPU cost is minimal (SHA-256 over streamed bytes + JSON serialisation).
@@ -773,7 +784,7 @@ S0 is predominantly **I/O-bound**. CPU cost is minimal (SHA-256 over streamed by
 
 * **Large Σbundle:** Bound by sequential read bandwidth; ensure hashing is truly streaming and not buffered into memory wholesale.
 * **Many policy packs (high N):** Inventory emission is linear; keep policy packs compact and with canonical digests to avoid extra hashing.
-* **Optional pins present:** Adds only resolution + small metadata; no additional heavy I/O unless their canonical digests are missing.
+* **Optional cache present:** Adds only resolution + small metadata; no additional heavy I/O unless its canonical digest is missing.
 
 ### 12.8 Non-goals
 
@@ -798,7 +809,7 @@ S0 **MUST NOT** change the following within the same major version:
 * **Output shapes & IDs:** anchor names and required fields of
   `schemas.2B.yaml#/validation/s0_gate_receipt_v1` and
   `schemas.2B.yaml#/validation/sealed_inputs_v1`.
-* **Minimum sealed set:** `validation_bundle_1B/`, `_passed.flag`, `site_locations@seed,fingerprint`, and **required 2B policy pack(s)**.
+* **Minimum sealed set:** `validation_bundle_1B/`, `_passed.flag`, `site_locations@seed,fingerprint`, `site_timezones@seed,fingerprint`, and **required 2B policy pack(s)**.
 * **Prohibitions:** dictionary-only resolution; no literal paths; no network I/O.
 * **Acceptance posture:** the set of **Abort** validators (by ID) and their semantics.
 
@@ -813,7 +824,7 @@ Any change here is **breaking** and requires a **new major** of this spec and sc
 * **Receipt `determinism_receipt`**: adding **optional** fields. *(minor)*
 * **Inventory**: adding an **optional** `schema_ref` (already allowed) or extra optional columns that validators ignore. *(minor)*
 * **Validators**: adding **WARN-class** checks; tightening messages/contexts; mapping multiple codes to an existing validator. *(minor)*
-* **Optional pins**: permitting them where previously absent, keeping the **all-or-none** rule and **WARN** on mixed presence. *(minor)*
+* **Optional cache**: permitting `tz_timetable_cache` where previously absent, with WARN-only validation. *(minor)*
 * **Policy packs**: introducing **optional** policy artefacts (diagnostic) that are **not** part of the minimum sealed set. *(minor)*
 
 ---
@@ -822,7 +833,7 @@ Any change here is **breaking** and requires a **new major** of this spec and sc
 
 * Changing **required** fields or anchor names of S0 outputs; re-partitioning; renaming output IDs.
 * Altering the **hashing law**, gate artefact identities, or bundle location semantics.
-* Promoting any **optional** item to the **minimum sealed set** (e.g., making 2A pins mandatory).
+* Promoting any **optional** item to the **minimum sealed set** (e.g., making `tz_timetable_cache` mandatory).
 * Changing the **required policy pack list** (add/remove/rename) or their semantics such that V-04/V-10 differ.
 * Reclassifying a **WARN** validator to **Abort**, or adding a new **Abort** validator that can fail for previously valid runs.
 * Allowing **literal paths** or network I/O, or removing dictionary-only resolution.
@@ -877,9 +888,9 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
 ---
 
-### 13.11 Optional pins policy (consistency rule)
+### 13.11 Optional cache policy (consistency rule)
 
-* The all-or-none presence rule for `{site_timezones, tz_timetable_cache}` is stable. Making these **required** or changing the rule is **breaking**; adding additional optional pins is **minor** if validators remain WARN-only.
+* `tz_timetable_cache` is optional. Making it **required** is **breaking**; adding additional optional caches is **minor** if validators remain WARN-only.
 
 ---
 
@@ -906,6 +917,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
     * `#/policy/route_rng_policy_v1`
     * `#/policy/alias_layout_policy_v1`
     * `#/policy/day_effect_policy_v1`
+    * `#/policy/virtual_edge_policy_v1`
   * Common defs: `#/$defs/hex64`, `#/$defs/partition_kv`, `#/$defs/iso_datetime_utc`
 * **Dataset Dictionary (catalogue authority):** `dataset_dictionary.layer1.2B.yaml`
 
@@ -917,8 +929,8 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
     * `validation_bundle_1B` (root), `_passed.flag`
     * `site_locations` (seed, fingerprint)
-    * `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`
-    * *(optional pins)* `site_timezones`, `tz_timetable_cache`
+    * `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`
+    * `site_timezones` (required), `tz_timetable_cache` (optional cache)
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
 
   * Ownership/retention for the above IDs; cross-layer pointers (1B egress, 2A pins).
@@ -935,36 +947,39 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
   * `site_locations` → `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.1B.yaml#/egress/site_locations`
 
-### A.3 Optional pins (Layer-2 · Segment 2A)
+### A.3 Required pins (Layer-2 · Segment 2A)
 
 * **`site_timezones`** → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
   **Shape:** `schemas.2A.yaml#/egress/site_timezones`
+
+### A.4 Optional cache (Layer-2 · Segment 2A)
+
 * **`tz_timetable_cache`** → `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`
   **Shape:** `schemas.2A.yaml#/cache/tz_timetable_cache`
 
-### A.4 Outputs produced by this state (2B.S0)
+### A.5 Outputs produced by this state (2B.S0)
 
 * **`s0_gate_receipt_2B`** (JSON; fingerprint-scoped)
   **Shape:** `schemas.2B.yaml#/validation/s0_gate_receipt_v1`
 * **`sealed_inputs_v1`** (JSON table; fingerprint-scoped)
   **Shape:** `schemas.2B.yaml#/validation/sealed_inputs_v1`
 
-### A.5 Policy packs captured (IDs; bytes & digests sealed)
+### A.6 Policy packs captured (IDs; bytes & digests sealed)
 
 * `route_rng_policy_v1` — Philox sub-stream layout/budgets for routing states
 * `alias_layout_policy_v1` — alias table byte layout/endianness/alignment
-* `day_effect_policy_v1` — daily modulation cadence/variance/clipping
+* `day_effect_policy_v1` - daily modulation cadence/variance/clipping
+* `virtual_edge_policy_v1` - virtual edge eligibility, weights, and attributes
 
-### A.6 Identity & tokens (path discipline)
+### A.7 Identity & tokens (path discipline)
 
 * **Tokens:** `seed={seed}`, `fingerprint={manifest_fingerprint}`
 * **Partition law:** S0 outputs are **fingerprint-only**; `site_locations` reads require **seed + fingerprint**.
 * **Path↔embed equality:** embedded `fingerprint` in S0 outputs must equal the path token.
 
-### A.7 Context documents
+### A.8 Context documents
 
 * **Segment overview:** `state-flow-overview.2B.txt` *(context only; this spec governs)*
 * **Layer Identity & Gate laws:** project-wide authority note (No PASS → No read; hashing law; write-once discipline).
 
 ---
-
