@@ -32,7 +32,11 @@ Given `(lat, lon)` and `ε = epsilon_degrees`:
 * Then constrain deterministically:
 
   * **latitude:** clamp to `[-90, +90]`
-  * **longitude:** wrap into `(-180, +180]` using modular arithmetic
+  * **longitude:** wrap into `(-180, +180]` using this exact rule:
+    - let `x = lon' + 180`
+    - let `r = x - 360 * floor(x / 360)`   (so r ∈ [0, 360))
+    - let `lon_wrapped = r - 180`          (so lon_wrapped ∈ [-180, 180))
+    - if `lon_wrapped == -180`, set `lon_wrapped = +180` (to make the range (-180, 180])
 
 * Re-evaluate membership once using `(lat', lon')`.
 

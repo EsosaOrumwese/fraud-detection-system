@@ -62,7 +62,7 @@ Given `release_tag`:
 
 Attempt in this order:
 
-1. **HTTP (preferred):** `https://data.iana.org/time-zones/releases/{archive_filename}` ([IANA][1])
+1. **HTTP (preferred):** `https://www.iana.org/time-zones/repository/releases/{archive_filename}` ([IANA][1])
 2. **FTP mirror (fallback):** `https://ftp.iana.org/tz/releases/{archive_filename}` ([IANA FTP][2])
 
 Also download the detached signature file (optional but recommended for audit trail):
@@ -172,8 +172,8 @@ Write `tzdb_release.provenance.json` containing, at minimum:
 https://www.iana.org/time-zones
 
 # Preferred direct download pattern (HTTP)
-https://data.iana.org/time-zones/releases/tzdata{release_tag}.tar.gz
-https://data.iana.org/time-zones/releases/tzdata{release_tag}.tar.gz.asc
+https://www.iana.org/time-zones/repository/releases/tzdata{release_tag}.tar.gz
+https://www.iana.org/time-zones/repository/releases/tzdata{release_tag}.tar.gz.asc
 
 # Fallback directory (FTP-over-HTTP listing + downloads)
 https://ftp.iana.org/tz/releases/

@@ -64,6 +64,8 @@ Even though the schema types `target` as a string, **S2 matching depends on a pr
 
 **Important:** MCC-scope overrides are only usable if the programme seals an authoritative `merchant_id → mcc` mapping in 2A.S0. If not sealed, MCC-scope overrides must be treated as **inactive** (and any attempt to apply them must abort).
 
+**Pinned rule (MUST; decision-free):** if the overrides file contains any row with `scope: mcc` and the run does not seal an authoritative merchant→MCC mapping in S0, then 2A.S2 MUST ABORT (fail closed). Do not silently ignore MCC-scope rows.
+
 ### 4.3 `scope: site`
 
 * `target` MUST encode the site key `(merchant_id, legal_country_iso, site_order)` as:
