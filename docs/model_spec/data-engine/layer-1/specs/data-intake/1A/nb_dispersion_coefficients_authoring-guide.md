@@ -135,7 +135,8 @@ For dispersion you need (at minimum):
 
   * `merchant_id`
   * `mcc`, `channel`, `home_country_iso`
-  * `y_count` (simulated total outlets)
+  * `y_nb` (simulated total outlets)
+  * MUST contain `y_nb` (int64) = simulated total outlets per merchant (the NB count target used by both mean and dispersion fitting)
 * and the run `manifest.json`
 
 ### Step C — Build the dispersion design matrix (deterministic)
@@ -163,7 +164,7 @@ Your existing approach is the right one:
 
 2. For each cell, compute:
 
-* `mean_y` and `var_y` over `y_count` values in that cell.
+* `mean_y` and `var_y` over `y_nb` values in that cell.
 
 3. For NB2, a standard MOM estimator is:
    [

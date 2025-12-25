@@ -157,6 +157,7 @@ Bundle contents (minimum):
 
 * `logistic.parquet` (binary labels: single vs multi-site, keyed by merchant_id)
 * `nb_mean.parquet` (count targets for multi-site merchants, keyed by merchant_id)
+  * MUST contain `y_nb` (int64) = simulated total outlets per merchant (the NB count target used by both mean and dispersion fitting)
 * `manifest.json` (pins config path, seed, resolved input refs)
 
 ### Step C — Build deterministic design matrices
@@ -172,7 +173,7 @@ From the sealed corpus + reference tables:
 **Mean matrix**
 
 * Rows: merchants with `y_hurdle == 1` (multi-site merchants only; corpus label, not a "trainer-defined" subset)
-* Target: `log(y_count)` where `y_count` is total outlets for that merchant in the corpus
+* Target: `log(y_nb)` where `y_nb` is total outlets for that merchant in the corpus
 * Features: intercept + MCC + channel dummies (as §4.2)
 
 **Dictionary freeze**
