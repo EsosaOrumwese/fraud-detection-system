@@ -103,7 +103,7 @@ COG requirements (minimal):
 ### 5.2 Value + NoData handling (MUST)
 
 * Preserve “people per pixel” values as provided.
-* Preserve NoData, or convert NoData to 0 **with an explicit provenance note** (either is acceptable as long as downstream semantics are consistent).
+* Preserve NoData exactly as provided (MUST). Downstream semantics MUST treat NoData as non-habitable weight 0.
 
 ### 5.3 Determinism (MUST)
 

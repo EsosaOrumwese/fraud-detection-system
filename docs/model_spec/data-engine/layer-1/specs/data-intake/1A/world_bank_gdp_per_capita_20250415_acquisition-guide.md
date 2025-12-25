@@ -121,7 +121,7 @@ WDI dataset licensing/coverage are also stated in the Data Catalog entry. ([Worl
 ### 5.1 Acquire the archive (MUST)
 
 1. Go to the **WDI Archives** page.
-2. Pick the archive closest to your target vintage (e.g., April 2025 is listed on the page). ([Data Topics][3])
+2. Select the **April 2025** archive corresponding to the version label `2025-04-15`. If no April-2025 archive link exists, treat Route A as failed and proceed to Route B. ([Data Topics][3])
 3. Download the archive zip from the DataBank "download/Archive" link (the page lists direct `.zip` links). ([Data Topics][3])
 4. Record the **exact archive filename** you downloaded (do not assume it equals the version label), plus SHA-256 of the raw zip.
 
@@ -187,10 +187,8 @@ The API can return aggregates/regions depending on the endpoint and parameters. 
 Because 1A pins `observation_year = 2024`:
 
 * You MUST confirm that 2024 values exist for the required operating country set.
-* If coverage is incomplete, you MUST choose one explicit resolution path (don’t wing it):
-
-  * **Change the pinned year** (and update artefact IDs + bucket map year), or
-  * **Define a deterministic fill policy** and record it as a separate governed rule (recommended only if you truly need “total function” coverage).
+* If any required `country_iso` lacks a valid 2024 value, the build MUST **fail closed** (treat as acquisition failure).
+* Do not change the pinned year or invent a fill policy inside this guide. If you later want filling, introduce a separate governed fill-policy artefact and update the engine/spec explicitly (no silent behaviour change).
 
 ---
 

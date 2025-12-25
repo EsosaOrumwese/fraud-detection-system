@@ -121,10 +121,7 @@ Rules:
 * MCC must be an int in `[0,9999]`.
 * SHOULD validate MCC membership against your pinned `mcc_canonical_<vintage>` table (recommended for realism + governance).
 * If upstream provides MCC as string, you must parse and validate deterministically.
-* If upstream MCC is missing/invalid: you MUST choose **one** of:
-
-  * drop that merchant from the snapshot (**recommended**),
-  * or fail snapshot build (strict mode).
+* If upstream MCC is missing/invalid: drop that merchant from the snapshot (MUST; decision-free).
 
 Do **not** silently coerce/clip MCC values.
 
@@ -149,8 +146,7 @@ If upstream has ISO3/numeric/country names:
 
 If country is missing/unknown:
 
-* prefer dropping the merchant or failing the snapshot build.
-* avoid hardcoding defaults (that creates silent realism debt everywhere downstream).
+* drop the merchant from the snapshot (MUST; decision-free). Do not hardcode defaults.
 
 ### 4.5 Duplicate / conflicting records (MUST)
 

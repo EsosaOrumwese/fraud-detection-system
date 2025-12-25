@@ -156,8 +156,7 @@ Store next to the parquet:
 * dissolve count (how many ISO2 had >1 feature)
 * output checksum
 
-**Licensing note:** Natural Earth is **public domain** per the AWS registry entry. ([Registry of Open Data][1])
-(Your current registry/dictionary says ODbL for `world_countries`; if you adopt Natural Earth, you should patch that metadata later to avoid license mismatch.)
+**Licensing note (MUST):** Natural Earth is **public domain** per the AWS registry entry. Ensure `artefact_registry` and `dataset_dictionary` licence fields for `world_countries` match **Public Domain** (do not claim ODbL). ([Registry of Open Data][1])
 
 ---
 

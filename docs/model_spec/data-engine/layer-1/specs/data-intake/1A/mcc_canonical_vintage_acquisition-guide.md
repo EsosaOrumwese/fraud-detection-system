@@ -12,7 +12,7 @@ Why this matters (in “real” payments terms):
 
 In your **closed-world** engine, this artefact gives you:
 
-* **Validation**: `merchant_ids.mcc` is either a known code or triggers a deterministic policy (FAIL / OTHER).
+* **Validation**: `transaction_schema_merchant_ids.mcc` is either a known code or triggers a deterministic policy (FAIL / OTHER).
 * **Stable feature space**: coefficient packs and priors can be tied to a pinned MCC universe.
 * **Future enrichment**: later segments can join on MCC for macro-category priors without bloating ingress.
 
@@ -94,27 +94,31 @@ Cross-check (high value, but typically proprietary / rights-reserved):
 **Steps**
 
 1. Download the MCC list spreadsheet from the Alipay+ MCC list page (or scrape the table if needed). ([docs.alipayplus.com][3])
-2. Build your canonical table from **A1 (ISO codes)** as the default.
-3. Decide (explicitly) whether to include:
+2. Build your canonical table from **A1 (ISO codes)** only (ISO-only scope).
+3. Freeze as `mcc_canonical_<vintage>` and record provenance.
 
-   * **A2 (private-use)** → only if your engine needs private codes
-   * **A3 (other payment systems / merchant-specific)** → only if you want airline/hotel merchant-specific MCCs in-world
-4. Freeze as `mcc_canonical_<vintage>` and record provenance.
+### Route B (fallback): Citi "Merchant Category Codes" PDF listing
 
-### Route B: Visa manual listing as the base (internal-only is safest)
+**Why:** Public, downloadable MCC table that can be frozen deterministically.
 
-**Why:** Very close to real card-network operational usage. 
+**Steps**
+
+1. Download the Citi MCC PDF.
+2. Extract the MCC table into structured rows `(mcc, description)`.
+3. Freeze as `mcc_canonical_<vintage>` and record provenance.
+
+### Route C (optional cross-check, internal-only): Visa manual listing
 
 **Steps**
 
 1. Download the Visa manual PDF.
 2. Extract the MCC listing section into structured form.
-3. Tag codes that are “merchant-specific” where applicable (the Visa text itself notes some MCCs are merchant-specific). 
+3. Tag codes that are "merchant-specific" where applicable (the Visa text itself notes some MCCs are merchant-specific).
 4. Freeze and record provenance.
 
-**Important:** Visa manual is rights-reserved; treat derived datasets as **internal artefacts**, not something you casually publish in an open repo. 
+**Important:** Visa manual is rights-reserved; treat derived datasets as **internal artefacts**, not something you casually publish in an open repo.
 
-### Route C: Mastercard “MCC Listing spreadsheet” (if you can access it)
+### Route D (optional cross-check, internal-only): Mastercard "MCC Listing spreadsheet"
 
 Mastercard’s booklet says there is a downloadable MCC Listing spreadsheet accessible from the **HTML version** via “Download Attachments”. ([Mastercard][5])
 If you can retrieve that spreadsheet, it can be an excellent base for your canonical table.
@@ -130,23 +134,10 @@ If you can retrieve that spreadsheet, it can be an excellent base for your canon
 * Treat MCC as **4-digit codes** but store as `int32`.
 * Preserve leading zeros conceptually (e.g., “0742” stored as `742` is fine as long as formatting is handled consistently when rendering).
 
-### 4.2 Scope rule (MUST choose one and record it)
+### 4.2 Scope rule (PINNED for v1; decision-free)
 
-Pick one of:
-
-**(A) ISO-only (recommended for v1)**
-
-* Keep only the “generic” ISO codes (no airline/hotel merchant-specific ranges).
-
-**(B) ISO + merchant-specific**
-
-* Include airline/hotel/car-rental merchant-specific codes and tag them `mcc_kind=merchant_specific`.
-
-**(C) ISO + private-use extensions**
-
-* Include private-use codes and tag them `mcc_kind=private_use`.
-
-Your engine realism gets *harder* to reason about as you move from A → C.
+* Scope is **ISO-only**: keep only the “generic” ISO codes (no airline/hotel merchant-specific ranges; no private-use extensions).
+* If you later want merchant-specific/private-use codes, create a **separate** artefact (do not silently widen `mcc_canonical_<vintage>`).
 
 ### 4.3 De-duplication rule (MUST)
 
@@ -168,12 +159,10 @@ If two sources disagree on `description` for the same `mcc`:
 
 ### 5.2 Coverage vs ingress
 
-Decide your enforcement policy for `merchant_ids.mcc`:
+**Pinned enforcement (MUST; decision-free):** Strict mode.
 
-* **Strict mode (recommended):** every `merchant_ids.mcc` must exist in `mcc_canonical_<vintage>` or **snapshot build fails**.
-* **Soft mode:** allow unknown codes but map them deterministically to `mcc=9999` (“Other”) **and require that 9999 exists in your table**.
-
-Record which mode you chose, because it changes downstream failure behaviour.
+* Every `transaction_schema_merchant_ids.mcc` MUST exist in `mcc_canonical_<vintage>` or snapshot build fails.
+* No "OTHER=9999" escape hatch in v1 unless you explicitly revise this guide/spec.
 
 ---
 
@@ -211,7 +200,7 @@ https://www.mastercard.com/content/dam/mccom/shared/business/support/rules-pdfs/
 
 ---
 
-If you want the cleanest flow: **use Route A (Alipay+ A1 ISO table) as the canonical base**, tag anything else as “cross-check only”, then we can immediately move to the **merchant_ids acquisition plan** that uses `mcc_canonical_<vintage>` to validate/shape the merchant universe deterministically.
+If you want the cleanest flow: use Route A (Alipay+ A1 ISO table) as the canonical base, treat Visa/Mastercard as cross-checks only, then validate the merchant universe deterministically via `transaction_schema_merchant_ids`.
 
 [1]: https://www.mastercard.com/content/dam/mccom/shared/business/support/rules-pdfs/mastercard-quick-reference-booklet-merchant.pdf "Quick Reference Booklet"
 [2]: https://www.iso.org/standard/79450.html "ISO 18245:2023 - Merchant category codes"
