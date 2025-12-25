@@ -140,7 +140,7 @@ For dispersion you need (at minimum):
 
 ### Step C — Build the dispersion design matrix (deterministic)
 
-Rows correspond to merchants (typically the multi-site subset, but you must document your choice in the manifest).
+Rows correspond to merchants with `y_hurdle == 1` (multi-site merchants only; corpus label).
 
 Features:
 
@@ -171,11 +171,11 @@ Your existing approach is the right one:
    ]
    with `ε > 0` pinned to avoid division by zero.
 
-**Pinned knobs (MUST):** the following values MUST be sourced from `hurdle_simulation.priors.yaml` (or a referenced trainer config) and recorded in the training `manifest.json`:
+**Pinned knobs (MUST; decision-free):** the following values MUST be read from `hurdle_simulation.priors.yaml` and recorded in the training `manifest.json`:
 
-* `epsilon` (ε)
-* `phi_min`, `phi_max`
-* `n_min` (small-cell pooling threshold)
+* `epsilon` (ε) from `dispersion.mom.epsilon`
+* `phi_min` / `phi_max` from `clamps.phi.min` / `clamps.phi.max`
+* `n_min` (small-cell pooling threshold) from `dispersion.mom.n_min`
 * `cell_weight_rule` (e.g., `n_cell` vs `sqrt(n_cell)`)
 
 **Pinned stability rules (Codex enforced):**

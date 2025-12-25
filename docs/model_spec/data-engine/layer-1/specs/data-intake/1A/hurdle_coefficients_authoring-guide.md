@@ -171,7 +171,7 @@ From the sealed corpus + reference tables:
 
 **Mean matrix**
 
-* Rows: multi-site merchants only (or whichever subset your trainer defines, but it must be documented)
+* Rows: merchants with `y_hurdle == 1` (multi-site merchants only; corpus label, not a "trainer-defined" subset)
 * Target: `log(y_count)` where `y_count` is total outlets for that merchant in the corpus
 * Features: intercept + MCC + channel dummies (as §4.2)
 
