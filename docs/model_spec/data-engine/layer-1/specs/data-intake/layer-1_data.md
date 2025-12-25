@@ -1,57 +1,70 @@
-* Layer-1 Segment 1A
-	[M] merchant_ids (ingress):
-		- merchant_id, mcc, channel, home_country_iso
+* Layer-1 Segment 1A — externals to acquire/author
 
-	[R] Reference artefacts:
-		- iso3166_canonical_2024
-		- world_bank_gdp_per_capita_20250415
-		- gdp_bucket_map_2024 (Jenks K=5 buckets, precomputed)
+      [M] Ingress (dataset)
+      - transaction_schema_merchant_ids
+            · cols: merchant_id, mcc, channel, home_country_iso
+            · (optional but necessary if using closed-world Route B)
+            - config/ingress/transaction_schema_merchant_ids.bootstrap.yaml  (binding bootstrap policy)
 
-	[C] Model coeffs:
-		- hurdle_coefficients.yaml
-		- nb_dispersion_coefficients.yaml
+      [R] Reference artefacts
+      - iso3166_canonical_2024
+      - world_bank_gdp_per_capita_20250415
+      - gdp_bucket_map_2024  (Jenks K=5; deterministic)
 
-	[P] Policy / hyperparams:
-		- crossborder_hyperparams.yaml
-		- policy.s3.rule_ladder.yaml  (eligibility rules)
-		- (opt) policy.s3.base_weight.yaml
-			· deterministic base-weight prior formula, coeffs, fixed dp
-		- (opt) policy.s3.thresholds.yaml
-			· deterministic integerisation bounds / feasibility thresholds (L_i, U_i, etc.)
-		- config/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
-		- s6_selection_policy @ config/policy.s6.selection.yaml
+      [I] Share surfaces & ISO enumerations
+      - settlement_shares_2024Q4
+      - ccy_country_shares_2024Q4
+      - (optional; only if producing merchant_currency)
+            - iso_legal_tender_2024
 
-	[N] Numeric / math policy artefacts:
-		- numeric_policy.json
-		- math_profile_manifest.json
+      [C] Model coeff bundles (offline-trained)
+      - hurdle_coefficients.yaml
+      - nb_dispersion_coefficients.yaml
 
-	[I] Share surfaces & ISO enumerations:
-		- settlement_shares_2024Q4
-			· path: reference/network/settlement_shares/2024Q4/settlement_shares.parquet
-			· schema: schemas.ingress.layer1.yaml#/settlement_shares
-			· PK: (currency, country_iso), columns: share∈[0,1], obs_count≥0
-		- ccy_country_shares_2024Q4
-			· path: reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet
-			· schema: schemas.ingress.layer1.yaml#/ccy_country_shares
-			· PK: (currency, country_iso), columns: share∈[0,1], obs_count≥0
-		- iso3166_canonical_2024
-			· canonical ISO-2 set; PK: (country_iso)
-		- (optional, only if producing merchant_currency)
-			iso_legal_tender_2024
-			· ISO2 → primary legal tender; schema: schemas.ingress.layer1.yaml#/iso_legal_tender_2024
+      [P] Policy / hyperparams / allocation
+      - crossborder_hyperparams.yaml
+      - policy.s3.rule_ladder.yaml
+      - (opt) policy.s3.base_weight.yaml
+      - (opt) policy.s3.thresholds.yaml
+      - config/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
+      - s6_selection_policy @ config/policy.s6.selection.yaml
+
+      - (recommended / present in 1A contracts; include to stay “complete”)
+            - config/models/allocation/dirichlet_alpha_policy.yaml     (used if Dirichlet lane enabled)
+            - config/numeric/residual_quantisation.yaml                (pins residual rounding before rank)
+
+      - (optional; only if any policy references it)
+            - static.currency_to_country.map.json
+
+      [N] Numeric / math governance
+      - numeric_policy.json
+      - math_profile_manifest.json
+
+      [Compliance] Licence governance (required)
+      - licenses/license_map.yaml (+ LICENSES/ folder if that’s your convention)
+
+      [Validation knobs] (required)
+      - validation_policy.yaml  (CUSUM corridor parameters used by 1A validation)
 
 
-* Layer-1 Segment 1B
-	[Refs] Reference / FK surfaces S0 pins for 1B:
-		- world_countries                     (country polygons)
-		- population_raster_2025              (population raster)
-		- tz_world_2025a                      (TZ polygons; used later by 2A/2B)
+* Layer-1 Segment 1B — what it needs (v1)
 
-	[Policies · 1B]
-		- jitter_policy
-			· path: config/policy/1B.jitter.yaml
-			· schema: schemas.1B.yaml#/policy/jitter_policy
-			· role: Jitter σ (deg) policy by latitude band / merchant class (deterministic)
+      [Upstream gated inputs from 1A]  (not “shopped”, but required to exist)
+      - outlet_catalogue  (seed + fingerprint-scoped)
+      - validation_bundle_1A + _passed.flag  (S0 gate)
+
+      - (optional / not consumed by 1B v1 states)
+            - s3_candidate_set  (order authority for downstream joins, if needed elsewhere)
+
+      [Refs / spatial priors]  (externals to acquire/author)
+      - iso3166_canonical_2024
+      - world_countries
+      - population_raster_2025
+      - (optional / reserved for later 2A/2B; not consumed by 1B v1)
+            - tz_world_2025a
+
+      [Policies · 1B]
+      - (none for v1; jitter_policy intentionally excluded / reserved)
 
 	
 * Layer-1 Segment 2A
