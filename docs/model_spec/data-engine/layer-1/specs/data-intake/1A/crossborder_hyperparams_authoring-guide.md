@@ -168,7 +168,7 @@ So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structu
 
 ```yaml
 semver: "1.0.0"
-version: "2024-12-31"
+version: "2025-04-15"
 
 eligibility:
   rule_set_id: "eligibility.v1.2025-04-15"
