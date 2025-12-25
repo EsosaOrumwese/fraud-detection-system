@@ -109,11 +109,11 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
-  # === Optional pins from 2A (all-or-none; read-only) ===
+  # === Required pins from 2A (read-only; required for 2B v1 local-time day-effects) ===
   - id: site_timezones
-    status: optional
+    status: approved
     owner_subsegment: 2A
-    description: Per-site IANA tzid assignments emitted by 2A; used as optional coherence pins.
+    description: Per-site IANA tzid assignments emitted by 2A; REQUIRED input for 2B v1 tz-grouping + day-effects.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -128,6 +128,7 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  # === Optional cache from 2A (read-only; performance/consistency helper) ===
   - id: tz_timetable_cache
     status: optional
     owner_subsegment: 2A

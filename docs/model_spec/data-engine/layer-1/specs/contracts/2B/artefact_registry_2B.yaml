@@ -22,9 +22,11 @@ artifacts:
       - validation_bundle_1B
       - passed_flag_1B
       - site_locations
+      - site_timezones
       - route_rng_policy_v1
       - alias_layout_policy_v1
       - day_effect_policy_v1
+      - virtual_edge_policy_v1
     cross_layer: false
     notes: null
 
@@ -47,9 +49,11 @@ artifacts:
       - validation_bundle_1B
       - passed_flag_1B
       - site_locations
+      - site_timezones
       - route_rng_policy_v1
       - alias_layout_policy_v1
       - day_effect_policy_v1
+      - virtual_edge_policy_v1
     cross_layer: false
     notes: null
 
@@ -112,7 +116,7 @@ artifacts:
     schema: schemas.1B.yaml#/egress/site_locations
     notes: null
 
-  # === Optional pins from 2A (read-only) ===
+  # === Required pins from 2A (read-only; required for 2B v1) ===
   - name: site_timezones
     path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
     type: dataset
@@ -122,7 +126,7 @@ artifacts:
     digest: '{sha256}'
     manifest_key: mlr.2A.egress.site_timezones
     license: Proprietary-Internal
-    role: "Per-site tzid (2A egress); optional coherence pin."
+    role: "Per-site tzid (2A egress); REQUIRED input for 2B v1 tz-grouping + day-effects."
     dependencies: []
     cross_layer: true
     source: internal
@@ -132,6 +136,7 @@ artifacts:
     schema: schemas.2A.yaml#/egress/site_timezones
     notes: null
 
+  # === Optional cache from 2A (read-only) ===
   - name: tz_timetable_cache
     path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
     type: bundle
@@ -372,14 +377,14 @@ artifacts:
     manifest_key: mlr.2B.validation.s7_audit_report
     license: Proprietary-Internal
     role: "Authoritative 2B.S7 audit report (RNG-free; fields-strict JSON)."
-    dependencies: [s1_site_weights, s5_selection_log, s6_edge_log]
+    dependencies: [s1_site_weights]
     source: internal
     owner: { owner_team: "l1-2b-governance" }
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2B.yaml#/validation/s7_audit_report_v1
     cross_layer: false
-    notes: "Write-once; atomic publish; receipts reference this path."
+    notes: "Write-once; atomic publish. May reference optional evidence logs (s5_selection_log, s6_edge_log) if present; absence must not prevent S7."
 
   # === 2B.S5 (optional) selection log ===
   - name: s5_selection_log
