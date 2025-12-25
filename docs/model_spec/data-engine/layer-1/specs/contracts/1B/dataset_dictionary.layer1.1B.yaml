@@ -73,7 +73,7 @@ reference_data:
 - id: tz_world_2025a
   status: approved
   owner_subsegment: ingress
-  description: RESERVED (used later by 2A/2B). Time-zone polygons; provenance-only for 1B v1 (not consumed).
+  description: RESERVED (used later by 2A/2B). Time-zone polygons; not consumed by 1B v1.
   version: '2025a'
   format: parquet
   path: reference/spatial/tz_world/2025a/tz_world.parquet
@@ -146,7 +146,7 @@ reference_data:
 - id: s3_candidate_set
   status: approved
   owner_subsegment: 1A
-  description: External order authority (candidate_rank; home=0). NOT consumed by 1B v1 states; used only by downstream joins when order is required.
+  description: Order authority (candidate_rank; home=0). Not consumed by 1B v1 states; used only by downstream joins when order is required.
   version: '{parameter_hash}'
   format: parquet
   path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
@@ -488,7 +488,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-policies: []
+policies:
+- id: jitter_policy
+  status: approved
+  owner_subsegment: 1B
+  description: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class. Not consumed by 1B v1 uniform lane.
+  version: '{policy_version}'
+  format: yaml
+  path: config/policy/1B.jitter.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.1B.yaml#/policy/jitter_policy
+  lineage:
+    produced_by: 1B.policy
+    consumed_by: []
+    final_in_layer: false
+  retention_days: 30
+  pii: false
+  licence: Proprietary-Internal
 logs:
 - id: rng_event_site_tile_assign
   status: approved

@@ -52,7 +52,7 @@ model: {}
 policy:
   jitter_policy:
     type: object
-    description: "Reserved per-latitude σ policy (degrees). v1 S6 uniform-in-pixel lane does not consume this artefact."
+    description: "RESERVED (VNext). Deterministic per-latitude σ policy (degrees) for a future Gaussian jitter lane. Not used by 1B v1 uniform lane."
     required: [policy_version, bands]
     additionalProperties: false
     properties:

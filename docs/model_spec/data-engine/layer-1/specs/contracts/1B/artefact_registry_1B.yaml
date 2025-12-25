@@ -167,7 +167,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.ingress.tz_world_2025a
     license: ODbL-1.0
-    role: Time-zone polygons used for civil-time legality checks.
+    role: RESERVED for later segments (2A/2B). Time-zone polygons; not consumed by 1B v1.
     dependencies: [world_countries]
     source: external
     owner: {owner_team: "mlr-ingress"}
@@ -175,6 +175,25 @@ subsegments:
     environment: [runtime]
     schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
+    notes:
+
+  - name: jitter_policy
+    path: config/policy/1B.jitter.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.policy.jitter
+    license: Proprietary-Internal
+    role: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class; not consumed by 1B v1 uniform lane.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/policy/jitter_policy
+    cross_layer: false
     notes:
 
   - name: tile_index

@@ -907,7 +907,7 @@ S0 is a **closed-world, contract-governed** gate. It verifies 1A’s PASS, then 
 ## 14.2 Licensing & provenance (what S0 must honor and record)
 
 * **Licence authority.** Licence class and retention live in the **Dictionary / Registry**; S0 **must not** override them. For each sealed input it authorises (e.g., `outlet_catalogue`, `s3_candidate_set`, references), the Dictionary must have a **non-empty licence** and retention. Absence is **run-fail** per governance.  
-* **Ingress examples (for 1B references).** `world_countries` → **ODbL-1.0**; `population_raster_2025` → **ODbL-1.0**. These are already pinned in the artefact registry and must appear in sealed inputs. 
+* **Ingress examples (for 1B references).** `world_countries` → **Public-Domain**; `population_raster_2025` → **Public-Domain**. These are already pinned in the artefact registry and must appear in sealed inputs. 
 * **Licence map.** Governance exposes a `license_map` / `LICENSES/` set for traceability; S0’s sealed inputs must be **covered** there (presence check; no legal text interpretation).  
 * **Redistribution.** Outputs/sealed surfaces remain **internal** under their licence class; S0’s receipt is **Proprietary-Internal** by default (final class set in the 1B Dictionary). 
 
