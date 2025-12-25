@@ -922,12 +922,31 @@ subsegments:
     manifest_key: mlr.input.transaction_schema.merchant_ids
     license: '{spdx_or_internal}'
     role: List of all `merchant_id` values consumed by 1A.
-    dependencies: []
+    dependencies: [transaction_schema_merchant_ids_bootstrap_policy]
     source: external
     owner: {owner_team: null}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.ingress.layer1.yaml#/merchant_ids
+    cross_layer: true
+    notes:
+
+  - name: transaction_schema_merchant_ids_bootstrap_policy
+    path: config/ingress/transaction_schema_merchant_ids.bootstrap.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.input.transaction_schema.merchant_ids.bootstrap_policy
+    license: '{spdx_or_internal}'
+    role: Binding bootstrap policy for closed-world authoring of `transaction_schema_merchant_ids` (Route B). Included in manifest_fingerprint as an opened artefact.
+    dependencies: [iso3166_canonical_2024, gdp_bucket_map_2024]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/policy/transaction_schema_merchant_ids_bootstrap_policy
     cross_layer: true
     notes:
 

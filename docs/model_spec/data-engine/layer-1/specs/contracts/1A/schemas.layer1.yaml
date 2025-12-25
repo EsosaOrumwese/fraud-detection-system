@@ -651,6 +651,81 @@ policy:
             max_candidates_cap:     {$ref: '#/$defs/uint32'}
             zero_weight_rule:       {type: string, enum: [exclude, include]}
 
+  transaction_schema_merchant_ids_bootstrap_policy:
+    type: object
+    additionalProperties: false
+    required: [semver, version, rng, scale, home_country, mcc, channel]
+    properties:
+      semver:  {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      rng:
+        type: object
+        additionalProperties: false
+        required: [algorithm, seed]
+        properties:
+          algorithm: {type: string, enum: [philox2x64-10]}
+          seed: {$ref: '#/$defs/uint64'}
+
+      scale:
+        type: object
+        additionalProperties: false
+        required: [n_merchants, merchant_id_start]
+        properties:
+          n_merchants: {$ref: '#/$defs/uint32'}
+          merchant_id_start: {$ref: '#/$defs/id64'}
+
+      home_country:
+        type: object
+        additionalProperties: false
+        required: [floor_weight, bucket_base, min_distinct]
+        properties:
+          floor_weight: {type: number, minimum: 0.0}
+          bucket_base:  {type: number, exclusiveMinimum: 1.0}
+          min_distinct: {type: integer, minimum: 1}
+
+      mcc:
+        type: object
+        additionalProperties: false
+        required: [min_distinct, range_boosts]
+        properties:
+          min_distinct: {type: integer, minimum: 1}
+          range_boosts:
+            type: array
+            items:
+              type: object
+              additionalProperties: false
+              required: [mcc_min, mcc_max, factor]
+              properties:
+                mcc_min: {type: integer, minimum: 0, maximum: 9999}
+                mcc_max: {type: integer, minimum: 0, maximum: 9999}
+                factor:  {type: number, exclusiveMinimum: 0.0}
+
+      channel:
+        type: object
+        additionalProperties: false
+        required: [base_p_cnp, online_heavy, in_person_heavy]
+        properties:
+          base_p_cnp: {type: number, minimum: 0.0, maximum: 1.0}
+          online_heavy:
+            type: object
+            additionalProperties: false
+            required: [mcc_set, p_cnp]
+            properties:
+              mcc_set:
+                type: array
+                items: {type: integer, minimum: 0, maximum: 9999}
+              p_cnp: {type: number, minimum: 0.0, maximum: 1.0}
+          in_person_heavy:
+            type: object
+            additionalProperties: false
+            required: [mcc_set, p_cnp]
+            properties:
+              mcc_set:
+                type: array
+                items: {type: integer, minimum: 0, maximum: 9999}
+              p_cnp: {type: number, minimum: 0.0, maximum: 1.0}
+
 
 validation:
   numeric_policy_attest:
