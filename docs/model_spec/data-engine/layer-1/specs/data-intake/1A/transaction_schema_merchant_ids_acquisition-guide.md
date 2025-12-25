@@ -49,6 +49,15 @@ Columns (exactly these for v1 of the engine):
 
 This dataset is best treated as an **Ingress Authoring artefact** owned by the **Control & Ingress plane** (or a dedicated “Universe Builder”), not by 1A.
 
+### 2.1 Binding bootstrap config (Route B authority)
+
+When using Route B (closed-world authored ingress), Codex MUST NOT “implement the guide” by inventing defaults.
+Instead, Route B MUST be driven by a **governed bootstrap config artefact**:
+
+* **Config path (binding):** `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml`
+* **Role:** pins scale + distributions + correlations + determinism seed rules for authoring the merchant universe
+* **Rule:** if this config file is missing or fails schema validation → FAIL CLOSED (do not guess).
+
 * The **Scenario Runner selects** which `{version}` (and other reference artefact versions) are pinned inside the chosen `manifest_fingerprint`.
 * The **engine consumes** the pinned snapshot as read-only authority.
 
@@ -81,7 +90,7 @@ This is the cleanest route if you already have a controlled upstream “transact
 
 Use this if you do **not** have (or do not want) any real merchant feed.
 
-You explicitly **author** the merchant universe as a governed input:
+You explicitly **author** the merchant universe as a governed input, using the binding bootstrap config in §2.1.
 
 #### Realism bar (SHOULD, to avoid "toy" universes)
 
@@ -90,9 +99,15 @@ You explicitly **author** the merchant universe as a governed input:
 * SHOULD include **correlations**: e.g., channel mix varies by MCC (online-heavy vs in-person-heavy categories).
 * SHOULD include **coverage** beyond "top countries only" so cross-border logic has realistic candidate sets.
 
-* Decide `|𝓜|` (merchant count)
-* Assign `(mcc, channel, home_country_iso)` from governed distributions
-* Emit `transaction_schema_merchant_ids/{version}/` as the pinned universe
+**Binding rule (MUST; decision-free):**
+
+* Read `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml` and apply its pinned policy exactly:
+  * merchant count `N`
+  * deterministic seed derivation
+  * `home_country_iso` weighting/spine constraints
+  * `mcc` weighting from `mcc_canonical_<vintage>`
+  * `channel` conditional rules by MCC (correlation)
+* Emit `reference/layer1/transaction_schema_merchant_ids/{version}/` as the pinned universe.
 
 This matches the “closed-world” goal: **the world is what you say it is**, and the runner chooses which world exists today.
 
@@ -210,6 +225,10 @@ MUST record alongside the snapshot:
 
    * `{version}`
    * upstream source identifiers (or “closed-world authored”)
+   * **bootstrap config reference (Route B):**
+     * config path: `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml`
+     * sha256 of the config bytes actually used
+     * config `version`/`semver` fields (if present)
    * rule-set identifier (channel mapping, conflict resolution policy)
    * counts (rows in/out, dropped merchants if any)
    * checksum(s) for the final parquet
