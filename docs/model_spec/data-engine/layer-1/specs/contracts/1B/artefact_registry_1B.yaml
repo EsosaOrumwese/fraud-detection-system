@@ -128,7 +128,7 @@ subsegments:
     version: '2024'
     digest: '{sha256}'
     manifest_key: mlr.ingress.world_countries
-    license: ODbL-1.0
+    license: Public-Domain
     role: Country boundary polygons used for geo conformance checks.
     dependencies: [iso3166_canonical_2024]
     source: external

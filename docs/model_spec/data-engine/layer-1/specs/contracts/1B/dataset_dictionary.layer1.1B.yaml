@@ -50,7 +50,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: ODbL-1.0
+  licence: Public-Domain
 
 - id: population_raster_2025
   status: approved
