@@ -62,7 +62,7 @@ The JSON object MUST contain:
 
 * `policy_id` (string) — MUST equal `"route_rng_policy_v1"`
 * `version_tag` (string) — real governance tag (see §8)
-* `sha256_hex` (hex64 lowercase) — computed by §4
+* Digest is tracked by the S0 sealing inventory (do NOT embed `sha256_hex` inside the file; token-less posture)
 * `rng_engine` (string) — MUST equal `"philox2x64-10"` (wire token)
 
 ### 3.2 Stream declarations (MUST)
@@ -83,19 +83,18 @@ Unknown top-level keys are only allowed under `extensions`.
 
 ---
 
-## 4) Canonical digest law for `sha256_hex` (MUST)
+## 4) Canonical byte law + inventory digest (MUST)
 
-To avoid ambiguity, compute `sha256_hex` from the policy **excluding** `sha256_hex`:
+To avoid ambiguity across implementations, the policy file MUST be written as **canonical JSON** and the digest MUST be recorded externally (S0 sealing inventory):
 
-1. Copy the JSON object and remove the `sha256_hex` key.
-2. Canonical JSON serialization (UTF-8):
+1. Canonical JSON serialization (UTF-8):
 
    * sort object keys lexicographically at every level
    * no insignificant whitespace
    * numbers as standard JSON decimals (no NaN/Inf)
-3. `sha256_hex = SHA256(canonical_bytes)` as lowercase hex64.
-4. Write the final policy including the computed `sha256_hex`.
-5. Recompute and verify equality — mismatch ⇒ **FAIL CLOSED**.
+2. Compute `policy_sha256_hex = SHA256(canonical_bytes)` as lowercase hex64.
+3. Record `policy_sha256_hex` in the S0 sealing inventory for this policy path+bytes.
+4. The policy file itself MUST NOT contain a `sha256_hex` field.
 
 ---
 
@@ -193,7 +192,7 @@ Codex MUST reject policies that violate any of:
   * budgets,
   * basis/counter policy,
   * family set,
-    MUST bump `version_tag` and MUST change `sha256_hex`.
+    MUST bump `version_tag` and MUST change policy bytes (therefore `policy_sha256_hex` changes in the sealing inventory).
 
 ---
 
@@ -233,8 +232,7 @@ Codex MUST reject policies that violate any of:
       "draws_per_unit": { "draws_per_virtual": 1 }
     }
   },
-  "extensions": {},
-  "sha256_hex": "<COMPUTED_BY_SECTION_4>"
+  "extensions": {}
 }
 ```
 
@@ -245,7 +243,7 @@ Codex MUST reject policies that violate any of:
 1. JSON parses; required keys present.
 2. `policy_id == "route_rng_policy_v1"`.
 3. `rng_engine == "philox2x64-10"`.
-4. `sha256_hex` recomputes exactly by §4.
+4. File is canonical JSON per §4 and `policy_sha256_hex = SHA256(file_bytes)` is recorded in the S0 sealing inventory; file MUST NOT contain `sha256_hex`.
 5. Both streams present with namespaced `rng_stream_id`.
 6. Budgets are single-uniform (`blocks=1`, `draws="1"`) for all families.
 7. Totals are correct (`draws_per_selection=2`, `draws_per_virtual=1`).
