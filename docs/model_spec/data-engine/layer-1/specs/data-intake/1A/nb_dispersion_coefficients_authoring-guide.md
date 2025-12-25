@@ -135,8 +135,7 @@ For dispersion you need (at minimum):
 
   * `merchant_id`
   * `mcc`, `channel`, `home_country_iso`
-  * `y_nb` (simulated total outlets)
-  * MUST contain `y_nb` (int64) = simulated total outlets per merchant (the NB count target used by both mean and dispersion fitting)
+  * `y_nb` (int64) = simulated total outlets per merchant (the NB count target used by both mean and dispersion fitting)
 * and the run `manifest.json`
 
 ### Step C — Build the dispersion design matrix (deterministic)
