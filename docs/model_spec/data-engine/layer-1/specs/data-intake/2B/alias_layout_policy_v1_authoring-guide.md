@@ -47,9 +47,9 @@ The JSON object MUST contain these keys (unknown top-level keys are allowed only
 
 ### 3.1 Identity + sealing keys (MUST)
 
-* `policy_id` (string) — MUST equal `"alias_layout_policy_v1"`
-* `version_tag` (string) — opaque version label (see §8)
-* `sha256_hex` (hex64) — canonical digest computed by §4
+* `policy_id` (string) - MUST equal `"alias_layout_policy_v1"`
+* `version_tag` (string) - opaque version label (see §8)
+* Digest is tracked by the S0 sealing inventory (do NOT embed `sha256_hex` inside the file; token-less posture)
 
 ### 3.2 Layout keys (MUST)
 
@@ -86,23 +86,22 @@ Absence of any required key is **ABORT**.
 
 ---
 
-## 4) Canonical digest law for `sha256_hex` (MUST)
+## 4) Canonical digest law (MUST; inventory-side)
 
-To avoid “hash includes itself” ambiguity, compute `sha256_hex` from the policy **excluding** the `sha256_hex` field.
+Compute the canonical SHA-256 for the policy bytes and record it in the S0 sealing inventory; the policy file MUST NOT embed `sha256_hex`.
 
 **Rule:**
 
-1. Create a copy of the JSON object with the `sha256_hex` key removed.
-2. Serialize using a **canonical JSON** form:
+1. Serialize using a **canonical JSON** form:
 
    * UTF-8
    * object keys sorted lexicographically at every level
    * no insignificant whitespace
    * numbers rendered in standard JSON decimal form (no NaN/Inf)
-3. `sha256_hex = SHA256(canonical_bytes)` as lowercase hex64.
-4. Write the final policy including the computed `sha256_hex`.
+2. `sha256_hex = SHA256(canonical_bytes)` as lowercase hex64.
+3. Record the digest in the S0 sealing inventory as the authoritative value.
 
-If recomputing does not match the stored value → **FAIL CLOSED**.
+If the computed digest does not match the inventory value → **FAIL CLOSED**.
 
 ---
 
@@ -246,7 +245,7 @@ To avoid “sample config” posture, the version fields are not optional:
 
 * `version_tag` MUST be a real governance tag, not `"example"` / `"test"` / `"todo"`.
 * Recommended: `version_tag = "v1.0.0"` for the first committed production policy.
-* Any change that can alter emitted bytes (layout, quantised_bits, epsilon, checksum scope, etc.) MUST bump `version_tag` and MUST change `sha256_hex`.
+* Any change that can alter emitted bytes (layout, quantised_bits, epsilon, checksum scope, etc.) MUST bump `version_tag` and MUST change the sealed digest recorded by S0.
 
 ---
 
@@ -260,7 +259,7 @@ Codex MUST reject authoring attempts that violate these:
 * `quantisation_epsilon` MUST be consistent with the grid:
   `quantisation_epsilon ≥ 1 / (2^(quantised_bits + 1))` and `≤ 1e-3`
 * `checksum.algorithm` MUST be cryptographic (`sha256`) in v1 (no “toy CRC”)
-* `policy_id`, `version_tag`, `sha256_hex` MUST be present and non-placeholder
+* `policy_id` and `version_tag` MUST be present and non-placeholder
 
 Optional additional keys MUST live under:
 
@@ -381,12 +380,10 @@ This is a complete, non-toy baseline that Codex can write deterministically:
       "checksum"
     ]
   },
-  "extensions": {},
-  "sha256_hex": "<COMPUTED_BY_SECTION_4>"
+  "extensions": {}
 }
 ```
-
-Codex MUST replace `<COMPUTED_BY_SECTION_4>` with the computed digest and then verify it matches.
+The canonical digest is recorded by S0 in the sealing inventory; do not embed it in the file.
 
 ---
 
@@ -395,12 +392,12 @@ Codex MUST replace `<COMPUTED_BY_SECTION_4>` with the computed digest and then v
 1. JSON parses; required keys present.
 2. `policy_id == "alias_layout_policy_v1"`.
 3. `version_tag` is non-placeholder.
-4. `sha256_hex` recomputes exactly by §4.
-5. Realism floors in §9 pass.
-6. `required_index_fields` includes all fields in §10.
-7. `record_layout.prob_qbits` ∈ {24,32}; if 32 then `decode_law == "walker_vose_q0_32"`.
-8. `quantised_bits` ∈ [1,30] and ≥ 20 for production.
-9. `endianness` ∈ {little,big}; `alignment_bytes` ≥ 1 and recommended set for production.
+4. Realism floors in §9 pass.
+5. `required_index_fields` includes all fields in §10.
+6. `record_layout.prob_qbits` ∈ {24,32}; if 32 then `decode_law == "walker_vose_q0_32"`.
+7. `quantised_bits` ∈ [1,30] and ≥ 20 for production.
+8. `endianness` ∈ {little,big}; `alignment_bytes` ≥ 1 and recommended set for production.
+9. No `sha256_hex` key is present (token-less posture; digest recorded by S0).
 
 If any check fails → **FAIL CLOSED** (do not emit or seal the policy).
 

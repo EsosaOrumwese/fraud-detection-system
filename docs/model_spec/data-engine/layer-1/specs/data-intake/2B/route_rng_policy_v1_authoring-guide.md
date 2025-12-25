@@ -162,10 +162,11 @@ MUST be:
 * `counter_step_per_event`: `1`
 * `counter_wrap_policy`: `"abort_on_wrap"`
 
-This matches the routing states’ posture:
+This matches the routing states' posture:
 
 * run-scoped streams (not merchant-keyed)
 * counters are monotone and never reused within a run
+* `parameter_hash` is **required** at runtime; if it is missing, the run MUST abort (no fallback keying)
 
 ---
 
