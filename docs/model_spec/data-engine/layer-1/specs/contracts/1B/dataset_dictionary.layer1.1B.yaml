@@ -488,25 +488,7 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-policies:
-- id: jitter_policy
-  status: approved
-  owner_subsegment: 1B
-  description: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class. NOT consumed by 1B v1 uniform lane.
-  version: '{policy_version}'
-  format: yaml
-  path: config/policy/1B.jitter.yaml
-  partitioning: []
-  ordering: []
-  schema_ref: schemas.1B.yaml#/policy/jitter_policy
-  lineage:
-    produced_by: 1B.policy
-    consumed_by: []
-    final_in_layer: false
-  retention_days: 30
-  pii: false
-  licence: Proprietary-Internal
-
+policies: []
 logs:
 - id: rng_event_site_tile_assign
   status: approved

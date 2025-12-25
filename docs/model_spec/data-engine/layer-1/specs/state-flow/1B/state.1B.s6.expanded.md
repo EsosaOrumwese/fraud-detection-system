@@ -70,7 +70,7 @@ Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note
 ## 2.2 Out of scope (what S6 SHALL NOT do)
 
 * **No reassignment.** SHALL NOT change S5 tile choices, counts, or ordering.
-* **No policy-fitting.** SHALL NOT read or derive any σ/shape policy (uniform lane ignores `jitter_policy`).
+* **No policy-fitting.** SHALL NOT read any σ/shape policy input (v1 uniform lane consumes no jitter policy artefact).
 * **No new egress.** SHALL NOT publish or mutate 1B egress bundles (that packaging/flagging occurs elsewhere).
 * **No alternative geometry/time semantics.** SHALL NOT use non-S1 geometry, timezone logic, or any surface not listed in §2.1.
 
@@ -769,7 +769,7 @@ The following **SHALL** be treated as **MAJOR** and require re-ratification of S
 The following are **MINOR** only if strictly backward-compatible:
 
 * **Observability/diagnostics:** adding optional run-report fields, per-country histograms, or non-authoritative metrics (no schema for datasets/logs changed). 
-* **Registry/doc notes:** correcting Registry roles/notes without altering schema/paths (e.g., removing `jitter_policy` from S6 dependencies in Registry — S6 uniform lane does not consume it). 
+* **Registry/doc notes:** correcting Registry/Dictionary notes without altering schema/paths (e.g., removing the historical `jitter_policy` entry — v1 uniform lane does not consume it). 
 * **Loosening numeric guards:** widening S6 delta bounds (e.g., from `[-1,1]` to `[-1.5,1.5]`) only if all existing valid rows remain valid. Tightening is **MAJOR**. 
 * **Run-report delivery:** surfacing the same counters via an additional non-identity file (S7 will own any bundle schema).
 
@@ -977,6 +977,7 @@ delta_lat_deg = lat* − centroid_lat_deg =  51.50522945 − 51.525000 = -0.0197
 ## B.4 RNG event (JSONL; for this site’s accepted attempt)
 
 *(Shape owned by the layer RNG event anchor; `draws` is a **decimal u128 string**, `blocks` is **u64**.)*
+*(Uniform lane note: `sigma_lat_deg`/`sigma_lon_deg` are set to `0.0` and are non-authoritative; they do not imply a consumed jitter policy artefact in v1.)*
 
 ```json
 {

@@ -177,25 +177,6 @@ subsegments:
     cross_layer: true
     notes:
 
-  - name: jitter_policy
-    path: config/policy/1B.jitter.yaml
-    type: policy
-    category: policy
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.policy.jitter
-    license: Proprietary-Internal
-    role: Jitter ε (deg) policy by latitude band / merchant class (deterministic) used by S6.
-    dependencies: []
-    source: internal
-    owner: {owner_team: "mlr-1b-core"}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema: schemas.1B.yaml#/policy/jitter_policy
-    cross_layer: false
-    notes:
-
   - name: tile_index
     path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
     type: dataset
