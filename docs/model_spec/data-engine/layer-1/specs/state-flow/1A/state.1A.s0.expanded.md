@@ -254,7 +254,7 @@ Create the three lineage keys that make 1A reproducible and auditable:
 **Inputs (exact):**
 
 * 𝓐 = set of **all artefacts actually opened** during the run up to S0.2 (parameters, ISO, GDP, bucket map, schema files you read, numeric policy, etc.).
-  **Dependency-closure rule (normative):** 𝓐 MUST include the transitive closure of `dependencies` for every artefact opened for the run (as declared in `artefact_registry_1A.yaml`). This ensures governing configs are fingerprinted even if later states do not read them directly. In particular, when `transaction_schema_merchant_ids` is opened, the runtime MUST also open and hash `transaction_schema_merchant_ids_bootstrap_policy` (`config/ingress/transaction_schema_merchant_ids.bootstrap.yaml`) if present.
+  **Dependency-closure rule (normative):** 𝓐 MUST include the transitive closure of `dependencies` for every artefact opened for the run (as declared in `artefact_registry_1A.yaml`). Missing dependency MUST abort (no silent omission). In particular, when `transaction_schema_merchant_ids` is opened, the runtime MUST also open and hash `transaction_schema_merchant_ids_bootstrap_policy` (`config/ingress/transaction_schema_merchant_ids.bootstrap.yaml`) if declared as a dependency of that dataset in the registry.
   For each artefact `a` with basename `nameₐ`:
 
   * `D(a) = SHA256(bytes(a))`  (32 bytes)
@@ -279,7 +279,7 @@ Create the three lineage keys that make 1A reproducible and auditable:
 **Storage effect (normative):** Egress & validation datasets **must** partition by `fingerprint={manifest_fingerprint}` (often alongside `seed`).
 
 **Errors (abort S0):**
-`E_ARTIFACT_EMPTY`, `E_ARTIFACT_IO(name,errno)`, `E_ARTIFACT_NONASCII_NAME`, `E_ARTIFACT_DUP_BASENAME`, `E_GIT_BYTES`, `E_PARAM_HASH_ABSENT`.
+`E_ARTIFACT_EMPTY`, `E_ARTIFACT_IO(name,errno)`, `E_ARTIFACT_NONASCII_NAME`, `E_ARTIFACT_DUP_BASENAME`, `E_ARTIFACT_DEP_MISSING(name)`, `E_GIT_BYTES`, `E_PARAM_HASH_ABSENT`.
 
 **Audit rows:**
 `manifest_fingerprint_resolved`: `{ manifest_fingerprint, artifact_count, git_commit_hex, parameter_hash }`.
