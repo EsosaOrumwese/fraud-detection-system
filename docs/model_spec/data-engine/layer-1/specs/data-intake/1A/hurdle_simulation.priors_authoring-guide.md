@@ -97,6 +97,15 @@ For merchant *m* (only if `is_multi=1`):
 * `channel_offsets`
 * `mcc_offsets`
 * `mcc_range_offsets` (recommended)
+* `mom` (required; pinned MOM knobs for dispersion training; see below)
+
+### 4.3.1 Dispersion MOM knobs (PINNED; MUST)
+
+These do not affect corpus generation directly, but they MUST be pinned so the dispersion trainer is deterministic:
+
+* `epsilon` (float > 0) - stability floor in MOM denominator
+* `n_min` (int >= 1) - minimum samples per cell before pooling
+* `cell_weight_rule` (enum) - `"n_cell"` or `"sqrt_n_cell"`
 
 ## 4.4 Corpus generation semantics (PINNED; MUST match runtime intent)
 
@@ -149,7 +158,7 @@ mcc_range_offsets:
 Semantics:
 
 * For a given MCC code, sum the offsets of all ranges that contain it (usually ranges are disjoint).
-* Then apply `mcc_offsets` as explicit overrides (additive or “replace”; choose one and pin it—recommended: additive).
+* Then apply `mcc_offsets` as explicit **additive** overrides (epsilon added to the range-sum; no "replace" mode).
 
 This gives “broad realism” without a huge file.
 
@@ -319,6 +328,11 @@ nb_mean:
 dispersion:
   base_log_phi: 2.90          # ~18.2; calibrated if enabled=true
   gdp_log_slope: 0.08         # richer → slightly higher phi (less dispersion)
+
+  mom:
+    epsilon: 1.0e-6
+    n_min: 30
+    cell_weight_rule: "n_cell"
 
   channel_offsets:
     CP: 0.00
@@ -586,13 +600,23 @@ hurdle_simulation_priors:
     dispersion:
       type: object
       additionalProperties: false
-      required: [base_log_phi, gdp_log_slope, channel_offsets, mcc_offsets]
+      required: [base_log_phi, gdp_log_slope, channel_offsets, mcc_offsets, mom]
       properties:
         base_log_phi: {type: number}
         gdp_log_slope: {type: number}
         channel_offsets: {$ref: '#/$defs/channel_offsets'}
         mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
         mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+        mom:
+          type: object
+          additionalProperties: false
+          required: [epsilon, n_min, cell_weight_rule]
+          properties:
+            epsilon: {type: number, exclusiveMinimum: 0.0}
+            n_min: {type: integer, minimum: 1}
+            cell_weight_rule:
+              type: string
+              enum: ["n_cell", "sqrt_n_cell"]
 
 # ----------------------------
 # B) Training manifest schema

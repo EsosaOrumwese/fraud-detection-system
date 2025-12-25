@@ -159,7 +159,7 @@ Your existing approach is the right one:
 
 1. Define grouping cells by:
 
-* `(mcc, channel, gdp_bucket)` **or** `(mcc, channel)` depending on your trainer; both are valid as long as you define it and keep it fixed.
+* MUST use `(mcc, channel, gdp_bucket)` as the primary grouping cell (no alternate).
 
 2. For each cell, compute:
 
@@ -182,8 +182,8 @@ Your existing approach is the right one:
 
 * if `Var(Y) <= μ + ε`, set `φ_hat = φ_max` (near-Poisson cell)
 * clamp `φ_hat` to `[φ_min, φ_max]` before logging
-* define weights per cell as a deterministic function of cell count (e.g., `w = n_cell` or `w = sqrt(n_cell)`)
-* **Small-cell rule (MUST):** pin a minimum sample count `n_min`. If `n_cell < n_min`, pool the cell into a deterministic parent (e.g., `(mcc, channel)` or global) before computing `var_y` / `φ_hat` to avoid unstable dispersion targets.
+* define weights per cell using `cell_weight_rule` (either `n_cell` or `sqrt_n_cell`)
+* **Small-cell pooling (MUST):** if `n_cell < n_min`, pool deterministically to parent `(mcc, channel)`; if still `< n_min`, pool to global before computing `var_y` and `φ_hat`.
 
 ### Step E — Fit `beta_phi` via weighted ridge on `log(φ_hat)`
 
