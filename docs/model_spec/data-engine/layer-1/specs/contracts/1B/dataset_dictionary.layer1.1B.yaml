@@ -73,7 +73,7 @@ reference_data:
 - id: tz_world_2025a
   status: approved
   owner_subsegment: ingress
-  description: Time-zone polygons used by 1B for civil-time legality checks.
+  description: RESERVED (used later by 2A/2B). Time-zone polygons; provenance-only for 1B v1 (not consumed).
   version: '2025a'
   format: parquet
   path: reference/spatial/tz_world/2025a/tz_world.parquet
@@ -82,7 +82,7 @@ reference_data:
   schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
   lineage:
     produced_by:
-    consumed_by: [1B]
+    consumed_by: []
     final_in_layer: false
   retention_days: 1095
   pii: false
@@ -146,7 +146,7 @@ reference_data:
 - id: s3_candidate_set
   status: approved
   owner_subsegment: 1A
-  description: Sole inter-country order authority (join on candidate_rank; home=0).
+  description: External order authority (candidate_rank; home=0). NOT consumed by 1B v1 states; used only by downstream joins when order is required.
   version: '{parameter_hash}'
   format: parquet
   path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
@@ -155,7 +155,7 @@ reference_data:
   schema_ref: schemas.1A.yaml#/s3/candidate_set
   lineage:
     produced_by: 1A
-    consumed_by: [1B]
+    consumed_by: []
     final_in_layer: false
   retention_days: 365
   pii: false
@@ -492,7 +492,7 @@ policies:
 - id: jitter_policy
   status: approved
   owner_subsegment: 1B
-  description: Jitter σ (deg) policy by latitude band / merchant class (deterministic).
+  description: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class. NOT consumed by 1B v1 uniform lane.
   version: '{policy_version}'
   format: yaml
   path: config/policy/1B.jitter.yaml
@@ -501,7 +501,7 @@ policies:
   schema_ref: schemas.1B.yaml#/policy/jitter_policy
   lineage:
     produced_by: 1B.policy
-    consumed_by: [1B]
+    consumed_by: []
     final_in_layer: false
   retention_days: 30
   pii: false

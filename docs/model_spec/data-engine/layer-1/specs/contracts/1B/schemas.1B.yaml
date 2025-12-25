@@ -52,7 +52,7 @@ model: {}
 policy:
   jitter_policy:
     type: object
-    description: "Deterministic per-latitude σ policy (degrees) used by S6."
+    description: "RESERVED (VNext). Deterministic per-latitude σ policy (degrees) for a future Gaussian jitter lane. NOT used by 1B v1 uniform lane."
     required: [policy_version, bands]
     additionalProperties: false
     properties:
