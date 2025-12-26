@@ -221,7 +221,7 @@ datasets:
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
   path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, manifest_fingerprint]
+  partitioning: [seed, fingerprint]
   ordering: [merchant_id, legal_country_iso]
   schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
   lineage:

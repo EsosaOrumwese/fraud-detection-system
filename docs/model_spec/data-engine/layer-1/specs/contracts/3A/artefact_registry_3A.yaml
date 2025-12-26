@@ -76,7 +76,13 @@ subsegments:
     manifest_key: mlr.3A.s0_gate_receipt
     license: Proprietary-Internal
     role: Gate descriptor referencing upstream PASS bundles and sealed policies.
-    dependencies: [mlr.1A.validation.bundle, mlr.1B.validation.bundle, mlr.2A.validation.bundle]
+    dependencies:
+      - mlr.1A.validation.bundle
+      - mlr.1A.validation.passed
+      - mlr.1B.validation.bundle
+      - mlr.1B.validation.passed
+      - mlr.2A.validation.bundle
+      - mlr.2A.validation.passed
     source: internal
     owner: {owner_team: "mlr-3a-core"}
     last_updated: '{iso8601_timestamp}'
@@ -117,7 +123,7 @@ subsegments:
     manifest_key: mlr.3A.s1.escalation_queue
     license: Proprietary-Internal
     role: Escalation decisions and totals per merchant×country.
-    dependencies: [mlr.3A.s0_gate_receipt, mlr.1A.outlet_catalogue, mlr.ingress.iso3166_canonical_2024, mlr.ingress.tz_world_2025a]
+    dependencies: [mlr.3A.s0_gate_receipt, mlr.1A.output.outlet_catalogue, mlr.ingress.iso3166_canonical_2024, mlr.ingress.tz_world_2025a]
     source: internal
     owner: {owner_team: "mlr-3a-core"}
     last_updated: '{iso8601_timestamp}'
@@ -306,14 +312,14 @@ subsegments:
     cross_layer: true
     notes:
 
-  - name: passed_flag_3A
+  - name: _passed.flag_3A
     path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
     type: dataset
     category: validation
     semver: '1.0.0'
     version: '{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.3A.validation.passed
+    manifest_key: mlr.3A._passed.flag_3A
     license: Proprietary-Internal
     role: HashGate PASS flag (SHA-256 over bundle members, ASCII-lex order).
     dependencies: [mlr.3A.validation.bundle]

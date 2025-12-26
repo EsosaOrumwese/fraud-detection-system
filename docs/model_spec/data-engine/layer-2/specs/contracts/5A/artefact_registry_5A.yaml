@@ -24,7 +24,7 @@ subsegments:
           - mlr.2B.validation.bundle
           - mlr.2B.validation.passed_flag
           - mlr.3A.validation.bundle
-          - mlr.3A.validation.passed_flag
+          - mlr.3A._passed.flag_3A
           - mlr.3B.validation.bundle
           - mlr.3B.validation.passed_flag
         source: internal

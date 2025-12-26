@@ -139,14 +139,14 @@ subsegments:
         cross_layer: true
         notes: null
 
-      - name: passed_flag_3A
+      - name: _passed.flag_3A
         path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
         type: file
         category: validation
         semver: "{semver}"
         version: "{manifest_fingerprint}"
         digest: "{sha256}"
-        manifest_key: mlr.3A.validation.passed
+        manifest_key: mlr.3A._passed.flag_3A
         license: Proprietary-Internal
         role: "`_passed.flag` for the 3A bundle; mandatory before any 3B read."
         dependencies: [ validation_bundle_3A ]
