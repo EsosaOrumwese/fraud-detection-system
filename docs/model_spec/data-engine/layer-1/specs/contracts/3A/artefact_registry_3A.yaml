@@ -303,7 +303,18 @@ subsegments:
     manifest_key: mlr.3A.validation.bundle
     license: Proprietary-Internal
     role: Fingerprint-scoped validation bundle listing all 3A artefacts.
-    dependencies: [mlr.3A.s0_gate_receipt, mlr.3A.sealed_inputs, mlr.3A.zone_alloc, mlr.3A.zone_alloc_universe_hash, mlr.3A.s6.validation_report]
+    dependencies:
+      - mlr.3A.s0_gate_receipt
+      - mlr.3A.sealed_inputs
+      - mlr.3A.s1.escalation_queue
+      - mlr.3A.s2.country_zone_priors
+      - mlr.3A.s3.zone_shares
+      - mlr.3A.s4.zone_counts
+      - mlr.3A.zone_alloc
+      - mlr.3A.zone_alloc_universe_hash
+      - mlr.3A.s6.validation_report
+      - mlr.3A.s6.issues
+      - mlr.3A.s6.receipt
     source: internal
     owner: {owner_team: "mlr-3a-core"}
     last_updated: '{iso8601_timestamp}'
@@ -321,7 +332,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.3A._passed.flag_3A
     license: Proprietary-Internal
-    role: HashGate PASS flag (SHA-256 over bundle members, ASCII-lex order).
+    role: HashGate PASS flag (SHA-256 over concat(index.members[*].sha256_hex) in canonical member order).
     dependencies: [mlr.3A.validation.bundle]
     source: internal
     owner: {owner_team: "mlr-3a-core"}

@@ -458,7 +458,7 @@ Identity and cardinality:
 
 ` s1_escalation_queue` is a seed/fingerprint-scoped planning dataset:
 
-* Partition key set: `["seed", "manifest_fingerprint"]`.
+* Partition key set: `["seed", "fingerprint"]`.
 
 * Path pattern (conceptual; final form in the dictionary):
 
@@ -466,9 +466,9 @@ Identity and cardinality:
   data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/...
   ```
 
-* The embedded `manifest_fingerprint` and `seed` columns (see below) MUST equal the corresponding path tokens (path↔embed equality).
+* The embedded `fingerprint` and `seed` columns (see below) MUST equal the corresponding path tokens (path↔embed equality).
 
-* There MUST be at most one partition for each `{seed, manifest_fingerprint}`.
+* There MUST be at most one partition for each `{seed, fingerprint}`.
 
 #### 4.2.3 Required columns & meaning
 
@@ -477,7 +477,7 @@ At minimum, each row in `s1_escalation_queue` MUST contain:
 * **Lineage / partitions**
 
   * `seed` — Layer-1 run seed (`uint64` via `schemas.layer1.yaml`), identical across all rows in this partition.
-  * `manifest_fingerprint` — `hex64`, identical across all rows in this partition.
+  * `fingerprint` — `hex64`, identical across all rows in this partition.
 
 * **Identity**
 
@@ -675,7 +675,7 @@ datasets:
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, manifest_fingerprint]
+    partitioning: [seed, fingerprint]
     ordering: [merchant_id, legal_country_iso]
     schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
     lineage:
@@ -690,7 +690,7 @@ Binding points:
 
 * **`id`** MUST be `"s1_escalation_queue"`; no other dataset may reuse this ID.
 * **`path`** MUST contain both `seed={seed}` and `fingerprint={manifest_fingerprint}` tokens and no additional partition tokens.
-* **`partitioning`** MUST be exactly `["seed", "manifest_fingerprint"]`; the `fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
+* **`partitioning`** MUST be exactly `["seed", "fingerprint"]`; the `fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
 * **`schema_ref`** MUST point to `schemas.3A.yaml#/plan/s1_escalation_queue`.
 * **`ordering`** expresses the writer-sort key; readers MUST NOT assign semantics to physical file order beyond reproducibility.
 
@@ -1126,14 +1126,14 @@ There MUST NOT be duplicates of this pair.
 
 ### 7.2 Partitions & path tokens
 
-` s1_escalation_queue` is a **plan** dataset keyed by both `seed` and `manifest_fingerprint`.
+` s1_escalation_queue` is a **plan** dataset keyed by both `seed` and `fingerprint`.
 
 **Partition key set**
 
 * Partition keys MUST be exactly:
 
   ```text
-  ["seed", "manifest_fingerprint"]
+  ["seed", "fingerprint"]
   ```
 
 No additional partition keys (e.g. `parameter_hash`, `run_id`) are allowed for this dataset.
