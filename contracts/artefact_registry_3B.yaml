@@ -116,7 +116,7 @@ subsegments:
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.2A.yaml#/validation/passed_flag
         cross_layer: true
         notes: null
 
@@ -194,7 +194,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.3B.yaml#/policy/virtual_rules_policy_v1
         cross_layer: true
         notes: null
 
@@ -233,7 +233,7 @@ subsegments:
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.3B.yaml#/policy/cdn_country_weights_v1
         cross_layer: true
         notes: null
 
@@ -272,7 +272,7 @@ subsegments:
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.3B.yaml#/reference/virtual_settlement_coords_v1
         cross_layer: true
         notes: null
 
@@ -311,7 +311,7 @@ subsegments:
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.ingress.layer1.yaml#/population_raster
         cross_layer: true
         notes: null
 
@@ -331,7 +331,7 @@ subsegments:
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.3B.yaml#/policy/virtual_validation_policy_v1
         cross_layer: false
         notes: null
 

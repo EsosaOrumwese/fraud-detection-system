@@ -123,7 +123,7 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
-- id: pelias_cached_bundle
+- id: pelias_cached_sqlite
   status: approved
   owner_subsegment: ingress
   description: Offline Pelias SQLite bundle used to validate settlement evidence URLs.
