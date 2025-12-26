@@ -10,7 +10,7 @@ This policy is sealed by **3A.S0** (and therefore contributes to `parameter_hash
 
 ## 1) File identity (MUST)
 
-* **Artefact name (registry):** `zone_mixture_policy`
+* **Artefact name (registry):** `zone_mixture_policy_3A`
 * **Path:** `config/policy/3A/zone_mixture_policy.yaml`
 * **Schema authority:** `schemas.3A.yaml#/policy/zone_mixture_policy_v1`
 * **Token-less posture:** do **not** embed any digest inside the file; digest is tracked by the S0 sealing inventory.
@@ -33,6 +33,11 @@ Top-level object with **exactly** these keys (schema is `additionalProperties: f
 `theta_mix` is the **mixing rate** used by S1 for *eligible* pairs:
 
 * When a pair passes all **monolithic guard rules**, S1 computes a **deterministic** `u_det ∈ (0,1)` from `(merchant_id, legal_country_iso, parameter_hash)` and applies:
+
+**Pinned u_det law (MUST; decision-free):**
+* `msg = UTF8("3A.S1.theta_mix|" + merchant_id + "|" + legal_country_iso + "|" + parameter_hash_hex)`
+* `x = first_8_bytes(SHA256(msg))` interpreted as uint64 big-endian
+* `u_det = (x + 0.5) / 2^64`  (open interval)
 
 * If `u_det < theta_mix` ⇒ `is_escalated = true`, `decision_reason = "default_escalation"`
 

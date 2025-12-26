@@ -33,7 +33,7 @@ For each country entry:
 * `tzid_alphas` : array of objects, each with:
 
   * `tzid` : IANA tzid (string)
-  * `alpha` : number, `>= 0.0`
+  * `alpha` : number, `> 0.0`
 
 Optional per-country key:
 
@@ -104,7 +104,7 @@ For each `(c, z)` where `z ∈ Z(c)`:
 
 Rules:
 
-* Treat raster `nodata` as zero.
+* Ignore raster NoData cells (equivalently: treat NoData contribution as 0 in the sum; do not rewrite the raster).
 * Clamp negative raster values (e.g. -1 nodata) to zero before summing.
 * If `pop(c,z) == 0` due to resolution/coverage limits, mark as “pop_missing” for that zone.
 

@@ -174,6 +174,7 @@ Codex MUST fail closed if any of these fail:
 ### 5.2 Non-degeneracy
 
 * At least **50 tzids** have `floor_value ≥ 0.05` (ensures meaningful mass exists)
+* At least **200 tzids** have `floor_value > 0.0` (prevents near-all-zero toy floors)
 * At least **two distinct** `bump_threshold` values exist, and:
 
   * ≥ 10% of tzids have `bump_threshold == 0.60`
