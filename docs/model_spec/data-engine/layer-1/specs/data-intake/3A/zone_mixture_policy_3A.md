@@ -10,7 +10,7 @@ This policy is sealed by **3A.S0** (and therefore contributes to `parameter_hash
 
 ## 1) File identity (MUST)
 
-* **Artefact name (registry):** `zone_mixture_policy_3A`
+* **Artefact name (registry):** `zone_mixture_policy`
 * **Path:** `config/policy/3A/zone_mixture_policy.yaml`
 * **Schema authority:** `schemas.3A.yaml#/policy/zone_mixture_policy_v1`
 * **Token-less posture:** do **not** embed any digest inside the file; digest is tracked by the S0 sealing inventory.
