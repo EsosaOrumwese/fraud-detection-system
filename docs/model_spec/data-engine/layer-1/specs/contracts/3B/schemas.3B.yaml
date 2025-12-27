@@ -66,6 +66,11 @@ reference:
       licence:    { type: string }
       notes:      { type: string }
 
+  cdn_weights_ext_yaml_v1:
+    type: object
+    additionalProperties: true
+    description: "Raw external CDN weights YAML. Lightly validated; shaping into `cdn_country_weights` applies strict schema."
+
 validation:
   s0_gate_receipt_3B:
     type: object

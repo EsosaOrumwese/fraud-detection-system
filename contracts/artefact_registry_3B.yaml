@@ -200,22 +200,22 @@ subsegments:
 
       # split external weights vs internal wrapper (licensing clarity)
       - name: cdn_weights_ext_yaml
-        path: artefacts/external/cdn_country_weights.yaml
+        path: artefacts/external/cdn_weights_ext.yaml
         type: dataset
-        category: external_data
+        category: reference
         semver: "{semver}"
-        version: "{vintage}"
+        version: "{data_version}"
         digest: "{sha256}"
-        manifest_key: mlr.3B.external.cdn_country_weights
-        license: CC-BY-4.0
-        role: Stationary CDN edge weights (Akamai SOTI).
-        dependencies: [ ]
+        manifest_key: mlr.3B.ref.cdn_weights_ext_yaml
+        license: "{spdx_or_internal}"
+        role: Raw external CDN weights YAML (frozen bytes) used to derive `cdn_country_weights`.
+        dependencies: []
         source: external
-        owner: { data_governance_team }
+        owner: { owner_team: "data-governance" }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
-        cross_layer: true
+        schema: schemas.3B.yaml#/reference/cdn_weights_ext_yaml_v1
+        cross_layer: false
         notes: null
 
       - name: cdn_country_weights

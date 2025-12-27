@@ -200,6 +200,24 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+- id: cdn_weights_ext_yaml
+  status: approved
+  owner_subsegment: ingress
+  description: Raw external CDN weights YAML (frozen bytes) used to derive `cdn_country_weights`.
+  version: '{data_version}'
+  format: yaml
+  path: artefacts/external/cdn_weights_ext.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/reference/cdn_weights_ext_yaml_v1
+  lineage:
+    produced_by: external
+    consumed_by: [3B.S1]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: pelias_cached_sqlite
   status: approved
   owner_subsegment: ingress
