@@ -578,3 +578,12 @@ policy:
       ip_country_tolerance: { type: number, minimum: 0.0 }
       cutoff_tolerance_seconds: { type: integer, minimum: 0 }
       notes: { type: string }
+
+  cdn_key_digest_v1:
+    type: object
+    additionalProperties: false
+    required: [version, cdn_key_digest]
+    properties:
+      version: { type: string }
+      cdn_key_digest: { $ref: '#/$defs/hex64' }
+      notes: { type: string }

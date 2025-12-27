@@ -291,7 +291,7 @@ subsegments:
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.3B.yaml#/reference/pelias_cached_bundle_v1
         cross_layer: true
         notes: null
 
