@@ -396,45 +396,43 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: routing_day_effect
-        path: config/routing/routing_day_effect.yml
-        type: config
-        category: routing
+      - name: day_effect_policy_v1
+        path: contracts/policy/2B/day_effect_policy_v1.json
+        type: policy
+        category: policy
         semver: "{semver}"
-        version: "{config_version}"
+        version: "{policy_version}"
         digest: "{sha256}"
-        manifest_key: mlr.2B.config.routing_day_effect
-        license: "{spdx_or_internal}"
-        role: σ² for daily γ_d (shared from 2B/3A).
+        manifest_key: mlr.2B.policy.day_effect_v1
+        license: Proprietary-Internal
+        role: Daily modulation cadence/variance/clipping (shared policy; used by 3B gamma/day-effect draws).
         dependencies: []
         source: internal
-        owner: { platform_team }
+        owner: { owner_team: "l1-2b-governance" }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.2B.yaml#/policy/day_effect_policy_v1
         cross_layer: true
         notes: null
-
-      - name: performance_config
-        path: config/routing/performance.yml
-        type: config
-        category: performance
+      - name: alias_layout_policy_v1
+        path: contracts/policy/2B/alias_layout_policy_v1.json
+        type: policy
+        category: policy
         semver: "{semver}"
-        version: "{config_version}"
+        version: "{policy_version}"
         digest: "{sha256}"
-        manifest_key: mlr.2B.config.performance
-        license: "{spdx_or_internal}"
-        role: Throughput & memory SLA thresholds (reused by 3B metrics).
+        manifest_key: mlr.2B.policy.alias_layout_v1
+        license: Proprietary-Internal
+        role: Alias table byte layout, endianness & alignment (shared policy; used by 3B edge alias blob/index).
         dependencies: []
         source: internal
-        owner: { platform_team }
+        owner: { owner_team: "l1-2b-governance" }
         last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
+        environment: [ runtime ]
+        schema: schemas.2B.yaml#/policy/alias_layout_policy_v1
         cross_layer: true
         notes: null
 
-      # 7 EDGE‑CATALOGUE DERIVED ARTEFACTS
       - name: edge_catalogue_pattern
         path: artefacts/virtual/edge_catalogue/{merchant_id}_edges.parquet
         type: dataset
@@ -547,7 +545,7 @@ subsegments:
         manifest_key: mlr.3B.log.gamma_draw
         license: "{spdx_or_internal}"
         role: Per-merchant draw record (Philox key/counter, day_index, gamma_value).
-        dependencies: [ gamma_draw_schema, routing_day_effect ]
+        dependencies: [ gamma_draw_schema, day_effect_policy_v1 ]
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
@@ -621,7 +619,10 @@ subsegments:
           - pelias_cached_sqlite
           - virtual_settlement_coords
           - edge_catalogue_schema
-          - rng_policy
+          - route_rng_policy_v1
+          - day_effect_policy_v1
+          - alias_layout_policy_v1
+          - cdn_key_digest
           - civil_time_manifest
         source: internal
         owner: { platform_team }
@@ -643,7 +644,7 @@ subsegments:
         role: Composite SHA‑256 tying 3B to upstream & governed artefacts.
         dependencies:
           - virtual_manifest
-          - rng_policy
+          - route_rng_policy_v1
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -923,7 +924,7 @@ subsegments:
         manifest_key: mlr.3B.metrics.edge_sampler
         license: "{spdx_or_internal}"
         role: Samples/sec and memory footprint of edge sampler.
-        dependencies: [ performance_config ]
+        dependencies: []
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
@@ -1011,25 +1012,43 @@ subsegments:
         notes: null
 
       # additional artefacts
-      - name: rng_policy
-        path: config/routing/rng_policy.yml
+      - name: route_rng_policy_v1
+        path: contracts/policy/2B/route_rng_policy_v1.json
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.policy.route_rng_v1
+        license: Proprietary-Internal
+        role: Philox sub-stream layout & budgets for routing + CDN alias streams (shared policy).
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2B.yaml#/policy/route_rng_policy_v1
+        cross_layer: true
+        notes: null
+
+      - name: cdn_key_digest
+        path: config/virtual/cdn_key_digest.yaml
         type: config
-        category: routing
+        category: policy
         semver: "{semver}"
         version: "{config_version}"
         digest: "{sha256}"
-        manifest_key: mlr.2B.config.rng_policy
-        license: "{spdx_or_internal}"
-        role: Cross-layer RNG policy (SHA-256 keyed Philox) for CDN alias stream keying.
-        dependencies: [ ]
+        manifest_key: mlr.3B.config.cdn_key_digest
+        license: Proprietary-Internal
+        role: Key-material digest used for virtual edge RNG domain separation; sealed by 3B.S0.
+        dependencies: []
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
-        cross_layer: true
+        schema: schemas.3B.yaml#/policy/cdn_key_digest_v1
+        cross_layer: false
         notes: null
-
       - name: edge_catalogue_schema
         path: schema/edge_catalogue.schema.json
         type: schema
