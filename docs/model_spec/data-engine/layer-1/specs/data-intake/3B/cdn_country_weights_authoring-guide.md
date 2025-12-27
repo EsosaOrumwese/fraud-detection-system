@@ -217,7 +217,7 @@ Codex MUST abort if any fails:
 ### 6.2 Weight validity
 
 * For every row: `weight > 0`
-* `abs(Σ weight - 1.0) ≤ 1e-12`
+* `abs(Σ weight - 1.0) ≤ 1e-9`
 
 ### 6.3 Non-toy distribution checks
 

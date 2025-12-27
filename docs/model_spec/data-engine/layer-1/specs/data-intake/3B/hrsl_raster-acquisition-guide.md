@@ -24,7 +24,8 @@ Source posture: Meta+CIESIN HRSL (public, CC-BY-4.0) hosted as Cloud-Optimized G
 * Pixel values represent **estimated number of people per pixel** (population counts, not density per km²).
 * CRS MUST be **WGS84 / EPSG:4326**.
 * Values MUST be **non-negative**.
-* NoData MUST be defined (recommended: `0`).
+* NoData MUST be defined and MUST equal `0` for this sampling surface (modelling convention: "unknown/uninhabited → zero mass").
+  This is not claiming upstream NoData semantics are preserved; it is a pinned engine sampling convention.
 
 ---
 
