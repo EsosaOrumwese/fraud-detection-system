@@ -139,6 +139,9 @@ policy:
   demand_scale_policy_5A:
     type: object
     additionalProperties: true
+  baseline_intensity_policy_5A:
+    type: object
+    additionalProperties: true
   shape_library_5A:
     type: object
     additionalProperties: true

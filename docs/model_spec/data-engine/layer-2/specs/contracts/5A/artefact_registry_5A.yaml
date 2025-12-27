@@ -159,7 +159,7 @@ subsegments:
         name: Layer-2 / 5A scenario calendar
         type: dataset
         category: config
-        path: data/layer2/5A/scenario/calendar/fingerprint={manifest_fingerprint}/scenario={scenario_id}/scenario_calendar_5A.parquet
+        path: config/layer2/5A/scenario/calendar/fingerprint={manifest_fingerprint}/scenario={scenario_id}/scenario_calendar_5A.parquet
         schema: schemas.5A.yaml#/scenario/scenario_calendar_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
