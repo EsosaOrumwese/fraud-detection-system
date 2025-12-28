@@ -91,13 +91,13 @@
 
 2.2.2 For each segment above, S0 MUST:
 
-* locate the segment’s `validation_bundle_*` directory and `_passed.flag_*` artefact via the dataset dictionary and artefact registry;
+* locate the segment’s `validation_bundle_*` directory and `_passed.flag` artefact via the dataset dictionary and artefact registry;
 * recompute (or delegate to a shared HashGate utility) the bundle digest exactly as defined in that segment’s spec;
-* assert that the recomputed digest matches the bytes recorded in `_passed.flag_*` for the same `manifest_fingerprint`.
+* assert that the recomputed digest matches the bytes recorded in `_passed.flag` for the same `manifest_fingerprint`.
 
 2.2.3 If any mandatory upstream segment:
 
-* is missing its validation bundle or `_passed.flag_*` for the target `manifest_fingerprint`, or
+* is missing its validation bundle or `_passed.flag` for the target `manifest_fingerprint`, or
 * has a bundle digest that does not match the recorded flag,
 
 then S0 MUST fail with a FATAL upstream-gate error and MUST NOT proceed to seal any 3B inputs.
@@ -392,7 +392,7 @@ They MUST, however, treat `s0_gate_receipt_3B` and `sealed_inputs_3B` as the **o
 each of which MUST contain at least:
 
 * `bundle_path` (relative or absolute path to the upstream validation bundle),
-* `flag_path` (path to the upstream `_passed.flag_*` artefact),
+* `flag_path` (path to the upstream `_passed.flag` artefact),
 * `sha256_hex` (the recomputed bundle digest),
 * `status` (enumeration: `"PASS"` or `"FAIL"`).
 
@@ -747,9 +747,9 @@ MUST be treated as a breaking change to the 3B.S0 contract and MUST be accompani
 1. Use the segment’s dataset dictionary and artefact registry to resolve:
 
    * `validation_bundle_seg@fingerprint={manifest_fingerprint}`, and
-   * `passed_flag_seg@fingerprint={manifest_fingerprint}` (file `_passed.flag` for each upstream segment).
+   * `validation_passed_flag_<SEG>@fingerprint={manifest_fingerprint}` (file `_passed.flag` for each upstream segment).
 
-2. Open `passed_flag_seg` and parse the expected bundle digest (e.g. `sha256_hex = <digest>`).
+2. Open `validation_passed_flag_<SEG>` and parse the expected bundle digest (e.g. `sha256_hex = <digest>`).
 
 3. Call a shared **HashGate** routine with the bundle root to:
 
@@ -757,7 +757,7 @@ MUST be treated as a breaking change to the 3B.S0 contract and MUST be accompani
    * verify each indexed file’s `sha256_hex` matches the actual file bytes,
    * recompute the **bundle digest** from the index and file contents according to the segment’s bundle law.
 
-4. Compare the recomputed digest with the value recorded in `passed_flag_seg`.
+4. Compare the recomputed digest with the value recorded in `validation_passed_flag_<SEG>`.
 
 6.3.2 If any of the following holds for a segment `seg`, S0 MUST mark `upstream_gates.segment_seg.status = "FAIL"` and MUST abort the run:
 
@@ -1123,7 +1123,7 @@ Where there is any conflict between this section and the JSON-Schema / dataset d
 
 * **Upstream gates**
   d. For each of 1A, 1B, 2A and 3A, S0 successfully resolves the segment’s validation bundle and PASS flag for `manifest_fingerprint`.
-  e. The recomputed bundle digest matches the value in each `_passed.flag_*`.
+  e. The recomputed bundle digest matches the value in each `_passed.flag`.
   f. `upstream_gates.segment_1A/1B/2A/3A.status` are all `"PASS"` in `s0_gate_receipt_3B`.
 
 * **Catalogue and schema resolution**
@@ -1336,7 +1336,7 @@ Raised when the validation bundle for 1A, 1B, 2A or 3A cannot be resolved for th
   * Rerun the missing upstream segment; fix retention policies.
 
 9.3.2 **E3B_S0_UPSTREAM_FLAG_MISSING** *(FATAL)*
-Raised when the `_passed.flag_*` artefact for an upstream segment cannot be resolved.
+Raised when the `_passed.flag` artefact for an upstream segment cannot be resolved.
 
 * Typical triggers:
 
@@ -1347,7 +1347,7 @@ Raised when the `_passed.flag_*` artefact for an upstream segment cannot be reso
   * Rerun upstream validation; ensure bundle+flag are written atomically.
 
 9.3.3 **E3B_S0_UPSTREAM_HASH_MISMATCH** *(FATAL)*
-Raised when the recomputed bundle digest for an upstream segment does not match the digest recorded in `_passed.flag_*`.
+Raised when the recomputed bundle digest for an upstream segment does not match the digest recorded in `_passed.flag`.
 
 * Typical triggers:
 
@@ -2167,7 +2167,7 @@ MUST be treated as layer-level changes. S0 MUST:
 * **`zone_alloc_universe_hash`**
   3A validation artefact; fingerprint-scoped JSON summarising component digests and the combined `routing_universe_hash`.
 
-* **`validation_bundle_*` / `_passed.flag_*`**
+* **`validation_bundle_*` / `_passed.flag`**
   Segment-level validation bundle and PASS flag for upstream segments (1A, 1B, 2A, 3A). S0 verifies these but does not create them.
 
 * **`s0_gate_receipt_3B`**

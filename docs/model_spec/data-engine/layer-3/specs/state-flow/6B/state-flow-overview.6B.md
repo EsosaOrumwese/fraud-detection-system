@@ -13,7 +13,7 @@ Segment 6B builds behaviour and labels. It gates upstream worlds, attaches arriv
 
 ## S0 - Gate & sealed inputs (RNG-free)
 **Purpose & scope**  
-Verify upstream `_passed.flag_*` (1A-3B, 5A, 5B, 6A) for the target `manifest_fingerprint`; seal the artefacts 6B may read.
+Verify upstream `_passed.flag` (1A-3B, 5A, 5B, 6A) for the target `manifest_fingerprint`; seal the artefacts 6B may read.
 
 **Preconditions & gates**  
 Upstream bundles/flags must match; Layer-3 schemas/dictionary/registry present; identities `{seed, parameter_hash, manifest_fingerprint}` fixed.

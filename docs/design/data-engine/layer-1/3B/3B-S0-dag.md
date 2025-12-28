@@ -151,8 +151,8 @@ schemas.layer1.yaml
                     - For each upstream segment seg ∈ {1A,1B,2A,3A}:
                         1. Use that segment’s dictionary + registry to resolve:
                                validation_bundle_seg@fingerprint={manifest_fingerprint},
-                               passed_flag_seg@fingerprint={manifest_fingerprint}.
-                        2. Open passed_flag_seg and parse expected bundle digest:
+                               validation_passed_flag_<SEG>@fingerprint={manifest_fingerprint}.
+                        2. Open validation_passed_flag_<SEG> and parse expected bundle digest:
                                `sha256_hex = <digest_hex>`.
                         3. Call a shared HashGate routine on validation_bundle_seg:
                                - reconstruct bundle index,

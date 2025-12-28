@@ -2404,7 +2404,7 @@ Memory footprint is then roughly:
 * S0 contracts (`s0_gate_receipt_3B`, `sealed_inputs_3B`);
 * S1–S4 contracts and artefacts (they’re inputs to S5);
 * Layer-1 RNG governance or RNG log schemas (owned by layer-wide RNG spec);
-* The Layer-1–wide validation harness (4A/4B) and any global `_passed.flag_*L1` — those are separate segments/states built on top of S5.
+* The Layer-1–wide validation harness (4A/4B) and any global `_passed.flagL1` — those are separate segments/states built on top of S5.
 
 ---
 

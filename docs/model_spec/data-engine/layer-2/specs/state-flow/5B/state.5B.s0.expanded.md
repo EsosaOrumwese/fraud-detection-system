@@ -18,7 +18,7 @@ For a given `(parameter_hash, manifest_fingerprint)` it:
   * Layer-1: **1A–3B** (merchant world, site geometry, civil time, routing, zones, virtual overlay), and
   * Layer-2: **5A** (scenario-aware intensity surfaces)
 
-  – have successfully completed and published their own validation bundles and `_passed.flag_*` artefacts for the same `manifest_fingerprint`.
+  – have successfully completed and published their own validation bundles and `_passed.flag` artefacts for the same `manifest_fingerprint`.
 
 * **Pins the 5B input universe**
   Resolves and records the **exact set of artefacts** that 5B is allowed to read for this world, across:
@@ -44,7 +44,7 @@ For a given `(parameter_hash, manifest_fingerprint)` it:
 * **Establish a clear trust boundary for 5B**
 
   * Enforce **“No upstream PASS → No 5B read”** for the set of required upstream segments (at minimum 1A–3B and 5A for the same `manifest_fingerprint`).
-  * Refuse to proceed if any required upstream validation bundle or `_passed.flag_*` is missing, structurally invalid, or digest-mismatched according to that segment’s hashing law.
+  * Refuse to proceed if any required upstream validation bundle or `_passed.flag` is missing, structurally invalid, or digest-mismatched according to that segment’s hashing law.
 
 * **Define a sealed input universe for 5B**
 
@@ -78,7 +78,7 @@ The following activities are **in scope** for 5B.S0 and MUST be handled by this 
   * For each required upstream segment (1A, 1B, 2A, 2B, 3A, 3B, 5A), re-verifying that for the target `manifest_fingerprint`:
 
     * its validation bundle root exists and is schema-valid,
-    * its `_passed.flag_*` artefact is present and structurally valid, and
+    * its `_passed.flag` artefact is present and structurally valid, and
     * the flag’s digest matches the bundle contents according to that segment’s own hashing law.
 
 * **Catalogue-driven input discovery**
@@ -264,8 +264,8 @@ For each of these segments, the gate state MUST enforce the upstream **“No PAS
 * For the target `manifest_fingerprint`, the following MUST all hold for each required upstream segment:
 
   1. A **validation bundle directory** exists at the catalogue-resolved location for that segment and fingerprint.
-  2. A **`_passed.flag_*`** file exists in that directory and is structurally valid (exact expected format for that segment).
-  3. The digest recorded in `_passed.flag_*` matches the contents of the bundle according to that segment’s own hashing law.
+  2. A **`_passed.flag`** file exists in that directory and is structurally valid (exact expected format for that segment).
+  3. The digest recorded in `_passed.flag` matches the contents of the bundle according to that segment’s own hashing law.
   4. No additional or missing files are present relative to that segment’s declared bundle index, unless explicitly permitted by that segment’s spec.
 
 * If any of these conditions fail for any required upstream segment, this gate state MUST:
@@ -386,7 +386,7 @@ If any of these disagree at runtime, this state MUST treat that as a catalogue/c
 For each required upstream segment (1A, 1B, 2A, 2B, 3A, 3B, 5A), 5B.S0 MAY read:
 
 * The **validation bundle index** and constituent files for the target `manifest_fingerprint`.
-* The corresponding **`_passed.flag_*`** artefact.
+* The corresponding **`_passed.flag`** artefact.
 
 Usage constraints:
 
@@ -1137,7 +1137,7 @@ Throughout Steps 0–5, implementations of 5B.S0 MUST NOT:
 * call or consume any RNG stream;
 * emit any RNG events or modify RNG traces;
 * read data-plane tables at row level (except upstream `sealed_inputs_*` tables and small 5B config tables);
-* alter or rewrite upstream validation bundles or `_passed.flag_*` files;
+* alter or rewrite upstream validation bundles or `_passed.flag` files;
 * alter or rewrite any upstream `sealed_inputs_*` tables;
 * widen the input universe beyond what is present in dictionaries/registries and upstream sealed manifests.
 
@@ -1339,7 +1339,7 @@ For a given `(parameter_hash = ph, manifest_fingerprint = mf, seed, run_id, scen
    For every upstream segment in the required set `{1A, 1B, 2A, 2B, 3A, 3B, 5A}`:
 
    * The segment’s validation bundle for `mf` was located via catalogue.
-   * Its `_passed.flag_*` was read and parsed successfully.
+   * Its `_passed.flag` was read and parsed successfully.
    * The digest in the flag exactly matched a recomputation of the bundle digest using that segment’s own hashing law.
    * The in-memory `upstream_segments[seg].status` is `"PASS"`.
 
@@ -1433,7 +1433,7 @@ If such a partial state is detected (e.g. from a previous failed attempt), a sub
 
    * No consumption of upstream data-plane artefacts (even at metadata level) is permitted until:
 
-     * all required upstream `_passed.flag_*` artefacts have been successfully re-verified for `mf`, and
+     * all required upstream `_passed.flag` artefacts have been successfully re-verified for `mf`, and
      * `upstream_segments[seg].status == "PASS"` for every required `seg`.
 
 2. **Closed-world completeness gate**
@@ -1535,13 +1535,13 @@ Downstream tooling and later 5B states MUST rely on these codes (not ad-hoc stri
 #### (B) Upstream gates
 
 3. **`5B.S0.UPSTREAM_GATE_MISSING`**
-   Raised when a required upstream segment (1A–3B or 5A) does not expose a validation bundle and/or `_passed.flag_*` for `mf` at the location indicated by its own dictionary/registry.
+   Raised when a required upstream segment (1A–3B or 5A) does not expose a validation bundle and/or `_passed.flag` for `mf` at the location indicated by its own dictionary/registry.
 
 4. **`5B.S0.UPSTREAM_GATE_MISMATCH`**
    Raised when a required upstream segment exposes a validation bundle + flag for `mf`, but:
 
    * the flag cannot be parsed, or
-   * recomputing the bundle digest does not match the value in `_passed.flag_*`.
+   * recomputing the bundle digest does not match the value in `_passed.flag`.
 
 In both cases, S5 MUST set `upstream_segments[seg].status = "FAIL" | "MISSING"` and MUST abort before attempting to construct `sealed_inputs_5B`.
 
@@ -2012,7 +2012,7 @@ Whenever such changes are needed, they MUST be accompanied by:
 * As long as:
 
   * their dictionaries/registries remain compatible, and
-  * their bundles still expose `_passed.flag_*` with stable hashing semantics,
+  * their bundles still expose `_passed.flag` with stable hashing semantics,
 * S5 does not need a version bump when upstream segments change their internal specs.
 
 If an upstream segment changes its validation bundle/flag format in a way that breaks S5’s ability to re-hash, then:
@@ -2107,7 +2107,7 @@ This appendix collects the short-hands used in the **5B.S0 — Gate & sealed inp
 
 ### 13.3 Status & flags
 
-* **`_passed.flag_*`**
+* **`_passed.flag`**
   Upstream segment-level PASS flag (1A–3B, 5A) as defined in those segments’ specs. 5B.S0 re-hashes bundles to verify these flags.
 
 * **`upstream_segments`**
@@ -2147,7 +2147,7 @@ This appendix collects the short-hands used in the **5B.S0 — Gate & sealed inp
   * `DATASET` — data-plane table or log in the lake.
   * `CONFIG` / `POLICY` — small configuration or policy object.
   * `VALIDATION_BUNDLE` — folder containing validation evidence.
-  * `FLAG` — `_passed.flag_*` file.
+  * `FLAG` — `_passed.flag` file.
   * `LOG` — structured log stream (if ever included in 5B’s world).
 
 Exact enum values are governed by `schemas.5B.yaml`.

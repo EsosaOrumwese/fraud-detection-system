@@ -24,7 +24,7 @@ Authoritative upstream & inputs (sealed by 6B.S0)
         · 6A — static entity graph & fraud posture (parties, accounts, instruments, devices, IPs)
 
     - For all of the above:
-        · their own validation bundles and `_passed.flag_*` MUST validate,
+        · their own validation bundles and `_passed.flag` MUST validate,
         · 6B.S0 re-computes bundle digests and records PASS/MISSING/FAIL;
           any required FAIL/MISSING means 6B MUST NOT run for that world.
 
@@ -86,7 +86,7 @@ DAG — Segment 6B overview
     -> (S0) BEHAVIOURAL GATE & SEALED INPUTS           [NO RNG]
         inputs:
             - 6B world identity (manifest_fingerprint, parameter_hash),
-            - upstream validation bundles & `_passed.flag_*` for 1A–3B, 5A–5B, 6A,
+            - upstream validation bundles & `_passed.flag` for 1A–3B, 5A–5B, 6A,
             - 6B schemas, dictionaries, artefact registries,
             - 6B configuration packs & RNG policies.
         -> sealed_inputs_6B@fingerprint

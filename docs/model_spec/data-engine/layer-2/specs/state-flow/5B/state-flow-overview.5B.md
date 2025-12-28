@@ -13,7 +13,7 @@ Segment 5B realises arrivals. It gates upstream segments (1A-3B, 5A), fixes the 
 
 ## S0 - Gate & sealed inputs (RNG-free)
 **Purpose & scope**  
-Verify `_passed.flag_*` from 1A, 1B, 2A, 2B, 3A, 3B, and 5A for the target `manifest_fingerprint`; seal all artefacts/policies 5B may read.
+Verify `_passed.flag` from 1A, 1B, 2A, 2B, 3A, 3B, and 5A for the target `manifest_fingerprint`; seal all artefacts/policies 5B may read.
 
 **Preconditions & gates**  
 Layer schemas/dictionaries/registries present; upstream bundles/flags match; identities `{seed, parameter_hash, manifest_fingerprint}` fixed; scenario set/config sealed.

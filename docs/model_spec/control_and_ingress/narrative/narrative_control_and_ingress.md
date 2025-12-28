@@ -55,7 +55,7 @@ From the Control & Ingress plane’s perspective, the engine does three things:
 
 1. It produces **canonical streams** of events and flows for each world/seed/scenario.
 2. It produces **authority surfaces**: stable tables that describe “what the world is” (sites, zones, routing universes, entity graph, labels, etc.).
-3. It publishes **HashGates** for each segment: validation bundles + `_passed.flag_*` that say “this surface is safe to rely on” or “no PASS → no read”.
+3. It publishes **HashGates** for each segment: validation bundles + `_passed.flag` that say “this surface is safe to rely on” or “no PASS → no read”.
 
 The important part here is not how the engine achieves that, but that:
 

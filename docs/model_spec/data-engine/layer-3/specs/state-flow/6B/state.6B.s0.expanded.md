@@ -83,13 +83,13 @@ For a given `manifest_fingerprint`, 6B.S0 **MUST NOT** start unless the followin
 
 For each of these segments, 6B.S0 **MUST**:
 
-1. Locate the segment’s validation bundle directory and `_passed.flag_*` for the target `manifest_fingerprint` using the segment’s dataset dictionary and artefact registry (no hard-coded paths).
+1. Locate the segment’s validation bundle directory and `_passed.flag` for the target `manifest_fingerprint` using the segment’s dataset dictionary and artefact registry (no hard-coded paths).
 2. Recompute or otherwise verify the bundle digest according to that segment’s own hashing law (ASCII-lex index, SHA-256, etc.), rather than assuming correctness.
 3. Treat any of the following as a **fatal precondition failure** for 6B.S0:
 
    * Missing validation bundle directory for a required segment.
-   * Missing `_passed.flag_*` for a required segment.
-   * Digest mismatch between `_passed.flag_*` and the evidence files listed in that segment’s index.
+   * Missing `_passed.flag` for a required segment.
+   * Digest mismatch between `_passed.flag` and the evidence files listed in that segment’s index.
    * Segment’s own validation report indicating a non-PASS verdict for that fingerprint.
 
 If any required upstream segment fails these checks, 6B.S0 **MUST** abort without producing `s0_gate_receipt_6B` or `sealed_inputs_6B`, and **no 6B state MAY run** for that `manifest_fingerprint`.
@@ -242,7 +242,7 @@ These parameters are treated as **given** by the orchestration layer. S0 **MUST 
 
    Registries are authoritative for:
 
-   * Realised artefacts (directories, bundle layouts, `_passed.flag_*` files).
+   * Realised artefacts (directories, bundle layouts, `_passed.flag` files).
    * Whether an artefact is `final_in_layer`, `cross_layer`, or segment-local.
    * Additional roles (e.g. `validation_bundle`, `passed_flag`, `sealed_inputs`).
 
@@ -271,12 +271,12 @@ Within the authority stack above, 6B.S0 is allowed to read the following **upstr
      * `index.json` (or equivalent bundle index),
      * validation reports and issue tables,
      * RNG accounting summaries where present.
-   * The segment’s `_passed.flag_*` file for this fingerprint.
+   * The segment’s `_passed.flag` file for this fingerprint.
 
    S0’s authority here is limited to:
 
    * Verifying existence and structure under the upstream schemas.
-   * Recomputing the upstream bundle digest according to the upstream spec and checking it against `_passed.flag_*`.
+   * Recomputing the upstream bundle digest according to the upstream spec and checking it against `_passed.flag`.
 
    S0 **MUST NOT** reinterpret or override the upstream validation logic itself. If upstream says “PASS” for a fingerprint and the bundle+flag are consistent, 6B.S0 treats that segment as sealed; if not, S0 fails.
 
@@ -650,7 +650,7 @@ For each required upstream segment `SEG` in the list above:
 1. From the owning segment’s dictionary/registry, resolve:
 
    * the dataset/artefact entries for `validation_bundle_SEG`,
-   * the `validation_passed_flag_SEG` (or `_passed.flagEG`) artefact.
+   * the `validation_passed_flag_SEG` (file `_passed.flag`) artefact.
 
 2. Using those entries, construct the expected bundle and flag locations for the target `manifest_fingerprint`, e.g.:
 
@@ -666,7 +666,7 @@ For each required upstream segment `SEG` in the list above:
    1. Parse the upstream bundle index and validate it against the owning segment’s validation schema.
    2. For each member listed in the index, recompute its `sha256_hex` digest from bytes on disk (or verify against a pre-computed digest if the upstream spec allows).
    3. Compute the upstream bundle digest according to that segment’s hashing law (e.g. concatenated bytes of evidence files in ASCII-lex order, SHA-256).
-   4. Read the upstream `_passed.flag_*` file and verify that its recorded digest exactly matches the recomputed bundle digest.
+   4. Read the upstream `_passed.flag` file and verify that its recorded digest exactly matches the recomputed bundle digest.
 
 5. If any of (4)(a–d) fails, record `status="FAIL"` for that segment with whichever partial digests could be computed.
 
@@ -1102,11 +1102,11 @@ All conditions below are **binding**. An implementation that deviates from them 
    For each segment in `{1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A}`:
 
    * A validation bundle directory for `manifest_fingerprint` exists at the path implied by that segment’s dictionary/registry.
-   * The corresponding `_passed.flag_*` exists.
+   * The corresponding `_passed.flag` exists.
    * The bundle index passes the owning segment’s validation schema.
    * S0 has successfully recomputed the segment’s bundle digest according to the owning spec and confirmed:
 
-     * The digest in `_passed.flag_*` matches the recomputed value.
+     * The digest in `_passed.flag` matches the recomputed value.
      * The segment’s own validation verdict is “PASS” for this fingerprint (if encoded in the bundle/report).
 
    If **any** required upstream segment is `MISSING` or `FAIL` according to S0’s checks, S0 MUST be considered **FAIL** and MUST NOT produce or update its outputs.
@@ -1307,12 +1307,12 @@ These codes cover failures when verifying **upstream validation bundles & flags*
 
 **Definition**
 
-Emitted when S0 cannot locate the required upstream validation bundle and/or `_passed.flag_*` for a segment and fingerprint, despite dictionary/registry entries indicating that such artefacts should exist.
+Emitted when S0 cannot locate the required upstream validation bundle and/or `_passed.flag` for a segment and fingerprint, despite dictionary/registry entries indicating that such artefacts should exist.
 
 **Examples**
 
 * Bundle directory not found at the expected `fingerprint={manifest_fingerprint}` path.
-* `_passed.flag_*` file missing inside an otherwise present bundle directory.
+* `_passed.flag` file missing inside an otherwise present bundle directory.
 
 **Obligations**
 
@@ -1331,7 +1331,7 @@ Emitted when S0 locates the upstream bundle and flag, but **cannot verify** the 
 
 * Bundle index fails upstream schema validation.
 * SHA-256 digests listed in the upstream index do not match the actual files.
-* Recomputed bundle digest does not match the value recorded in `_passed.flag_*`.
+* Recomputed bundle digest does not match the value recorded in `_passed.flag`.
 
 **Obligations**
 
@@ -1650,7 +1650,7 @@ The run-report MUST provide a **machine-readable summary** of upstream gate stat
 
   * `status` — `"PASS"`, `"FAIL"`, or `"MISSING"` as determined in §6.3
   * `bundle_sha256` — 64-char hex digest S0 recomputed for the upstream bundle (or `null` if missing/invalid)
-  * `flag_path` — relative path of the `_passed.flag_*` file S0 attempted to read (or `null` if missing)
+  * `flag_path` — relative path of the `_passed.flag` file S0 attempted to read (or `null` if missing)
 
 Binding rules:
 
@@ -1844,7 +1844,7 @@ This section provides **non-binding** guidance on how to keep 6B.S0 cheap, predi
 
      * Read one bundle index file.
      * Touch each evidence file **once** to verify digests (or reuse upstream digests if those are themselves HashGated and trusted).
-     * Read a single `_passed.flag_*` file.
+     * Read a single `_passed.flag` file.
 
    * Expected cost: O(number of evidence files in all required bundles). For a typical world, this is dominated by:
 
@@ -1926,7 +1926,7 @@ Upstream HashGate verification can be a noticeable cost if bundles contain many 
 
   * validate the segment’s bundle index,
   * recompute digests for the evidence files named there, and
-  * confirm that the upstream `_passed.flag_*` matches.
+  * confirm that the upstream `_passed.flag` matches.
 
 * **Avoid double-hashing data-plane datasets**
   S0 should never hash large data-plane tables (e.g. `arrival_events_5B`), only the **control artefacts** that upstream segments expose to prove those tables are valid.
@@ -2221,7 +2221,7 @@ Binding rules for changes:
 
 2. **Upstream schema / bundle changes**
 
-   * If an upstream segment changes its validation bundle or `_passed.flag_*` schema in a backwards-compatible way (e.g. extra optional fields), S0 MAY adopt that change without a `spec_version_6B` bump.
+   * If an upstream segment changes its validation bundle or `_passed.flag` schema in a backwards-compatible way (e.g. extra optional fields), S0 MAY adopt that change without a `spec_version_6B` bump.
    * If an upstream segment changes its hashing law or semantics in a breaking way, 6B.S0 MUST either:
 
      * bump `spec_version_6B` and explicitly document the new dependency, or
@@ -2282,7 +2282,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   The world snapshot identifier. A stable hash (e.g. 64-char hex) that uniquely identifies a sealed engine “world” across Layers 1–3. Used as:
 
   * the partition key for S0 outputs, and
-  * the scope for upstream HashGates (`validation_bundle_*` + `_passed.flag_*`).
+  * the scope for upstream HashGates (`validation_bundle_*` + `_passed.flag`).
 
 * **`parameter_hash`**
   Hash of the configuration / parameter pack used by 6B (behaviour priors, campaign configs, labelling policies, validation policy, etc.). S0 records it in `s0_gate_receipt_6B` but does not interpret it.
@@ -2368,7 +2368,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   The combination of:
 
   * a validation bundle directory (evidence files + an index), and
-  * a `_passed.flag_*` file containing the bundle digest.
+  * a `_passed.flag` file containing the bundle digest.
     When verified, it establishes a sealed contract for an upstream segment at a given `manifest_fingerprint`.
 
 * **`validation_bundle_*`**
@@ -2378,7 +2378,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   * validation reports,
   * optional issue tables and RNG accounting.
 
-* **`validation_passed_flag_*` / `_passed.flag_*`**
+* **`validation_passed_flag_*` / `_passed.flag`**
   A small text file, usually with a single line `sha256_hex = <digest>`, whose digest must match the recomputed digest of the validation bundle contents according to that segment’s law.
 
 * **`sealed_inputs_*` (upstream)**

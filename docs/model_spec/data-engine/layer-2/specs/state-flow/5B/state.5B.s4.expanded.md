@@ -1139,7 +1139,7 @@ Raised when:
 **9.2.2 `5B.S4.UPSTREAM_HASHGATE_NOT_PASSED`**
 Raised when:
 
-* any required upstream `_passed.flag_*` (1A, 1B, 2A, 2B, 3A, 3B, 5A) is missing or fails verification for the `manifest_fingerprint`.
+* any required upstream `_passed.flag` (1A, 1B, 2A, 2B, 3A, 3B, 5A) is missing or fails verification for the `manifest_fingerprint`.
 
 **9.2.3 `5B.S4.S1_OR_S3_OUTPUT_MISSING`**
 Raised when:

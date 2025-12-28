@@ -237,7 +237,7 @@ To know what goes in the bundle and how hashing works, S7 MUST rely on the catal
   * From `schemas.layer1.yaml` and any shared validation spec, S7 MUST know:
 
     * the schema of a validation bundle index (`validation_bundle_index_3A`),
-    * the format of `_passed.flag_*` files (`sha256_hex = …`),
+    * the format of `_passed.flag` files (`sha256_hex = …`),
     * the canonical ordering & concatenation rules for computing composite digests.
 
 These catalogue artefacts are **inputs** to S7’s algorithm and MUST be present and schema-valid. S7 MUST NOT hard-code bundle membership or digest rules beyond what is recorded in the catalogue and its own contract.
@@ -336,7 +336,7 @@ Inputs in this class:
 
    From `schemas.layer1.yaml` (and any dedicated HashGate spec), S7 MUST take as binding:
 
-   * the **format** and **semantics** of `_passed.flag_*` files (e.g. `sha256_hex = <digest>`),
+   * the **format** and **semantics** of `_passed.flag` files (e.g. `sha256_hex = <digest>`),
 
    * the **schema** of the bundle index (`validation_bundle_index_3A`):
 

@@ -221,7 +221,7 @@ upstream validation bundles & flags for {1A,1B,2A,2B,3A,3B,5A,5B,6A}
                 ->  (S5.4) Re-check S0 & upstream HashGates  (no RNG)
                     - Re-verify:
                           · sealed_inputs_digest_6B vs recomputed digest,
-                          · each upstream segment’s validation bundle + _passed.flag_* digest
+                          · each upstream segment’s validation bundle + _passed.flag digest
                             using its own index/digest law.
                     - Compare results with upstream_segments entries in s0_gate_receipt_6B.
                     - If any mismatch is found:

@@ -226,7 +226,7 @@ As a precondition, S1 MUST confirm that `s0_gate_receipt_5B.upstream_segments` r
 
 If any required segment has `status ≠ "PASS"` in the receipt, S1 MUST treat this as a **hard gate failure** and MUST NOT proceed, even if the underlying upstream files appear to be present.
 
-S1 MUST NOT independently re-hash or override upstream `_passed.flag_*` results; S0’s upstream status map is authoritative for gating.
+S1 MUST NOT independently re-hash or override upstream `_passed.flag` results; S0’s upstream status map is authoritative for gating.
 
 ---
 

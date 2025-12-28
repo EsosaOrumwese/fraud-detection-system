@@ -13,7 +13,7 @@ Segment 5A builds deterministic intensity surfaces. It gates upstream Layer-1 se
 
 ## S0 - Gate & sealed inputs (RNG-free)
 **Purpose & scope**  
-Verify upstream `_passed.flag_*` for 1A-3B and seal the exact artefacts/policies 5A may touch for a fingerprint.
+Verify upstream `_passed.flag` for 1A-3B and seal the exact artefacts/policies 5A may touch for a fingerprint.
 
 **Preconditions & gates**  
 Layer schemas/dictionaries/registries present; `_passed.flag` + bundles for 1A, 1B, 2A, 2B, 3A, 3B match; identities `{parameter_hash, manifest_fingerprint}` fixed.

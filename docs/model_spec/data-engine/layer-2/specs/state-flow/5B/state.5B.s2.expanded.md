@@ -447,7 +447,7 @@ To keep boundaries clean, S2 MUST NOT:
 
   * `s1_time_grid_5B` or `s1_grouping_5B`;
   * any 5A intensity surface;
-  * any upstream bundles, `_passed.flag_*`, or upstream `sealed_inputs_*` tables.
+  * any upstream bundles, `_passed.flag`, or upstream `sealed_inputs_*` tables.
 
 * Introduce new external dependencies (env variables, ad-hoc config files, network calls) as implicit inputs to latent-field behaviour.
 

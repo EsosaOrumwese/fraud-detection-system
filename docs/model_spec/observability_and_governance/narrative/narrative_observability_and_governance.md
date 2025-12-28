@@ -66,7 +66,7 @@ This isn’t just bookkeeping. It allows observability to slice metrics by world
 
 The engine uses **HashGates** at segment level:
 
-* each segment (1A…6B) publishes a validation bundle + `_passed.flag_*`,
+* each segment (1A…6B) publishes a validation bundle + `_passed.flag`,
 * the platform obeys a simple rule: **“no PASS → no read”.**
 
 On the platform side, Observability & Governance:

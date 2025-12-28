@@ -502,7 +502,7 @@ S3 also MUST NOT:
 
   * S1 outputs (`s1_time_grid_5B`, `s1_grouping_5B`),
   * S2 outputs (`s2_realised_intensity_5B`),
-  * upstream validation bundles or `_passed.flag_*`,
+  * upstream validation bundles or `_passed.flag`,
   * any upstream `sealed_inputs_*` tables.
 
 * Introduce a second, independent arrival-process layer:

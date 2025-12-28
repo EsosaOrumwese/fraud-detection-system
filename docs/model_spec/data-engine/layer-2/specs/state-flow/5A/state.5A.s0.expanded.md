@@ -11,7 +11,7 @@ This section defines the purpose and scope of **5A.S0 — Gate & Sealed Inputs**
 For a given `(parameter_hash, manifest_fingerprint)` it:
 
 * **Verifies upstream readiness**
-  Confirms that all required Layer-1 segments (1A–3B) have successfully completed and published their own validation bundles and `_passed.flag_*` artefacts for the same `manifest_fingerprint`.
+  Confirms that all required Layer-1 segments (1A–3B) have successfully completed and published their own validation bundles and `_passed.flag` artefacts for the same `manifest_fingerprint`.
 
 * **Pins the 5A input universe**
   Resolves and records the **exact set of artefacts** that 5A is allowed to read for this fingerprint, across:
@@ -35,7 +35,7 @@ For a given `(parameter_hash, manifest_fingerprint)` it:
 * **Establish a clear trust boundary** for 5A by:
 
   * enforcing **“No upstream PASS → No 5A read”** for the set of required Layer-1 segments; and
-  * refusing to proceed if any required upstream validation bundle or `_passed.flag_*` is missing, inconsistent, or invalid.
+  * refusing to proceed if any required upstream validation bundle or `_passed.flag` is missing, inconsistent, or invalid.
 
 * **Define a sealed input universe** for 5A by:
 
@@ -65,7 +65,7 @@ The following activities are **in scope** for 5A.S0 and MUST be handled by this 
   For each required upstream segment (1A, 1B, 2A, 2B, 3A, 3B), re-verifying that:
 
   * its validation bundle exists for the given `manifest_fingerprint`;
-  * its `_passed.flag_*` is present and structurally valid; and
+  * its `_passed.flag` is present and structurally valid; and
   * the flag digest matches the bundle contents according to that segment’s hashing law.
 
 * **Catalogue-driven input discovery**
@@ -203,7 +203,7 @@ If any of these catalogue/contract preconditions are not met, 5A.S0 MUST fail fa
 * For each upstream segment in the list above, the corresponding dictionary/registry entries for:
 
   * `validation_bundle_*` and
-  * `_passed.flag_*`
+  * `_passed.flag`
 
   MUST resolve to a unique, concrete dataset definition (schema_ref, partitioning, manifest_key) which in turn maps to a physical location under `fingerprint={manifest_fingerprint}`.
 
@@ -218,8 +218,8 @@ While S0 itself may execute purely to *determine* upstream status, the following
 * For each of 1A, 1B, 2A, 2B, 3A, 3B:
 
   1. A validation bundle directory for the target `manifest_fingerprint` exists at the catalogue-resolved location.
-  2. A `_passed.flag_*` file exists in that directory and is structurally valid (exact expected format).
-  3. The digest recorded in `_passed.flag_*` matches the contents of the bundle according to that segment’s hashing law.
+  2. A `_passed.flag` file exists in that directory and is structurally valid (exact expected format).
+  3. The digest recorded in `_passed.flag` matches the contents of the bundle according to that segment’s hashing law.
   4. No extra or missing files (relative to that segment’s `index.json` / equivalent) are observed in the bundle, unless explicitly allowed by that segment’s spec.
 
 If any of these checks fail for **any** required upstream segment, 5A.S0 MUST:
@@ -278,7 +278,7 @@ This section defines what **5A.S0 — Gate & Sealed Inputs** is allowed to read,
 
 1. **Engine run context** — the identity of the run.
 2. **Layer-wide contracts** — schemas, dictionaries, artefact registries.
-3. **Upstream segment validation artefacts** — bundles + `_passed.flag_*` for 1A–3B.
+3. **Upstream segment validation artefacts** — bundles + `_passed.flag` for 1A–3B.
 4. **Upstream world surfaces (facts & reference data)** — datasets that later 5A states *may* read at row level, but S0 does not.
 5. **Layer-2 / 5A policies & scenario configs** — inputs that drive 5A’s behaviour.
 
@@ -350,14 +350,14 @@ The primary *data* inputs to 5A.S0 are the **validation artefacts** of upstream 
 * For each of: **1A, 1B, 2A, 2B, 3A, 3B**:
 
   * `validation_bundle_*` (directory containing `index.json` and evidence files).
-  * `_passed.flag_*` (fingerprint-scoped flag carrying the bundle hash).
+  * `_passed.flag` (fingerprint-scoped flag carrying the bundle hash).
 
 5A.S0 MUST:
 
 * Discover these artefacts via the dataset dictionaries + artefact registries, filtered to `fingerprint={manifest_fingerprint}`.
 * Read:
 
-  * the `_passed.flag_*` file contents;
+  * the `_passed.flag` file contents;
   * the relevant bundle index (`index.json` or equivalent);
   * any additional small metadata files required by the upstream segment’s hashing law.
 * Use them solely to verify:
@@ -370,7 +370,7 @@ Authority boundaries:
 
 * Each upstream segment’s own spec is the **authority** for:
 
-  * the format of its validation bundle and `_passed.flag_*`;
+  * the format of its validation bundle and `_passed.flag`;
   * the hashing law used to compute the recorded digest.
 
 * 5A.S0:
@@ -586,7 +586,7 @@ At minimum, each row in `s0_gate_receipt_5A` MUST contain:
   * For `PASS` segments, IDs or digests of:
 
     * their validation bundle indices
-    * their `_passed.flag_*` digests
+    * their `_passed.flag` digests
 
 * Scenario / parameter pack binding:
 
@@ -832,7 +832,7 @@ The algorithm is expressed as ordered steps. An implementation MUST follow this 
 * **Upstream read-only:**
 
   * MUST NOT mutate, delete, or rewrite any upstream dataset or validation artefact.
-  * MUST only read upstream validation bundles and `_passed.flag_*` to the extent required to verify consistency.
+  * MUST only read upstream validation bundles and `_passed.flag` to the extent required to verify consistency.
 
 * **All-or-nothing outputs:**
 
@@ -1864,7 +1864,7 @@ Raised when I/O problems prevent S0 from reading required inputs, e.g.:
 
 * Storage read errors or permissions issues when accessing:
 
-  * upstream validation bundles or `_passed.flag_*`,
+  * upstream validation bundles or `_passed.flag`,
   * schema/dictionary/registry files,
   * required scenario or policy artefacts.
 
@@ -2183,7 +2183,7 @@ This section provides **non-binding guidance** on the expected performance profi
 * Its runtime is dominated by:
 
   * reading small contracts (schemas, dictionaries, registries),
-  * reading small validation bundles and `_passed.flag_*` for 1A–3B,
+  * reading small validation bundles and `_passed.flag` for 1A–3B,
   * computing digests over those sealed artefacts, and
   * building / writing a small sealed inventory (`sealed_inputs_5A`) and receipt.
 
@@ -2274,7 +2274,7 @@ Both are small under reasonable constraints on the catalogue/manifest.
 * Small, scattered reads:
 
   * Schema/dictionary/registry files.
-  * Validation bundles and `_passed.flag_*` for 1A–3B.
+  * Validation bundles and `_passed.flag` for 1A–3B.
   * Optionally: reading file headers for required artefacts to compute/verify digests.
 
 **Writes**
@@ -2722,7 +2722,7 @@ This appendix standardises the short-hands, symbols and abbreviations used in th
 | `sealed_inputs_5A`                  | Fingerprint-scoped inventory: one row per artefact 5A is allowed to read.                        |
 | `scenario_manifest_5A`              | Optional fingerprint-scoped summary of scenario horizon & labels.                                |
 | `validation_bundle_*`               | Generic name for a segment’s validation bundle directory (Layer-1 or Layer-2).                   |
-| `_passed.flag_*`                    | Generic name for a segment’s PASS flag file (Layer-1 or Layer-2).                                |
+| `_passed.flag`                    | Generic name for a segment’s PASS flag file (Layer-1 or Layer-2).                                |
 | `schemas.layer1.yaml`               | Layer-1 shared schema bundle (primitives, RNG, validation, etc.).                                |
 | `schemas.ingress.layer1.yaml`       | Layer-1 ingress schema bundle (worldbank, ISO, tz, rasters).                                     |
 | `schemas.layer2.yaml`               | Layer-2 shared schema bundle (validation bundle/index shapes, etc.).                             |

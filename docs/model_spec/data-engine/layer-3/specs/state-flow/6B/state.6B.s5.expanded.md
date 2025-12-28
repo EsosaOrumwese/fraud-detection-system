@@ -74,7 +74,7 @@ S5 is explicitly **not** allowed to:
 * **Alter upstream HashGates**
 
   * It MUST NOT re-define or override the HashGate semantics for Layer-1, Layer-2 or 6A.
-  * It may re-verify upstream HashGates as part of its checks, but upstream `_passed.flag_*` artefacts remain authoritative for their respective layers/segments.
+  * It may re-verify upstream HashGates as part of its checks, but upstream `_passed.flag` artefacts remain authoritative for their respective layers/segments.
 
 * **Introduce new behavioural or labelling logic**
 
@@ -175,20 +175,20 @@ Segment 6B rests on sealed worlds in Layers 1–2 and 6A. For a given `manifest_
    use the owning dictionaries/registries + `sealed_inputs_6B` to locate:
 
    * the `validation_bundle_*` directory for that segment at `fingerprint={manifest_fingerprint}`,
-   * the corresponding `_passed.flag_*` artefact.
+   * the corresponding `_passed.flag` artefact.
 
 2. Re-validate each upstream HashGate according to that segment’s own spec:
 
    * Validate the upstream index (`index.json`) against the segment’s validation schema.
    * Confirm that all files listed exist and their checksums match the index.
    * Recompute the segment’s bundle digest using its documented hashing law.
-   * Confirm that the digest recorded in `_passed.flag_*` equals the recomputed digest.
+   * Confirm that the digest recorded in `_passed.flag` equals the recomputed digest.
 
 3. Reconcile these results with `s0_gate_receipt_6B.upstream_segments[*].status` and recorded digests.
 
 Binding rules:
 
-* If any required upstream segment’s validation bundle or `_passed.flag_*` is **missing**, malformed, or fails digest verification, S5 **MUST** treat this as a precondition failure (`S5_PRECONDITION_S0_OR_UPSTREAM_FAILED`) and MUST NOT consider the world valid for 6B.
+* If any required upstream segment’s validation bundle or `_passed.flag` is **missing**, malformed, or fails digest verification, S5 **MUST** treat this as a precondition failure (`S5_PRECONDITION_S0_OR_UPSTREAM_FAILED`) and MUST NOT consider the world valid for 6B.
 * If S0 has recorded a non-PASS status for any required upstream segment, S5 MAY reproduce that as a stricter fail but MUST NOT override it as PASS.
 
 S5 is allowed to *re-verify* upstream HashGates, but those HashGates remain the schema of record for their layers.
@@ -407,7 +407,7 @@ S5 uses upstream HashGate artefacts as **precondition evidence**, not as mutable
 * For each required upstream segment `{1A,1B,2A,2B,3A,3B,5A,5B,6A}`, S5 may read:
 
   * the segment’s `validation_bundle_*` directory for this fingerprint, including its `index.json` and any RNG/validation summaries;
-  * the segment’s `_passed.flag_*`.
+  * the segment’s `_passed.flag`.
 
 Authority:
 
@@ -1028,10 +1028,10 @@ If this step fails (e.g. missing policy, sealed inputs invalid), S5 MUST stop wi
 
    For each upstream segment in `{1A,1B,2A,2B,3A,3B,5A,5B,6A}`:
 
-   * Locate its `validation_bundle_*` and `_passed.flag_*` using its own dictionary/registry and `sealed_inputs_6B`.
+   * Locate its `validation_bundle_*` and `_passed.flag` using its own dictionary/registry and `sealed_inputs_6B`.
    * Validate the upstream index against its schema.
    * Recompute the upstream bundle digest according to that segment’s hashing law.
-   * Check that `_passed.flag_*` encodes the same digest.
+   * Check that `_passed.flag` encodes the same digest.
    * Cross-check `s0_gate_receipt_6B.upstream_segments[SEG].status` is `"PASS"` if and only if the upstream bundle+flag are valid.
 
 3. **Record results into S5 check context**
@@ -1640,7 +1640,7 @@ All preconditions in §2 MUST be satisfied:
 
 * All required upstream segments (`1A,1B,2A,2B,3A,3B,5A,5B,6A`) have:
 
-  * valid `validation_bundle_*` and `_passed.flag_*` for `F`,
+  * valid `validation_bundle_*` and `_passed.flag` for `F`,
   * consistent bundle digests and flags (recomputed by S5).
 
 * The 6B workload is complete:
@@ -1665,7 +1665,7 @@ S5 MUST verify:
 
   * index schema-valid,
   * all files listed exist and match their individual `sha256_hex`,
-  * upstream bundle digest recomputation equals digest in upstream `_passed.flag_*`.
+  * upstream bundle digest recomputation equals digest in upstream `_passed.flag`.
 
 If any upstream HashGate fails verification and `segment_validation_policy_6B` marks this as a REQUIRED check (normally yes), S5 MUST set `overall_status = "FAIL"`.
 
@@ -2989,7 +2989,7 @@ Binding rules:
 
    * Upstream segments MAY add optional fields or new evidence files to their own validation bundles, without affecting S5, if:
 
-     * existing `index.json` and `_passed.flag_*` semantics are preserved, and
+     * existing `index.json` and `_passed.flag` semantics are preserved, and
      * S5’s re-verification logic still sees the same digest match.
 
    * S5 MAY ignore newly added upstream evidence files or incorporate them as additional sanity checks.

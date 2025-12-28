@@ -92,7 +92,7 @@ For each of the above segments S0 must:
 
 1. Locate the `validation_bundle_*` directory for this `manifest_fingerprint` using the shared dataset dictionary and artefact registry (no hard-coded paths).
 2. Read the segment’s `validation_bundle_index_*` (or equivalent `index.json`) and compute the **bundle digest** according to that segment’s own HashGate law.
-3. Compare the computed digest with the corresponding `_passed.flag_*` contents.
+3. Compare the computed digest with the corresponding `_passed.flag` contents.
 
 S0 may only declare **PASS** if **all** of these verifications succeed. If any required flag or bundle is:
 
@@ -295,7 +295,7 @@ S0 and all later 6A states **must not** depend on:
 * Implementation details of upstream validation bundles beyond:
 
   * their published `index.json` / validation index,
-  * their `_passed.flag_*` contents,
+  * their `_passed.flag` contents,
   * any specific evidence artefacts explicitly referenced in upstream specs.
 
 Any such dependency must be treated as an implementation detail outside the scope of this design and must not affect 6A behaviour.
@@ -377,7 +377,7 @@ It is the “header page” for all later 6A work.
     * `gate_status ∈ {PASS, FAIL, MISSING}`,
     * `bundle_path` (catalogue-resolved, relative),
     * `bundle_digest_sha256` (for successfully verified bundles),
-    * `flag_path` (for `_passed.flag_*`),
+    * `flag_path` (for `_passed.flag`),
     * optional `flag_contents` echo (truncated or hashed).
 * 6A contract summary:
 
@@ -612,7 +612,7 @@ For each required segment in `{1A,1B,2A,2B,3A,3B,5A,5B}`:
    * If the segment’s spec defines a **bundle digest** (e.g. `bundle_digest_sha256 = SHA256(concat(file_bytes_in_index_order))`), S0 must recompute it exactly and compare against:
 
      * the field in the index, **and**
-     * the `_passed.flag_*` contents.
+     * the `_passed.flag` contents.
 
 4. **Set gate status.**
 
@@ -1123,9 +1123,9 @@ For a given `manifest_fingerprint`, 6A.S0 is **PASS** *iff* all of the following
 
    * For every required upstream segment in `{1A,1B,2A,2B,3A,3B,5A,5B}`:
 
-     * the validation bundle and `_passed.flag_*` are both present in the catalogue for this `manifest_fingerprint`,
+     * the validation bundle and `_passed.flag` are both present in the catalogue for this `manifest_fingerprint`,
      * the bundle digest recomputed by S0 **exactly** matches the digest recorded in that segment’s index,
-     * the digest recorded in `_passed.flag_*` **exactly** matches the recomputed bundle digest.
+     * the digest recorded in `_passed.flag` **exactly** matches the recomputed bundle digest.
    * In `s0_gate_receipt_6A.upstream_gates`, **every** `gate_status` is `"PASS"` (no `"FAIL"` or `"MISSING"` entries).
 
 2. **Layer-3 / 6A contracts:**
@@ -1328,7 +1328,7 @@ These indicate something is wrong with **Layer-1 / Layer-2 gates** from 6A’s p
 
 * `6A.S0.UPSTREAM_HASHGATE_DIGEST_MISMATCH`
 
-  *Meaning:* A validation bundle was found, but recomputed digests do not match either the segment’s index or the `_passed.flag_*` contents.
+  *Meaning:* A validation bundle was found, but recomputed digests do not match either the segment’s index or the `_passed.flag` contents.
 
 * `6A.S0.UPSTREAM_HASHGATE_SCHEMA_INVALID`
 
@@ -2063,7 +2063,7 @@ This appendix collects the short-hands and symbols used in 6A.S0 so an implement
   64-character lowercase hex encoding of a SHA-256 digest. Used for:
 
   * per-artefact digests in `sealed_inputs_6A`, and
-  * bundle digests stored in upstream `_passed.flag_*` and similar flags.
+  * bundle digests stored in upstream `_passed.flag` and similar flags.
 
 ---
 
@@ -2123,7 +2123,7 @@ This appendix collects the short-hands and symbols used in 6A.S0 so an implement
   Informal term for the pair:
 
   * a **validation bundle** (directory with index + evidence files), and
-  * a `_passed.flag_*` file carrying the bundle digest.
+  * a `_passed.flag` file carrying the bundle digest.
 
   When we say a segment is “sealed” or “PASS”, we mean “its HashGate verified successfully”.
 
@@ -2131,9 +2131,9 @@ This appendix collects the short-hands and symbols used in 6A.S0 so an implement
   For each upstream segment (1A–3B, 5A–5B) and eventually for 6A itself:
 
   * a directory rooted at a segment-specific path (e.g. `.../validation/fingerprint={mf}/`),
-  * containing `index.json` / `validation_bundle_index_*` plus evidence files and `_passed.flag_*`.
+  * containing `index.json` / `validation_bundle_index_*` plus evidence files and `_passed.flag`.
 
-* **`_passed.flag_*` / `validation_passed_flag_*`**
+* **`_passed.flag` / `validation_passed_flag_*`**
   A small artefact that records the final digest of the validation bundle for a segment.
   S0 re-computes the bundle digest and compares against this flag.
 

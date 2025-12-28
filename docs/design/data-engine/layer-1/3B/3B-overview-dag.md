@@ -4,7 +4,7 @@
 Authoritative inputs (sealed by 3B.S0)
 --------------------------------------
 [V] Upstream segments & HashGates (must be PASS for this manifest_fingerprint):
-    - 1A/1B/2A/3A validation bundles + `_passed.flag_*`
+    - 1A/1B/2A/3A validation bundles + `_passed.flag`
       · 3B never reads their rows at S0; it only verifies their bundles and flags.
 
 [D] Upstream data-plane surfaces (read-only in 3B):

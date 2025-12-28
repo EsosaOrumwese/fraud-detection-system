@@ -709,7 +709,7 @@ Used to validate:
 
 S5’s primary upstream view is via S0’s `verified_upstream_segments`, but it MAY also read:
 
-* 1A–3B validation bundles & `_passed.flag_*` artefacts, as declared in `sealed_inputs_5A`, to:
+* 1A–3B validation bundles & `_passed.flag` artefacts, as declared in `sealed_inputs_5A`, to:
 
   * confirm that S0’s upstream status matches actual flags/bundles,
   * include upstream evidence or summary in the 5A validation bundle.

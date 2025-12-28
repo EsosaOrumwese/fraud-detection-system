@@ -539,7 +539,7 @@ For each `manifest_fingerprint = mf`, S5 MUST:
 * Verify that `s0_gate_receipt_5B` and `sealed_inputs_5B`:
 
   * are schema-valid,
-  * record all mandatory upstream `_passed.flag_*` as PASS for `mf`,
+  * record all mandatory upstream `_passed.flag` as PASS for `mf`,
   * cover every artefact S5 has resolved in 6.2.2.
 * Any mismatch (missing artefact, upstream FAIL/MISSING) MUST cause S5 to fail with a suitable error.
 
@@ -918,7 +918,7 @@ For a given `manifest_fingerprint = mf`, S5 is considered **PASS** *iff* all of 
 
   * appears in `sealed_inputs_5B`, with a role that permits read access, and
   * is consistent with its recorded `path_template` and `schema_ref`.
-* All mandatory upstream `_passed.flag_*` entries for `mf` are recorded as PASS in `s0_gate_receipt_5B`.
+* All mandatory upstream `_passed.flag` entries for `mf` are recorded as PASS in `s0_gate_receipt_5B`.
 
 Any missing or inconsistent entry is a FAIL for S5.
 
@@ -1137,7 +1137,7 @@ Raised when:
 **9.2.2 `5B.S5.UPSTREAM_HASHGATE_NOT_PASSED`**
 Raised when, for the `manifest_fingerprint`:
 
-* any mandatory upstream `_passed.flag_*` (1A, 1B, 2A, 2B, 3A, 3B, 5A) is not present, not verifiable, or recorded as FAIL/MISSING in `s0_gate_receipt_5B`.
+* any mandatory upstream `_passed.flag` (1A, 1B, 2A, 2B, 3A, 3B, 5A) is not present, not verifiable, or recorded as FAIL/MISSING in `s0_gate_receipt_5B`.
 
 **9.2.3 `5B.S5.DOMAIN_DISCOVERY_FAILED`**
 Raised when:

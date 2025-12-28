@@ -13,7 +13,7 @@ Segment 6A builds the entity and product world. It gates upstream layers, realis
 
 ## S0 - Gate & sealed inputs (RNG-free)
 **Purpose & scope**  
-Verify `_passed.flag_*` for 1A–3B and 5A/5B for the target `manifest_fingerprint`; seal all artefacts 6A may read.
+Verify `_passed.flag` for 1A–3B and 5A/5B for the target `manifest_fingerprint`; seal all artefacts 6A may read.
 
 **Preconditions & gates**  
 Layer-3 schemas/dictionaries/registry present; upstream bundles/flags match; identities `{seed, parameter_hash, manifest_fingerprint}` fixed.

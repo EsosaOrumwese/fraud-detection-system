@@ -9,7 +9,7 @@ Authoritative inputs (sealed in 5A.S0)
     - run_id                    (this 5A run; never used for partitioning)
 
 [Upstream Layer-1/2 segments (must be PASS)]
-    - 1A/1B/2A/2B/3A/3B validation_bundle_* + _passed.flag_* @ fingerprint={manifest_fingerprint}
+    - 1A/1B/2A/2B/3A/3B validation_bundle_* + _passed.flag @ fingerprint={manifest_fingerprint}
       · 5A never reads their data here; S0 only replays their bundle+flag laws to confirm PASS.
 
 [World surfaces 5A may read]
