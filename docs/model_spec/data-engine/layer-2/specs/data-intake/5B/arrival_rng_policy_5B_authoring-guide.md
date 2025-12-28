@@ -281,8 +281,8 @@ For each `(scenario_id, merchant_id, zone_representation, bucket_index)`:
 * iterate `arrival_seq` ascending, and for each arrival:
 
   1. emit `arrival_time_jitter` event
-  2. if `is_virtual=false`, emit `arrival_site_pick` event
-  3. if `is_virtual=true`, emit `arrival_edge_pick` event
+  2. emit `arrival_site_pick` event for NON_VIRTUAL and HYBRID (HYBRID uses this draw to decide routing)
+  3. after routing decision, if `is_virtual=true`, emit `arrival_edge_pick` event
 
 Any deviation → hard failure in validation.
 

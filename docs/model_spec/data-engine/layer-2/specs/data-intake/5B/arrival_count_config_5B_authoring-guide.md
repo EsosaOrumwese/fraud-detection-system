@@ -73,18 +73,28 @@ So v1 instead pins a **fixed-uniform Poisson approximation**:
 
 **Pinned v1 Poisson sampler (1-u):**
 
-* Use the **Poisson CDF inversion with one uniform** and a deterministic CDF evaluation:
+* Use a bounded one-uniform sampler with a pinned switch:
 
-  * `u ∈ (0,1)`
-  * find smallest `n` such that `F(n; λ) ≥ u`
-* CDF computation method is pinned:
+  * If `lambda <= poisson_exact_lambda_max`:
+    - exact CDF recursion with cap `poisson_n_cap_exact`
+  * Else:
+    - normal approximation with continuity correction (pinned), still using the same single uniform `u`.
 
-  * recurrence for probabilities:
+Exact CDF recursion (for lambda small/moderate):
 
-    * `p0 = exp(-λ)`
-    * `p_{n+1} = p_n * λ/(n+1)`
-  * accumulate until CDF ≥ u
-* Hard cap: if `n` exceeds `max_count_per_bucket`, set `n = max_count_per_bucket` and flag `capped=true`.
+* `u in (0,1)`
+* initialize `n = 0`, `p = exp(-lambda)`, `cdf = p`
+* while `cdf < u` and `n < poisson_n_cap_exact`:
+  - `n = n + 1`
+  - `p = p * lambda / n`
+  - `cdf = cdf + p`
+* if `cdf < u` after the cap, set `n = max_count_per_bucket` and flag `capped=true`
+
+Normal approximation (for lambda large):
+
+* `z = normal_icdf_erfinv_v1(u)` where `normal_icdf_erfinv_v1(u) = sqrt(2) * erfinv(2u - 1)` using the deterministic libm profile
+* `n = floor(lambda + sqrt(lambda) * z + 0.5)`
+* clamp `n` into `[0, max_count_per_bucket]`; if clamped, set `capped=true`
 
 This consumes exactly **1** uniform, matching the RNG policy.
 
@@ -112,7 +122,18 @@ Sampling steps (v1 pinned to 2 uniforms total):
 
 This keeps total draws = 2 and matches `arrival_rng_policy_5B`.
 
-> Note: This “single-uniform gamma” is an approximation. That’s acceptable for v1 as long as it’s pinned and validated. If you want exact gamma, you’d need variable draws and a policy version bump.
+> Note: This "single-uniform gamma" is an approximation. That's acceptable for v1 as long as it's pinned and validated. If you want exact gamma, you'd need variable draws and a policy version bump.
+
+**Pinned gamma_one_u_approx_v1 mapping (MUST):**
+Given `u1 in (0,1)` and desired `Gamma(shape=kappa, rate=kappa/mu)`:
+
+* approximate `Gamma(shape=kappa, scale=mu/kappa)` by a lognormal moment-match:
+  - `sigma2 = log(1 + 1/kappa)`  (requires kappa > 0)
+  - `m = log(mu) - 0.5 * sigma2`
+  - `Z = normal_icdf_erfinv_v1(u1)` where `normal_icdf_erfinv_v1(u) = sqrt(2) * erfinv(2u - 1)`
+  - set `Lambda = exp(m + sqrt(sigma2) * Z)`
+
+This yields positive `Lambda` with mean approximately `mu` and variance controlled by `kappa` (v1 approximation).
 
 ### 2.6 Kappa law (deterministic per group) (MUST)
 
@@ -137,9 +158,12 @@ Top-level YAML object with **exactly**:
 
 ```yaml
 poisson_sampler:
-  kind: cdf_inversion_one_u_v1
+  kind: cdf_inversion_one_u_bounded_v1
   p0_law: exp_minus_lambda
   recurrence: p_next = p * lambda / (n+1)
+  poisson_exact_lambda_max: 50.0
+  poisson_n_cap_exact: 200000
+  normal_icdf: erfinv_v1
 ```
 
 ### 3.2 `nb2` (MUST if nb2)
@@ -175,6 +199,8 @@ Codex MUST reject authoring if any fail:
 
 * `lambda_zero_eps ≤ 1e-6`
 * `max_count_per_bucket ≥ 5000` (prevents toy caps)
+* `poisson_exact_lambda_max > 0`
+* `poisson_n_cap_exact >= max_count_per_bucket`
 * If `count_law_id == nb2`:
 
   * `kappa_bounds` within `[1, 1000]`
@@ -235,9 +261,12 @@ lambda_zero_eps: 0.000000001
 max_count_per_bucket: 200000
 
 poisson_sampler:
-  kind: cdf_inversion_one_u_v1
+  kind: cdf_inversion_one_u_bounded_v1
   p0_law: exp_minus_lambda
   recurrence: p_next = p * lambda / (n+1)
+  poisson_exact_lambda_max: 50.0
+  poisson_n_cap_exact: 200000
+  normal_icdf: erfinv_v1
 
 nb2:
   kappa_law:
@@ -280,6 +309,7 @@ realism_floors:
    * Poisson uses 1 u
    * NB2 uses 2 u (u1 for gamma approx, u2 for Poisson inversion)
 6. Deterministic zero rule enforced (no RNG emitted when λ≈0).
-7. No timestamps / digests embedded.
+7. Poisson sampler settings are bounded (`poisson_n_cap_exact >= max_count_per_bucket`).
+8. No timestamps / digests embedded.
 
 ---

@@ -42,7 +42,8 @@ If 3B virtual classification is not sealed (shouldn’t be in 5B) → FAIL CLOSE
 
 For `HYBRID` merchants, each arrival chooses physical vs virtual using **one existing RNG draw** (no new RNG family):
 
-v1 pinned: use the **first uniform** of `arrival_site_pick` event (already budgeted at 2 u64) as the hybrid coin flip:
+v1 pinned: use the **first uniform** of `arrival_site_pick` event (already budgeted at 2 u64) as the hybrid coin flip.
+For HYBRID merchants, S4 MUST emit the `arrival_site_pick` RNG event for every arrival **before** applying the coin flip, even if the outcome is virtual (the second u64 may be unused when virtual).
 
 * `u_hybrid = first_u` from the `arrival_site_pick` draw
 * compare to `p_virtual_hybrid`:
@@ -144,6 +145,7 @@ fail_closed_rules:
   require_site_alias_tables_for_physical: true
   require_edge_alias_tables_for_virtual: true
   forbid_missing_router_rows: true
+  require_site_pick_event_for_hybrid_coin: true
 ```
 
 Meaning:
@@ -195,6 +197,7 @@ fail_closed_rules:
   require_site_alias_tables_for_physical: true
   require_edge_alias_tables_for_virtual: true
   forbid_missing_router_rows: true
+  require_site_pick_event_for_hybrid_coin: true
 
 realism_floors:
   hybrid_p_virtual_bounds: [0.05, 0.80]
@@ -211,6 +214,7 @@ realism_floors:
 3. Hybrid split uses `arrival_site_pick.first_uniform` (no extra RNG).
 4. RNG draw requirements align with `arrival_rng_policy_5B` budgets.
 5. Fail-closed rules enforce PASS gates + missing-row abort.
-6. No timestamps / in-file digests.
+6. For HYBRID, `arrival_site_pick` is emitted for the coin flip even when the outcome is virtual.
+7. No timestamps / in-file digests.
 
 ---

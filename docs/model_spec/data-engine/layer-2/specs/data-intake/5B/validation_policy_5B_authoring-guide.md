@@ -187,11 +187,15 @@ time_realism:
 
 ```yaml
 routing_realism:
+  require_2B_pass_if_physical_present: true
   require_physical_and_virtual_coverage_when_present: true
   require_no_missing_alias_rows: true
   require_country_mix_close_if_virtual: true
   ip_country_max_abs_dev: 0.05
 ```
+
+Pinned meaning:
+* If any arrival is routed physically (NON_VIRTUAL, or HYBRID where the coin selects physical at least once), then 2B MUST be present in the manifest and PASS-gated. If no physical routing occurs in the run, 2B may be absent.
 
 ---
 
@@ -216,7 +220,7 @@ version: v1.0.0
 require_upstream_pass:
   layer1_required: [1A, 1B, 2A, 3A, 3B]
   layer2_required: [5A]
-  optional: [2B]
+  optional: [2B]   # conditional: required if any physical routing occurs (see routing_realism)
 
 structural_checks:
   s1_time_grid:
@@ -277,11 +281,12 @@ realism_checks:
   time_realism:
     require_not_all_at_bucket_start: true
     min_distinct_offsets_per_1000_events: 50
-  routing_realism:
-    require_physical_and_virtual_coverage_when_present: true
-    require_no_missing_alias_rows: true
-    require_country_mix_close_if_virtual: true
-    ip_country_max_abs_dev: 0.05
+routing_realism:
+  require_2B_pass_if_physical_present: true
+  require_physical_and_virtual_coverage_when_present: true
+  require_no_missing_alias_rows: true
+  require_country_mix_close_if_virtual: true
+  ip_country_max_abs_dev: 0.05
 
 failure_policy:
   mode: fail_closed
