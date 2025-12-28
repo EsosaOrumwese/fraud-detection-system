@@ -475,7 +475,7 @@ Downstream touchpoints
         · reference alias layout/version and universe_hash in `virtual_routing_policy_3B`,
         · bind validation contracts to the exact virtual edge universe.
 
-- **3B.S5 — 3B validation bundle & `_passed.flag_3B`:**
+- **3B.S5 — 3B validation bundle & `_passed.flag`:**
     - Uses:
         · `edge_alias_blob_3B`, `edge_alias_index_3B`, and `edge_universe_hash_3B`,
         · `edge_catalogue_3B`/`edge_catalogue_index_3B`,
@@ -490,6 +490,6 @@ Downstream touchpoints
     - MUST treat:
         · `edge_alias_blob_3B` + `edge_alias_index_3B` as the sole authority for per-merchant edge alias tables,
         · `edge_universe_hash_3B.universe_hash` as the virtual edge universe hash.
-    - MUST enforce 3B’s segment-level HashGate (S5 bundle + `_passed.flag_3B`) before decoding alias tables:
+    - MUST enforce 3B’s segment-level HashGate (S5 bundle + `_passed.flag`) before decoding alias tables:
           **No 3B PASS → No read** of 3B virtual edge artefacts.
 ```

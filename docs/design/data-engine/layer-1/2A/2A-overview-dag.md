@@ -5,7 +5,7 @@ Authoritative inputs (sealed in S0)
 -----------------------------------
 [M] Upstream 1B egress & gates:
     - validation_bundle_1B              @ [fingerprint]
-    - validation_passed_flag_1B         @ [fingerprint]  (_passed.flag_1B; HashGate for 1B)
+    - validation_passed_flag_1B         @ [fingerprint]  (_passed.flag; HashGate for 1B)
     - site_locations                    @ [seed, fingerprint]
       · final per-site geometry from 1B (lat_deg, lon_deg)
       · PK: (merchant_id, legal_country_iso, site_order); order-free; write-once
@@ -37,7 +37,7 @@ DAG
                         * open validation_bundle_1B/ @ [fingerprint]
                         * read index.json (relative, ASCII-sortable paths; one entry per non-flag file)
                         * recompute SHA-256 over raw bytes in ASCII-lex order (flag excluded)
-                        * compare to _passed.flag_1B (sha256_hex = <hex64>)
+                        * compare to _passed.flag (sha256_hex = <hex64>)
                         * **No PASS → No read** of site_locations for 2A
                     - Resolve all 2A inputs via Dictionary (no literal paths):
                         * 1B egress: site_locations @ [seed, fingerprint]
@@ -158,7 +158,7 @@ DAG
                          · concat raw bytes of files in ASCII-lex(index.path) order (flag excluded)
                          · SHA-256 → <hex64>
                 -> validation_passed_flag_2A   @ [fingerprint]
-                     - _passed.flag_2A content: `sha256_hex = <hex64>`
+                     - _passed.flag content: `sha256_hex = <hex64>`
                      - fingerprint-scoped HashGate for all 2A civil-time surfaces
                      - publish via stage → fsync → single atomic move; write-once; file order non-authoritative
 
@@ -167,7 +167,7 @@ Downstream touchpoints
 - **Any consumer of 2A civil-time surfaces** (2B arrival mechanics, 3A/3B fraud posture, ingestion gate, scenario runner, model training):
     1) locate `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/`,
     2) read `index.json` and recompute SHA-256 over the listed files in ASCII-lex `path` order (flag excluded),
-    3) read `_passed.flag_2A` and compare the `sha256_hex`,
+    3) read `_passed.flag` and compare the `sha256_hex`,
     4) only then read:
          · site_timezones       @ [seed, fingerprint]
          · tz_timetable_cache   @ [fingerprint]

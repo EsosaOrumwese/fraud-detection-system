@@ -21,7 +21,7 @@ Authoritative inputs (read-only at S0 entry)
 [Upstream segment validation artefacts (Layer-1 segments 1A–3B)]
     - For each required upstream segment seg ∈ {1A, 1B, 2A, 2B, 3A, 3B}:
         · validation_bundle_seg  @ data/layer1/seg/validation/fingerprint={manifest_fingerprint}/…
-        · _passed.flag_seg       @ same directory
+        · _passed.flag       @ same directory
       S0 only checks:
         · presence,
         · structural validity,
@@ -134,8 +134,8 @@ schemas.layer1.yaml
                     - For each upstream segment seg in {1A,1B,2A,2B,3A,3B}:
                         1. Use seg’s dictionary+registry to resolve:
                                validation_bundle_seg@fingerprint={manifest_fingerprint},
-                               _passed.flag_seg@same root.
-                        2. Parse _passed.flag_seg to get declared digest d_seg.
+                               _passed.flag@same root.
+                        2. Parse _passed.flag to get declared digest d_seg.
                         3. Recompute the bundle digest according to seg’s own hashing law:
                                - load its bundle index,
                                - read files in its declared order,

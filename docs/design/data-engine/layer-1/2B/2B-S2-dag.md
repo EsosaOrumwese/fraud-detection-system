@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S2 entry)
 --------------------------------------------
 [S0 Gate & Identity]
     - s0_gate_receipt_2B @ data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
-      · proves: 1B PASS already verified for this manifest_fingerprint (via 1B bundle + _passed.flag_1B)
+      · proves: 1B PASS already verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · binds this run identity: { seed, manifest_fingerprint, parameter_hash } for 2B
       · carries: catalogue_resolution, determinism_receipt (engine + alias policy IDs/digests)
     - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
@@ -277,5 +277,5 @@ Downstream touchpoints
     - Treat s2_alias_index + s2_alias_blob as key inputs for routing audit:
         · check mass conservation, coverage, decode spot-checks, alignment/non-overlap.
     - S8 will include both artefacts (and S7’s audit) in the fingerprint-scoped validation_bundle_2B,
-      whose `_passed.flag_2B` will govern downstream “No PASS → No read” for all 2B routing plans.
+      whose `_passed.flag` will govern downstream “No PASS → No read” for all 2B routing plans.
 ```

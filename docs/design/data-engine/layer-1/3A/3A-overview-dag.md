@@ -4,9 +4,9 @@
 Authoritative inputs (sealed in 3A.S0)
 --------------------------------------
 [M] Upstream segment HashGates (must be PASS):
-    - 1A validation_bundle_1A + _passed.flag_1A       @ [fingerprint={manifest_fingerprint}]
-    - 1B validation_bundle_1B + _passed.flag_1B       @ [fingerprint]
-    - 2A validation_bundle_2A + _passed.flag_2A       @ [fingerprint]
+    - 1A validation_bundle_1A + _passed.flag       @ [fingerprint={manifest_fingerprint}]
+    - 1B validation_bundle_1B + _passed.flag       @ [fingerprint]
+    - 2A validation_bundle_2A + _passed.flag       @ [fingerprint]
       · 3A.S0 replays each bundle’s SHA-256 law and enforces **No PASS → No read** on their egress.
 
 [D] Upstream data-plane egresses (read-only; sealed via sealed_inputs_3A):
@@ -245,7 +245,7 @@ DAG
                                       | s0, sealed_inputs_3A, S0–S5 artefacts, s6_* outputs
                                       v
 
-(S7) Validation bundle & `_passed.flag_3A`          [NO RNG]
+(S7) Validation bundle & `_passed.flag`          [NO RNG]
     inputs: s0_gate_receipt_3A, sealed_inputs_3A,
             s1–s5 artefacts (listed above),
             s6_validation_report_3A, s6_issue_table_3A, s6_receipt_3A,
@@ -264,19 +264,19 @@ DAG
                manifest_fingerprint, parameter_hash,
                members[{logical_id, path, schema_ref, sha256_hex, role,…}].
 
-    -> `_passed.flag_3A`@ [fingerprint]
+    -> `_passed.flag`@ [fingerprint]
          - Computes bundle_sha256_hex = SHA256(concat(all member.sha256_hex in canonical order)).
-         - Writes `_passed.flag_3A` as:
+         - Writes `_passed.flag` as:
                `sha256_hex = <bundle_sha256_hex>`
            (single line).
-         - Together, index.json + `_passed.flag_3A` form the **3A HashGate** for this manifest.
+         - Together, index.json + `_passed.flag` form the **3A HashGate** for this manifest.
 
 Downstream obligations
 ----------------------
 - Any consumer of 3A outputs (especially `zone_alloc` and `zone_alloc_universe_hash`) MUST:
     1) Read `validation_bundle_3A/index.json` for this manifest_fingerprint,
     2) Recompute bundle_sha256_hex from its members’ sha256_hex values,
-    3) Read `_passed.flag_3A`,
+    3) Read `_passed.flag`,
     4) Require flag.sha256_hex == recomputed bundle SHA,
    and enforce:
 
@@ -292,5 +292,5 @@ Legend
 [fingerprint]          = manifest-scoped partitions
 [NO RNG]               = state consumes no RNG
 [RNG-BOUNDED]          = state uses governed Philox with explicit RNG logs
-HashGate (3A)          = validation_bundle_3A@ [fingerprint] + `_passed.flag_3A`
+HashGate (3A)          = validation_bundle_3A@ [fingerprint] + `_passed.flag`
 ```

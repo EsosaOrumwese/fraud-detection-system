@@ -441,7 +441,7 @@ dataset_dictionary.layer2.5B.yaml
 
 Downstream touchpoints
 ----------------------
-- **5B.S5 — Validation bundle & `_passed.flag_5B`:**
+- **5B.S5 — Validation bundle & `_passed.flag`:**
     - MUST:
         · read s4_arrival_events_5B to verify:
               - per-(scenario,entity,bucket) counts equal s3_bucket_counts_5B.N,
@@ -453,7 +453,7 @@ Downstream touchpoints
 
 - **Layer-3 (6A/6B, downstream simulations, analytics):**
     - MUST treat s4_arrival_events_5B as the **only** arrival egress surface from 5B.
-    - MUST gate all reads of this dataset on 5B’s HashGate (`_passed.flag_5B`):
+    - MUST gate all reads of this dataset on 5B’s HashGate (`_passed.flag`):
           **No 5B PASS → No read/use of 5B arrivals.**
 
 - **5B.S4 authority boundary recap:**

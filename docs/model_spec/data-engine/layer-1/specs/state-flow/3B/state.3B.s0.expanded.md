@@ -52,7 +52,7 @@
 * construction of **virtual settlement nodes** (legal anchors);
 * construction of **CDN edge catalogues** and alias tables;
 * per-arrival routing or the emission of routing RNG events (e.g. `cdn_edge_pick`);
-* 3B’s segment-level validation bundle and `_passed.flag_3B` (owned by the terminal 3B validation state).
+* 3B’s segment-level validation bundle and `_passed.flag` (owned by the terminal 3B validation state).
 
 1.4.2 S0 MUST NOT attempt to “peek ahead” or partially implement behaviour belonging to later states. Any logic that depends on virtual classification, settlement geometry, CDN weights, or per-arrival dynamics MUST be captured in the appropriate downstream state specifications and must rely on S0 only for **identity and sealed inputs**, not for data-plane decisions.
 
@@ -337,7 +337,7 @@ S0 MUST treat this as a FATAL configuration / ingestion error and MUST NOT attem
 * creation of virtual settlement nodes;
 * generation of CDN edge catalogues, alias tables and any per-merchant universe hashes for virtual edges;
 * emission and accounting of `cdn_edge_pick` RNG events;
-* construction of 3B’s own validation bundle and `_passed.flag_3B`.
+* construction of 3B’s own validation bundle and `_passed.flag`.
 
 They MUST, however, treat `s0_gate_receipt_3B` and `sealed_inputs_3B` as the **only legitimate source** of “what exists” for 3B and MUST NOT reach outside that sealed universe.
 
@@ -444,7 +444,7 @@ This ordering requirement is binding: any change to this ordering law is a break
 
 4.4 **Relationship to the 3B validation bundle & PASS flag**
 
-4.4.1 S0 itself does **not** emit the 3B segment-level validation bundle or `_passed.flag_3B`. Those artefacts are owned by the terminal 3B validation state (e.g. S5 or S7, depending on the final 3B design).
+4.4.1 S0 itself does **not** emit the 3B segment-level validation bundle or `_passed.flag`. Those artefacts are owned by the terminal 3B validation state (e.g. S5 or S7, depending on the final 3B design).
 
 4.4.2 However, S0’s outputs are **mandatory members** of the future 3B validation bundle:
 
@@ -460,18 +460,18 @@ with their paths and `sha256_hex` computed as part of the 3B validation process.
 * `gate_receipt_sha256` — SHA-256 digest of `s0_gate_receipt_3B.json` bytes,
 * `sealed_inputs_sha256` — SHA-256 digest of the serialized `sealed_inputs_3B` dataset (bundle-level definition of “bytes” MUST follow the layer-wide convention for validation bundles).
 
-These digests MAY be recorded in `s0_gate_receipt_3B` as informative fields, but their authoritative use is in the 3B validation bundle and `_passed.flag_3B`.
+These digests MAY be recorded in `s0_gate_receipt_3B` as informative fields, but their authoritative use is in the 3B validation bundle and `_passed.flag`.
 
-4.4.4 The 3B validation bundle and `_passed.flag_3B` MUST follow the layer-wide **HashGate law**:
+4.4.4 The 3B validation bundle and `_passed.flag` MUST follow the layer-wide **HashGate law**:
 
 * the bundle index lists all included files (including S0 artefacts) with `{path, sha256_hex}`,
-* paths are relative, ASCII-lex sortable, and `_passed.flag_3B` is excluded from the index,
-* `_passed.flag_3B` contains exactly one line:
+* paths are relative, ASCII-lex sortable, and `_passed.flag` is excluded from the index,
+* `_passed.flag` contains exactly one line:
   `sha256_hex = <bundle_digest>`,
 
 where `<bundle_digest>` is SHA-256 over the concatenation of bytes of all indexed files in ASCII-lex path order.
 
-4.4.5 S0 MUST NOT attempt to read `_passed.flag_3B`. By definition, `_passed.flag_3B` cannot exist yet when S0 runs. Any attempt to gate S0 on 3B’s own PASS flag is a logic error.
+4.4.5 S0 MUST NOT attempt to read `_passed.flag`. By definition, `_passed.flag` cannot exist yet when S0 runs. Any attempt to gate S0 on 3B’s own PASS flag is a logic error.
 
 ---
 
@@ -747,7 +747,7 @@ MUST be treated as a breaking change to the 3B.S0 contract and MUST be accompani
 1. Use the segment’s dataset dictionary and artefact registry to resolve:
 
    * `validation_bundle_seg@fingerprint={manifest_fingerprint}`, and
-   * `passed_flag_seg@fingerprint={manifest_fingerprint}` (e.g. `_passed.flag_1A`, `_passed.flag_1B`, etc.).
+   * `passed_flag_seg@fingerprint={manifest_fingerprint}` (file `_passed.flag` for each upstream segment).
 
 2. Open `passed_flag_seg` and parse the expected bundle digest (e.g. `sha256_hex = <digest>`).
 
@@ -1222,7 +1222,7 @@ Any mismatch MUST be treated as a hardened failure in the 3B environment, and th
 8.5.1 The S0 PASS/FAIL result is a **necessary but not sufficient** condition for the overall 3B segment PASS:
 
 * S0 PASS is required before S1–S5 may execute;
-* the final 3B segment PASS flag `_passed.flag_3B` will be produced only by the terminal 3B validation state, after all 3B states have completed successfully.
+* the final 3B segment PASS flag `_passed.flag` will be produced only by the terminal 3B validation state, after all 3B states have completed successfully.
 
 8.5.2 The Layer-1 orchestration / run harness MUST enforce that:
 
@@ -1565,7 +1565,7 @@ For production, this SHOULD be treated as FATAL until determinism is proven.
 9.8.2 The run harness MUST surface 3B.S0 FATAL errors as **“3B gate failure”** for the affected manifest and MUST:
 
 * prevent downstream 3B states (S1–S5) from running for that manifest;
-* avoid emitting any 3B segment-level validation bundle or `_passed.flag_3B`.
+* avoid emitting any 3B segment-level validation bundle or `_passed.flag`.
 
 9.8.3 Downstream 3B states that detect problems at consumption time (e.g. sealed-input digest mismatch) SHOULD re-use the same error codes where applicable (e.g. `E3B_S0_SEALED_INPUT_DIGEST_FAILED`), but MUST mark themselves as the **originating state** in logs (e.g. `state_id: "S2"`), to make clear whether the failure arose during S0 or during later use of its outputs.
 

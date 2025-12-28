@@ -24,11 +24,11 @@ Authoritative inputs (read-only at S0 entry)
     - For each upstream segment seg ∈ {1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A}:
         · validation bundle root for seg:
               data/layerX/seg/validation/fingerprint={manifest_fingerprint}/...
-        · `_passed.flag_seg` in that root.
+        · `_passed.flag` in that root.
       S0:
         · MUST resolve these via seg’s own dictionary/registry (no hard-coded paths),
         · MUST recompute seg’s bundle digest according to seg’s own bundle/index law,
-        · MUST compare recomputed_digest_seg to `_passed.flag_seg.sha256_hex`,
+        · MUST compare recomputed_digest_seg to `_passed.flag.sha256_hex`,
         · MUST record {status, bundle_path, bundle_sha256, flag_path} per seg in s0_gate_receipt_6B.
       Required failure modes (per seg):
         · Missing bundle or flag    → status = "MISSING"
@@ -138,8 +138,8 @@ artefact_registry_{1A,1B,2A,2B,3A,3B,5A,5B,6A}
                     - For each seg ∈ {1A,1B,2A,2B,3A,3B,5A,5B,6A}:
                         1. Use seg’s dictionary+registry to resolve:
                                validation bundle root @ fingerprint={manifest_fingerprint},
-                               `_passed.flag_seg` at that root.
-                        2. Parse `_passed.flag_seg`:
+                               `_passed.flag` at that root.
+                        2. Parse `_passed.flag`:
                                - expect format `sha256_hex = <64hex>`,
                                - extract declared_digest_seg.
                         3. Recompute bundle digest according to seg’s bundle/index law:

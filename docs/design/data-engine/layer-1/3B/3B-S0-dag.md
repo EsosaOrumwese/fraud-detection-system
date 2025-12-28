@@ -24,13 +24,13 @@ Authoritative inputs (read-only at S0 entry)
         · logical artefact entries for 3B configs, external assets, and upstream gates.
 
 [Upstream HashGates (PASS gates 1A/1B/2A/3A)]
-    - validation_bundle_1A + _passed.flag_1A
+    - validation_bundle_1A + _passed.flag
       @ data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-    - validation_bundle_1B + _passed.flag_1B
+    - validation_bundle_1B + _passed.flag
       @ data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-    - validation_bundle_2A + _passed.flag_2A
+    - validation_bundle_2A + _passed.flag
       @ data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-    - validation_bundle_3A + _passed.flag_3A
+    - validation_bundle_3A + _passed.flag
       @ data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
     - S0 treats these as **gates only**:
         · verifies their internal bundle_hash ↔ flag,
@@ -311,7 +311,7 @@ Downstream touchpoints
     - uses s0_gate_receipt_3B + sealed_inputs_3B as inputs when:
         · re-verifying upstream gates,
         · recomputing digests,
-        · constructing 3B’s own validation bundle + `_passed.flag_3B`.
+        · constructing 3B’s own validation bundle + `_passed.flag`.
 - **Cross-segment consumers:**
     - do not consume S0 outputs directly, but must respect the segment-level HashGate produced later:
         · S0 is the root-of-trust for 3B’s input universe; if S0 is not PASS for a manifest,

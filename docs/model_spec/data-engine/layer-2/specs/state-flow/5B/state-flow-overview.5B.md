@@ -7,7 +7,7 @@ Segment 5B realises arrivals. It gates upstream segments (1A-3B, 5A), fixes the 
 - Define scenario time grid and grouping over merchantxzonexchannel.
 - Realise latent intensities (LGCP-style) on that grid and draw bucket counts.
 - Expand counts into `arrival_events_5B` with full routing/tz context.
-- Validate and publish `validation_bundle_5B` + `_passed.flag_5B` ("no PASS -> no read" for arrivals).
+- Validate and publish `validation_bundle_5B` + `_passed.flag` ("no PASS -> no read" for arrivals).
 
 ---
 
@@ -134,7 +134,7 @@ S5 validation; Layer-3/enterprise ingest `arrival_events_5B` only after PASS.
 
 ---
 
-## S5 - Validation bundle & `_passed.flag_5B`
+## S5 - Validation bundle & `_passed.flag`
 **Purpose & scope**  
 Validate S0-S4 outputs and publish the 5B HashGate.
 
@@ -145,13 +145,13 @@ S0-S4 PASS for the fingerprint; all seeds/scenarios present; upstream gates stil
 `s0_gate_receipt_5B`, `sealed_inputs_5B`; S1-S4 datasets (grids/grouping, realised intensities, latent field, bucket counts, arrivals, summaries); RNG logs/events/trace; validation policies/tolerances.
 
 **Outputs & identity**  
-`validation_report_5B` and optional `validation_issue_table_5B` at `fingerprint={manifest_fingerprint}`; `validation_bundle_5B` at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_5B`; `_passed.flag_5B` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+`validation_report_5B` and optional `validation_issue_table_5B` at `fingerprint={manifest_fingerprint}`; `validation_bundle_5B` at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_5B`; `_passed.flag` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None (validator).
 
 **Key invariants**  
-Schema/partition conformance; grid/grouping parity; counts vs intensities vs arrivals match; routing semantics consistent with 2B/3A/3B contracts; RNG accounting closes; bundle digest matches `_passed.flag_5B`; enforces "no PASS -> no read" for 5B artefacts.
+Schema/partition conformance; grid/grouping parity; counts vs intensities vs arrivals match; routing semantics consistent with 2B/3A/3B contracts; RNG accounting closes; bundle digest matches `_passed.flag`; enforces "no PASS -> no read" for 5B artefacts.
 
 **Downstream consumers**  
-6A/6B and any external ingestors must verify `_passed.flag_5B` before using `arrival_events_5B` or other 5B outputs.
+6A/6B and any external ingestors must verify `_passed.flag` before using `arrival_events_5B` or other 5B outputs.

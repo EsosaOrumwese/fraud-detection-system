@@ -352,7 +352,7 @@ datasets:
     description: HashGate flag proving the validation bundle digest for a fingerprint.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B

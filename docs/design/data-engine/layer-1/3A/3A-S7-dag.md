@@ -17,7 +17,7 @@ Authoritative inputs (read-only at S7 entry)
     - schemas.layer1.yaml
         · anchors for:
             - `#/validation/validation_bundle_index_3A`   (index.json schema),
-            - `#/validation/passed_flag_3A`              (`_passed.flag_3A` logical shape),
+            - `#/validation/passed_flag_3A`              (`_passed.flag` logical shape),
             - generic HashGate rules (canonical digests, SHA-256, hex64, rfc3339_micros, etc.)
     - schemas.3A.yaml
         · anchors for:
@@ -28,7 +28,7 @@ Authoritative inputs (read-only at S7 entry)
     - dataset_dictionary.layer1.3A.yaml
         · IDs → paths/partitions/schema_refs for:
             - `validation_bundle_3A` (dir, partition [fingerprint]),
-            - `_passed.flag_3A` (text, partition [fingerprint]),
+            - `_passed.flag` (text, partition [fingerprint]),
             - all S0–S6 artefacts.
     - artefact_registry_3A.yaml
         · manifest_keys/logical_ids for all members; S7 MUST NOT bundle anything not registered.
@@ -83,12 +83,12 @@ Authoritative inputs (read-only at S7 entry)
     - Idempotence:
         · Given the same inputs (S0–S6 artefacts, RNG logs, sealed_inputs_3A, catalogue), S7 MUST produce byte-identical:
             - `validation_bundle_3A` index.json,
-            - `_passed.flag_3A`.
+            - `_passed.flag`.
         · Existing non-identical index/flag for the same fingerprint → immutability violation; S7 MUST fail.
 
 
 ----------------------------------------------------------------------
-DAG — 3A.S7 (S6 PASS → validation_bundle_3A + `_passed.flag_3A`)  [NO RNG]
+DAG — 3A.S7 (S6 PASS → validation_bundle_3A + `_passed.flag`)  [NO RNG]
 
 [Schema+Dict],
 [S0 Gate & Identity]
@@ -255,13 +255,13 @@ index.json (on disk),
                       (no delimiters, no whitespace).
                     - Compute:
                           bundle_sha256_hex = SHA256(concat) ⇒ 64-char lowercase hex.
-                    - This value is the **3A HashGate digest** for this manifest; it MUST be used in `_passed.flag_3A`
+                    - This value is the **3A HashGate digest** for this manifest; it MUST be used in `_passed.flag`
                       and by consumers when verifying the bundle.
 
 bundle_sha256_hex,
 [Schema+Dict],
-existing `_passed.flag_3A`?
-                ->  (S7.10) Build and write `_passed.flag_3A`
+existing `_passed.flag`?
+                ->  (S7.10) Build and write `_passed.flag`
                     - Logical form:
                         · { sha256_hex = bundle_sha256_hex }.
                     - On-disk representation:
@@ -269,20 +269,20 @@ existing `_passed.flag_3A`?
                               `sha256_hex = <bundle_sha256_hex>`
                           where `<bundle_sha256_hex>` is 64 lowercase hex chars.
                     - Target path via dictionary:
-                        · data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
-                    - If `_passed.flag_3A` does not exist:
+                        · data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+                    - If `_passed.flag` does not exist:
                         · write via staging → fsync → atomic move.
-                    - If `_passed.flag_3A` exists:
+                    - If `_passed.flag` exists:
                         · read its content, parse `sha256_hex = <existing_hex>`,
                         · require `<existing_hex> == bundle_sha256_hex`,
                         · if not equal ⇒ immutability violation (E3A_S7_006); S7 MUST NOT overwrite.
 
 index.json,
-`_passed.flag_3A`
+`_passed.flag`
                 ->  (S7.11) Post-publish verification & STDOUT summary (non-authoritative)
-                    - Re-open index.json and `_passed.flag_3A`:
+                    - Re-open index.json and `_passed.flag`:
                         · validate index.json against `validation_bundle_index_3A`,
-                        · parse `_passed.flag_3A` against `passed_flag_3A` schema,
+                        · parse `_passed.flag` against `passed_flag_3A` schema,
                         · recompute bundle_sha256_hex from index.json members and confirm it matches the flag’s sha256_hex.
                     - Emit a non-authoritative run summary (e.g. to STDOUT or log):
                         · component="3A.S7",
@@ -290,7 +290,7 @@ index.json,
                         · bundle_member_count, bundle_sha256_hex,
                         · overall_status = "PASS" if index+flag match and S6_receipt_3A.overall_status="PASS".
                     - S7 MUST NOT write any additional datasets besides:
-                        · `validation_bundle_3A` (index.json) and `_passed.flag_3A`.
+                        · `validation_bundle_3A` (index.json) and `_passed.flag`.
 
 Downstream touchpoints
 ----------------------
@@ -298,8 +298,8 @@ Downstream touchpoints
     - MUST treat 3A as PASS for manifest F only if:
         1) `s6_receipt_3A@fingerprint=F` has `overall_status="PASS"`,
         2) `validation_bundle_3A@fingerprint=F` exists and `index.json` is schema-valid,
-        3) `_passed.flag_3A@fingerprint=F` exists,
-        4) recomputing `bundle_sha256_hex` from index.json members yields the same hex as in `_passed.flag_3A`.
+        3) `_passed.flag@fingerprint=F` exists,
+        4) recomputing `bundle_sha256_hex` from index.json members yields the same hex as in `_passed.flag`.
     - MUST enforce: **“No 3A PASS (bundle+flag+S6 receipt) ⇒ No read of 3A surfaces for that manifest.”**
 
 - **3A plan/egress consumers (e.g. 2B, analytics):**

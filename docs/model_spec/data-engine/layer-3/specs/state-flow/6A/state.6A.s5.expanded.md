@@ -14,7 +14,7 @@ Its job is to take the fully-realised 6A world:
 and then:
 
 1. **Assign static fraud posture (“fraud roles”)** over that graph, and
-2. **Close 6A** by building the **6A validation bundle + `_passed.flag_6A`** that downstream (6B + the enterprise shell) will use as *the* signal that 6A is sealed and trustworthy.
+2. **Close 6A** by building the **6A validation bundle + `_passed.flag`** that downstream (6B + the enterprise shell) will use as *the* signal that 6A is sealed and trustworthy.
 
 ---
 
@@ -72,14 +72,14 @@ S5 is also the **closing gate** for 6A. Its second core purpose is to:
 
   * build `validation_bundle_index_6A` listing bundle members and their SHA-256 digests under a canonical law,
   * compute a final `bundle_digest_sha256` over indexed evidence,
-  * emit **`validation_passed_flag_6A`** (the `_passed.flag_6A` artefact) as a fingerprint-scoped object carrying this digest.
+  * emit **`validation_passed_flag_6A`** (the `_passed.flag` artefact) as a fingerprint-scoped object carrying this digest.
 
 Downstream (6B, enterprise ingestion, any consumers of the fake bank) must treat:
 
 > `validation_passed_flag_6A` present & valid
 > ⇒ “Segment 6A is sealed; its world is safe to read.”
 
-No `_passed.flag_6A` → **no read of 6A outputs** (S1–S5) for that `manifest_fingerprint`.
+No `_passed.flag` → **no read of 6A outputs** (S1–S5) for that `manifest_fingerprint`.
 
 ---
 
@@ -99,9 +99,9 @@ Within Layer-3 / Segment 6A, S5:
   * read S1–S4 bases and links as sealed ground truth,
   * assign static fraud roles on top of that graph according to sealed S5 priors/configs,
   * run S5 validation checks over the entire 6A segment for each world,
-  * produce 6A’s segment-level validation bundle + `_passed.flag_6A`.
+  * produce 6A’s segment-level validation bundle + `_passed.flag`.
 
-All later components (6B, enterprise shell) must treat S5’s fraud-role surfaces as the **canonical static fraud posture** for 6A entities and must enforce `_passed.flag_6A` as the **hard gate** on whether any 6A world is considered usable.
+All later components (6B, enterprise shell) must treat S5’s fraud-role surfaces as the **canonical static fraud posture** for 6A entities and must enforce `_passed.flag` as the **hard gate** on whether any 6A world is considered usable.
 
 ---
 
@@ -361,7 +361,7 @@ S5’s work naturally splits into:
 
 * **Per-world artefacts** — validation bundle & HashGate:
 
-  * `validation_bundle_6A` and `_passed.flag_6A` are **fingerprint-scoped**, not seed-scoped:
+  * `validation_bundle_6A` and `_passed.flag` are **fingerprint-scoped**, not seed-scoped:
 
     * they summarise validation across all seeds and entity types for a given `mf`,
     * they tell 6B “this world as a whole is sealed”.
@@ -378,7 +378,7 @@ Preconditions per axis:
   * S1–S4 MUST be PASS,
   * S5’s role-assignment logic operates on that universe only.
 
-The 6A HashGate (`_passed.flag_6A`) is written once per `mf` and is valid only if all required seeds and S5 checks for that world have PASSed.
+The 6A HashGate (`_passed.flag`) is written once per `mf` and is valid only if all required seeds and S5 checks for that world have PASSed.
 
 ---
 
@@ -558,7 +558,7 @@ They may be:
 * `read_scope = "ROW_LEVEL"` (if expressed as tables), or
 * `read_scope = "METADATA_ONLY"` (if expressed as config objects).
 
-Either way, they are **authoritative** on what S5 must verify before emitting `_passed.flag_6A`.
+Either way, they are **authoritative** on what S5 must verify before emitting `_passed.flag`.
 
 #### 3.1.4 6A contracts (METADATA_ONLY)
 
@@ -635,7 +635,7 @@ Within 6A, S5 has exactly two kinds of authority:
 
 2. **6A closure & HashGate:**
 
-   * To produce, per `manifest_fingerprint`, the **6A validation bundle** and `_passed.flag_6A`.
+   * To produce, per `manifest_fingerprint`, the **6A validation bundle** and `_passed.flag`.
    * This is the **only** segment-level HashGate for 6A; 6B and outer systems must use it as the read gate for all 6A outputs.
 
 S5 **must not**:
@@ -711,7 +711,7 @@ Downstream 6B and any external consumers can then safely assume:
 6A.S5 produces two classes of outputs:
 
 1. **Seed-scoped fraud-posture surfaces** — static fraud roles / risk posture over entities in the 6A graph.
-2. **Fingerprint-scoped validation artefacts** — the 6A segment-level validation bundle and `_passed.flag_6A` HashGate.
+2. **Fingerprint-scoped validation artefacts** — the 6A segment-level validation bundle and `_passed.flag` HashGate.
 
 These outputs are **binding** contracts for 6B and any external consumer. This section defines *what* they are, *what they mean*, and *how they are identified*.
 
@@ -927,7 +927,7 @@ data/layer3/6A/validation/fingerprint={manifest_fingerprint}/...
     * `result ∈ {PASS, WARN, FAIL}`,
     * optional metrics per check (counts, ratios, tolerances, etc.).
 
-  * `overall_status ∈ {PASS, FAIL, WARN}` — with `PASS` meaning “eligible for `_passed.flag_6A`” per S5 policy.
+  * `overall_status ∈ {PASS, FAIL, WARN}` — with `PASS` meaning “eligible for `_passed.flag`” per S5 policy.
 
   * optional `summary_metrics` — global counts, e.g. used later in dashboards.
 
@@ -944,7 +944,7 @@ data/layer3/6A/validation/fingerprint={manifest_fingerprint}/...
   * `message` describing the issue
   * optional fields: cell identifiers, numeric values for the failed check.
 
-These datasets are **inputs** to the validation bundle, not stand-alone gates; the actual gate is `_passed.flag_6A`.
+These datasets are **inputs** to the validation bundle, not stand-alone gates; the actual gate is `_passed.flag`.
 
 #### 4.2.2 6A validation bundle
 
@@ -974,22 +974,22 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
   * The index is **fingerprint-scoped**: only `manifest_fingerprint` matters, not `seed`.
   * The index order and digest law (which files are included, in what order) must be fixed and deterministic (details in later sections; here we only assert that there **is** such a law).
 
-#### 4.2.3 `_passed.flag_6A` — 6A HashGate
+#### 4.2.3 `_passed.flag` — 6A HashGate
 
-**Logical name:** `validation_passed_flag_6A` (the `_passed.flag_6A` artefact)
-**Role:** 6A segment-level HashGate: **no `_passed.flag_6A` → no read of 6A outputs**.
+**Logical name:** `validation_passed_flag_6A` (the `_passed.flag` artefact)
+**Role:** 6A segment-level HashGate: **no `_passed.flag` → no read of 6A outputs**.
 
 * **Domain & scope**
 
   * One small text file per `manifest_fingerprint`, stored under the same validation directory, e.g.:
 
     ```text
-    data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
+    data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
     ```
 
 * **Required content**
 
-  * `_passed.flag_6A` contains exactly one line:
+  * `_passed.flag` contains exactly one line:
 
     ```text
     sha256_hex = {bundle_digest_sha256}
@@ -1000,8 +1000,8 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 * **Identity & invariants**
 
   * Identity is simply `(manifest_fingerprint)`; S5 must treat this as **write-once** for a given bundle spec/version and priors.
-  * Any consumer re-computing the bundle digest from `validation_bundle_index_6A` must obtain exactly `bundle_digest_sha256` from `_passed.flag_6A`.
-  * If S5 is re-run for the same `manifest_fingerprint` and the same catalogue/prior state, the resulting `_passed.flag_6A` and `validation_bundle_6A` must be **byte-identical** or S5 must fail with an output-conflict error.
+  * Any consumer re-computing the bundle digest from `validation_bundle_index_6A` must obtain exactly `bundle_digest_sha256` from `_passed.flag`.
+  * If S5 is re-run for the same `manifest_fingerprint` and the same catalogue/prior state, the resulting `_passed.flag` and `validation_bundle_6A` must be **byte-identical** or S5 must fail with an output-conflict error.
 
 ---
 
@@ -1010,24 +1010,24 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 * **Upstream alignment**
 
   * Fraud-role surfaces are keyed by `(manifest_fingerprint, seed, entity_id)` and must reference existing IDs from S1–S4 (and L1 for merchants).
-  * Validation artefacts and `_passed.flag_6A` are **fingerprint-scoped** and rely on the same `manifest_fingerprint` and `parameter_hash` as S0–S4.
+  * Validation artefacts and `_passed.flag` are **fingerprint-scoped** and rely on the same `manifest_fingerprint` and `parameter_hash` as S0–S4.
 
 * **Downstream alignment**
 
   * 6B and any ingestion/enterprise components:
 
     * use fraud-role surfaces as the **canonical static posture** for entities (e.g. to seed campaigns and label flows),
-    * must verify `_passed.flag_6A` (by recomputing the bundle digest from the index) before consuming any 6A outputs.
+    * must verify `_passed.flag` (by recomputing the bundle digest from the index) before consuming any 6A outputs.
 
   * No downstream state is allowed to:
 
     * override S5 fraud roles (they may derive additional features on top, but not contradict them),
-    * treat worlds without `_passed.flag_6A` as sealed.
+    * treat worlds without `_passed.flag` as sealed.
 
 In summary:
 
 * Fraud-role datasets answer **“who is fraud-adjacent at the static entity level?”** for each `(mf, seed)`.
-* The validation bundle & `_passed.flag_6A` answer **“is 6A sealed and safe to read?”** for each `manifest_fingerprint`.
+* The validation bundle & `_passed.flag` answer **“is 6A sealed and safe to read?”** for each `manifest_fingerprint`.
 
 ---
 
@@ -1050,7 +1050,7 @@ This specification only summarises semantics so there is a single source of trut
 - `s5_validation_report_6A` — JSON report produced by the 6A validation runner summarising QA gates.
 - `s5_issue_table_6A` — Row-level validation issues emitted by the runner.
 - `validation_bundle_index_6A` — HashGate index enumerating bundle members for 6A.
-- `validation_passed_flag_6A` — Final `_passed.flag_6A` text file containing the bundle digest.
+- `validation_passed_flag_6A` — Final `_passed.flag` text file containing the bundle digest.
 
 ### 5.2 Catalogue & downstream obligations
 Implementations and downstream consumers MUST resolve datasets via the dictionary/registry, honour the declared schema anchors, and treat any artefact not listed there as out of scope for this state.
@@ -1079,7 +1079,7 @@ For each `(manifest_fingerprint, seed)`:
 4. Realise **integer role counts** per cell (RNG-bearing, optional if policy uses exact matching).
 5. Assign **fraud roles to individual entities** (RNG-bearing) using those counts and features.
 6. Run **segment-level validation checks** across S1–S4 + S5 (RNG-free).
-7. Assemble the **6A validation bundle** & compute the **HashGate** (`_passed.flag_6A`) (RNG-free).
+7. Assemble the **6A validation bundle** & compute the **HashGate** (`_passed.flag`) (RNG-free).
 
 RNG discipline:
 
@@ -1469,11 +1469,11 @@ Using:
 
 4. **Decide eligibility for HashGate**
 
-   * Based on `overall_status` and check severities, policy MUST explicitly define when 6A is eligible for `_passed.flag_6A`. In this spec:
+   * Based on `overall_status` and check severities, policy MUST explicitly define when 6A is eligible for `_passed.flag`. In this spec:
 
-     * `overall_status="PASS"` means “eligible to emit `_passed.flag_6A`”.
-     * `overall_status="FAIL"` means “must NOT emit or must revoke `_passed.flag_6A`”.
-     * `overall_status="WARN"` MAY be allowed by policy for `_passed.flag_6A` (if WARN-level issues are considered acceptable) or treated like FAIL; this must be clearly specified in your validation policy.
+     * `overall_status="PASS"` means “eligible to emit `_passed.flag`”.
+     * `overall_status="FAIL"` means “must NOT emit or must revoke `_passed.flag`”.
+     * `overall_status="WARN"` MAY be allowed by policy for `_passed.flag` (if WARN-level issues are considered acceptable) or treated like FAIL; this must be clearly specified in your validation policy.
 
 This phase is **RNG-free**.
 
@@ -1481,7 +1481,7 @@ This phase is **RNG-free**.
 
 ### 6.7 Phase 7 — Assemble validation bundle & emit HashGate *(RNG-free)*
 
-**Goal:** assemble the 6A validation bundle for this world and emit `_passed.flag_6A` if and only if validation conditions are met.
+**Goal:** assemble the 6A validation bundle for this world and emit `_passed.flag` if and only if validation conditions are met.
 
 #### 6.7.1 Build validation bundle contents
 
@@ -1531,7 +1531,7 @@ For `manifest_fingerprint`:
 
    * Persist it in the same validation directory.
 
-#### 6.7.3 Compute bundle digest & write `_passed.flag_6A`
+#### 6.7.3 Compute bundle digest & write `_passed.flag`
 
 1. **Compute bundle digest**
 
@@ -1549,7 +1549,7 @@ For `manifest_fingerprint`:
 
    * If `s5_validation_report_6A.overall_status` meets the policy’s criteria for PASS (e.g. `overall_status="PASS"` and no blocking checks failed):
 
-     * proceed to write `_passed.flag_6A` with:
+     * proceed to write `_passed.flag` with:
 
        * `manifest_fingerprint`,
        * `bundle_digest_sha256`,
@@ -1557,12 +1557,12 @@ For `manifest_fingerprint`:
 
    * If not eligible:
 
-     * do **not** write `_passed.flag_6A`,
+     * do **not** write `_passed.flag`,
      * or overwrite an existing valid flag; treat this world as unsealed.
 
 3. **Re-read and verify flag**
 
-   * Re-read `_passed.flag_6A` from storage and verify:
+   * Re-read `_passed.flag` from storage and verify:
 
      * `bundle_digest_sha256` matches the recomputed value,
      * `manifest_fingerprint` matches.
@@ -1573,12 +1573,12 @@ For `manifest_fingerprint`:
 
 * If S5 is re-run on the **same** `manifest_fingerprint` with the **same** catalogue state and priors:
 
-  * it MUST either produce byte-identical `validation_bundle_index_6A`, evidence files, and `_passed.flag_6A`, or
+  * it MUST either produce byte-identical `validation_bundle_index_6A`, evidence files, and `_passed.flag`, or
   * fail with `6A.S5.OUTPUT_CONFLICT` and not modify existing outputs.
 
 * S5 MUST NEVER:
 
-  * silently overwrite an existing `_passed.flag_6A` with a different `bundle_digest_sha256`,
+  * silently overwrite an existing `_passed.flag` with a different `bundle_digest_sha256`,
   * emit multiple inconsistent bundles for the same `manifest_fingerprint` without changing spec version.
 
 This phase is **RNG-free**.
@@ -1600,7 +1600,7 @@ S5’s outputs:
 * fraud-role tables (`s5_*_fraud_roles_6A` per entity type, per `(mf, seed)`),
 * validation artefacts (`s5_validation_report_6A`, `s5_issue_table_6A`),
 * `validation_bundle_index_6A`,
-* `_passed.flag_6A`,
+* `_passed.flag`,
 
 MUST be:
 
@@ -1645,7 +1645,7 @@ S5 has two families of outputs:
   * `s5_validation_report_6A`
   * `s5_issue_table_6A` (optional)
   * `validation_bundle_index_6A`
-  * `validation_passed_flag_6A` (aka `_passed.flag_6A`)
+  * `validation_passed_flag_6A` (aka `_passed.flag`)
 
 ---
 
@@ -1674,7 +1674,7 @@ S5 uses the same identity axes as the other 6A states, with a split between **se
 
 * **Segment-level identity** (HashGate)
 
-  * The 6A validation bundle & `_passed.flag_6A` are **fingerprint-scoped** only:
+  * The 6A validation bundle & `_passed.flag` are **fingerprint-scoped** only:
 
     * they summarise validation across *all* seeds for a given `manifest_fingerprint`,
     * they do not carry `seed` as a partition key.
@@ -1754,7 +1754,7 @@ data/layer3/6A/validation/
     s5_validation_report_6A.json
     s5_issue_table_6A.parquet          # optional
     validation_bundle_index_6A.json
-    _passed.flag_6A
+    _passed.flag
     ... (other evidence files)
 ```
 
@@ -1875,7 +1875,7 @@ In all fraud-role tables:
 * **`validation_passed_flag_6A`**
 
   * Logical key: `(manifest_fingerprint)`.
-  * There MUST be at most one `_passed.flag_6A` per world.
+  * There MUST be at most one `_passed.flag` per world.
   * It MUST carry a single `bundle_digest_sha256` that matches the bundle index’s evidence files.
 
 ---
@@ -1987,22 +1987,22 @@ For each `(manifest_fingerprint, seed)`:
   * “append more roles” to a partial previous run,
   * mix multiple, incompatible role assignments for the same `(mf, seed)`.
 
-#### 7.5.2 Validation bundle & `_passed.flag_6A` — replace-not-append per `mf`
+#### 7.5.2 Validation bundle & `_passed.flag` — replace-not-append per `mf`
 
 For each `manifest_fingerprint`:
 
-* `s5_validation_report_6A`, `s5_issue_table_6A`, `validation_bundle_index_6A` and `_passed.flag_6A` together form **the** 6A segment-level validation state for that world.
+* `s5_validation_report_6A`, `s5_issue_table_6A`, `validation_bundle_index_6A` and `_passed.flag` together form **the** 6A segment-level validation state for that world.
 
 **Binding rules:**
 
 * For a given `mf` and spec version:
 
-  * there MUST be exactly one logical validation bundle index and at most one `_passed.flag_6A`,
+  * there MUST be exactly one logical validation bundle index and at most one `_passed.flag`,
   * re-running S5 under identical inputs MUST produce byte-identical bundle index, evidence files, and flag, or fail with `OUTPUT_CONFLICT`.
 
 * S5 MUST NOT:
 
-  * silently overwrite `_passed.flag_6A` with a different digest,
+  * silently overwrite `_passed.flag` with a different digest,
   * produce two different valid flags for the same `mf` and version.
 
 * If S5 is updated (new spec version), a migration plan MUST dictate whether:
@@ -2032,13 +2032,13 @@ For any `(mf, seed)`:
 
 For each `manifest_fingerprint`:
 
-* 6B and any enterprise ingestion MUST gate on `_passed.flag_6A`:
+* 6B and any enterprise ingestion MUST gate on `_passed.flag`:
 
-  * locate `validation_bundle_index_6A` and `_passed.flag_6A` from the catalogue,
+  * locate `validation_bundle_index_6A` and `_passed.flag` from the catalogue,
   * recompute `bundle_digest_sha256` from evidence files in index order,
-  * compare against `_passed.flag_6A.bundle_digest_sha256`.
+  * compare against `_passed.flag.bundle_digest_sha256`.
 
-* If digest verification fails, or `_passed.flag_6A` is missing, the world MUST be treated as **unsealed**, and:
+* If digest verification fails, or `_passed.flag` is missing, the world MUST be treated as **unsealed**, and:
 
   * 6B MUST NOT read S1–S5 outputs for that `mf`,
   * ingestion must fail or quarantine that world.
@@ -2048,7 +2048,7 @@ Only when S5’s HashGate is verified do 6B and the outer system have permission
 ---
 
 These identity, partition, ordering, and merge rules are **binding**.
-Any implementation that violates them — e.g. appending to fraud-role tables, overwriting `_passed.flag_6A` without conflict detection, or ignoring the HashGate — is not a valid implementation of 6A.S5.
+Any implementation that violates them — e.g. appending to fraud-role tables, overwriting `_passed.flag` without conflict detection, or ignoring the HashGate — is not a valid implementation of 6A.S5.
 
 ---
 
@@ -2059,7 +2059,7 @@ This section defines exactly **when 6A.S5 is considered PASS**, and how **downst
 There are two levels:
 
 * **Seed-level**: fraud-role surfaces per `(manifest_fingerprint, seed)`.
-* **World-level**: 6A validation bundle + `_passed.flag_6A` per `manifest_fingerprint`.
+* **World-level**: 6A validation bundle + `_passed.flag` per `manifest_fingerprint`.
 
 If any binding condition here fails, S5 is **FAIL**, and that world/seed **must not** be treated as a sealed 6A universe.
 
@@ -2187,7 +2187,7 @@ For each entity type where S5 emits roles (party, account, merchant, device, IP)
      * `6A.S5.FRAUD_ROLE_ASSIGNMENT_FAILED`,
      * or `6A.S5.VALIDATION_CHECK_FAILED` for the specific check.
 
-   * Where rules are labelled as WARN-level, S5 MUST reflect violations in the validation report but may still consider the world eligible for `_passed.flag_6A` (if policy allows).
+   * Where rules are labelled as WARN-level, S5 MUST reflect violations in the validation report but may still consider the world eligible for `_passed.flag` (if policy allows).
 
 If any of these seed-level conditions are not met, S5 MUST mark that `(mf, seed)` as FAIL in its run-report and treat the fraud-role surfaces as non-authoritative.
 
@@ -2218,7 +2218,7 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 * The world-level validation report (`s5_validation_report_6A`) MUST reflect:
 
   * counts of seeds in PASS/WARN/FAIL,
-  * whether any FAIL seeds are blocking for `_passed.flag_6A`.
+  * whether any FAIL seeds are blocking for `_passed.flag`.
 
 #### 8.2.2 Validation report & issue table
 
@@ -2253,13 +2253,13 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 
 * If and only if `s5_validation_report_6A.overall_status` meets the policy’s threshold for world PASS (e.g. `"PASS"` with no blocking failures):
 
-  * `_passed.flag_6A` exists,
+  * `_passed.flag` exists,
   * validates against `#/validation/passed_flag_6A`,
-  * `bundle_digest_sha256` in `_passed.flag_6A` equals the SHA-256 digest computed over the concatenation of evidence-file bytes in exactly the order implied by `validation_bundle_index_6A`.
+  * `bundle_digest_sha256` in `_passed.flag` equals the SHA-256 digest computed over the concatenation of evidence-file bytes in exactly the order implied by `validation_bundle_index_6A`.
 
-* If `overall_status` is FAIL (per policy), S5 MUST NOT emit `_passed.flag_6A` or must treat an existing flag as invalid; any mismatch between Flag vs recomputation MUST be treated as `6A.S5.VALIDATION_DIGEST_MISMATCH`.
+* If `overall_status` is FAIL (per policy), S5 MUST NOT emit `_passed.flag` or must treat an existing flag as invalid; any mismatch between Flag vs recomputation MUST be treated as `6A.S5.VALIDATION_DIGEST_MISMATCH`.
 
-If any of 11–14 fails, the world-level S5 state MUST be considered FAIL; `_passed.flag_6A` MUST be absent or treated as invalid, and 6B MUST treat the world as unsealed.
+If any of 11–14 fails, the world-level S5 state MUST be considered FAIL; `_passed.flag` MUST be absent or treated as invalid, and 6B MUST treat the world as unsealed.
 
 ---
 
@@ -2290,11 +2290,11 @@ If any of these checks fails, 6B MUST NOT:
 
 It MAY operate in a “roles unknown” mode for that seed if the design explicitly supports it, but MUST NOT treat S5 as PASS.
 
-#### 8.3.2 World-level gating on `_passed.flag_6A`
+#### 8.3.2 World-level gating on `_passed.flag`
 
 Before ingesting **any** 6A outputs (S1–S5) for a world into downstream systems or 6B’s main flows, 6B / ingestion MUST:
 
-1. Locate `validation_bundle_index_6A` and `_passed.flag_6A` for `manifest_fingerprint`.
+1. Locate `validation_bundle_index_6A` and `_passed.flag` for `manifest_fingerprint`.
 
 2. Recompute `bundle_digest_sha256` by:
 
@@ -2316,7 +2316,7 @@ If the flag is missing or the digest does not match, the world MUST be treated a
 Only if both:
 
 * S5 run-reports for all relevant seeds are PASS, and
-* `_passed.flag_6A` is present and digest-valid,
+* `_passed.flag` is present and digest-valid,
 
 may 6B and external consumers treat the world as a sealed 6A universe.
 
@@ -2336,11 +2336,11 @@ If S5 fails for a given `(mf, seed)` or for a world `mf`:
 Under no circumstances may:
 
 * fraud-role tables from a FAILED S5 run be silently used as if they were PASS,
-* `_passed.flag_6A` from a prior run be “reused” when the new S5 run fails (this would break idempotency and trust).
+* `_passed.flag` from a prior run be “reused” when the new S5 run fails (this would break idempotency and trust).
 
 The only valid states are:
 
-* **S5 PASS (seed & world) →** 6A is sealed for that world; 6B may consume fraud roles and treat `_passed.flag_6A` as a valid gate.
+* **S5 PASS (seed & world) →** 6A is sealed for that world; 6B may consume fraud roles and treat `_passed.flag` as a valid gate.
 * **S5 FAIL (seed or world) →** 6A is **not** sealed for that world; 6B and ingestion MUST NOT treat 6A outputs as production/trustworthy for that world, even if S1–S4 were PASS.
 
 These acceptance criteria and gating obligations are **binding** and fully define what “6A.S5 is done and 6A is sealed” means for the rest of the system.
@@ -2563,7 +2563,7 @@ Implementations **must** map detected conditions to these codes deterministicall
 * Realised role proportions out of tolerance bands → `6A.S5.FRAUD_ROLE_PROP_MISMATCH`.
 * A blocking validation check fails (e.g. degree sanity, global fraud rate band) → `6A.S5.VALIDATION_CHECK_FAILED`.
 * Validation bundle index missing files or file digests mismatched → `6A.S5.VALIDATION_BUNDLE_INCOMPLETE`.
-* Recomputed bundle digest disagrees with `_passed.flag_6A` → `6A.S5.VALIDATION_DIGEST_MISMATCH`.
+* Recomputed bundle digest disagrees with `_passed.flag` → `6A.S5.VALIDATION_DIGEST_MISMATCH`.
 * RNG envelope/trace inconsistent → `6A.S5.RNG_ACCOUNTING_MISMATCH` / `6A.S5.RNG_STREAM_CONFIG_INVALID`.
 * Attempting to overwrite non-identical existing S5 outputs → `6A.S5.OUTPUT_CONFLICT`.
 
@@ -2603,7 +2603,7 @@ Combined with §8, these error codes and run-report semantics define the **only*
 ## 10. Observability & run-report integration *(Binding)*
 
 S5 is the **closure point** for 6A: it assigns static fraud roles and emits the 6A HashGate.
-Its status and key metrics must be **explicitly observable and machine-checkable**, and downstream systems (especially 6B and any ingestion layer) must gate on **S5’s run-report *and* the `_passed.flag_6A`**.
+Its status and key metrics must be **explicitly observable and machine-checkable**, and downstream systems (especially 6B and any ingestion layer) must gate on **S5’s run-report *and* the `_passed.flag`**.
 
 This section fixes:
 
@@ -2734,30 +2734,30 @@ S5 MUST NOT set `status="PASS"` unless:
 S5’s **world-level** closure for a given `manifest_fingerprint` is represented by:
 
 * `s5_validation_report_6A` (dataset, not the run-report), and
-* `_passed.flag_6A` (validation_passed_flag_6A dataset).
+* `_passed.flag` (validation_passed_flag_6A dataset).
 
 The **run-report for S5** MUST expose enough information for downstream components to know:
 
 * whether S5 has:
 
   * built a validation bundle for this world, and
-  * emitted a valid `_passed.flag_6A`.
+  * emitted a valid `_passed.flag`.
 
 Concretely, the S5 run-report MUST include:
 
 * `validation_overall_status` — mirroring `s5_validation_report_6A.overall_status` for the world.
 * `validation_bundle_present` — boolean indicating whether S5 wrote `validation_bundle_index_6A` for this world.
-* `passed_flag_present` — boolean indicating whether `_passed.flag_6A` exists.
-* optional `passed_flag_digest` — convenience echo of `_passed.flag_6A.bundle_digest_sha256` (non-binding; the binding digest is in the flag file itself).
+* `passed_flag_present` — boolean indicating whether `_passed.flag` exists.
+* optional `passed_flag_digest` — convenience echo of `_passed.flag.bundle_digest_sha256` (non-binding; the binding digest is in the flag file itself).
 
 **Binding semantics:**
 
 * `validation_overall_status == "PASS"` AND `passed_flag_present == true`
   ⇒ S5 considers the world eligible for 6A HashGate.
 * `validation_overall_status != "PASS"` OR `passed_flag_present == false`
-  ⇒ the world is **not sealed** for 6A; `_passed.flag_6A` MUST NOT be trusted, even if present (e.g. from a previous spec version).
+  ⇒ the world is **not sealed** for 6A; `_passed.flag` MUST NOT be trusted, even if present (e.g. from a previous spec version).
 
-The actual gate for 6B is `_passed.flag_6A` + index/digest verification (see §8.3), but run-report must make the intended status visible.
+The actual gate for 6B is `_passed.flag` + index/digest verification (see §8.3), but run-report must make the intended status visible.
 
 ---
 
@@ -2775,7 +2775,7 @@ For a **fully PASS** 6A.S5 state over a world `mf`:
 
   * `s5_validation_report_6A` and optional `s5_issue_table_6A` MUST be present and schema-valid,
   * `validation_bundle_index_6A` MUST list all evidence files and have per-file digests that match recomputation,
-  * `_passed.flag_6A` MUST be present and have a digest that matches recomputation over the evidence files (as per the bundle index).
+  * `_passed.flag` MUST be present and have a digest that matches recomputation over the evidence files (as per the bundle index).
 
 The S5 run-report, fraud-role tables, and validation bundle MUST be in a **consistent state**; any mismatch is a spec violation and MUST surface as:
 
@@ -2786,7 +2786,7 @@ The S5 run-report, fraud-role tables, and validation bundle MUST be in a **consi
 For **FAIL**:
 
 * S5 MUST NOT present the world as sealed in the run-report (e.g. `validation_overall_status != "PASS"`) and MUST NOT signal successful bundling & HashGate.
-* If a valid `_passed.flag_6A` from a prior run is still present, 6B/ingestion MUST rely on **digest verification**, not the run-report alone, before trusting it.
+* If a valid `_passed.flag` from a prior run is still present, 6B/ingestion MUST rely on **digest verification**, not the run-report alone, before trusting it.
 
 ---
 
@@ -2816,7 +2816,7 @@ If any of these checks fails, 6B MUST:
 * treat the fraud-posture surfaces as **non-authoritative** for that `(mf, seed)`,
 * either refuse to run or switch to a documented “no static posture” mode if such a mode is explicitly supported.
 
-#### 10.5.2 Gating on `_passed.flag_6A`
+#### 10.5.2 Gating on `_passed.flag`
 
 Before ingesting any world `mf` as a sealed 6A universe, 6B / ingestion MUST:
 
@@ -2827,9 +2827,9 @@ Before ingesting any world `mf` as a sealed 6A universe, 6B / ingestion MUST:
 
 2. Verify the HashGate:
 
-   * read `validation_bundle_index_6A` and `_passed.flag_6A`,
+   * read `validation_bundle_index_6A` and `_passed.flag`,
    * recompute `bundle_digest_sha256` from evidence files as per §6.7,
-   * verify it matches `_passed.flag_6A.bundle_digest_sha256`.
+   * verify it matches `_passed.flag.bundle_digest_sha256`.
 
 If either:
 
@@ -3127,7 +3127,7 @@ The intended behaviour:
 
   * record these as `VALIDATION_CHECK_FAILED`,
   * mark `overall_status="FAIL"` in the validation report,
-  * **not** emit `_passed.flag_6A`.
+  * **not** emit `_passed.flag`.
 
 Operators can then:
 
@@ -3156,7 +3156,7 @@ This section fixes **how 6A.S5 is allowed to evolve** and what “compatible” 
 with respect to:
 
 * S5’s **fraud-posture surfaces**, and
-* the **6A validation bundle & `_passed.flag_6A` HashGate**.
+* the **6A validation bundle & `_passed.flag` HashGate**.
 
 Any change that violates these rules is a **spec violation**, even if a particular implementation “appears to work”.
 
@@ -3244,14 +3244,14 @@ The following changes are **backwards compatible** within a given major S5 spec 
      * new entries in `s5_validation_report_6A`,
      * potentially new evidence files referenced in `validation_bundle_index_6A`.
 
-   * As long as **failure of these new checks** does not change **whether** `_passed.flag_6A` is emitted for worlds previously considered PASS, they are backward compatible.
+   * As long as **failure of these new checks** does not change **whether** `_passed.flag` is emitted for worlds previously considered PASS, they are backward compatible.
 
 5. **Implementation & performance optimisations**
 
    * Changes purely to how S5 is implemented (caching, parallelisation, streaming, file layout, job scheduling) are compatible if:
 
      * fraud-role surfaces are unchanged for fixed `(mf, ph, seed)`,
-     * validation bundle contents and `_passed.flag_6A` are unchanged for fixed `mf/ph`,
+     * validation bundle contents and `_passed.flag` are unchanged for fixed `mf/ph`,
      * RNG use and accounting remain correct and deterministic.
 
 These changes typically correspond to **minor/patch** bumps to `spec_version_6A` / S5’s subversion and/or schema semver, and require no behavioural changes from consumers beyond “ignore unknown fields / checks”.
@@ -3301,7 +3301,7 @@ Examples:
 
 4. **Changing how WARN vs FAIL is treated in HashGate eligibility**
 
-   * For example, changing policy so that certain WARN-level checks now block `_passed.flag_6A`, or vice versa.
+   * For example, changing policy so that certain WARN-level checks now block `_passed.flag`, or vice versa.
 
    * Even if schemas remain the same, gating semantics change, so downstream systems must consider spec version when interpreting worlds as “sealable”.
 
@@ -3349,7 +3349,7 @@ The following are **breaking** and MUST NOT be introduced without:
 
    without:
 
-   * updating the `_passed.flag_6A` schema, and
+   * updating the `_passed.flag` schema, and
    * versioning the digest law appropriately.
 
    Any change to the HashGate law MUST be reflected in schemas (`validation_bundle_index_6A`, `passed_flag_6A`), spec version, and consumer logic.
@@ -3413,8 +3413,8 @@ Downstream systems are not passive; they have obligations under this spec.
    * Downstream specs/code MUST NOT:
 
      * override S5’s static fraud roles with contradictory labels,
-     * treat worlds lacking `_passed.flag_6A` as “sealed” by some ad-hoc rule,
-     * compute their own version of “6A sealed” independent of `_passed.flag_6A` and its validation index.
+     * treat worlds lacking `_passed.flag` as “sealed” by some ad-hoc rule,
+     * compute their own version of “6A sealed” independent of `_passed.flag` and its validation index.
 
    * Derived features (e.g. “fraud adjacency score”) are allowed and encouraged, but must be clearly distinguished from S5’s roles.
 
@@ -3451,7 +3451,7 @@ This section does **not**:
 It **does** require that:
 
 * any change in S5 that affects observable fraud roles, validation semantics, or the HashGate must be **explicitly versioned**,
-* downstream must never simply “hope” compatibility — they must check S5’s version and `_passed.flag_6A` before trusting a world.
+* downstream must never simply “hope” compatibility — they must check S5’s version and `_passed.flag` before trusting a world.
 
 ---
 
@@ -3709,7 +3709,7 @@ S5’s validation layer uses:
   * `s5_issue_table_6A` (if present),
   * `validation_bundle_index_6A`,
   * any additional evidence files,
-  * `_passed.flag_6A`.
+  * `_passed.flag`.
 
 * **`validation_bundle_index_6A`**
 
@@ -3726,9 +3726,9 @@ S5’s validation layer uses:
       = SHA256(concatenated_bytes_of_all_evidence_files_in_index_order)
     ```
 
-  * Stored as a 64-character lowercase hex string in `_passed.flag_6A`.
+  * Stored as a 64-character lowercase hex string in `_passed.flag`.
 
-* **`validation_passed_flag_6A` / `_passed.flag_6A`**
+* **`validation_passed_flag_6A` / `_passed.flag`**
 
   * Small HashGate artefact indicating 6A is sealed for world `mf`, containing at minimum:
 
@@ -3781,7 +3781,7 @@ RNG events are used for **auditability & reproducibility**, not for business sem
 
   * S0–S4 are PASS,
   * S5 fraud-role surfaces are PASS for all relevant seeds,
-  * `_passed.flag_6A` exists and its digest validates against `validation_bundle_index_6A` and evidence files.
+  * `_passed.flag` exists and its digest validates against `validation_bundle_index_6A` and evidence files.
 
 This appendix is **informative** only; it exists to make the rest of the S5 spec easier to read and implement.
 

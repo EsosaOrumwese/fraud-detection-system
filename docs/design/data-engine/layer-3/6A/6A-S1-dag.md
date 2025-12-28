@@ -318,5 +318,5 @@ Downstream touchpoints
 - **6B — Behavioural flows & transactions:**
     - MUST treat S1’s party_base as the only source of parties/customers in the world:
           - all 6B flows/transactions must attach to party_id from s1_party_base_6A (and related S2–S4 entities),
-          - it MUST gate on 6A’s HashGate (S5 `_passed.flag_6A`) before trusting any 6A entities/roles.
+          - it MUST gate on 6A’s HashGate (S5 `_passed.flag`) before trusting any 6A entities/roles.
 ```

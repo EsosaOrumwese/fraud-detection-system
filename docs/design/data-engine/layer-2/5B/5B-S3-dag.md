@@ -346,6 +346,6 @@ Downstream touchpoints
     - Bundles s3_bucket_counts_5B and RNG evidence as part of the 5B validation bundle for this manifest_fingerprint.
 
 - **Layer-3 & external tooling:**
-    - Must gate any use of s3_bucket_counts_5B on the 5B HashGate (`_passed.flag_5B`):
+    - Must gate any use of s3_bucket_counts_5B on the 5B HashGate (`_passed.flag`):
           **No 5B PASS → No read/use of bucket counts or arrival events.**
 ```

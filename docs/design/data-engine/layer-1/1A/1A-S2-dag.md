@@ -272,5 +272,5 @@ Downstream touchpoints (from S2 outputs)
         - rng_event_gamma_component, rng_event_poisson_component, rng_event_nb_final
         - rng_trace_log (NB substreams)
         - S2.1/2.2 deterministic NB context
-    * checks all S2.6/S2.7/S2.8 invariants before allowing `_passed.flag_1A` to be written.
+    * checks all S2.6/S2.7/S2.8 invariants before allowing `_passed.flag` to be written.
 ```

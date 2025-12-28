@@ -94,7 +94,7 @@ S3 is explicitly **not** allowed to:
 
 * **Define segment-level validation or HashGate**
 
-  * It does not create the 6B validation bundle or `_passed.flag_6B`; that’s S5’s job.
+  * It does not create the 6B validation bundle or `_passed.flag`; that’s S5’s job.
   * It does not re-validate S0/S1/S2 gates; it trusts their receipts and sealed-inputs manifests.
 
 ### Relationship to other 6B states and the engine

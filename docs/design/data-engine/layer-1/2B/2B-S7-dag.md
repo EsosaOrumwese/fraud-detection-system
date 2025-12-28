@@ -342,7 +342,7 @@ D. Report assembly & publish (authoritative, RNG-free)  [NO RNG]
 
 Downstream touchpoints
 ----------------------
-- **2B.S8 — Validation bundle (`validation_bundle_2B` + `_passed.flag_2B`):**
+- **2B.S8 — Validation bundle (`validation_bundle_2B` + `_passed.flag`):**
     - MUST treat s7_audit_report as the **sole authoritative audit artefact**
       for this {seed,fingerprint} when deciding whether to publish a PASS bundle.
     - Discovery of S7 is purely via Dataset Dictionary (ID→path); S8 then pulls checks/metrics/summary from it.

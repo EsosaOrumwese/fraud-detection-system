@@ -252,12 +252,12 @@
   retention_class: engine_control_plane
   pii_class: none
 
-- manifest_key: validation_passed_flag_6B
+- manifest_key: engine.layer3.6B.validation.passed
   owner_layer: 3
   owner_segment: 6B
   dataset_id: validation_passed_flag_6B
   semver: 1.0.0
-  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
   partition_keys: [fingerprint]
   schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
   produced_by: 6B.S5

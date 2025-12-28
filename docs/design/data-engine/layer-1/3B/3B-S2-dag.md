@@ -461,7 +461,7 @@ Downstream touchpoints
     - Uses `edge_catalogue_index_3B` and `edge_universe_hash_3B` (constructed in S3) to bind routing policy
       to a specific virtual edge universe.
 
-- **3B.S5 — 3B validation bundle & `_passed.flag_3B`:**
+- **3B.S5 — 3B validation bundle & `_passed.flag`:**
     - Replays S2’s structural invariants:
           - domain coverage vis-à-vis V and tiling surfaces,
           - count conservation (E_m(c), E_m(c,t), edge counts),
@@ -470,5 +470,5 @@ Downstream touchpoints
 
 - **Cross-segment consumers (2B routing, analytics):**
     - MUST NOT read `edge_catalogue_3B` or `edge_catalogue_index_3B` directly unless 3B’s segment-level HashGate
-      (S5 bundle + `_passed.flag_3B`) is PASS for this `manifest_fingerprint` (No PASS → No read).
+      (S5 bundle + `_passed.flag`) is PASS for this `manifest_fingerprint` (No PASS → No read).
 ```

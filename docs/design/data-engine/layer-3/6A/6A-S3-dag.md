@@ -357,5 +357,5 @@ Downstream touchpoints
 - **6B — Behaviour & transaction flows:**
     - Uses s3_instrument_base_6A as the universe of credentials (cards, handles, wallets) that can appear in flows.
     - Uses s3_account_instrument_links_6A to map flows to accounts/parties.
-    - MUST gate on the 6A segment-level `_passed.flag_6A` before treating these instruments as trustworthy.
+    - MUST gate on the 6A segment-level `_passed.flag` before treating these instruments as trustworthy.
 ```

@@ -292,7 +292,7 @@ Where lineage appears **both** in the path and embedded fields, **byte-equality 
 
 ## 4.2 Consumer gate flag (file)
 
-**Identifier:** `validation_passed_flag`
+**Identifier:** `validation_passed_flag_1A`
 **Path:** `…/validation/fingerprint={manifest_fingerprint}/_passed.flag` (co-located with the bundle). 
 
 **Content (exact).** One line:
@@ -1296,7 +1296,7 @@ This appendix freezes the **exact strings/enums** S9 relies on when validating S
 * **Membership convenience:** `s6_membership` → `[seed,parameter_hash]` → `#/alloc/membership` (gate = `s6_validation_receipt`).  
 * **Core logs:** `rng_audit_log`, `rng_trace_log` → `[seed,parameter_hash,run_id]` → layer `#/rng/core/*`. 
 * **Validation outputs (S9 writes):**
-  `validation_bundle_1A` (folder) & `validation_passed_flag` (file `_passed.flag`) under `validation/fingerprint={manifest_fingerprint}/`. 
+  `validation_bundle_1A` (folder) & `validation_passed_flag_1A` (file `_passed.flag`) under `validation/fingerprint={manifest_fingerprint}/`. 
 
 ---
 

@@ -389,5 +389,5 @@ Downstream touchpoints
         · RNG accounting: one rng_event_zone_dirichlet per escalated (m,c), rng_trace_log totals vs events.
 - **Cross-segment consumers (2B, routing tooling):**
     - MUST NOT read s3_zone_shares directly as a cross-layer contract;
-      cross-layer visibility is via zone_alloc and the 3A validation bundle / `_passed.flag_3A`.
+      cross-layer visibility is via zone_alloc and the 3A validation bundle / `_passed.flag`.
 ```

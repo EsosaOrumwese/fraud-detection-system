@@ -600,7 +600,7 @@
     HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256
     digest over the validation bundle for this manifest_fingerprint.
   version: '{manifest_fingerprint}'
-  path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
+  path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
   partitioning: [fingerprint]
   ordering: []
   schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A

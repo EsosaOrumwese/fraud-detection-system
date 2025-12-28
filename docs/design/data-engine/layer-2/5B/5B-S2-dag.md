@@ -381,7 +381,7 @@ Downstream touchpoints
 - **5B.S4 — Arrival events (micro-time & routing):**
     - Uses s2_realised_intensity_5B only indirectly via S3 counts (it does not read λ_realised directly in most designs).
 
-- **5B.S5 — Validation bundle & `_passed.flag_5B`:**
+- **5B.S5 — Validation bundle & `_passed.flag`:**
     - Replays S2 invariants:
           - S2 domain = S1 domain×BUCKETS(S),
           - latent fields exist and were sampled via configured RNG policy,

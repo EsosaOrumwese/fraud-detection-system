@@ -1,10 +1,10 @@
-# 3B.S5 — Segment validation bundle & `_passed.flag_3B`
+# 3B.S5 — Segment validation bundle & `_passed.flag`
 
 ## 1. Purpose & scope *(Binding)*
 
 1.1 **State identity and role in subsegment 3B**
 
-1.1.1 This state, **3B.S5 — Segment validation bundle & `_passed.flag_3B`** (“S5”), is the **terminal validation and HashGate state** for Layer-1 subsegment **3B — Virtual merchants & CDN surfaces**.
+1.1.1 This state, **3B.S5 — Segment validation bundle & `_passed.flag`** (“S5”), is the **terminal validation and HashGate state** for Layer-1 subsegment **3B — Virtual merchants & CDN surfaces**.
 
 1.1.2 S5 is the final step in the 3B state ladder. For a given `{seed, parameter_hash, manifest_fingerprint}`, no further 3B state MAY execute after S5 (other than re-runs of S5 itself) when constructing 3B’s artefacts for that manifest.
 
@@ -12,7 +12,7 @@
 
 * re-audit the **entire 3B subsegment** (S0–S4) for structural, contractual and RNG-accounting correctness;
 * package that evidence into a **3B validation bundle**; and
-* compute and publish a **3B segment-level PASS flag** (`_passed.flag_3B`) that downstream components MUST verify before consuming any 3B artefacts.
+* compute and publish a **3B segment-level PASS flag** (`_passed.flag`) that downstream components MUST verify before consuming any 3B artefacts.
 
 1.1.4 S5 does **not** introduce new business semantics. It is a **gating & evidence state**: given what S0–S4 have already produced, S5 answers the question:
 
@@ -51,7 +51,7 @@
 
 * compute a **3B bundle digest** from the validation bundle contents using a documented hashing law (typically SHA-256 over concatenated evidence bytes in ASCII-sorted path order);
 
-* write a 3B-scoped PASS flag `_passed.flag_3B` that encodes this bundle digest and that downstream consumers MUST verify before trusting any 3B surfaces.
+* write a 3B-scoped PASS flag `_passed.flag` that encodes this bundle digest and that downstream consumers MUST verify before trusting any 3B surfaces.
 
 1.2.2 S5 MUST ensure that, for any manifest where it reports PASS:
 
@@ -79,7 +79,7 @@
 
 However, these checks are **purely audit**; S5 itself MUST perform no new random draws or RNG state changes.
 
-1.3.3 Given identical inputs (identity triple, sealed artefacts, S1–S4 outputs, RNG logs), repeated executions of S5 for the same `{seed, parameter_hash, manifest_fingerprint}` MUST produce **bit-identical** validation bundle contents and `_passed.flag_3B`.
+1.3.3 Given identical inputs (identity triple, sealed artefacts, S1–S4 outputs, RNG logs), repeated executions of S5 for the same `{seed, parameter_hash, manifest_fingerprint}` MUST produce **bit-identical** validation bundle contents and `_passed.flag`.
 
 ---
 
@@ -108,11 +108,11 @@ S5 MUST treat all these upstream artefacts as read-only and MUST NOT change thei
 
   > “No 3B PASS → No read of 3B virtual artefacts”
 
-  by verifying `_passed.flag_3B` for the manifest before using `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_blob_3B`, `virtual_routing_policy_3B`, etc.
+  by verifying `_passed.flag` for the manifest before using `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_blob_3B`, `virtual_routing_policy_3B`, etc.
 
 * **The 3B segment-level validation state and any 4A/4B-style harness**, which MUST:
 
-  * treat `validation_bundle_3B` + `_passed.flag_3B` as the definitive 3B-local evidence of correctness;
+  * treat `validation_bundle_3B` + `_passed.flag` as the definitive 3B-local evidence of correctness;
   * require S5 PASS as a prerequisite for declaring 3B “valid” within the overall Layer-1 run.
 
 1.4.3 S5 does not itself produce the Layer-1–wide PASS decision. The layer-wide harness (e.g. segments 4A/4B) may combine:
@@ -143,7 +143,7 @@ to decide whether the entire Layer-1 run is acceptable. S5’s role is to provid
 
 1.5.3 S5’s scope is strictly to:
 
-> **Inspect the sealed 3B environment and S1–S4 outputs, verify that they are internally coherent and policy-compliant, package that evidence into a 3B validation bundle, and sign it with `_passed.flag_3B` so all downstream consumers can enforce a simple rule: “No 3B PASS → No read of 3B.”**
+> **Inspect the sealed 3B environment and S1–S4 outputs, verify that they are internally coherent and policy-compliant, package that evidence into a 3B validation bundle, and sign it with `_passed.flag` so all downstream consumers can enforce a simple rule: “No 3B PASS → No read of 3B.”**
 
 ---
 
@@ -298,7 +298,7 @@ SHALL define the **closed input universe** for 3B.S5.
 
 2.6.3 Downstream components (2B, 3B validation, 4A/4B) MAY assume that:
 
-* S5’s validation bundle and `_passed.flag_3B` were constructed **only** from the sealed artefacts and S1–S4 outputs;
+* S5’s validation bundle and `_passed.flag` were constructed **only** from the sealed artefacts and S1–S4 outputs;
 * any missing or inconsistent artefact that would undermine 3B’s correctness would have caused S5 to fail rather than emit a PASS flag.
 
 2.6.4 If, during execution, S5 discovers that it requires an input not sealed by S0 (e.g. a new policy or log not present in `sealed_inputs_3B`), S5 MUST:
@@ -434,7 +434,7 @@ S5 MUST NOT redefine RNG semantics; it only checks conformance.
 
     * the structure and content of the 3B validation bundle;
     * the law for computing the 3B bundle digest;
-    * the format and semantics of `_passed.flag_3B`.
+    * the format and semantics of `_passed.flag`.
 
 3.4.2 Where S5 detects conflict between:
 
@@ -459,13 +459,13 @@ S5 MUST treat this as a **contract violation** and fail, rather than silently co
 
 * **`validation_bundle_3B`** — a fingerprint-scoped directory containing 3B-specific validation evidence (manifests, structural check reports, RNG accounting summaries, digest summaries, etc.) and an index file.
 * **`validation_bundle_index_3B`** — an `index.json` file inside the bundle that enumerates all evidence files and their per-file digests.
-* **`_passed.flag_3B`** — a small text file at the root of the 3B validation directory, storing the combined digest of the validation bundle, as per the canonical HashGate law.
+* **`_passed.flag`** — a small text file at the root of the 3B validation directory, storing the combined digest of the validation bundle, as per the canonical HashGate law.
 
 4.1.2 S5 MAY also emit an optional **S5 run-summary / manifest** (e.g. `s5_manifest_3B.json` or `s5_run_summary_3B.json`) inside the validation bundle. This artefact:
 
 * captures S5’s own view of identity, contracts and check outcomes;
 * is **informative** to operators and higher-level harnesses;
-* does not change the semantics of `validation_bundle_index_3B` or `_passed.flag_3B`.
+* does not change the semantics of `validation_bundle_index_3B` or `_passed.flag`.
 
 4.1.3 S5 MUST NOT emit:
 
@@ -544,28 +544,28 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 4.3.4 The index MUST satisfy:
 
 * `members.path` entries are **unique** and sorted lexicographically;
-* `path` values MUST exclude `_passed.flag_3B`;
+* `path` values MUST exclude `_passed.flag`;
 * every member's file MUST exist under the bundle root and be readable;
 * every evidence file that contributes to the bundle hash MUST appear in `members` exactly once.
 
 ---
 
-4.4 **Segment PASS flag - `_passed.flag_3B`**
+4.4 **Segment PASS flag - `_passed.flag`**
 
-4.4.1 The segment-level PASS flag for 3B SHALL be represented as a single-line text file named `_passed.flag_3B`, registered in `dataset_dictionary.layer1.3B.yaml` with at least:
+4.4.1 The segment-level PASS flag for 3B SHALL be represented as a single-line text file named `_passed.flag`, registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `id: passed_flag_3B`
+* `id: validation_passed_flag_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
 4.4.2 The registry entry MUST:
 
-* reference `name: passed_flag_3B` and `schema_ref`;
+* reference `name: validation_passed_flag_3B` and `schema_ref`;
 * declare `type: "dataset"` with explicit 3B ownership metadata;
-* provide `manifest_key` (e.g. `"mlr.3B.passed_flag_3B"`);
+* provide `manifest_key` (e.g. `"mlr.3B.validation.passed"`);
 * list consumers: any downstream component that gates on 3B (2B, 3B validation, 4A/4B).
 
 4.4.3 `schemas.layer1.yaml#/validation/passed_flag_3B` MUST define the flag file as:
@@ -615,7 +615,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 
 * `validation_bundle_3B` root directory;
 * `validation_bundle_index_3B/index.json`;
-* `_passed.flag_3B`;
+* `_passed.flag`;
 * `s5_manifest_3B` (if present).
 
 Their on-disk identity is fully determined by `fingerprint={manifest_fingerprint}` and the dataset IDs / filenames.
@@ -625,17 +625,17 @@ Their on-disk identity is fully determined by `fingerprint={manifest_fingerprint
 * they MUST match the values in `s0_gate_receipt_3B`;
 * they MUST NOT be used as partition keys or to shard the bundle.
 
-4.6.3 There MUST be at most one validation bundle and one `_passed.flag_3B` for a given `manifest_fingerprint` under the S5 contracts in effect. Re-runs of S5 for the same fingerprint MUST follow the idempotence rules defined in §7.
+4.6.3 There MUST be at most one validation bundle and one `_passed.flag` for a given `manifest_fingerprint` under the S5 contracts in effect. Re-runs of S5 for the same fingerprint MUST follow the idempotence rules defined in §7.
 
 ---
 
 4.7 **Downstream consumption & authority of S5 outputs**
 
-4.7.1 Together, `validation_bundle_3B` and `_passed.flag_3B` form the **3B segment-level gate**. Any downstream component that consumes 3B artefacts MUST:
+4.7.1 Together, `validation_bundle_3B` and `_passed.flag` form the **3B segment-level gate**. Any downstream component that consumes 3B artefacts MUST:
 
 * locate the bundle and flag via the dataset dictionary/registry;
 * recompute the bundle digest using `index.json` and evidence files;
-* verify that recomputed digest equals `sha256_hex` recorded in `_passed.flag_3B`.
+* verify that recomputed digest equals `sha256_hex` recorded in `_passed.flag`.
 
 Only if this verification succeeds MAY downstream components treat 3B as PASS for that `manifest_fingerprint`.
 
@@ -646,7 +646,7 @@ Only if this verification succeeds MAY downstream components treat 3B as PASS fo
 
 They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B may impose additional global conditions.
 
-4.7.3 No other state MAY write or modify `_passed.flag_3B` or `validation_bundle_3B`. Any changes to these artefacts must go through S5 and obey S5’s change-control and idempotence rules.
+4.7.3 No other state MAY write or modify `_passed.flag` or `validation_bundle_3B`. Any changes to these artefacts must go through S5 and obey S5’s change-control and idempotence rules.
 
 ---
 
@@ -674,7 +674,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 
 * exactly one `index.json` file at the root (see §5.2);
 * zero or more evidence files (JSON/Parquet/etc.), all residing under the bundle root and referenced in `index.json`;
-* the `_passed.flag_3B` flag file at the root (see §5.3), which MUST **not** be referenced in `index.json`.
+* the `_passed.flag` flag file at the root (see §5.3), which MUST **not** be referenced in `index.json`.
 
 5.1.4 The shape and semantics of each evidence file (e.g. S5 manifest, structural check reports, RNG accounting summaries) MUST be defined in `schemas.3B.yaml` or a Layer-1 schema and linked via `schema_ref` from the 3B dataset dictionary if those evidence files are themselves registered datasets. Evidence files that are not independently registered (e.g. ad hoc JSON reports) MUST still be included in `index.json` with correct digests.
 
@@ -716,7 +716,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * All `members.path` values are **unique** within a given `manifest_fingerprint`.
 * `members.path` values are sorted in **strict ASCII lexicographic order**.
 * Every file listed in `members[].path` exists under the bundle root and is readable.
-* No member corresponds to `_passed.flag_3B` (the flag is excluded from the index by design).
+* No member corresponds to `_passed.flag` (the flag is excluded from the index by design).
 
 5.2.5 Any additional metadata fields in the index schema (e.g. bundle version, creation timestamps) MUST be clearly defined as optional/informative and MUST NOT change the hashing law (see §4 and §6).
 
@@ -724,22 +724,22 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 
 ---
 
-5.3 **Segment PASS flag - `_passed.flag_3B`**
+5.3 **Segment PASS flag - `_passed.flag`**
 
 5.3.1 The 3B PASS flag MUST be registered in `dataset_dictionary.layer1.3B.yaml` with:
 
-* `id: passed_flag_3B`
+* `id: validation_passed_flag_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
 5.3.2 The registry entry MUST:
 
-* reference `name: passed_flag_3B` and `schema_ref`;
+* reference `name: validation_passed_flag_3B` and `schema_ref`;
 * declare `type: "dataset"` with explicit 3B ownership metadata;
-* provide a `manifest_key` (e.g. `"mlr.3B.passed_flag_3B"`);
+* provide a `manifest_key` (e.g. `"mlr.3B.validation.passed"`);
 * list all downstream consumers that gate on 3B (2B, 3B validation, 4A/4B, etc.).
 
 5.3.3 `schemas.layer1.yaml#/validation/passed_flag_3B` MUST define the flag as a text file with exactly one ASCII line of the form:
@@ -800,7 +800,7 @@ Any deviation MUST be treated as a schema violation.
 5.5.1 `schemas.3B.yaml` and/or `schemas.layer1.yaml` MUST define and anchor:
 
 * `#/validation/validation_bundle_index_3B` — used by `validation_bundle_index_3B`;
-* `#/validation/passed_flag_3B` — used by `_passed.flag_3B`;
+* `#/validation/passed_flag_3B` — used by `_passed.flag`;
 * `#/validation/s5_manifest_3B` — used by S5 manifest/summary (if present).
 
 5.5.2 S5’s evidence schemas SHOULD include `$ref` links back to upstream schemas where appropriate, for example:
@@ -810,7 +810,7 @@ Any deviation MUST be treated as a schema violation.
   * Layer-1 identity schemas (for `manifest_fingerprint_resolved`, `parameter_hash_resolved`);
   * S1–S4 artefact schemas for any embedded references or summaries.
 
-5.5.3 `dataset_dictionary.layer1.3B.yaml` MUST declare all S5 datasets (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag_3B`, `s5_manifest_3B`) with their correct `schema_ref`, path templates and partitioning. S5 MUST use these catalogue entries rather than hard-coded paths.
+5.5.3 `dataset_dictionary.layer1.3B.yaml` MUST declare all S5 datasets (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag`, `s5_manifest_3B`) with their correct `schema_ref`, path templates and partitioning. S5 MUST use these catalogue entries rather than hard-coded paths.
 
 ---
 
@@ -818,15 +818,15 @@ Any deviation MUST be treated as a schema violation.
 
 5.6.1 Binding aspects of this section include:
 
-* existence and names of S5 datasets (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag_3B`);
+* existence and names of S5 datasets (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag`);
 * their `schema_ref`, `path`, and `partitioning`;
-* the requirement that `_passed.flag_3B` encodes the SHA-256 of all files listed in `index.json` in ASCII-sorted path order;
-* that `_passed.flag_3B` is excluded from `index.json`.
+* the requirement that `_passed.flag` encodes the SHA-256 of all files listed in `index.json` in ASCII-sorted path order;
+* that `_passed.flag` is excluded from `index.json`.
 
 5.6.2 Optional S5 artefacts (e.g. `s5_manifest_3B`) and additional evidence files are binding only in the sense that:
 
 * if they are declared in schemas and dictionaries, S5 MUST write them in a schema-conformant way and include them in `index.json`;
-* their presence MUST NOT change the hashing law or the meaning of `_passed.flag_3B`.
+* their presence MUST NOT change the hashing law or the meaning of `_passed.flag`.
 
 5.6.3 In case of any discrepancy between this section and:
 
@@ -860,8 +860,8 @@ those contracts SHALL be treated as authoritative. This section MUST be updated 
 * **Phase E — Bundle assembly & index construction**
   Emit all S5 evidence files and build `validation_bundle_index_3B/index.json`.
 
-* **Phase F — Bundle hash & `_passed.flag_3B` publication**
-  Compute the bundle hash, write `_passed.flag_3B`, and atomically publish the bundle.
+* **Phase F — Bundle hash & `_passed.flag` publication**
+  Compute the bundle hash, write `_passed.flag`, and atomically publish the bundle.
 
 6.1.2 At no point MAY S5:
 
@@ -1065,7 +1065,7 @@ data/layer1/3B/validation/fingerprint={manifest_fingerprint}/.staging/
 
 6.6.3 After all evidence files are written to staging, S5 MUST construct `index.json` in the staging directory:
 
-1. Enumerate all evidence files under the staging root, excluding `_passed.flag_3B` (which does not exist yet).
+1. Enumerate all evidence files under the staging root, excluding `_passed.flag` (which does not exist yet).
 2. For each file, compute SHA-256 over its raw bytes → `sha256_hex`.
 3. Create an index structure with entries `{ "path": "<relative_path>", "sha256_hex": "<digest>" }`.
 4. Sort entries by `path` in strict ASCII lexicographic order.
@@ -1075,7 +1075,7 @@ data/layer1/3B/validation/fingerprint={manifest_fingerprint}/.staging/
 
 ---
 
-6.7 **Phase F — Bundle hash & `_passed.flag_3B` publication (RNG-free)**
+6.7 **Phase F — Bundle hash & `_passed.flag` publication (RNG-free)**
 
 6.7.1 Once `index.json` and all evidence files are present in the staging directory and validated:
 
@@ -1091,7 +1091,7 @@ data/layer1/3B/validation/fingerprint={manifest_fingerprint}/.staging/
 
 `bundle_sha256` MUST be encoded as a lowercase hex string.
 
-6.7.3 S5 MUST then create `_passed.flag_3B` **in the staging root** with exactly one ASCII line:
+6.7.3 S5 MUST then create `_passed.flag` **in the staging root** with exactly one ASCII line:
 
 ```text
 sha256_hex = <bundle_sha256>
@@ -1128,7 +1128,7 @@ so that:
 * their contents;
 * their paths;
 * the order and content of `index.json.files`;
-* and the resulting `_passed.flag_3B` contents
+* and the resulting `_passed.flag` contents
 
 are identical across re-runs.
 
@@ -1177,7 +1177,7 @@ and MUST equal the partition `fingerprint` and upstream S0 identity.
 
 * `validation_bundle_3B` directory;
 * `validation_bundle_index_3B/index.json`;
-* `_passed.flag_3B`;
+* `_passed.flag`;
 * `s5_manifest_3B` (if present).
 
 7.2.2 The canonical paths for S5 artefacts MUST be of the form:
@@ -1197,7 +1197,7 @@ and MUST equal the partition `fingerprint` and upstream S0 identity.
 * Flag:
 
   ```text
-  data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B
+  data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 * S5 manifest/summary (if present):
@@ -1225,7 +1225,7 @@ Any future change to partitioning (e.g. per-seed validation bundles) is a **chan
 
 S5 MUST enforce this order when writing `index.json`.
 
-7.3.2 When computing the bundle digest for `_passed.flag_3B`, S5 MUST:
+7.3.2 When computing the bundle digest for `_passed.flag`, S5 MUST:
 
 * iterate over `validation_bundle_index_3B.files` **in the exact sorted order** specified in `index.json`;
 * concat the raw bytes of each file (as found at `path`) in that order;
@@ -1233,7 +1233,7 @@ S5 MUST enforce this order when writing `index.json`.
 
 Any other ordering (e.g. filesystem listing order) is non-conformant.
 
-7.3.3 No evidence file other than `_passed.flag_3B` MAY exist at the bundle root without being listed in `index.json`. `_passed.flag_3B` MUST NOT be listed in `index.json`.
+7.3.3 No evidence file other than `_passed.flag` MAY exist at the bundle root without being listed in `index.json`. `_passed.flag` MUST NOT be listed in `index.json`.
 
 ---
 
@@ -1242,7 +1242,7 @@ Any other ordering (e.g. filesystem listing order) is non-conformant.
 7.4.1 S5 outputs are **logically immutable** for a given `manifest_fingerprint`. Once S5 has successfully published:
 
 * `validation_bundle_3B@fingerprint={manifest_fingerprint}` (including `index.json` and evidence files), and
-* `_passed.flag_3B@fingerprint={manifest_fingerprint}`,
+* `_passed.flag@fingerprint={manifest_fingerprint}`,
 
 these artefacts define the segment-level validation state for 3B under the current contracts.
 
@@ -1253,7 +1253,7 @@ these artefacts define the segment-level validation state for 3B under the curre
 * if they are identical, S5 MAY treat the run as idempotent and MUST NOT modify existing artefacts;
 * if they differ, S5 MUST treat this as an **inconsistent rewrite** and fail with the appropriate `E3B_S5_*` error, and MUST NOT overwrite existing artefacts.
 
-7.4.3 No other state may mutate or overwrite S5 outputs. Any change to the validation bundle or `_passed.flag_3B` MUST be orchestrated through S5 (or an explicit migration tool operating under a new contract and/or new `manifest_fingerprint`).
+7.4.3 No other state may mutate or overwrite S5 outputs. Any change to the validation bundle or `_passed.flag` MUST be orchestrated through S5 (or an explicit migration tool operating under a new contract and/or new `manifest_fingerprint`).
 
 ---
 
@@ -1261,7 +1261,7 @@ these artefacts define the segment-level validation state for 3B under the curre
 
 7.5.1 S5 MUST publish the validation bundle and flag using an **atomic publish** pattern:
 
-* Construct the entire bundle (index + evidence files) and `_passed.flag_3B` in a staging directory (e.g. under a `.staging` subdirectory).
+* Construct the entire bundle (index + evidence files) and `_passed.flag` in a staging directory (e.g. under a `.staging` subdirectory).
 * Perform all validations (schema, digests, internal consistency) against the staged contents.
 * Only once all checks succeed, atomically move/rename the staging directory to the canonical bundle path.
 
@@ -1269,15 +1269,15 @@ these artefacts define the segment-level validation state for 3B under the curre
 
 * downstream consumers never observe a state where:
 
-  * a new `_passed.flag_3B` exists but the corresponding `index.json` and evidence files are incomplete or inconsistent;
+  * a new `_passed.flag` exists but the corresponding `index.json` and evidence files are incomplete or inconsistent;
   * a new `index.json` exists without the corresponding flag;
   * mixed old and new bundle contents co-exist.
 
 7.5.3 Any detection (by S5 or by downstream consumers) of:
 
-* missing `index.json` when `_passed.flag_3B` exists;
-* missing `_passed.flag_3B` when `validation_bundle_3B` evidence files exist;
-* mismatched bundle hash (recomputed from `index.json`) vs `sha256_hex` in `_passed.flag_3B`;
+* missing `index.json` when `_passed.flag` exists;
+* missing `_passed.flag` when `validation_bundle_3B` evidence files exist;
+* mismatched bundle hash (recomputed from `index.json`) vs `sha256_hex` in `_passed.flag`;
 
 MUST be treated as a **3B.S5 failure** or environment corruption, not a valid PASS state.
 
@@ -1312,7 +1312,7 @@ is **non-conformant** with this specification.
 
 * restore partitioning and ordering discipline;
 * re-establish immutability and idempotence guarantees;
-* ensure that `_passed.flag_3B` is a reliable, single-bit gate for 3B segment validity for each manifest.
+* ensure that `_passed.flag` is a reliable, single-bit gate for 3B segment validity for each manifest.
 
 ---
 
@@ -1410,7 +1410,7 @@ p. S5 successfully computes the bundle digest:
 
 * `bundle_sha256 = SHA256(concat(bytes_of_files_in_index_order))`,
 
-and writes `_passed.flag_3B` in the staging root with the exact content:
+and writes `_passed.flag` in the staging root with the exact content:
 
 ```text
 sha256_hex = <bundle_sha256>
@@ -1421,7 +1421,7 @@ sha256_hex = <bundle_sha256>
 q. After validation, S5 atomically publishes the staged bundle and flag to their canonical paths so that:
 
 * `validation_bundle_3B` and `validation_bundle_index_3B` represent the same evidence set that was hashed;
-* `_passed.flag_3B` matches this bundle and nothing else.
+* `_passed.flag` matches this bundle and nothing else.
 
 **RNG-free & deterministic behaviour**
 
@@ -1430,7 +1430,7 @@ s. Evidence generation, index ordering and bundle hashing depend only on sealed 
 
 8.1.2 If **any** condition in 8.1.1 is not satisfied, the S5 run MUST be classified as **FAIL**. In that case:
 
-* S5 MUST NOT publish a `_passed.flag_3B` that claims a valid bundle;
+* S5 MUST NOT publish a `_passed.flag` that claims a valid bundle;
 * any partially written bundle and/or flag MUST be treated as invalid and MUST NOT be consumed by downstream components.
 
 ---
@@ -1443,21 +1443,21 @@ s. Evidence generation, index ordering and bundle hashing depend only on sealed 
 
 by:
 
-* resolving `validation_bundle_3B` and `_passed.flag_3B` via the dataset dictionary and registry;
+* resolving `validation_bundle_3B` and `_passed.flag` via the dataset dictionary and registry;
 * recomputing the bundle digest from `index.json` and the listed files;
-* verifying that recomputed digest equals `sha256_hex` in `_passed.flag_3B`.
+* verifying that recomputed digest equals `sha256_hex` in `_passed.flag`.
 
 Only if this verification succeeds MAY 3B artefacts be treated as valid for that manifest.
 
 8.2.2 In particular:
 
-* **2B’s virtual routing branch** MUST NOT route using 3B virtual artefacts unless `_passed.flag_3B` has been verified for the manifest;
-* **3B validation state and any 4A/4B harness** MUST treat a failed or missing `_passed.flag_3B` as “3B not validated” and MUST NOT declare Layer-1 globally PASS based on 3B surfaces.
+* **2B’s virtual routing branch** MUST NOT route using 3B virtual artefacts unless `_passed.flag` has been verified for the manifest;
+* **3B validation state and any 4A/4B harness** MUST treat a failed or missing `_passed.flag` as “3B not validated” and MUST NOT declare Layer-1 globally PASS based on 3B surfaces.
 
 8.2.3 Any downstream detection of:
 
-* missing `validation_bundle_3B` or `_passed.flag_3B` for a manifest that is expected to be validated;
-* mismatch between recomputed bundle digest and `sha256_hex` in `_passed.flag_3B`;
+* missing `validation_bundle_3B` or `_passed.flag` for a manifest that is expected to be validated;
+* mismatch between recomputed bundle digest and `sha256_hex` in `_passed.flag`;
 * schema-invalid `index.json` or missing evidence files listed in it;
 
 MUST be treated as a **3B.S5 failure** or environment corruption and MUST cause the downstream component to:
@@ -1492,7 +1492,7 @@ as a clear signal that 3B surfaces MUST NOT be used for that manifest, regardles
 
 8.4.1 Any violation of the binding requirements in this section MUST result in an S5 **FAILED** run with a specific `E3B_S5_*` error code (see §9). S5 MUST:
 
-* not publish a misleading `_passed.flag_3B`;
+* not publish a misleading `_passed.flag`;
 * log the error with sufficient context;
 * leave any existing, previously valid S5 outputs intact (if they exist and pass idempotence checks).
 
@@ -1529,7 +1529,7 @@ All codes in this section are reserved for S5 and MUST NOT be reused by other st
 
 9.1.3 All codes below are **FATAL** for S5 unless explicitly marked `WARN`:
 
-* **FATAL** ⇒ S5 MUST NOT publish a `_passed.flag_3B` asserting PASS for that `manifest_fingerprint`, and any bundle produced in the run MUST be considered invalid.
+* **FATAL** ⇒ S5 MUST NOT publish a `_passed.flag` asserting PASS for that `manifest_fingerprint`, and any bundle produced in the run MUST be considered invalid.
 * **WARN** ⇒ S5 MAY complete and publish a bundle+flag, but the condition MUST be observable in logs / run-report and SHOULD be surfaced in metrics.
 
 ---
@@ -1872,7 +1872,7 @@ Remediation:
 ---
 
 9.7.3 **E3B_S5_FLAG_SCHEMA_VIOLATION** *(FATAL)*
-Raised when `_passed.flag_3B` does not conform to its schema:
+Raised when `_passed.flag` does not conform to its schema:
 
 * extra lines;
 * malformed `sha256_hex = ...` line;
@@ -1893,7 +1893,7 @@ Remediation:
 9.7.4 **E3B_S5_FLAG_DIGEST_MISMATCH** *(FATAL)*
 Raised when:
 
-* the bundle digest recomputed from `index.json` and evidence files does not equal the `sha256_hex` recorded in `_passed.flag_3B`.
+* the bundle digest recomputed from `index.json` and evidence files does not equal the `sha256_hex` recorded in `_passed.flag`.
 
 Typical triggers:
 
@@ -1911,7 +1911,7 @@ Remediation:
 9.7.5 **E3B_S5_OUTPUT_INCONSISTENT_REWRITE** *(FATAL)*
 Raised when S5 is re-run for a `manifest_fingerprint` that already has a bundle+flag, and:
 
-* recomputed bundle digest differs from existing `_passed.flag_3B.sha256_hex`;
+* recomputed bundle digest differs from existing `_passed.flag.sha256_hex`;
 * or per-file digests in recomputed index differ from those in the existing index,
 
 under identical inputs.
@@ -1953,7 +1953,7 @@ Raised when S5 outputs differ across re-runs under identical inputs:
 
 * different set/order/content of evidence files;
 * different `index.json` ordering or digests;
-* different `_passed.flag_3B` value.
+* different `_passed.flag` value.
 
 Typical triggers:
 
@@ -1974,7 +1974,7 @@ Remediation:
 9.9.1 On any FATAL `E3B_S5_*` error, S5 MUST:
 
 * log a structured error event with code, severity and context;
-* ensure no misleading `_passed.flag_3B` is published for the manifest;
+* ensure no misleading `_passed.flag` is published for the manifest;
 * ensure partial bundles are not visible at the canonical location.
 
 9.9.2 The run harness and downstream components MUST:
@@ -2016,8 +2016,8 @@ Remediation:
 * `status ∈ {"PASS","FAIL"}`
 * `error_code` (for FAIL; `null` or omitted for PASS)
 * `bundle_written` — boolean indicating whether a validation bundle was successfully written to a staging directory and validated
-* `flag_written` — boolean indicating whether `_passed.flag_3B` was successfully written in staging
-* `evidence_file_count` — number of evidence files included in `validation_bundle_index_3B` (excluding `index.json` and `_passed.flag_3B`)
+* `flag_written` — boolean indicating whether `_passed.flag` was successfully written in staging
+* `evidence_file_count` — number of evidence files included in `validation_bundle_index_3B` (excluding `index.json` and `_passed.flag`)
 * `rng_check_discrepancy_count` — number of RNG-accounting discrepancies detected (MUST be 0 for PASS)
 
 10.1.4 For every FATAL error, S5 MUST emit at least one **error log event** that includes:
@@ -2064,7 +2064,7 @@ but it MUST contain at least:
 
   * `validation_bundle_3B`
   * `validation_bundle_index_3B`
-  * `passed_flag_3B`
+  * `validation_passed_flag_3B`
 
 10.2.2 Where available, the run-report record SHOULD also include:
 
@@ -2075,7 +2075,7 @@ but it MUST contain at least:
 
 10.2.3 The run-report harness MUST be able to determine from S5’s record alone:
 
-* whether S5 has successfully produced a validation bundle and `_passed.flag_3B` for this manifest;
+* whether S5 has successfully produced a validation bundle and `_passed.flag` for this manifest;
 * where those artefacts are located;
 * whether there were any RNG-accounting or structural issues (and how many) even in non-fatal diagnostic runs (if those are ever supported for development).
 
@@ -2120,7 +2120,7 @@ but it MUST contain at least:
 
 10.4.2 Given a `manifest_fingerprint`, an operator or tool MUST be able to:
 
-* locate `validation_bundle_3B` and `_passed.flag_3B`;
+* locate `validation_bundle_3B` and `_passed.flag`;
 * recompute and verify the bundle digest using `validation_bundle_index_3B`;
 * inspect S5 manifest/summary to see:
 
@@ -2136,7 +2136,7 @@ but it MUST contain at least:
 
 10.5.1 The Layer-1 validation harness (4A/4B) MUST consume S5’s run-report record and/or S5 manifest/summary to:
 
-* know whether 3B has a valid bundle and `_passed.flag_3B` for this manifest;
+* know whether 3B has a valid bundle and `_passed.flag` for this manifest;
 * understand what kinds of checks S5 ran (structural, RNG, digest);
 * see counts and, if needed, details of any WARNs or non-fatal anomalies (if supported in the future).
 
@@ -2152,7 +2152,7 @@ but it MUST contain at least:
 
 * 3B.S5 FAIL;
 * missing bundle and/or flag;
-* or any mismatch between recomputed bundle digest and `_passed.flag_3B`
+* or any mismatch between recomputed bundle digest and `_passed.flag`
 
 as a clear signal that 3B is **not** validated for this manifest, regardless of other segments’ statuses.
 
@@ -2173,7 +2173,7 @@ as a clear signal that 3B is **not** validated for this manifest, regardless of 
 
 * execute all phases A–E and compute the bundle digest in memory;
 * produce logs and (optionally) a draft S5 manifest summarising findings;
-* **not** publish `validation_bundle_3B` or `_passed.flag_3B` at canonical locations.
+* **not** publish `validation_bundle_3B` or `_passed.flag` at canonical locations.
 
 Dry-run mode MUST be clearly indicated (e.g. `mode = "dry_run"`) in lifecycle logs and run-report so that operators do not confuse it with a committed validation state.
 
@@ -2318,7 +2318,7 @@ Memory footprint is then roughly:
 
 * S5 evidence files: a handful of JSON/Parquet-like reports (structural checks, RNG accounting, digests, manifest).
 * `index.json`: one file per manifest.
-* `_passed.flag_3B`: single-line text file.
+* `_passed.flag`: single-line text file.
 
 11.5.3 Bundle size:
 
@@ -2352,7 +2352,7 @@ Memory footprint is then roughly:
 
 * completeness of checks as described in the S5 spec;
 * determinism (no randomness in sampling without controlled design and clear exclusion from bundle hash, if ever allowed);
-* HashGate semantics for `_passed.flag_3B`.
+* HashGate semantics for `_passed.flag`.
 
 ---
 
@@ -2382,20 +2382,20 @@ Memory footprint is then roughly:
 
 12.1 **Scope of change control**
 
-12.1.1 This section governs all changes that affect **3B.S5 — Segment validation bundle & `_passed.flag_3B`** and its artefacts, specifically:
+12.1.1 This section governs all changes that affect **3B.S5 — Segment validation bundle & `_passed.flag`** and its artefacts, specifically:
 
 * The **behaviour** of S5, including:
 
   * which checks it runs over S0–S4 and sealed artefacts;
   * how it assembles the validation bundle;
   * how it computes the bundle digest;
-  * how it writes `_passed.flag_3B`.
+  * how it writes `_passed.flag`.
 
 * The **schemas and catalogue entries** for S5-owned datasets:
 
   * `validation_bundle_3B` (directory);
   * `validation_bundle_index_3B` (`index.json`);
-  * `_passed.flag_3B`;
+  * `_passed.flag`;
   * `s5_manifest_3B` / `s5_run_summary_3B` (if present);
   * any S5-specific evidence datasets that are registered.
 
@@ -2423,7 +2423,7 @@ Memory footprint is then roughly:
 
   * `validation_bundle_3B`;
   * `validation_bundle_index_3B`;
-  * `_passed.flag_3B`;
+  * `_passed.flag`;
   * `s5_manifest_3B` / `s5_run_summary_3B` (if present).
 
 * `artefact_registry_3B.yaml` for:
@@ -2441,7 +2441,7 @@ MUST be treated as changes to that contract and versioned accordingly (typically
 
 * **MAJOR** — incompatible/breaking changes to:
 
-  * shapes of `index.json` or `_passed.flag_3B`;
+  * shapes of `index.json` or `_passed.flag`;
   * file-inclusion or hashing rules;
   * S5’s definition of what constitutes “3B PASS” (e.g. dropping classes of checks without replacing them).
 
@@ -2491,7 +2491,7 @@ form a **compatible triplet** for S5. If they do not, S5 MUST fail with `E3B_S5_
 
 * Changing the **shape or semantics** of `validation_bundle_index_3B/index.json` such that existing HashGate verifiers can no longer interpret it correctly.
 
-* Changing the **hashing law** that defines `_passed.flag_3B`, for example:
+* Changing the **hashing law** that defines `_passed.flag`, for example:
 
   * switching from SHA-256 to a different algorithm without adding a new field;
   * changing which files are included in the hash without versioning;
@@ -2522,7 +2522,7 @@ form a **compatible triplet** for S5. If they do not, S5 MUST fail with `E3B_S5_
 
 12.4.1 A **mixed-version environment** arises when:
 
-* historical S5 outputs (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag_3B`) exist for one contract version; and
+* historical S5 outputs (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag`) exist for one contract version; and
 * the engine/schemas/dictionary/registry now reflect a newer S5/Layer-1 contract version.
 
 12.4.2 S5 is responsible only for emitting outputs under the **current** contract version. It MUST:
@@ -2541,7 +2541,7 @@ S5 MUST NOT silently treat old bundles as if they followed the new rules.
 12.4.4 If S5 is re-run for a `manifest_fingerprint` that already has S5 outputs but:
 
 * existing bundles do not validate against current schemas; or
-* recomputed bundle digest differs from `_passed.flag_3B.sha256_hex` under the same identity and input artefacts,
+* recomputed bundle digest differs from `_passed.flag.sha256_hex` under the same identity and input artefacts,
 
 S5 MUST:
 
@@ -2600,7 +2600,7 @@ Operators MUST then:
 12.6.3 S5 must also remain compatible with **layer-wide harnesses** (4A, 4B):
 
 * If 4A/4B relies on specific S5 evidence (e.g. `s5_manifest_3B` fields), any change to those fields must be coordinated;
-* S5 contract changes that affect how `_passed.flag_3B` is interpreted MUST be reflected in 4A/4B code and documentation.
+* S5 contract changes that affect how `_passed.flag` is interpreted MUST be reflected in 4A/4B code and documentation.
 
 ---
 
@@ -2678,7 +2678,7 @@ Operators MUST then:
   Number of RNG events in S2’s RNG logs for the S2 module/streams relevant to edge placement/jitter.
 
 * **`F`**
-  Number of evidence files in `validation_bundle_3B` (excluding `_passed.flag_3B`), i.e. the length of `validation_bundle_index_3B.files`.
+  Number of evidence files in `validation_bundle_3B` (excluding `_passed.flag`), i.e. the length of `validation_bundle_index_3B.files`.
 
 ---
 
@@ -2722,12 +2722,12 @@ Operators MUST then:
 * **`validation_bundle_3B`**
   S5 egress. Directory under
   `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
-  containing 3B validation evidence, `index.json` and `_passed.flag_3B`.
+  containing 3B validation evidence, `index.json` and `_passed.flag`.
 
 * **`validation_bundle_index_3B`**
   S5 egress. `index.json` inside the bundle listing each evidence file with its relative `path` and `sha256_hex`.
 
-* **`_passed.flag_3B`**
+* **`_passed.flag`**
   S5 egress. Single-line text file at the bundle root:
 
   ```text
@@ -2797,6 +2797,6 @@ Authoritative definitions for the symbols and concepts above are found in:
   * `dataset_dictionary.layer1.3B.yaml` and `artefact_registry_3B.yaml` — dataset IDs, paths, partitioning, ownership.
   * S1–S4 specs — virtual classification/settlement, edge universe, alias/universe hash, routing & validation contracts.
 
-This appendix is intended as a vocabulary / symbol reference when reading and implementing **3B.S5 — Segment validation bundle & `_passed.flag_3B`**.
+This appendix is intended as a vocabulary / symbol reference when reading and implementing **3B.S5 — Segment validation bundle & `_passed.flag`**.
 
 ---

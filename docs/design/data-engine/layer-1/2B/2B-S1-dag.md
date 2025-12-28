@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S1 entry)
 --------------------------------------------
 [S0 Gate & Identity]
     - s0_gate_receipt_2B @ data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
-      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag_1B)
+      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · binds: { seed, manifest_fingerprint, parameter_hash } for this 2B run
       · records: catalogue_resolution (dictionary/registry versions), determinism_receipt (engine + policy digests)
     - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…

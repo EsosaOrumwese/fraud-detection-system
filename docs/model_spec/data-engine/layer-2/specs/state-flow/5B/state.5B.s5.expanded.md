@@ -7,7 +7,7 @@
 For each `manifest_fingerprint` (and all `(parameter_hash, scenario_id, seed)` runs underneath it), S5:
 
 * re-validates the **structural and probabilistic invariants** of 5B.S0–S4, and
-* produces a **fingerprint-scoped validation bundle** (`validation_bundle_5B`) and a single JSON `_passed.flag_5B` that together form the **only authoritative “5B PASS” signal** for downstream consumers.
+* produces a **fingerprint-scoped validation bundle** (`validation_bundle_5B`) and a single JSON `_passed.flag` that together form the **only authoritative “5B PASS” signal** for downstream consumers.
 
 S5 does not generate any new arrival events; it decides whether the arrival world produced by 5B is acceptable and, if so, seals it.
 
@@ -37,7 +37,7 @@ Within Segment 5B, S5 is responsible for:
 * **Computing and publishing the HashGate**
 
   * Computing a **single bundle digest** from the indexed files using a fixed hashing law.
-  * Writing `_passed.flag_5B` containing exactly that digest in canonical form.
+  * Writing `_passed.flag` containing exactly that digest in canonical form.
   * Ensuring that, for a given `manifest_fingerprint`, there is at most one logically valid bundle/flag pair in the expected location.
 
 * **Exposing a 5B-level PASS/FAIL decision**
@@ -70,10 +70,10 @@ Within Segment 5B:
 
 Within the broader engine:
 
-* `_passed.flag_5B` is the **Layer-2 arrival HashGate**:
+* `_passed.flag` is the **Layer-2 arrival HashGate**:
 
-  * Layer-3 / Segment 6A–6B and any enterprise ingestion MUST gate on a **verified** `_passed.flag_5B` before treating `s4_arrival_events_5B` as authoritative.
-  * A S4 PASS alone is **not sufficient**; only the combination of `validation_bundle_5B` + `_passed.flag_5B` produced by S5 constitutes a 5B-level PASS.
+  * Layer-3 / Segment 6A–6B and any enterprise ingestion MUST gate on a **verified** `_passed.flag` before treating `s4_arrival_events_5B` as authoritative.
+  * A S4 PASS alone is **not sufficient**; only the combination of `validation_bundle_5B` + `_passed.flag` produced by S5 constitutes a 5B-level PASS.
 
 This section binds S5 to that narrow but critical role: it is the final arbiter of 5B correctness and the single point that turns a collection of 5B runs into a sealed, replayable arrival layer for the rest of the system.
 
@@ -97,13 +97,13 @@ S5 MUST NOT run in a way that only partially covers a fingerprint (e.g. only som
 
 For the `manifest_fingerprint` under validation, S5 assumes that **all mandatory upstream segments are already gated**:
 
-* `_passed.flag_1A`
-* `_passed.flag_1B`
-* `_passed.flag_2A`
-* `_passed.flag_2B`
-* `_passed.flag_3A`
-* `_passed.flag_3B`
-* `_passed.flag_5A`
+* `_passed.flag`
+* `_passed.flag`
+* `_passed.flag`
+* `_passed.flag`
+* `_passed.flag`
+* `_passed.flag`
+* `_passed.flag`
 
 Precondition:
 
@@ -153,7 +153,7 @@ S5 is a **catalogue-driven** state. Before S5 runs for `mf`, the following MUST 
 
   * definitions for S0–S4 artefacts,
   * versioning and dependency metadata for `arrival_events_5B`,
-  * a slot for S5’s `validation_bundle_5B` and `_passed.flag_5B`.
+  * a slot for S5’s `validation_bundle_5B` and `_passed.flag`.
 
 S5 MUST discover:
 
@@ -335,7 +335,7 @@ To keep responsibilities sharp:
 
 * **5B.S5**
 
-  * Is the **sole authority** for the 5B-level PASS/FAIL and for the contents of `validation_bundle_5B` + `_passed.flag_5B`.
+  * Is the **sole authority** for the 5B-level PASS/FAIL and for the contents of `validation_bundle_5B` + `_passed.flag`.
   * MUST NOT write or modify any datasets other than its own validation artefacts (bundle, flag, and any S5-specific reports).
 
 ---
@@ -363,7 +363,7 @@ For each `manifest_fingerprint = mf`, 5B.S5 owns exactly the following artefacts
    * a canonical `index.json` describing all bundle members (logical IDs, relative paths, per-file `sha256_hex`, roles), and
    * one or more evidence files (reports, receipts, RNG summaries, etc.) referenced by that index.
 
-2. **`_passed.flag_5B`** — a tiny JSON file at the root of the bundle directory, containing the **canonical digest** of `validation_bundle_5B` as computed by S5’s hash law.
+2. **`_passed.flag`** — a tiny JSON file at the root of the bundle directory, containing the **canonical digest** of `validation_bundle_5B` as computed by S5’s hash law.
 
 3. **(Optional) S5-specific summary / receipt objects**
    If you choose to materialise a separate 5B-level summary or receipt (e.g. `s5_receipt_5B.json`), it MUST:
@@ -390,7 +390,7 @@ All S5 artefacts are **fingerprint-scoped**:
 In particular:
 
 * S5 artefacts MUST **not** be partitioned by `seed`, `parameter_hash` or `scenario_id` in their paths. Those identities appear *inside* bundle metadata, not in the directory layout.
-* A single pair `(validation_bundle_5B, _passed.flag_5B)` represents the entire 5B status for `mf`.
+* A single pair `(validation_bundle_5B, _passed.flag)` represents the entire 5B status for `mf`.
 
 ---
 
@@ -410,11 +410,11 @@ Within this directory:
 * One or more evidence files (required)
 
   * e.g. `validation_report_5B.json`, `validation_issue_table_5B.parquet`, `rng_accounting_5B.json`, etc.
-* `_passed.flag_5B` (required)
+* `_passed.flag` (required)
 
   * A small JSON file at the **root of this directory**, not referenced by `index.json`, containing the bundle digest in the format defined in §5.3.3 and §6.7.
 
-No S5 evidence file may live outside this `fingerprint={mf}` directory, and `_passed.flag_5B` MUST NOT appear in any other location.
+No S5 evidence file may live outside this `fingerprint={mf}` directory, and `_passed.flag` MUST NOT appear in any other location.
 
 ---
 
@@ -422,7 +422,7 @@ No S5 evidence file may live outside this `fingerprint={mf}` directory, and `_pa
 
 For each `manifest_fingerprint`:
 
-* There MUST be **at most one** logically valid `validation_bundle_5B` + `_passed.flag_5B` pair per `5B_spec_version`.
+* There MUST be **at most one** logically valid `validation_bundle_5B` + `_passed.flag` pair per `5B_spec_version`.
 * If S5 is re-run for the same `mf` and same `5B_spec_version`:
 
   * either the bundle and flag are **byte-identical** to the existing ones (idempotent rerun), or
@@ -434,7 +434,7 @@ The **logical identity** of S5 outputs is:
 
 and S5 MUST ensure that:
 
-* `index.json` and `_passed.flag_5B` both encode enough metadata (including `manifest_fingerprint` and `5B_spec_version`) for downstream systems to unambiguously tie the bundle to the correct world and spec version.
+* `index.json` and `_passed.flag` both encode enough metadata (including `manifest_fingerprint` and `5B_spec_version`) for downstream systems to unambiguously tie the bundle to the correct world and spec version.
 
 No other identity tokens (e.g. `seed`, `scenario_id`, `run_id`) may influence the on-disk location of S5 artefacts; they may only appear inside the bundle contents as descriptive metadata.
 
@@ -453,7 +453,7 @@ S5 produces four artefacts:
 1. `validation_bundle_index_5B` — JSON manifest for the bundle members.
 2. `validation_report_5B` — human/machine readable summary.
 3. `validation_issue_table_5B` — optional structured findings.
-4. `validation_passed_flag_5B` — HashGate flag (`_passed.flag_5B`) covering the bundle.
+4. `validation_passed_flag_5B` — HashGate flag (`_passed.flag`) covering the bundle.
 
 ### 5.1 `validation_bundle_index_5B`
 
@@ -485,7 +485,7 @@ Binding rules: optional dataset. When emitted it MUST follow the schema/dictiona
 * **Dictionary entry:** `datasets[].id == "validation_passed_flag_5B"`
 * **Registry manifest key:** `mlr.5B.validation.flag`
 
-Binding rules: JSON object stored at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B`. Its digest must match the bundle index ordering contract. No other format (text, binary) is permitted.
+Binding rules: JSON object stored at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag`. Its digest must match the bundle index ordering contract. No other format (text, binary) is permitted.
 
 S5 MUST update or regenerate these artefacts together; partial writes violate the HashGate contract. Any changes to their shapes must originate in the schema pack before implementations are updated.
 ## 6. Deterministic algorithm (RNG-free validator & bundler) *(Binding)*
@@ -498,7 +498,7 @@ For a given `manifest_fingerprint = mf`, S5 MUST execute the following phases **
 2. **Validation** — replay S0–S4 invariants and RNG accounting over that domain.
 3. **Evidence assembly** — write validation report / issue table and any auxiliary receipts.
 4. **Bundle assembly** — construct `index.json` for `validation_bundle_5B`.
-5. **HashGate computation** — compute the bundle digest and write `_passed.flag_5B`.
+5. **HashGate computation** — compute the bundle digest and write `_passed.flag`.
 
 If any phase fails, S5 MUST mark the run FAIL and MUST NOT leave a “PASS-looking” bundle/flag behind.
 
@@ -675,7 +675,7 @@ S5 MUST then construct `index.json` and thereby the bundle:
      * any `validation_issue_table_5B`,
      * any `s5_receipt_5B`,
      * any additional evidence files S5 chooses to include (e.g. RNG summaries).
-   * `_passed.flag_5B` MUST NOT be listed as a bundle member.
+   * `_passed.flag` MUST NOT be listed as a bundle member.
 
 2. **Compute per-file digests**
 
@@ -696,9 +696,9 @@ This completes the **bundle structure**; no hashing across files has been done y
 
 ---
 
-6.7 **Phase 6 — Bundle digest & `_passed.flag_5B`**
+6.7 **Phase 6 — Bundle digest & `_passed.flag`**
 
-Finally, S5 MUST compute a single **bundle digest** and write `_passed.flag_5B`:
+Finally, S5 MUST compute a single **bundle digest** and write `_passed.flag`:
 
 1. **Compute bundle digest**
 
@@ -716,9 +716,9 @@ Finally, S5 MUST compute a single **bundle digest** and write `_passed.flag_5B`:
 
    * Encode `bundle_sha256` as a 64-char lowercase hex string.
 
-2. **Write `_passed.flag_5B`**
+2. **Write `_passed.flag`**
 
-   * Create `_passed.flag_5B` at the root of the `fingerprint={mf}` directory with content conforming to the `passed_flag_5B` schema, e.g.:
+   * Create `_passed.flag` at the root of the `fingerprint={mf}` directory with content conforming to the `passed_flag_5B` schema, e.g.:
 
     ```json
     {
@@ -727,16 +727,16 @@ Finally, S5 MUST compute a single **bundle digest** and write `_passed.flag_5B`:
     }
     ```
 
-   * `_passed.flag_5B` MUST NOT be included in the bundle digest calculation.
+   * `_passed.flag` MUST NOT be included in the bundle digest calculation.
 
 3. **Idempotence & safety**
 
-   * If a valid `_passed.flag_5B` already exists for `mf`:
+   * If a valid `_passed.flag` already exists for `mf`:
 
      * S5 MUST verify that the newly computed `bundle_sha256` matches the existing value; if so, the run is idempotent.
      * If not, S5 MUST treat this as a conflict (e.g. `5B.S5.BUNDLE_DIGEST_MISMATCH`) and fail without overwriting the existing flag.
 
-With this phase complete and **only if all prior checks succeeded**, the pair `(validation_bundle_5B, _passed.flag_5B)` constitutes the canonical HashGate for 5B under `manifest_fingerprint = mf`.
+With this phase complete and **only if all prior checks succeeded**, the pair `(validation_bundle_5B, _passed.flag)` constitutes the canonical HashGate for 5B under `manifest_fingerprint = mf`.
 
 ---
 
@@ -769,7 +769,7 @@ data/layer2/5B/validation/
     validation_issue_table_5B.parquet       (optional)
     s5_receipt_5B.json                      (optional)
     ... other evidence files ...
-    _passed.flag_5B
+    _passed.flag
 ```
 
 Binding rules:
@@ -788,26 +788,26 @@ The dataset dictionary and artefact registry MUST reflect this by setting:
 
 For each `manifest_fingerprint` and `5B_spec_version`:
 
-* There MUST be **at most one** logical `validation_bundle_5B` + `_passed.flag_5B` pair considered valid.
+* There MUST be **at most one** logical `validation_bundle_5B` + `_passed.flag` pair considered valid.
 
 S5 MUST enforce:
 
 * If no bundle/flag exists for `mf`:
 
-  * It may create a new directory and write `index.json`, evidence files, and `_passed.flag_5B` once the run passes.
+  * It may create a new directory and write `index.json`, evidence files, and `_passed.flag` once the run passes.
 * If a bundle/flag already exists for `mf`:
 
-  * S5 MUST recompute the bundle digest as per §6.7 and compare it to the existing `_passed.flag_5B`.
+  * S5 MUST recompute the bundle digest as per §6.7 and compare it to the existing `_passed.flag`.
 
     * If the digest matches, the run is **idempotent**; S5 MAY leave the existing files unchanged.
     * If the digest does *not* match, S5 MUST treat this as a conflict (e.g. `5B.S5.BUNDLE_DIGEST_MISMATCH`) and MUST NOT overwrite the existing bundle or flag.
 
 S5 MUST NOT:
 
-* append new evidence files to an existing bundle without regenerating `index.json` and `_passed.flag_5B`,
-* silently replace existing bundle contents with non-identical data while keeping the same `_passed.flag_5B`.
+* append new evidence files to an existing bundle without regenerating `index.json` and `_passed.flag`,
+* silently replace existing bundle contents with non-identical data while keeping the same `_passed.flag`.
 
-Any change to the evidence set or its bytes for an `mf` requires recomputing the digest and thus a new `_passed.flag_5B`; if this is not allowed by policy, the driver MUST treat it as a separate, incompatible run.
+Any change to the evidence set or its bytes for an `mf` requires recomputing the digest and thus a new `_passed.flag`; if this is not allowed by policy, the driver MUST treat it as a separate, incompatible run.
 
 ---
 
@@ -823,7 +823,7 @@ Within `index.json`:
 
 7.4.2 **Bundle digest computation**
 
-The digest written into `_passed.flag_5B` MUST be computed as follows:
+The digest written into `_passed.flag` MUST be computed as follows:
 
 1. Let `E = [e₁, e₂, …, eₖ]` be the ordered list of index entries from `index.json`, sorted by `path` (as stored).
 
@@ -845,7 +845,7 @@ The digest written into `_passed.flag_5B` MUST be computed as follows:
 
 7.4.3 **Flag content**
 
-`_passed.flag_5B` MUST:
+`_passed.flag` MUST:
 
 * live at the root of `fingerprint={mf}`, and
 * contain a JSON object conforming to `schemas.layer2.yaml#/validation/passed_flag_5B`, e.g.:
@@ -861,7 +861,7 @@ Where `<…>` is the `bundle_sha256` computed above.
 
 S5 MUST NOT:
 
-* include `_passed.flag_5B` itself in the digest calculation,
+* include `_passed.flag` itself in the digest calculation,
 * include any other data in the flag file (no extra keys, no trailing junk),
 * vary whitespace or formatting in a way that violates the flag schema.
 
@@ -878,11 +878,11 @@ Given the rules above:
 * The **artefact registry** MUST mark:
 
   * `validation_bundle_5B` as the container at `…/fingerprint={mf}/`, and
-  * `validation_passed_flag_5B` as the HashGate file at `…/fingerprint={mf}/_passed.flag_5B`.
+  * `validation_passed_flag_5B` as the HashGate file at `…/fingerprint={mf}/_passed.flag`.
 
 Downstream components (6A/6B, ingestion, operators) MUST be able to:
 
-* locate `validation_bundle_5B` and `_passed.flag_5B` for a given `manifest_fingerprint` using only:
+* locate `validation_bundle_5B` and `_passed.flag` for a given `manifest_fingerprint` using only:
 
   * the dictionary/registry entries, and
   * the fingerprint value,
@@ -1045,13 +1045,13 @@ After all checks above pass:
   * stores entries sorted by `path` in ASCII-lex order,
   * contains per-file `sha256_hex` that match the actual file contents.
 
-* The bundle digest computed according to the law in §7.4 matches the value written into `_passed.flag_5B` at:
+* The bundle digest computed according to the law in §7.4 matches the value written into `_passed.flag` at:
 
   ```text
-  data/layer2/5B/validation/fingerprint={mf}/_passed.flag_5B
+  data/layer2/5B/validation/fingerprint={mf}/_passed.flag
   ```
 
-* If a previous `_passed.flag_5B` already exists for `mf`, S5 recomputes the digest and confirms it is identical.
+* If a previous `_passed.flag` already exists for `mf`, S5 recomputes the digest and confirms it is identical.
 
 Only when all these conditions are satisfied MAY S5 report `status="PASS"` for `mf`.
 
@@ -1064,10 +1064,10 @@ If **any** of the criteria in §8.1 fails for `mf`:
 * S5 MUST:
 
   * mark 5B.S5 run-report for `mf` as `status="FAIL"` with an appropriate `5B.S5.*` `error_code`,
-  * NOT advertise `validation_bundle_5B` or `_passed.flag_5B` as PASS in the artefact registry,
+  * NOT advertise `validation_bundle_5B` or `_passed.flag` as PASS in the artefact registry,
   * avoid leaving behind a misleading “PASS-looking” flag:
 
-    * either no `_passed.flag_5B` is written, or
+    * either no `_passed.flag` is written, or
     * an existing flag is left as-is but the new run is clearly marked FAIL (no overwrite).
 
 Downstream systems MUST treat any non-PASS S5 state as **“5B not sealed”** for that `manifest_fingerprint`, even if S0–S4 are individually marked PASS.
@@ -1080,7 +1080,7 @@ Downstream systems MUST treat any non-PASS S5 state as **“5B not sealed”** f
 
 * S5 is the **final gate** for 5B:
 
-  * Orchestration MUST NOT mark 5B as PASS for `mf` unless S5 has produced a valid `validation_bundle_5B` + `_passed.flag_5B` and reported `status="PASS"`.
+  * Orchestration MUST NOT mark 5B as PASS for `mf` unless S5 has produced a valid `validation_bundle_5B` + `_passed.flag` and reported `status="PASS"`.
   * Any attempt to run further 5B-related processes (e.g. publishing arrivals to external systems) MUST check S5’s status for `mf`.
 
 8.3.2 **Towards Layer-3 (6A/6B) and enterprise consumers**
@@ -1089,7 +1089,7 @@ All downstream consumers of 5B arrivals (6A, 6B, and any enterprise ingestion) M
 
 * treat `s4_arrival_events_5B` as **authoritative arrival data** *only if*:
 
-  * a `_passed.flag_5B` exists for the corresponding `manifest_fingerprint`, and
+  * a `_passed.flag` exists for the corresponding `manifest_fingerprint`, and
   * the flag’s digest verifies against `validation_bundle_5B` using the bundle law in §7.4.
 * reject or quarantine any arrivals for a `manifest_fingerprint` that:
 
@@ -1099,7 +1099,7 @@ All downstream consumers of 5B arrivals (6A, 6B, and any enterprise ingestion) M
 In other words:
 
 > S4 PASS is necessary but not sufficient.
-> Only an S5 PASS with a verified `_passed.flag_5B` constitutes a valid “5B is sealed” signal for Layer-3 and downstream consumers.
+> Only an S5 PASS with a verified `_passed.flag` constitutes a valid “5B is sealed” signal for Layer-3 and downstream consumers.
 
 ---
 
@@ -1121,7 +1121,7 @@ If any error in this section is raised for a given `manifest_fingerprint`:
 * S5 MUST NOT:
 
   * claim 5B PASS for that `manifest_fingerprint`,
-  * publish or update `_passed.flag_5B` to reflect a PASS state.
+  * publish or update `_passed.flag` to reflect a PASS state.
 
 Downstream MUST treat 5B as **not sealed** for that `manifest_fingerprint`.
 
@@ -1264,13 +1264,13 @@ Raised when:
 **9.8.3 `5B.S5.BUNDLE_DIGEST_MISMATCH`**
 Raised when:
 
-* the digest computed over bundle members (per the bundle law) does not match the value in `_passed.flag_5B`, or
-* an existing `_passed.flag_5B` for `mf` contains a digest that does not match the newly computed bundle digest for the same evidence set.
+* the digest computed over bundle members (per the bundle law) does not match the value in `_passed.flag`, or
+* an existing `_passed.flag` for `mf` contains a digest that does not match the newly computed bundle digest for the same evidence set.
 
 **9.8.4 `5B.S5.FLAG_SCHEMA_VIOLATION`**
 Raised when:
 
-* `_passed.flag_5B` is missing, malformed, or does not conform to `schemas.layer2.yaml#/validation/passed_flag_5B` (e.g. extra content, wrong format).
+* `_passed.flag` is missing, malformed, or does not conform to `schemas.layer2.yaml#/validation/passed_flag_5B` (e.g. extra content, wrong format).
 
 ---
 
@@ -1284,12 +1284,12 @@ Raised when:
 **9.9.2 `5B.S5.IO_WRITE_FAILED`**
 Raised when:
 
-* S5 fails to write any of its outputs (`validation_report_5B`, `validation_issue_table_5B`, `index.json`, `_passed.flag_5B`) due to IO/storage errors.
+* S5 fails to write any of its outputs (`validation_report_5B`, `validation_issue_table_5B`, `index.json`, `_passed.flag`) due to IO/storage errors.
 
 **9.9.3 `5B.S5.IO_WRITE_CONFLICT`**
 Raised when:
 
-* S5 detects that it is about to overwrite or modify an existing `validation_bundle_5B` / `_passed.flag_5B` for `mf` in a way that conflicts with the uniqueness/overwrite rules in §7.
+* S5 detects that it is about to overwrite or modify an existing `validation_bundle_5B` / `_passed.flag` for `mf` in a way that conflicts with the uniqueness/overwrite rules in §7.
 
 ---
 
@@ -1310,8 +1310,8 @@ In this case S5 MUST:
 9.11 **Mapping to orchestration & downstream**
 
 * Orchestration MUST treat any `5B.S5.*` error as a **5B-level failure** for the associated `manifest_fingerprint`.
-* 5B.S5 MUST NOT mark the fingerprint as PASS or publish a PASS `_passed.flag_5B`.
-* Layer-3 / ingestion MUST refuse to treat `s4_arrival_events_5B` as authoritative for that fingerprint whenever any `5B.S5.*` failure is present or `_passed.flag_5B` is absent/invalid.
+* 5B.S5 MUST NOT mark the fingerprint as PASS or publish a PASS `_passed.flag`.
+* Layer-3 / ingestion MUST refuse to treat `s4_arrival_events_5B` as authoritative for that fingerprint whenever any `5B.S5.*` failure is present or `_passed.flag` is absent/invalid.
 
 ---
 
@@ -1392,14 +1392,14 @@ This summary MUST be consistent with the detailed RNG accounting files included 
 
 The S5 run-report record for `mf` MUST:
 
-* include the **relative path** to `validation_bundle_5B` and `_passed.flag_5B` (or enough information to derive it from dictionary/registry), and
-* echo the `bundle_sha256` value written into `_passed.flag_5B`.
+* include the **relative path** to `validation_bundle_5B` and `_passed.flag` (or enough information to derive it from dictionary/registry), and
+* echo the `bundle_sha256` value written into `_passed.flag`.
 
 On PASS:
 
 * `status="PASS"`
 * `bundle_integrity_ok=true`
-* `bundle_sha256` MUST equal the value in `_passed.flag_5B`.
+* `bundle_sha256` MUST equal the value in `_passed.flag`.
 
 On FAIL:
 
@@ -1421,7 +1421,7 @@ S5 run-report entries MUST be discoverable via the global run-report index, keye
 Orchestration and downstream tooling MUST be able to:
 
 * query “latest S5 status” for a `manifest_fingerprint`,
-* decide, based on `status`, `error_code`, and `bundle_sha256`, whether to treat 5B as sealed and `_passed.flag_5B` as valid.
+* decide, based on `status`, `error_code`, and `bundle_sha256`, whether to treat 5B as sealed and `_passed.flag` as valid.
 
 No downstream component is allowed to infer 5B PASS solely from S4 metrics; they MUST go through S5’s run-report + bundle/flag for a binding decision.
 
@@ -1474,7 +1474,7 @@ The only artefacts that must be fully materialised at the end are:
 * `validation_report_5B` (small JSON),
 * optional issue table (bounded by number of issues, not N_arrivals),
 * `index.json` (small),
-* `_passed.flag_5B` (tiny).
+* `_passed.flag` (tiny).
 
 ---
 
@@ -1494,7 +1494,7 @@ For a typical world (`mf`):
   * `validation_report_5B.json`,
   * optional `validation_issue_table_5B.parquet`,
   * `index.json`,
-  * `_passed.flag_5B`.
+  * `_passed.flag`.
 
 The write volume is tiny compared to the read volume; S5 is primarily a **read-heavy** state.
 
@@ -1514,7 +1514,7 @@ S5’s work can be parallelised along the same axes as S4, as long as final aggr
   * Collect worker results,
   * aggregate metrics into a single `validation_report_5B`,
   * build `validation_issue_table_5B` (if used),
-  * assemble `index.json` and compute `_passed.flag_5B`.
+  * assemble `index.json` and compute `_passed.flag`.
 
 Care must be taken that:
 
@@ -1557,7 +1557,7 @@ Because S5 is RNG-free and outputs are small:
 Implementations MAY choose to:
 
 * write evidence files and `index.json` to temporary locations and only move them into place once all checks pass and the hash is computed,
-* or overwrite intermediate evidence files but never overwrite a valid `_passed.flag_5B` for `mf` unless the digest is unchanged.
+* or overwrite intermediate evidence files but never overwrite a valid `_passed.flag` for `mf` unless the digest is unchanged.
 
 These patterns ensure S5 remains robust and operationally cheap even as 5B scales up.
 
@@ -1595,7 +1595,7 @@ The following changes are considered **backwards-compatible** and MAY be made wi
 * Tightening S5’s checks in a way that only *rejects* worlds that would previously have been considered invalid (i.e. stricter validation), but does not change what a valid S4 world “means”.
 * Adding optional 5B-specific receipt objects (e.g. `s5_receipt_5B`) inside the bundle.
 
-In these cases, downstream consumers that only care about the existence and integrity of `_passed.flag_5B` and the basic bundle law remain compatible.
+In these cases, downstream consumers that only care about the existence and integrity of `_passed.flag` and the basic bundle law remain compatible.
 
 12.2.2 **Breaking changes (major bump required)**
 The following changes are **breaking** and MUST only be introduced with a **major** bump of `5B_spec_version` (e.g. `1.x.y → 2.0.0`), and in coordination with downstream consumers:
@@ -1603,13 +1603,13 @@ The following changes are **breaking** and MUST only be introduced with a **majo
 * Changing the **bundle law**:
 
   * how `bundle_sha256` is computed (different file set, different ordering, different hash function),
-  * or changing the on-disk location / naming of `_passed.flag_5B`.
+  * or changing the on-disk location / naming of `_passed.flag`.
 * Changing the **shape** of `validation_bundle_index_5B` in a way that breaks existing parsers (e.g. removing fields, changing field meaning).
 * Changing S5’s PASS semantics such that:
 
-  * a world that previously produced a valid `_passed.flag_5B` would now produce a *different* set of arrival events being considered valid, or
+  * a world that previously produced a valid `_passed.flag` would now produce a *different* set of arrival events being considered valid, or
   * a previously PASS world would now be considered PASS with *significantly different* guarantees (e.g. relaxing invariants).
-* Repurposing `_passed.flag_5B` to mean anything other than “this bundle, under this bundle law, has passed all 5B checks”.
+* Repurposing `_passed.flag` to mean anything other than “this bundle, under this bundle law, has passed all 5B checks”.
 
 Any such change MUST be treated as a major version and downstream systems MUST be updated (or explicitly gate on supported version ranges).
 
@@ -1663,7 +1663,7 @@ If S5’s logic starts to rely on newer guarantees from upstream (e.g. new 3B vi
 
 Layer-3 (6A/6B) and enterprise ingestion may assume:
 
-* If `_passed.flag_5B` exists for `mf` and its digest verifies against `validation_bundle_5B` using the current bundle law, then:
+* If `_passed.flag` exists for `mf` and its digest verifies against `validation_bundle_5B` using the current bundle law, then:
 
   * all S0–S4 invariants described for the current `5B_spec_version` have been checked and passed, and
   * `s4_arrival_events_5B` is safe to treat as the authoritative arrival layer for that `mf`.
@@ -1703,7 +1703,7 @@ Within a single `manifest_fingerprint`:
 * Orchestration MUST ensure that:
 
   * all 5B runs for `mf` use the same `5B_spec_version`, or
-  * treat divergent runs as separate / incompatible and never publish a combined `_passed.flag_5B`.
+  * treat divergent runs as separate / incompatible and never publish a combined `_passed.flag`.
 
 ---
 
@@ -1713,7 +1713,7 @@ Regardless of version, S5 MUST always:
 
 * be RNG-free,
 * treat upstream and S0–S4 artefacts as immutable inputs,
-* enforce that `_passed.flag_5B` is computed from a canonical bundle index + hash law,
+* enforce that `_passed.flag` is computed from a canonical bundle index + hash law,
 * refuse to mark 5B PASS if any S0–S4 invariant, RNG accounting check, or bundle integrity check fails.
 
 These behaviours are part of the **contract of 5B as a segment**; any intent to change them would require not just a `5B_spec_version` bump but also a broader redesign of the engine and is out of scope for ordinary versioning.
@@ -1803,7 +1803,7 @@ These are *metrics* S5 computes; authoritative definitions of N live in S3.
 
 * `<bundle_sha256_hex>` — 64-character lowercase hex encoding of `bundle_sha256`.
 
-This is the value written into `_passed.flag_5B` as:
+This is the value written into `_passed.flag` as:
 
 ```text
 {"manifest_fingerprint": "<mf>",

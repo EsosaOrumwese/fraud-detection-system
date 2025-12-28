@@ -432,7 +432,7 @@ virtual_validation_contract_3B table
 
 Downstream touchpoints
 ----------------------
-- **3B.S5 — 3B validation bundle & `_passed.flag_3B`:**
+- **3B.S5 — 3B validation bundle & `_passed.flag`:**
     - MUST treat `virtual_routing_policy_3B` and `virtual_validation_contract_3B` as:
           - the **only** sources of virtual routing semantics and virtual test contracts for this manifest.
     - S5 re-bundles these with S0–S3 artefacts and RNG evidence into `validation_bundle_3B`.
@@ -442,7 +442,7 @@ Downstream touchpoints
           - mapping settlement vs operational TZ fields,
           - picking RNG streams/substreams for virtual edge selection,
           - binding event fields to edge geometry.
-    - MUST ensure 3B’s HashGate (bundle + `_passed.flag_3B`) is PASS before using 3B virtual artefacts
+    - MUST ensure 3B’s HashGate (bundle + `_passed.flag`) is PASS before using 3B virtual artefacts
       (**No 3B PASS → No read / use**).
 
 - **Validation harness (virtual flows):**

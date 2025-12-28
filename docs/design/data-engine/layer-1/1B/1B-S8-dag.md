@@ -165,11 +165,11 @@ Downstream touchpoints
 - 1B.S9 (Validation bundle for 1B)
     * treats site_locations as the **egress subject** of the 1B HashGate:
          – includes site_locations in the 1B validation bundle,
-         – computes `_passed.flag_1B` hashing over bundle contents,
+         – computes `_passed.flag` hashing over bundle contents,
          – enforces “No PASS → No read `site_locations`” for downstream consumers.
 - Layer-1 / Layer-2 / Scenario runner / Ingestion gate
     * MUST treat `site_locations` as the **only** concrete site-geometry egress for 1B:
          – read via Dictionary,
-         – verify 1B `_passed.flag_1B` before use,
+         – verify 1B `_passed.flag` before use,
          – obtain any inter-country order by joining 1A S3 candidate_rank.
 ```

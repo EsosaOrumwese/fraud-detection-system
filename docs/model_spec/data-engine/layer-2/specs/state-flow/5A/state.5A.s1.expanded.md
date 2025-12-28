@@ -814,7 +814,7 @@ Unlike 5A.S0, 5A.S1:
 Segment-level validation for 5A (a later state) will:
 
 * treat S1 outputs as required inputs, and
-* include them in the Layer-2 validation bundle for 5A, but S1 itself does not produce `_passed.flag_5A`.
+* include them in the Layer-2 validation bundle for 5A, but S1 itself does not produce `_passed.flag`.
 
 Within this identity model, 5A.S1’s outputs are fully pinned to the same `(parameter_hash, manifest_fingerprint)` world as S0 and Layer-1, and provide a single, clean demand-profile surface for all later intensity and arrival modelling.
 
@@ -1766,7 +1766,7 @@ Segments that sit **downstream of 5A as a whole** (e.g. 5B, 6A) have two levels 
 
 1. **Segment-level PASS for 5A**
 
-   * They MUST require `_passed.flag_5A` (produced by the 5A validation state, not S1) to verify the 5A validation bundle before consuming any 5A outputs.
+   * They MUST require `_passed.flag` (produced by the 5A validation state, not S1) to verify the 5A validation bundle before consuming any 5A outputs.
 
 2. **S1-specific gates**
 

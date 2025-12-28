@@ -7,7 +7,7 @@ Segment 3B defines virtual merchants and CDN edges. It gates upstream segments, 
 - Classify merchants as virtual vs physical and create settlement nodes for virtuals.
 - Build RNG-bearing edge catalogues for virtual merchants; package alias tables and a virtual-edge universe hash.
 - Publish routing and validation contracts for virtual flows.
-- Validate and bundle everything into `validation_bundle_3B` + `_passed.flag_3B`.
+- Validate and bundle everything into `validation_bundle_3B` + `_passed.flag`.
 
 ---
 
@@ -136,7 +136,7 @@ Contracts reference sealed artefacts (catalogue, alias, universe hash); spell ou
 
 ---
 
-## S5 - Validation bundle & `_passed.flag_3B`
+## S5 - Validation bundle & `_passed.flag`
 **Purpose & scope**  
 Validate S0-S4 outputs and publish the 3B HashGate.
 
@@ -147,13 +147,13 @@ S0-S4 PASS for the fingerprint; upstream gates still verify; required audits/log
 Gate receipt, sealed inputs; all 3B datasets (`virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_*`, `edge_alias_*`, `edge_universe_hash_3B`, contracts) plus RNG logs from S2; audit/issue summaries (e.g., `s5_manifest_3B` if produced).
 
 **Outputs & identity**  
-`validation_bundle_3B` at `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_3B`; `_passed.flag_3B` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+`validation_bundle_3B` at `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_3B`; `_passed.flag` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None.
 
 **Key invariants**  
-Bundle index complete; digest matches `_passed.flag_3B`; all required artefacts present and coherent; enforces "no PASS -> no read" for 3B surfaces (catalogue, alias, universe hash, contracts).
+Bundle index complete; digest matches `_passed.flag`; all required artefacts present and coherent; enforces "no PASS -> no read" for 3B surfaces (catalogue, alias, universe hash, contracts).
 
 **Downstream consumers**  
-2B virtual routing and any downstream segment must verify `_passed.flag_3B` before using 3B artefacts.
+2B virtual routing and any downstream segment must verify `_passed.flag` before using 3B artefacts.

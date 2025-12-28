@@ -40,7 +40,7 @@ Authoritative inputs (read-only at S5 entry)
             - validation_report_5B,
             - validation_issue_table_5B,
             - validation_bundle_index_5B (index.json),
-            - validation_passed_flag_5B  (`_passed.flag_5B`).
+            - validation_passed_flag_5B  (`_passed.flag`).
     - dataset_dictionary.layer1.*.yaml + artefact_registry_{1A,1B,2A,2B,3A,3B,5A,5B}.yaml
         · used only to resolve logical IDs ↔ paths/schema_refs, never via hard-coded paths.
 
@@ -102,8 +102,8 @@ Authoritative inputs (read-only at S5 entry)
       · describes bundle members:
             entries[] = {logical_id/role, path, sha256_hex, schema_ref?}, paths relative to bundle root.
 
-    - validation_passed_flag_5B   (`_passed.flag_5B`)
-      @ data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B
+    - validation_passed_flag_5B   (`_passed.flag`)
+      @ data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
       · partition_keys: [fingerprint]
       · schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
       · single logical field:
@@ -129,7 +129,7 @@ Authoritative inputs (read-only at S5 entry)
 
 
 ----------------------------------------------------------------------
-DAG — 5B.S5 (S0–S4 + RNG logs → validation report + bundle + `_passed.flag_5B`)  [NO RNG]
+DAG — 5B.S5 (S0–S4 + RNG logs → validation report + bundle + `_passed.flag`)  [NO RNG]
 
 ### Phase 1 — Discovery (domain & evidence set)
 
@@ -368,7 +368,7 @@ schemas.layer2.yaml
                         · validation_report_5B.json,
                         · validation_issue_table_5B.parquet (if present),
                         · any extra 5B receipts / RNG summary files if you choose to include them.
-                    - `_passed.flag_5B` MUST NOT be included as a member.
+                    - `_passed.flag` MUST NOT be included as a member.
                     - For each selected file f:
                         · compute its relative path p under B_root (no leading "/", no "."/".."),
                         · read raw bytes of f,
@@ -395,7 +395,7 @@ schemas.layer2.yaml
                               - if logically identical → idempotent re-run; OK,
                               - else → bundle-index conflict; MUST NOT overwrite.
 
-### Phase 6 — Bundle digest & `_passed.flag_5B`  [NO RNG]
+### Phase 6 — Bundle digest & `_passed.flag`  [NO RNG]
 
 validation_bundle_index_5B,
 bundle members on disk
@@ -413,7 +413,7 @@ bundle members on disk
 
 bundle_digest_sha256,
 schemas.layer2.yaml
-                ->  (S5.15) Write validation_passed_flag_5B (`_passed.flag_5B`)
+                ->  (S5.15) Write validation_passed_flag_5B (`_passed.flag`)
                     - Logical payload:
                         · sha256_hex = bundle_digest_sha256.
                     - On disk representation (per schemas.layer2.yaml#/validation/passed_flag_5B):
@@ -421,7 +421,7 @@ schemas.layer2.yaml
                               `sha256_hex = <bundle_digest_sha256>`
                           with a trailing newline.
                     - Target path:
-                        · data/layer2/5B/validation/fingerprint={mf}/_passed.flag_5B
+                        · data/layer2/5B/validation/fingerprint={mf}/_passed.flag
                     - Immutability:
                         · if file does not exist:
                               - write via staging → fsync → atomic move.
@@ -435,9 +435,9 @@ Downstream touchpoints
 - **Layer-3 (6A/6B, ingestion, analytics):**
     - MUST treat 5B as PASS for a given `manifest_fingerprint` only if:
           1. validation_bundle_index_5B exists at the fingerprint path and is schema-valid,
-          2. `_passed.flag_5B` exists at the same root and is schema-valid,
+          2. `_passed.flag` exists at the same root and is schema-valid,
           3. recomputing `bundle_digest_sha256` from bundle members yields
-             the same value as `_passed.flag_5B.sha256_hex`,
+             the same value as `_passed.flag.sha256_hex`,
           4. validation_report_5B.status == "PASS".
     - If any of these are false:
           **No 5B PASS → No read/use of `s4_arrival_events_5B` or any other 5B egress.**
@@ -447,5 +447,5 @@ Downstream touchpoints
     - S5 owns only:
           - checking that 5B’s world is self-consistent and policy-compliant,
           - building a fingerprint-scoped validation bundle for 5B,
-          - computing the 5B HashGate (`_passed.flag_5B`).
+          - computing the 5B HashGate (`_passed.flag`).
 ```

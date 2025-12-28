@@ -7,7 +7,7 @@ Segment 6B builds behaviour and labels. It gates upstream worlds, attaches arriv
 - Attach arrival events to entities and group them into sessions.
 - Generate baseline (all-legit) flows and events.
 - Overlay fraud/abuse campaigns to produce post-overlay flows/events.
-- Label flows/events (truth and bank-view) and publish case timelines; seal with `validation_bundle_6B` + `_passed.flag_6B`.
+- Label flows/events (truth and bank-view) and publish case timelines; seal with `validation_bundle_6B` + `_passed.flag`.
 
 ---
 
@@ -31,7 +31,7 @@ None.
 Only artefacts in `sealed_inputs_6B` may be read; sealed digest verified by S1-S5; "no PASS -> no read" enforced for all upstream gates.
 
 **Downstream consumers**  
-S1-S5 verify receipt/digest; 6B surfaces remain unreadable by downstream until `_passed.flag_6B`.
+S1-S5 verify receipt/digest; 6B surfaces remain unreadable by downstream until `_passed.flag`.
 
 ---
 
@@ -133,11 +133,11 @@ Philox streams for ambiguous labels and delays (`rng_event_truth_label_ambiguity
 Exactly one truth row and one bank-view row per flow; exactly one event-label row per S3 event; case timeline events reference valid flows and align with bank-view/delay models.
 
 **Downstream consumers**  
-S5 validation; downstream/enterprise consumers read only after `_passed.flag_6B`.
+S5 validation; downstream/enterprise consumers read only after `_passed.flag`.
 
 ---
 
-## S5 - Validation bundle & `_passed.flag_6B`
+## S5 - Validation bundle & `_passed.flag`
 **Purpose & scope**  
 Validate S0-S4 outputs and publish the 6B HashGate.
 
@@ -148,13 +148,13 @@ S0-S4 PASS; all seeds/scenarios present; upstream gates still verify.
 `s0_gate_receipt_6B`, `sealed_inputs_6B`; S1-S4 datasets (attachments/sessions, baseline/post-overlay flows/events, labels, case timelines); RNG logs/events/trace; validation policies/tolerances.
 
 **Outputs & identity**  
-`s5_validation_report_6B` and optional `s5_issue_table_6B` at `fingerprint={manifest_fingerprint}`; `validation_bundle_6B` at `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_6B`; `_passed.flag_6B` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+`s5_validation_report_6B` and optional `s5_issue_table_6B` at `fingerprint={manifest_fingerprint}`; `validation_bundle_6B` at `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_6B`; `_passed.flag` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None (validator).
 
 **Key invariants**  
-Schema/partition conformance; coverage and FK integrity across arrivals->entities->flows->events->labels/cases; overlays and labels consistent with policies; RNG accounting across S1-S4 closes; bundle digest matches `_passed.flag_6B`; enforces "no PASS -> no read" for all 6B artefacts.
+Schema/partition conformance; coverage and FK integrity across arrivals->entities->flows->events->labels/cases; overlays and labels consistent with policies; RNG accounting across S1-S4 closes; bundle digest matches `_passed.flag`; enforces "no PASS -> no read" for all 6B artefacts.
 
 **Downstream consumers**  
-Any consumer must verify `_passed.flag_6B` (and upstream gates) before using 6B surfaces.
+Any consumer must verify `_passed.flag` (and upstream gates) before using 6B surfaces.

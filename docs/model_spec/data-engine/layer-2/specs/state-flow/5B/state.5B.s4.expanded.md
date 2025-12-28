@@ -78,7 +78,7 @@ Within segment 5B, S4 is the **final computational state**:
   * the realised intensity surfaces, and
   * bucket-level counts.
 * 5B.S4 uses those to produce the **arrival event stream**.
-* 5B.S5 will then validate S4 (together with S0–S3) and seal segment 5B via a Layer-2 validation bundle and `_passed.flag_5B`, which Layer-3 (6A/6B) must gate on before consuming arrivals.
+* 5B.S5 will then validate S4 (together with S0–S3) and seal segment 5B via a Layer-2 validation bundle and `_passed.flag`, which Layer-3 (6A/6B) must gate on before consuming arrivals.
 
 This section binds S4 to that role: it is the **only** state that may generate Layer-2 arrival events, and it must do so in a way that is fully consistent with upstream contracts and replayable under the global RNG and validation regime.
 
@@ -103,15 +103,15 @@ For a given `manifest_fingerprint`, S4 **MUST** see the following segment gates 
 
 * Layer-1:
 
-  * `_passed.flag_1A` (merchant → site counts),
-  * `_passed.flag_1B` (site_locations),
-  * `_passed.flag_2A` (site_timezones, tz_timetable_cache),
-  * `_passed.flag_2B` (routing fabric),
-  * `_passed.flag_3A` (zone_alloc, routing_universe_hash),
-  * `_passed.flag_3B` (virtual merchants & edge universe).
+  * `_passed.flag` (merchant → site counts),
+  * `_passed.flag` (site_locations),
+  * `_passed.flag` (site_timezones, tz_timetable_cache),
+  * `_passed.flag` (routing fabric),
+  * `_passed.flag` (zone_alloc, routing_universe_hash),
+  * `_passed.flag` (virtual merchants & edge universe).
 * Layer-2:
 
-  * `_passed.flag_5A` (arrival intensity surfaces).
+  * `_passed.flag` (arrival intensity surfaces).
 
 If any of these flags is missing or fails verification for the `manifest_fingerprint`, S4 **MUST NOT** proceed.
 
@@ -464,7 +464,7 @@ S4 MUST NOT:
 * Within **Layer-2**:
 
   * Unless later segments are added to Layer-2, `s4_arrival_events_5B` will also be the **arrival egress for the layer**, and SHOULD be flagged `final_in_layer: true` in the dictionary and artefact registry.
-  * Layer-3 (6A/6B) MUST gate on 5B’s validation bundle / `_passed.flag_5B` (defined in S5) before reading this dataset, but once gated, `s4_arrival_events_5B` is their sole Layer-2 arrival authority.
+  * Layer-3 (6A/6B) MUST gate on 5B’s validation bundle / `_passed.flag` (defined in S5) before reading this dataset, but once gated, `s4_arrival_events_5B` is their sole Layer-2 arrival authority.
 
 No other S4-owned dataset may be treated as egress for arrivals; any additional S4 outputs are auxiliary and MUST be marked as non-final in both the dictionary and registry.
 
@@ -909,7 +909,7 @@ For a given `(parameter_hash, manifest_fingerprint, scenario_id, seed)`, 5B.S4 i
 
 * 5B.S0–S3 have completed successfully for the same `(ph, mf, scenario_id, seed)` and their outputs are present and schema-valid.
 * `s0_gate_receipt_5B` and `sealed_inputs_5B` exist for `manifest_fingerprint` and list every upstream artefact actually read by S4.
-* All required upstream HashGates for `manifest_fingerprint` (`_passed.flag_1A`, `_passed.flag_1B`, `_passed.flag_2A`, `_passed.flag_2B`, `_passed.flag_3A`, `_passed.flag_3B`, `_passed.flag_5A`) have been verified by S0 and no “must-pass” segment is marked FAIL or MISSING.
+* All required upstream HashGates for `manifest_fingerprint` (`_passed.flag`, `_passed.flag`, `_passed.flag`, `_passed.flag`, `_passed.flag`, `_passed.flag`, `_passed.flag`) have been verified by S0 and no “must-pass” segment is marked FAIL or MISSING.
 
 ---
 
@@ -1100,12 +1100,12 @@ Partial outputs (e.g. partially written arrival files) MUST be either:
 
 Instead:
 
-* They MUST gate on the **segment-level HashGate** produced by 5B.S5 (`validation_bundle_5B` + `_passed.flag_5B`), which encapsulates S4’s acceptance criteria along with S0–S3.
+* They MUST gate on the **segment-level HashGate** produced by 5B.S5 (`validation_bundle_5B` + `_passed.flag`), which encapsulates S4’s acceptance criteria along with S0–S3.
 
 In other words:
 
 > S4 acceptance is **necessary but not sufficient**; it is a local gate into S5.
-> 5B.S5’s PASS and `_passed.flag_5B` is the only gate downstream layers may rely on.
+> 5B.S5’s PASS and `_passed.flag` is the only gate downstream layers may rely on.
 
 ---
 

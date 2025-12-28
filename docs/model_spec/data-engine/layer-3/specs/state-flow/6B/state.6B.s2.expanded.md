@@ -95,7 +95,7 @@ S2 is explicitly **not** allowed to:
 
 * **Perform segment-level validation or HashGate:**
 
-  * It does not build validation bundles or `_passed.flag_6B`; that is the job of the 6B validation state.
+  * It does not build validation bundles or `_passed.flag`; that is the job of the 6B validation state.
   * It does not re-validate S0 or S1; it trusts their gates and invariants.
 
 ### Relationship to the rest of Segment 6B and the engine

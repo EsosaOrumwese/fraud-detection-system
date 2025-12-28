@@ -35,18 +35,18 @@ For a given **world** identified by `manifest_fingerprint` (and, within that wor
 
   * `validation_bundle_5A` under
     `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/…`
-  * `_passed.flag_5A` in the same fingerprint partition, containing a digest over the bundle.
+  * `_passed.flag` in the same fingerprint partition, containing a digest over the bundle.
 
 5A.S5 is:
 
 * **RNG-free** — it MUST NOT consume RNG or emit new RNG events; it only reads and checks existing outputs.
 * **Non-modelling** — it MUST NOT generate new data surfaces beyond validation reports/index/flag; it validates the existing S0–S4 surfaces.
-* **Authoritative for 5A PASS** — it is the **sole state** allowed to declare a 5A world “PASS” via `_passed.flag_5A`.
+* **Authoritative for 5A PASS** — it is the **sole state** allowed to declare a 5A world “PASS” via `_passed.flag`.
 
 S5 exists to enforce the Layer-2 gate:
 
 > For a given `manifest_fingerprint`:
-> **no verified `_passed.flag_5A` → no consumer is allowed to treat any 5A outputs (S1–S4) as authoritative.**
+> **no verified `_passed.flag` → no consumer is allowed to treat any 5A outputs (S1–S4) as authoritative.**
 
 ---
 
@@ -75,7 +75,7 @@ S5 exists to enforce the Layer-2 gate:
 * **Produce a cryptographically bound pass flag**
 
   * Compute a deterministic `bundle_digest` (e.g. SHA-256) over the bundle contents (as listed in the index).
-  * Write `_passed.flag_5A` as a tiny, schema-governed artefact containing this digest.
+  * Write `_passed.flag` as a tiny, schema-governed artefact containing this digest.
   * Downstream can re-compute and cross-check this digest to ensure that:
 
     * the bundle is complete, and
@@ -159,7 +159,7 @@ The following activities are **in scope** for 5A.S5 and MUST be performed in thi
     * each file’s relative path and digest.
   * Computing a single `bundle_digest` from the bundle contents according to the fixed hashing law.
 
-* **Creation of `_passed.flag_5A`**
+* **Creation of `_passed.flag`**
 
   * Writing a small, schema-governed flag artefact that:
 
@@ -216,10 +216,10 @@ This specification imposes the following obligations on all downstream segments 
 
   * Any component that reads Segment 5A modelling artefacts (S1–S4 outputs) for a given `manifest_fingerprint` MUST:
 
-    1. Locate `validation_bundle_5A` and `_passed.flag_5A` for that fingerprint via the catalogue.
-    2. Verify that `_passed.flag_5A` is structurally valid and that its digest matches a recomputed `bundle_digest` over the bundle contents.
+    1. Locate `validation_bundle_5A` and `_passed.flag` for that fingerprint via the catalogue.
+    2. Verify that `_passed.flag` is structurally valid and that its digest matches a recomputed `bundle_digest` over the bundle contents.
 
-  * If `_passed.flag_5A` is missing or invalid, the consumer MUST treat all 5A outputs for that world as **non-authoritative** and MUST NOT use them to drive simulations, decisions, or evaluations.
+  * If `_passed.flag` is missing or invalid, the consumer MUST treat all 5A outputs for that world as **non-authoritative** and MUST NOT use them to drive simulations, decisions, or evaluations.
 
 * **Treat S5 as the authoritative summary of 5A health**
 
@@ -237,7 +237,7 @@ This specification imposes the following obligations on all downstream segments 
   * No downstream component may modify or regenerate:
 
     * `validation_bundle_5A`,
-    * `_passed.flag_5A`,
+    * `_passed.flag`,
       for any `manifest_fingerprint`.
   * Any change in 5A behaviour (including bug fixes or new policies) MUST go through:
 
@@ -296,7 +296,7 @@ Before S5 can run, the following **contracts** MUST be available and parseable i
    * `dataset_dictionary.layer2.5A.yaml` with entries for:
 
      * S0–S4 datasets,
-     * S5 validation bundle & `_passed.flag_5A`.
+     * S5 validation bundle & `_passed.flag`.
    * `artefact_registry_5A.yaml` with entries for:
 
      * S0–S4 artefacts,
@@ -412,7 +412,7 @@ S5 MAY be invoked in one of two logical modes (implementation detail), but its *
      * reads S0/S1–S4 + policies,
      * discovers all `(parameter_hash, scenario_id)` combinations present in sealed inputs and 5A outputs for this world,
      * validates all of them,
-     * emits a **single** `validation_bundle_5A` and `_passed.flag_5A` summarising the entire world.
+     * emits a **single** `validation_bundle_5A` and `_passed.flag` summarising the entire world.
 
 2. **Per-fingerprint, multi-run mode**
 
@@ -786,7 +786,7 @@ The following boundaries are **binding**:
    * If certain S1–S4 outputs or policies are missing or invalid for a discovered `(parameter_hash, scenario_id)`, S5 MUST:
 
      * record these as validation failures in its reports, and
-     * ensure `_passed.flag_5A` does not signal PASS.
+     * ensure `_passed.flag` does not signal PASS.
 
    * It MUST NOT treat missing S1–S4 outputs as an excuse not to produce a bundle; its job is to signal *exactly that* the world is not acceptable.
 
@@ -812,7 +812,7 @@ S5 produces **no new modelling surfaces**. Its outputs are purely **validation a
 1. **`validation_bundle_5A` *(required)*
    – evidence & reports directory**
 
-2. **`_passed.flag_5A` *(required)*
+2. **`_passed.flag` *(required)*
    – small flag file containing a digest over the bundle**
 
 Both are **fingerprint-only**:
@@ -888,34 +888,34 @@ Files not listed in the index MUST be ignored for validation purposes.
 
 ---
 
-### 4.3 `_passed.flag_5A` (required)
+### 4.3 `_passed.flag` (required)
 
 #### 4.3.1 Semantic role
 
-`_passed.flag_5A` is a **tiny fingerprint-scoped artefact** that encodes a single digest:
+`_passed.flag` is a **tiny fingerprint-scoped artefact** that encodes a single digest:
 
 * It binds the **current contents of `validation_bundle_5A`** under that fingerprint to a single hash value.
 * Downstream consumers can:
 
-  * read `_passed.flag_5A`,
+  * read `_passed.flag`,
   * recompute the digest from the bundle using the same law, and
   * confirm that the bundle is complete and unmodified.
 
-A verified `_passed.flag_5A` is the **only acceptable indicator** that 5A is “green” for that world.
+A verified `_passed.flag` is the **only acceptable indicator** that 5A is “green” for that world.
 
 #### 4.3.2 Identity & location
 
-* `_passed.flag_5A` MUST live in the **same fingerprint partition** as the bundle, e.g.:
+* `_passed.flag` MUST live in the **same fingerprint partition** as the bundle, e.g.:
 
   ```text
   data/layer2/5A/validation/
     fingerprint={manifest_fingerprint}/
       validation_bundle_index_5A.json
       reports/...
-      _passed.flag_5A
+      _passed.flag
   ```
 
-* `_passed.flag_5A` MUST be fingerprint-only:
+* `_passed.flag` MUST be fingerprint-only:
 
   ```text
   partition_keys: ["fingerprint"]
@@ -939,7 +939,7 @@ The hashing law used to compute `bundle_digest_sha256` MUST be:
      * append its raw bytes to an in-memory buffer or incremental hash state.
   3. Compute SHA-256 over that concatenation; encode as 64-char lowercase hex.
 
-* `_passed.flag_5A.bundle_digest_sha256` MUST equal this computed digest.
+* `_passed.flag.bundle_digest_sha256` MUST equal this computed digest.
 
 Any change in bundle contents (add/remove file, modify bytes, reorder entries) MUST change the digest and invalidate the flag.
 
@@ -951,7 +951,7 @@ Any change in bundle contents (add/remove file, modify bytes, reorder entries) M
 
 For a given `manifest_fingerprint`:
 
-* `validation_bundle_5A` and `_passed.flag_5A`:
+* `validation_bundle_5A` and `_passed.flag`:
 
   * MUST explicitly reference:
 
@@ -965,7 +965,7 @@ For a given `manifest_fingerprint`:
   * status of each `(parameter_hash, scenario_id)` for S1–S4,
   * any issues found and their severity.
 
-The presence of `_passed.flag_5A` implies that:
+The presence of `_passed.flag` implies that:
 
 * S5 has seen the world defined by S0 & sealed inputs,
 * S5 has executed its validation algorithm over all discovered 5A outputs,
@@ -975,7 +975,7 @@ The presence of `_passed.flag_5A` implies that:
 
 Downstream consumers (5B, 6A, external pipelines) MUST:
 
-* treat `_passed.flag_5A` as the **gate** for 5A:
+* treat `_passed.flag` as the **gate** for 5A:
 
   * if the flag is missing, malformed, or its digest does not match the bundle, they MUST NOT treat 5A outputs as authoritative.
 
@@ -997,7 +997,7 @@ To emphasise:
 * Its outputs are strictly **validation/control-plane artefacts**:
 
   * `validation_bundle_5A` (directory with reports, indices, issue tables, etc.),
-  * `_passed.flag_5A`.
+  * `_passed.flag`.
 
 They are:
 
@@ -1016,14 +1016,14 @@ Within this identity model, S5 provides a clean, verifiable boundary between “
 1. `validation_bundle_index_5A` — `schemas.layer2.yaml#/validation/validation_bundle_index_5A`
 2. `validation_report_5A` — `#/validation/validation_report_5A`
 3. `validation_issue_table_5A` (optional) — `#/validation/validation_issue_table_5A`
-4. `passed_flag_5A` — `#/validation/passed_flag_5A`
+4. `validation_passed_flag_5A` - `#/validation/passed_flag_5A`
 
 Dictionary entries define the exact paths (`data/layer2/5A/validation/fingerprint={manifest_fingerprint}/…`) and lifecycle metadata; the registry lists downstream consumers and dependencies.
 
 Binding notes:
 
 - Bundle index lists every member file + SHA-256 hash using the Layer-2 HashGate ordering contract. Report/issue files follow their schema definitions byte-for-byte.
-- `_passed.flag_5A` is a JSON object storing the overall digest; no alternate format is permitted.
+- `_passed.flag` is a JSON object storing the overall digest; no alternate format is permitted.
 - S5 must update index/report/issues/flag atomically so they reference the same bundle contents.
 - Any change to structure must be made first in the schema/dictionary/registry before updating this spec.
 
@@ -1061,7 +1061,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S5 — 
 
 4. **Deterministic bundle and flag**
 
-   * For a given `manifest_fingerprint` and sealed world state, the contents of `validation_bundle_5A` and `_passed.flag_5A` MUST be uniquely determined.
+   * For a given `manifest_fingerprint` and sealed world state, the contents of `validation_bundle_5A` and `_passed.flag` MUST be uniquely determined.
    * Re-running S5 with unchanged inputs MUST either:
 
      * reproduce identical bundle + flag, or
@@ -1382,7 +1382,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
 ---
 
-### 6.7 Step 6 — Compute bundle digest & construct `_passed.flag_5A`
+### 6.7 Step 6 — Compute bundle digest & construct `_passed.flag`
 
 **Goal:** Compute a single digest for the bundle and create the pass flag artefact.
 
@@ -1407,7 +1407,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
    Represented as a 64-character lowercase hex string.
 
-3. Construct `_passed.flag_5A` object, e.g.:
+3. Construct `_passed.flag` object, e.g.:
 
    ```json
    {
@@ -1415,12 +1415,12 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
      "bundle_digest_sha256": "<64-char hex>"
    }
    ```
-4. Validate `_passed.flag_5A` against `#/validation/passed_flag_5A`.
+4. Validate `_passed.flag` against `#/validation/passed_flag_5A`.
 
 **Invariants:**
 
 * Any change to any file listed in `entries` MUST change `bundle_digest_sha256`.
-* `_passed.flag_5A` MUST solely reflect this computed digest; no additional fields or hidden information may influence the gate.
+* `_passed.flag` MUST solely reflect this computed digest; no additional fields or hidden information may influence the gate.
 
 ---
 
@@ -1430,7 +1430,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
 **Inputs:**
 
-* `validation_bundle_index_5A`, `_passed.flag_5A`, and other bundle files (reports, issue tables, etc.).
+* `validation_bundle_index_5A`, `_passed.flag`, and other bundle files (reports, issue tables, etc.).
 * Canonical paths from the dataset dictionary.
 
 **Procedure:**
@@ -1442,7 +1442,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
      ```text
      bundle_root = data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
      index_path = bundle_root + "validation_bundle_index_5A.json"
-     flag_path  = bundle_root + "_passed.flag_5A"
+     flag_path  = bundle_root + "_passed.flag"
      ```
 
 2. **Check for existing bundle & flag**
@@ -1481,8 +1481,8 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
    * Atomically move all staged files into canonical locations under `bundle_root`, ensuring:
 
-     * the index and all referenced files are present before or at the same time as `_passed.flag_5A` becomes visible,
-     * no intermediate state exists where `_passed.flag_5A` points at an incomplete bundle.
+     * the index and all referenced files are present before or at the same time as `_passed.flag` becomes visible,
+     * no intermediate state exists where `_passed.flag` points at an incomplete bundle.
 
    * Remove any stale `.staging/` directories after a successful commit, if applicable.
 
@@ -1490,7 +1490,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
 * On success:
 
-  * the bundle root contains exactly the index + evidence files listed in `entries`, and `_passed.flag_5A` whose digest matches the bundle.
+  * the bundle root contains exactly the index + evidence files listed in `entries`, and `_passed.flag` whose digest matches the bundle.
 * On failure:
 
   * no partial or inconsistent state must be present in canonical paths; any incomplete bundle files must remain under `.staging/` or be cleaned up.
@@ -1528,7 +1528,7 @@ There are two identity layers:
    * For a given `manifest_fingerprint`, there MUST be at most **one canonical** pair of:
 
      * `validation_bundle_5A` (represented by `validation_bundle_index_5A`), and
-     * `_passed.flag_5A`.
+     * `_passed.flag`.
 
 Binding rules:
 
@@ -1550,7 +1550,7 @@ All S5 artefacts are **fingerprint-partitioned only**:
 * `validation_bundle_index_5A`
 * `validation_report_5A`
 * `validation_issue_table_5A` (if present)
-* `_passed.flag_5A`
+* `_passed.flag`
 
 Each MUST have:
 
@@ -1572,7 +1572,7 @@ Canonical paths MUST follow the patterns declared in the dataset dictionary. For
       validation_bundle_index_5A.json
       reports/...
       issues/...
-      _passed.flag_5A
+      _passed.flag
   ```
 
 * Index:
@@ -1600,7 +1600,7 @@ Canonical paths MUST follow the patterns declared in the dataset dictionary. For
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/_passed.flag_5A
+    fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 These templates are **binding** once defined in `dataset_dictionary.layer2.5A.yaml` / `artefact_registry_5A.yaml`.
@@ -1614,7 +1614,7 @@ For all S5 artefacts:
   * be non-null, and
   * exactly equal the `fingerprint={manifest_fingerprint}` partition token.
 
-For `_passed.flag_5A`:
+For `_passed.flag`:
 
 * If the flag has a JSON structure, it MUST contain `manifest_fingerprint` with the same equality requirement.
 * The JSON object lives solely under `fingerprint={manifest_fingerprint}` and MUST NOT be copied elsewhere; the manifest fingerprint embedded in the object is binding.
@@ -1641,7 +1641,7 @@ S5’s **hashing law** for the bundle is binding:
      * feeding bytes into a SHA-256 hash state,
      * encoding the final hash as 64-character lowercase hex.
 
-   * `_passed.flag_5A` MUST encode exactly this computed digest (and nothing else) as `bundle_digest_sha256` (or `sha256_hex` in text).
+   * `_passed.flag` MUST encode exactly this computed digest (and nothing else) as `bundle_digest_sha256` (or `sha256_hex` in text).
 
 3. **Index ↔ content equality**
 
@@ -1651,7 +1651,7 @@ S5’s **hashing law** for the bundle is binding:
 
 Consumers MUST:
 
-* trust `_passed.flag_5A` **only** if they can recompute the digest using this law and match it.
+* trust `_passed.flag` **only** if they can recompute the digest using this law and match it.
 
 ---
 
@@ -1671,19 +1671,19 @@ Binding rules:
    * S5 MUST NOT:
 
      * append new evidence files to an existing bundle without regenerating the index+digest,
-     * partially update index or reports while reusing old `_passed.flag_5A`.
+     * partially update index or reports while reusing old `_passed.flag`.
 
    * Any change to bundle content **requires**:
 
      * a new index,+
      * a new digest,
-     * a new `_passed.flag_5A`.
+     * a new `_passed.flag`.
 
 3. **Idempotent re-runs**
 
    * If S5 is re-run for a `manifest_fingerprint` where:
 
-     * `validation_bundle_index_5A` and `_passed.flag_5A` already exist, and
+     * `validation_bundle_index_5A` and `_passed.flag` already exist, and
      * recomputing the bundle from current inputs produces **identical files and index**, including the same digest,
 
      then:
@@ -1696,7 +1696,7 @@ Binding rules:
 
      * some evidence file content would differ, or
      * the index entries would differ (paths or listed digests), or
-     * the new bundle digest differs from the existing `_passed.flag_5A`,
+     * the new bundle digest differs from the existing `_passed.flag`,
 
      then S5 MUST:
 
@@ -1761,10 +1761,10 @@ S5’s artefacts MUST align cleanly with both upstream and downstream identity r
 
 3. **Alignment with downstream consumers**
 
-   * S5’s `_passed.flag_5A` MUST be the *only* flag consumed by 5B, 6A, etc. to decide whether 5A is usable for a given `manifest_fingerprint`.
+   * S5’s `_passed.flag` MUST be the *only* flag consumed by 5B, 6A, etc. to decide whether 5A is usable for a given `manifest_fingerprint`.
    * If multiple flags or bundles are present (e.g. due to manual corruption), consumers MUST treat the situation as **invalid** and require human intervention.
 
-Within these constraints, S5’s identity, partitioning, ordering and merge rules produce a **single, immutable, verifiable gate** per world: if `_passed.flag_5A` is valid for a `manifest_fingerprint`, the corresponding `validation_bundle_5A` is guaranteed to match exactly what S5 produced for that world.
+Within these constraints, S5’s identity, partitioning, ordering and merge rules produce a **single, immutable, verifiable gate** per world: if `_passed.flag` is valid for a `manifest_fingerprint`, the corresponding `validation_bundle_5A` is guaranteed to match exactly what S5 produced for that world.
 
 ---
 
@@ -1773,7 +1773,7 @@ Within these constraints, S5’s identity, partitioning, ordering and merge rule
 This section defines:
 
 * **When a world is considered “5A-PASS”** for a given `manifest_fingerprint`, and
-* The **gating obligations** that `_passed.flag_5A` imposes on all downstream consumers.
+* The **gating obligations** that `_passed.flag` imposes on all downstream consumers.
 
 All rules here are **binding**.
 
@@ -1867,19 +1867,19 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
 
    5.3 No `entries` entry references a non-existent file.
 
-6. **`_passed.flag_5A` exists and matches the bundle**
+6. **`_passed.flag` exists and matches the bundle**
 
-   6.1 `_passed.flag_5A` exists at:
+   6.1 `_passed.flag` exists at:
 
    ```text
-   data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+   data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
    ```
 
    6.2 Its format matches the documented schema (JSON or text), and if JSON, `manifest_fingerprint` in the flag equals the partition token.
 
-   6.3 The `bundle_digest_sha256` (or equivalent `sha256_hex`) stored in `_passed.flag_5A` equals the SHA-256 digest recomputed from all files listed in `validation_bundle_index_5A.entries` in index order.
+   6.3 The `bundle_digest_sha256` (or equivalent `sha256_hex`) stored in `_passed.flag` equals the SHA-256 digest recomputed from all files listed in `validation_bundle_index_5A.entries` in index order.
 
-**If any of these conditions fail, the world MUST NOT be treated as 5A-PASS**, even if a bundle exists; S5 MUST NOT (re)write `_passed.flag_5A` for that fingerprint, or MUST clearly indicate that the existing flag is invalid.
+**If any of these conditions fail, the world MUST NOT be treated as 5A-PASS**, even if a bundle exists; S5 MUST NOT (re)write `_passed.flag` for that fingerprint, or MUST clearly indicate that the existing flag is invalid.
 
 ---
 
@@ -1895,7 +1895,7 @@ When 5A.S5 detects that one or more checks fail for a `manifest_fingerprint`:
      * a `validation_report_5A` with `overall_status="FAIL"`,
      * issue table(s) describing the problems.
 
-   * S5 MUST **NOT** write (or must remove/mark invalid) `_passed.flag_5A` for this fingerprint.
+   * S5 MUST **NOT** write (or must remove/mark invalid) `_passed.flag` for this fingerprint.
 
 2. **Visibility of failure**
 
@@ -1906,7 +1906,7 @@ When 5A.S5 detects that one or more checks fail for a `manifest_fingerprint`:
 
    * S5 MUST NOT introduce multiple flags or partial gate semantics (e.g. “PASS for some scenarios, FAIL for others”).
    * Partial health is expressed in the report/issue table, not in the gate.
-   * At the gate level, a world without a valid `_passed.flag_5A` is simply **not PASS**.
+   * At the gate level, a world without a valid `_passed.flag` is simply **not PASS**.
 
 ---
 
@@ -1920,13 +1920,13 @@ For a given `manifest_fingerprint`:
 
 * Before reading 5A modelling outputs (S1–S4) for **production** use (simulation, decisioning, external-facing evaluation, etc.), a consumer (5B, 6A, others) MUST:
 
-  1. Locate `validation_bundle_index_5A` and `_passed.flag_5A` for that fingerprint via the catalogue.
+  1. Locate `validation_bundle_index_5A` and `_passed.flag` for that fingerprint via the catalogue.
 
   2. Verify that:
 
-     * `_passed.flag_5A` exists in the right partition,
+     * `_passed.flag` exists in the right partition,
      * it is structurally valid,
-     * `bundle_digest` recomputed from `validation_bundle_index_5A.entries` and the listed files equals the digest embedded in `_passed.flag_5A`.
+     * `bundle_digest` recomputed from `validation_bundle_index_5A.entries` and the listed files equals the digest embedded in `_passed.flag`.
 
   3. Optionally, confirm that `validation_report_5A.overall_status == "PASS"`.
 
@@ -1937,7 +1937,7 @@ For a given `manifest_fingerprint`:
 
 #### 8.3.2 Handling multiple or conflicting flags/bundles
 
-* If more than one `_passed.flag_5A` or multiple conflicting `validation_bundle_index_5A` files are found for the same fingerprint:
+* If more than one `_passed.flag` or multiple conflicting `validation_bundle_index_5A` files are found for the same fingerprint:
 
   * Consumers MUST treat this as an invalid state.
   * They MUST NOT choose an arbitrary one; instead, they MUST escalate to operators or validation tools.
@@ -1948,7 +1948,7 @@ For a given `manifest_fingerprint`:
 
   * such usage MUST be clearly marked as **“unsealed / dev-only”**,
   * consumers MUST NOT treat such worlds as production-quality or consistent;
-  * in prod or CI pipelines, the presence of a valid `_passed.flag_5A` MUST remain the gate.
+  * in prod or CI pipelines, the presence of a valid `_passed.flag` MUST remain the gate.
 
 ---
 
@@ -1956,7 +1956,7 @@ For a given `manifest_fingerprint`:
 
 #### 8.4.1 5A internal states (S1–S4)
 
-* S1–S4 MAY run without waiting for S5, and **MUST NOT** block on `_passed.flag_5A`.
+* S1–S4 MAY run without waiting for S5, and **MUST NOT** block on `_passed.flag`.
 * However, if 5A is re-run under a modified `manifest_fingerprint` or `parameter_hash`, S5 MUST be re-run to produce a fresh bundle/flag.
 
 #### 8.4.2 Validation & ops tools
@@ -1974,7 +1974,7 @@ For a given `manifest_fingerprint`:
 
 ### 8.5 When S5 MUST treat a world as FAIL
 
-S5 MUST treat a world as **FAIL** (no `_passed.flag_5A` may be written) in at least the following cases:
+S5 MUST treat a world as **FAIL** (no `_passed.flag` may be written) in at least the following cases:
 
 * S0 gate/ sealed-inputs are missing or inconsistent.
 * Any upstream Layer-1 segment 1A–3B is not `PASS` in S0.
@@ -1986,9 +1986,9 @@ S5 MUST treat a world as **FAIL** (no `_passed.flag_5A` may be written) in at le
 In all such cases:
 
 * S5 MUST still attempt to build a **FAILED bundle** describing the issues, unless internal I/O or invariants make that impossible;
-* S5 MUST NOT create or reuse a `_passed.flag_5A` that would signal PASS.
+* S5 MUST NOT create or reuse a `_passed.flag` that would signal PASS.
 
-Within these rules, S5 provides a crisp, unambiguous gate: a world is either sealed and green for 5A (`_passed.flag_5A` verified) or it is not, and all downstream components are required to respect that gate.
+Within these rules, S5 provides a crisp, unambiguous gate: a world is either sealed and green for 5A (`_passed.flag` verified) or it is not, and all downstream components are required to respect that gate.
 
 ---
 
@@ -1999,7 +1999,7 @@ This section defines the **canonical error codes** that **5A.S5 — Segment Vali
 Very important distinction:
 
 * **World-level FAIL (validation result)**
-  – S5 runs to completion, builds a `validation_bundle_5A` with `overall_status="FAIL"`, and **does not** write a valid `_passed.flag_5A`.
+  – S5 runs to completion, builds a `validation_bundle_5A` with `overall_status="FAIL"`, and **does not** write a valid `_passed.flag`.
   – This is **not** an S5 error; `state_status` in the run-report is `"SUCCESS"`.
   – Failures are expressed via `validation_report_5A` and `validation_issue_table_5A`.
 
@@ -2044,7 +2044,7 @@ S5 does **not** write a separate “errors dataset”; error reporting is via ru
 | `S5_OUTPUT_CONFLICT`              | FATAL    | Existing bundle/flag differ from recomputed |
 | `S5_INTERNAL_INVARIANT_VIOLATION` | FATAL    | Internal “should never happen” bug          |
 
-All of these codes indicate that **S5 could not reliably create or verify `validation_bundle_5A`/`_passed.flag_5A` for this fingerprint**. They are not used to represent “the world failed validation”; that’s in the bundle report.
+All of these codes indicate that **S5 could not reliably create or verify `validation_bundle_5A`/`_passed.flag` for this fingerprint**. They are not used to represent “the world failed validation”; that’s in the bundle report.
 
 ---
 
@@ -2061,7 +2061,7 @@ Raised when S5 cannot read required inputs due to I/O or storage problems, for e
   * `s0_gate_receipt_5A` or `sealed_inputs_5A` for this fingerprint,
   * 5A outputs `merchant_zone_profile_5A`, `shape_grid_definition_5A`, `class_zone_shape_5A`, `merchant_zone_baseline_local_5A`, `merchant_zone_scenario_local_5A`,
   * required policies/configs needed to interpret contracts,
-  * or an existing `validation_bundle_index_5A` / `_passed.flag_5A` during idempotency checking.
+  * or an existing `validation_bundle_index_5A` / `_passed.flag` during idempotency checking.
 
 **Effect**
 
@@ -2069,7 +2069,7 @@ Raised when S5 cannot read required inputs due to I/O or storage problems, for e
 
   * set `state_status="FAILED"` for this run,
   * emit `error_code="S5_IO_READ_FAILED"`,
-  * NOT attempt to commit or update `validation_bundle_5A` or `_passed.flag_5A`.
+  * NOT attempt to commit or update `validation_bundle_5A` or `_passed.flag`.
 
 * Operator action: fix storage/network/permissions; rerun S5.
 
@@ -2088,7 +2088,7 @@ Raised when S5 encounters I/O/storage failures while **writing** or committing i
   * `validation_bundle_index_5A.json`,
   * `validation_report_5A`,
   * `validation_issue_table_5A`, or other evidence files,
-  * `_passed.flag_5A`.
+  * `_passed.flag`.
 
 * Cannot atomically move staged files to canonical locations under
   `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/`.
@@ -2136,11 +2136,11 @@ This code is for structural index computation failures, not for typical world va
 
 **Trigger**
 
-Raised when S5 detects that **existing `_passed.flag_5A` and bundle index disagree**, for example:
+Raised when S5 detects that **existing `_passed.flag` and bundle index disagree**, for example:
 
 * `validation_bundle_index_5A` exists and passes schema validation.
 * S5 recomputes `bundle_digest` by hashing files listed in the index.
-* An existing `_passed.flag_5A` is present but:
+* An existing `_passed.flag` is present but:
 
   * either its format is invalid, or
   * its `bundle_digest_sha256` value does **not** match the recomputed digest.
@@ -2176,7 +2176,7 @@ Raised when S5 recomputes the validation bundle for a fingerprint and discovers 
 
   * New `validation_report_5A` or `validation_issue_table_5A` content differs.
   * The set of evidence files or index entries differs.
-  * Recomputed `bundle_digest` differs from that recorded in existing `_passed.flag_5A`.
+  * Recomputed `bundle_digest` differs from that recorded in existing `_passed.flag`.
 
 This indicates that either:
 
@@ -2189,7 +2189,7 @@ This indicates that either:
 
   * set `state_status="FAILED"`,
   * emit `error_code="S5_OUTPUT_CONFLICT"`,
-  * NOT overwrite existing `validation_bundle_5A` or `_passed.flag_5A`.
+  * NOT overwrite existing `validation_bundle_5A` or `_passed.flag`.
 
 * Operator action:
 
@@ -2215,7 +2215,7 @@ Catch-all for internal “should never happen” states in S5’s own logic, for
 
   * set `state_status="FAILED"`,
   * emit `error_code="S5_INTERNAL_INVARIANT_VIOLATION"`,
-  * NOT write or update `validation_bundle_5A` or `_passed.flag_5A`.
+  * NOT write or update `validation_bundle_5A` or `_passed.flag`.
 
 * Operator action:
 
@@ -2236,12 +2236,12 @@ To avoid confusion, S5 must clearly separate:
   – S5 runs successfully, but checks show problems;
   – `state_status="SUCCESS"` in run-report;
   – `validation_report_5A.overall_status="FAIL"`;
-  – `_passed.flag_5A` is either not written or not trusted;
+  – `_passed.flag` is either not written or not trusted;
   – **no** `error_code` from §9.2 is emitted.
 
 Downstream MUST:
 
-* look at **presence and verification of `_passed.flag_5A`** to decide if a world is 5A-PASS, and
+* look at **presence and verification of `_passed.flag`** to decide if a world is 5A-PASS, and
 * use **`validation_report_5A` + `validation_issue_table_5A`** to understand *why* a world failed validation, not `error_code` fields.
 
 Within this framework, S5’s error codes only represent failures of the **S5 machinery itself**, not routine failures of the world under validation.
@@ -2274,7 +2274,7 @@ Observability for S5 MUST allow operators and downstream components to answer, f
 
    * Is there a `validation_bundle_5A`?
    * What is `overall_status` in `validation_report_5A` (`PASS` or `FAIL`)?
-   * Is `_passed.flag_5A` present and digest-consistent with the bundle?
+   * Is `_passed.flag` present and digest-consistent with the bundle?
 
 3. **How “healthy” is the world?**
 
@@ -2305,7 +2305,7 @@ The run-report entry MUST additionally include:
 
   * `validation_bundle_present` — boolean.
   * `passed_flag_present` — boolean.
-  * `bundle_digest_sha256` — the digest written into `_passed.flag_5A` **if and only if** `overall_status="PASS"` and the flag/digest check succeeded; otherwise MAY be omitted or set null.
+  * `bundle_digest_sha256` — the digest written into `_passed.flag` **if and only if** `overall_status="PASS"` and the flag/digest check succeeded; otherwise MAY be omitted or set null.
   * `overall_status_5A` — string; MUST equal `validation_report_5A.overall_status` (`"PASS"` or `"FAIL"`).
 
 * **Scope of validation**
@@ -2413,7 +2413,7 @@ At minimum, S5 MUST log:
 
 6. **Flag written**
 
-   * Once `_passed.flag_5A` is successfully committed (only if `overall_status_5A="PASS"` and index/files check out).
+   * Once `_passed.flag` is successfully committed (only if `overall_status_5A="PASS"` and index/files check out).
    * Level: `INFO`
    * Fields:
 
@@ -2594,7 +2594,7 @@ Then S5 sees:
   * `validation_report_5A`: ~single JSON object per fingerprint.
   * `validation_issue_table_5A`: `O(#issues)` rows, typically much smaller than modelling datasets.
   * `validation_bundle_index_5A`: single small JSON object.
-  * `_passed.flag_5A`: tiny file.
+  * `_passed.flag`: tiny file.
 
 Importantly, S5 **does not need to read or compute on every row in full detail**:
 
@@ -2643,7 +2643,7 @@ Because S5 is end-of-pipeline, the expectation is:
 
   * `validation_report_5A.json`: O(10–100 KiB).
   * `validation_issue_table_5A.parquet`: O(#issues × (tens of bytes)) — often small-to-moderate.
-  * `validation_bundle_index_5A.json` and `_passed.flag_5A`: tiny.
+  * `validation_bundle_index_5A.json` and `_passed.flag`: tiny.
 
 I/O hotspots:
 
@@ -2781,7 +2781,7 @@ In summary, 5A.S5 is deliberately designed to be:
 * **parallelisable**, and
 * strictly cheaper than the modelling work it validates,
 
-so that sealing a world with `_passed.flag_5A` is operationally lightweight but semantically strong.
+so that sealing a world with `_passed.flag` is operationally lightweight but semantically strong.
 
 ---
 
@@ -2796,7 +2796,7 @@ The goals are:
 
   * **Spec changes** (what S5 outputs look like / mean), and
   * **world changes** (what S1–S4 outputs or policies are).
-* Predictable behaviour for all consumers that rely on `_passed.flag_5A`.
+* Predictable behaviour for all consumers that rely on `_passed.flag`.
 
 ---
 
@@ -2818,12 +2818,12 @@ Change control for S5 covers:
      * `validation_bundle_index_5A` (representing `validation_bundle_5A`),
      * `validation_report_5A`,
      * `validation_issue_table_5A` (if any),
-     * `passed_flag_5A`.
+     * `validation_passed_flag_5A`.
 
    * `artefact_registry_5A.yaml` entries for:
 
      * `validation_bundle_5A`,
-     * `passed_flag_5A`,
+     * `validation_passed_flag_5A`,
      * optionally `validation_report_5A`, `validation_issue_table_5A` as separate artefacts.
 
 3. **Algorithm & hashing law**
@@ -2958,7 +2958,7 @@ Incompatible:
   * changing from “concatenate file bytes in index order and hash” to “hash of hash-of-files” or similar,
   * changing which files are included in the bundle digest while keeping the same field name.
 
-Such changes break any existing `_passed.flag_5A` verification logic and MUST be MAJOR.
+Such changes break any existing `_passed.flag` verification logic and MUST be MAJOR.
 
 #### 12.4.2 Changing index semantics/structure
 
@@ -2988,7 +2988,7 @@ If the meaning of `PASS` changes in a way that affects gating decisions, consume
 
 Incompatible:
 
-* Removing `validation_report_5A` or changing `_passed.flag_5A` from a digest-bearing file to some other form without a new field/schema.
+* Removing `validation_report_5A` or changing `_passed.flag` from a digest-bearing file to some other form without a new field/schema.
 
 ---
 
@@ -3008,7 +3008,7 @@ When consumers load S5 artefacts:
 * If `s5_spec_version.MAJOR` is **greater** than the max supported MAJOR:
 
   * They MUST treat the world as having an **unsupported validation spec**,
-  * They MUST NOT treat `_passed.flag_5A` as authoritative,
+  * They MUST NOT treat `_passed.flag` as authoritative,
   * They SHOULD surface an “unsupported S5 spec version” error or equivalent.
 
 #### 12.5.2 Re-running S5 with newer code
@@ -3155,7 +3155,7 @@ This appendix collects short-hands, symbols, and abbreviations used in the **5A.
 | `validation_bundle_index_5A` | Single JSON index file listing bundle member paths and their SHA-256 digests.                                                                    |
 | `validation_report_5A`       | Summary report of all S0–S4 validations for this world (per-check status + metrics).                                                             |
 | `validation_issue_table_5A`  | Optional table of individual validation issues with codes, severity, and context.                                                                |
-| `_passed.flag_5A`            | Tiny artefact holding `bundle_digest_sha256` for the corresponding `validation_bundle_5A`.                                                       |
+| `_passed.flag`            | Tiny artefact holding `bundle_digest_sha256` for the corresponding `validation_bundle_5A`.                                                       |
 | `s0_gate_receipt_5A`         | S0 gate receipt (sealed inputs + upstream 1A–3B status) for this world.                                                                          |
 | `sealed_inputs_5A`           | S0 inventory of all artefacts 5A is allowed to read for this fingerprint.                                                                        |
 | S1–S4 artefacts              | Shorthand in S5 for 5A modelling outputs being validated (e.g. S1 `merchant_zone_profile_5A`, S2 shapes, S3 baselines, S4 scenario intensities). |
@@ -3203,7 +3203,7 @@ For quick reference, S5 state-level error codes (from §9):
 | `S5_IO_READ_FAILED`               | S5 could not read required inputs (infra/storage issue).                        |
 | `S5_IO_WRITE_FAILED`              | S5 could not write/commit bundle or flag (infra/storage issue).                 |
 | `S5_INDEX_BUILD_FAILED`           | S5 could not build a coherent `validation_bundle_index_5A`.                     |
-| `S5_FLAG_DIGEST_MISMATCH`         | Existing `_passed.flag_5A` digest does not match recomputed bundle digest.      |
+| `S5_FLAG_DIGEST_MISMATCH`         | Existing `_passed.flag` digest does not match recomputed bundle digest.      |
 | `S5_OUTPUT_CONFLICT`              | Recomputation produced a different bundle/flag than the existing canonical one. |
 | `S5_INTERNAL_INVARIANT_VIOLATION` | A “should never happen” internal inconsistency in S5 implementation.            |
 
@@ -3215,11 +3215,11 @@ For quick reference, S5 state-level error codes (from §9):
 
 | Term                 | Meaning                                                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **World-level PASS** | For a `manifest_fingerprint`, S5 ran successfully, `validation_report_5A.overall_status="PASS"`, and `_passed.flag_5A` is present and digest-consistent with the bundle. |
-| **World-level FAIL** | For a `manifest_fingerprint`, S5 ran successfully, but `validation_report_5A.overall_status="FAIL"`; no valid `_passed.flag_5A` is considered authoritative.             |
+| **World-level PASS** | For a `manifest_fingerprint`, S5 ran successfully, `validation_report_5A.overall_status="PASS"`, and `_passed.flag` is present and digest-consistent with the bundle. |
+| **World-level FAIL** | For a `manifest_fingerprint`, S5 ran successfully, but `validation_report_5A.overall_status="FAIL"`; no valid `_passed.flag` is considered authoritative.             |
 | **S5-level FAIL**    | S5 itself failed as a state (I/O error, index/flag inconsistency, internal bug) and could not reliably produce a bundle/flag.                                            |
 
-Downstream components gate on **world-level PASS** (verified `_passed.flag_5A`), not on absence of S5 errors alone.
+Downstream components gate on **world-level PASS** (verified `_passed.flag`), not on absence of S5 errors alone.
 
 ---
 
@@ -3234,7 +3234,7 @@ Downstream components gate on **world-level PASS** (verified `_passed.flag_5A`),
 | S4           | 5A.S4 — Calendar & Scenario Overlays                                            |
 | S5           | 5A.S5 — Segment Validation & HashGate (this spec)                               |
 | “bundle”     | Shorthand for `validation_bundle_5A` (the directory of evidence files + index). |
-| “flag”       | Shorthand for `_passed.flag_5A`.                                                |
+| “flag”       | Shorthand for `_passed.flag`.                                                |
 
 This appendix is meant as a quick reference when implementing or reviewing S5; authoritative behaviour and contracts remain in §§1–12.
 

@@ -208,10 +208,10 @@ The following activities are explicitly **out of scope** for 5A.S4 and MUST NOT 
     * define fraud rates or fraud campaigns;
       those are Layer-3 concerns.
 
-* **Segment-level PASS & `_passed.flag_5A`**
+* **Segment-level PASS & `_passed.flag`**
 
   * S4 does NOT decide segment-level PASS/FAIL for 5A.
-  * It contributes inputs to 5A.S5 (validation & HashGate), which is responsible for building the 5A validation bundle and `_passed.flag_5A`.
+  * It contributes inputs to 5A.S5 (validation & HashGate), which is responsible for building the 5A validation bundle and `_passed.flag`.
 
 ---
 
@@ -1273,7 +1273,7 @@ Downstream components (notably 5A.S5 and 5B) MUST:
 S4 produces **modelling datasets only**; it does not produce:
 
 * control-plane artefacts (no new gate receipts or sealed-input inventories),
-* or `_passed.flag_5A` (which is the job of 5A.S5).
+* or `_passed.flag` (which is the job of 5A.S5).
 
 All S4 outputs:
 
@@ -3154,7 +3154,7 @@ Downstream segments (5B, 6A) MUST:
 * instead, rely on:
 
   * data-level checks on S4 outputs, and
-  * the presence and verification of `_passed.flag_5A` produced by S5.
+  * the presence and verification of `_passed.flag` produced by S5.
 
 Within these rules, S4 is fully observable: its work is transparent, diagnosable, and tied to clear identities, while bulk scenario-intensity data remains in tables rather than logs.
 
@@ -3940,7 +3940,7 @@ These codes appear only in run-report/logs, not in data schemas.
 | S2           | State 2 — Weekly Shape Library.                                                    |
 | S3           | State 3 — Baseline Merchant×Zone Weekly Intensities.                               |
 | S4           | State 4 — Calendar & Scenario Overlays (this spec).                                |
-| S5           | Segment 5A validation & HashGate (validation bundle + `_passed.flag_5A`).          |
+| S5           | Segment 5A validation & HashGate (validation bundle + `_passed.flag`).          |
 | L1 / L2      | Layer-1 / Layer-2.                                                                 |
 | “baseline”   | Shorthand for S3’s `lambda_local_base`.                                            |
 | “scenario”   | Shorthand for S4’s `lambda_local_scenario` (and `lambda_utc_scenario` if present). |

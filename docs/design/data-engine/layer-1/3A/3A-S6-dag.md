@@ -409,7 +409,7 @@ s6_receipt_3A
 
 Downstream touchpoints
 ----------------------
-- **3A.S7 — Validation bundle & `_passed.flag_3A`:**
+- **3A.S7 — Validation bundle & `_passed.flag`:**
     - MUST treat `s6_receipt_3A` as the authoritative summary of S6 results
       and `s6_validation_report_3A`/`s6_issue_table_3A` as its detailed evidence.
     - S7 uses report_digest/issues_digest to detect tampering and to decide if 3A is “green” for a manifest.

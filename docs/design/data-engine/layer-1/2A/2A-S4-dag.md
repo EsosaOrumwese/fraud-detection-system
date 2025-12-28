@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S4 entry)
 --------------------------------------------
 [S0 Gate & Identity]
     - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
-      · proves: 1B PASS gate was verified for this manifest_fingerprint (via 1B bundle + _passed.flag_1B)
+      · proves: 1B PASS gate was verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: site_timezones + tz_timetable_cache as allowed 2A inputs
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A run
 
@@ -166,7 +166,7 @@ Downstream touchpoints
         · tz_timetable_cache manifest for this fingerprint,
       into the 2A validation bundle at:
         · data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-      builds index.json, computes ASCII-lex + SHA-256 digest, and writes `_passed.flag_2A`.
-    - Downstream consumers of site_timezones / tz_timetable_cache MUST verify `_passed.flag_2A`
+      builds index.json, computes ASCII-lex + SHA-256 digest, and writes `_passed.flag`.
+    - Downstream consumers of site_timezones / tz_timetable_cache MUST verify `_passed.flag`
       for this fingerprint before reads (No PASS → No Read for 2A civil-time surfaces).
 ```

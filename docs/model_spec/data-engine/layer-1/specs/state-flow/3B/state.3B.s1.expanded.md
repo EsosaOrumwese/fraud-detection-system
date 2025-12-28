@@ -90,7 +90,7 @@ S1 does **not** re-validate upstream bundles directly; it trusts their PASS stat
 * construction of **CDN alias tables** or any per-event alias logic;
 * any **per-arrival routing** decisions or the emission of `cdn_edge_pick` or other RNG events;
 * any modification to physical `site_locations` or `site_timezones` for non-virtual merchants;
-* the 3B segment-level validation bundle and `_passed.flag_3B` (owned by the terminal 3B validation state).
+* the 3B segment-level validation bundle and `_passed.flag` (owned by the terminal 3B validation state).
 
 1.5.2 S1 MUST NOT attempt to:
 
@@ -583,7 +583,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 4.5 **Relationship to 3B validation bundle & segment PASS**
 
-4.5.1 S1 does **not** produce a 3B segment-level validation bundle or `_passed.flag_3B`. Those artefacts are owned by the terminal 3B validation state.
+4.5.1 S1 does **not** produce a 3B segment-level validation bundle or `_passed.flag`. Those artefacts are owned by the terminal 3B validation state.
 
 4.5.2 However, `virtual_classification_3B` and `virtual_settlement_3B` are expected to be **members** of the 3B validation bundle. Therefore:
 
@@ -2305,7 +2305,7 @@ should fit easily in memory for typical `|M|` and `C`.
 
 * S0 contracts (`s0_gate_receipt_3B`, `sealed_inputs_3B`), which follow their own change-control rules.
 * The intrinsic definitions of upstream artefacts (`merchant_ids`, `outlet_catalogue`, `site_locations`, `site_timezones`, `zone_alloc`, etc.), which are owned by ingress / 1A / 1B / 2A / 3A.
-* The 3B segment-level validation bundle and `_passed.flag_3B`, which are owned by the terminal 3B validation state.
+* The 3B segment-level validation bundle and `_passed.flag`, which are owned by the terminal 3B validation state.
 
 ---
 

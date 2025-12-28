@@ -13,9 +13,9 @@ Authoritative inputs (read-only at S0 entry)
     - artefact_registry_*.yaml            (registry entries for upstream bundles + 3A policies/priors)
 
 [Upstream HashGates · required for 3A.S0]
-    - validation_bundle_1A + _passed.flag_1A  @ data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-    - validation_bundle_1B + _passed.flag_1B  @ data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-    - validation_bundle_2A + _passed.flag_2A  @ data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    - validation_bundle_1A + _passed.flag  @ data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    - validation_bundle_1B + _passed.flag  @ data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    - validation_bundle_2A + _passed.flag  @ data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
       · S0 MUST verify all three according to the standard Layer-1 bundle+flag hashing law.
       · 2B’s bundle/flag are explicitly NOT an input dependency for 3A.S0.
 
@@ -79,7 +79,7 @@ DAG — 3A.S0 (Upstream gates → sealed input set 𝕊 → gate receipt)  [NO R
                     - For each upstream segment S ∈ {1A,1B,2A}:
                         · use the dictionary and registry to resolve:
                               bundle_path_S   (validation_bundle_S root directory for this fingerprint),
-                              flag_path_S     (_passed.flag_S for this fingerprint),
+                              flag_path_S     (_passed.flag for this fingerprint),
                               schema_ref_S    (index schema anchor and flag schema anchor).
                         · Load and validate:
                               index.json under bundle_path_S,
@@ -98,7 +98,7 @@ DAG — 3A.S0 (Upstream gates → sealed input set 𝕊 → gate receipt)  [NO R
                                - open the referenced file under bundle_path_S,
                                - append its raw bytes to a SHA-256 stream.
                         3. Compute digest D_S = SHA256(concatenated bytes).
-                        4. Parse `_passed.flag_S`:
+                        4. Parse `_passed.flag`:
                                - require exact single-line format `sha256_hex = <64 lowercase hex>`.
                         5. Compare:
                                - if `<64 hex>` ≠ D_S → Abort with `E3A_S0_001_UPSTREAM_GATE_FAILED` (UPSTREAM_GATE).
@@ -135,9 +135,9 @@ DAG — 3A.S0 (Upstream gates → sealed input set 𝕊 → gate receipt)  [NO R
                 ->  (S0.7) Determine sealed input set 𝕊 for `sealed_inputs_3A`
                     - Define 𝕊 as the union of:
                         1. Upstream gate artefacts (for documentation/diagnostics):
-                            · `validation_bundle_1A` + `_passed.flag_1A`,
-                            · `validation_bundle_1B` + `_passed.flag_1B`,
-                            · `validation_bundle_2A` + `_passed.flag_2A`.
+                            · `validation_bundle_1A` + `_passed.flag`,
+                            · `validation_bundle_1B` + `_passed.flag`,
+                            · `validation_bundle_2A` + `_passed.flag`.
                         2. Upstream data-plane surfaces 3A MAY read (even if S0 itself doesn’t interpret them):
                             · `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}`,
                             · `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}`,

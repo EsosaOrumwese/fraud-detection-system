@@ -952,7 +952,7 @@ Unlike S0, S2:
 Later, the 5A segment-level validation state will:
 
 * treat S2 outputs as required inputs, and
-* include them in the 5A validation bundle / `_passed.flag_5A` story, but S2 itself does not write a validation bundle.
+* include them in the 5A validation bundle / `_passed.flag` story, but S2 itself does not write a validation bundle.
 
 Within this identity model, S2’s outputs provide a single, reusable library of **class/zone/week shapes** for each parameter pack and scenario, aligned with S1’s demand classes and 3A’s zone universe.
 
@@ -1992,7 +1992,7 @@ Other segments that rely on class/zone weekly patterns (e.g. 5B, 6A) MUST:
 
 1. **Check 5A segment-level PASS**
 
-   * Require a verified `_passed.flag_5A` (produced by the 5A validation state) for the relevant `manifest_fingerprint`, which implies S0–S2 (and other 5A states) are green.
+   * Require a verified `_passed.flag` (produced by the 5A validation state) for the relevant `manifest_fingerprint`, which implies S0–S2 (and other 5A states) are green.
 
 2. **Respect S2’s role**
 
@@ -2658,7 +2658,7 @@ Dashboards and health checks SHOULD be able to answer, per `(parameter_hash, sce
 
 Downstream states (S3/S4/5B/6A) MUST NOT use logs/metrics alone as gates; they MUST continue to obey:
 
-* S0/S1/S2 **data-level gates** (presence/validity of S0, S1, S2 datasets and, eventually, 5A’s `_passed.flag_5A`),
+* S0/S1/S2 **data-level gates** (presence/validity of S0, S1, S2 datasets and, eventually, 5A’s `_passed.flag`),
 * and treat observability signals as diagnostic, not authoritative, in deciding whether to run.
 
 Within these constraints, 5A.S2 is fully observable: its runs are traceable, its failures are diagnosable, and its grid/domain/shape health is visible without leaking or duplicating bulk shape data.

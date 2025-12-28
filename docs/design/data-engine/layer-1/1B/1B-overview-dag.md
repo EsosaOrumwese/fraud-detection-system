@@ -5,7 +5,7 @@ Authoritative inputs (sealed in S0)
 -----------------------------------
 [M] Upstream 1A egress & order authority:
     - validation_bundle_1A              @ [fingerprint]
-    - validation_passed_flag (_passed.flag)
+    - validation_passed_flag_1A (_passed.flag)
     - outlet_catalogue                  @ [seed, fingerprint]
       · immutable outlet stubs; order-free; PK (merchant_id, legal_country_iso, site_order)
     - s3_candidate_set                  @ [parameter_hash]
@@ -138,7 +138,7 @@ DAG
                          · RNG accounting & envelope/trace reconciliation for `site_tile_assign` and `in_cell_jitter`
                          · egress file checksums for `site_locations`
                          · path↔embed equality & Dictionary/Schema coherence checks
-                -> _passed.flag_1B       @ [fingerprint]
+                -> _passed.flag       @ [fingerprint]
                      - content: `sha256_hex = <SHA256(bundle)>`
                      - hash is SHA-256 over raw bytes of files listed in `index.json`
                        in ASCII-lex order of `path` (flag excluded)

@@ -343,7 +343,7 @@ Downstream touchpoints
     - Uses s1_time_grid_5B to map bucket indices to time windows when placing micro-time arrivals.
     - Uses s1_grouping_5B only if grouping metadata is needed for debugging/audit; S4 MUST NOT override grouping.
 
-- **5B.S5 — Validation bundle & `_passed.flag_5B`:**
+- **5B.S5 — Validation bundle & `_passed.flag`:**
     - Replays S1 invariants:
           - all in-scope entities for a scenario appear exactly once in s1_grouping_5B,
           - s1_time_grid_5B covers each scenario horizon completely with non-overlapping buckets,

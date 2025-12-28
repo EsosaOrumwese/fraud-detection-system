@@ -107,7 +107,7 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
-- id: validation_passed_flag
+- id: validation_passed_flag_1A
   status: approved
   owner_subsegment: 1A
   description: 1A PASS gate flag (_passed.flag) used by 1B.S0 before any read of outlet_catalogue.

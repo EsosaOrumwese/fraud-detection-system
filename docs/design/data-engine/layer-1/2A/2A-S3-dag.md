@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S3 entry)
 --------------------------------------------
 [S0 Gate & Identity]
     - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
-      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag_1B)
+      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: tzdb_release + tz_world_2025a as the only TZ inputs S3 may read
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A run
 
@@ -150,6 +150,6 @@ Downstream touchpoints
         · all s4_legality_report[seed,fingerprint] for seeds that have site_timezones,
       into a fingerprint-scoped validation bundle,
       computes the ASCII-lex + SHA-256 digest over bundle files,
-      and writes `_passed.flag_2A` that downstream must verify before reading
+      and writes `_passed.flag` that downstream must verify before reading
       site_timezones / tz_timetable_cache.
 ```

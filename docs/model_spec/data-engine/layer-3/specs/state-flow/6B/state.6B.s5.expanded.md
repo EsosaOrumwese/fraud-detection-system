@@ -32,9 +32,9 @@ S5 does **not** produce any new business data (no flows, no events, no labels). 
 4. **Publishes the 6B HashGate flag**
 
    * computes a deterministic SHA-256 digest over the bundle contents (using the paths and digests from `index.json` according to the agreed bundle law);
-   * writes the **segment-level `_passed.flag_6B`** (`validation_passed_flag_6B`) containing that digest.
+   * writes the **segment-level `_passed.flag`** (`validation_passed_flag_6B`) containing that digest.
 
-This `_passed.flag_6B` is the **HashGate for Segment 6B**:
+This `_passed.flag` is the **HashGate for Segment 6B**:
 
 > If the flag is present and its digest matches the recomputed bundle digest, the 6B segment is considered **sealed and PASS** for that world.
 > If the flag is missing or invalid, the world MUST be treated as **not validated**, and 6B outputs MUST NOT be used.
@@ -60,7 +60,7 @@ Within this specification, S5 is responsible for:
 * **Bundle construction and HashGate derivation**
 
   * Building a **complete and self-describing** validation bundle for the world: any consumer (internal or external) can re-run the hashing recipe and reach the same digest if and only if the bundle is intact and unmodified.
-  * Publishing `_passed.flag_6B` only when all required checks have passed under the validation policy.
+  * Publishing `_passed.flag` only when all required checks have passed under the validation policy.
 
 ### Out-of-scope responsibilities
 
@@ -102,8 +102,8 @@ Within the engine:
 
 * **Downstream:**
 
-  * Orchestrators, 4A/4B, model-training and evaluation pipelines MUST treat `_passed.flag_6B` as the **single, machine-checkable gate** determining whether 6B outputs are safe to read for that `manifest_fingerprint`.
-  * Any world lacking a valid `_passed.flag_6B` MUST be considered **not validated**, and 6B outputs MUST NOT be consumed as authoritative.
+  * Orchestrators, 4A/4B, model-training and evaluation pipelines MUST treat `_passed.flag` as the **single, machine-checkable gate** determining whether 6B outputs are safe to read for that `manifest_fingerprint`.
+  * Any world lacking a valid `_passed.flag` MUST be considered **not validated**, and 6B outputs MUST NOT be consumed as authoritative.
 
 If S5 is implemented according to this specification, then for each world:
 
@@ -291,7 +291,7 @@ S5 is a **validation & sealing** state:
 
 * It reads 6B control-plane + data-plane artefacts and upstream HashGates.
 * It reads validation/RNG policies.
-* It produces only **validation reports, a bundle index, and `_passed.flag_6B`**.
+* It produces only **validation reports, a bundle index, and `_passed.flag`**.
 * It MUST NOT mutate any S0–S4 or upstream datasets.
 
 ---
@@ -589,7 +589,7 @@ But S5’s outputs are **purely validation artefacts**; the truth about behaviou
 1. `s5_validation_report_6B` — a world-scoped **summary report** of all 6B validation checks.
 2. `s5_issue_table_6B` — an optional **detailed issue table** of non-PASS findings.
 3. `validation_bundle_6B` — a **directory** containing all selected 6B validation artefacts for the world, plus an `index.json`.
-4. `validation_passed_flag_6B` (`_passed.flag_6B`) — the **HashGate flag** for Segment 6B.
+4. `validation_passed_flag_6B` (`_passed.flag`) — the **HashGate flag** for Segment 6B.
 
 All S5 outputs are **fingerprint-scoped**:
 
@@ -773,7 +773,7 @@ Registered as:
 Within that directory, S5 owns the layout of validation artefacts. It MUST at least produce:
 
 * `index.json` (the index; see next subsection)
-* `_passed.flag_6B` (HashGate flag; see §4.4)
+* `_passed.flag` (HashGate flag; see §4.4)
 
 Other filenames and subdirectories are allowed as long as they are clearly described in the index and follow the hashing law.
 
@@ -812,7 +812,7 @@ Binding rules:
 
   * list each file included in the bundle **exactly once**,
   * be sorted by `path` in ASCII-lex order,
-  * NOT include `_passed.flag_6B`.
+  * NOT include `_passed.flag`.
 
 S5 MUST use this index to compute the bundle digest (see §6 later): concatenate files in `items` order, hash with SHA-256.
 
@@ -838,7 +838,7 @@ In the registry:
 
 **Artefact id**
 
-* `id: validation_passed_flag_6B` (aka `_passed.flag_6B`)
+* `id: validation_passed_flag_6B` (aka `_passed.flag`)
 * `owner_layer: 3`
 * `owner_segment: 6B`
 
@@ -846,7 +846,7 @@ In the registry:
 
 A small text artefact that encodes the **HashGate digest** over the `validation_bundle_6B` contents for this world. It is the **sole gating artefact** for Segment 6B:
 
-> A downstream consumer MUST recompute the bundle digest from `index.json` and confirm it matches `_passed.flag_6B` before treating any 6B outputs as valid for this `manifest_fingerprint`.
+> A downstream consumer MUST recompute the bundle digest from `index.json` and confirm it matches `_passed.flag` before treating any 6B outputs as valid for this `manifest_fingerprint`.
 
 **Format, path & identity**
 
@@ -859,7 +859,7 @@ Registered as:
 * `path`:
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 * `partitioning: [fingerprint]`
@@ -872,9 +872,9 @@ Contents (binding):
   sha256_hex = <64-lowercase-hex-digest>
   ```
 
-* `<digest>` MUST be the SHA-256 of the concatenation of the raw bytes of all files listed in `validation_bundle_index_6B.items`, in ASCII-lex `path` order, and MUST NOT include `_passed.flag_6B` itself.
+* `<digest>` MUST be the SHA-256 of the concatenation of the raw bytes of all files listed in `validation_bundle_index_6B.items`, in ASCII-lex `path` order, and MUST NOT include `_passed.flag` itself.
 
-Primary key is logically `[manifest_fingerprint]`; there MUST be at most one `_passed.flag_6B` per world/spec version.
+Primary key is logically `[manifest_fingerprint]`; there MUST be at most one `_passed.flag` per world/spec version.
 
 **Lineage**
 
@@ -886,7 +886,7 @@ In dictionary:
 
 In registry:
 
-* `manifest_key: validation_passed_flag_6B`
+* `manifest_key: engine.layer3.6B.validation.passed`
 * `type: file`
 * `category: HashGate`
 * `final_in_layer: true`
@@ -903,9 +903,9 @@ The S5 outputs have the following identity relationships:
   * They do not vary by `seed` or `scenario_id` (though they may *summarise* those dimensions).
   * They apply to the entire 6B workload for the world.
 
-* The presence of `_passed.flag_6B` with a digest matching recomputation from `index.json` is the **single, world-level PASS signal** for Segment 6B.
+* The presence of `_passed.flag` with a digest matching recomputation from `index.json` is the **single, world-level PASS signal** for Segment 6B.
 
-* The absence of `_passed.flag_6B`, or a mismatch between its digest and the recomputed bundle digest, MUST be treated as “no PASS → no read” for 6B outputs.
+* The absence of `_passed.flag`, or a mismatch between its digest and the recomputed bundle digest, MUST be treated as “no PASS → no read” for 6B outputs.
 
 This section fixes *what* S5 writes and *how* those artefacts are keyed and placed in storage. Subsequent sections define how they are populated (algorithm), how re-runs and merges behave (idempotence), and how downstream systems must use them.
 
@@ -925,7 +925,7 @@ This specification only summarises semantics so there is a single source of trut
 - `s5_validation_report_6B` — JSON report produced by the 6B validation runner summarising QA gates.
 - `s5_issue_table_6B` — Row-level validation issues emitted by the runner.
 - `validation_bundle_6B` — Directory containing evidence files enumerated in the bundle index.
-- `validation_passed_flag_6B` — Final `_passed.flag_6B` text file containing the bundle digest.
+- `validation_passed_flag_6B` — Final `_passed.flag` text file containing the bundle digest.
 
 ### 5.2 Catalogue & downstream obligations
 Implementations and downstream consumers MUST resolve datasets via the dictionary/registry, honour the declared schema anchors, and treat any artefact not listed there as out of scope for this state.
@@ -943,7 +943,7 @@ S5 is a **pure validation & sealing state**:
   * a validation report (`s5_validation_report_6B`),
   * an optional issue table (`s5_issue_table_6B`),
   * a validation bundle (`validation_bundle_6B`), and
-  * the 6B HashGate flag (`validation_passed_flag_6B` / `_passed.flag_6B`).
+  * the 6B HashGate flag (`validation_passed_flag_6B` / `_passed.flag`).
 
 S5’s behaviour MUST be fully deterministic given:
 
@@ -977,7 +977,7 @@ If any of these inputs change, S5 may produce a different verdict and/or bundle;
 
    S5 MUST:
 
-   * either produce identical `s5_validation_report_6B`, `s5_issue_table_6B` (if used), `validation_bundle_6B` and `_passed.flag_6B`, or
+   * either produce identical `s5_validation_report_6B`, `s5_issue_table_6B` (if used), `validation_bundle_6B` and `_passed.flag`, or
    * detect that those artefacts already exist and are identical, and treat itself as a no-op.
 
 3. **Stable ordering**
@@ -1247,7 +1247,7 @@ Any mismatched RNG envelope MUST be marked as at least WARN; if policy marks it 
 
 ---
 
-### 6.9 Step 7 — Build validation bundle & compute `_passed.flag_6B`
+### 6.9 Step 7 — Build validation bundle & compute `_passed.flag`
 
 1. **Enumerate bundle members**
 
@@ -1270,7 +1270,7 @@ Any mismatched RNG envelope MUST be marked as at least WARN; if policy marks it 
 
      * list each file exactly once,
      * sort `items` by `path` in ASCII-lex order,
-     * ensure `_passed.flag_6B` (if present) is **not** included.
+     * ensure `_passed.flag` (if present) is **not** included.
 
    * Wrap into the index JSON with identity fields (`manifest_fingerprint`, `parameter_hash`, `spec_version_6B`) and write it as `index.json` (or the chosen filename) in the bundle directory, validating against `validation_bundle_index_6B` schema.
 
@@ -1284,24 +1284,24 @@ Any mismatched RNG envelope MUST be marked as at least WARN; if policy marks it 
 
    * If `overall_status` in `s5_validation_report_6B` is `"PASS"` (and any additional policy criteria for sealing are satisfied):
 
-     * build `_passed.flag_6B` contents:
+     * build `_passed.flag` contents:
 
        ```text
        sha256_hex = <digest>
        ```
 
-     * write `_passed.flag_6B` under `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/`.
+     * write `_passed.flag` under `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/`.
 
-   * If `overall_status` is `"WARN"` or `"FAIL"` and policy forbids sealing on WARN, do **not** write `_passed.flag_6B` (or remove it if it existed and policy allows overwrite only on re-run with PASS — see idempotence in §7).
+   * If `overall_status` is `"WARN"` or `"FAIL"` and policy forbids sealing on WARN, do **not** write `_passed.flag` (or remove it if it existed and policy allows overwrite only on re-run with PASS — see idempotence in §7).
 
-   S5 MUST NOT write `_passed.flag_6B` for a world that fails required checks.
+   S5 MUST NOT write `_passed.flag` for a world that fails required checks.
 
 5. **Idempotence check (on re-run)**
 
-   * If a bundle and `_passed.flag_6B` already exist for this fingerprint:
+   * If a bundle and `_passed.flag` already exist for this fingerprint:
 
      * recompute the bundle digest from the existing index and files;
-     * compare to the digest encoded in `_passed.flag_6B`;
+     * compare to the digest encoded in `_passed.flag`;
      * if they match and the newly computed digest (from Step 3) is the same, treat as a no-op;
      * if they differ, S5 MUST report an idempotence violation and MUST NOT overwrite existing artefacts.
 
@@ -1312,7 +1312,7 @@ This algorithm defines S5 as a **deterministic, RNG-free validator & sealer**:
 * It re-checks S0–S4 and upstream HashGates,
 * it produces a world-level validation report and optional issue table,
 * it constructs a canonical validation bundle, and
-* it emits `_passed.flag_6B` as the single, cryptographically sealed signal that Segment 6B is safe to read for the target `manifest_fingerprint`.
+* it emits `_passed.flag` as the single, cryptographically sealed signal that Segment 6B is safe to read for the target `manifest_fingerprint`.
 
 ---
 
@@ -1325,7 +1325,7 @@ It applies to all S5 artefacts:
 * `s5_validation_report_6B`
 * `s5_issue_table_6B` (optional)
 * `validation_bundle_6B` (including `validation_bundle_index_6B`)
-* `validation_passed_flag_6B` (`_passed.flag_6B`)
+* `validation_passed_flag_6B` (`_passed.flag`)
 
 All of these artefacts are **world-scoped**: they are keyed solely by `manifest_fingerprint`.
 
@@ -1382,12 +1382,12 @@ All S5 artefacts are partitioned solely by `fingerprint={manifest_fingerprint}`:
   data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
   ```
 
-  (contains `index.json`, the evidence files listed there, plus `_passed.flag_6B`).
+  (contains `index.json`, the evidence files listed there, plus `_passed.flag`).
 
-* `_passed.flag_6B`:
+* `_passed.flag`:
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 **Path↔embed equality (binding):**
@@ -1430,7 +1430,7 @@ Binding rules:
    * `s5_validation_report_6B.json`
    * `s5_issue_table_6B.parquet` (if present)
    * `validation_bundle_6B` directory
-   * `_passed.flag_6B` file
+   * `_passed.flag` file
 
 2. If you support multiple spec versions side-by-side, that MUST be expressed via **different artefact ids/paths** (e.g. versioned ids), not multiple reports/flags colliding under the same path.
 
@@ -1456,7 +1456,7 @@ Binding rules for the index:
 
    * MUST be a **relative path** from the bundle root (no leading `/`, no `..` segments).
    * MUST be unique across items.
-   * MUST NOT refer to `_passed.flag_6B`.
+   * MUST NOT refer to `_passed.flag`.
 
 3. **Ordering:**
 
@@ -1491,18 +1491,18 @@ S5 writes its artefacts in the following logical order for a world:
 4. **HashGate flag**
 
    * Compute the bundle digest over files listed in `index.items` in ASCII-lex `path` order.
-   * If `overall_status` in the report is `PASS` (and policy permits sealing), write `_passed.flag_6B` with that digest.
+   * If `overall_status` in the report is `PASS` (and policy permits sealing), write `_passed.flag` with that digest.
 
 Atomicity constraints:
 
 * Writing the flag MUST be the **final step**.
-* Presence of `_passed.flag_6B` implies that:
+* Presence of `_passed.flag` implies that:
 
   * the index exists,
   * all files listed in the index exist and have the digests captured in the index,
   * `overall_status` meets the sealing requirements.
 
-If any error occurs after the report but before the flag, S5 MUST leave `_passed.flag_6B` **absent**; such a world is not considered sealed.
+If any error occurs after the report but before the flag, S5 MUST leave `_passed.flag` **absent**; such a world is not considered sealed.
 
 ---
 
@@ -1514,32 +1514,32 @@ Binding rules:
 
 1. **No bundle & flag yet**
 
-   * If `validation_bundle_6B` directory exists but contains **no index and no `_passed.flag_6B`** (e.g. previous run crashed early), S5 MAY:
+   * If `validation_bundle_6B` directory exists but contains **no index and no `_passed.flag`** (e.g. previous run crashed early), S5 MAY:
 
      * rebuild the report/issue table if needed,
      * build a fresh index and digest,
-     * write `_passed.flag_6B` if the world passes validation.
+     * write `_passed.flag` if the world passes validation.
 
    * This is treated as completing a previously incomplete run, not as an idempotence violation.
 
 2. **Bundle exists, flag absent**
 
-   * If an index and evidence files exist, but `_passed.flag_6B` is absent, S5 MUST:
+   * If an index and evidence files exist, but `_passed.flag` is absent, S5 MUST:
 
      * recompute the bundle digest from the existing index/files,
      * re-derive `overall_status` from a fresh or existing report,
-     * if `overall_status` now permits sealing, write `_passed.flag_6B` with that digest;
+     * if `overall_status` now permits sealing, write `_passed.flag` with that digest;
      * if it does not, leave the flag absent.
 
    * S5 MUST NOT overwrite existing evidence files unless the contract explicitly allows “rebuild from scratch” and they are known to be incomplete; in that case it must do so consistently and document the behaviour.
 
 3. **Bundle & flag exist**
 
-   * On a re-run, if `index.json` and `_passed.flag_6B` already exist:
+   * On a re-run, if `index.json` and `_passed.flag` already exist:
 
      * Recompute the digest from the index and bundle files.
 
-     * Compare it to the digest recorded in `_passed.flag_6B`.
+     * Compare it to the digest recorded in `_passed.flag`.
 
      * If they match, and S5’s freshly computed validation result (based on current inputs) would produce the *same* bundle content (i.e. no new issues or changed report), then:
 
@@ -1579,7 +1579,7 @@ Binding rules:
    * It is safe for other components to read S1–S4, upstream bundles and previous S5 outputs while S5 runs, as long as:
 
      * S5 obeys the atomicity rules above (flag last),
-     * consumers treat the absence of `_passed.flag_6B` as “not yet sealed”.
+     * consumers treat the absence of `_passed.flag` as “not yet sealed”.
 
 ---
 
@@ -1591,12 +1591,12 @@ Downstream components (4A/4B, model-training, evaluation, any “gate checker”
 * Use the following logic:
 
   1. Read `validation_bundle_index_6B` (`index.json`) and recompute the bundle digest over the listed files in sorted `path` order.
-  2. Read `_passed.flag_6B` and parse the `sha256_hex`.
+  2. Read `_passed.flag` and parse the `sha256_hex`.
   3. If the digest values match, treat 6B for that fingerprint as **sealed & PASS**; otherwise, treat it as **not sealed** (even if S5 reports say otherwise).
 
 This gating discipline binds S5’s identity and merge behaviour to a simple, robust rule:
 
-> Only a world with a **matching** `_passed.flag_6B` and bundle index is considered validated for Segment 6B; all other worlds MUST be treated as unvalidated and unsafe to read.
+> Only a world with a **matching** `_passed.flag` and bundle index is considered validated for Segment 6B; all other worlds MUST be treated as unvalidated and unsafe to read.
 
 ---
 
@@ -1650,7 +1650,7 @@ All preconditions in §2 MUST be satisfied:
 
 * `segment_validation_policy_6B` is present and schema-valid.
 
-If any of these fail, S5 MUST treat the world as **FAIL** (precondition failure), set `overall_status = "FAIL"`, and MUST NOT write `_passed.flag_6B`.
+If any of these fail, S5 MUST treat the world as **FAIL** (precondition failure), set `overall_status = "FAIL"`, and MUST NOT write `_passed.flag`.
 
 #### 8.2.2 S0 & upstream HashGates validated
 
@@ -1758,25 +1758,25 @@ S5 MUST derive:
 
 Sealing rules:
 
-* S5 MUST **NOT** write `_passed.flag_6B` if `overall_status = "FAIL"`.
+* S5 MUST **NOT** write `_passed.flag` if `overall_status = "FAIL"`.
 * Whether `overall_status = "WARN"` permits sealing is determined by `segment_validation_policy_6B`:
 
   * If policy **requires fully PASS** to seal:
 
-    * `overall_status = "WARN"` → no `_passed.flag_6B`.
+    * `overall_status = "WARN"` → no `_passed.flag`.
   * If policy allows WARN for sealing (e.g. “warnings acceptable, but still seal world”):
 
-    * S5 MAY write `_passed.flag_6B` even when `overall_status = "WARN"`, but MUST record warnings clearly in the report.
+    * S5 MAY write `_passed.flag` even when `overall_status = "WARN"`, but MUST record warnings clearly in the report.
 
 Under this spec, the default assumption is:
 
-> Only `overall_status = "PASS"` produces `_passed.flag_6B`, unless explicitly overridden by policy.
+> Only `overall_status = "PASS"` produces `_passed.flag`, unless explicitly overridden by policy.
 
 ---
 
 ### 8.3 Conditions that MUST cause S5 to FAIL
 
-S5 MUST set `overall_status = "FAIL"` and MUST NOT write `_passed.flag_6B` if any of the following occurs:
+S5 MUST set `overall_status = "FAIL"` and MUST NOT write `_passed.flag` if any of the following occurs:
 
 * Precondition failures (§2.2–§2.6):
 
@@ -1805,7 +1805,7 @@ S5 MUST set `overall_status = "FAIL"` and MUST NOT write `_passed.flag_6B` if an
 * Bundle & flag failures:
 
   * `validation_bundle_index_6B` invalid or inconsistent with bundle contents,
-  * mismatch between bundle digest and `_passed.flag_6B` digest (on re-run or verification),
+  * mismatch between bundle digest and `_passed.flag` digest (on re-run or verification),
   * idempotence violation as per §7.6.
 
 ---
@@ -1820,25 +1820,25 @@ Binding obligations:
 
    Any downstream consumer (4A/4B services, model-training/evaluation pipelines, auditing tools that rely on final 6B behaviour) MUST:
 
-   * Locate `validation_bundle_6B` and `_passed.flag_6B` for `manifest_fingerprint`,
+   * Locate `validation_bundle_6B` and `_passed.flag` for `manifest_fingerprint`,
    * Recompute the bundle digest from the index (`validation_bundle_index_6B`) and bundle files,
-   * Confirm that the recomputed digest equals the digest encoded in `_passed.flag_6B`.
+   * Confirm that the recomputed digest equals the digest encoded in `_passed.flag`.
 
    Only if this check succeeds may they treat 6B outputs for that world as **valid and sealed**.
 
    This is the binding rule:
 
-   > **No valid `_passed.flag_6B` → no read of Layer-3 / 6B outputs.**
+   > **No valid `_passed.flag` → no read of Layer-3 / 6B outputs.**
 
 2. **Run-report vs HashGate**
 
    * Run-report entries for S0–S4 and S5 are helpful for diagnostics but are **not sufficient** by themselves to authorise consumption.
-   * If S5 reports `overall_status="PASS"` but `_passed.flag_6B` is missing or digest mismatch occurs, consumers MUST treat the world as **unvalidated** and MUST NOT read 6B outputs.
+   * If S5 reports `overall_status="PASS"` but `_passed.flag` is missing or digest mismatch occurs, consumers MUST treat the world as **unvalidated** and MUST NOT read 6B outputs.
 
 3. **Cross-layer gating**
 
-   * Higher-level systems that already gate on upstream HashGates (e.g. Layer-2, 6A) MUST add `_passed.flag_6B` as an additional requirement for any workload that depends on 6B outputs (flows, overlays, labels, cases).
-   * For cross-layer analytics, all relevant segment HashGates (e.g. `_passed.flag_5B`, `_passed.flag_6A`, `_passed.flag_6B`) MUST pass.
+   * Higher-level systems that already gate on upstream HashGates (e.g. Layer-2, 6A) MUST add `_passed.flag` as an additional requirement for any workload that depends on 6B outputs (flows, overlays, labels, cases).
+   * For cross-layer analytics, all relevant segment HashGates (e.g. `_passed.flag`, `_passed.flag`, `_passed.flag`) MUST pass.
 
 4. **Use of S5 reports & issues**
 
@@ -1859,13 +1859,13 @@ Orchestration and operations tooling MUST:
 * Only mark a world as “6B ready” / “Layer-3 ready” when:
 
   * S5 has run and produced `s5_validation_report_6B` for that `manifest_fingerprint`,
-  * `_passed.flag_6B` exists and matches the bundle digest.
+  * `_passed.flag` exists and matches the bundle digest.
 
 * Clearly distinguish:
 
   * worlds where S5 has **not yet run**,
   * worlds where S5 has run but **overall_status != "PASS"`** (and thus no flag was written),
-  * worlds where S5 has PASSed and `_passed.flag_6B` matches the bundle digest.
+  * worlds where S5 has PASSed and `_passed.flag` matches the bundle digest.
 
 Any automation that promotes worlds into training/eval or production-like evaluation MUST incorporate the S5 HashGate as a required condition.
 
@@ -1874,7 +1874,7 @@ Any automation that promotes worlds into training/eval or production-like evalua
 In summary:
 
 * S5’s acceptance criteria are defined by structural, coverage, behavioural, and RNG checks over S0–S4 and upstream HashGates.
-* The **only** signal that a world is valid for 6B is a **consistent validation bundle and `_passed.flag_6B`**.
+* The **only** signal that a world is valid for 6B is a **consistent validation bundle and `_passed.flag`**.
 * All downstream consumers and orchestrators MUST honour this gate: if the flag is missing or invalid, the world is *not* safe to use, regardless of S0–S4 self-reported statuses.
 
 ---
@@ -1890,7 +1890,7 @@ For any world (`manifest_fingerprint`) that S5 attempts to validate, S5 MUST:
 
 Downstream systems (orchestrators, 4A/4B, model-training/eval) MUST treat any world where:
 
-* `_passed.flag_6B` is **missing** or
+* `_passed.flag` is **missing** or
 * HashGate verification fails,
 
 as **not sealed / not validated**, regardless of which error code is set.
@@ -1934,14 +1934,14 @@ Emitted when the S0 gate or any required upstream HashGate (1A–3B, 5A, 5B, 6A)
 **Examples**
 
 * `s0_gate_receipt_6B` or `sealed_inputs_6B` missing or schema-invalid.
-* Re-verification shows `_passed.flag_2B` digest does not match the recomputed bundle digest for 2B.
+* Re-verification shows `_passed.flag` digest does not match the recomputed bundle digest for 2B.
 * `s0_gate_receipt_6B.upstream_segments["5B"].status != "PASS"` and S5’s own upstream check confirms 5B’s HashGate is not valid.
 
 **Obligations**
 
 * S5 MUST set `overall_status = "FAIL"`.
 * S5 MUST NOT attempt any S1–S4 validation or attempt to seal 6B.
-* No `_passed.flag_6B` may be written.
+* No `_passed.flag` may be written.
 
 ---
 
@@ -1959,7 +1959,7 @@ Emitted when `sealed_inputs_6B` is present but missing required 6B artefacts or 
 **Obligations**
 
 * S5 MUST set `overall_status = "FAIL"`.
-* No `_passed.flag_6B` may be written.
+* No `_passed.flag` may be written.
 * Operators MUST repair sealed inputs and/or upstream data before re-running S5.
 
 ---
@@ -1978,7 +1978,7 @@ Emitted when `segment_validation_policy_6B` is missing, schema-invalid, or inter
 **Obligations**
 
 * S5 MUST NOT run checks with an undefined or invalid policy.
-* S5 MUST set `overall_status = "FAIL"` and leave `_passed.flag_6B` absent.
+* S5 MUST set `overall_status = "FAIL"` and leave `_passed.flag` absent.
 
 ---
 
@@ -2024,7 +2024,7 @@ Emitted when S5 detects that cross-state invariants between S1→S2→S3→S4 ar
 **Obligations**
 
 * S5 MUST record this as a FAILED chain integrity check.
-* If the validation policy marks this check as REQUIRED, S5 MUST set `overall_status = "FAIL"` and no `_passed.flag_6B` may be written.
+* If the validation policy marks this check as REQUIRED, S5 MUST set `overall_status = "FAIL"` and no `_passed.flag` may be written.
 
 ---
 
@@ -2143,7 +2143,7 @@ Emitted when `validation_bundle_index_6B` (index `items`) is malformed or incons
 
 **Obligations**
 
-* S5 MUST not attempt to write or rely on `_passed.flag_6B`.
+* S5 MUST not attempt to write or rely on `_passed.flag`.
 * `overall_status` MUST be at least `"FAIL"` (or `"WARN"` only if policy explicitly allows an unsealed world, but then still no flag).
 
 ---
@@ -2156,12 +2156,12 @@ Emitted when recomputing the bundle digest over `validation_bundle_index_6B.item
 **Examples**
 
 * Index lists a file with digest `X`, but recomputation over file bytes yields `Y != X`.
-* On re-run, S5’s freshly computed digest for the bundle does not match the digest previously used to build `_passed.flag_6B`.
+* On re-run, S5’s freshly computed digest for the bundle does not match the digest previously used to build `_passed.flag`.
 
 **Obligations**
 
 * S5 MUST treat the bundle as corrupted or changed.
-* S5 MUST NOT seal the world (no `_passed.flag_6B` should be considered valid).
+* S5 MUST NOT seal the world (no `_passed.flag` should be considered valid).
 * If a flag already exists and digest mismatch is confirmed, S5 MUST treat this as a severe integrity error.
 
 ---
@@ -2169,16 +2169,16 @@ Emitted when recomputing the bundle digest over `validation_bundle_index_6B.item
 #### 9.7.3 `S5_FLAG_DIGEST_MISMATCH`
 
 **Definition**
-Emitted when `_passed.flag_6B` exists but its `sha256_hex` value does not match the recomputed bundle digest.
+Emitted when `_passed.flag` exists but its `sha256_hex` value does not match the recomputed bundle digest.
 
 **Examples**
 
-* `_passed.flag_6B` claims `sha256_hex = abc...`, but recomputed digest over `index.items` yields `def...`.
+* `_passed.flag` claims `sha256_hex = abc...`, but recomputed digest over `index.items` yields `def...`.
 * Flag file modified out-of-band after the bundle was written.
 
 **Obligations**
 
-* S5 MUST consider the world unsealed; `_passed.flag_6B` cannot be trusted.
+* S5 MUST consider the world unsealed; `_passed.flag` cannot be trusted.
 * Downstream consumers MUST treat this as a gate failure.
 * `overall_status` MUST be `"FAIL"`.
 
@@ -2213,7 +2213,7 @@ Emitted when S5 encounters an I/O or storage error while writing any of its outp
 
 * Filesystem error writing `s5_validation_report_6B.json`.
 * Network/storage failure during `index.json` write.
-* Permission or quota errors writing `_passed.flag_6B`.
+* Permission or quota errors writing `_passed.flag`.
 
 **Obligations**
 
@@ -2260,7 +2260,7 @@ Downstream obligations:
 * Orchestrators MUST treat S5 failure as a block for promoting the world into training/eval pipelines.
 * Gate checkers MUST ensure that either:
 
-  * `_passed.flag_6B` is absent, or
+  * `_passed.flag` is absent, or
   * HashGate verification fails,
 
 and therefore treat the world as unsealed.
@@ -2307,8 +2307,8 @@ The S5 run-report entry for a world **MUST** include a summary block that mirror
    * `overall_status` — `"PASS"`, `"WARN"`, `"FAIL"`.
    * `parameter_hash` — as recorded in S0 and used during validation.
    * `spec_version_6B` — 6B contract version under which S5 ran.
-   * `bundle_flag_present: boolean` — `true` iff `_passed.flag_6B` exists for this fingerprint.
-   * `bundle_flag_valid: boolean` — `true` iff `_passed.flag_6B` digest matches the recomputed bundle digest.
+   * `bundle_flag_present: boolean` — `true` iff `_passed.flag` exists for this fingerprint.
+   * `bundle_flag_valid: boolean` — `true` iff `_passed.flag` digest matches the recomputed bundle digest.
 
 2. **Upstream segment summary**
 
@@ -2445,7 +2445,7 @@ At minimum, for each `manifest_fingerprint`:
      * `index_written: bool`,
      * `flag_written: bool`,
      * `bundle_digest_sha256`,
-     * `flag_sha256` (from `_passed.flag_6B`, if present),
+     * `flag_sha256` (from `_passed.flag`, if present),
      * `flag_matches_bundle: bool`.
 
 8. **S5 end**
@@ -2504,13 +2504,13 @@ When these metric names are used, they MUST have the semantics described above.
 
 * Use S5’s run-report entry in conjunction with bundle/flag verification to determine world readiness.
 
-  * If `overall_status="FAIL"` or `_passed.flag_6B` is missing/invalid, world is *not ready*.
-  * If `overall_status ∈ {"PASS","WARN"}` and `_passed.flag_6B` is valid (bundle digest matches flag), world is *sealed* and eligible for consumption (subject to any WARN-handling policy in the consuming system).
+  * If `overall_status="FAIL"` or `_passed.flag` is missing/invalid, world is *not ready*.
+  * If `overall_status ∈ {"PASS","WARN"}` and `_passed.flag` is valid (bundle digest matches flag), world is *sealed* and eligible for consumption (subject to any WARN-handling policy in the consuming system).
 
 **4A/4B & model-training/evaluation MUST:**
 
 * Treat S5’s metrics in the run-report as **diagnostic**, not as the gating mechanism.
-* Gate actual use of 6B outputs strictly on `_passed.flag_6B` digest verification as described in §8.4 and §7.8.
+* Gate actual use of 6B outputs strictly on `_passed.flag` digest verification as described in §8.4 and §7.8.
 
 **Ops and tooling MAY:**
 
@@ -2528,7 +2528,7 @@ When these metric names are used, they MUST have the semantics described above.
 
 The combination of:
 
-* S5 outputs (`s5_validation_report_6B`, `s5_issue_table_6B`, `validation_bundle_6B`, `_passed.flag_6B`),
+* S5 outputs (`s5_validation_report_6B`, `s5_issue_table_6B`, `validation_bundle_6B`, `_passed.flag`),
 * references to S0–S4 surfaces in the bundle index,
 * S5 logs and metrics,
 
@@ -2536,7 +2536,7 @@ MUST allow an auditor or operator to answer, for any world:
 
 * Which checks were run?
 * Which checks were WARN/FAIL, with what metrics?
-* Were upstream HashGates and 6B HashGate (`_passed.flag_6B`) consistent?
+* Were upstream HashGates and 6B HashGate (`_passed.flag`) consistent?
 * Why did this world PASS/WARN/FAIL overall?
 
 Because S5 is the **final trust anchor** for Segment 6B, emitting its run-report entry, logs and metrics as described here is **not optional** — it is part of the binding contract that ensures downstream systems can safely and transparently depend on the 6B HashGate.
@@ -2800,7 +2800,7 @@ It is binding on:
 The goals are:
 
 * existing worlds remain **replayable**,
-* every `_passed.flag_6B` remains **verifiable** over time, and
+* every `_passed.flag` remains **verifiable** over time, and
 * consumers can safely rely on S5’s semantics for gating.
 
 ---
@@ -2857,7 +2857,7 @@ A change to S5 is **backwards-compatible** if:
 
 * Existing consumers and gate checkers can still:
 
-  * parse S5 artefacts (`s5_validation_report_6B`, `s5_issue_table_6B`, `index.json`, `_passed.flag_6B`), and
+  * parse S5 artefacts (`s5_validation_report_6B`, `s5_issue_table_6B`, `index.json`, `_passed.flag`), and
   * rely on the identity, partitioning, and hashing law described in §§4–8,
 
 **without** changing their logic.
@@ -2906,7 +2906,7 @@ Backwards-compatible changes MAY be introduced under the same `spec_version_6B` 
 A change is **breaking for S5** if it can:
 
 * cause existing gate checkers to misinterpret S5 artefacts,
-* cause `_passed.flag_6B` verification to behave differently for the same bundle, or
+* cause `_passed.flag` verification to behave differently for the same bundle, or
 * change what “PASS vs FAIL” means for a world under the same `spec_version_6B`.
 
 Breaking changes **MUST** be accompanied by a **new major** `spec_version_6B` and corresponding schema/catalogue updates.
@@ -2920,7 +2920,7 @@ Examples of breaking changes:
      * different hash function (e.g. SHA-256 → SHA-512),
      * different concatenation order (e.g. not sorted by `path`),
      * including/excluding different files without updating the index semantics.
-   * Changing the meaning or format of `_passed.flag_6B` (e.g. additional fields or different line format) such that existing verifiers could mis-parse it.
+   * Changing the meaning or format of `_passed.flag` (e.g. additional fields or different line format) such that existing verifiers could mis-parse it.
 
 2. **Changing index semantics**
 
@@ -2931,7 +2931,7 @@ Examples of breaking changes:
 3. **Changing identity/partitioning of S5 artefacts**
 
    * Moving S5 outputs out of the `fingerprint={manifest_fingerprint}` partitioning scheme (e.g. adding `seed` as a partition axis).
-   * Allowing multiple `s5_validation_report_6B` or `_passed.flag_6B` for the same `(manifest_fingerprint, spec_version_6B)`.
+   * Allowing multiple `s5_validation_report_6B` or `_passed.flag` for the same `(manifest_fingerprint, spec_version_6B)`.
 
 4. **Changing PASS/WARN/FAIL semantics for existing checks**
 
@@ -3021,7 +3021,7 @@ Binding expectations:
 
 1. **Single contract per world at sealing time**
 
-   * For any given `manifest_fingerprint`, `_passed.flag_6B` MUST correspond to a single, clearly defined `spec_version_6B` and S5 contract.
+   * For any given `manifest_fingerprint`, `_passed.flag` MUST correspond to a single, clearly defined `spec_version_6B` and S5 contract.
    * If worlds are sealed under different contracts over time, they MUST:
 
      * either be re-validated under the new contract, producing new S5 artefacts and flags, or
@@ -3061,15 +3061,15 @@ For the lifetime of a given `spec_version_6B`, the following aspects of S5 are *
 
   * SHA-256 applied to the **concatenation** of raw bytes of the files listed in the index,
   * files taken in ASCII-lex order by `path`,
-  * `_passed.flag_6B` is excluded from the index and digest.
+  * `_passed.flag` is excluded from the index and digest.
 
-* `_passed.flag_6B` format:
+* `_passed.flag` format:
 
   * single line: `sha256_hex = <64-lowercase-hex>`.
 
 * The gate rule:
 
-  > A world is “sealed & valid for 6B” **if and only if** `_passed.flag_6B` exists and its digest matches a recomputation from `validation_bundle_index_6B` and the bundle files.
+  > A world is “sealed & valid for 6B” **if and only if** `_passed.flag` exists and its digest matches a recomputation from `validation_bundle_index_6B` and the bundle files.
 
 Any future design that changes these stability points MUST:
 
@@ -3114,7 +3114,7 @@ This appendix collects shorthand and symbols used in the 6B.S5 spec. It is **inf
   `validation_bundle_index_6B` — the bundle index (`index.json` or equivalent), listing all bundle members and their digests.
 
 * **`_flag_6B` / `flag_6B`**
-  `validation_passed_flag_6B` / `_passed.flag_6B` — the HashGate flag file containing the bundle digest.
+  `validation_passed_flag_6B` / `_passed.flag` — the HashGate flag file containing the bundle digest.
 
 These are just shorthand labels for readability; the canonical names are those in the dataset dictionary and registry.
 
@@ -3220,7 +3220,7 @@ The **primary_error_code** captures the root cause for a world-level FAIL; **sec
 
      where `file_i` are the files referenced by `items[i].path` in that order.
 
-  4. `_passed.flag_6B` stores this digest as:
+  4. `_passed.flag` stores this digest as:
 
      ```text
      sha256_hex = <digest>
@@ -3230,7 +3230,7 @@ The **primary_error_code** captures the root cause for a world-level FAIL; **sec
   The combination of:
 
   * a bundle (`validation_bundle_6B` + index), and
-  * its `_passed.flag_6B`.
+  * its `_passed.flag`.
 
   A world is considered sealed & valid for 6B only if the flag’s `sha256_hex` equals the recomputed bundle digest.
 

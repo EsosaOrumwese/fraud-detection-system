@@ -194,7 +194,7 @@ DAG
                                       | S1–S4 artefacts, RNG logs
                                       v
 
-        (S5) 3B validation bundle & `_passed.flag_3B`         [NO RNG]
+        (S5) 3B validation bundle & `_passed.flag`         [NO RNG]
              inputs: S0/S1/S2/S3/S4 artefacts,
                      sealed_inputs_3B, RNG logs, policies, refs
              -> validation_bundle_3B@ [fingerprint]/index.json
@@ -207,15 +207,15 @@ DAG
                         virtual_validation_contract_3B,
                         S5’s own structural-check summaries.
                   - Builds `index.json`:
-                        files: [{path, sha256_hex}] for every evidence file (excluding `_passed.flag_3B`),
+                        files: [{path, sha256_hex}] for every evidence file (excluding `_passed.flag`),
                         sorted by path,
                         validated against `validation_bundle_index_3B` schema.
 
-             -> `_passed.flag_3B`@ [fingerprint]
+             -> `_passed.flag`@ [fingerprint]
                   - Recomputes `bundle_sha256 = SHA256(concat(all indexed-file bytes in path order))`.
                   - Writes single-line text:
                         `sha256_hex = <bundle_sha256>`.
-                  - `index.json` + `_passed.flag_3B` form the 3B HashGate.
+                  - `index.json` + `_passed.flag` form the 3B HashGate.
 
              -> optional s5_manifest_3B@ [fingerprint] (informative map of key digests)
 
@@ -226,7 +226,7 @@ Downstream obligations
 
     1. Load `validation_bundle_3B/index.json` for the manifest_fingerprint.
     2. Recompute `bundle_sha256` from indexed file bytes.
-    3. Load `_passed.flag_3B` and ensure it says `sha256_hex = <bundle_sha256>`.
+    3. Load `_passed.flag` and ensure it says `sha256_hex = <bundle_sha256>`.
     4. Only then treat 3B surfaces as valid.
 
 - In short:
@@ -241,5 +241,5 @@ Legend
 [fingerprint]         = manifest-scoped partitions
 [NO RNG]              = state consumes no RNG
 [RNG-BOUNDED]         = state uses governed Philox with explicit RNG logs
-HashGate (3B)         = validation_bundle_3B@fingerprint + `_passed.flag_3B`
+HashGate (3B)         = validation_bundle_3B@fingerprint + `_passed.flag`
 ```

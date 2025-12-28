@@ -156,7 +156,7 @@ The following are explicitly **out of scope** for 5B.S1 and MUST NOT be performe
 
 * **Segment-level PASS/HashGate for 5B**
 
-  * S1 does not make a segment-wide PASS decision for 5B and does not write 5B’s final validation bundle or `_passed.flag_5B`.
+  * S1 does not make a segment-wide PASS decision for 5B and does not write 5B’s final validation bundle or `_passed.flag`.
   * Its success/failure contributes to that decision, but the final 5B HashGate is owned by a dedicated validation state.
 
 ---

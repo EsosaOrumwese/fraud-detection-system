@@ -158,6 +158,14 @@ validation:
     partitioning: [fingerprint]
     owner: 1A
     retention_days: 365
+  validation_passed_flag_1A:
+    description: HashGate PASS flag for the 1A validation bundle.
+    format: text
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    partitioning: [fingerprint]
+    owner: 1A
+    retention_days: 365
   s6_validation_receipt:
     description: Seed/parameter-scoped PASS receipt for S6 foreign-set selection (S6_VALIDATION.json + _passed.flag).
     format: directory

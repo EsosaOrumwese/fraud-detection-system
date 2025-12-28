@@ -35,10 +35,10 @@ Concretely, 3A.S7:
     ]
   * treats this `bundle_sha256_hex` as the **3A segment HashGate digest** for this manifest.
 
-  This digest is the only value that appears in the `_passed.flag_3A` file and is what orchestrator/consumers verify when deciding whether 3A is safe to read.
+  This digest is the only value that appears in the `_passed.flag` file and is what orchestrator/consumers verify when deciding whether 3A is safe to read.
 
 * **Emits the segment-level PASS flag for 3A.**
-  S7 writes a small, fingerprint-scoped `_passed.flag_3A` file colocated with the validation bundle (e.g. inside `validation_bundle_3A@fingerprint={manifest_fingerprint}`), whose content is:
+  S7 writes a small, fingerprint-scoped `_passed.flag` file colocated with the validation bundle (e.g. inside `validation_bundle_3A@fingerprint={manifest_fingerprint}`), whose content is:
 
   ```text
   sha256_hex = <bundle_sha256_hex>
@@ -49,7 +49,7 @@ Concretely, 3A.S7:
   This flag is the **only authoritative PASS surface** for Segment 3A. By contract, any downstream orchestrator or consumer that wants to read 3A surfaces for this `manifest_fingerprint` MUST:
 
   * confirm that `validation_bundle_3A` exists,
-  * verify `_passed.flag_3A` against the bundle index and member digests,
+  * verify `_passed.flag` against the bundle index and member digests,
   * regard absence or mismatch as “3A not validated; no read allowed”.
 
 * **Binds the S6 verdict into the segment-level PASS decision.**
@@ -59,7 +59,7 @@ Concretely, 3A.S7:
 
     * the S6 state run for this manifest has `status="PASS"` in the segment-state run-report, **and**
     * `s6_receipt_3A.overall_status == "PASS"` for this `manifest_fingerprint`.
-  * If S6 indicates `overall_status="FAIL"` or S6 itself failed as a state, S7 MUST NOT issue (or must not treat as valid) `_passed.flag_3A` for this manifest.
+  * If S6 indicates `overall_status="FAIL"` or S6 itself failed as a state, S7 MUST NOT issue (or must not treat as valid) `_passed.flag` for this manifest.
 
   In effect, S6 says “3A is structurally green/red”, and S7 says “if green, here is the sealed bundle + digest”.
 
@@ -71,9 +71,9 @@ Concretely, 3A.S7:
   * Only:
 
     * reads existing artefacts (S0–S6, RNG logs, policies) to compute per-member digests or confirm membership, and
-    * writes the validation bundle index and `_passed.flag_3A`.
+    * writes the validation bundle index and `_passed.flag`.
 
-  Given the same `parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`, and an unchanged artefact set, re-running S7 MUST produce the **same bundle layout**, the **same `index.json`**, and the **same `_passed.flag_3A` bytes**. Any divergence under identical inputs MUST be treated as an immutability error.
+  Given the same `parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`, and an unchanged artefact set, re-running S7 MUST produce the **same bundle layout**, the **same `index.json`**, and the **same `_passed.flag` bytes**. Any divergence under identical inputs MUST be treated as an immutability error.
 
 Out of scope for 3A.S7:
 
@@ -134,7 +134,7 @@ S7 MUST treat S6 as the **only authority** on segment-level structural health fo
    * It MUST validate against `schemas.3A.yaml#/validation/s6_receipt_3A`.
    * It MUST have `overall_status = "PASS"`.
 
-   If `overall_status != "PASS"` or the receipt is missing/invalid, S7 MUST NOT assemble a validation bundle or write `_passed.flag_3A`. For this manifest, 3A is **not** eligible to be marked as PASS.
+   If `overall_status != "PASS"` or the receipt is missing/invalid, S7 MUST NOT assemble a validation bundle or write `_passed.flag`. For this manifest, 3A is **not** eligible to be marked as PASS.
 
 S7 MUST NOT “second-guess” S6’s verdict by re-running checks. If S6 says FAIL (or S6 itself failed), S7’s job is to refuse to seal, not to repair.
 
@@ -217,7 +217,7 @@ If any required artefact:
 * is missing from storage, or
 * fails schema validation,
 
-S7 MUST treat the preconditions as unsatisfied and MUST NOT assemble a validation bundle or write `_passed.flag_3A`. Instead it MUST surface the failure as an S7 run-level error.
+S7 MUST treat the preconditions as unsatisfied and MUST NOT assemble a validation bundle or write `_passed.flag`. Instead it MUST surface the failure as an S7 run-level error.
 
 > **Note:** The exact list of artefacts in the bundle is defined in §6/§5 for S7. Whatever that list is, S7’s preconditions include the existence and validity of **every** member.
 
@@ -263,7 +263,7 @@ For clarity:
   * The **only** new artefacts S7 is allowed to create are:
 
     * the `validation_bundle_3A` directory (including `index.json`), and
-    * `_passed.flag_3A` for this `manifest_fingerprint`.
+    * `_passed.flag` for this `manifest_fingerprint`.
 
 If these preconditions are not satisfied — in particular, if S6 has not produced a PASS receipt or required bundle members are missing/invalid — S7’s responsibility is simply to **refuse to seal** 3A for this manifest, not to attempt to repair or bypass the upstream pipeline.
 
@@ -280,7 +280,7 @@ S7 is **purely a pack-and-seal state**:
 * It only builds:
 
   * the 3A validation bundle (`validation_bundle_3A` + `index.json`), and
-  * the `_passed.flag_3A` HashGate flag,
+  * the `_passed.flag` HashGate flag,
 
 based on **already-agreed contracts** and **sealed artefacts**.
 
@@ -304,7 +304,7 @@ Inputs in this class:
 
    S7 MAY:
 
-   * use these to validate the shape of all artefacts included in the bundle (`index.json`, S0–S6 datasets, `_passed.flag_3A`),
+   * use these to validate the shape of all artefacts included in the bundle (`index.json`, S0–S6 datasets, `_passed.flag`),
    * resolve `schema_ref` anchors for data-plane (S0–S5) and validation artefacts (S6, S7).
 
    S7 MUST NOT:
@@ -325,7 +325,7 @@ Inputs in this class:
 
      * know which artefacts belong to Segment 3A,
      * identify which artefacts are designated as validation members,
-     * determine paths and roles for S7 outputs (`validation_bundle_3A`, `_passed.flag_3A`).
+     * determine paths and roles for S7 outputs (`validation_bundle_3A`, `_passed.flag`).
 
    S7 MUST NOT:
 
@@ -376,7 +376,7 @@ Inputs in this class:
    S7 MUST NOT:
 
    * change `overall_status` or any field in S6 artefacts,
-   * re-run or reinterpret S6’s checks; if S6 says FAIL, S7 MUST refuse to seal (no `_passed.flag_3A`).
+   * re-run or reinterpret S6’s checks; if S6 says FAIL, S7 MUST refuse to seal (no `_passed.flag`).
 
 2. **S6 run-report row**
 
@@ -485,7 +485,7 @@ S7 MUST NOT:
 
 ---
 
-### 3.5 S7’s own authority: bundle index & `_passed.flag_3A`
+### 3.5 S7’s own authority: bundle index & `_passed.flag`
 
 S7’s **exclusive authority surface** in Segment 3A is:
 
@@ -500,7 +500,7 @@ S7’s **exclusive authority surface** in Segment 3A is:
    * which artefacts (S0–S6, S3 RNG logs or their digests, etc.) are included in the 3A validation bundle (as specified in S7’s bundle membership rules),
    * the construction and serialisation of `index.json` under `validation_bundle_3A`.
 
-2. **The 3A `_passed.flag_3A`**
+2. **The 3A `_passed.flag`**
 
    * contains:
 
@@ -519,8 +519,8 @@ S7’s **exclusive authority surface** in Segment 3A is:
 
 S7 MUST:
 
-* ensure that any 3A consumer that follows HashGate rules can reconstruct the bundle digest from `index.json` and verify `_passed.flag_3A`.
-* treat a mismatch between recomputed digest and `_passed.flag_3A` as an S7 failure, not a condition to be silently fixed.
+* ensure that any 3A consumer that follows HashGate rules can reconstruct the bundle digest from `index.json` and verify `_passed.flag`.
+* treat a mismatch between recomputed digest and `_passed.flag` as an S7 failure, not a condition to be silently fixed.
 
 ---
 
@@ -557,7 +557,7 @@ Within these boundaries, S7’s job is narrow but critical: it takes a 3A world 
 3A.S7 produces exactly **two** new artefacts for each validated manifest:
 
 1. A **3A validation bundle** (`validation_bundle_3A`) — a fingerprint-scoped directory with an index.
-2. A **segment PASS flag** (`_passed.flag_3A`) — a small text file that encodes the composite HashGate digest over that bundle.
+2. A **segment PASS flag** (`_passed.flag`) — a small text file that encodes the composite HashGate digest over that bundle.
 
 S7 MUST NOT produce any business datasets or change any S0–S6 artefacts.
 
@@ -575,7 +575,7 @@ For each `manifest_fingerprint = F`, S7 MAY produce a bundle+flag pair **only** 
 If those preconditions are met, S7 MUST produce at most one instance of:
 
 * `validation_bundle_3A@fingerprint={F}` — a directory whose contents are fully described by an `index.json` file.
-* `_passed.flag_3A@fingerprint={F}` — a text file whose value is derived solely from `index.json` and the digests of bundle members.
+* `_passed.flag@fingerprint={F}` — a text file whose value is derived solely from `index.json` and the digests of bundle members.
 
 No other S7 outputs are in scope in this contract version.
 
@@ -727,17 +727,17 @@ S7 MUST ensure that:
     * read in ASCII-lex path order,
     * concatenated raw bytes for the digest.
 
-If any mismatch is found between `index.json` and the actual artefacts, S7 MUST treat this as a bundle integrity error and MUST NOT produce or confirm `_passed.flag_3A`.
+If any mismatch is found between `index.json` and the actual artefacts, S7 MUST treat this as a bundle integrity error and MUST NOT produce or confirm `_passed.flag`.
 
 ---
 
-### 4.3 `_passed.flag_3A` — PASS flag & identity
+### 4.3 `_passed.flag` — PASS flag & identity
 
 #### 4.3.1 Identity & partitioning
 
 **Identity**
 
-* Logical artefact ID: `_passed.flag_3A`.
+* Logical artefact ID: `validation_passed_flag_3A`.
 * Scope: one flag per `manifest_fingerprint` at most.
 
 **Partitioning & path**
@@ -746,12 +746,12 @@ If any mismatch is found between `index.json` and the actual artefacts, S7 MUST 
 * Path pattern (conceptual):
 
   ```text
-  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 Per `manifest_fingerprint = F`:
 
-* There MUST be at most one `_passed.flag_3A` file at this path.
+* There MUST be at most one `_passed.flag` file at this path.
 * If present, it is the **only** segment-level PASS surface for 3A at F.
 
 #### 4.3.2 Content & canonical format
@@ -770,27 +770,27 @@ where:
 * `bundle_sha256_hex` is a 64-character lowercase hex string,
 * representing the SHA-256 digest computed over the canonical concatenation of member `sha256_hex` values in `index.json` (in the prescribed order).
 
-No other content (no additional lines, no comments) is allowed in `_passed.flag_3A` in this contract version.
+No other content (no additional lines, no comments) is allowed in `_passed.flag` in this contract version.
 
 S7 MUST ensure:
 
 * `bundle_sha256_hex` is computed from `index.json` and its entries exactly as defined in §6 (algorithm section).
-* Any consumer that recomputes `bundle_sha256_hex` from `index.json` will obtain the same value as recorded in `_passed.flag_3A`.
+* Any consumer that recomputes `bundle_sha256_hex` from `index.json` will obtain the same value as recorded in `_passed.flag`.
 
 ---
 
 ### 4.4 Consumers & “no PASS → no read” obligations
 
-The combination of `validation_bundle_3A` and `_passed.flag_3A` becomes the **Segment-3A HashGate** for this `manifest_fingerprint`.
+The combination of `validation_bundle_3A` and `_passed.flag` becomes the **Segment-3A HashGate** for this `manifest_fingerprint`.
 
 **Obligations for downstream consumers — binding:**
 
 * Any component that wants to treat 3A surfaces for manifest `F` as **trusted** (e.g. read `zone_alloc` or other 3A egress) MUST:
 
   1. Locate `validation_bundle_3A@fingerprint=F` and `index.json`.
-  2. Locate `_passed.flag_3A@fingerprint=F`.
+  2. Locate `_passed.flag@fingerprint=F`.
   3. Validate both against their schemas (`validation_bundle_index_3A`, `passed_flag_3A`).
-  4. Recompute `bundle_sha256_hex` from `index.json` and confirm it matches the value in `_passed.flag_3A`.
+  4. Recompute `bundle_sha256_hex` from `index.json` and confirm it matches the value in `_passed.flag`.
 
 * If any of these steps fail (bundle or flag missing, schema invalid, digest mismatch), consumers MUST treat 3A as **not validated** for `F` and MUST NOT read or consume 3A surfaces for that manifest.
 
@@ -798,8 +798,8 @@ This mirrors the “no PASS → no read” rule used for upstream segments (1A, 
 
 **Examples:**
 
-* A cross-segment validation harness must not inspect 3A priors, counts, or egress for `F` unless `_passed.flag_3A` is present and verified.
-* A production 2B run that depends on `zone_alloc` MUST verify `_passed.flag_3A` for the same `manifest_fingerprint` and fail fast if it is missing or does not verify.
+* A cross-segment validation harness must not inspect 3A priors, counts, or egress for `F` unless `_passed.flag` is present and verified.
+* A production 2B run that depends on `zone_alloc` MUST verify `_passed.flag` for the same `manifest_fingerprint` and fail fast if it is missing or does not verify.
 
 ---
 
@@ -812,13 +812,13 @@ For clarity, 3A.S7 does **not** introduce:
 * any new validation artefacts beyond:
 
   * `validation_bundle_3A` (and its `index.json`),
-  * `_passed.flag_3A`.
+  * `_passed.flag`.
 
 All other 3A artefacts (S0–S6) are produced by their respective states; S7 only references and hashes them.
 
 Within this section’s constraints:
 
-* `validation_bundle_3A` and `_passed.flag_3A` are the **only artefacts** produced by S7, and
+* `validation_bundle_3A` and `_passed.flag` are the **only artefacts** produced by S7, and
 * they together form the **immutable, fingerprint-scoped authority surface** for “3A is validated and safe to be read for this manifest.”
 
 ---
@@ -830,11 +830,11 @@ This section fixes **where S7’s outputs live in the authority chain**, and **h
 * JSON-Schema anchors for:
 
   * the 3A validation bundle index (`index.json`),
-  * the `_passed.flag_3A` file.
+  * the `_passed.flag` file.
 * Dataset dictionary entries for:
 
   * `validation_bundle_3A` (the bundle / index),
-  * `_passed.flag_3A` (the flag).
+  * `_passed.flag` (the flag).
 * Artefact registry entries tying them into the manifest.
 
 S7 MUST NOT introduce any other datasets in this contract version.
@@ -868,7 +868,7 @@ For S7, the following anchors MUST exist:
      schemas.layer1.yaml#/validation/passed_flag_3A
      ```
 
-These anchors define the **logical shape** of the artefacts; the on-disk representation of `_passed.flag_3A` is a single-line text file that parses into the `passed_flag_3A` logical object.
+These anchors define the **logical shape** of the artefacts; the on-disk representation of `_passed.flag` is a single-line text file that parses into the `passed_flag_3A` logical object.
 
 ---
 
@@ -944,7 +944,7 @@ These anchors define the **logical shape** of the artefacts; the on-disk represe
 
 ---
 
-### 5.3 Schema: `passed_flag_3A` (`_passed.flag_3A`)
+### 5.3 Schema: `passed_flag_3A` (`_passed.flag`)
 
 `schemas.layer1.yaml#/validation/passed_flag_3A` defines the **logical shape** of the PASS flag.
 
@@ -963,7 +963,7 @@ These anchors define the **logical shape** of the artefacts; the on-disk represe
 
 where `<64-lowercase-hex>` is the value of `sha256_hex` in the logical object.
 
-When S7 reads or writes `_passed.flag_3A` it MUST:
+When S7 reads or writes `_passed.flag` it MUST:
 
 * parse/serialise according to this format, and
 * treat the parsed `sha256_hex` value as governed by `passed_flag_3A`.
@@ -1002,15 +1002,15 @@ Binding points:
 * `schema_ref` MUST be `schemas.layer1.yaml#/validation/validation_bundle_index_3A` (index schema).
 * `format: "dir"` indicates this is a directory-style dataset; consumers know to look for `index.json` inside.
 
-#### 5.4.2 `_passed.flag_3A`
+#### 5.4.2 `validation_passed_flag_3A` (`_passed.flag`)
 
 ```yaml
-  - id: _passed.flag_3A
+  - id: validation_passed_flag_3A
     owner_subsegment: 3A
     description: HashGate PASS flag accompanying the validation bundle.
     version: '{manifest_fingerprint}'
     format: text
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
     partitioning: [fingerprint]
     schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
     ordering: []
@@ -1024,7 +1024,7 @@ Binding points:
 
 Binding points:
 
-* `id` MUST be `"_passed.flag_3A"` (matching the file name for clarity).
+* `id` MUST be `"validation_passed_flag_3A"` (file name remains `_passed.flag`).
 * `path` MUST locate the flag in the same directory as the bundle.
 * `schema_ref` MUST be `schemas.layer1.yaml#/validation/passed_flag_3A`.
 * `format: "text"` indicates a single small text file.
@@ -1065,7 +1065,7 @@ For each `manifest_fingerprint`, the 3A artefact registry MUST include entries f
     # plus any RNG digest artefacts if those are registered separately
   role: "Complete validation evidence for Segment 3A at this manifest"
   cross_layer: true
-  notes: "Bundle members and their sha256_hex digests are enumerated in index.json; composite digest lives in _passed.flag_3A"
+  notes: "Bundle members and their sha256_hex digests are enumerated in index.json; composite digest lives in _passed.flag"
 ```
 
 Binding requirements:
@@ -1074,18 +1074,18 @@ Binding requirements:
 * `path` and `schema` MUST match the dataset dictionary entry.
 * `dependencies` MUST list all artefacts whose digests appear in `index.json` (directly or via digest artefacts).
 
-#### 5.5.2 `_passed.flag_3A` registry entry
+#### 5.5.2 `_passed.flag` registry entry
 
 ```yaml
-- manifest_key: "mlr.3A._passed.flag_3A"
+- manifest_key: "mlr.3A.validation.passed"
   name: "Segment 3A HashGate PASS flag"
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A"
+  path: "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag"
   schema: "schemas.layer1.yaml#/validation/passed_flag_3A"
   version: "1.0.0"
-  digest: "<sha256_hex>"     # SHA-256 of the _passed.flag_3A file content
+  digest: "<sha256_hex>"     # SHA-256 of the _passed.flag file content
   dependencies:
     - "mlr.3A.validation_bundle"
   role: "Segment 3A HashGate flag; sha256_hex equals composite digest of validation_bundle_3A members"
@@ -1108,7 +1108,7 @@ Under this contract version:
 * S7 MUST NOT emit or register any outputs beyond:
 
   * `validation_bundle_3A` (with its `index.json`), and
-  * `_passed.flag_3A`.
+  * `_passed.flag`.
 
 If, in future, additional S7 artefacts are required (e.g. a separate 3A-wide RNG summary digest), they MUST be introduced via:
 
@@ -1155,10 +1155,10 @@ For a given run `(parameter_hash, manifest_fingerprint, seed, run_id)`, S7 execu
 
    * Construct a canonical index object listing all members and their digests, then serialise deterministically.
 
-5. **Compute composite bundle digest & write `_passed.flag_3A`**
+5. **Compute composite bundle digest & write `_passed.flag`**
 
    * Compute `bundle_sha256_hex` from the ordered per-artefact digests.
-   * Write/confirm `_passed.flag_3A` with that digest.
+   * Write/confirm `_passed.flag` with that digest.
 
 6. **Idempotence & immutability checks**
 
@@ -1395,7 +1395,7 @@ If an `index.json` already exists:
 
 ---
 
-### 6.6 Phase 5 — Compute composite bundle digest & write `_passed.flag_3A`
+### 6.6 Phase 5 — Compute composite bundle digest & write `_passed.flag`
 
 **Step 12 – Compute composite bundle digest**
 
@@ -1421,9 +1421,9 @@ where:
 
 and encode as a lowercase hex string of length 64.
 
-This `bundle_sha256_hex` is the **only value** to be written to `_passed.flag_3A`.
+This `bundle_sha256_hex` is the **only value** to be written to `_passed.flag`.
 
-**Step 13 – Write or verify `_passed.flag_3A`**
+**Step 13 – Write or verify `_passed.flag`**
 
 Logical form: object `{ "sha256_hex": bundle_sha256_hex }`. On disk:
 
@@ -1434,7 +1434,7 @@ sha256_hex = <bundle_sha256_hex>
 at:
 
 ```text
-data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
 ```
 
 If no flag exists:
@@ -1453,7 +1453,7 @@ If a flag exists:
 
 After execution:
 
-* `validation_bundle_3A` (specifically `index.json`) and `_passed.flag_3A` jointly define the 3A HashGate state for `manifest_fingerprint`.
+* `validation_bundle_3A` (specifically `index.json`) and `_passed.flag` jointly define the 3A HashGate state for `manifest_fingerprint`.
 
 S7 MUST guarantee:
 
@@ -1463,11 +1463,11 @@ S7 MUST guarantee:
 
     * recomputing per-artefact digests yields the same `index.json`,
     * recomputing `bundle_sha256_hex` yields the same value,
-    * existing `index.json` and `_passed.flag_3A` are identical to the newly computed ones.
+    * existing `index.json` and `_passed.flag` are identical to the newly computed ones.
 
 * **Immutability**:
 
-  * Existing `index.json` and `_passed.flag_3A` MUST never be overwritten with different content for the same `manifest_fingerprint`.
+  * Existing `index.json` and `_passed.flag` MUST never be overwritten with different content for the same `manifest_fingerprint`.
   * Any attempt to do so MUST be treated as a failure and reported via S7’s error codes.
 
 If upstream artefacts change (e.g. any S0–S6 artefact is altered) without changing `manifest_fingerprint`, S7’s recomputation will produce a different digest or index. It MUST then:
@@ -1492,11 +1492,11 @@ Across all phases, S7 MUST:
 * **Never mutate S0–S6 or upstream artefacts**
 
   * S7 only reads/touches them for computing digests and confirming membership.
-  * Only its own artefacts (`index.json` and `_passed.flag_3A`) may be created or updated under the immutability rules above.
+  * Only its own artefacts (`index.json` and `_passed.flag`) may be created or updated under the immutability rules above.
 
 * **Be deterministic**
 
-  * For fixed inputs (S0–S6 artefacts, policies, references, catalogue), the membership list, per-artefact digests, `index.json`, and `_passed.flag_3A` MUST always be the same.
+  * For fixed inputs (S0–S6 artefacts, policies, references, catalogue), the membership list, per-artefact digests, `index.json`, and `_passed.flag` MUST always be the same.
   * Any non-determinism (e.g. iteration order, key order) MUST be resolved via canonical sorting and serialisation as specified.
 
 Under this algorithm, S7 takes a manifest that S6 has already judged as structurally valid and produces a single, immutable, verifiable bundle + flag pair that downstream components can trust as the definitive PASS indicator for Segment 3A.
@@ -1508,7 +1508,7 @@ Under this algorithm, S7 takes a manifest that S6 has already judged as structur
 This section fixes, for **3A.S7**, how its two outputs:
 
 * the **3A validation bundle** (`validation_bundle_3A` with `index.json`), and
-* the **segment PASS flag** (`_passed.flag_3A`),
+* the **segment PASS flag** (`_passed.flag`),
 
 are:
 
@@ -1542,7 +1542,7 @@ S7’s outputs are **not** keyed by `seed` or `run_id`:
 
 Thus:
 
-* For a given `manifest_fingerprint = F`, there MUST be at most one 3A validation bundle and at most one `_passed.flag_3A`.
+* For a given `manifest_fingerprint = F`, there MUST be at most one 3A validation bundle and at most one `_passed.flag`.
 
 ---
 
@@ -1624,11 +1624,11 @@ Again, key order is not semantically meaningful beyond digest stability.
 
 ---
 
-### 7.4 `_passed.flag_3A`: identity, partitioning & format
+### 7.4 `_passed.flag`: identity, partitioning & format
 
 **Identity**
 
-* Logical dataset ID: `_passed.flag_3A`.
+* Logical dataset ID: `validation_passed_flag_3A`.
 * Logical key: `manifest_fingerprint`.
 
 **Partitioning & path**
@@ -1637,13 +1637,13 @@ Again, key order is not semantically meaningful beyond digest stability.
 * Path pattern:
 
 ```text
-data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
 ```
 
 Binding rules:
 
-* For each `manifest_fingerprint = F`, there MUST be at most one `_passed.flag_3A` at this path.
-* `_passed.flag_3A` is the only file that may serve as the PASS indicator for 3A at `F`; no alternative PASS flags are allowed.
+* For each `manifest_fingerprint = F`, there MUST be at most one `_passed.flag` at this path.
+* `_passed.flag` is the only file that may serve as the PASS indicator for 3A at `F`; no alternative PASS flags are allowed.
 
 **On-disk format**
 
@@ -1673,7 +1673,7 @@ and validate it against the `passed_flag_3A` schema.
 
 ### 7.5 Merge & overwrite discipline (bundle & flag)
 
-Both `validation_bundle_3A` (specifically, its `index.json`) and `_passed.flag_3A` are **write-once snapshots** for a given `manifest_fingerprint`. S7 MUST enforce:
+Both `validation_bundle_3A` (specifically, its `index.json`) and `_passed.flag` are **write-once snapshots** for a given `manifest_fingerprint`. S7 MUST enforce:
 
 #### 7.5.1 Single snapshot per `manifest_fingerprint`
 
@@ -1697,7 +1697,7 @@ On a re-run for the same `(parameter_hash, manifest_fingerprint, seed, run_id)` 
     * parse & normalise it,
     * compare field-by-field against the newly constructed index; they MUST be identical.
 
-  * If `_passed.flag_3A` exists:
+  * If `_passed.flag` exists:
 
     * parse its `sha256_hex`,
     * it MUST equal the newly computed `bundle_sha256_hex`.
@@ -1712,11 +1712,11 @@ If existing bundle and flag match the new computation:
 If S7 detects that:
 
 * an existing `index.json` is **not** logically identical to the newly computed index, and/or
-* an existing `_passed.flag_3A` has `sha256_hex` different from the newly computed `bundle_sha256_hex`,
+* an existing `_passed.flag` has `sha256_hex` different from the newly computed `bundle_sha256_hex`,
 
 then:
 
-* S7 MUST NOT overwrite `index.json` or `_passed.flag_3A`.
+* S7 MUST NOT overwrite `index.json` or `_passed.flag`.
 * S7 MUST treat this as an immutability/digest violation and fail the state with the appropriate `E3A_S7_*` error.
 
 In particular, S7 MUST NOT:
@@ -1741,10 +1741,10 @@ S7 makes **no** claims about relationships between different `manifest_fingerpri
 
 Cross-segment semantics:
 
-* 3A’s `_passed.flag_3A` participates in the same “No PASS → No read” discipline as:
+* 3A’s `_passed.flag` participates in the same “No PASS → No read” discipline as:
 
-  * 1A’s `_passed.flag_1A`,
-  * 2A’s `_passed.flag_2A`, etc.,
+  * 1A’s `_passed.flag`,
+  * 2A’s `_passed.flag`, etc.,
 
 but at the 3A segment level. Other segments MUST treat 3A’s flag as:
 
@@ -1753,7 +1753,7 @@ but at the 3A segment level. Other segments MUST treat 3A’s flag as:
 
 ---
 
-Under these rules, `validation_bundle_3A` and `_passed.flag_3A` have:
+Under these rules, `validation_bundle_3A` and `_passed.flag` have:
 
 * clear identity (`manifest_fingerprint` only),
 * simple partitioning (`fingerprint=`),
@@ -1771,7 +1771,7 @@ This section defines:
 1. **When S7, as a state, is considered PASS** for a given run
    `(parameter_hash, manifest_fingerprint, seed, run_id)`, and
 2. The **gating obligations** S7 imposes on downstream consumers via
-   `validation_bundle_3A` and `_passed.flag_3A`.
+   `validation_bundle_3A` and `_passed.flag`.
 
 S7’s job is *not* to re-validate S0–S6, but to:
 
@@ -1870,7 +1870,7 @@ Given `index.json`:
   * `bundle_sha256_hex = SHA256(concat(sha256_hex(m_1), …, sha256_hex(m_n)))`
     with members in the canonical order.
 
-* `_passed.flag_3A`:
+* `_passed.flag`:
 
   * MUST exist after S7 PASS,
   * MUST parse as `sha256_hex = <64-lowercase-hex>`,
@@ -1883,11 +1883,11 @@ If a flag already exists:
 
 #### 8.1.6 Idempotence & immutability are preserved
 
-If `index.json` and/or `_passed.flag_3A` already exist for this `manifest_fingerprint`:
+If `index.json` and/or `_passed.flag` already exist for this `manifest_fingerprint`:
 
 * S7 MUST:
 
-  * read & validate `index.json` and `_passed.flag_3A`,
+  * read & validate `index.json` and `_passed.flag`,
   * recompute the logical index object and `bundle_sha256_hex` from current inputs,
   * compare:
 
@@ -1913,12 +1913,12 @@ For any `manifest_fingerprint = F`, the following MUST hold:
 
 1. **To treat 3A outputs as validated for F, a consumer MUST:**
 
-   1.1. Locate `validation_bundle_3A@fingerprint=F` and `_passed.flag_3A@fingerprint=F`.
+   1.1. Locate `validation_bundle_3A@fingerprint=F` and `_passed.flag@fingerprint=F`.
 
    1.2. Validate both against their schemas:
 
    * `index.json` ⇒ `validation_bundle_index_3A`,
-   * `_passed.flag_3A` ⇒ `passed_flag_3A`.
+   * `_passed.flag` ⇒ `passed_flag_3A`.
 
    1.3. Recompute `bundle_sha256_hex` from `index.json`:
 
@@ -1927,7 +1927,7 @@ For any `manifest_fingerprint = F`, the following MUST hold:
    * build the concatenated byte string `concat`,
    * compute `SHA-256(concat)`.
 
-   1.4. Compare the recomputed digest with `_passed.flag_3A.sha256_hex`:
+   1.4. Compare the recomputed digest with `_passed.flag.sha256_hex`:
 
    * If equal ⇒ **bundle verified**; 3A is validated for this manifest.
    * If not equal ⇒ **bundle invalid**; consumer MUST treat 3A as NOT PASS and not read 3A surfaces.
@@ -1937,7 +1937,7 @@ For any `manifest_fingerprint = F`, the following MUST hold:
    * If a consumer cannot:
 
      * find `validation_bundle_3A` for `F`, or
-     * find `_passed.flag_3A` for `F`, or
+     * find `_passed.flag` for `F`, or
      * validate their schemas, or
      * verify the HashGate digest match,
 
@@ -1970,7 +1970,7 @@ S7’s **state-level status** (in the run-report) and the **segment-level status
     * S6 said PASS and its artefacts are valid,
     * required bundle members exist and are schema-valid,
     * `index.json` is correct and canonical,
-    * `_passed.flag_3A` matches the bundle digest (or was correctly created),
+    * `_passed.flag` matches the bundle digest (or was correctly created),
     * immutability constraints are respected.
 
 * **S7 run `status="FAIL"`** means:
@@ -1984,7 +1984,7 @@ From a **segment status** perspective:
 
   * S6’s `overall_status="PASS"`, **and**
   * S7’s run status is `status="PASS", error_code=null`, **and**
-  * `_passed.flag_3A` has been successfully verified against `validation_bundle_3A`.
+  * `_passed.flag` has been successfully verified against `validation_bundle_3A`.
 
 If any of those conditions fail, the segment is **not** to be treated as PASS, and consumers must obey the “no PASS → no read” rule.
 
@@ -1994,7 +1994,7 @@ If any of those conditions fail, the segment is **not** to be treated as PASS, a
 
 If S7 fails:
 
-* No `_passed.flag_3A` MUST be considered valid for that `manifest_fingerprint`.
+* No `_passed.flag` MUST be considered valid for that `manifest_fingerprint`.
 * `validation_bundle_3A` (if partially constructed) MUST be treated as non-authoritative until S7 is re-run successfully.
 
 Recovery requires:
@@ -2063,7 +2063,7 @@ Raised when S7 cannot proceed because S6 has not declared Segment 3A as PASS for
   * fails `#/validation/s6_receipt_3A`, or
   * has `overall_status != "PASS"`.
 
-In any of these cases, S7 MUST NOT build a validation bundle or write `_passed.flag_3A`.
+In any of these cases, S7 MUST NOT build a validation bundle or write `_passed.flag`.
 
 **Required fields**
 
@@ -2192,16 +2192,16 @@ Raised when S7’s recomputed SHA-256 digest for a bundle member does **not** ma
 Raised when S7 detects a mismatch between:
 
 * the composite bundle digest recomputed from `index.json` and member digests (`bundle_sha256_hex`), and
-* the value in `_passed.flag_3A` (if it already exists).
+* the value in `_passed.flag` (if it already exists).
 
 Examples:
 
-* `_passed.flag_3A` exists and contains `sha256_hex = X`, but S7 recomputes `bundle_sha256_hex = Y` with `X != Y`.
+* `_passed.flag` exists and contains `sha256_hex = X`, but S7 recomputes `bundle_sha256_hex = Y` with `X != Y`.
 * Index and member digests are internally consistent, but the flag does not reflect the current bundle content.
 
 **Required fields**
 
-* `existing_sha256_hex` — the `sha256_hex` value read from `_passed.flag_3A`.
+* `existing_sha256_hex` — the `sha256_hex` value read from `_passed.flag`.
 * `computed_sha256_hex` — the composite digest recomputed from `index.json`.
 * Optionally:
 
@@ -2213,7 +2213,7 @@ Examples:
 
 This typically indicates:
 
-* `_passed.flag_3A` was manually edited or belongs to a different bundle, or
+* `_passed.flag` was manually edited or belongs to a different bundle, or
 * underlying bundle content changed without updating the flag (which must not happen under proper governance).
 
 Corrective action usually involves:
@@ -2235,7 +2235,7 @@ S7 MUST NOT overwrite the existing flag to “fix” this mismatch.
 Raised when S7 determines that:
 
 * an existing `index.json` file for `validation_bundle_3A@fingerprint={F}` is logically different from the index S7 would produce now (with the current artefacts), **or**
-* `_passed.flag_3A` already exists and S7 would need to change its content to reflect the new composite digest, **and** the mismatch is not just a “flag vs index” mismatch (which is covered by `E3A_S7_005_*`), but a mismatch between **previously sealed** and **currently derived** bundle state.
+* `_passed.flag` already exists and S7 would need to change its content to reflect the new composite digest, **and** the mismatch is not just a “flag vs index” mismatch (which is covered by `E3A_S7_005_*`), but a mismatch between **previously sealed** and **currently derived** bundle state.
 
 Typical causes:
 
@@ -2314,7 +2314,7 @@ For each S7 invocation, the segment-state run-report row for `state="S7"` MUST f
 
 Downstream consumers MUST interpret:
 
-* S7 `status="PASS"` + S6 `overall_status="PASS"` + verified `_passed.flag_3A` ⇒ **3A sealed and safe to read** for that manifest.
+* S7 `status="PASS"` + S6 `overall_status="PASS"` + verified `_passed.flag` ⇒ **3A sealed and safe to read** for that manifest.
 * Any S7 `status="FAIL"` ⇒ **3A cannot be sealed** for that manifest until the underlying cause is addressed and S7 is successfully re-run.
 
 ---
@@ -2330,7 +2330,7 @@ S7 has **two distinct notions of status**:
   * did S7 successfully build/verify the bundle + flag?
 * **3A segment validation status** (indirect):
 
-  * determined by **S6 `overall_status`** plus S7 success and a verifiable `_passed.flag_3A`.
+  * determined by **S6 `overall_status`** plus S7 success and a verifiable `_passed.flag`.
 
 S7 MUST clearly report its own run status, and provide enough information for downstream systems to identify the 3A validation state.
 
@@ -2369,7 +2369,7 @@ Exactly one log event at the beginning of each S7 invocation.
 
 Exactly one log event **only if** S7 completes successfully as a state, i.e.:
 
-* built/verified `validation_bundle_3A` + `_passed.flag_3A`, and
+* built/verified `validation_bundle_3A` + `_passed.flag`, and
 * met all acceptance criteria in §8 (including immutability).
 
 **Required fields**
@@ -2382,7 +2382,7 @@ Exactly one log event **only if** S7 completes successfully as a state, i.e.:
 
 * `bundle_member_count` — number of member entries in `index.json`.
 * `bundle_path` — path to `validation_bundle_3A` root (e.g. `data/layer1/3A/validation/fingerprint=…/`).
-* `bundle_sha256_hex` — composite digest written into `_passed.flag_3A`.
+* `bundle_sha256_hex` — composite digest written into `_passed.flag`.
 
 **S6 linkage**
 
@@ -2470,7 +2470,7 @@ This row is about **S7 as a state**, not directly about segment “PASS/FAIL” 
 **Bundle summary fields** (required if `status="PASS"`; MAY be populated on FAIL if available)
 
 * `bundle_member_count` — number of entries in `index.json.members`.
-* `bundle_sha256_hex` — composite digest written to `_passed.flag_3A`.
+* `bundle_sha256_hex` — composite digest written to `_passed.flag`.
 * `bundle_path` — path to the bundle root.
 
 **S6 linkage fields** (required if `status="PASS"`)
@@ -2491,7 +2491,7 @@ Run-report entries MUST be consistent with:
 
 * S7 logs,
 * the contents of `validation_bundle_3A` (`index.json`), and
-* `_passed.flag_3A`, for this `(parameter_hash, manifest_fingerprint, seed, run_id)`.
+* `_passed.flag`, for this `(parameter_hash, manifest_fingerprint, seed, run_id)`.
 
 ---
 
@@ -2559,7 +2559,7 @@ S7 outputs MUST be easy to correlate with upstream and to verify:
 
    * locate `validation_bundle_3A@fingerprint={manifest_fingerprint}`,
    * load `index.json` via its `schema_ref`,
-   * locate `_passed.flag_3A@fingerprint={manifest_fingerprint}`,
+   * locate `_passed.flag@fingerprint={manifest_fingerprint}`,
    * and then, via `index.json.members[]`, locate all bundle members (S0–S6 artefacts) and verify their digests.
 
 This ensures any validator can start from S7 and traverse:
@@ -2574,7 +2574,7 @@ Even though S7 artefacts are small and mostly metadata, they control access to 3
 
 **Retention**
 
-* `validation_bundle_3A` and `_passed.flag_3A` MUST be retained:
+* `validation_bundle_3A` and `_passed.flag` MUST be retained:
 
   * at least as long as any 3A outputs they govern (S1–S5 egress, S6 validation artefacts) are in use, and
   * at least as long as any higher-level bundles (e.g. a “Layer-1 bundle” that includes 3A) remain considered valid.
@@ -2643,7 +2643,7 @@ S7 is deliberately tiny compared to the rest of 3A. It does:
   * checks S6’s verdict and basic preconditions,
   * walks a *small set* of 3A artefacts (S0–S6) that are already persisted,
   * computes SHA-256 digests over them,
-  * writes a single `index.json` and a one-line `_passed.flag_3A`.
+  * writes a single `index.json` and a one-line `_passed.flag`.
 
 So the main work is:
 
@@ -2830,7 +2830,7 @@ This section defines **how the 3A.S7 contract is allowed to evolve**, and what g
 
 * the **bundle membership**,
 * the **index.json schema**, or
-* the **`_passed.flag_3A` semantics**
+* the **`_passed.flag` semantics**
 
 change over time.
 
@@ -2840,13 +2840,13 @@ Given:
 * `manifest_fingerprint`,
 * `seed`,
 * `run_id`, and
-* the versions of `validation_bundle_3A` / `_passed.flag_3A` recorded in the catalogue,
+* the versions of `validation_bundle_3A` / `_passed.flag` recorded in the catalogue,
 
 consumers must be able to unambiguously interpret:
 
 * **what artefacts the bundle covers**,
 * **how** the bundle’s composite digest is computed, and
-* **what** `_passed.flag_3A` means for a given manifest.
+* **what** `_passed.flag` means for a given manifest.
 
 S7 MUST evolve in a way that preserves **hash-verifiability** and **governance clarity** across versions.
 
@@ -2859,7 +2859,7 @@ Change control for S7 covers:
 1. The **shape and semantics** of S7 outputs:
 
    * `validation_bundle_3A` (specifically `index.json`),
-   * `_passed.flag_3A`.
+   * `_passed.flag`.
 
 2. The **membership rules**:
 
@@ -2870,14 +2870,14 @@ Change control for S7 covers:
 
    * how per-artefact `sha256_hex` values are canonicalised and concatenated,
    * how `bundle_sha256_hex` is computed,
-   * how `_passed.flag_3A` encodes that digest.
+   * how `_passed.flag` encodes that digest.
 
 4. S7’s **run-level error taxonomy** (`E3A_S7_*`) and how it is mapped into the segment-state run-report.
 
 It does **not** govern:
 
 * S0–S6 contracts (each has its own change control),
-* how consumers choose to operationally enforce “no PASS → no read” (only that `_passed.flag_3A` + `index.json` are the authoritative signals).
+* how consumers choose to operationally enforce “no PASS → no read” (only that `_passed.flag` + `index.json` are the authoritative signals).
 
 ---
 
@@ -2886,7 +2886,7 @@ It does **not** govern:
 S7’s outputs are versioned via the dataset dictionary and artefact registry:
 
 * `validation_bundle_3A.version` in `dataset_dictionary.layer1.3A.yaml` and `artefact_registry_3A.yaml`.
-* `_passed.flag_3A.version` in the same catalogue entries.
+* `_passed.flag.version` in the same catalogue entries.
 
 Additionally, S7 MAY record its own state-contract version (e.g. `"s7_version"`) inside the `metadata` object of `index.json`, but the **catalogue versions** are the authoritative contract markers.
 
@@ -2903,7 +2903,7 @@ Versions use `MAJOR.MINOR.PATCH`:
     * which members appear in the bundle for a given manifest,
     * any per-artefact `sha256_hex`,
     * the composite digest definition or value,
-    * the schema of `index.json` or `_passed.flag_3A`.
+    * the schema of `index.json` or `_passed.flag`.
 
   * Example: fixing a bug where S7 previously mis-handled an internal `size_bytes` field but corrected it without impacting digests or membership.
 
@@ -2923,7 +2923,7 @@ Versions use `MAJOR.MINOR.PATCH`:
 
     * the **set of members** participating in the composite digest for a given manifest,
     * the **algorithm** for computing the composite digest, or
-    * the **on-disk format** or semantics of `_passed.flag_3A`.
+    * the **on-disk format** or semantics of `_passed.flag`.
 
   * These changes require coordinated updates across all consumers that rely on the bundle and flag.
 
@@ -2976,14 +2976,14 @@ These changes qualify as MINOR or PATCH depending on whether the observable sche
 
 ### 12.4 Breaking changes (MAJOR)
 
-The following are **breaking** for S7 and MUST trigger a **MAJOR** version bump for at least `validation_bundle_3A` and `_passed.flag_3A`, plus coordinated consumer updates:
+The following are **breaking** for S7 and MUST trigger a **MAJOR** version bump for at least `validation_bundle_3A` and `_passed.flag`, plus coordinated consumer updates:
 
 1. **Changing membership semantics**
 
    * Adding or removing artefacts that are considered required members of the bundle **and** whose digests participate in the composite `bundle_sha256_hex`.
 
      * Example: deciding that RNG logs or a new 3A artefact must now be included in `members[]` and in the composite digest.
-     * For the same S0–S6 universe, this would change `bundle_sha256_hex` and therefore `_passed.flag_3A`, which is a behavioural change for all consumers.
+     * For the same S0–S6 universe, this would change `bundle_sha256_hex` and therefore `_passed.flag`, which is a behavioural change for all consumers.
 
    * Changing the meaning of `role` values in ways that alter how consumers interpret which artefacts are “part of the validation proof” vs incidental.
 
@@ -2997,7 +2997,7 @@ The following are **breaking** for S7 and MUST trigger a **MAJOR** version bump 
 
    * Any change that makes a recomputed digest from the same `index.json` appear different to existing consumers.
 
-3. **Changing the logical form or on-disk format of `_passed.flag_3A`**
+3. **Changing the logical form or on-disk format of `_passed.flag`**
 
    * Adding more fields to the flag file (e.g. `manifest_fingerprint = …`) in a way that breaks existing parsers.
    * Changing the line format from `sha256_hex = …` to some other structure.
@@ -3006,7 +3006,7 @@ The following are **breaking** for S7 and MUST trigger a **MAJOR** version bump 
 
 4. **Moving or renaming the validation bundle or flag**
 
-   * Changing the dataset IDs (`validation_bundle_3A`, `_passed.flag_3A`), or
+* Changing the dataset IDs (`validation_bundle_3A`, `validation_passed_flag_3A`), or
    * Changing their paths/partitioning (e.g. adding `seed=` partitions, moving them out of `validation_bundle/`), is a breaking change.
 
 5. **Relaxing immutability semantics**
@@ -3016,7 +3016,7 @@ The following are **breaking** for S7 and MUST trigger a **MAJOR** version bump 
 Any such change MUST be coordinated with:
 
 * orchestrator and cross-segment validators (which enforce HashGate),
-* 2B or any other consumers that guard their reads with `_passed.flag_3A`,
+* 2B or any other consumers that guard their reads with `_passed.flag`,
 * and, if relevant, upstream governance of `manifest_fingerprint`.
 
 ---
@@ -3070,7 +3070,7 @@ must obey:
 
 2. **Dictionary evolution**
 
-   * Changing IDs, paths or partitioning definitions for `validation_bundle_3A` or `_passed.flag_3A` is MAJOR.
+   * Changing IDs, paths or partitioning definitions for `validation_bundle_3A` or `_passed.flag` is MAJOR.
 
 3. **Registry evolution**
 
@@ -3111,12 +3111,12 @@ Multiple S7 versions may co-exist across manifests in a long-lived system.
 
 Consumers (e.g. orchestrators, validators, 2B) MUST:
 
-* read the version of `validation_bundle_3A` / `_passed.flag_3A` from the catalogue (and, optionally, from `index.json.metadata`),
+* read the version of `validation_bundle_3A` / `_passed.flag` from the catalogue (and, optionally, from `index.json.metadata`),
 * interpret:
 
   * membership,
   * digest semantics, and
-  * the meaning of `_passed.flag_3A`
+  * the meaning of `_passed.flag`
 
 in terms of the **appropriate S7 contract version**, and
 
@@ -3128,7 +3128,7 @@ in terms of the **appropriate S7 contract version**, and
 Under these rules, S7 can:
 
 * evolve **safely** (adding metadata, strengthening checks) without destabilising consumers, and
-* evolve **explicitly** (when membership or digest semantics change) so that nobody has to guess what a given `validation_bundle_3A` and `_passed.flag_3A` pair means for a given manifest.
+* evolve **explicitly** (when membership or digest semantics change) so that nobody has to guess what a given `validation_bundle_3A` and `_passed.flag` pair means for a given manifest.
 
 ---
 
@@ -3179,7 +3179,7 @@ This appendix records the notation and shorthand used in the 3A.S7 design. It ha
   ```text
   data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
     ├── index.json
-    ├── _passed.flag_3A
+    ├── _passed.flag
     └── (other referenced artefacts or symlinks, per implementation)
   ```
 
@@ -3195,7 +3195,7 @@ This appendix records the notation and shorthand used in the 3A.S7 design. It ha
     * `sha256_hex` — SHA-256 over canonical representation of the artefact,
     * `role` — semantic label (e.g. `"gate"`, `"priors"`, `"shares"`, `"counts"`, `"egress"`, `"validation_report"`, etc.).
 
-* **`_passed.flag_3A`**
+* **`_passed.flag`**
   Fingerprint-scoped PASS flag for Segment 3A. On disk:
 
   ```text
@@ -3312,7 +3312,7 @@ S7 depends on S6’s artefacts and verdict:
   Per-artefact digest mismatch between `index.json` (or an upstream digest) and recomputed value.
 
 * **`E3A_S7_005_HASHGATE_MISMATCH`**
-  Composite `bundle_sha256_hex` recomputed from `index.json` does not match `_passed.flag_3A.sha256_hex`.
+  Composite `bundle_sha256_hex` recomputed from `index.json` does not match `_passed.flag.sha256_hex`.
 
 * **`E3A_S7_006_IMMUTABILITY_VIOLATION`**
   Existing index/flag differ from what S7 would produce now for the same `manifest_fingerprint` & inputs; S7 refuses to overwrite.
@@ -3339,7 +3339,7 @@ A manifest `F` is considered **3A-validated and sealed** only when:
 
 * `s6_receipt_3A@fingerprint=F` has `overall_status="PASS"`,
 * S7 run for `(parameter_hash, F, seed, run_id)` has `status="PASS", error_code=null`,
-* `validation_bundle_3A@fingerprint=F` and `_passed.flag_3A@fingerprint=F` are present and a recomputation of `bundle_sha256_hex` from `index.json` matches the flag’s `sha256_hex`.
+* `validation_bundle_3A@fingerprint=F` and `_passed.flag@fingerprint=F` are present and a recomputation of `bundle_sha256_hex` from `index.json` matches the flag’s `sha256_hex`.
 
 Consumers must enforce:
 

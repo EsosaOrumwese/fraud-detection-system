@@ -75,7 +75,7 @@ Authoritative inputs (read-only at S5 entry)
                 · schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
               - validation_passed_flag_6B
                 · path:
-                    data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+                    data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
                 · partitioning: [fingerprint]
                 · primary_key: [manifest_fingerprint]
                 · schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
@@ -161,10 +161,10 @@ Authoritative inputs (read-only at S5 entry)
             - s5_validation_report_6B,
             - s5_issue_table_6B (if present),
             - any additional evidence files included by policy,
-            - _passed.flag_6B (HashGate flag; see below).
+            - _passed.flag (HashGate flag; see below).
 
-    - validation_passed_flag_6B  (`_passed.flag_6B`)
-      @ data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+    - validation_passed_flag_6B  (`_passed.flag`)
+      @ data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
       · text file with single logical field:
             sha256_hex = <64-hex-of-bundle-digest>
       · MUST be produced only when overall_status="PASS" under segment_validation_policy_6B.
@@ -227,7 +227,7 @@ upstream validation bundles & flags for {1A,1B,2A,2B,3A,3B,5A,5B,6A}
                     - If any mismatch is found:
                           · record structural FAIL checks,
                           · mark world overall_status="FAIL" (precondition),
-                          · do NOT write _passed.flag_6B.
+                          · do NOT write _passed.flag.
 
 S1–S4 dataset contracts (from dictionaries),
 sealed_inputs_6B
@@ -389,16 +389,16 @@ segment_validation_policy_6B
                           · compute SHA-256 over that concatenation,
                           · represent as lowercase 64-hex.
                     - If s5_validation_report_6B.overall_status != "PASS":
-                          · S5 MUST NOT write or update _passed.flag_6B,
-                          · any existing _passed.flag_6B MUST be treated as stale and ignored by consumers.
+                          · S5 MUST NOT write or update _passed.flag,
+                          · any existing _passed.flag MUST be treated as stale and ignored by consumers.
                     - If overall_status == "PASS":
                           · construct validation_passed_flag_6B text:
                                 "sha256_hex = {bundle_digest}\n"
                             (exact formatting as defined in schemas.layer3.yaml#/validation/6B/passed_flag_6B),
-                          · if _passed.flag_6B does not exist:
+                          · if _passed.flag does not exist:
                                 - write it atomically at:
-                                      data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
-                          · if _passed.flag_6B exists:
+                                      data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+                          · if _passed.flag exists:
                                 - read existing content and compare sha256_hex:
                                       - if equal to bundle_digest → idempotent; OK,
                                       - if different               → treat as immutability violation;
@@ -410,7 +410,7 @@ Downstream touchpoints
 - **Layer-4 (4A/4B, model-training, ops tooling):**
     - MUST:
           - recompute the 6B bundle digest from index.json and require equality with validation_passed_flag_6B.sha256_hex,
-          - treat failure to verify (_passed.flag_6B missing or mismatched) as **“no PASS → no read”**
+          - treat failure to verify (_passed.flag missing or mismatched) as **“no PASS → no read”**
             for all 6B outputs (S1–S4).
     - MAY:
           - inspect s5_validation_report_6B and s5_issue_table_6B to understand coverage, metrics, and
@@ -421,6 +421,6 @@ Downstream touchpoints
           - treat s5_validation_report_6B + validation_bundle_index_6B as the canonical record of which
             checks were run and what they concluded for this world,
           - ensure that any re-run that changes 6B behaviour either:
-                · produces a byte-identical bundle & _passed.flag_6B, or
+                · produces a byte-identical bundle & _passed.flag, or
                 · increments spec_version_6B / parameter_hash and writes to a new world.
 ```

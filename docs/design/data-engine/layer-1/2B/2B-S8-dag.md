@@ -74,7 +74,7 @@ Authoritative inputs (read-only at S8 entry)
 
 
 ----------------------------------------------------------------------
-DAG — 2B.S8 (S7 PASS set → validation_bundle_2B + `_passed.flag_2B`)  [NO RNG]
+DAG — 2B.S8 (S7 PASS set → validation_bundle_2B + `_passed.flag`)  [NO RNG]
 
 [S0 Gate & Identity],
 [Schema+Dict]
@@ -179,7 +179,7 @@ sealed_inputs_v1,
 
 (Bundle workspace with index.json),
 [Schema+Dict]
-                ->  (S8.6) Compute bundle digest & emit `_passed.flag_2B`
+                ->  (S8.6) Compute bundle digest & emit `_passed.flag`
                     - Bundle digest:
                         · re-read index.json and iterate index entries in `path` ASCII-lex order.
                         · for each row:
@@ -265,5 +265,5 @@ Downstream touchpoints
 - **Upstream segments:**
     - 2B.S8 does **not** change any plan surface; it only packages evidence.
     - Authority chain is:
-          S0 (gate + sealed inputs) → S1–S7 (plans + audit) → S8 (validation bundle + `_passed.flag_2B`).
+          S0 (gate + sealed inputs) → S1–S7 (plans + audit) → S8 (validation bundle + `_passed.flag`).
 ```

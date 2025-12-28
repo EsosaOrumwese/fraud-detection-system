@@ -923,14 +923,14 @@ For each segment `seg ∈ UPSTREAM_REQUIRED`:
 
 2. **Parse flag**
 
-   * Read `_passed.flag_seg` as raw bytes.
+   * Read `_passed.flag` as raw bytes.
    * Parse according to that segment’s spec (e.g. a single `sha256_hex` line).
 
 3. **Recompute bundle digest**
 
    * Read the segment’s bundle index (e.g. `index.json` or equivalent) and any additional files that its spec requires to be hashed.
    * Recompute the digest using that segment’s declared hashing law (e.g. ASCII-lex ordering of paths, concatenation of raw bytes, then SHA-256).
-   * Compare the recomputed digest with the value in `_passed.flag_seg`.
+   * Compare the recomputed digest with the value in `_passed.flag`.
 
 4. **Set status**
 

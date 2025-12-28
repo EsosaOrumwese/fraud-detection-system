@@ -17,7 +17,7 @@ Authoritative inputs (read-only at S0 entry)
 [1B Gate Artefacts] (fingerprint-scoped; S0’s primary subject):
     - validation_bundle_1B/              @ data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
         · contains MANIFEST + rng_accounting + egress_checksums + s9_summary + index.json + other non-flag files
-    - passed_flag_1B                     @ .../validation/fingerprint={manifest_fingerprint}/_passed.flag
+    - validation_passed_flag_1B          @ .../validation/fingerprint={manifest_fingerprint}/_passed.flag
         · single-line text: `sha256_hex = <hex64>`; sole consumer gate for 1B egress (No PASS → No Read)
 
 [2B Ingress & Policy] Inputs S0 will seal for 2B (minimum required set):
@@ -149,7 +149,7 @@ Downstream touchpoints
 ----------------------
 - **2B.S1–S4 (plan-building states):**
     - MUST treat `s0_gate_receipt_2B` as the **segment gate**:
-        · proves 1B PASS for this fingerprint (via 1B bundle + `_passed.flag_1B`),
+        · proves 1B PASS for this fingerprint (via 1B bundle + `_passed.flag`),
         · enumerates the exact ingress + policy assets they may read (site_locations, 2B policy packs, optional 2A pins).
     - MUST resolve all inputs via IDs and partitions listed in `sealed_inputs_v1`; no new surfaces or literals.
 - **2B.S5–S6 (runtime routing & virtual-edge logs):**
@@ -157,6 +157,6 @@ Downstream touchpoints
     - MUST NOT introduce new upstream dependencies outside the sealed inputs for this fingerprint.
 - **2B.S7–S8 (audit & validation bundle):**
     - Use `sealed_inputs_v1` as the **supply-chain manifest** for what 2B relied on when building routing plans.
-    - Build the 2B validation bundle and `_passed.flag_2B` using the same ASCII-lex index + SHA-256 hashing law as S0 used
+    - Build the 2B validation bundle and `_passed.flag` using the same ASCII-lex index + SHA-256 hashing law as S0 used
       when verifying the upstream 1B bundle.
 ```

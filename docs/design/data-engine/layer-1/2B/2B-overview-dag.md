@@ -5,7 +5,7 @@ Authoritative inputs (sealed in S0)
 -----------------------------------
 [M] Upstream 1B egress & gate:
     - validation_bundle_1B              @ [fingerprint]
-    - validation_passed_flag_1B         @ [fingerprint]  (_passed.flag_1B; HashGate for 1B)
+    - validation_passed_flag_1B         @ [fingerprint]  (_passed.flag; HashGate for 1B)
       · bundle index schema: schemas.1A.yaml#/validation/validation_bundle.index_schema
       · flag schema: schemas.1B.yaml#/validation/passed_flag       
     - site_locations                    @ [seed, fingerprint]
@@ -43,7 +43,7 @@ DAG
                         * open validation_bundle_1B/ @ [fingerprint]
                         * read index.json (relative paths; ASCII-lex order; one entry per non-flag file)
                         * recompute SHA-256 over raw bytes in ASCII-lex path order (flag excluded)
-                        * compare to _passed.flag_1B (`sha256_hex = <hex64>`)
+                        * compare to _passed.flag (`sha256_hex = <hex64>`)
                         * **No PASS → No read** of site_locations for 2B
                     - Resolve & seal minimum input set for this {seed, fingerprint} via Dictionary (no literals):
                         * site_locations                        @ [seed, fingerprint]
@@ -224,7 +224,7 @@ DAG
                          · validate against canonical bundle index law (schemas.1A.yaml#/validation/validation_bundle.index_schema).
                      - Compute bundle_digest = SHA-256(concat(all indexed file bytes in ASCII-lex path order)).
                 -> validation_passed_flag_2B  @ [fingerprint]
-                     - _passed.flag_2B content: `sha256_hex = <bundle_digest>`
+                     - _passed.flag content: `sha256_hex = <bundle_digest>`
                      - validate against passed_flag schema; path↔embed equality for fingerprint.
                      - Publish bundle+flag via single atomic move into `…/validation/fingerprint={manifest_fingerprint}/`;
                        write-once; idempotent re-emit must be byte-identical.
@@ -236,7 +236,7 @@ Downstream touchpoints
 - **Any consumer of 2B routing plan surfaces** (e.g. Layer-2 arrival mechanics, downstream simulators, scenario runner):
     1) Locate `data/layer1/2B/validation/fingerprint={manifest_fingerprint}/`.
     2) Read `index.json`, recompute SHA-256 over the listed files’ raw bytes in ASCII-lex path order (excluding `_passed.flag`).
-    3) Read `_passed.flag_2B` and compare its `sha256_hex` to the recomputed digest.
+    3) Read `_passed.flag` and compare its `sha256_hex` to the recomputed digest.
     4) Only if they match MAY the consumer read:
          · s1_site_weights        @ [seed, fingerprint]   (static site law)
          · s2_alias_index/blob    @ [seed, fingerprint]   (alias sampler)

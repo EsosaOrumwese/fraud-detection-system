@@ -7,7 +7,7 @@ Segment 6A builds the entity and product world. It gates upstream layers, realis
 - Realise the party/customer universe (ids, segments, geos).
 - Realise accounts/products and attach them to parties (and merchants where applicable).
 - Realise instruments, devices, IPs, and the static entity graph (links across all entities).
-- Assign static fraud roles and publish `validation_bundle_6A` + `_passed.flag_6A`.
+- Assign static fraud roles and publish `validation_bundle_6A` + `_passed.flag`.
 
 ---
 
@@ -134,7 +134,7 @@ S5 fraud roles; 6B uses graph as authority for entities/links.
 
 ## S5 - Static fraud posture & HashGate
 **Purpose & scope**  
-Assign static fraud roles to all entities and seal 6A with `validation_bundle_6A` + `_passed.flag_6A`.
+Assign static fraud roles to all entities and seal 6A with `validation_bundle_6A` + `_passed.flag`.
 
 **Preconditions & gates**  
 S0–S4 PASS; fraud-role priors/policies sealed; upstream gates still verify.
@@ -144,13 +144,13 @@ S0–S4 PASS; fraud-role priors/policies sealed; upstream gates still verify.
 
 **Outputs & identity**  
 Fraud-role surfaces: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A` (`seed={seed}/fingerprint={manifest_fingerprint}/` except merchants which may be fingerprint-only).  
-Validation artefacts: `s5_validation_report_6A`, optional `s5_issue_table_6A`; `validation_bundle_6A` at `data/layer3/6A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_6A`; `_passed.flag_6A` containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+Validation artefacts: `s5_validation_report_6A`, optional `s5_issue_table_6A`; `validation_bundle_6A` at `data/layer3/6A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_6A`; `_passed.flag` containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
 **RNG posture**  
 Philox streams for role counts/assignments; events/trace logged; validator is RNG-free.
 
 **Key invariants**  
-One role per entity; role distributions match priors (tolerance); cross-entity consistency holds; RNG budgets close; bundle digest matches `_passed.flag_6A`; enforces “no PASS -> no read” for all 6A artefacts.
+One role per entity; role distributions match priors (tolerance); cross-entity consistency holds; RNG budgets close; bundle digest matches `_passed.flag`; enforces “no PASS -> no read” for all 6A artefacts.
 
 **Downstream consumers**  
-6B must verify `_passed.flag_6A` before using any 6A surface; enterprise consumers do the same.
+6B must verify `_passed.flag` before using any 6A surface; enterprise consumers do the same.

@@ -53,7 +53,7 @@ S1: Time grid & grouping plan
 S2: Latent intensity fields (LGCP) & λ_realised
 S3: Bucket-level arrival counts
 S4: Micro-time & routing to sites/edges
-S5: Validation bundle & `_passed.flag_5B` (HashGate)
+S5: Validation bundle & `_passed.flag` (HashGate)
 
 
 DAG
@@ -215,10 +215,10 @@ DAG
          - Lists all evidence files in the 5B validation bundle:
                [{path, sha256_hex}, …], paths relative to the 5B validation root.
 
-    -> `_passed.flag_5B`@fingerprint
+    -> `_passed.flag`@fingerprint
          - Recomputes a single bundle digest:
                bundle_digest = SHA256( concat( bytes(files in index order) ) ).
-         - Writes `_passed.flag_5B` with:
+         - Writes `_passed.flag` with:
                `sha256_hex = <bundle_digest>`.
 
     - S5 is RNG-free; it creates the 5B **HashGate** for this manifest.
@@ -226,9 +226,9 @@ DAG
 Downstream obligations
 ----------------------
 - Any consumer of 5B arrival events (Layer-3, ingestion, analytics) MUST:
-    1. Read `validation_bundle_index_5B` and `_passed.flag_5B` for the manifest_fingerprint.
+    1. Read `validation_bundle_index_5B` and `_passed.flag` for the manifest_fingerprint.
     2. Recompute the bundle digest using the same law.
-    3. Confirm `_passed.flag_5B.sha256_hex` equals the recomputed digest.
+    3. Confirm `_passed.flag.sha256_hex` equals the recomputed digest.
     4. Confirm `validation_report_5B.status == "PASS"`.
 
 - Only then may they read `arrival_events_5B` or treat any 5B outputs as valid.
@@ -244,5 +244,5 @@ Legend
 [fingerprint]                      = partitions for S0, S5 outputs
 [NO RNG]                           = state consumes no RNG
 [RNG-BEARING]                      = state uses Philox under explicit RNG policy
-HashGate (5B)                      = validation_bundle_index_5B + `_passed.flag_5B` per manifest_fingerprint
+HashGate (5B)                      = validation_bundle_index_5B + `_passed.flag` per manifest_fingerprint
 ```

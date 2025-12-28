@@ -6,7 +6,7 @@ Segment 3A is the zone allocation universe. It gates 1A/1B/2A, decides which mer
 - Enforce 1A/1B/2A HashGates ("no PASS -> no read") and seal priors/policies for zone allocation.
 - Determine escalation (multi-zone vs single-zone) per merchant x country and freeze counts.
 - Prepare country x tzid Dirichlet priors, draw zone shares (RNG), and integerise to zone counts.
-- Publish `zone_alloc` and `zone_alloc_universe_hash`; validate and bundle with `_passed.flag_3A`.
+- Publish `zone_alloc` and `zone_alloc_universe_hash`; validate and bundle with `_passed.flag`.
 
 ---
 
@@ -179,7 +179,7 @@ S7 requires PASS receipt before bundling; operators inspect issues.
 
 ---
 
-## S7 - Validation bundle & `_passed.flag_3A`
+## S7 - Validation bundle & `_passed.flag`
 **Purpose & scope**  
 Seal Segment 3A for the fingerprint and publish the HashGate for downstream consumers.
 
@@ -190,13 +190,13 @@ S0–S6 PASS with `s6_receipt_3A.overall_status="PASS"`; upstream gates still ve
 Gate receipt and sealed inputs; all 3A datasets (`s1`–`s5`, universe hash); validation artefacts (`s6_*`).
 
 **Outputs & identity**  
-`validation_bundle_3A` at `data/layer1/3A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_3A`; `_passed.flag_3A` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+`validation_bundle_3A` at `data/layer1/3A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_3A`; `_passed.flag` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None.
 
 **Key invariants**  
-Bundle index is complete; recomputed digest matches `_passed.flag_3A`; enforces "no PASS -> no read" for `zone_alloc` and `zone_alloc_universe_hash`.
+Bundle index is complete; recomputed digest matches `_passed.flag`; enforces "no PASS -> no read" for `zone_alloc` and `zone_alloc_universe_hash`.
 
 **Downstream consumers**  
-Segments 2B, 3B, 5B must verify `_passed.flag_3A` before using 3A egress; routing uses the universe hash as authority.
+Segments 2B, 3B, 5B must verify `_passed.flag` before using 3A egress; routing uses the universe hash as authority.

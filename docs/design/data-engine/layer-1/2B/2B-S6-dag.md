@@ -279,5 +279,5 @@ Determinism, boundaries & downstream touchpoints
           to confirm one-draw-per-virtual-arrival, correct edge_id domain, and attribute semantics.
     - 2B.S8 (validation bundle) includes S7’s audit and relevant RNG evidence in the fingerprint-scoped validation_bundle_2B.
     - Later layers (e.g. Layer-2/Layer-3 flows) may treat edge_id/ip_country/edge_lat/edge_lon as part of the routing context,
-      but MUST honour the 2B-wide “No PASS → No read” gate via `_passed.flag_2B` before trusting any routing surfaces.
+      but MUST honour the 2B-wide “No PASS → No read” gate via `_passed.flag` before trusting any routing surfaces.
 ```

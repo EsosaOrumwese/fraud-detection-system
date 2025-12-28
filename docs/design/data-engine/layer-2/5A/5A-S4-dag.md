@@ -373,6 +373,6 @@ Downstream touchpoints
     - MUST NOT recompute overlays itself; it only realises stochastic arrivals from S4’s λ.
 
 - **6A / other consumers:**
-    - MUST gate use of S4 outputs on the segment-level `_passed.flag_5A` produced by S5:
+    - MUST gate use of S4 outputs on the segment-level `_passed.flag` produced by S5:
           **No 5A PASS → No read/use of 5A scenario intensities.**
 ```

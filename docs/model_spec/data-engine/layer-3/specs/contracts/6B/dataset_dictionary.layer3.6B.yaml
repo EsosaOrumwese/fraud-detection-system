@@ -333,7 +333,7 @@
   status: required
   description: >
     World-level validation bundle for Segment 6B; directory of validation artefacts
-    plus index.json and _passed.flag_6B.
+    plus index.json and _passed.flag.
   version: '{manifest_fingerprint}'
   format: directory
   path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
@@ -353,7 +353,7 @@
     Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag_6B
+  path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
   partitioning: [fingerprint]
   primary_key: [manifest_fingerprint]
   ordering: []

@@ -7,19 +7,19 @@ Segment 2B is the routing engine. It freezes per-site weights, builds alias tabl
 - Deterministically derive long-run site weights and alias tables.
 - Introduce day-level gamma shocks per tz-group; renormalise group weights per merchant/day.
 - Route arrivals via two-stage alias (group, then site) with RNG evidence; branch for virtual-edge routing.
-- Audit structural/RNG parity and publish `validation_bundle_2B` + `_passed.flag_2B`.
+- Audit structural/RNG parity and publish `validation_bundle_2B` + `_passed.flag`.
 
 ---
 
 ## S0 - Gate & sealed inputs (RNG-free)
 **Purpose & scope**  
-Verify 1B `_passed.flag_1B` for the target `manifest_fingerprint`; seal the inputs/policies 2B may read.
+Verify 1B `_passed.flag` for the target `manifest_fingerprint`; seal the inputs/policies 2B may read.
 
 **Preconditions & gates**  
-`validation_bundle_1B` + `_passed.flag_1B` must match; otherwise abort ("no PASS -> no read").
+`validation_bundle_1B` + `_passed.flag` must match; otherwise abort ("no PASS -> no read").
 
 **Inputs**  
-`validation_bundle_1B`, `_passed.flag_1B`; 1B `site_locations` `[seed, fingerprint]`; policy artefacts `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`.
+`validation_bundle_1B`, `_passed.flag`; 1B `site_locations` `[seed, fingerprint]`; policy artefacts `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`.
 
 **Outputs & identity**  
 `s0_gate_receipt_2B` at `data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_v1` at `data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet`.
@@ -205,7 +205,7 @@ S8 requires PASS reports for all seeds before issuing the HashGate.
 
 ## S8 - Validation bundle & PASS gate
 **Purpose & scope**  
-Seal Segment 2B for the fingerprint; publish `validation_bundle_2B` + `_passed.flag_2B`.
+Seal Segment 2B for the fingerprint; publish `validation_bundle_2B` + `_passed.flag`.
 
 **Preconditions & gates**  
 For the fingerprint: S0 PASS; all discovered seeds have S1-S7 PASS and `s7_audit_report` with PASS; 1B gate still verifies.
@@ -214,13 +214,13 @@ For the fingerprint: S0 PASS; all discovered seeds have S1-S7 PASS and `s7_audit
 All `s7_audit_report` files; supporting evidence (e.g., RNG summaries); contracts in `schemas.layer1.yaml`/`schemas.2B.yaml`.
 
 **Outputs & identity**  
-`validation_bundle_2B` at `data/layer1/2B/validation/fingerprint={manifest_fingerprint}/` with `index.json`; `_passed.flag_2B` alongside containing `sha256_hex = <bundle_digest>` where the digest is over indexed files in ASCII-lex order (flag excluded).
+`validation_bundle_2B` at `data/layer1/2B/validation/fingerprint={manifest_fingerprint}/` with `index.json`; `_passed.flag` alongside containing `sha256_hex = <bundle_digest>` where the digest is over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None.
 
 **Key invariants**  
-All required reports present and PASS; bundle digest matches `_passed.flag_2B`; enforces "no PASS -> no read" for 2B artefacts.
+All required reports present and PASS; bundle digest matches `_passed.flag`; enforces "no PASS -> no read" for 2B artefacts.
 
 **Downstream consumers**  
-Any consumer (5B, runtime routers, enterprise ingestion) must verify `_passed.flag_2B` before reading 2B plan tables or logs.
+Any consumer (5B, runtime routers, enterprise ingestion) must verify `_passed.flag` before reading 2B plan tables or logs.

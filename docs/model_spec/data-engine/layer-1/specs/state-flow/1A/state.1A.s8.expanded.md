@@ -1103,7 +1103,7 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 * **Validation bundle (fingerprint-scoped):** `validation_bundle_1A`
   Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `schemas.1A.yaml#/validation/validation_bundle`).
 
-* **Consumer gate flag:** `validation_passed_flag` (file: `_passed.flag`)
+* **Consumer gate flag:** `validation_passed_flag_1A` (file: `_passed.flag`)
   Rule: content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint (**no PASS → no read**). 
 
 ---

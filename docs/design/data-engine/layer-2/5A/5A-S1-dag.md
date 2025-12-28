@@ -338,6 +338,6 @@ Downstream touchpoints
 
 - **Layer-wide consumers (5B, 6A):**
     - MUST read class and base scale **only** from merchant_zone_profile_5A for this fingerprint.
-    - MUST honour the 5A HashGate from S5 (bundle + `_passed.flag_5A`) before treating S1 outputs as authoritative:
+    - MUST honour the 5A HashGate from S5 (bundle + `_passed.flag`) before treating S1 outputs as authoritative:
           **No 5A PASS → No read/use** of 5A intensities downstream.
 ```

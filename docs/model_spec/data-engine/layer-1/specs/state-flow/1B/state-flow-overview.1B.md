@@ -1,13 +1,13 @@
 # Layer-1 - Segment 1B - State Overview (S0-S9)
 
-Segment 1B makes 1A's outlet stubs real in space. It verifies the 1A gate, tiles the world, assigns sites to tiles with RNG evidence, jitters them to coordinates, and publishes `site_locations`. Inter-country order remains solely on 1A's `s3_candidate_set.candidate_rank` (home=0). Egress is gated by `_passed.flag_1B` under `[seed, fingerprint]`.
+Segment 1B makes 1A's outlet stubs real in space. It verifies the 1A gate, tiles the world, assigns sites to tiles with RNG evidence, jitters them to coordinates, and publishes `site_locations`. Inter-country order remains solely on 1A's `s3_candidate_set.candidate_rank` (home=0). Egress is gated by `_passed.flag` under `[seed, fingerprint]`.
 
 ## Segment role at a glance
 - Enforce "no PASS -> no read" on 1A before any 1B work; seal which inputs are allowed.
 - Build the deterministic tile universe (`tile_index`, `tile_bounds`) and fixed-dp tile weights (`tile_weights`).
 - Derive per-merchant x country site counts (`s3_requirements`), integerise them over tiles (`s4_alloc_plan`).
 - RNG: assign each site to a tile (`site_tile_assign`) and jitter within the tile (`in_cell_jitter`) with full budgets in logs.
-- Synthesize per-site rows and publish order-free spatial egress `site_locations` plus the `_passed.flag_1B` gate.
+- Synthesize per-site rows and publish order-free spatial egress `site_locations` plus the `_passed.flag` gate.
 
 ---
 
@@ -19,7 +19,7 @@ Verify 1A's `_passed.flag` for the target `manifest_fingerprint` (hash = SHA-256
 `validation_bundle_1A` + `_passed.flag` must match for the fingerprint; otherwise abort ("no PASS -> no read").
 
 **Inputs**  
-`validation_bundle_1A`, `_passed.flag_1A`; ingress refs listed in `sealed_inputs_1B` (ISO, countries, population raster, TZ polygons); 1A egress `outlet_catalogue` (order-free).
+`validation_bundle_1A`, `_passed.flag`; ingress refs listed in `sealed_inputs_1B` (ISO, countries, population raster, TZ polygons); 1A egress `outlet_catalogue` (order-free).
 
 **Outputs & identity**  
 `s0_gate_receipt_1B` at `data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/`; `sealed_inputs_1B` inventory for the same fingerprint.
@@ -225,13 +225,13 @@ None.
 Order-free; lineage columns equal path tokens; `parameter_hash` implied via provenance, not a partition; immutable after publish.
 
 **Downstream consumers**  
-Later layers read only after `_passed.flag_1B`; S9 hashes egress for the bundle.
+Later layers read only after `_passed.flag`; S9 hashes egress for the bundle.
 
 ---
 
 ## S9 - Validation bundle & PASS gate
 **Purpose & scope**  
-Validate S1-S8 outputs and RNG evidence; publish `validation_bundle_1B/` and `_passed.flag_1B` (SHA-256 over bundle files in ASCII-lex order, flag excluded).
+Validate S1-S8 outputs and RNG evidence; publish `validation_bundle_1B/` and `_passed.flag` (SHA-256 over bundle files in ASCII-lex order, flag excluded).
 
 **Preconditions & gates**  
 All prior states complete; RNG logs/events available: `rng_audit_log`, `rng_trace_log`, `rng_event_site_tile_assign`, `rng_event_in_cell_jitter`.
@@ -240,13 +240,13 @@ All prior states complete; RNG logs/events available: `rng_audit_log`, `rng_trac
 All 1B datasets (`tile_index`, `tile_bounds`, `tile_weights`, `s3_requirements`, `s4_alloc_plan`, `s5_site_tile_assignment`, `s6_site_jitter`, `s7_site_synthesis`, `site_locations`) and RNG evidence.
 
 **Outputs & identity**  
-`validation_bundle_1B` at `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`; `_passed.flag_1B` alongside it; gate text mirrors 1A ("no PASS -> no read").
+`validation_bundle_1B` at `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`; `_passed.flag` alongside it; gate text mirrors 1A ("no PASS -> no read").
 
 **RNG posture**  
 None; validator replays and reconciles budgets from events and trace.
 
 **Key invariants**  
-Schema and partition conformance for all datasets; RNG budgets close (S5 one event/site, S6 >=1 event/site with `draws="2"` and `blocks=1` per event); counts and coverage match across states; bundle digest equals `_passed.flag_1B`.
+Schema and partition conformance for all datasets; RNG budgets close (S5 one event/site, S6 >=1 event/site with `draws="2"` and `blocks=1` per event); counts and coverage match across states; bundle digest equals `_passed.flag`.
 
 **Downstream consumers**  
-All downstream segments must verify `_passed.flag_1B` before reading `site_locations` or any 1B artefact.
+All downstream segments must verify `_passed.flag` before reading `site_locations` or any 1B artefact.

@@ -38,7 +38,7 @@ Authoritative inputs (read-only at S5 entry)
             - validation_bundle_index_5A,
             - validation_report_5A,
             - validation_issue_table_5A,
-            - passed_flag_5A.
+            - validation_passed_flag_5A.
     - artefact_registry_5A.yaml
         · IDs → roles for S0–S5 datasets and configs.
 
@@ -87,8 +87,8 @@ Authoritative inputs (read-only at S5 entry)
       · schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
       · lists every bundle evidence file as `{path, sha256_hex}` (relative paths only).
 
-    - passed_flag_5A (required)
-      @ data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+    - validation_passed_flag_5A (required)
+      @ data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
       · partition_keys: [fingerprint]
       · schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
       · single-line text: `sha256_hex = <bundle_digest_sha256>`.
@@ -101,7 +101,7 @@ Authoritative inputs (read-only at S5 entry)
     - Determinism & immutability:
         · For a fixed `manifest_fingerprint` and fixed inputs (S0, sealed_inputs_5A, S1–S4 outputs, policies),
           S5 MUST produce byte-identical validation_report_5A, validation_issue_table_5A (if present),
-          validation_bundle_index_5A, passed_flag_5A.
+          validation_bundle_index_5A, validation_passed_flag_5A.
         · If any of those already exist with non-identical bytes, S5 MUST treat this as an immutability conflict.
     - Bundle hashing law:
         · Let index.entries be the array of `{path, sha256_hex}` in validation_bundle_index_5A,
@@ -109,11 +109,11 @@ Authoritative inputs (read-only at S5 entry)
         · Then:
               bundle_digest_sha256 = SHA256( concat( bytes(file[path₁]), bytes(file[path₂]), … ) )
           where files are read in that path order and concatenated byte-wise.
-        · passed_flag_5A.sha256_hex MUST equal bundle_digest_sha256.
+        · validation_passed_flag_5A.sha256_hex MUST equal bundle_digest_sha256.
 
 
 ----------------------------------------------------------------------
-DAG — 5A.S5 (S0–S4 + policies → validation report + bundle + `_passed.flag_5A`)  [NO RNG]
+DAG — 5A.S5 (S0–S4 + policies → validation report + bundle + `_passed.flag`)  [NO RNG]
 
 ### Phase A — Load gate, sealed inputs & catalogues (RNG-free)
 
@@ -330,7 +330,7 @@ schemas.layer2.yaml
                               - if identical → idempotent re-run; keep existing,
                               - else → immutability conflict; MUST NOT overwrite.
 
-### Phase E — Compute bundle_digest & write passed_flag_5A  [NO RNG]
+### Phase E — Compute bundle_digest & write validation_passed_flag_5A  [NO RNG]
 
 validation_bundle_index_5A.json,
 EVIDENCE files
@@ -342,11 +342,11 @@ EVIDENCE files
                     - Compute:
                         · bundle_digest_sha256 = SHA256(concatenated_bytes),
                           encoded as 64-char lowercase hex string.
-                    - This `bundle_digest_sha256` is the value that MUST appear in passed_flag_5A.sha256_hex.
+                    - This `bundle_digest_sha256` is the value that MUST appear in validation_passed_flag_5A.sha256_hex.
 
 bundle_digest_sha256,
 schemas.layer2.yaml
-                ->  (S5.11) Construct and write passed_flag_5A (fingerprint-only, write-once)
+                ->  (S5.11) Construct and write validation_passed_flag_5A (fingerprint-only, write-once)
                     - Logical content:
                         · single key: sha256_hex = bundle_digest_sha256.
                     - On disk:
@@ -354,7 +354,7 @@ schemas.layer2.yaml
                               `sha256_hex = <bundle_digest_sha256>`
                           with a trailing newline, matching schemas.layer2.yaml#/validation/passed_flag_5A.
                     - Target path:
-                        · data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+                        · data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
                     - If flag does not exist:
                         · write via staging → fsync → atomic move.
                     - If flag exists:
@@ -365,11 +365,11 @@ schemas.layer2.yaml
 Downstream touchpoints
 ----------------------
 - **All consumers of 5A outputs** (5B, 6A, internal validation tools) MUST:
-    1. Locate `validation_bundle_index_5A.json` and `_passed.flag_5A` for the desired `manifest_fingerprint`.
+    1. Locate `validation_bundle_index_5A.json` and `_passed.flag` for the desired `manifest_fingerprint`.
     2. Recompute `bundle_digest_sha256` according to the fixed law:
            - read each file listed in `entries` in ASCII-lex path order,
            - SHA-256 over their concatenated bytes.
-    3. Verify that `_passed.flag_5A` contains `sha256_hex = <bundle_digest_sha256>`.
+    3. Verify that `_passed.flag` contains `sha256_hex = <bundle_digest_sha256>`.
     4. Only then treat 5A modelling artefacts (S1–S4 outputs) as usable.
 
 - **5A HashGate rule:**
@@ -378,12 +378,12 @@ Downstream touchpoints
           - class_zone_shape_5A, shape_grid_definition_5A,
           - merchant_zone_baseline_local_5A,
           - merchant_zone_scenario_local_5A / _utc_5A / overlay_factors_5A,
-      must all be gated on `_passed.flag_5A`.
+      must all be gated on `_passed.flag`.
 
 - **Change management:**
     - Any change to S1–S4 behaviour, policies, or inputs that materially changes shapes or intensities
       MUST result in:
           - new S1–S4 outputs,
           - a re-run of S5,
-          - a new bundle_digest_sha256 and thus a new `_passed.flag_5A` for that fingerprint.
+          - a new bundle_digest_sha256 and thus a new `_passed.flag` for that fingerprint.
 ```

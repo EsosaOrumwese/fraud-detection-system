@@ -78,7 +78,7 @@ Authoritative inputs (read-only at S9 entry)
                       - Load schema anchors & Dictionary entries for:
                           * outlet_catalogue, S3 tables, RNG logs/events, S6 receipts, validation_bundle_1A.
                       - Load artefact_registry_1A to:
-                          * confirm validation_bundle_1A + validation_passed_flag IDs, paths, dependencies (outlet_catalogue, rng_audit_log).
+                          * confirm validation_bundle_1A + validation_passed_flag_1A IDs, paths, dependencies (outlet_catalogue, rng_audit_log).
                       - Enumerate RNG modules/substreams S9 is responsible for (per Appendix A).
                       - Result: fixed inventory of what S9 **must** validate structurally, linearly, and via replay.
 
@@ -240,7 +240,7 @@ State boundary (authoritative outputs of S9)
           rng_accounting.json, s9_summary.json, egress_checksums.json, index.json.
     * Serves as machine-readable proof of S0–S8 validation and RNG accounting.
 
-- validation_passed_flag      (file `_passed.flag` in same folder)
+- validation_passed_flag_1A      (file `_passed.flag` in same folder)
     * Present only on PASS.
     * Content: `sha256_hex = <hex64>` where <hex64> is SHA-256 over all bundle files listed in index.json
       (excluding `_passed.flag`) in ASCII-lexicographic order of `path`.

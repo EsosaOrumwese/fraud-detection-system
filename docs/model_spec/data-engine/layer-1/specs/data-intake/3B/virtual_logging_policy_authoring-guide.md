@@ -102,7 +102,7 @@ Pinned v1 semantics:
 
 * “Completed run” is defined by existence of either:
 
-  * `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B` **or**
+  * `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag` **or**
   * a run-local marker file `logs/virtual/{run_id}/RUN_COMPLETE.marker`
 * Housekeeping MAY delete only completed runs (never delete incomplete runs).
 * Even for completed runs:

@@ -253,16 +253,16 @@ Segment 1A turns the merchant universe into deterministic outlet counts, ordered
 **Key invariants**
 - For each `(merchant, country)` with `n_i` sites, rows exist with `site_order = 1..n_i` and `site_id = "{site_order:06d}"`; sums over countries equal the `raw_nb_outlet_draw`.
 - No inter-country order is encoded; consumers must join `s3_candidate_set.candidate_rank`.
-- Embedded lineage columns (`seed`, `manifest_fingerprint`) equal their partition tokens; dataset is immutable once `_passed.flag_1A` is published.
+- Embedded lineage columns (`seed`, `manifest_fingerprint`) equal their partition tokens; dataset is immutable once `_passed.flag` is published.
 
 **Downstream consumers**
-- Segment 1B (geo realism) and every later layer read `outlet_catalogue` only after verifying `_passed.flag_1A`; S9 cross-checks site counts and overflow telemetry before declaring PASS.
+- Segment 1B (geo realism) and every later layer read `outlet_catalogue` only after verifying `_passed.flag`; S9 cross-checks site counts and overflow telemetry before declaring PASS.
 
 ---
 
 ## S9 - Replay validation and PASS gate
 **Purpose & scope**
-- Re-derive S1-S8 outcomes, reconcile RNG budgets, and publish the validation bundle plus `_passed.flag_1A` that governs the "no PASS -> no read" rule for all 1A artefacts.
+- Re-derive S1-S8 outcomes, reconcile RNG budgets, and publish the validation bundle plus `_passed.flag` that governs the "no PASS -> no read" rule for all 1A artefacts.
 
 **Preconditions & gates**
 - All prior states completed successfully, their datasets are discoverable through the dictionary, and RNG logs/events are available for the run.
@@ -272,7 +272,7 @@ Segment 1A turns the merchant universe into deterministic outlet counts, ordered
 
 **Outputs & identity**
 - `validation_bundle_1A/` under `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` containing `manifest_fingerprint_resolved.json`, `parameter_hash_resolved.json`, `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`, plots, etc.
-- `_passed.flag_1A` (same directory) containing `sha256_hex=<bundle_digest>` where the digest is computed over lex ordered bundle entries.
+- `_passed.flag` (same directory) containing `sha256_hex=<bundle_digest>` where the digest is computed over lex ordered bundle entries.
 
 **RNG posture**
 - RNG-free; validator replays draws by recomputing Philox counters and comparing to `rng_event_*` envelopes.
@@ -283,4 +283,4 @@ Segment 1A turns the merchant universe into deterministic outlet counts, ordered
 - Cross-state joins hold: S1 hurdle coverage, S2 counts, S3 order, S4 `K_target`, S6 membership, S7 allocation, S8 egress counts, and instrumentation events all cohere.
 
 **Downstream consumers**
-- Any consumer (1B, Layer 2/3, Ingestion Gate, Event Bus) must verify `_passed.flag_1A` matches the recomputed bundle digest before reading 1A artefacts; release tooling ingests the bundle for manifest attestation.
+- Any consumer (1B, Layer 2/3, Ingestion Gate, Event Bus) must verify `_passed.flag` matches the recomputed bundle digest before reading 1A artefacts; release tooling ingests the bundle for manifest attestation.

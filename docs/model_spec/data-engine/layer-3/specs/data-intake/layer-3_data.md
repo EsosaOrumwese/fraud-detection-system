@@ -203,7 +203,7 @@
 					- which structural, behavioural, and RNG checks S5 must run,
 					- severity per check (REQUIRED, WARN, INFO),
 					- numeric thresholds / bounds (fraud rate, detection rate, campaign coverage, etc.),
-					- sealing rules (when WARN is acceptable, when FAIL blocks `_passed.flag_6B`).
+					- sealing rules (when WARN is acceptable, when FAIL blocks `_passed.flag`).
 		- behaviour_config_6B (if used at validation time)
 			· may restrict which seeds/scenarios are in scope,
 			· may scope particular checks to subsets of flows, campaigns, or cases.

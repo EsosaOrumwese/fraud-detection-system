@@ -394,13 +394,13 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-- id: _passed.flag_3A
+- id: validation_passed_flag_3A
   status: draft
   owner_subsegment: 3A
   description: HashGate PASS flag accompanying the 3A validation bundle.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
   partitioning: [fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A

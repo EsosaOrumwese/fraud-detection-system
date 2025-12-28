@@ -146,7 +146,7 @@ Downstream touchpoints
 ----------------------
 - **2A.S1–S4**:
     - MUST treat `s0_gate_receipt_2A` as the **single gate** for 2A:
-        · proves 1B PASS for this fingerprint (via 1B bundle + `_passed.flag_1B`),
+        · proves 1B PASS for this fingerprint (via 1B bundle + `_passed.flag`),
         · enumerates the exact 2A ingress + policy assets they’re allowed to read.
     - MUST resolve all inputs via IDs + schema_refs in sealed_inputs_v1 / Dictionary; no new surfaces.
 - **2A.S5 (2A validation bundle & PASS flag)**:

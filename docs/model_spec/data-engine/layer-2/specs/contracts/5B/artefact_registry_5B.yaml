@@ -249,12 +249,12 @@ artefacts:
     cross_layer: true
     notes:
 
-  - manifest_key: mlr.5B.validation.passed_flag
+  - manifest_key: mlr.5B.validation.passed
     name: Layer-2 / 5B validation pass flag
     subsegment: 5B
     type: dataset
     category: validation
-    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
     schema: schemas.layer2.yaml#/validation/passed_flag_5B
     semver: '1.0.0'
     version: '{manifest_fingerprint}'

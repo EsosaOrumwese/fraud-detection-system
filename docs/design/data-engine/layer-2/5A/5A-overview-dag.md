@@ -193,9 +193,9 @@ DAG
            paths relative to `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/`,
            sorted by path.
 
-    -> passed_flag_5A@ fingerprint={manifest_fingerprint}
+    -> validation_passed_flag_5A@ fingerprint={manifest_fingerprint}
          - Recomputes `bundle_digest_sha256 = SHA256( concat(all indexed file bytes in path order) )`,
-         - Writes `_passed.flag_5A` as:
+         - Writes `_passed.flag` as:
                `sha256_hex = <bundle_digest_sha256>`.
 
     - S5 is RNG-free; it builds the 5A HashGate for this world.
@@ -205,7 +205,7 @@ Downstream obligations
 - **5B (arrival realisation) & 6A (later layers)** MUST:
     - Treat 5A’s outputs as authoritative for arrival intensities **only after** validating:
           - `validation_bundle_index_5A` is schema-valid for this manifest_fingerprint,
-          - `_passed.flag_5A` exists and its sha256_hex matches the recomputed bundle digest.
+          - `_passed.flag` exists and its sha256_hex matches the recomputed bundle digest.
     - Enforce:
 
           **No 5A PASS → No read/use of S1–S4 outputs**  
@@ -218,5 +218,5 @@ Legend
 [parameter_hash]        = partition key for parameter pack / policies
 [scenario_id]           = partition key for scenario
 [NO RNG]                = state consumes no RNG
-HashGate (5A)           = validation_bundle_index_5A + `_passed.flag_5A` at fingerprint={manifest_fingerprint}
+HashGate (5A)           = validation_bundle_index_5A + `_passed.flag` at fingerprint={manifest_fingerprint}
 ```

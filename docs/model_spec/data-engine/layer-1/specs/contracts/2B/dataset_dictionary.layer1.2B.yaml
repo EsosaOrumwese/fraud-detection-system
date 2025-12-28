@@ -72,7 +72,7 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
-  - id: passed_flag_1B
+  - id: validation_passed_flag_1B
     status: approved
     owner_subsegment: 1B
     description: Companion single-line flag carrying the SHA-256 digest of the 1B validation bundle.

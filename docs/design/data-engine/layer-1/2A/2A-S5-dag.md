@@ -110,7 +110,7 @@ tz_timetable_cache,
                         · all copied paths are inside this temp root; no upward/out-of-root references.
 
 (S5.4)
-                ->  (S5.5) Build index.json, compute bundle digest & write _passed.flag_2A
+                ->  (S5.5) Build index.json, compute bundle digest & write _passed.flag
                     - Enumerate all non-flag files under the temp root.
                     - Construct index.json per schemas.2A.yaml#/validation/bundle_index_v1:
                         · files[*].path      = relative path from bundle root (no leading "/", no "."/".."),
@@ -153,13 +153,13 @@ Downstream touchpoints
     - MUST, for a given manifest_fingerprint:
         1) resolve data/layer1/2A/validation/fingerprint={manifest_fingerprint}/ via Dictionary,
         2) read index.json and recompute SHA-256 over raw bytes of indexed files in ASCII-lex path order,
-        3) read _passed.flag_2A and compare its sha256_hex to their recomputation,
+        3) read _passed.flag and compare its sha256_hex to their recomputation,
         4) only then read:
             · site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
             · tz_timetable_cache/fingerprint={manifest_fingerprint}/
-       If comparison fails or _passed.flag_2A is missing → **No PASS → No Read** for 2A civil-time surfaces.
+       If comparison fails or _passed.flag is missing → **No PASS → No Read** for 2A civil-time surfaces.
 - **Enterprise HashGate / governance tooling**:
-    - MAY treat validation_bundle_2A + _passed.flag_2A as the single “2A HashGate receipt”
+    - MAY treat validation_bundle_2A + _passed.flag as the single “2A HashGate receipt”
       for this fingerprint, exposing:
         · which tzdb tag & archive were used,
         · which seeds exist and all have status="PASS" in S4,

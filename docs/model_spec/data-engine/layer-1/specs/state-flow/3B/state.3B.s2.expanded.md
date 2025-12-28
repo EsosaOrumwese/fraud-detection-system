@@ -128,7 +128,7 @@ S2 MUST treat all these upstream artefacts as **read-only** and MUST NOT modify 
 * Construction of **settlement nodes** and assignment of `tzid_settlement` (S1) — S2 consumes these as inputs.
 * Construction of **edge alias tables** and **virtual edge universe hashes** (S3) — S2 only provides the raw edge catalogue and any supporting index/digest surfaces needed for S3.
 * **Per-arrival routing** and emission of `cdn_edge_pick` or similar routing events (2B) — S2 does not route individual transactions.
-* 3B’s segment-level validation bundle and `_passed.flag_3B` — these are owned by the terminal 3B validation state.
+* 3B’s segment-level validation bundle and `_passed.flag` — these are owned by the terminal 3B validation state.
 
 1.5.2 S2 MUST NOT:
 
@@ -2872,7 +2872,7 @@ will keep memory usage roughly proportional to the maximum number of edges buffe
 * S0 contracts (`s0_gate_receipt_3B`, `sealed_inputs_3B`), which have their own change-control rules.
 * S1 contracts (`virtual_classification_3B`, `virtual_settlement_3B`), except where S2 depends on their keys and semantics.
 * Upstream segment contracts and artefacts for 1A, 1B, 2A, 3A (merchant reference, tiles, rasters, tz assets, zone allocation, etc.), which are owned by those segments.
-* The 3B segment-level validation bundle and `_passed.flag_3B`, which are owned by the terminal 3B validation state.
+* The 3B segment-level validation bundle and `_passed.flag`, which are owned by the terminal 3B validation state.
 * S3 contracts (edge alias & universe hash) except where S2 must remain consumable by S3.
 
 ---

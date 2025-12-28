@@ -425,7 +425,7 @@ Downstream touchpoints
 - **3A.S6/S7 (validation & bundle):**
     - Use `zone_alloc` and `zone_alloc_universe_hash` as inputs:
         · S6 verifies that the digests match recomputed values,
-        · S7 includes both artefacts in the 3A validation bundle indexed by `_passed.flag_3A`.
+        · S7 includes both artefacts in the 3A validation bundle indexed by `_passed.flag`.
 
 - **Re-run & change control:**
     - Any change to priors, policies, or S1–S4 behaviour that affects zone_alloc MUST result in:

@@ -142,7 +142,7 @@ S4 MUST treat all of these upstream artefacts as read-only and MUST NOT attempt 
 * Edge placement, jitter, country attribution and operational tzid assignment — S2 is authoritative.
 * Alias table construction and edge-universe hashing — S3 is authoritative.
 * Per-arrival routing decisions, edge sampling and routing RNG events — handled in 2B.
-* 3B’s segment-level validation bundle and `_passed.flag_3B` — constructed by the 3B validation state (though it consumes S4’s outputs).
+* 3B’s segment-level validation bundle and `_passed.flag` — constructed by the 3B validation state (though it consumes S4’s outputs).
 
 1.5.2 S4 MUST NOT:
 
@@ -532,7 +532,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 4.1.2 S4 MAY also emit an optional **S4 run-summary / receipt** (e.g. `s4_run_summary_3B`) for observability, but such a dataset is informative only and MUST NOT alter the semantics of `virtual_routing_policy_3B` or `virtual_validation_contract_3B`.
 
-4.1.3 S4 MUST NOT emit any data-plane egress (no events, no edges, no labels) and MUST NOT emit a 3B segment-level `_passed.flag_3B`. Segment-level PASS/FAIL remains the responsibility of the 3B validation state.
+4.1.3 S4 MUST NOT emit any data-plane egress (no events, no edges, no labels) and MUST NOT emit a 3B segment-level `_passed.flag`. Segment-level PASS/FAIL remains the responsibility of the 3B validation state.
 
 ---
 
@@ -1677,7 +1677,7 @@ s. S4 has emitted **no RNG events** and advanced **no RNG streams**:
 8.5.2 The run harness MUST:
 
 * prevent 2B from running virtual routing for a manifest where S4 has failed (or where S4 hasn’t run);
-* prevent the 3B validation state from emitting `_passed.flag_3B` for that manifest;
+* prevent the 3B validation state from emitting `_passed.flag` for that manifest;
 * surface S4 failures in global run reports as **“3B.S4 routing/validation contract failure”**.
 
 8.5.3 If downstream components (2B or validation harness) detect latent S4 contract issues **after** S4 reported PASS (for example, because S4 implementation had a bug):
@@ -2132,7 +2132,7 @@ Remediation:
 9.8.2 The run harness MUST:
 
 * prevent 2B’s virtual routing from using S4 contracts for a failed manifest;
-* prevent the 3B validation state from emitting `_passed.flag_3B` for that manifest;
+* prevent the 3B validation state from emitting `_passed.flag` for that manifest;
 * surface S4 failures as **“3B.S4 routing/validation contract failure”** in global run reports.
 
 9.8.3 Downstream components (2B routing, validation harness) that detect S4-related inconsistencies at consumption time SHOULD:
@@ -2528,7 +2528,7 @@ If S4 becomes a noticeable fraction of total runtime, that is usually a sign of:
 * S0 contracts (`s0_gate_receipt_3B`, `sealed_inputs_3B`);
 * S1–S3 contracts (`virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`), beyond S4’s dependence on their keys and invariants;
 * Layer-1 RNG contracts or 2B’s implementation details (RNG engines, alias decoding, event production) — those are governed by Layer-1 / 2B specs;
-* The 3B segment-level validation bundle and `_passed.flag_3B`, which are owned by the 3B validation state (though they consume S4 outputs).
+* The 3B segment-level validation bundle and `_passed.flag`, which are owned by the 3B validation state (though they consume S4 outputs).
 
 ---
 

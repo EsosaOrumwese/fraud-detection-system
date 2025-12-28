@@ -524,6 +524,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: validation_passed_flag_1A
+  status: approved
+  owner_subsegment: 1A
+  description: HashGate PASS flag for the 1A validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1A.validation
+    consumed_by: [release]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
   # ── RNG audit & event logs (Patch #1) ────────────────────────────────────
 - id: rng_audit_log
   status: approved

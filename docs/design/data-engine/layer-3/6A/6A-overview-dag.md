@@ -210,7 +210,7 @@ DAG
     -> validation_bundle_index_6A@fingerprint/index.json
          - Lists all 6A validation evidence files and their SHA-256 digests.
 
-    -> `_passed.flag_6A`@fingerprint
+    -> `_passed.flag`@fingerprint
          - Computes bundle_digest over all evidence and writes:
               `sha256_hex = <bundle_digest>`.
 
@@ -225,7 +225,7 @@ Downstream obligations
     - gate all use of 6A outputs on the 6A HashGate:
           1. validate validation_bundle_index_6A.json,
           2. recompute its bundle digest over evidence files,
-          3. ensure `_passed.flag_6A.sha256_hex` matches that digest,
+          3. ensure `_passed.flag.sha256_hex` matches that digest,
           4. ensure s5_validation_report_6A.overall_status == "PASS".
 
 - **External tools / auditors**:
@@ -239,5 +239,5 @@ Legend
 [fingerprint]         = partitions for S0 & S5 validation artefacts
 [NO RNG]              = state consumes no RNG
 [RNG-BEARING]         = state uses RNG under Layer-3 RNG policy
-HashGate (6A)         = validation_bundle_index_6A + `_passed.flag_6A` per manifest_fingerprint
+HashGate (6A)         = validation_bundle_index_6A + `_passed.flag` per manifest_fingerprint
 ```

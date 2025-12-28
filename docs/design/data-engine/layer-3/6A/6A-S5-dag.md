@@ -83,7 +83,7 @@ Authoritative inputs (read-only at S5 entry)
                 · schema_ref:   schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
               - validation_passed_flag_6A
                 · path:
-                    data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
+                    data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
                 · schema_ref:   schemas.layer3.yaml#/validation/6A/passed_flag_6A
 
 [Inputs from 6A.S1–S4 · entity bases & links]
@@ -162,7 +162,7 @@ Authoritative inputs (read-only at S5 entry)
     - validation_bundle_index_6A
         · index.json; enumerates bundle members `{path, sha256_hex}`, paths relative to 6A validation root.
 
-    - validation_passed_flag_6A (`_passed.flag_6A`)
+    - validation_passed_flag_6A (`_passed.flag`)
         · tiny text artefact with `sha256_hex = <bundle_digest_sha256>`.
 
 [Numeric & RNG posture]
@@ -426,7 +426,7 @@ dataset_dictionary.layer3.6A.yaml
                               - if byte-identical → idempotent re-run; OK,
                               - else → conflict; MUST NOT overwrite.
 
-### Phase 6 — Validation bundle & `_passed.flag_6A`  (no RNG)
+### Phase 6 — Validation bundle & `_passed.flag`  (no RNG)
 
 bundle members (report, issues, optional extras),
 schemas.layer3.yaml
@@ -449,7 +449,7 @@ schemas.layer3.yaml
 
 validation_bundle_index_6A,
 bundle members
-                ->  (S5.18) Compute bundle_digest_sha256 & write `_passed.flag_6A`
+                ->  (S5.18) Compute bundle_digest_sha256 & write `_passed.flag`
                     - Re-open validation_bundle_index_6A.json and parse entries.
                     - For each entry in entries[] (in stored order):
                         · read raw bytes from B_root/path,
@@ -458,10 +458,10 @@ bundle members
                     - Construct `validation_passed_flag_6A` logical payload:
                         · sha256_hex = bundle_digest_sha256.
                     - On disk:
-                        · write `_passed.flag_6A` under B_root with representation required by
+                        · write `_passed.flag` under B_root with representation required by
                           schemas.layer3.yaml#/validation/6A/passed_flag_6A (e.g. `sha256_hex = <hex>`).
                     - Immutability:
-                        · if `_passed.flag_6A` does not exist:
+                        · if `_passed.flag` does not exist:
                               - write via staging → fsync → atomic move.
                         · if exists:
                               - read and parse existing sha256_hex,
@@ -473,7 +473,7 @@ Downstream touchpoints
 - **6B (Layer-3 flows & transactions):**
     - MUST treat the 6A world as **sealed** for this manifest_fingerprint only if:
           1. `validation_bundle_index_6A.json` exists and is schema-valid,
-          2. `_passed.flag_6A` exists and its sha256_hex equals the recomputed bundle digest,
+          2. `_passed.flag` exists and its sha256_hex equals the recomputed bundle digest,
           3. `s5_validation_report_6A.overall_status == "PASS"`.
     - Only then may 6B:
           - read s5_*_fraud_roles_6A as authoritative static fraud posture,
@@ -481,7 +481,7 @@ Downstream touchpoints
 
 - **External tooling & audits:**
     - Use s5_validation_report_6A and s5_issue_table_6A as the canonical description of 6A’s health for a world.
-    - Use validation_bundle_index_6A + `_passed.flag_6A` to verify that the evidence is complete and untampered.
+    - Use validation_bundle_index_6A + `_passed.flag` to verify that the evidence is complete and untampered.
 
 - **Authority recap:**
     - S1–S4 define the static entity graph (who/what exists and how they connect).

@@ -431,13 +431,13 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-- id: passed_flag_3B
+- id: validation_passed_flag_3B
   status: draft
   owner_subsegment: 3B
-  description: ASCII _passed.flag_3B storing the hash of the validation bundle.
+  description: ASCII _passed.flag storing the hash of the validation bundle.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B
+  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
   partitioning: [fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B

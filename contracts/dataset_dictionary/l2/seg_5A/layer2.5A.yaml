@@ -585,13 +585,13 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
-  - id: passed_flag_5A
+  - id: validation_passed_flag_5A
     status: required
     owner_subsegment: 5A
     description: Pass/fail flag for the 5A validation bundle.
     version: '{manifest_fingerprint}'
     format: flag
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A

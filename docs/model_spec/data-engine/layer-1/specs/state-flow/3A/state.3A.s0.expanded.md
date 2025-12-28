@@ -244,7 +244,7 @@ This section fixes **what 3A.S0 is allowed to look at**, how it must treat each 
 
 4. **2B validation gate (not an input dependency)**
 
-   * 3A.S0 MUST NOT depend on `validation_bundle_2B` or `_passed.flag_2B`.
+   * 3A.S0 MUST NOT depend on `validation_bundle_2B` or `_passed.flag`.
    * 2B may not have run yet; its status is explicitly **not** part of 3A.S0’s preconditions or inputs.
 
 These upstream gates are **authoritative for “is this segment green for this fingerprint?”**. 3A.S0 MUST NOT reinterpret their internal semantics; it only checks their integrity and presence.
@@ -781,9 +781,9 @@ The sealed input set `𝕊` is the union of:
 
 1. **Upstream gate artefacts** (for documentation and diagnostics):
 
-   * `validation_bundle_1A` + `_passed.flag_1A`,
-   * `validation_bundle_1B` + `_passed.flag_1B`,
-   * `validation_bundle_2A` + `_passed.flag_2A`.
+   * `validation_bundle_1A` + `_passed.flag`,
+   * `validation_bundle_1B` + `_passed.flag`,
+   * `validation_bundle_2A` + `_passed.flag`.
 
 2. **Upstream data-plane surfaces used by 3A** (even if not used by S0 itself):
 
@@ -1143,9 +1143,9 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S0 is considered 
 
    For segments 1A, 1B and 2A:
 
-   * A `validation_bundle_S` and `_passed.flag_S` exist at `fingerprint={manifest_fingerprint}`.
+   * A `validation_bundle_S` and `_passed.flag` exist at `fingerprint={manifest_fingerprint}`.
    * The bundle’s `index.json` is schema-valid and self-consistent (every listed file exists; per-file `sha256_hex` matches the file’s bytes).
-   * The composite SHA-256 of all bundle files (in ASCII-lex path order) matches the `_passed.flag_S` contents.
+   * The composite SHA-256 of all bundle files (in ASCII-lex path order) matches the `_passed.flag` contents.
    * S0 records `status="PASS"` for that segment in `s0_gate_receipt_3A.upstream_gates.segment_S`.
 
    If **any** upstream segment gate fails, 3A.S0 MUST be treated as **FAIL** and MUST NOT write or modify any S0 outputs.
@@ -1338,10 +1338,10 @@ Each category below specifies:
 Raised when **any** of the required upstream gates (1A, 1B, 2A) cannot be verified for the target `manifest_fingerprint`, including:
 
 * `validation_bundle_S` missing,
-* `_passed.flag_S` missing,
+* `_passed.flag` missing,
 * `index.json` malformed or schema-invalid,
 * per-file SHA-256 mismatch vs `index.json`,
-* composite bundle SHA-256 not equal to `_passed.flag_S.sha256_hex`.
+* composite bundle SHA-256 not equal to `_passed.flag.sha256_hex`.
 
 **Semantics**
 
@@ -2284,7 +2284,7 @@ This appendix records the symbols, shorthand and abbreviations used in the 3A.S0
 * **`validation_bundle_S`**
   For upstream segment `S ∈ {1A,1B,2A}`, the directory containing that segment’s validation evidence and `index.json` for a given `manifest_fingerprint`.
 
-* **`_passed.flag_S`**
+* **`_passed.flag`**
   For upstream segment `S ∈ {1A,1B,2A}`, the single-line text file that encodes the composite SHA-256 of the validation bundle under the Layer-1 HashGate rule.
 
 ---

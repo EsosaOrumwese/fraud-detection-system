@@ -13,7 +13,7 @@ subsegments:
     manifest_key: mlr.1B.validation.s0_gate_receipt
     license: Proprietary-Internal
     role: Receipt proving 1A PASS for fingerprint; enumerates sealed inputs authorised for 1B.
-    dependencies: [validation_bundle_1A, validation_passed_flag]
+    dependencies: [validation_bundle_1A, validation_passed_flag_1A]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
     last_updated: '{iso8601_timestamp}'
@@ -42,7 +42,7 @@ subsegments:
     cross_layer: true
     notes: 'S0 computes SHA-256 over ASCII-lex index (bundle index) to verify _passed.flag. Retention per Dictionary.'
 
-  - name: validation_passed_flag
+  - name: validation_passed_flag_1A
     path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation

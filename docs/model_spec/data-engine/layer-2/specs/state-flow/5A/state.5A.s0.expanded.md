@@ -886,7 +886,7 @@ If any of these are missing or invalid, S0 MUST fail with an appropriate configu
 1. Using the segment’s dataset dictionary + artefact registry, resolve:
 
    * the dataset representing `validation_bundle_seg` (bundle directory), and
-   * the dataset representing `_passed.flag_seg` (flag file),
+   * the dataset representing `_passed.flag` (flag file),
      for `fingerprint={manifest_fingerprint}`.
 
 2. If either cannot be resolved in the catalogue:
@@ -898,11 +898,11 @@ If any of these are missing or invalid, S0 MUST fail with an appropriate configu
 3. If both resolve:
 
    * Read the `index.json` / bundle index as defined by the segment’s own spec.
-   * Read the `_passed.flag_seg` file.
+   * Read the `_passed.flag` file.
    * Apply the **segment’s own hashing law**:
 
      * Recompute the digest over the bundle contents as that spec defines.
-     * Compare it to the digest recorded in `_passed.flag_seg`.
+     * Compare it to the digest recorded in `_passed.flag`.
 
 4. If the digests match and the index is structurally valid:
 
@@ -1616,7 +1616,7 @@ In all such cases, 5A.S0 MUST emit a canonical error (see §9) and MUST NOT leav
 Later, a dedicated validation state for Segment 5A will produce:
 
 * `validation_bundle_5A`
-* `_passed.flag_5A`
+* `_passed.flag`
 
 using a Layer-2 hashing law similar to Layer-1’s.
 
@@ -1631,7 +1631,7 @@ Gating obligations:
 
 * Downstream segments (e.g. 5B, 6A) MUST insist on **both**:
 
-  * 5A’s segment-level PASS (`_passed.flag_5A` verified), and
+  * 5A’s segment-level PASS (`_passed.flag` verified), and
   * a valid `s0_gate_receipt_5A` / `sealed_inputs_5A` pair
 
   before treating any 5A outputs as readable.

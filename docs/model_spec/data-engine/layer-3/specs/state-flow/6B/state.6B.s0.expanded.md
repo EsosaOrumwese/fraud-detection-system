@@ -13,10 +13,10 @@ This state defines the **behavioural universe gate** for Layer-3 / Segment 6B.
 
 Once 6B.S0 has succeeded for a given `manifest_fingerprint` (and spec version), the rest of the 6B segment may treat the upstream engine as a **closed behavioural universe**:
 
-* Arrivals are fixed and authoritative via **5B** (`arrival_events_5B`, gated by `_passed.flag_5B`).
-* The entity graph and static fraud posture are fixed and authoritative via **6A** (`s1…s5_*_6A`, gated by `_passed.flag_6A`).
+* Arrivals are fixed and authoritative via **5B** (`arrival_events_5B`, gated by `_passed.flag`).
+* The entity graph and static fraud posture are fixed and authoritative via **6A** (`s1…s5_*_6A`, gated by `_passed.flag`).
 * Geometry, civil time, routing, zone allocation and virtual edges are fixed and authoritative via **Layer-1** segments (1A–3B).
-* Scenario and intensity context are fixed and authoritative via **5A** (`merchant_zone_*_5A`, gated by `_passed.flag_5A`).
+* Scenario and intensity context are fixed and authoritative via **5A** (`merchant_zone_*_5A`, gated by `_passed.flag`).
 
 6B.S0 does **not** design or simulate behaviour. It does not attach arrivals to entities, does not create flows, does not define campaigns, does not label transactions, and does not talk to the Philox engine. Those responsibilities belong to later states (6B.S1–S4). Instead, this state concerns itself solely with:
 
@@ -28,7 +28,7 @@ The outputs of 6B.S0 are binding for the rest of the segment:
 
 * Every later 6B state **MUST** check that a corresponding `s0_gate_receipt_6B` exists and is marked as PASS for its target `manifest_fingerprint` before it runs.
 * Every later 6B state **MUST** treat `sealed_inputs_6B` as the **complete and exclusive list** of artefacts it may read. No state may reach “around” this manifest to ad-hoc paths, or to upstream datasets that are not explicitly listed.
-* The eventual 6B segment HashGate (`validation_bundle_6B` + `_passed.flag_6B`) **MUST** be computed under the assumption that S0 is the only authority on what 6B considered “in scope” for that fingerprint.
+* The eventual 6B segment HashGate (`validation_bundle_6B` + `_passed.flag`) **MUST** be computed under the assumption that S0 is the only authority on what 6B considered “in scope” for that fingerprint.
 
 This specification for 6B.S0 is therefore limited in scope to:
 
@@ -650,13 +650,13 @@ For each required upstream segment `SEG` in the list above:
 1. From the owning segment’s dictionary/registry, resolve:
 
    * the dataset/artefact entries for `validation_bundle_SEG`,
-   * the `validation_passed_flag_SEG` (or `_passed.flag_SEG`) artefact.
+   * the `validation_passed_flag_SEG` (or `_passed.flagEG`) artefact.
 
 2. Using those entries, construct the expected bundle and flag locations for the target `manifest_fingerprint`, e.g.:
 
    ```text
    data/layer1/2A/validation/fingerprint={manifest_fingerprint}/index.json
-   data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag_2A
+   data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
    ```
 
 3. Check for existence of both the bundle directory and the flag file. If either is missing, record `status="MISSING"` for that segment in a working `upstream_segments` map and mark S0 as not runnable.
@@ -1056,8 +1056,8 @@ The above identity and merge rules are chosen to align with the existing engine 
 
   * `manifest_fingerprint` for world snapshots and validation bundles/flags.
   * `seed` (and sometimes `parameter_hash`) for per-run data-plane outputs.
-* **6A** exposes a world+seed entity graph sealed behind `_passed.flag_6A`.
-* **5B** exposes per-seed arrival tables sealed behind `_passed.flag_5B`.
+* **6A** exposes a world+seed entity graph sealed behind `_passed.flag`.
+* **5B** exposes per-seed arrival tables sealed behind `_passed.flag`.
 
 6B.S0 sits strictly at the **world level**:
 
@@ -1230,7 +1230,7 @@ Although 6B.S5 (validation/HashGate) is specified separately, 6B.S0 places the f
 
 1. **S5 MUST depend on S0 PASS**
 
-   * The 6B validation/HashGate state MUST treat a PASSed S0 as a strict precondition: if S0 is not PASS for a given fingerprint, S5 MUST NOT attempt to validate or publish `validation_bundle_6B` and `_passed.flag_6B` for that fingerprint.
+   * The 6B validation/HashGate state MUST treat a PASSed S0 as a strict precondition: if S0 is not PASS for a given fingerprint, S5 MUST NOT attempt to validate or publish `validation_bundle_6B` and `_passed.flag` for that fingerprint.
 
 2. **S5 MUST treat S0 outputs as part of its own bundle**
 
@@ -1242,7 +1242,7 @@ For **4A/4B and external consumers**:
 * 4A/4B MUST NOT consider any 6B business outputs (flows, events, labels) as **readable** for a given fingerprint unless:
 
   * 6B.S0 is PASS for that fingerprint (so the 6B behavioural universe is well-defined), AND
-  * the 6B segment HashGate (`validation_bundle_6B` + `_passed.flag_6B`) is PASS according to the Layer-3 validation spec.
+  * the 6B segment HashGate (`validation_bundle_6B` + `_passed.flag`) is PASS according to the Layer-3 validation spec.
 
 S0 alone is **not** a consumption gate for 6B’s business outputs; it is the precondition for compute. 4A/4B MUST gate on S5’s HashGate, which in turn depends on S0.
 
@@ -2427,7 +2427,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   6B segment validation / HashGate state that will:
 
   * depend on S0 outputs, and
-  * publish `validation_bundle_6B` + `_passed.flag_6B`.
+  * publish `validation_bundle_6B` + `_passed.flag`.
 
 * **S0 “PASS” / “FAIL”**
   Run-level status for 6B.S0 in the Layer-3 run-report for a given `manifest_fingerprint`. Determines whether downstream 6B states may run.

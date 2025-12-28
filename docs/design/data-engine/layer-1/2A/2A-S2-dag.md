@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S2 entry)
 --------------------------------------------
 [S0 Gate & Identity]
     - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
-      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag_1B)
+      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: allowed 2A inputs (incl. s1_tz_lookup, tz_overrides, tz_world_2025a, tz_nudge, optional merchant_mcc_map)
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A run
 
@@ -190,5 +190,5 @@ Downstream touchpoints
     - For a given manifest_fingerprint, ensures:
         · every seed that has site_timezones also has a PASS s4_legality_report,
       then packages those reports + cache manifest into a fingerprint-scoped bundle
-      and writes the 2A `_passed.flag_2A` that gates downstream consumers.
+      and writes the 2A `_passed.flag` that gates downstream consumers.
 ```

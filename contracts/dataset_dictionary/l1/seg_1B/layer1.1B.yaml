@@ -105,6 +105,23 @@ reference_data:
     pii: false
     license: Proprietary-Internal
     notes: 'S0 computes SHA-256 over ASCII-lex index listing (flag excluded); presence of _passed.flag gates outlet_catalogue.'
+  validation_passed_flag_1A:
+    status: approved
+    owner_subsegment: 1A
+    description: HashGate PASS flag for the 1A validation bundle.
+    version: '{manifest_fingerprint}'
+    format: text
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    lineage:
+      produced_by: 1A.S9
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
   outlet_catalogue:
     status: approved

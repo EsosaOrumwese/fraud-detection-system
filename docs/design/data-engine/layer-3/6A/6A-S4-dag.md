@@ -451,7 +451,7 @@ Downstream touchpoints
     - MUST treat s4_device_base_6A/s4_ip_base_6A & link tables as read-only ground truth for
       “which devices/IPs exist and who/what they are attached to”.
     - All transaction/fraud flows in 6B that refer to device_id or ip_id MUST use IDs from these bases.
-    - 6B MUST gate on the 6A segment-level HashGate (S5 bundle + `_passed.flag_6A`) before trusting this graph.
+    - 6B MUST gate on the 6A segment-level HashGate (S5 bundle + `_passed.flag`) before trusting this graph.
 
 - **Authority recap:**
     - S1 owns parties; S2 owns accounts; S3 owns instruments.

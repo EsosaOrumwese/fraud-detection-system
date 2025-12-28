@@ -39,7 +39,7 @@ Authoritative inputs (read-only at S5 entry)
             - all S0–S4 artefacts above,
             - `validation_bundle_3B` (directory),
             - `validation_bundle_index_3B` (index.json),
-            - `passed_flag_3B` (`_passed.flag_3B`),
+            - `validation_passed_flag_3B` (`_passed.flag`),
             - `s5_manifest_3B`.
     - artefact_registry_3B.yaml
         · manifest_keys and roles for the same artefacts.
@@ -74,15 +74,15 @@ Authoritative inputs (read-only at S5 entry)
       · directory containing:
             - evidence files (JSON, Parquet, logs, summaries…),
             - `index.json` (validation_bundle_index_3B),
-            - `_passed.flag_3B`,
+            - `_passed.flag`,
             - optional `s5_manifest_3B.json`.
     - validation_bundle_index_3B
       @ data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
       · schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
       · enumerates each evidence file with `{path, sha256_hex}`.
 
-    - passed_flag_3B
-      @ data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B
+    - validation_passed_flag_3B
+      @ data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
       · schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
       · single line: `sha256_hex = <bundle_sha256_hex>`.
 
@@ -102,7 +102,7 @@ Authoritative inputs (read-only at S5 entry)
           S5 MUST produce bit-identical:
               - evidence files inside validation_bundle_3B,
               - `index.json`,
-              - `_passed.flag_3B`,
+              - `_passed.flag`,
               - `s5_manifest_3B` (if present).
     - Partitioning:
         · All S5 outputs are partitioned **only** by fingerprint={manifest_fingerprint};
@@ -110,7 +110,7 @@ Authoritative inputs (read-only at S5 entry)
 
 
 ----------------------------------------------------------------------
-DAG — 3B.S5 (S0–S4 + RNG logs → validation bundle & `_passed.flag_3B`)  [NO RNG]
+DAG — 3B.S5 (S0–S4 + RNG logs → validation bundle & `_passed.flag`)  [NO RNG]
 
 ### Phase A — Environment & input load (RNG-free)
 
@@ -281,7 +281,7 @@ policies & refs
 staging directory (evidence files),
 schemas.layer1.yaml
                 ->  (S5.7) Construct `index.json` describing the bundle
-                    - Enumerate all evidence files under the staging root, **excluding `_passed.flag_3B`** (which does not yet exist).
+                    - Enumerate all evidence files under the staging root, **excluding `_passed.flag`** (which does not yet exist).
                     - For each file:
                         · compute SHA-256 over its raw bytes → sha256_hex,
                         · compute its relative path from the staging root (no leading "/", no `.`/`..` segments).
@@ -292,7 +292,7 @@ schemas.layer1.yaml
                     - Validate index.json against `schemas.layer1.yaml#/validation/validation_bundle_index_3B`.
                     - Any error in enumeration, hashing, or writing index.json ⇒ S5 MUST fail without publishing.
 
-### Phase F — Bundle hash, `_passed.flag_3B` & atomic publish (RNG-free)
+### Phase F — Bundle hash, `_passed.flag` & atomic publish (RNG-free)
 
 index.json (in staging),
 evidence files (in staging)
@@ -307,14 +307,14 @@ evidence files (in staging)
 
 bundle_sha256_hex,
 schemas.layer1.yaml
-                ->  (S5.9) Construct `_passed.flag_3B` content
+                ->  (S5.9) Construct `_passed.flag` content
                     - Logical content: `{ sha256_hex = bundle_sha256_hex }`.
                     - On disk:
                         · single ASCII line:
                               `sha256_hex = <bundle_sha256_hex>`
                           terminated by a single newline (as per passed_flag_3B schema).
                     - Validate this representation against `schemas.layer1.yaml#/validation/passed_flag_3B`.
-                    - Write `_passed.flag_3B` into the staging root.
+                    - Write `_passed.flag` into the staging root.
 
 parameter_hash,
 manifest_fingerprint,
@@ -331,11 +331,11 @@ selected evidence logical_ids & digests
                               - {logical_id, sha256_hex} for key artefacts
                                 (e.g. edge_universe_hash_3B, virtual_routing_policy_3B, virtual_validation_contract_3B).
                     - Write `s5_manifest_3B.json` to the staging root.
-                    - This artefact is **informative** only; bundle semantics are governed by index.json + `_passed.flag_3B`.
+                    - This artefact is **informative** only; bundle semantics are governed by index.json + `_passed.flag`.
 
-staging directory (with evidence, index.json, _passed.flag_3B, s5_manifest_3B),
+staging directory (with evidence, index.json, _passed.flag, s5_manifest_3B),
 final bundle path from dictionary
-                ->  (S5.11) Atomic publish of `validation_bundle_3B`, `index.json`, `_passed.flag_3B`, `s5_manifest_3B`
+                ->  (S5.11) Atomic publish of `validation_bundle_3B`, `index.json`, `_passed.flag`, `s5_manifest_3B`
                     - Final bundle directory (via dictionary `validation_bundle_3B`):
                         · data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
                     - If the final directory does **not** exist:
@@ -347,7 +347,7 @@ final bundle path from dictionary
                               - if equal and each file is byte-identical → idempotent re-run; OK,
                               - if not equal → immutability violation; S5 MUST NOT overwrite.
                     - After publish:
-                        · ensure that index.json and `_passed.flag_3B` are present together,
+                        · ensure that index.json and `_passed.flag` are present together,
                         · ensure there is no state where one exists without the other.
 
 Downstream touchpoints
@@ -355,8 +355,8 @@ Downstream touchpoints
 - **All consumers of 3B artefacts** (2B routing, validation harnesses, tooling) MUST treat 3B as PASS for a manifest only if:
     1. `validation_bundle_3B` exists at `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`,
     2. `index.json` is schema-valid and lists the evidence files,
-    3. `_passed.flag_3B` exists at the same root and is schema-valid,
-    4. recomputing `bundle_sha256` from index.json’s entries yields the same hex as `_passed.flag_3B.sha256_hex`.
+    3. `_passed.flag` exists at the same root and is schema-valid,
+    4. recomputing `bundle_sha256` from index.json’s entries yields the same hex as `_passed.flag.sha256_hex`.
 
 - **3B HashGate rule:**
     - For any 3B dataset (e.g. `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`,
@@ -366,6 +366,6 @@ Downstream touchpoints
           **No PASS (S5 bundle+flag) → No read/use** of that 3B artefact for this manifest_fingerprint.
 
 - **Layer-wide 4A/4B & external verifiers:**
-    - Use `validation_bundle_3B` and `_passed.flag_3B` as the 3B-level HashGate;
+    - Use `validation_bundle_3B` and `_passed.flag` as the 3B-level HashGate;
       they may apply additional global conditions, but MUST NOT bypass or weaken S5’s bundle law.
 ```

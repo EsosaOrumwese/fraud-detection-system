@@ -21,12 +21,12 @@ Authoritative inputs (read-only at S0 entry)
     - For each upstream segment seg ∈ {1A, 1B, 2A, 2B, 3A, 3B, 5A}:
         · validation_bundle_seg@
               data/layerX/seg/validation/fingerprint={manifest_fingerprint}/validation_bundle_seg_index.json (or equivalent)
-        · _passed.flag_seg@
-              data/layerX/seg/validation/fingerprint={manifest_fingerprint}/_passed.flag_seg
+        · _passed.flag@
+              data/layerX/seg/validation/fingerprint={manifest_fingerprint}/_passed.flag
       S0:
         · MUST resolve these via the segments’ own dictionaries/registries (no hard-coded paths),
         · MUST recompute each segment’s bundle digest according to its hashing law,
-        · MUST compare recomputed digest to `_passed.flag_seg.sha256_hex`,
+        · MUST compare recomputed digest to `_passed.flag.sha256_hex`,
         · MUST record {status,bundle_path,flag_path,digest} per segment in its receipt.
 
 [Upstream world & intensity surfaces 5B may later depend on  (metadata-only in S0)]
@@ -128,8 +128,8 @@ artefact_registry_{1A,1B,2A,2B,3A,3B,5A}
                     - For each seg ∈ {1A,1B,2A,2B,3A,3B,5A}:
                         1. Use seg’s dictionary+registry to resolve:
                                bundle_root_seg@fingerprint={manifest_fingerprint},
-                               _passed.flag_seg@same root.
-                        2. Parse `_passed.flag_seg`:
+                               _passed.flag@same root.
+                        2. Parse `_passed.flag`:
                                - ensure format `sha256_hex = <64hex>`,
                                - extract declared_digest_seg.
                         3. Recompute bundle digest per seg’s bundle law:
@@ -313,5 +313,5 @@ Downstream touchpoints
 
 - **Layer-3 / external tooling:**
     - SHOULD treat s0_gate_receipt_5B + sealed_inputs_5B as “the contract” describing which world and policies 5B used,
-      but MUST gate on the 5B segment-level HashGate (`_passed.flag_5B`) before trusting 5B’s arrival events.
+      but MUST gate on the 5B segment-level HashGate (`_passed.flag`) before trusting 5B’s arrival events.
 ```

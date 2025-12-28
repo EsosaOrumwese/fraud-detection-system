@@ -76,17 +76,17 @@ For the target `manifest_fingerprint`, S0 must verify that all upstream segments
 
 * **Layer-1 (merchant, geo, zone, virtual world):**
 
-  * 1A: `_passed.flag_1A` and `validation_bundle_1A`
-  * 1B: `_passed.flag_1B` and `validation_bundle_1B`
-  * 2A: `_passed.flag_2A` and `validation_bundle_2A`
-  * 2B: `_passed.flag_2B` and `validation_bundle_2B`
-  * 3A: `_passed.flag_3A` and `validation_bundle_3A`
-  * 3B: `_passed.flag_3B` and `validation_bundle_3B`
+  * 1A: `_passed.flag` and `validation_bundle_1A`
+  * 1B: `_passed.flag` and `validation_bundle_1B`
+  * 2A: `_passed.flag` and `validation_bundle_2A`
+  * 2B: `_passed.flag` and `validation_bundle_2B`
+  * 3A: `_passed.flag` and `validation_bundle_3A`
+  * 3B: `_passed.flag` and `validation_bundle_3B`
 
 * **Layer-2 (intensity & arrivals):**
 
-  * 5A: `_passed.flag_5A` and `validation_bundle_5A`
-  * 5B: `_passed.flag_5B` and `validation_bundle_5B`
+  * 5A: `_passed.flag` and `validation_bundle_5A`
+  * 5B: `_passed.flag` and `validation_bundle_5B`
 
 For each of the above segments S0 must:
 
@@ -510,7 +510,7 @@ S0 binds 6A to a world in three ways:
 These three identities are binding for all of 6A:
 
 * If any of `{manifest_fingerprint, parameter_hash, sealed_inputs_digest_6A}` changes, the entity & product world defined by S1–S5 is, by construction, a *different* world, even if some upstream artefacts are shared.
-* 6A’s eventual segment HashGate (validation bundle + `_passed.flag_6A`) will implicitly depend on all three; downstream consumers must treat any mismatch as a different world, not as a minor version.
+* 6A’s eventual segment HashGate (validation bundle + `_passed.flag`) will implicitly depend on all three; downstream consumers must treat any mismatch as a different world, not as a minor version.
 
 No additional “hidden” identity (e.g. wall-clock, engine build) may influence the business semantics of S1–S5 beyond what is recorded in these outputs.
 
@@ -587,7 +587,7 @@ For each required segment in `{1A,1B,2A,2B,3A,3B,5A,5B}`:
    * Use the dataset dictionary + artefact registry for that segment to resolve:
 
      * the validation bundle dataset (e.g. `validation_bundle_1B`) and its `path_template`, `partition_keys`, `schema_ref`;
-     * the PASS flag dataset (e.g. `validation_passed_flag_1B` / `_passed.flag_1B`) and its `path_template`, `schema_ref`.
+     * the PASS flag dataset (e.g. `validation_passed_flag_1B` / `_passed.flag`) and its `path_template`, `schema_ref`.
 
    * S0 must construct physical paths **only** via these catalogue entries; hard-coded paths are disallowed.
 
@@ -1251,7 +1251,7 @@ These obligations are part of the 6A design, not an implementation detail — an
   3. ensure that all required 6A priors/configs (as summarised in `prior_packs`) are present in `sealed_inputs_6A`,
   4. treat any S0 failure as a hard precondition failure for 6B.
 
-* Once 6A has its own segment-level HashGate (validation bundle + `_passed.flag_6A`):
+* Once 6A has its own segment-level HashGate (validation bundle + `_passed.flag`):
 
   * 6B must require **both**:
 
@@ -1962,7 +1962,7 @@ The following are **breaking changes** and **must not** be introduced without an
 
 3. **Weakening upstream gate requirements**:
 
-   * Treating upstream segments that are currently required as optional (e.g. allowing S0 PASS when `_passed.flag_2B` is missing) changes the trust model and is breaking for any consumer that assumes full upstream sealing.
+   * Treating upstream segments that are currently required as optional (e.g. allowing S0 PASS when `_passed.flag` is missing) changes the trust model and is breaking for any consumer that assumes full upstream sealing.
 
 4. **Changing the set of required upstream segments** without transitional logic:
 

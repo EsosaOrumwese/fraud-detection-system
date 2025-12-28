@@ -181,7 +181,7 @@ The following activities are explicitly **out of scope** for 5A.S3 and MUST NOT 
 * **Segment-level PASS for 5A**
 
   * S3 does not decide the overall “5A segment PASS”; it contributes outputs that the dedicated 5A validation state will validate and bundle.
-  * S3 MUST NOT write `_passed.flag_5A`; that belongs to the validation state.
+  * S3 MUST NOT write `_passed.flag`; that belongs to the validation state.
 
 ---
 
@@ -1031,7 +1031,7 @@ Downstream states (S4, 5B, 6A):
 S3 produces **only modelling datasets**, not new control-plane artefacts:
 
 * No new gate receipt or sealed-input inventory.
-* No `_passed.flag_5A` (segment-level PASS is owned by a later validation state).
+* No `_passed.flag` (segment-level PASS is owned by a later validation state).
 
 Its outputs:
 
@@ -2149,11 +2149,11 @@ Any downstream state that uses baseline intensities (e.g. 5A.S4, 5B, 6A) MUST ob
 The 5A segment-level validation state MUST:
 
 * treat `merchant_zone_baseline_local_5A` as a **required input** for any `manifest_fingerprint` it validates, and
-* verify S3’s acceptance conditions (schema, domain coverage, numeric invariants) as part of the 5A validation bundle, before writing `_passed.flag_5A`.
+* verify S3’s acceptance conditions (schema, domain coverage, numeric invariants) as part of the 5A validation bundle, before writing `_passed.flag`.
 
 Other layers (5B, 6A) MUST:
 
-* require that `_passed.flag_5A` (segment-level PASS) be verified for a given `manifest_fingerprint` **before** assuming S3’s baselines are fit for use.
+* require that `_passed.flag` (segment-level PASS) be verified for a given `manifest_fingerprint` **before** assuming S3’s baselines are fit for use.
 
 ---
 
@@ -2804,7 +2804,7 @@ Operational dashboards SHOULD be able to show, for each `(parameter_hash, manife
 
 Downstream states (5A.S4, 5B, 6A) MUST NOT rely on logs/metrics alone as gates; they MUST continue to use:
 
-* S0/S1/S2/S3 **data-level gates** (presence/validity of S3 datasets, plus later `_passed.flag_5A`),
+* S0/S1/S2/S3 **data-level gates** (presence/validity of S3 datasets, plus later `_passed.flag`),
 
 and treat observability signals as **diagnostic** rather than authoritative for correctness.
 

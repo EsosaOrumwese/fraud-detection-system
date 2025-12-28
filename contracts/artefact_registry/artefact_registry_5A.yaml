@@ -24,7 +24,7 @@ subsegments:
           - mlr.2B.validation.bundle
           - mlr.2B.validation.passed
           - mlr.3A.validation.bundle
-          - mlr.3A._passed.flag_3A
+          - mlr.3A.validation.passed
           - mlr.3B.validation.bundle
           - mlr.3B.validation.passed
         source: internal
@@ -414,11 +414,11 @@ subsegments:
         cross_layer: true
         notes:
 
-      - manifest_key: mlr.5A.validation.passed_flag
-        name: Layer-2 / 5A validation pass flag
+      - manifest_key: mlr.5A.validation.passed
+        name: validation_passed_flag_5A
         type: dataset
         category: validation
-        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.layer2.yaml#/validation/passed_flag_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}'

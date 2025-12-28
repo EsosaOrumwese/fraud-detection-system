@@ -53,7 +53,7 @@ Authoritative inputs (read-only at S9 entry)
     - artefact_registry_1B.yaml
         · defines that S9 owns:
             * validation bundle under fingerprint={manifest_fingerprint}
-            * `_passed.flag_1B` as gate for `site_locations`
+            * `_passed.flag` as gate for `site_locations`
 
 [Context] Identity & posture
     - Sealed run identity:

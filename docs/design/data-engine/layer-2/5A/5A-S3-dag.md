@@ -365,6 +365,6 @@ Downstream touchpoints
 
 - **Downstream consumers (5B, 6A, analytics):**
     - MUST use merchant_zone_baseline_local_5A as their baseline intensity surface,
-      gated by the segment-level `_passed.flag_5A` built in S5:
+      gated by the segment-level `_passed.flag` built in S5:
           **No 5A PASS → No read/use of 5A baselines.**
 ```

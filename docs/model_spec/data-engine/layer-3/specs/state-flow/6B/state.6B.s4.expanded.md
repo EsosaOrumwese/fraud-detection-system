@@ -97,7 +97,7 @@ S4 is explicitly **not** allowed to:
 
 * **Perform segment-level validation or HashGate**
 
-  * It MUST NOT construct the 6B validation bundle or `_passed.flag_6B`; that is S5’s role.
+  * It MUST NOT construct the 6B validation bundle or `_passed.flag`; that is S5’s role.
   * It MUST NOT re-validate upstream HashGates (S0, S1, S2, S3); it trusts their receipts and sealed inputs.
 
 ### Relationship to the rest of Segment 6B and the enterprise

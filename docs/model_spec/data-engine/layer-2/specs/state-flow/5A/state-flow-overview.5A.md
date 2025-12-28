@@ -7,7 +7,7 @@ Segment 5A builds deterministic intensity surfaces. It gates upstream Layer-1 se
 - Classify merchantxzone demand classes and base scales.
 - Publish the canonical weekly time grid and class/zone shapes (unit-mass).
 - Compose baseline per-merchantxzone intensities; overlay calendar/scenario shocks to produce final targets.
-- Validate and bundle outputs with `_passed.flag_5A` ("no PASS -> no read" for 5A surfaces).
+- Validate and bundle outputs with `_passed.flag` ("no PASS -> no read" for 5A surfaces).
 
 ---
 
@@ -132,7 +132,7 @@ S5 validation; 5B uses scenario/local (and UTC if present) as the sole determini
 
 ---
 
-## S5 - Validation bundle & `_passed.flag_5A`
+## S5 - Validation bundle & `_passed.flag`
 **Purpose & scope**  
 Validate S0-S4 outputs and publish the 5A HashGate.
 
@@ -143,13 +143,13 @@ S0-S4 PASS for the fingerprint; required scenario partitions present; upstream g
 `s0_gate_receipt_5A`, `sealed_inputs_5A`; all modelling outputs (`merchant_zone_profile_5A`, grid/shapes, baselines, overlays), optional catalogues; validation policies/tolerances.
 
 **Outputs & identity**  
-`validation_report_5A` and optional `validation_issue_table_5A` at `fingerprint={manifest_fingerprint}`; `validation_bundle_5A` at `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_5A`; `_passed.flag_5A` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
+`validation_report_5A` and optional `validation_issue_table_5A` at `fingerprint={manifest_fingerprint}`; `validation_bundle_5A` at `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_5A`; `_passed.flag` alongside containing `sha256_hex = <bundle_digest>` over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None.
 
 **Key invariants**  
-Schema/partition conformance for all datasets; unit-mass shapes; baseline/overlay consistency; bundle digest matches `_passed.flag_5A`; enforces "no PASS -> no read" for 5A surfaces.
+Schema/partition conformance for all datasets; unit-mass shapes; baseline/overlay consistency; bundle digest matches `_passed.flag`; enforces "no PASS -> no read" for 5A surfaces.
 
 **Downstream consumers**  
-5B and 6A must verify `_passed.flag_5A` before reading 5A outputs.
+5B and 6A must verify `_passed.flag` before reading 5A outputs.

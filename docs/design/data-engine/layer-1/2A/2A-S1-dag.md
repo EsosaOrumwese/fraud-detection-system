@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S1 entry)
 --------------------------------------------
 [S0 Gate & Identity]
     - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
-      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag_1B)
+      · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: allowed inputs for 2A (incl. site_locations, tz_world_2025a, tz_nudge)
       · binds: manifest_fingerprint, parameter_hash for this 2A run
 

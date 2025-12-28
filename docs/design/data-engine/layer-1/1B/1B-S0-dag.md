@@ -15,7 +15,7 @@ Authoritative inputs (read-only at S0 entry)
 [1A Gate Artefacts] (fingerprint-scoped; S0’s primary subject):
     - validation_bundle_1A                @ data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
         · contains index.json + bundle files (MANIFEST.json, rng_accounting.json, egress_checksums.json, …)
-    - validation_passed_flag (_passed.flag)
+    - validation_passed_flag_1A (_passed.flag)
         · text: `sha256_hex = <hex64>`; **sole consumer gate** for 1A egress
 
 [Refs] Reference / FK surfaces S0 pins for 1B:

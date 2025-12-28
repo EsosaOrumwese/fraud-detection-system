@@ -36,7 +36,7 @@ Authoritative upstream & inputs (sealed by 6B.S0)
     - 6A fraud posture:
         · per-entity fraud roles (party/account/merchant/device/IP).
     - 6A HashGate:
-        · validation bundle + `_passed.flag_6A` per manifest_fingerprint.
+        · validation bundle + `_passed.flag` per manifest_fingerprint.
     - 6B MUST treat 6A as:
         · closed, immutable static truth about entities and roles.
 
@@ -45,7 +45,7 @@ Authoritative upstream & inputs (sealed by 6B.S0)
         · arrival_events_5B keyed by (seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq),
           with timestamps and routing to sites/edges.
     - 5B HashGate:
-        · validation bundle + `_passed.flag_5B` per manifest_fingerprint.
+        · validation bundle + `_passed.flag` per manifest_fingerprint.
     - 6B MUST:
         · use 5B arrivals as the only arrival universe,
         · never invent extra arrivals or change 5B identity/timestamps/routing.
@@ -252,12 +252,12 @@ DAG — Segment 6B overview
            and an overall_status ∈ {PASS, FAIL}.
     -> s5_issue_table_6B@fingerprint (optional)
          - Per-issue detail for checks configured to produce row-level diagnostics.
-    -> validation_bundle_6B + `_passed.flag_6B`@fingerprint
+    -> validation_bundle_6B + `_passed.flag`@fingerprint
          - If and only if overall_status == "PASS":
               - packages s5_validation_report_6B, s5_issue_table_6B (if present)
                 and any evidence files into a bundle,
               - writes index.json with per-file digests,
-              - computes bundle SHA-256 and writes `_passed.flag_6B` with that digest.
+              - computes bundle SHA-256 and writes `_passed.flag` with that digest.
          - This pair (bundle + flag) is the **6B HashGate**:
               no verified flag → no 6B read.
 
@@ -269,24 +269,24 @@ Downstream obligations
     - MUST:
           verify the 6B HashGate:
               - recompute the bundle digest from validation_bundle_6B/index.json,
-              - require equality with `_passed.flag_6B`,
+              - require equality with `_passed.flag`,
           before reading any S1–S4 datasets.
     - MUST NOT:
-          read or consume 6B outputs if `_passed.flag_6B` is missing or invalid.
+          read or consume 6B outputs if `_passed.flag` is missing or invalid.
 
 - **Decision & Learning planes (models, feature factories, evaluation tooling):**
     - MUST:
           use s4_flow_truth_labels_6B as the source of ground truth for flows,
           use s4_flow_bank_view_6B and s4_event_labels_6B for bank-centric evaluation,
           use s4_case_timeline_6B as the case universe,
-          and ALWAYS gate on `_passed.flag_6B` for the relevant manifest_fingerprint.
+          and ALWAYS gate on `_passed.flag` for the relevant manifest_fingerprint.
     - SHOULD:
           use S2/S3 as “clean vs with-fraud” references when analysing attack patterns.
 
 - **Audit, governance & reproducibility tooling:**
     - SHOULD:
           treat s0_gate_receipt_6B + sealed_inputs_6B + s5_validation_report_6B +
-          validation_bundle_6B + `_passed.flag_6B` as the canonical explanation of:
+          validation_bundle_6B + `_passed.flag` as the canonical explanation of:
               - which world was used,
               - which upstream segments were trusted,
               - which inputs & policies 6B had,
@@ -299,6 +299,6 @@ Legend
 [fingerprint]                  = partitions for S0 & S5 validation artefacts
 [NO RNG]                       = state consumes no RNG
 [RNG-BEARING]                  = state consumes RNG under Layer-3 RNG policy
-HashGate (6B)                  = validation_bundle_6B/index.json + `_passed.flag_6B`
+HashGate (6B)                  = validation_bundle_6B/index.json + `_passed.flag`
                                  per manifest_fingerprint (no PASS → no read)
 ```

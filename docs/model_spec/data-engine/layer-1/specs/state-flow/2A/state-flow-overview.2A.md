@@ -6,16 +6,16 @@ Segment 2A is the civil-time engine. It trusts sealed 1B outputs, assigns author
 - Enforce the 1B HashGate ("no PASS -> no read") and seal the ingress set 2A may touch.
 - Map each site to a provisional tz via polygons and nudges; apply governed overrides to produce authoritative `site_timezones`.
 - Compile the IANA tzdb into `tz_timetable_cache` for all tzids in use.
-- Produce per-seed DST legality reports and seal everything into `validation_bundle_2A` + `_passed.flag_2A`.
+- Produce per-seed DST legality reports and seal everything into `validation_bundle_2A` + `_passed.flag`.
 
 ---
 
 ## S0 - Gate, manifest, sealed inputs (RNG-free)
 **Purpose & scope**  
-Verify 1B `_passed.flag_1B` for the target `manifest_fingerprint` and seal the exact artefacts 2A is allowed to read; emit the gate receipt and sealed-input manifest.
+Verify 1B `_passed.flag` for the target `manifest_fingerprint` and seal the exact artefacts 2A is allowed to read; emit the gate receipt and sealed-input manifest.
 
 **Preconditions & gates**  
-`validation_bundle_1B` + `_passed.flag_1B` must match for the fingerprint; otherwise abort ("no PASS -> no read").
+`validation_bundle_1B` + `_passed.flag` must match for the fingerprint; otherwise abort ("no PASS -> no read").
 
 **Inputs**  
 1B validation bundle/flag; 1B egress `site_locations` `[seed, fingerprint]`; ingress/policy artefacts: `tz_world_2025a`, `tzdb_release`, `tz_overrides`, `tz_nudge`, optional ISO/country refs.
@@ -132,7 +132,7 @@ S5 aggregates reports into the bundle; operators inspect for DST issues.
 
 ## S5 - Validation bundle & PASS gate
 **Purpose & scope**  
-Seal 2A by bundling gate receipt, `tz_timetable_cache`, and all legality reports; publish `_passed.flag_2A`.
+Seal 2A by bundling gate receipt, `tz_timetable_cache`, and all legality reports; publish `_passed.flag`.
 
 **Preconditions & gates**  
 S0-S4 PASS for the fingerprint; every discovered seed has a legality report.
@@ -141,13 +141,13 @@ S0-S4 PASS for the fingerprint; every discovered seed has a legality report.
 `s0_gate_receipt_2A`; `sealed_inputs_v1`; `tz_timetable_cache`; all `s4_legality_report` files for the fingerprint.
 
 **Outputs & identity**  
-`validation_bundle_2A` at `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_2A`; `_passed.flag_2A` alongside, containing `sha256_hex = <bundle_digest>` where the digest is over indexed files in ASCII-lex order (flag excluded).
+`validation_bundle_2A` at `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/` with `validation_bundle_index_2A`; `_passed.flag` alongside, containing `sha256_hex = <bundle_digest>` where the digest is over indexed files in ASCII-lex order (flag excluded).
 
 **RNG**  
 None.
 
 **Key invariants**  
-All required reports present and PASS; cache digest matches manifest; recomputed bundle digest equals `_passed.flag_2A`; gate text enforces "no PASS -> no read" for `site_timezones` and `tz_timetable_cache`.
+All required reports present and PASS; cache digest matches manifest; recomputed bundle digest equals `_passed.flag`; gate text enforces "no PASS -> no read" for `site_timezones` and `tz_timetable_cache`.
 
 **Downstream consumers**  
-Segments 2B, 3A, 5A/5B, 6A/6B must verify `_passed.flag_2A` before reading 2A egress or cache.
+Segments 2B, 3A, 5A/5B, 6A/6B must verify `_passed.flag` before reading 2A egress or cache.

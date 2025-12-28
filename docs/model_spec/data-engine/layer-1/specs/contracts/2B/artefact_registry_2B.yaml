@@ -20,7 +20,7 @@ artifacts:
     schema: schemas.2B.yaml#/validation/s0_gate_receipt_v1
     dependencies:
       - validation_bundle_1B
-      - passed_flag_1B
+      - validation_passed_flag_1B
       - site_locations
       - site_timezones
       - route_rng_policy_v1
@@ -47,7 +47,7 @@ artifacts:
     schema: schemas.2B.yaml#/validation/sealed_inputs_v1
     dependencies:
       - validation_bundle_1B
-      - passed_flag_1B
+      - validation_passed_flag_1B
       - site_locations
       - site_timezones
       - route_rng_policy_v1
@@ -78,7 +78,7 @@ artifacts:
     schema:
       index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
 
-  - name: passed_flag_1B
+  - name: validation_passed_flag_1B
     path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
     type: file
     category: validation

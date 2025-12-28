@@ -154,7 +154,7 @@ The following are explicitly **out of scope** for 5B.S3 and MUST NOT be performe
 
 * **Segment-level HashGate**
 
-  * S3 does not build the final 5B validation bundle or `_passed.flag_5B`; it only contributes its datasets and RNG logs. The segment-wide PASS decision is owned by a dedicated 5B validation state.
+  * S3 does not build the final 5B validation bundle or `_passed.flag`; it only contributes its datasets and RNG logs. The segment-wide PASS decision is owned by a dedicated 5B validation state.
 
 ---
 

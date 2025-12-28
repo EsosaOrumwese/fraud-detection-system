@@ -141,7 +141,7 @@
 * **Virtual classification of merchants** and construction of settlement nodes (`virtual_classification_3B`, `virtual_settlement_3B`) — solely S1’s responsibility.
 * **Edge placement** (deciding where edges are on the globe, how many per merchant/country/tile, how they were jittered, and which RNG streams were used) — solely S2’s responsibility.
 * **Per-arrival routing decisions** and emission of routing RNG events (e.g. `cdn_edge_pick`) — solely 2B’s responsibility.
-* 3B’s **segment-level validation bundle and `_passed.flag_3B`** — owned by the terminal 3B validation state (though S3’s outputs are mandatory inputs to that bundle).
+* 3B’s **segment-level validation bundle and `_passed.flag`** — owned by the terminal 3B validation state (though S3’s outputs are mandatory inputs to that bundle).
 
 1.5.2 S3 MUST NOT:
 
@@ -562,7 +562,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 * emit a modified edge catalogue;
 * emit routing logs or RNG logs (S3 is RNG-free);
-* emit a segment-level `_passed.flag_3B` (owned by the terminal 3B validation state).
+* emit a segment-level `_passed.flag` (owned by the terminal 3B validation state).
 
 ---
 
@@ -1906,7 +1906,7 @@ MUST treat this as a **3B.S3 failure** and:
 
 * treat S3 invariants (alias-table correctness, index/cat alignment, correct universe hash) as **hard PASS conditions** for 3B;
 * include S3 outputs in the 3B validation bundle index, with their digests;
-* refuse to emit `_passed.flag_3B` if any S3 invariants fail.
+* refuse to emit `_passed.flag` if any S3 invariants fail.
 
 ---
 
@@ -2670,7 +2670,7 @@ These IDs are informational and MUST NOT influence any deterministic choices or 
 
 * cross-check that S3’s per-merchant aliases cover all S2 edges;
 * verify that the universe hash is consistent across runs and with the bundled artefacts;
-* decide whether to emit `_passed.flag_3B`.
+* decide whether to emit `_passed.flag`.
 
 ---
 
@@ -2980,7 +2980,7 @@ Memory usage is roughly:
 * S2 contracts (`edge_catalogue_3B`, `edge_catalogue_index_3B`); S3 consumes these but does not define their shapes or semantics.
 * Upstream segments (1A, 1B, 2A, 3A) except insofar as their digests are referenced in `edge_universe_hash_3B`.
 * 2B’s routing implementation (including how it decodes alias tables) — that is governed by 2B + routing policy; S3 must remain compatible with those contracts but does not own them.
-* The 3B segment-level validation bundle and `_passed.flag_3B`, which are owned by the terminal 3B validation state.
+* The 3B segment-level validation bundle and `_passed.flag`, which are owned by the terminal 3B validation state.
 
 ---
 

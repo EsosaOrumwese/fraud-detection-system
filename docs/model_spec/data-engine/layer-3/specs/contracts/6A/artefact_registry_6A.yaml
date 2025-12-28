@@ -416,12 +416,12 @@
   retention_class: engine_control_plane
   pii_class: none
 
-- manifest_key: engine.layer3.6A.validation.passed_flag_6A
+- manifest_key: engine.layer3.6A.validation.passed
   owner_layer: 3
   owner_segment: 6A
   dataset_id: validation_passed_flag_6A
   semver: 1.0.0
-  path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag_6A
+  path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
   partition_keys: [fingerprint]
   schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
   produced_by: 6A.S5

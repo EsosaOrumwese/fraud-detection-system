@@ -323,14 +323,14 @@ subsegments:
     cross_layer: true
     notes:
 
-  - name: _passed.flag_3A
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+  - name: validation_passed_flag_3A
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
     type: dataset
     category: validation
     semver: '1.0.0'
     version: '{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.3A._passed.flag_3A
+    manifest_key: mlr.3A.validation.passed
     license: Proprietary-Internal
     role: HashGate PASS flag (SHA-256 over concat(index.members[*].sha256_hex) in canonical member order).
     dependencies: [mlr.3A.validation.bundle]
