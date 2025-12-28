@@ -51,13 +51,13 @@ No extra keys.
 require_upstream_pass:
   layer1_required: [1A, 1B, 2A, 3A, 3B]
   layer2_required: [5A]
-  optional: [2B]   # if present, must be PASS; if absent, ok
+  optional: [2B]   # conditional: required if any physical routing occurs (see routing_realism)
 ```
 
 Pinned meaning:
 
 * S5 MUST verify `_passed.flag` hashes for required segments before reading their egress.
-* If 2B is present in the manifest, S5 must verify it too (routing depends on it in physical path).
+* If any arrival is routed physically (NON_VIRTUAL, or HYBRID with a physical outcome), then 2B MUST be present and PASS-gated.
 
 ---
 

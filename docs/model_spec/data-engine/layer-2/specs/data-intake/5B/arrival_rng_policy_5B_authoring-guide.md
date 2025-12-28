@@ -208,10 +208,10 @@ Budgets depend on the count-law selected in `arrival_count_config_5B`:
   * `draws_u64 = 0`, `blocks = 0` (and the state MUST emit `count_N = 0` deterministically)
 * Else choose by `count_law`:
 
-  * `poisson_one_u`: `draws_u64 = 1`
-  * `nb_two_u`: `draws_u64 = 2`
+  * `poisson`: `draws_u64 = 1`
+  * `nb2`: `draws_u64 = 2`
 
-`arrival_count_config_5B` MUST use one of these two count-law IDs in v1. Anything else → FAIL CLOSED.
+`arrival_count_config_5B.count_law_id` MUST be one of `{poisson, nb2}` in v1. Anything else → FAIL CLOSED.
 
 ### 6.3 S4 time placement
 
@@ -340,8 +340,8 @@ families:
       kind: by_count_law
       when_lambda_zero: 0
       laws:
-        poisson_one_u: 1
-        nb_two_u: 2
+        poisson: 1
+        nb2: 2
 
   - family_id: S4.arrival_time_jitter.v1
     module: 5B.S4
@@ -377,7 +377,7 @@ derivation:
 2. `policy_id` and `version` present; version non-placeholder.
 3. All required families present; modules/labels match §2.
 4. Derivation law uses required inputs and explicitly forbids `run_id`.
-5. Budget laws are fully pinned; count-law IDs restricted to `{poisson_one_u, nb_two_u}` in v1.
+5. Budget laws are fully pinned; count-law IDs restricted to `{poisson, nb2}` in v1.
 6. Blocks computed as `ceil(draws/2)` and counters advance by `blocks`.
 7. Emission ordering rules in §7 enforced.
 
