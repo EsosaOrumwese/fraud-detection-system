@@ -16,17 +16,17 @@ subsegments:
         dependencies:
           - sealed_inputs_5A
           - mlr.1A.validation.bundle
-          - mlr.1A.validation.passed_flag
+          - mlr.1A.validation.passed
           - mlr.1B.validation.bundle
-          - mlr.1B.validation.passed_flag
+          - mlr.1B.validation.passed
           - mlr.2A.validation.bundle
-          - mlr.2A.validation.passed_flag
+          - mlr.2A.validation.passed
           - mlr.2B.validation.bundle
-          - mlr.2B.validation.passed_flag
+          - mlr.2B.validation.passed
           - mlr.3A.validation.bundle
           - mlr.3A._passed.flag_3A
           - mlr.3B.validation.bundle
-          - mlr.3B.validation.passed_flag
+          - mlr.3B.validation.passed
         source: internal
         owner: { team: data-engineering }
         last_updated:
@@ -441,7 +441,7 @@ subsegments:
         version: '{manifest_fingerprint}'
         digest:
         dependencies:
-          - validation_bundle_5A
+          - mlr.5A.validation.bundle
         source: internal
         owner: { team: data-engineering }
         last_updated:
@@ -459,7 +459,7 @@ subsegments:
         version: '{manifest_fingerprint}'
         digest:
         dependencies:
-          - validation_bundle_5A
+          - mlr.5A.validation.bundle
         source: internal
         owner: { team: data-engineering }
         last_updated:
@@ -477,7 +477,7 @@ subsegments:
         version: '{manifest_fingerprint}'
         digest:
         dependencies:
-          - validation_bundle_5A
+          - mlr.5A.validation.bundle
         source: internal
         owner: { team: data-engineering }
         last_updated:
