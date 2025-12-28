@@ -25,7 +25,7 @@ This artefact MUST be:
 
 ## 1) File identity (binding)
 
-* **Manifest key (referenced by 6A.S3 dependencies):** `engine.layer3.6A.taxonomy.instrument_types` 
+* **Manifest key (referenced by 6A.S3 dependencies):** `mlr.6A.taxonomy.instrument_types` 
 * **Role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL)
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.instrument_types.v1.yaml`
 * **Format:** YAML (UTF-8, LF)

@@ -16,7 +16,7 @@ This taxonomy is **vocabulary + compatibility**, not a distribution. **Counts/sh
 
 ## 1) File identity (binding)
 
-* **Manifest key:** `engine.layer3.6A.taxonomy.ips` 
+* **Manifest key:** `mlr.6A.taxonomy.ips` 
 * **Role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL)
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.ips.v1.yaml`
 * **Format:** YAML (UTF-8, LF)

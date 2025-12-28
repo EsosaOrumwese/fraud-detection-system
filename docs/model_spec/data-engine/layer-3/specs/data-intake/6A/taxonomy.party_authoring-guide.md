@@ -22,7 +22,7 @@ This artefact MUST be:
 ## 1) File identity (binding)
 
 * **Artefact / dictionary id:** `taxonomy.party`
-* **Manifest key (used in 6A contracts):** `engine.layer3.6A.taxonomy.party`
+* **Manifest key (used in 6A contracts):** `mlr.6A.taxonomy.party`
 * **Role in `sealed_inputs_6A`:** `TAXONOMY`
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.party.v1.yaml`
 * **Format:** YAML (UTF-8, LF)

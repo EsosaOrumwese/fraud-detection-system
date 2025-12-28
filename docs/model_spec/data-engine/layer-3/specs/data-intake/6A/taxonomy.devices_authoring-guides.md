@@ -17,7 +17,7 @@ This taxonomy is a **vocabulary + compatibility contract**, not a distribution. 
 
 ## 1) File identity (binding)
 
-* **Manifest key (referenced as a dependency by 6A.S4 outputs):** `engine.layer3.6A.taxonomy.devices` 
+* **Manifest key (referenced as a dependency by 6A.S4 outputs):** `mlr.6A.taxonomy.devices` 
 * **Role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL) 
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.devices.v1.yaml`
 * **Format:** YAML (UTF-8, LF line endings)
