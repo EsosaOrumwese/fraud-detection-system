@@ -262,6 +262,23 @@
   pii_class: none
   retention_class: engine_control_plane
 
+- id: taxonomy_fraud_roles_6A
+  owner_layer: 3
+  owner_segment: 6A
+  status: required
+  description: Fraud-role enum taxonomy for parties/accounts/merchants/devices/IPs.
+  version: 'v1'
+  path: config/layer3/6A/taxonomy/fraud_role_taxonomy_6A.v1.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6A.yaml#/taxonomy/fraud_role_taxonomy_6A
+  columns_strict: false
+  lineage:
+    produced_by: []
+    consumed_by: [ '6A.S0', '6A.S5' ]
+  pii_class: none
+  retention_class: engine_control_plane
+
 - id: prior_party_roles_6A
   owner_layer: 3
   owner_segment: 6A
@@ -340,6 +357,23 @@
   partitioning: []
   ordering: []
   schema_ref: schemas.6A.yaml#/prior/ip_role_priors_6A
+  columns_strict: false
+  lineage:
+    produced_by: []
+    consumed_by: [ '6A.S0', '6A.S5' ]
+  pii_class: none
+  retention_class: engine_control_plane
+
+- id: validation_policy_6A
+  owner_layer: 3
+  owner_segment: 6A
+  status: required
+  description: Validation policy/checklist for 6A.S5 (PASS/WARN/FAIL thresholds and required checks).
+  version: 'v1'
+  path: config/layer3/6A/policy/validation_policy_6A.v1.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6A.yaml#/policy/validation_policy_6A
   columns_strict: false
   lineage:
     produced_by: []

@@ -89,6 +89,19 @@ taxonomy:
       $id: "#/taxonomy/ip_taxonomy_6A"
       type: object
       description: "IP taxonomies for 6A."
+    fraud_role_taxonomy_6A:
+      $id: "#/taxonomy/fraud_role_taxonomy_6A"
+      type: object
+      description: "Fraud-role enum taxonomy for 6A (party/account/merchant/device/ip)."
+
+policy:
+  description: "6A policy inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    validation_policy_6A:
+      $id: "#/policy/validation_policy_6A"
+      type: object
+      description: "6A.S5 validation policy/checklist (PASS/WARN/FAIL thresholds and required checks)."
 
 s1:
   description: "State 6A.S1 outputs"

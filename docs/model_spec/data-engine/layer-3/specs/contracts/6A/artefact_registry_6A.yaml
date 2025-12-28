@@ -268,6 +268,23 @@
   environment: [runtime]
   digest:
 
+- manifest_key: mlr.6A.taxonomy.fraud_roles
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: taxonomy_fraud_roles_6A
+  semver: 1.0.0
+  path_template: config/layer3/6A/taxonomy/fraud_role_taxonomy_6A.v1.yaml
+  partition_keys: []
+  schema_ref: schemas.6A.yaml#/taxonomy/fraud_role_taxonomy_6A
+  produced_by: external
+  dependencies: []
+  retention_class: engine_control_plane
+  pii_class: none
+  license: Proprietary-Internal
+  owner: { owner_team: "data-governance" }
+  environment: [runtime]
+  digest:
+
 - manifest_key: mlr.6A.s5.prior.party_roles
   owner_layer: 3
   owner_segment: 6A
@@ -344,6 +361,23 @@
   path_template: config/layer3/6A/priors/ip_role_priors_6A.v1.yaml
   partition_keys: []
   schema_ref: schemas.6A.yaml#/prior/ip_role_priors_6A
+  produced_by: external
+  dependencies: []
+  retention_class: engine_control_plane
+  pii_class: none
+  license: Proprietary-Internal
+  owner: { owner_team: "data-governance" }
+  environment: [runtime]
+  digest:
+
+- manifest_key: mlr.6A.policy.validation_policy
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: validation_policy_6A
+  semver: 1.0.0
+  path_template: config/layer3/6A/policy/validation_policy_6A.v1.yaml
+  partition_keys: []
+  schema_ref: schemas.6A.yaml#/policy/validation_policy_6A
   produced_by: external
   dependencies: []
   retention_class: engine_control_plane
@@ -638,6 +672,8 @@
     - mlr.6A.validation.sealed_inputs
     - mlr.6A.s1.party_base
     - mlr.6A.s5.prior.party_roles
+    - mlr.6A.taxonomy.fraud_roles
+    - mlr.6A.policy.validation_policy
   retention_class: core_entity
   pii_class: synthetic_customer
 
@@ -651,9 +687,13 @@
   schema_ref: schemas.6A.yaml#/s5/account_fraud_roles
   produced_by: 6A.S5
   dependencies:
+    - mlr.6A.validation.s0_gate_receipt
+    - mlr.6A.validation.sealed_inputs
     - mlr.6A.s2.account_base
     - mlr.6A.s1.party_base
     - mlr.6A.s5.prior.account_roles
+    - mlr.6A.taxonomy.fraud_roles
+    - mlr.6A.policy.validation_policy
   retention_class: core_entity
   pii_class: synthetic_customer
 
@@ -667,8 +707,12 @@
   schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
   produced_by: 6A.S5
   dependencies:
+    - mlr.6A.validation.s0_gate_receipt
+    - mlr.6A.validation.sealed_inputs
     - mlr.1A.output.outlet_catalogue
     - mlr.6A.s5.prior.merchant_roles
+    - mlr.6A.taxonomy.fraud_roles
+    - mlr.6A.policy.validation_policy
   retention_class: core_entity
   pii_class: synthetic_customer
 
@@ -682,8 +726,12 @@
   schema_ref: schemas.6A.yaml#/s5/device_fraud_roles
   produced_by: 6A.S5
   dependencies:
+    - mlr.6A.validation.s0_gate_receipt
+    - mlr.6A.validation.sealed_inputs
     - mlr.6A.s4.device_base
     - mlr.6A.s5.prior.device_roles
+    - mlr.6A.taxonomy.fraud_roles
+    - mlr.6A.policy.validation_policy
   retention_class: core_entity
   pii_class: synthetic_customer
 
@@ -697,8 +745,12 @@
   schema_ref: schemas.6A.yaml#/s5/ip_fraud_roles
   produced_by: 6A.S5
   dependencies:
+    - mlr.6A.validation.s0_gate_receipt
+    - mlr.6A.validation.sealed_inputs
     - mlr.6A.s4.ip_base
     - mlr.6A.s5.prior.ip_roles
+    - mlr.6A.taxonomy.fraud_roles
+    - mlr.6A.policy.validation_policy
   retention_class: core_entity
   pii_class: synthetic_customer
 
@@ -715,6 +767,8 @@
   produced_by: 6A.S5
   dependencies:
     - mlr.6A.validation.s0_gate_receipt
+    - mlr.6A.taxonomy.fraud_roles
+    - mlr.6A.policy.validation_policy
     - mlr.6A.s1.party_base
     - mlr.6A.s2.account_base
     - mlr.6A.s3.instrument_base
