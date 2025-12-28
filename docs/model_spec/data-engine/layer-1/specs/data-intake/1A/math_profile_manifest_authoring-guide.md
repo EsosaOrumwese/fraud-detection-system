@@ -26,7 +26,7 @@ For v1, pin:
 * **math_profile_id:** `openlibm-v0.8.7`
 * **path_version:** `openlibm-v0.8.7` (recommended: keep directory name equal to `math_profile_id`)
 * **functions (sorted):**
-  `atan2, cos, exp, expm1, lgamma, log, log1p, pow, sin, sqrt, tanh`
+  `atan2, cos, exp, expm1, erfinv, lgamma, log, log1p, pow, sin, sqrt, tanh`
 
 This is the *minimum decision-critical set* you’ve already referenced in 1A logic; expand later only when a segment actually calls more functions.
 
@@ -104,6 +104,7 @@ Codex can write this file as the final output after building + hashing:
     "cos",
     "exp",
     "expm1",
+    "erfinv",
     "lgamma",
     "log",
     "log1p",
