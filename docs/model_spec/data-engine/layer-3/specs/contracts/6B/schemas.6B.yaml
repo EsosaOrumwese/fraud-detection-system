@@ -7,6 +7,83 @@ description: >-
 type: object
 additionalProperties: false
 
+policy:
+  description: "6B policy/config inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    attachment_policy_6B:
+      $id: "#/policy/attachment_policy_6B"
+      type: object
+      description: "Attachment policy for entity selection and linking (S1)."
+    sessionisation_policy_6B:
+      $id: "#/policy/sessionisation_policy_6B"
+      type: object
+      description: "Session key + inactivity gap policy (S1)."
+    behaviour_config_6B:
+      $id: "#/policy/behaviour_config_6B"
+      type: object
+      description: "Optional feature flags and guardrails for 6B."
+    rng_profile_layer3:
+      $id: "#/policy/rng_profile_layer3"
+      type: object
+      description: "Layer-3 RNG profile (Philox parameters and invariants)."
+    rng_policy_6B:
+      $id: "#/policy/rng_policy_6B"
+      type: object
+      description: "RNG family mapping for 6B.S1 decision families."
+    flow_shape_policy_6B:
+      $id: "#/policy/flow_shape_policy_6B"
+      type: object
+      description: "Flow shape policy for S2."
+    amount_model_6B:
+      $id: "#/policy/amount_model_6B"
+      type: object
+      description: "Amount model policy for S2."
+    timing_policy_6B:
+      $id: "#/policy/timing_policy_6B"
+      type: object
+      description: "Timing policy for S2."
+    flow_rng_policy_6B:
+      $id: "#/policy/flow_rng_policy_6B"
+      type: object
+      description: "RNG policy for S2 flows."
+    fraud_campaign_catalogue_config_6B:
+      $id: "#/policy/fraud_campaign_catalogue_config_6B"
+      type: object
+      description: "Fraud campaign catalogue configuration for S3."
+    fraud_overlay_policy_6B:
+      $id: "#/policy/fraud_overlay_policy_6B"
+      type: object
+      description: "Fraud overlay policy for S3."
+    fraud_rng_policy_6B:
+      $id: "#/policy/fraud_rng_policy_6B"
+      type: object
+      description: "RNG policy for S3 fraud overlays."
+    truth_labelling_policy_6B:
+      $id: "#/policy/truth_labelling_policy_6B"
+      type: object
+      description: "Truth labelling policy for S4."
+    bank_view_policy_6B:
+      $id: "#/policy/bank_view_policy_6B"
+      type: object
+      description: "Bank-view policy for S4."
+    delay_models_6B:
+      $id: "#/policy/delay_models_6B"
+      type: object
+      description: "Delay models for S4."
+    case_policy_6B:
+      $id: "#/policy/case_policy_6B"
+      type: object
+      description: "Case policy for S4."
+    label_rng_policy_6B:
+      $id: "#/policy/label_rng_policy_6B"
+      type: object
+      description: "RNG policy for S4 labelling."
+    segment_validation_policy_6B:
+      $id: "#/policy/segment_validation_policy_6B"
+      type: object
+      description: "Validation policy for S5."
+
 s1:
   description: "State 6B.S1 outputs"
   additionalProperties: false

@@ -8,6 +8,88 @@ description: >-
 type: object
 additionalProperties: false
 
+prior:
+  description: "6A prior inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    population_priors_6A:
+      $id: "#/prior/population_priors_6A"
+      type: object
+      description: "Population priors pack for 6A."
+    segmentation_priors_6A:
+      $id: "#/prior/segmentation_priors_6A"
+      type: object
+      description: "Segmentation priors pack for 6A."
+    account_per_party_priors_6A:
+      $id: "#/prior/account_per_party_priors_6A"
+      type: object
+      description: "Account-per-party priors for 6A."
+    product_mix_priors_6A:
+      $id: "#/prior/product_mix_priors_6A"
+      type: object
+      description: "Product mix priors for 6A."
+    instrument_per_account_priors_6A:
+      $id: "#/prior/instrument_per_account_priors_6A"
+      type: object
+      description: "Instrument-per-account priors for 6A."
+    instrument_mix_priors_6A:
+      $id: "#/prior/instrument_mix_priors_6A"
+      type: object
+      description: "Instrument mix priors for 6A."
+    device_count_priors_6A:
+      $id: "#/prior/device_count_priors_6A"
+      type: object
+      description: "Device count priors for 6A."
+    ip_count_priors_6A:
+      $id: "#/prior/ip_count_priors_6A"
+      type: object
+      description: "IP count priors for 6A."
+    party_role_priors_6A:
+      $id: "#/prior/party_role_priors_6A"
+      type: object
+      description: "Party fraud-role priors for 6A."
+    account_role_priors_6A:
+      $id: "#/prior/account_role_priors_6A"
+      type: object
+      description: "Account fraud-role priors for 6A."
+    merchant_role_priors_6A:
+      $id: "#/prior/merchant_role_priors_6A"
+      type: object
+      description: "Merchant fraud-role priors for 6A."
+    device_role_priors_6A:
+      $id: "#/prior/device_role_priors_6A"
+      type: object
+      description: "Device fraud-role priors for 6A."
+    ip_role_priors_6A:
+      $id: "#/prior/ip_role_priors_6A"
+      type: object
+      description: "IP fraud-role priors for 6A."
+
+taxonomy:
+  description: "6A taxonomy inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    party_taxonomy_6A:
+      $id: "#/taxonomy/party_taxonomy_6A"
+      type: object
+      description: "Party/segment/region taxonomies for 6A."
+    account_taxonomy_6A:
+      $id: "#/taxonomy/account_taxonomy_6A"
+      type: object
+      description: "Account/product taxonomies for 6A."
+    instrument_taxonomy_6A:
+      $id: "#/taxonomy/instrument_taxonomy_6A"
+      type: object
+      description: "Instrument taxonomies for 6A."
+    device_taxonomy_6A:
+      $id: "#/taxonomy/device_taxonomy_6A"
+      type: object
+      description: "Device taxonomies for 6A."
+    ip_taxonomy_6A:
+      $id: "#/taxonomy/ip_taxonomy_6A"
+      type: object
+      description: "IP taxonomies for 6A."
+
 s1:
   description: "State 6A.S1 outputs"
   additionalProperties: false

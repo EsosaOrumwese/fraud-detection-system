@@ -886,7 +886,7 @@ In dictionary:
 
 In registry:
 
-* `manifest_key: engine.layer3.6B.validation.passed`
+* `manifest_key: mlr.6B.validation.passed`
 * `type: file`
 * `category: HashGate`
 * `final_in_layer: true`
