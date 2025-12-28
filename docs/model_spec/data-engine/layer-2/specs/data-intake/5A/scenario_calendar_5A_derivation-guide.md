@@ -314,7 +314,15 @@ MUST satisfy:
   * in stress scenarios: all of `PAYDAY`, `HOLIDAY`, `CAMPAIGN`, `OUTAGE`, `STRESS` present
 * Overlap guard (cheap check):
 
-  * at least sample 1,000 random (deterministic) row-bucket pairs; observed overlaps ≤ `max_overlap_events_per_row_bucket` from overlay policy
+  * sample exactly 1,000 row-bucket pairs deterministically; observed overlaps ≤ `max_overlap_events_per_row_bucket` from overlay policy
+
+  Pinned sampling law (MUST; decision-free):
+    Let `N = number of rows in scenario_calendar_5A` and `H = number of horizon buckets`.
+    For i = 1..1000:
+      - pick row index: `r_i = floor(u_det("overlap_row", str(i)) * N)`
+      - pick bucket index: `h_i = floor(u_det("overlap_bucket", str(i)) * H)`
+      - evaluate overlap count at (row=r_i, bucket=h_i) using the same "active-at-bucket" law as S4.
+    Use `u_det` defined in §7.1 (5A.calendar|scenario_id|stage|keys...), so this sampling is stable and reproducible.
 
 If any realism floor fails → **FAIL CLOSED**.
 
