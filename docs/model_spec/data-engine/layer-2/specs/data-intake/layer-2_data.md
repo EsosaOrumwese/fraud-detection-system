@@ -59,78 +59,60 @@
 					- numeric bounds (min/max factor, special-case behaviour).
 
 
-* Layer-2 Segment 5B
-	[5B policies & configs]
-		- time_grid_policy_5B
-			· config that describes:
-					- how to discretise each scenario’s horizon into buckets:
-						· bucket duration,
-						· coding of bucket_index,
-					- which scenario tags/labels to carry onto grid rows.
-		- grouping_policy_5B
-			· config that defines:
-					- which entities to group:
-						· default: (merchant_id, zone_representation[, channel_group]) per scenario,
-					- which features (from 5A, 2A, 3A, 3B) may be used in grouping decisions,
-					- how to assign group_id deterministically (e.g. by stratifying by class, zone, scenario tag).
-		- arrival_lgcp_config_5B   (name illustrative; spec: “arrival-process / LGCP config”)
-			· defines:
-					- latent field type (e.g. log-Gaussian Cox, OU-on-log-λ, “no latent field”),
-					- kernel / covariance structure (variance, length-scale, correlation shape),
-					- how groups map to kernel hyper-parameters (per-group overrides),
-					- clipping/guardrails for λ_realised (min/max factors).
-			· S2 MUST treat this as the only authority on latent-field law.
-		- rng_policy_5B
-			· defines:
-					- event families for S2 (e.g. "s2_latent_field_draw"),
-					- stream IDs / substream labels for each (scenario_id, group_id),
-					- expected draws/blocks per event,
-					- RNG accounting rules (how to update rng_trace_log / rng_audit_log).
-			· S2 MUST use only these streams for latent draws and log events accordingly.
-		- (optional) s2_validation_config_5B
-			· small config providing additional numeric guardrails:
-					- allowed ranges for latent values or λ_realised,
-					- thresholds for sanity checks (e.g. variance bounds).
+* Layer-2 Segment 5B — Externals introduced in 5B (S0-sealed; not engine-generated)
 
-	[Counting law & RNG configs]
-		- arrival_count_config_5B
-			· config object that defines:
-					- which arrival law to use (e.g. Poisson, NB, mixed),
-					- how to compute law parameters θ from (λ_realised, bucket_duration_seconds, group_id, key traits),
-					- any parameter constraints and clipping behaviour,
-					- required behaviour when λ_realised=0 or very small.
-			· S3 MUST treat this as the **only** source of count-law semantics.
+      [Core policies & configs]
+      - time_grid_policy_5B
+            · defines how to discretise each scenario’s horizon into UTC buckets:
+            - bucket duration (seconds)
+            - bucket_index coding / ordering
+            - which scenario tags/labels are carried onto grid rows
 
-		- arrival_rng_policy_5B
-			· RNG policy specific to S3 (or shared arrival RNG policy) defining:
-					- event family for counts (e.g. "5B.S3.bucket_count"),
-					- mapping from (scenario_id, key, bucket_index) → stream_id / substream_label / counters,
-					- expected `draws` and `blocks` per count event,
-					- RNG accounting rules for rng_trace_log / rng_audit_log.
-			· S3 MUST use only these streams/substreams for count draws; any other RNG consumption is forbidden.
+      - grouping_policy_5B
+            · defines how entities are grouped for latent/count draws:
+            - grouping domain (default: merchant_id × zone_representation [× channel_group])
+            - allowed feature inputs (only those available from sealed upstream + 5A outputs)
+            - deterministic group_id assignment rule
 
-		- (optional) s3_count_guardrail_config_5B
-			· optional guardrail config with additional local numeric checks:
-					- max/min counts per bucket,
-					- rules for “force zero” or “force upper bound” in edge cases.
+      [Arrival process (S2) + counting law (S3)]
+      - arrival_lgcp_config_5B
+            · arrival process / latent field config for S2:
+            - latent field family (LGCP / OU-on-log-λ / none)
+            - covariance / kernel hyperparameters (+ per-group overrides)
+            - factor clipping rules for λ_realised = λ_target × ξ
+            - any latent-value guardrails (must be pinned here, not ad hoc)
 
-	[5B S4-specific configs: time placement & routing hooks]
-		- s4_time_placement_policy_5B
-			· defines how to place N arrivals inside a bucket [start_utc, end_utc):
-					- e.g. uniform in time, or optionally modulated using a within-bucket shape,
-					- how many u∈(0,1) draws per arrival,
-					- how to handle boundaries (open/closed intervals, DST edges).
-		- s4_routing_policy_5B
-			· defines:
-					- when to treat merchant as virtual vs physical (or hybrid),
-					- any 5B-specific overrides on top of 2B/3B policies (e.g. exclude certain sites),
-					- mapping of entity keys (merchant, zone_representation, channel_group) to routing context
-						expected by 2B and 3B policies.
-		- s4_rng_policy_5B
-			· defines streams/substreams for:
-					- micro-time draws,
-					- site picks,
-					- edge picks,
-				and how they sit inside the global RNG envelope:
-					- per-event `blocks`, `draws`,
-					- mapping from (scenario_id, entity key, bucket_index, arrival_seq) → RNG stream/counter.
+      - arrival_count_config_5B
+            · count-law semantics for S3:
+            - count family (Poisson / NB / mixture)
+            - parameter mapping from (λ_realised, bucket_duration, group traits) → θ
+            - clipping/edge-case behaviour (λ→0, extreme λ)
+            - optional count guardrails (max/min per bucket) if used
+
+      [Micro-time placement & routing (S4)]
+      - arrival_time_placement_policy_5B
+            · place N arrivals inside each bucket [start_utc, end_utc):
+            - within-bucket placement law (uniform or pinned alternative)
+            - interval boundary semantics (open/closed)
+            - draws per arrival (pinned)
+
+      - arrival_routing_policy_5B
+            · routing hooks for each arrival:
+            - how to decide physical vs virtual (or hybrid) per merchant/zone
+            - mapping from (merchant, zone_representation, channel_group, arrival_seq) → routing context
+            - any 5B-specific constraints/overrides on top of 2B/3B routing outputs
+
+      [RNG & validation]
+      - arrival_rng_policy_5B
+            · single RNG policy covering all RNG consumption in 5B (S2/S3/S4):
+            - event families + stream IDs/substreams for: latent draws, count draws, micro-time draws, site/edge picks
+            - expected blocks/draws per event
+            - counter update rules + trace/audit logging requirements
+            - forbidden RNG consumption (any RNG not declared here)
+
+      - validation_policy_5B
+            · validator thresholds + fail-closed rules for S5:
+            - allowable ranges for λ_target/λ_realised and latent values
+            - count sanity thresholds (aggregate and per-bucket)
+            - routing sanity checks (domain coverage, impossible edges, etc.)
+            - pass-flag hashing law references
