@@ -1,4 +1,4 @@
-# Authoring Guide — `prior.population` (6A.S1 world + geo population sizing, v1)
+# Authoring Guide - `population_priors_6A` (6A.S1 world + geo population sizing, v1)
 
 ## 0) Purpose
 
@@ -17,10 +17,10 @@ This prior controls **counts and splits only**. It does **not** define segment m
 
 ## 1) File identity (MUST)
 
-* **Artefact ID:** `prior.population_6A`
-* **Manifest key (recommended):** `mlr.6A.prior.population`
-* **Path:** `config/layer3/6A/prior/prior.population_6A.v1.yaml`
-* **Schema anchor:** *(permissive or stub; this guide is binding until a concrete anchor exists)*
+* **dataset_id:** `prior_population_6A`
+* **manifest_key:** `mlr.6A.prior.population`
+* **Path:** `config/layer3/6A/priors/population_priors_6A.v1.yaml`
+* **Schema anchor:** `schemas.6A.yaml#/prior/population_priors_6A` *(anchor is placeholder; this guide pins structure)*
 * **Token-less posture:** do **not** embed timestamps, digests, or “generated_at”. Digests are recorded by `6A.S0` in `sealed_inputs_6A`.
 
 ---
@@ -146,7 +146,7 @@ S1 integerises these targets into integers with your existing residual policy (R
 
 Top-level YAML object with **exactly** these keys:
 
-1. `prior_id` (MUST equal `prior.population_6A`)
+1. `prior_id` (MUST equal `population_priors_6A`)
 2. `version` (non-placeholder, e.g. `v1.0.0`)
 3. `population_unit` (MUST equal `parties`)
 4. `geo_unit` (MUST equal `country_iso`)
@@ -300,7 +300,7 @@ Rule:
 ## 7) Minimal v1 example (realistic)
 
 ```yaml
-prior_id: prior.population_6A
+prior_id: population_priors_6A
 version: v1.0.0
 population_unit: parties
 geo_unit: country_iso
@@ -375,7 +375,7 @@ notes: >
 
 * YAML parses cleanly.
 * Top-level keys exactly as specified (unknown keys invalid).
-* `prior_id == prior.population_6A`
+* `prior_id == population_priors_6A`
 * `geo_unit == country_iso`
 * Token-less: no timestamps, UUIDs, in-file digests.
 * No YAML anchors/aliases.
