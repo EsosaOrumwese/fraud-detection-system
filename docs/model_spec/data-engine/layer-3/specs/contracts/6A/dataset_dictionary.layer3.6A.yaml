@@ -381,6 +381,23 @@
   pii_class: none
   retention_class: engine_control_plane
 
+- id: graph_linkage_rules_6A
+  owner_layer: 3
+  owner_segment: 6A
+  status: required
+  description: Graph/linkage rules for 6A.S4 (device/IP sharing, degree caps, deterministic tie-breaks).
+  version: 'v1'
+  path: config/layer3/6A/policy/graph_linkage_rules_6A.v1.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6A.yaml#/policy/graph_linkage_rules_6A
+  columns_strict: false
+  lineage:
+    produced_by: []
+    consumed_by: [ '6A.S0', '6A.S4' ]
+  pii_class: none
+  retention_class: engine_control_plane
+
 # --- S1 ---
 
 - id: s1_party_base_6A

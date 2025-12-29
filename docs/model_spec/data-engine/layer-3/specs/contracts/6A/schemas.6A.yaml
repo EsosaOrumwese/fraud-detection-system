@@ -102,6 +102,10 @@ policy:
       $id: "#/policy/validation_policy_6A"
       type: object
       description: "6A.S5 validation policy/checklist (PASS/WARN/FAIL thresholds and required checks)."
+    graph_linkage_rules_6A:
+      $id: "#/policy/graph_linkage_rules_6A"
+      type: object
+      description: "6A.S4 linkage/graph rules (sharing priors + deterministic tie-break rules)."
 
 s1:
   description: "State 6A.S1 outputs"
