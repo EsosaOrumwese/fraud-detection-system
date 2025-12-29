@@ -128,6 +128,7 @@ For a given `(manifest_fingerprint, parameter_hash, account_id, instrument_type,
 3. Positive weight:
 
    * `z = normal_icdf(u1)` (deterministic libm profile)
+   * `normal_icdf` MUST use the engine's pinned normal primitive under numeric policy (open-interval U(0,1) + deterministic libm; see S0.3.4-S0.3.5)
    * `g = exp(sigma * z - 0.5*sigma^2)` (mean 1)
    * `w_a = max(weight_floor_eps, g)`
 
