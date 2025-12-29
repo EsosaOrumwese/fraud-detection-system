@@ -404,6 +404,23 @@
   environment: [runtime]
   digest:
 
+- manifest_key: mlr.6A.policy.device_linkage_rules
+  owner_layer: 3
+  owner_segment: 6A
+  dataset_id: device_linkage_rules_6A
+  semver: 1.0.0
+  path_template: config/layer3/6A/policy/device_linkage_rules_6A.v1.yaml
+  partition_keys: []
+  schema_ref: schemas.6A.yaml#/policy/device_linkage_rules_6A
+  produced_by: external
+  dependencies: []
+  retention_class: engine_control_plane
+  pii_class: none
+  license: Proprietary-Internal
+  owner: { owner_team: "data-governance" }
+  environment: [runtime]
+  digest:
+
 # --- S1 ---
 
 - manifest_key: mlr.6A.s1.party_base
@@ -621,6 +638,7 @@
     - mlr.6A.s2.account_base
     - mlr.6A.s3.instrument_base
     - mlr.6A.policy.graph_linkage_rules
+    - mlr.6A.policy.device_linkage_rules
   retention_class: core_entity
   pii_class: synthetic_customer
 
@@ -655,6 +673,8 @@
     - mlr.6A.s4.ip_base
     - mlr.6A.s4.device_links
     - mlr.6A.s4.ip_links
+    - mlr.6A.policy.graph_linkage_rules
+    - mlr.6A.policy.device_linkage_rules
   retention_class: diagnostics
   pii_class: synthetic_customer
 
@@ -672,6 +692,8 @@
     - mlr.6A.s4.ip_base
     - mlr.6A.s4.device_links
     - mlr.6A.s4.ip_links
+    - mlr.6A.policy.graph_linkage_rules
+    - mlr.6A.policy.device_linkage_rules
   retention_class: diagnostics
   pii_class: none
 

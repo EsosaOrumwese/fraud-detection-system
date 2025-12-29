@@ -98,112 +98,90 @@
 
 
 * Layer-3 Segment 6B
-	[6B control-plane policies & configuration]
-		- Behaviour & attachment policies (resolved via artefact_registry_6B, listed in sealed_inputs_6B):
-			· attachment_policy_6B
-					- rules for building candidate sets and priors for:
-							party attachment, account selection, instrument choice,
-							device selection, IP selection, merchant posture usage.
-			· sessionisation_policy_6B
-					- definitions of session key (which fields form a session),
-					- inactivity gap thresholds,
-					- whether dwell/session boundaries are deterministic or stochastic.
-			· behaviour_config_6B (if present)
-					- enables/disables features (e.g. whether to attach instrument at S1),
-					- scenario filters and guardrails.
-		- RNG policies (Layer-3 shared + 6B-specific):
-			· rng_profile_layer3.yaml
-					- Philox engine parameters and global invariants.
-			· rng_policy_6B.yaml
-					- mapping from 6B.S1 decision families → rng_stream_id, budgets:
-							rng_event_entity_attach,
-							rng_event_session_boundary (if used),
-					plus `blocks`/`draws` contracts and envelope semantics.
+	[S0 externals · control-plane packs sealed before any behaviour runs]
+		- rng_profile_layer3
+			· Layer-3 RNG invariants (Philox parameters, open-interval u∈(0,1) law, envelope expectations)
+			· shared “RNG law” referenced by 6B RNG policies
+		- rng_policy_6B
+			· S1 RNG families & budgets (entity attachment draws, session-boundary RNG if enabled)
+			· stream/substream keying law + blocks/draws contracts
+		- behaviour_config_6B (optional)
+			· feature flags, scenario filters, domain guardrails
+			· may be consulted by S1–S5 if present (otherwise ignored)
 
-	[6B configuration & policy inputs for S2]
-		- flow_shape_policy_6B       (behaviour_prior / flow_policy)
-			· how many flows per session,
-			· flow types & structures (auth-only, auth+clear, auth+clear+refund, etc.),
-			· arrival→flow assignment rules (one-to-one vs many-to-one).
-		- amount_model_6B            (behaviour_prior / amount_policy)
-			· per-merchant/segment distributions over amounts & currencies,
-			· relationships between auth, clearing, refund amounts.
-		- timing_policy_6B           (behaviour_prior / timing_policy)
-			· distributions over intra-session & intra-flow time offsets,
-			· constraints relative to session windows and arrival timestamps.
-		- flow_rng_policy_6B         (RNG policy for S2)
-			· mapping from S2 RNG families → rng_stream_id & budgets, e.g.:
-					rng_event_flow_shape,
-					rng_event_event_timing,
-					rng_event_amount_draw.
-		- behaviour_config_6B (if present)
-			· feature flags, domain filters, and guardrails that may constrain:
-					which sessions are eligible for multiple flows,
-					which flows may have refunds, etc.
+	[S1 externals · behaviour attachment + sessionisation]
+		- attachment_policy_6B
+			· rules for candidate sets / priors used to attach arrivals to:
+					party, account, instrument, device, IP, and merchant posture usage
+			· deterministic constraints (what’s allowed) + any stochastic knobs (must be via rng_policy_6B)
+		- sessionisation_policy_6B
+			· session key definition (which fields define a session)
+			· inactivity gap thresholds
+			· deterministic vs stochastic boundary posture (if stochastic, must route via rng_policy_6B)
+		- behaviour_config_6B (optional)
+			· may enable/disable attachment features or restrict eligible domains
 
-	[6B configuration & policy inputs for S3]
-		- fraud_campaign_catalogue_config_6B   (REQUIRED, METADATA or ROW_LEVEL)
-			· defines campaign templates:
-					campaign_type, segment definitions,
-					activation schedules, intended intensities,
-					allowable target domains (entities/flows/events).
-		- fraud_overlay_policy_6B             (REQUIRED, METADATA or ROW_LEVEL)
-			· defines how each campaign type mutates flows & events:
-					permitted tactics (amount shifts, routing anomalies, device/IP swaps, etc.),
-					what can be inserted vs mutated vs suppressed,
-					per-tactic constraints and severity scoring.
-		- fraud_rng_policy_6B                 (REQUIRED, METADATA)
-			· configuration for S3 RNG families:
-					rng_event_campaign_activation,
-					rng_event_campaign_targeting,
-					rng_event_overlay_mutation,
-			plus:
-					- per-family budgets (blocks/draws per event),
-					- substream keying law (e.g. keyed by (seed,fingerprint,scenario_id,campaign_id,flow_id)).
-		- behaviour_config_6B (if present)
-			· may limit which campaigns are enabled, which flows/entities are eligible,
-			or adjust intensity scaling for particular segments.
+	[S2 externals · flow synthesis (shape/amount/timing) + RNG]
+		- flow_shape_policy_6B
+			· flows-per-session distribution
+			· flow “structures” (auth-only, auth+clear, refund patterns, etc.)
+			· arrival→flow assignment rules (one-to-one vs many-to-one)
+		- amount_model_6B
+			· amount + currency models (per merchant/segment/type)
+			· relationships across auth/clearing/refund amounts
+		- timing_policy_6B
+			· intra-session and intra-flow time offset distributions
+			· constraints relative to session windows and arrival timestamps
+		- flow_rng_policy_6B
+			· S2 RNG families & budgets (flow shape draws, timing draws, amount draws)
+			· keying law for those RNG families
+		- behaviour_config_6B (optional)
+			· may restrict eligible flows (refund eligibility, multi-flow sessions, etc.)
 
-	[6B configuration & policy inputs for S4]
+	[S3 externals · fraud campaigns + overlays + RNG]
+		- fraud_campaign_catalogue_config_6B
+			· campaign templates: campaign_type, segment targeting definitions
+			· activation schedules/windows + intended intensities
+			· allowable target domains (entities/flows/events)
+		- fraud_overlay_policy_6B
+			· permitted tactics (amount shifts, routing anomalies, device/IP swaps, inserts/suppressions)
+			· tactic constraints + severity/scoring posture
+		- fraud_rng_policy_6B
+			· S3 RNG families & budgets (activation, targeting, mutation)
+			· keying law (seed/fingerprint/scenario_id/campaign_id/flow_id…)
+		- behaviour_config_6B (optional)
+			· may enable/disable campaigns or adjust scaling/eligibility
+
+	[S4 externals · truth labels + bank view + delays/cases + RNG]
 		- truth_labelling_policy_6B
-			· defines flow-level truth labels (`LEGIT`, `FRAUD_*`, `ABUSE_*`) and event-level truth roles:
-					- deterministic rules based on fraud_pattern_type, overlay_flags, posture, baseline vs overlay,
-					- optional ambiguous cases where RNG chooses between multiple plausible labels.
+			· flow-level truth labels (LEGIT, FRAUD_*, ABUSE_*) and event truth roles
+			· deterministic rules + optional ambiguity resolved via label_rng_policy_6B
 		- bank_view_policy_6B
-			· defines how the bank reacts:
-					- auth decisions (approve/decline/review) given truth & context,
-					- detection/no-detection rules and detection channels,
-					- dispute/chargeback rules and bank-view labels.
+			· bank reaction rules (approve/decline/review), detection/no-detection
+			· dispute/chargeback rules and bank-view labels
 		- delay_models_6B
-			· provides distributions for:
-					- detection delays,
-					- dispute delays,
-					- chargeback delays and outcomes,
-					- any extra case-event timing needed.
+			· distributions for detection delays, dispute delays, chargeback delays/outcomes
 		- case_policy_6B
-			· defines:
-					- case keys (how flows are grouped into cases),
-					- rules for when to open a case,
-					- how flows map to one or more cases,
-					- canonical case event types and ordering constraints.
+			· case keys and when to open cases
+			· flow→case mapping and canonical case event types + ordering constraints
 		- label_rng_policy_6B
-			· declares S4 RNG families and budgets, e.g.:
-					- rng_event_truth_label_ambiguity,
-					- rng_event_detection_delay,
-					- rng_event_dispute_delay,
-					- rng_event_chargeback_delay,
-					- rng_event_case_timeline;
-			and keying scheme:
-					- which tuple (mf, parameter_hash, seed, scenario_id, flow_id, case_key, etc.)
-					maps to each family’s substream.
+			· S4 RNG families & budgets (truth ambiguity, delays, case timeline draws)
+			· keying law (mf/seed/scenario_id/flow_id/case_key…)
+		- behaviour_config_6B (optional)
+			· may restrict which seeds/scenarios/flows are in scope for labeling/casing
 
-	[6B configuration & validation policy for S5]
+	[S5 externals · segment validation / HashGate]
 		- segment_validation_policy_6B
-			· defines:
-					- which structural, behavioural, and RNG checks S5 must run,
-					- severity per check (REQUIRED, WARN, INFO),
-					- numeric thresholds / bounds (fraud rate, detection rate, campaign coverage, etc.),
-					- sealing rules (when WARN is acceptable, when FAIL blocks `_passed.flag`).
-		- behaviour_config_6B (if used at validation time)
-			· may restrict which seeds/scenarios are in scope,
-			· may scope particular checks to subsets of flows, campaigns, or cases.
+			· which structural/behavioural/RNG checks must run
+			· severity per check (REQUIRED/WARN/INFO) + thresholds (fraud rate, detection rate, coverage, etc.)
+			· sealing rules (when WARN still permits _passed.flag vs when FAIL blocks)
+		- behaviour_config_6B (optional)
+			· may scope validation to subsets of scenarios/campaigns/cases
+
+	[Optional future externals (not required by current contracts; consider if you want to split enums out of policies)]
+		- taxonomy.behaviour_vocab_6B (optional)
+			· canonical flow types + event types used across S2/S4
+		- taxonomy.campaign_vocab_6B (optional)
+			· canonical campaign_type + tactic enums used across S3
+		- taxonomy.labels_bank_case_vocab_6B (optional)
+			· canonical truth label enums, bank label/action enums, case event type enums used across S4/S5
