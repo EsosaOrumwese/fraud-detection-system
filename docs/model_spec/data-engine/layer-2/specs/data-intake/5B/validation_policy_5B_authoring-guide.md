@@ -309,6 +309,7 @@ failure_policy:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder thresholds with final PASS/WARN/FAIL ranges.
-- Replace any example check lists with the actual validation checklist.
+- Replace `policy_id` and `version` with final identifiers.
+- Replace `require_upstream_pass` lists with the actual required segments.
+- Set `structural_checks`, `rng_accounting_checks`, and `realism_checks` thresholds to final values.
 

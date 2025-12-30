@@ -316,6 +316,7 @@ realism_floors:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder arrival law selection with the final law and parameter mapping.
-- Replace any example parameter values with the final bounds and defaults.
+- Replace `policy_id`, `version`, and `count_law_id` with final values.
+- Set `lambda_zero_eps`, `max_count_per_bucket`, and all `poisson_sampler` limits to final values.
+- If `nb2`, fill `nb2.kappa_law` (base, multipliers, bounds) and `realism_floors` with final values.
 

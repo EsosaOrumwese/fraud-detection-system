@@ -321,6 +321,7 @@ realism_floors:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder kernel parameters with final values (variance, length-scale, correlation).
-- Replace any example group overrides with the actual grouping rules.
+- Replace `latent_model_id` and all `kernel` parameters (variance, length_scale_days, correlation kind) with final values.
+- Populate `class_multipliers` for every demand_class and any `group_overrides` used.
+- Set `clipping` (`min_factor`, `max_factor`, `lambda_max`) to final limits.
 

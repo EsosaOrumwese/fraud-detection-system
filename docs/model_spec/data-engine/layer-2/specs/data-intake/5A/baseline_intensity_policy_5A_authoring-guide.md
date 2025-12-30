@@ -167,7 +167,7 @@ utc_projection:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder base-scale field names with the actual input fields used.
-- Replace any example clipping rules with the final min/max bounds.
-- Replace placeholder policy IDs/versions with final identifiers.
+- Replace `policy_id` and `version` with final identifiers (no placeholders).
+- Set `shape_sum_abs_tol`, `weekly_sum_rel_tol`, `hard_limits.max_lambda_per_bucket`, and `hard_limits.max_weekly_volume_expected` to final values.
+- Set `utc_projection.emit_utc_baseline` and ensure any UTC output path matches the contracts.
 

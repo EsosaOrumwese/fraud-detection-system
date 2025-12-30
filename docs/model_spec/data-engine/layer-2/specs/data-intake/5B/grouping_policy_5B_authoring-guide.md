@@ -239,6 +239,7 @@ realism_targets:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder grouping keys with the final grouping definition.
-- Replace any example stratification rules with the actual grouping rules.
+- Replace `policy_id` and `version` with final identifiers.
+- Set `zone_group_buckets`, `in_stratum_buckets`, and `scenario_band_law` to final values.
+- Replace any example group_id prefixes/buckets with the final scheme.
 

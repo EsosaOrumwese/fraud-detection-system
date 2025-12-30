@@ -211,6 +211,7 @@ Once this is in place, S0 can bind a run to one `scenario_id`, and S4 has a full
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder horizon dates and bucket durations with the final schedule.
-- Replace any example scenario IDs with the actual scenario set.
+- Replace `scenario_id`, `scenario_version`, and `labels` with the actual scenario set.
+- Replace `horizon_start_utc`, `horizon_end_utc`, and `bucket_duration_minutes` with the final schedule.
+- Set `emit_utc_intensities` per scenario and keep the XOR rule for `is_baseline`/`is_stress`.
 

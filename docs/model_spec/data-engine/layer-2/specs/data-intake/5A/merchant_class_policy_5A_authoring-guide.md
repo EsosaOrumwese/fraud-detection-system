@@ -447,6 +447,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder class rules with the final deterministic rule set.
-- Replace any example MCC/channel rules with the actual classing logic.
+- Replace `policy_id` and `version` with final identifiers.
+- Fill `demand_class_catalog`, `mcc_sector_map`, and `channel_group_map` with the full, real mappings.
+- Replace `decision_tree_v1` rules and `realism_targets` with the final deterministic rule set.
 

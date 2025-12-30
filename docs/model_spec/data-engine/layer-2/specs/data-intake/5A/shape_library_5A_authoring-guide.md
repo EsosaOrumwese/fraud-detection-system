@@ -301,6 +301,8 @@ Examples of what Codex should encode as templates (illustrative; the policy must
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder shape templates with the final per-class shapes.
-- Replace any example modifiers with the final modifiers/weights.
+- Replace `policy_id` and `version` with final identifiers.
+- Set `grid.bucket_duration_minutes`, `grid.T_week`, and `zone_group_mode.buckets` to the final grid.
+- Populate `templates` and `template_resolution` with the final library and mapping rules.
+- Set `constraints` and `realism_floors` to final values (no placeholders).
 

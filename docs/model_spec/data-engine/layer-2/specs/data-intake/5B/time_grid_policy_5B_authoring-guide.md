@@ -249,6 +249,7 @@ guardrails:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder bucket duration and index encoding with final values.
-- Replace any example scenario tag fields with the actual fields carried.
+- Replace `bucket_duration_minutes`, `bucket_index_origin`, and grid alignment rules with final values.
+- Set `carry_scenario_fields.required/optional` and `local_annotations.reference_tzid` to the final field list.
+- Set `guardrails` to the final bounds (min/max horizon days, max buckets).
 

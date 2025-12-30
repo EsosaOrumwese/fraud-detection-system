@@ -385,6 +385,7 @@ derivation:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder family IDs with the final RNG families.
-- Replace placeholder budget values with fixed per-event budgets.
+- Replace family IDs with the final list (`latent_vector`, `bucket_count`, `arrival_time_jitter`, `arrival_site_pick`, `arrival_edge_pick`).
+- Replace each family’s `draws_u64_law` with the fixed budgets required by the consuming states.
+- Replace any example `domain_key_law` strings with the exact key basis used in v1.
 

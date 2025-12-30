@@ -405,6 +405,7 @@ Codex MUST replace `global_multiplier` after running the deterministic calibrati
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder class parameters with the final scale parameters per demand class.
-- Replace any example scenario mappings with the actual scenario IDs.
+- Replace `policy_id` and `version` with final identifiers.
+- Populate `class_params` for every `demand_class` with real `median_per_site_weekly`, `pareto_alpha`, `clip_max_per_site_weekly`, `ref_per_site_weekly`, and `high_variability_flag`.
+- Set `global_multiplier`, `brand_size_exponent`, `zone_role_multipliers`, `virtual_mode_multipliers`, `channel_group_multipliers`, and `thresholds` to final values.
 

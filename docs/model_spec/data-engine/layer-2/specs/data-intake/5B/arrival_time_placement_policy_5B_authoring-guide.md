@@ -194,6 +194,7 @@ guardrails:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder timing distributions with the final placement law.
-- Replace any example time-window bounds with the actual bounds.
+- Replace `policy_id` and `version` with final identifiers.
+- Confirm `placement_kind`, `interval_semantics`, and `draws_per_arrival` are final and pinned.
+- Set `guardrails.max_arrivals_per_bucket` and `guardrails.max_bucket_duration_seconds` to final values.
 

@@ -221,6 +221,7 @@ realism_floors:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder routing rules with the final deterministic routing logic.
-- Replace any example allowlists with the actual route sets.
+- Replace `policy_id` and `version` with final identifiers.
+- Set `hybrid_policy.p_virtual_hybrid` and confirm `coin_source` matches `arrival_site_pick.first_uniform`.
+- Set `physical_router` and `virtual_router` key fields and `fail_closed_rules` to final values.
 

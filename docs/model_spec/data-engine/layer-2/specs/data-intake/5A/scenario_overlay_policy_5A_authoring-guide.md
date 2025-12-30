@@ -330,6 +330,7 @@ calendar_validation:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder overlay factors and caps with final values.
-- Replace any example event-type mappings with the actual policy mappings.
+- Replace `policy_id` and `version` with final identifiers.
+- Populate `event_types`, `shape_kinds`, and `scope_rules` with the final vocab and defaults.
+- Set `combination.min_factor/max_factor` and `calendar_validation` thresholds to final values.
 
