@@ -432,6 +432,7 @@
   produced_by: 6B.S2
   dependencies:
     - mlr.6B.s2.flow_anchor_baseline
+    - mlr.1A.cache.merchant_currency
   retention_class: core_entity
   pii_class: synthetic_customer
 

@@ -41,7 +41,8 @@ This policy is applied in S2 and depends on sealed inputs:
 
 * `flow_shape_policy_6B` (event templates and flow_type meaning)
 * `flow_rng_policy_6B` (RNG families/budgets for amount sampling)
-* merchant currency context from Layer-1 (e.g., `merchant_currency` or equivalent) and 5B arrivals for merchant+site context
+* `mlr.1A.cache.merchant_currency` (required merchant currency context; missing -> FAIL CLOSED)
+* 5B arrivals for merchant+site context
 * `numeric_policy` (rounding dp, IEEE-754 posture; assumed global)
 
 Hard rules:
