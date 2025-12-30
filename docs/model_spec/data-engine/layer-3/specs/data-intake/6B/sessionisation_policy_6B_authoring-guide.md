@@ -297,3 +297,11 @@ guardrails:
 5. Token-less YAML, no anchors/aliases, unknown keys invalid.
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- `hard_timeout_seconds` must be >= `soft_timeout_seconds` and both must be > 0.
+- Timeouts must be plausible for the domain (avoid near-zero or multi-day gaps unless justified).
+- If stochastic boundaries are enabled, `rng_event_session_boundary` must be wired and budgeted.
+- `session_key.fields` must be stable and non-empty; nulls must be handled deterministically.
+

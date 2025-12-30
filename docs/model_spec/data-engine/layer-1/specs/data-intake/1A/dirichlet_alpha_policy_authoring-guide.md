@@ -183,3 +183,11 @@ fallback:
 * If `enabled=false`, engine MUST treat the policy as **not consumed** (no effect on lineage or behaviour).
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Ensure `total_concentration` yields non-degenerate draws for typical |C_m| (not near-delta, not near-uniform by clamp).
+- Require `alpha_min < alpha_max` and verify <10% of entries are clamped on a sample run; otherwise fail closed.
+- If `include_home_boost=true`, keep `home_boost_multiplier` bounded so home share does not exceed ~0.95 for most multi-country merchants.
+- If `base_share_source` is `base_weight_priors` or `ccy_country_weights_cache`, fail closed when any country in C_m has missing or zero weight.
+

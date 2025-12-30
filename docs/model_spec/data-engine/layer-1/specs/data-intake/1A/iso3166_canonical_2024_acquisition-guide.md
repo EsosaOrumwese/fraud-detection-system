@@ -227,3 +227,8 @@ You should end up with:
 [2]: https://download.geonames.org/export/dump/countryInfo.txt "download.geonames.org"
 [3]: https://unstats.un.org/unsd/methodology/m49/overview/ "UNSD — Methodology "
 [4]: https://www.iso.org/iso-3166-country-codes.html "ISO - ISO 3166 — Country Codes"
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

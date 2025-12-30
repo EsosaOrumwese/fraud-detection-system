@@ -288,3 +288,11 @@ guardrails:
 6. Guardrails prevent runaway target picks/mutations.
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Only the three S3 families are allowed; any extra family is invalid.
+- Budgets are fixed per locus (`draws` 0/1) and must not depend on outcomes.
+- Campaign counts/targets must be inferable from configs; no rejection sampling loops.
+- Keying must exclude `run_id` and follow the substream basis in the policy.
+

@@ -146,3 +146,8 @@ notes: "v1: ip_country_tolerance=max(0.01,5/E) clamped; cutoff_tolerance_seconds
 7. UTF-8, LF newlines, no timestamps.
 
 If any check fails → **FAIL CLOSED** (do not publish; do not seal).
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

@@ -120,3 +120,10 @@ sha256_digest: cf4ea77c4a0f07b1c291e460529a64724655a0494fbc4989c17d98408c64f8ff
 4. `epsilon_degrees` is a number and **> 0.0**.
 5. `sha256_digest` is hex64 and **matches** the digest computed by §5.
 6. File is sealed by 2A.S0; if bytes change, S0 must treat it as a policy change (new lineage).
+
+## Non-toy/realism guardrails (MUST)
+
+- Nudges must be sparse and targeted; no global shifts.
+- Offsets must be small (minutes/hours), not whole-timezone jumps, unless explicitly justified.
+- All `tzid` values must be valid in the pinned tzdb release; conflicts fail closed.
+

@@ -71,6 +71,24 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+- id: iso_legal_tender_2024
+  status: approved
+  owner_subsegment: ingress
+  description: Primary legal tender currency per ISO2 (optional fallback for merchant_currency).
+  version: '2024'
+  format: parquet
+  path: reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/iso_legal_tender_2024
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: world_countries
   status: approved
   owner_subsegment: ingress

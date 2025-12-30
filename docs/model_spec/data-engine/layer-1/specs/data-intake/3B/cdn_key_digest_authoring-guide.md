@@ -143,3 +143,8 @@ Codex MUST fail closed if the source CDN mix is toy-like:
 6. Deterministic formatting rules satisfied (UTF-8, LF, key order).
 
 If any check fails → **FAIL CLOSED**.
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

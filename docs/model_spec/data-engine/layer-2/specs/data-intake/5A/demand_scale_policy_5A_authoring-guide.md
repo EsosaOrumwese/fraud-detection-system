@@ -402,3 +402,8 @@ Codex MUST replace `global_multiplier` after running the deterministic calibrati
 6. File written deterministically (UTF-8, LF, stable ordering).
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

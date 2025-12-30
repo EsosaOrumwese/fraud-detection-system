@@ -131,3 +131,11 @@ per_currency: {}
 * This policy does not introduce any scoring model independent of S5 weights (scoring is fixed by S6 spec)
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- This policy MUST NOT introduce scoring; only the allowed knobs are permitted.
+- `max_candidates_cap` MUST be >= K_target for any merchant where K_target > 0, else fail closed.
+- If `zero_weight_rule` excludes candidates, ensure at least K_target candidates remain; otherwise fail closed.
+- If `emit_membership_dataset=true`, schema/path must be present and validated.
+

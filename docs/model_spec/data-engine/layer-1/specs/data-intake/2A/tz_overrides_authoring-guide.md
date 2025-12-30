@@ -145,3 +145,10 @@ This makes the override target stable across seeds (site identity is key-based, 
 ---
 
 If you want, next we can do `tz_nudge` right after this (it’s simpler: semver + epsilon + digest, and it’s applied only for deterministic border tie-breaks in S1).
+
+## Non-toy/realism guardrails (MUST)
+
+- Overrides must be minimal and justified; avoid mass rewrites of tzids.
+- Each override tzid must exist in the pinned tzdb release; invalid tzids fail closed.
+- Precedence rules must be deterministic (no overlapping/ambiguous overrides).
+

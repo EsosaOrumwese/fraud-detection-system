@@ -298,3 +298,8 @@ Examples of what Codex should encode as templates (illustrative; the policy must
 7. No timestamps / generated_at fields.
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

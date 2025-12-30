@@ -246,3 +246,8 @@ guardrails:
 7. S1 output uses bucket_index base 0, origin horizon_start_utc, and produces a contiguous grid with no gaps/overlaps.
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

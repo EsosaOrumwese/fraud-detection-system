@@ -171,3 +171,10 @@ validation:
 * Residual domain is exactly `[0.0, 1.0]` (or whatever you standardise) and is enforced
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- `dp` MUST be fixed and tie-break rules MUST be fully deterministic (no locale or floating ordering).
+- After quantisation, group sums MUST be exactly 1.0 at dp and numerically within schema tolerances.
+- Quantisation MUST NOT collapse all mass to a single country when multiple countries have non-zero pre-weights.
+

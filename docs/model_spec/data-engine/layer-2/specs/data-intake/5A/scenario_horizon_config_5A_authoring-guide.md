@@ -208,3 +208,8 @@ scenarios:
 9. `Δ_minutes` divisible by `bucket_duration_minutes`.
 
 Once this is in place, S0 can bind a run to one `scenario_id`, and S4 has a fully pinned, deterministic horizon grid + mapping law (no guesswork).
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

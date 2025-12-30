@@ -112,6 +112,29 @@ iso3166_canonical_2024:
   - type: unique
     columns: [alpha3, numeric_code]
 
+# -- ISO legal tender (optional fallback) -----------------------------------
+iso_legal_tender_2024:
+  type: table
+  primary_key: [country_iso]
+  description: Primary legal tender currency per ISO2 (fallback source for merchant_currency).
+  columns:
+  - name: country_iso
+    $ref: '#/$defs/iso2'
+    nullable: false
+    description: ISO 3166-1 alpha-2.
+    fk: {dataset_ref: '#/iso3166_canonical_2024', column: country_iso}
+  - name: currency
+    $ref: '#/$defs/iso4217'
+    nullable: false
+    description: ISO 4217 alphabetic code.
+  - {name: currency_numeric, type: int16, nullable: true, description: ISO 4217 numeric code (optional)., minimum: 0, maximum: 999}
+  - {name: minor_units, type: int8, nullable: true, description: ISO 4217 minor units (optional)., minimum: 0, maximum: 9}
+  - {name: source_vintage, type: string, nullable: true, description: Source vintage identifier (optional).}
+  - {name: is_exact_vintage, type: boolean, nullable: true, description: True if source vintage is exact.}
+  constraints:
+  - type: unique
+    columns: [country_iso]
+
 # -- Country boundaries (GeoParquet) ---------------------------------------
 world_countries:
   type: geotable

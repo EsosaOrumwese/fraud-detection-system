@@ -107,3 +107,10 @@ notes: "CUSUM corridor parameters for 1A.S2 run-scoped validation. Missing => fa
 ## 7) Does 1B need a validation_policy?
 
 For **1B v1**, typically **no**: 1B’s validation is structural/replay/lineage checks and doesn’t introduce corridor-style statistical gates like S2. If you later add any run-scoped statistical gates to 1B (e.g., spatial density drift detection), then you’d introduce a separate `validation_policy_1B.yaml` (don’t overload the 1A one).
+
+## Non-toy/realism guardrails (MUST)
+
+- Do not ship a “pass-all” or “fail-all” policy; thresholds must allow both outcomes in realistic ranges.
+- PASS/WARN/FAIL thresholds must be monotone and non-overlapping; misordered ranges are invalid.
+- Every required check in the expanded spec must be present; disabled checks must be explicitly noted.
+

@@ -180,3 +180,11 @@ Codex must ensure these files exist:
 * missing/invalid `licenses/license_map.yaml` is a hard fail (no warn-only path)
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- The `licenses` map MUST cover every license string used in all registries/dictionaries; run a repo scan to verify.
+- Every `text_path` MUST exist under `LICENSES/` and match case exactly; no external paths.
+- If `spdx` is provided, it MUST match the license key (or be an allowed SPDX alias); otherwise set it to null.
+- `redistribution` must be consistent with the license (e.g., `Proprietary-Internal` cannot be `open`).
+

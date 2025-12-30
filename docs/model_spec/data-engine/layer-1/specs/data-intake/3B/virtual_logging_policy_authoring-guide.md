@@ -204,3 +204,8 @@ housekeeping:
 2. Top-level keys exactly as §2; managed_logs exactly the two entries in §3.
 3. All realism floors in §6 pass.
 4. Deterministic formatting (UTF-8, LF). No timestamps/“generated_at”.
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

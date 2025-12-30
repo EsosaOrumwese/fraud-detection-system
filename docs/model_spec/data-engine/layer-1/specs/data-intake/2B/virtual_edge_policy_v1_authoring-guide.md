@@ -274,3 +274,8 @@ Just to show structure (real file must be ~2000 edges):
 7. Any fallback usage is within allowed limits; otherwise abort.
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

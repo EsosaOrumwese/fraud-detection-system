@@ -402,3 +402,8 @@ The canonical digest is recorded by S0 in the sealing inventory; do not embed it
 If any check fails → **FAIL CLOSED** (do not emit or seal the policy).
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

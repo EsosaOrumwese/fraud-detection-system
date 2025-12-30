@@ -230,4 +230,9 @@ This satisfies:
 * Exactly one `DEFAULT` rule, decision-bearing, guaranteed to fire. 
 * Any referenced `country_set` exists and expands only to ISO2.
 * `reason_code_to_rule_id` is total for all `reason_codes` and one-to-one.
-* Every admit-bearing rule has at least one admit directive (`admit_countries` or `admit_sets`) so admitted foreign rows can reconstruct admission keys (or else S3.3 fails). 
+* Every admit-bearing rule has at least one admit directive (`admit_countries` or `admit_sets`) so admitted foreign rows can reconstruct admission keys (or else S3.3 fails).
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

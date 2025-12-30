@@ -151,3 +151,15 @@ https://github.com/JuliaMath/openlibm/releases/tag/v0.8.7
 https://github.com/JuliaMath/openlibm/archive/refs/tags/v0.8.7.tar.gz
 https://github.com/JuliaMath/openlibm/archive/refs/tags/v0.8.7.zip
 ```
+
+## Non-toy/realism guardrails (MUST)
+
+- `functions` MUST include every libm call used by the engine and MUST NOT include extras without a spec change.
+- `artifacts` MUST point to real bytes built from the pinned source archive; verify sha256 from actual files.
+- `build` MUST record a toolchain that enforces the numeric policy (no fast-math, FMA off).
+- `checksum` MUST be recomputed from canonical JSON and match the manifest; mismatch => fail closed.
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

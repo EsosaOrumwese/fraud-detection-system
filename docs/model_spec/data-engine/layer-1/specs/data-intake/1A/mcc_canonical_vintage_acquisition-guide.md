@@ -28,6 +28,15 @@ In your **closed-world** engine, this artefact gives you:
 * **Proposed path template:** `reference/industry/mcc_canonical/<vintage>/mcc_canonical.parquet`
   *(Add to artefact registry + dataset dictionary when you formalise it.)*
 
+### 1.1.1 Contract alignment (MUST)
+
+This MCC authority table is **not yet sealed** in the engine contracts. Before using it as an authoritative input, you MUST:
+
+* add it to the artefact registry (path + schema anchor), and
+* add a dataset dictionary entry that matches the path + versioning rules.
+
+Until then, treat this guide as **acquisition-only** (do not claim the engine has sealed it).
+
 ### 1.2 Minimal schema (MUST)
 
 * `mcc` (int32) **PK**

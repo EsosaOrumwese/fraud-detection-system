@@ -252,3 +252,15 @@ guardrails:
 6. Token-less posture: no timestamps/digests embedded; sealing handles digests.
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Do not change `rng_engine`, open-interval law, or lane policy without a formal spec update.
+- `blocks = ceil(draws/2)` is mandatory for all consuming events; no alternative accounting.
+- Box-Muller (no cache) is the only allowed normal primitive; TAU must match the pinned hex literal.
+- Any deviation from these laws must fail closed at S0.
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

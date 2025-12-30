@@ -128,3 +128,10 @@ Separately, runtime must serialize effective flags/env into an attestation artef
 * File bytes are stable under your formatting convention (so digests don’t drift).
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Enforce binary64 + round-to-nearest-even, FMA off, and no FTZ/DAZ; any deviation is a hard failure.
+- Avoid duplicate or synonymous keys unless CI enforces equality; drift here breaks replayability.
+- Any policy byte change MUST bump the relevant hash lineage (parameter_hash or manifest_fingerprint).
+

@@ -413,3 +413,8 @@ Using sealed hints (outlets/arrivals), S1 can compute:
   * bump version and filename (`prior.population_6A.v2.yaml`)
   * update S1 validation corridors accordingly
 * Never “quietly” widen allowed inputs: if you add new hint types, update `inputs_allowed` and keep the previous behaviour available or version it.
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

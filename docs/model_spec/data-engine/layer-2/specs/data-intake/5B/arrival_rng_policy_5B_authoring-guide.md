@@ -382,3 +382,8 @@ derivation:
 7. Emission ordering rules in §7 enforced.
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

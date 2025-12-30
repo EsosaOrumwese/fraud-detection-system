@@ -259,3 +259,11 @@ guardrails:
 6. S5 can compute expected counts from this policy + domain sizes, and compare against RNG logs as described in S5. 
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Only the two S1 families are allowed; any extra family is invalid.
+- Budgets are fixed (`draws` 0/1); no variable-draw algorithms.
+- Non-consuming envelopes are required when candidate sets are size 0/1.
+- Keying must exclude `run_id` and follow the policy basis.
+

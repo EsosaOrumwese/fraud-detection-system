@@ -236,3 +236,15 @@ notes: >
 5. If present, S0 seals it (digest in `sealed_inputs_6B`) and downstream states consult it only via `sealed_inputs_6B` (no ad-hoc paths).
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Allowlists and blocklists must not overlap; any allowlist must be non-empty.
+- Feature flags must not disable required outputs; if a feature is disabled, the state must still emit valid rows.
+- Guardrail caps must be positive and consistent with downstream policies (no negative or zero caps).
+- This config is restrictive-only; do not add new behaviours or vocab outside other policies.
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

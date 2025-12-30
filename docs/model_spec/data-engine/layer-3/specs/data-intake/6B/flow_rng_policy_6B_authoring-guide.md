@@ -304,3 +304,11 @@ guardrails:
 6. If this policy is missing/invalid, S2 must fail preconditions (`S2_PRECONDITION_RNG_POLICY_INVALID`).
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Only the three S2 families are allowed; any extra family is invalid.
+- Budgets must be fixed (`draws` 0 or 1); no variable-draw algorithms or rejection loops.
+- `blocks` must follow `ceil(draws/2)` and keying must exclude `run_id`.
+- Every stochastic locus must emit exactly one event (consuming) or a non-consuming envelope.
+

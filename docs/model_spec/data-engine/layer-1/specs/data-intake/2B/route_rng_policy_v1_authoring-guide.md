@@ -253,3 +253,8 @@ Codex MUST reject policies that violate any of:
 If any check fails → **FAIL CLOSED** (do not emit/overwrite; do not seal).
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

@@ -283,3 +283,11 @@ guardrails:
 6. No rejection sampling or outcome-dependent loops.
 
 ---
+
+## Non-toy/realism guardrails (MUST)
+
+- Only the five S4 families are allowed; any extra family is invalid.
+- Budgets are fixed (`draws` 0/1); any multi-uniform need must be split into multiple loci.
+- Keying must exclude `run_id` and include the flow/case identifiers as specified.
+- Deterministic loci must emit non-consuming envelopes when required.
+

@@ -14,7 +14,14 @@ This is the **third model** in the 1A trio. It supplies `beta_phi`, the coeffici
 
 This file is produced **offline** and consumed **read-only** at runtime by 1A.S2. Runtime never trains.
 
-### 0.1 Realism bar (MUST)
+### 0.1 Contract status (offline-only input)
+
+The simulation config used to build the corpus is **not** a sealed engine input.
+
+* **Training-only path:** `config/models/hurdle/hurdle_simulation.priors.yaml`
+* **Contract note:** do **not** register the simulation config as a runtime sealed artefact; only the exported coefficients bundle is sealed.
+
+### 0.2 Realism bar (MUST)
 
 Because this is authored offline, Codex MUST NOT "cheat" by driving dispersion to near-Poisson everywhere (e.g., by forcing phi -> phi_max broadly) just to reduce S2 rejections.
 
@@ -428,3 +435,8 @@ Containing:
 No PASS → export is considered invalid.
 
 ---
+
+## Placeholder resolution (MUST)
+
+* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
+* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.

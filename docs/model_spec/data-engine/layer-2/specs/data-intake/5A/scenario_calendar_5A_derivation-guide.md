@@ -9,7 +9,7 @@
 * **fail-closed** (no guessing if inputs don’t line up),
 * **time-axis consistent** with `scenario_horizon_config_5A` and `scenario_overlay_policy_5A`.
 
-> Quick contract hygiene: make sure the **path** for this artefact is consistent between registry + dictionary (`config/...` vs `data/...`). The guide below assumes the dictionary path is authoritative.
+> Contract note: the **path** for this artefact is pinned in the 5A contracts to `config/layer2/5A/scenario/calendar/...` and must not be relocated without updating those contracts.
 
 ---
 

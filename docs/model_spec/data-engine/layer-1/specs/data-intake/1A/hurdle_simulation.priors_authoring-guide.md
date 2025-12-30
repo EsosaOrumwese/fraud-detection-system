@@ -14,6 +14,13 @@ It must be:
 * realistic enough that fitted coefficients produce sensible runtime behaviour
 * explicit about **clamps** and **noise** to prevent pathological training data
 
+### 1.1 Contract status (offline-only)
+
+`hurdle_simulation.priors.yaml` is an **offline training input**, not a sealed engine artefact.
+
+* **Pinned path:** `config/models/hurdle/hurdle_simulation.priors.yaml`
+* **Contract note:** do **not** register this file as a runtime sealed input; it exists only to build the training corpus and coefficient bundles.
+
 ---
 
 ## 2) Inputs the training run must already have (read-only)
@@ -771,4 +778,12 @@ This is the **file Codex writes per training run** at:
   "git_commit_hex": "{git_commit_hex}"
 }
 ```
+
+## Acceptance checklist
+
+- Required top-level keys present (`rng`, `calibration`, `noise`, `clamps`, `hurdle`, `nb_mean`, `dispersion`).
+- `rng.algorithm` is philox2x64-10 and `seed` is recorded.
+- Input paths + sha256 are recorded for merchant_ids, GDP, buckets, and ISO.
+- Clamp ranges are valid (min < max) and noise scales are finite.
+- Manifest and export bundle paths are recorded and exist after export.
 

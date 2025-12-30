@@ -215,3 +215,17 @@ Notes:
 [2]: https://docs.ropensci.org/rnaturalearth/reference/countries.html "world country polygons from Natural Earth - Docs - rOpenSci"
 [3]: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/ "Admin 0 - Countries - Natural Earth"
 [4]: https://www.geoboundaries.org/api.html "geoBoundaries API"
+
+## Coverage & sanity checks (MUST)
+
+- Coverage: every `iso3166_canonical_2024.country_iso` must appear exactly once unless explicitly excluded.
+- Geometry must be valid (non-empty, finite bounds) and CRS must be EPSG:4326.
+- Reject duplicates on `country_iso` and any invalid/missing geometries.
+
+## Acceptance checklist
+
+- Path/ID match the artefact registry and dataset dictionary.
+- Schema anchor validates and `country_iso` is unique with full coverage (or documented exclusions).
+- Geometry is valid and CRS is EPSG:4326.
+- No placeholders or TODOs remain.
+
