@@ -19,21 +19,13 @@ Hard boundary: this pack **does not create new entities or arrivals**; it only s
 
 6B.S0 is responsible for binding and sealing all 6B behaviour/campaign/labelling packs in `sealed_inputs_6B` (digest recorded), but S0 must not interpret their semantics.
 
-### 1.2 Registration note
-
-In the current `dataset_dictionary.layer3.6B.yaml` excerpted in this chat, I do **not** see an explicit entry for `behaviour_prior_pack_6B` alongside the other policies; you’ll want to register it (or explicitly treat your existing `attachment_policy_6B` + `sessionisation_policy_6B` as the “equivalent”).
-
-### 1.3 Recommended v1 wiring (to add to dictionary + registry)
+### 1.2 Contract pins (MUST)
 
 * **dataset_id:** `behaviour_prior_pack_6B`
-* **manifest_key:** `mlr.6B.policy.behaviour_prior_pack` *(recommended naming to match other policy keys)*
+* **manifest_key:** `mlr.6B.policy.behaviour_prior_pack`
 * **path:** `config/layer3/6B/behaviour_prior_pack_6B.yaml`
-* **schema_ref:** `schemas.6B.yaml#/policy/behaviour_prior_pack_6B` *(add anchor stub if needed)*
-* **sealed_inputs role:** `behaviour_prior`
-* **status:** `REQUIRED`
-* **read_scope:** `ROW_LEVEL`
-
-(If you prefer the manifest_key literal `behaviour_prior_pack_6B` because you reference it that way in docs, that’s fine—just keep it consistent across dictionary/registry and S0 sealing.)
+* **schema_ref:** `schemas.6B.yaml#/policy/behaviour_prior_pack_6B`
+* **status:** `REQUIRED` (sealed by S0)
 
 ---
 

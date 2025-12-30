@@ -29,7 +29,7 @@ From your 6B dictionary/registry:
 
 **Sealing rule:** If used, S0 MUST include it in the S0 contract/config set and record `sha256_hex` in `sealed_inputs_6B`.
 
-> Note: your current `schemas.6B.yaml` is mostly business-dataset anchors; you’ll want to add a `policy/behaviour_config_6B` anchor so S0 can schema-validate it as required by the S0 spec.
+**Schema requirement (MUST):** `schemas.6B.yaml#/policy/behaviour_config_6B` MUST exist (even as a placeholder `type: object`) so S0 can schema-validate this file. Missing anchor -> S0 must FAIL CLOSED.
 
 ---
 
