@@ -234,5 +234,7 @@ This satisfies:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace any placeholder country sets with the real allow/deny lists and cite their source.
+- Replace placeholder rule IDs and ordering with the final ladder order.
+- Replace any TODO reason codes or tags with the closed enum values in the policy.
+

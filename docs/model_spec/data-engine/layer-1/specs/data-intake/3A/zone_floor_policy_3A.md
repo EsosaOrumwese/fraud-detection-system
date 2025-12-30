@@ -219,5 +219,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder floor thresholds with final numeric floors (no TODOs).
+- Replace any example zone sets with the real zone taxonomy/vocab.
+- Replace placeholder policy IDs/versions with final identifiers.
+

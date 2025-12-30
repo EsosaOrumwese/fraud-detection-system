@@ -211,5 +211,6 @@ Once this is in place, S0 can bind a run to one `scenario_id`, and S4 has a full
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder horizon dates and bucket durations with the final schedule.
+- Replace any example scenario IDs with the actual scenario set.
+

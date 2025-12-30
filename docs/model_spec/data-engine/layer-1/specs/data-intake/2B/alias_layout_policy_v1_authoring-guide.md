@@ -405,5 +405,7 @@ If any check fails → **FAIL CLOSED** (do not emit or seal the policy).
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder `version_tag` and any example numeric values with production values.
+- Replace any example `required_index_fields` list with the actual required fields.
+- Replace any stub record layout params (qbits, alignment, endianness) with final choices.
+

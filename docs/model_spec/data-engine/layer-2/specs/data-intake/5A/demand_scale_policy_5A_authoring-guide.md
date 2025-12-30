@@ -405,5 +405,6 @@ Codex MUST replace `global_multiplier` after running the deterministic calibrati
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder class parameters with the final scale parameters per demand class.
+- Replace any example scenario mappings with the actual scenario IDs.
+

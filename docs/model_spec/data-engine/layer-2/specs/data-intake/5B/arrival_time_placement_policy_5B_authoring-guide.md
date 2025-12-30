@@ -194,5 +194,6 @@ guardrails:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder timing distributions with the final placement law.
+- Replace any example time-window bounds with the actual bounds.
+

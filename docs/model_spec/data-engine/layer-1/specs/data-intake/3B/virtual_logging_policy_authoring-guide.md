@@ -207,5 +207,6 @@ housekeeping:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder logging toggles and sampling rates with final values.
+- Replace any example log field lists with the real emitted schema.
+

@@ -416,5 +416,6 @@ Using sealed hints (outlets/arrivals), S1 can compute:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder population priors with the actual prior table values.
+- Replace any example coverage notes with the actual coverage statistics.
+

@@ -262,5 +262,6 @@ guardrails:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace any placeholder token strings with the exact pinned RNG profile identifiers.
+- Replace any example constants with the pinned hex literals used in the RNG law.
+

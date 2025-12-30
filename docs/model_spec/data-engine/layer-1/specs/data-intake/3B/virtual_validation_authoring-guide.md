@@ -149,5 +149,6 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder thresholds with final numeric tolerances.
+- Replace any example check lists with the actual required validation checks.
+

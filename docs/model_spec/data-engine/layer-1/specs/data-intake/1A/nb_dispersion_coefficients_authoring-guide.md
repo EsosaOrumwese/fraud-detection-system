@@ -438,5 +438,7 @@ No PASS → export is considered invalid.
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace `{config_version}` and `{iso8601_timestamp}` with the actual export bundle identifiers.
+- Replace placeholder `beta_phi`, `dict_mcc`, and `dict_ch` with the real fitted values and ordering.
+- Replace placeholder manifest paths and digests with the files produced by the offline run.
+

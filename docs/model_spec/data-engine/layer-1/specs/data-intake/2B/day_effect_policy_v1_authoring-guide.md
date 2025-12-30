@@ -272,5 +272,7 @@ If any check fails → **FAIL CLOSED**.
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder weekday/seasonality weights with real values (not uniform defaults).
+- Replace any example calendars or date ranges with the actual effective ranges.
+- Replace placeholder policy IDs/versions with final identifiers.
+

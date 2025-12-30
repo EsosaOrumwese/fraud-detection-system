@@ -434,5 +434,6 @@ realism_targets:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder flow templates and probabilities with the final v1 templates.
+- Replace any example flow types with the actual allowed flow types.
+

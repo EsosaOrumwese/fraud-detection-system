@@ -286,5 +286,7 @@ This bundle is only considered publishable if the paired dispersion bundle is al
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace `{config_version}` and `{iso8601_timestamp}` with the actual export bundle identifiers.
+- Replace placeholder `beta`, `dict_mcc`, and `dict_ch` with the real fitted values and ordering.
+- Replace any placeholder manifest/selfcheck paths with the real files produced by the offline run.
+

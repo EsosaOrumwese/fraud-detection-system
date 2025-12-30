@@ -385,5 +385,6 @@ derivation:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder family IDs with the final RNG families.
+- Replace placeholder budget values with fixed per-event budgets.
+

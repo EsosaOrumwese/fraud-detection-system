@@ -146,5 +146,6 @@ If any check fails → **FAIL CLOSED**.
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace the placeholder digest with the actual 64-hex sha256 of the key bundle.
+- Replace any example path references with the real key file location.
+

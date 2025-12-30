@@ -246,5 +246,6 @@ notes: >
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder allowlists/blocklists with the actual scenario/campaign values.
+- Replace any example guardrail caps with final numeric limits.
+

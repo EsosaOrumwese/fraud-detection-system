@@ -277,5 +277,7 @@ Just to show structure (real file must be ~2000 edges):
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder edge lists with the actual allowed edges for v1.
+- Replace any example weights with the final distribution (must sum correctly by context).
+- Replace placeholder policy IDs/versions with final identifiers.
+

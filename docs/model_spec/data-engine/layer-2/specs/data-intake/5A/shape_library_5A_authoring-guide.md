@@ -301,5 +301,6 @@ Examples of what Codex should encode as templates (illustrative; the policy must
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder shape templates with the final per-class shapes.
+- Replace any example modifiers with the final modifiers/weights.
+

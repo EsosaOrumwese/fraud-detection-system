@@ -167,5 +167,7 @@ utc_projection:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder base-scale field names with the actual input fields used.
+- Replace any example clipping rules with the final min/max bounds.
+- Replace placeholder policy IDs/versions with final identifiers.
+

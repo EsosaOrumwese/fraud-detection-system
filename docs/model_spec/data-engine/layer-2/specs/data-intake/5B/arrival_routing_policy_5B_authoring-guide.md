@@ -221,5 +221,6 @@ realism_floors:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder routing rules with the final deterministic routing logic.
+- Replace any example allowlists with the actual route sets.
+

@@ -309,5 +309,6 @@ failure_policy:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder thresholds with final PASS/WARN/FAIL ranges.
+- Replace any example check lists with the actual validation checklist.
+

@@ -330,5 +330,6 @@ calendar_validation:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder overlay factors and caps with final values.
+- Replace any example event-type mappings with the actual policy mappings.
+

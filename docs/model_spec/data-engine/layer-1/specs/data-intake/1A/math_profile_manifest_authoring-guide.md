@@ -161,5 +161,7 @@ https://github.com/JuliaMath/openlibm/archive/refs/tags/v0.8.7.zip
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace `<stable_toolchain_id_and_flags>` with the exact build toolchain string used.
+- Replace all `<64-hex>` placeholders with real sha256 digests of the archive and library.
+- Replace the manifest `checksum` with the computed canonical checksum.
+

@@ -316,5 +316,6 @@ realism_floors:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder arrival law selection with the final law and parameter mapping.
+- Replace any example parameter values with the final bounds and defaults.
+

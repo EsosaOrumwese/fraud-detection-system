@@ -321,5 +321,6 @@ realism_floors:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder kernel parameters with final values (variance, length-scale, correlation).
+- Replace any example group overrides with the actual grouping rules.
+

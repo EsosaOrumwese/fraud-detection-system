@@ -279,5 +279,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder country weights with the final normalised weights (sum to 1 per CDN).
+- Replace example provenance notes with the actual source/vintage used.
+- Replace placeholder IDs/versions with the final values.
+

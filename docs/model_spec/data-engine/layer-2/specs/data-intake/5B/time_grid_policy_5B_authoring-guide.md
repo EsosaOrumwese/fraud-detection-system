@@ -249,5 +249,6 @@ guardrails:
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder bucket duration and index encoding with final values.
+- Replace any example scenario tag fields with the actual fields carried.
+

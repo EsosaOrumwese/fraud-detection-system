@@ -252,5 +252,7 @@ https://www.bis.org/terms_statistics.htm
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder source links/vintage with the exact dataset and extraction date.
+- Replace any example coverage stats with the actual coverage summary for the run.
+- Record the real parquet path and sha256 digest after ingest.
+

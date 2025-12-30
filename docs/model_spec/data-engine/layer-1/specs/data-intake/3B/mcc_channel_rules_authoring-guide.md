@@ -242,5 +242,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace placeholder MCC groupings with the actual MCC mappings used in v1.
+- Replace any example channel rules with the final rule table.
+- Replace placeholder IDs/versions with the final identifiers.
+

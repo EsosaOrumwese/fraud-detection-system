@@ -256,5 +256,7 @@ If any check fails → **FAIL CLOSED** (do not emit/overwrite; do not seal).
 
 ## Placeholder resolution (MUST)
 
-* Replace all placeholder values (e.g., "TODO", "TBD", "example") before sealing.
-* Remove or rewrite any "stub" sections so the guide is decision-free for implementers.
+- Replace any placeholder RNG family names with the final, contract-backed family list.
+- Replace placeholder budgets with the fixed per-event draw/block budgets.
+- Replace example substream keying notes with the exact key basis used.
+
