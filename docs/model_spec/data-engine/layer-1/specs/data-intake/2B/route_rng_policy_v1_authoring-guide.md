@@ -256,7 +256,7 @@ If any check fails → **FAIL CLOSED** (do not emit/overwrite; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace any placeholder RNG family names with the final, contract-backed family list.
-- Replace placeholder budgets with the fixed per-event draw/block budgets.
-- Replace example substream keying notes with the exact key basis used.
+- Replace `version_tag` and both `streams.*.rng_stream_id` with the final stream IDs.
+- Populate `streams.*.event_families` and `draws_per_unit` with the fixed budgets.
+- Ensure `policy_id` and `rng_engine` match the pinned values (no placeholders).
 

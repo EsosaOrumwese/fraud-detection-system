@@ -207,6 +207,7 @@ housekeeping:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder logging toggles and sampling rates with final values.
-- Replace any example log field lists with the real emitted schema.
+- Replace `version`, `retention`, and `housekeeping` values with final limits.
+- Populate `managed_logs` with the final rotation sizes and fsync policies.
+- Ensure `run_log_root` and filenames match the actual log locations.
 

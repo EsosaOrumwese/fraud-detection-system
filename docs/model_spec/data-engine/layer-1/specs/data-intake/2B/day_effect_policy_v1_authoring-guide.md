@@ -272,7 +272,7 @@ If any check fails → **FAIL CLOSED**.
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder weekday/seasonality weights with real values (not uniform defaults).
-- Replace any example calendars or date ranges with the actual effective ranges.
-- Replace placeholder policy IDs/versions with final identifiers.
+- Replace `version_tag`, `day_range.start_day`, and `day_range.end_day` with the actual date range.
+- Set `sigma_gamma`, `rng_stream_id`, and `record_fields` to the final values.
+- Ensure `policy_id` and `rng_engine` are pinned correctly (no placeholders).
 

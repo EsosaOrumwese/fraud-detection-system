@@ -438,7 +438,7 @@ No PASS → export is considered invalid.
 
 ## Placeholder resolution (MUST)
 
-- Replace `{config_version}` and `{iso8601_timestamp}` with the actual export bundle identifiers.
-- Replace placeholder `beta_phi`, `dict_mcc`, and `dict_ch` with the real fitted values and ordering.
-- Replace placeholder manifest paths and digests with the files produced by the offline run.
+- Replace `{config_version}` and `{iso8601_timestamp}` in the export path with the actual bundle identifiers.
+- Populate `metadata.simulation_manifest` and related paths/digests from the training run.
+- Fill `beta_phi`, `dict_mcc`, `dict_ch`, and `design.beta_phi_order` with the fitted values and frozen ordering.
 

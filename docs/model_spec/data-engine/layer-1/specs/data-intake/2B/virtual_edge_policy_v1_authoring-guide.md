@@ -277,7 +277,7 @@ Just to show structure (real file must be ~2000 edges):
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder edge lists with the actual allowed edges for v1.
-- Replace any example weights with the final distribution (must sum correctly by context).
-- Replace placeholder policy IDs/versions with final identifiers.
+- Replace `version_tag` and `edge_id` patterns with the final identifiers.
+- Populate `edges[]` with the real edge list (edge_lat/edge_lon, ip_country, weight).
+- Ensure the array is sorted and weights are normalised per the guide.
 

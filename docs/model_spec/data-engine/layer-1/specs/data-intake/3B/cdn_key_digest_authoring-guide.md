@@ -146,6 +146,6 @@ If any check fails → **FAIL CLOSED**.
 
 ## Placeholder resolution (MUST)
 
-- Replace the placeholder digest with the actual 64-hex sha256 of the key bundle.
-- Replace any example path references with the real key file location.
+- Replace `version`, `source_policy_version`, and `edge_scale` with the values from `cdn_country_weights.yaml`.
+- Replace `cdn_key_digest` with the computed semantic digest (hex64).
 

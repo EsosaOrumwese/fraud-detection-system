@@ -149,6 +149,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder thresholds with final numeric tolerances.
-- Replace any example check lists with the actual required validation checks.
+- Replace `version` with the final governance tag.
+- Set `ip_country_tolerance` and `cutoff_tolerance_seconds` to the final numeric tolerances.
+- Ensure `cdn_country_weights.yaml` is the actual source used for calibration.
 

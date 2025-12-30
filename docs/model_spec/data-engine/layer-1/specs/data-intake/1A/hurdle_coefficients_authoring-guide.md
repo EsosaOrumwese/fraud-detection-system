@@ -286,7 +286,7 @@ This bundle is only considered publishable if the paired dispersion bundle is al
 
 ## Placeholder resolution (MUST)
 
-- Replace `{config_version}` and `{iso8601_timestamp}` with the actual export bundle identifiers.
-- Replace placeholder `beta`, `dict_mcc`, and `dict_ch` with the real fitted values and ordering.
-- Replace any placeholder manifest/selfcheck paths with the real files produced by the offline run.
+- Replace `{config_version}` and `{iso8601_timestamp}` in the export path with the actual bundle identifiers.
+- Populate `metadata.simulation_manifest` and `metadata.inputs` with real paths + sha256 digests from the training run.
+- Fill `beta`, `beta_mu`, `dict_mcc`, `dict_ch`, `dict_dev5`, `design.beta_order`, and `design.beta_mu_order` with the fitted values and frozen ordering.
 

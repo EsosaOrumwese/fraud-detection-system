@@ -162,6 +162,6 @@ https://github.com/JuliaMath/openlibm/archive/refs/tags/v0.8.7.zip
 ## Placeholder resolution (MUST)
 
 - Replace `<stable_toolchain_id_and_flags>` with the exact build toolchain string used.
-- Replace all `<64-hex>` placeholders with real sha256 digests of the archive and library.
-- Replace the manifest `checksum` with the computed canonical checksum.
+- Replace `artifacts[].sha256` and the manifest `checksum` with the computed hex64 values.
+- Confirm `math_profile_id`, `vendor`, and `version` match the pinned v1 strategy (no placeholders).
 

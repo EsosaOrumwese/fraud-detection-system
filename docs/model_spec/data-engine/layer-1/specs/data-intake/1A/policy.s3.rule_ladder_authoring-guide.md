@@ -234,7 +234,7 @@ This satisfies:
 
 ## Placeholder resolution (MUST)
 
-- Replace any placeholder country sets with the real allow/deny lists and cite their source.
-- Replace placeholder rule IDs and ordering with the final ladder order.
-- Replace any TODO reason codes or tags with the closed enum values in the policy.
+- Replace placeholder `country_sets` with the real ISO2 sets and record their provenance.
+- Replace placeholder `rule_id`, `precedence`, `priority`, and `predicate` with the final ladder.
+- Ensure `reason_codes`, `filter_tags`, and any rule tags are the closed enums used at runtime.
 

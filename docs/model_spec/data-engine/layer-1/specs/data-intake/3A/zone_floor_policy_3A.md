@@ -219,7 +219,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder floor thresholds with final numeric floors (no TODOs).
-- Replace any example zone sets with the real zone taxonomy/vocab.
-- Replace placeholder policy IDs/versions with final identifiers.
+- Replace `version` with the final governance tag.
+- Populate `floors[]` for every tzid with real `floor_value` and `bump_threshold` values.
+- Ensure `policy_id` and path are final and no placeholder tzids remain.
 

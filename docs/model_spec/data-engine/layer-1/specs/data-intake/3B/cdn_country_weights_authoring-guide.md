@@ -279,7 +279,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder country weights with the final normalised weights (sum to 1 per CDN).
-- Replace example provenance notes with the actual source/vintage used.
-- Replace placeholder IDs/versions with the final values.
+- Replace `version` and `edge_scale` with the final values.
+- Populate `countries[]` with the final ISO2 weights (normalised to sum=1).
+- Record the real provenance/vintage for the external weights source.
 

@@ -405,7 +405,7 @@ If any check fails → **FAIL CLOSED** (do not emit or seal the policy).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder `version_tag` and any example numeric values with production values.
-- Replace any example `required_index_fields` list with the actual required fields.
-- Replace any stub record layout params (qbits, alignment, endianness) with final choices.
+- Replace `version_tag`, `layout_version`, and `decode_law` with the final identifiers.
+- Set `quantised_bits`, `record_layout.prob_qbits`, `alignment_bytes`, and `endianness` to final values.
+- Populate `required_index_fields` with the exact header/row fields emitted by S2.
 

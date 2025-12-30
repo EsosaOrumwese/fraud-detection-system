@@ -242,7 +242,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder MCC groupings with the actual MCC mappings used in v1.
-- Replace any example channel rules with the final rule table.
-- Replace placeholder IDs/versions with the final identifiers.
+- Replace `version` with the final governance tag.
+- Populate `rules[]` with the full MCC domain (two rules per MCC) and final decisions.
+- Ensure `notes` are present and not placeholder text for every rule.
 

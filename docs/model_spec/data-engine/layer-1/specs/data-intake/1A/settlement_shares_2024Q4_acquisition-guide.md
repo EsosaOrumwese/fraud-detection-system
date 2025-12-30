@@ -252,7 +252,7 @@ https://www.bis.org/terms_statistics.htm
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder source links/vintage with the exact dataset and extraction date.
-- Replace any example coverage stats with the actual coverage summary for the run.
-- Record the real parquet path and sha256 digest after ingest.
+- Replace source URLs/vintage with the exact data release and extraction date.
+- Record the final parquet path and sha256 digest after ingest.
+- Replace any example coverage stats with the actual coverage/obs_count summary.
 

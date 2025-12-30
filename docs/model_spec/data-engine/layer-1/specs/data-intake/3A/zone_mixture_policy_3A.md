@@ -207,7 +207,7 @@ If any check fails → **FAIL CLOSED** (do not publish; do not seal).
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder mixture weights with final non-degenerate weights per zone class.
-- Replace example bucket thresholds with the actual escalation thresholds.
-- Replace placeholder policy IDs/versions with final identifiers.
+- Replace `policy_id`, `version`, and `theta_mix` with final values.
+- Populate `rules[]` with the final metrics, thresholds, and decision_reason values.
+- Ensure rule ordering is final and no example buckets remain.
 

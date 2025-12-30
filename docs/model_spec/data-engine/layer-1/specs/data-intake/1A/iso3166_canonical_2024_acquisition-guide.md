@@ -230,7 +230,7 @@ You should end up with:
 
 ## Placeholder resolution (MUST)
 
-- Replace placeholder vintage/date strings with the actual ISO release vintage used.
-- Replace any example URLs with the exact acquisition sources that were downloaded.
-- Record real file names and sha256 digests for the ingested parquet.
+- Set the dataset vintage/version to the exact ISO release date used (no placeholders).
+- Replace any example source URLs with the actual upstream files downloaded.
+- Record the real parquet filename and sha256 digest for the ingested table.
 
