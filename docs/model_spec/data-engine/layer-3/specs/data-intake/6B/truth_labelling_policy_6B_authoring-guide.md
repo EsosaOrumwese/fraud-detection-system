@@ -124,6 +124,10 @@ Token-less:
 * `pattern_source_vocab`: `[CAMPAIGN, COLLATERAL, HEURISTIC_ONLY]`
 * `truth_event_role_vocab`: recommended set from S4 spec (e.g., `PRIMARY_FRAUD_ACTION`, `SUPPORTING_EVENT`, `LEGIT_CONTEXT`, `DETECTION_ACTION`, `CASE_EVENT`, `NONE`).
 
+**Pinned sentinel (MUST):**
+* The no-fraud/no-overlay sentinel value for `fraud_pattern_type` MUST be the literal string `NONE`.
+* If S3 uses any other sentinel in its outputs, the run is invalid (S4 must fail `S4_TRUTH_CONSISTENCY_FAILED`).
+
 ---
 
 ## 8) Direct campaign/pattern mapping (MUST)
@@ -142,7 +146,7 @@ Each row MUST include:
 v1 must include the “obvious” base rules described in the S4 spec:
 
 * known fraud patterns → `FRAUD_*` or `ABUSE_*` consistent with the pattern,
-* `fraud_pattern_type = NONE` + no overlay anomalies → `LEGIT`.
+* `fraud_pattern_type = NONE` + no overlay anomalies → `LEGIT` (sentinel pinned above).
 
 ---
 
