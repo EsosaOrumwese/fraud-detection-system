@@ -43,8 +43,7 @@
   partition_keys: [fingerprint]
   schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
   produced_by: 6B.S0
-  dependencies:
-    - mlr.6B.validation.s0_gate_receipt
+  dependencies: []
   retention_class: engine_control_plane
   pii_class: none
 
@@ -92,6 +91,23 @@
   path_template: config/layer3/6B/behaviour_config_6B.yaml
   partition_keys: []
   schema_ref: schemas.6B.yaml#/policy/behaviour_config_6B
+  produced_by: external
+  dependencies: []
+  retention_class: engine_control_plane
+  pii_class: none
+  license: Proprietary-Internal
+  owner: { owner_team: "data-governance" }
+  environment: [runtime]
+  digest:
+
+- manifest_key: mlr.6B.policy.behaviour_prior_pack
+  owner_layer: 3
+  owner_segment: 6B
+  dataset_id: behaviour_prior_pack_6B
+  semver: 1.0.0
+  path_template: config/layer3/6B/behaviour_prior_pack_6B.yaml
+  partition_keys: []
+  schema_ref: schemas.6B.yaml#/policy/behaviour_prior_pack_6B
   produced_by: external
   dependencies: []
   retention_class: engine_control_plane

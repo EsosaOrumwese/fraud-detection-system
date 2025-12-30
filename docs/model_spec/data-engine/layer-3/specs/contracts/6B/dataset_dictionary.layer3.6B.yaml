@@ -85,6 +85,21 @@
     produced_by: []
     consumed_by: [ '6B.S0', '6B.S1', '6B.S2', '6B.S3', '6B.S4', '6B.S5' ]
 
+- id: behaviour_prior_pack_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Behaviour priors pack for 6B (distributions/parameters used by S1-S4; sealed by S0).
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/behaviour_prior_pack_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/behaviour_prior_pack_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1', '6B.S2', '6B.S3', '6B.S4' ]
+
 - id: rng_profile_layer3
   owner_layer: 3
   owner_segment: 6B

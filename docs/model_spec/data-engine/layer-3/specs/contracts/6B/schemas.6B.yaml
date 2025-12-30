@@ -23,6 +23,10 @@ policy:
       $id: "#/policy/behaviour_config_6B"
       type: object
       description: "Optional feature flags and guardrails for 6B."
+    behaviour_prior_pack_6B:
+      $id: "#/policy/behaviour_prior_pack_6B"
+      type: object
+      description: "Behaviour priors pack for 6B (sealed by S0; used by S1-S4)."
     rng_profile_layer3:
       $id: "#/policy/rng_profile_layer3"
       type: object
