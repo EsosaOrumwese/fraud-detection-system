@@ -46,10 +46,10 @@ S5 may derive the following per-merchant aggregates deterministically (examples)
   * `cross_border_share(m) = 1 - (n_sites_home / n_sites_total)` (home inferred or provided; see §3.3)
   * `top_country_iso(m)` by site mass (tie-break `country_iso` asc)
 
-* **Optional (if present as sealed row-level inputs):**
+* **Required (v1; must be sealed row-level input):**
 
   * `mcc(m)`, `channel(m)`, `home_country_iso(m)` from the sealed merchant universe (ingress).
-    *(If these are absent, v1 must define deterministic fallbacks.)*
+    *(If these are absent, S5 MUST FAIL CLOSED; v1 does not support MCC-free merchant posture.)*
 
 ### 3.2 Forbidden (must not be used)
 
@@ -297,7 +297,7 @@ risk_tier_vocabulary:
   - { tier_id: HIGH,     label: High,     description: "High static posture.",     severity_rank: 3 }
 
 feature_whitelist:
-  required_sources: [mlr.1A.output.outlet_catalogue]
+  required_sources: [mlr.1A.output.outlet_catalogue, mlr.input.transaction_schema.merchant_ids]
   allowed_features: [n_sites_total, n_countries, cross_border_share, home_country_iso, mcc, channel]
   fallbacks:
     home_country_iso: "top_country_iso_by_outlet_mass (tie-break country_iso asc)"

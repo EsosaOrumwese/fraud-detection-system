@@ -17,15 +17,14 @@ S4 treats linkage-rule violations as hard errors (`LINKAGE_RULE_VIOLATION` style
 
 ## 1) File identity (v1 contract pins)
 
-**Important:** your current 6A v1 registry/dictionary doesn’t list this artefact yet, but 6A.S4 explicitly expects linkage-rule packs by role (`DEVICE_LINKAGE_RULES` / `GRAPH_LINKAGE_RULES`).
-So this guide defines the v1 identity you should wire into the registry/dictionary next.
+This artefact is registered in the 6A v2 contract surface and MUST be sealed by S0 as a row-level policy input.
 
 **Recommended v1 wiring:**
 
-* **manifest_key:** `mlr.6A.config.device_linkage_rules`
+* **manifest_key:** `mlr.6A.policy.device_linkage_rules`
 * **dataset_id:** `device_linkage_rules_6A`
-* **path:** `config/layer3/6A/config/device_linkage_rules_6A.v1.yaml`
-* **schema_ref:** `schemas.6A.yaml#/config/device_linkage_rules_6A` *(add stub anchor; schemas are already “placeholder anchors” in 6A)*
+* **path:** `config/layer3/6A/policy/device_linkage_rules_6A.v1.yaml`
+* **schema_ref:** `schemas.6A.yaml#/policy/device_linkage_rules_6A`
 * **sealed_inputs role:** `DEVICE_LINKAGE_RULES`
 * **sealed_inputs status:** `REQUIRED`
 * **sealed_inputs read_scope:** `ROW_LEVEL`

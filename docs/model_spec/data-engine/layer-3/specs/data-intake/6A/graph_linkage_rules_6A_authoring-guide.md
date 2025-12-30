@@ -25,16 +25,14 @@ This artefact MUST be:
 
 ## 1) Contract wiring note
 
-Your **current 6A v1 registry/dictionary** define the S4 outputs (`s4_device_links_6A`, `s4_ip_links_6A`) but do not yet list an explicit external artefact for `"GRAPH_LINKAGE_RULES"` as a sealed input/dependency.
-
-That doesn’t block us from authoring this guide, but you’ll want to **register** it and seal it in S0 for full reproducibility (so S4/S5 validation bundles can hash it).
+This artefact is registered in the 6A v2 contract surface and MUST be sealed by S0 as a row-level policy input.
 
 **Recommended v1 registration (add to artefact_registry + dataset_dictionary later):**
 
-* `manifest_key: mlr.6A.config.graph_linkage_rules`
+* `manifest_key: mlr.6A.policy.graph_linkage_rules`
 * `dataset_id: graph_linkage_rules_6A`
-* `path_template: config/layer3/6A/config/graph_linkage_rules_6A.v1.yaml`
-* `schema_ref: schemas.6A.yaml#/config/graph_linkage_rules_6A` *(add anchor stub; schemas.6A.yaml is currently placeholder anchors anyway)*
+* `path_template: config/layer3/6A/policy/graph_linkage_rules_6A.v1.yaml`
+* `schema_ref: schemas.6A.yaml#/policy/graph_linkage_rules_6A`
 * `sealed_inputs role: GRAPH_LINKAGE_RULES`
 * `sealed_inputs status: REQUIRED`
 * `sealed_inputs read_scope: ROW_LEVEL`
@@ -70,7 +68,7 @@ This config must align with:
 
 ## 4) File identity (recommended v1)
 
-* **Path:** `config/layer3/6A/config/graph_linkage_rules_6A.v1.yaml`
+* **Path:** `config/layer3/6A/policy/graph_linkage_rules_6A.v1.yaml`
 * **Format:** YAML (UTF-8, LF)
 * **Token-less:** no `generated_at`, no digests, no UUIDs.
 * **Sealing:** 6A.S0 records `sha256_hex` in `sealed_inputs_6A`.
