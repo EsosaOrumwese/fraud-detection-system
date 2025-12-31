@@ -247,13 +247,20 @@ These bounds are corridor-safe and avoid “ridiculous chains” or “infinite 
 
 ---
 
-## 9) A proper v1 prior file (synthetic-realistic, deterministic)
+## 9) An example of a proper v1 prior file (synthetic-realistic, deterministic)
 
-This is a **complete** example Codex can author and use.
+This is an example to be built open and tuned by Codex to my current data
 
 ```yaml
+# config/models/hurdle/hurdle_simulation.priors.yaml
+# Training-only input (offline corpus priors). Not a sealed runtime artefact. 
+#
+# Semantics:
+# - Hurdle: is_multi ~ Bernoulli(pi_m)
+# - If is_multi=1: draw NB2 via Gamma-Poisson, then reject until N>=2 (to match runtime multi-site semantics). 
+#
 semver: "1.0.0"
-version: "2025-10-09"
+version: "2025-12-31"
 
 rng:
   algorithm: "philox2x64-10"
@@ -261,9 +268,11 @@ rng:
 
 calibration:
   enabled: true
+  # Targets are evaluated deterministically on the training merchant universe
+  # (using pi_m and the pi>=0.5 convention in the guide). 
   mean_pi_target: 0.12
-  mean_mu_target_multi: 4.5
-  median_phi_target: 20.0
+  mean_mu_target_multi: 5.0
+  median_phi_target: 22.0
   fixed_iters: 64
   brackets:
     base_logit: [-10.0, 2.0]
@@ -271,64 +280,82 @@ calibration:
     base_log_phi: [1.0, 5.0]
 
 noise:
+  # Noise is additive in latent space; deterministically generated (e.g. Box–Muller on Philox uniforms). 
   per_merchant_logit_sd: 0.35
   per_merchant_log_mu_sd: 0.25
   per_merchant_log_phi_sd: 0.20
 
 clamps:
+  # Corridor-safe clamps to prevent pathological corpora / fits. 
   pi: { min: 0.01, max: 0.80 }
   mu: { min: 2.0,  max: 40.0 }
   phi: { min: 8.0, max: 80.0 }
 
 hurdle:
-  # base_logit is calibrated when calibration.enabled=true
+  # logit(pi_m) = base_logit + channel + bucket + mcc_effect + e_logit 
+  # base_logit is solved by calibration when enabled=true; value here is the starting point.
   base_logit: -1.20
 
   channel_offsets:
-    CP: 0.0
+    CP: 0.00
     CNP: -0.85
 
+  # GDP bucket (1..5) offsets: richer home markets -> higher multi-site propensity.
   bucket_offsets:
-    "1": -0.70
+    "1": -0.75
     "2": -0.35
-    "3": 0.0
-    "4": 0.35
-    "5": 0.70
+    "3":  0.00
+    "4":  0.35
+    "5":  0.75
 
+  # Broad, deterministic sector shaping without enumerating thousands of MCCs. 
   mcc_range_offsets:
-    - { range: "1500-1799", offset: 0.10 }  # contractors
-    - { range: "4000-4799", offset: 0.40 }  # travel/transport
-    - { range: "4800-4999", offset: 0.20 }  # telecom/utilities
-    - { range: "5000-5999", offset: 0.20 }  # broad retail
-    - { range: "5300-5399", offset: 0.45 }  # department/discount
-    - { range: "5400-5599", offset: 0.55 }  # grocery/fuel/pharmacy
-    - { range: "8000-8999", offset: -0.45 } # professional/medical
-    - { range: "9000-9999", offset: -0.55 } # govt/nonprofit
+    - { range: "1500-1799", offset:  0.10 }  # contractors/services
+    - { range: "3000-3999", offset:  0.40 }  # travel (airlines etc.)
+    - { range: "4000-4799", offset:  0.35 }  # transport
+    - { range: "4800-4999", offset:  0.20 }  # telecom/utilities/digital infra
+    - { range: "5000-5999", offset:  0.20 }  # broad retail
+    - { range: "5300-5399", offset:  0.45 }  # discount/warehouse
+    - { range: "5400-5599", offset:  0.55 }  # grocery/fuel/pharmacy band
+    - { range: "5600-5699", offset:  0.25 }  # apparel
+    - { range: "5700-5799", offset:  0.20 }  # home furnishings
+    - { range: "5800-5899", offset:  0.30 }  # eating/drinking
+    - { range: "8000-8999", offset: -0.45 }  # professional/medical
+    - { range: "9000-9999", offset: -0.55 }  # government/nonprofit
 
+  # Sparse overrides (additive on top of range offsets). 
   mcc_offsets:
-    "5411": 0.80
-    "5541": 0.70
-    "5542": 0.70
-    "5812": 0.35
-    "5814": 0.35
-    "5912": 0.60
-    "7011": 0.55
-    "7995": -0.35
-    "6011": -0.10
+    "5411": 0.80  # grocery stores
+    "5541": 0.70  # service stations
+    "5542": 0.70  # automated fuel dispensers
+    "5912": 0.60  # drug stores/pharmacies
+    "5812": 0.35  # eating places/restaurants
+    "5814": 0.35  # fast food
+    "7011": 0.55  # lodging/hotels
+    "4511": 0.45  # airlines
+    "4111": 0.30  # commuter transport
+    "7995": -0.35 # gambling
+    "6011": -0.10 # ATM/cash disbursement
+    "4829": -0.25 # money transfer
 
 nb_mean:
-  base_log_mean: 0.95
+  # log(mu_m) = base_log_mean + channel + mcc_effect + e_log_mu 
+  base_log_mean: 1.00
 
   channel_offsets:
     CP: 0.05
     CNP: -0.15
 
   mcc_range_offsets:
-    - { range: "1500-1799", offset: 0.10 }
-    - { range: "4000-4799", offset: 0.45 }
-    - { range: "5000-5999", offset: 0.20 }
-    - { range: "5300-5399", offset: 0.40 }
-    - { range: "5400-5599", offset: 0.55 }
+    - { range: "1500-1799", offset:  0.10 }
+    - { range: "3000-3999", offset:  0.45 }
+    - { range: "4000-4799", offset:  0.35 }
+    - { range: "5000-5999", offset:  0.20 }
+    - { range: "5300-5399", offset:  0.40 }
+    - { range: "5400-5599", offset:  0.55 }
+    - { range: "5600-5699", offset:  0.25 }
+    - { range: "5700-5799", offset:  0.20 }
+    - { range: "5800-5899", offset:  0.25 }
     - { range: "8000-8999", offset: -0.25 }
     - { range: "9000-9999", offset: -0.30 }
 
@@ -336,16 +363,21 @@ nb_mean:
     "5411": 0.75
     "5541": 0.60
     "5542": 0.60
+    "5912": 0.50
     "5812": 0.30
     "5814": 0.30
     "7011": 0.55
+    "4511": 0.45
     "7995": -0.20
     "6011": -0.10
+    "4829": -0.10
 
 dispersion:
-  base_log_phi: 2.90          # ~18.2; calibrated if enabled=true
-  gdp_log_slope: 0.08         # richer → slightly higher phi (less dispersion)
+  # log(phi_m) = base_log_phi + gdp_log_slope*ln_gdp_pc + channel + mcc_effect + e_log_phi 
+  base_log_phi: 2.95
+  gdp_log_slope: 0.08
 
+  # Pinned MOM knobs for deterministic dispersion training. 
   mom:
     epsilon: 1.0e-6
     n_min: 30
@@ -353,22 +385,26 @@ dispersion:
 
   channel_offsets:
     CP: 0.00
-    CNP: -0.05                # slightly more dispersion online
+    CNP: -0.05
 
   mcc_range_offsets:
-    - { range: "4000-4799", offset: 0.10 }
-    - { range: "4800-4999", offset: 0.15 }
-    - { range: "5300-5399", offset: 0.20 }
-    - { range: "5400-5599", offset: 0.25 }
+    - { range: "3000-3999", offset:  0.10 }
+    - { range: "4000-4799", offset:  0.10 }
+    - { range: "4800-4999", offset:  0.15 }
+    - { range: "5300-5399", offset:  0.20 }
+    - { range: "5400-5599", offset:  0.25 }
+    - { range: "5800-5899", offset:  0.10 }
     - { range: "8000-8999", offset: -0.15 }
     - { range: "9000-9999", offset: -0.20 }
 
   mcc_offsets:
     "5411": 0.30
-    "5541": 0.30
-    "5542": 0.30
+    "5541": 0.25
+    "5542": 0.25
     "7011": 0.15
+    "4511": 0.10
     "7995": -0.25
+    "4829": -0.20
 ```
 
 This prior:

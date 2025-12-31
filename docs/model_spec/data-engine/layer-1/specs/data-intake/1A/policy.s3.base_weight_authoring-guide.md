@@ -109,22 +109,29 @@ Recommended v1 bounds:
 ## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
+# config/policy/s3.base_weight.yaml
+# Deterministic base-weight prior coefficients + fixed-dp quantisation for 1A.S3.4. 
+
 version: "1.0.0"
 
-# Quantisation precision used by S3.4 and emitted in s3_base_weight_priors.dp
+# Fixed decimal places for quantisation and fixed-dp emission into s3_base_weight_priors.base_weight_dp. 
 dp: 8
 
 model:
   kind: "loglinear_rank_home"
   coeffs:
+    # log_w = beta0 + beta_home*I(is_home) + beta_rank*candidate_rank  
     beta0: 0.0
-    beta_home: 1.6     # home gets exp(1.6) ≈ 4.95x baseline
-    beta_rank: -0.35   # weight decays with candidate_rank
+    beta_home: 1.30     # home ≈ exp(1.30) = 3.67x baseline
+    beta_rank: -0.18    # per-rank decay ≈ exp(-0.18) = 0.836x
 
 bounds:
+  # Safety clamps (log-space then linear-space), per evaluation order in the guide. 
   log_w_min: -50.0
   log_w_max: 50.0
-  w_min: 1.0e-12
+
+  # IMPORTANT: w_min is aligned with dp=8 so quantisation cannot produce 0.00000000. 
+  w_min: 1.0e-8
   w_max: 1.0e12
 ```
 

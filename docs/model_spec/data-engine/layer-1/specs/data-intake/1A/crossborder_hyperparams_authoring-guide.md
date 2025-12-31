@@ -179,38 +179,142 @@ So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structu
 ## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
-semver: "1.0.0"
-version: "2025-04-15"
+# config/models/crossborder_hyperparams.yaml
+# source=authored; vintage=2025-12-31
+# Governs: 1A.S0.6 eligibility + 1A.S4 ZTP link/exhaustion (participates in parameter_hash)
 
 eligibility:
-  rule_set_id: "eligibility.v1.2025-04-15"
-  default_decision: "deny"
+  rule_set_id: "eligibility.v1.2025-12-31"
+  default_decision: "deny"   # "allow" | "deny"
   rules:
-    # Example: deny everything by default, allow only a small safe slice.
-    - id: "allow_cp_general"
-      priority: 100
-      decision: "allow"
-      channel: ["CP"]
-      iso: "*"
-      mcc: ["5000-5999"]   # example inclusive range
-
-    - id: "deny_cnp_high_risk"
+    # Hard deny: sanctioned home countries (all channels, all MCCs)
+    - id: "deny_sanctioned_home"
       priority: 10
       decision: "deny"
+      mcc: ["*"]
+      channel: ["*"]         # "*" or subset of {"CP","CNP"}
+      iso: ["BY","CU","IR","KP","RU","SD","SY","VE"]
+      reason: "deny_sanctioned_home"
+
+    # Risk deny: cash-like / gambling / high-risk CNP categories (global)
+    - id: "deny_high_risk_cnp_cashlike"
+      priority: 20
+      decision: "deny"
+      mcc:
+        - "4829"              # money transfer
+        - "6011"              # cash disbursement (ATM)
+        - "6051"              # quasi-cash / crypto-like (scheme dependent)
+        - "7995"              # gambling
+        - "7800-7999"         # gambling / gaming bands
       channel: ["CNP"]
-      iso: "*"
-      mcc: ["7995", "4829"]  # example codes
+      iso: ["*"]
+      reason: "deny_high_risk_cnp_cashlike"
+
+    # Allow: travel/transport/hospitality tends to be genuinely cross-border (CP and CNP)
+    - id: "allow_travel_transport"
+      priority: 100
+      decision: "allow"
+      mcc:
+        - "3000-3999"         # travel/airline bands
+        - "4111"              # local commuter transport
+        - "4121"              # taxi/ride
+        - "4131"              # bus
+        - "4411"              # cruise/steamship
+        - "4511"              # airlines
+        - "4722"              # travel agencies
+        - "4789"              # transport services
+        - "7011"              # hotels/lodging
+      channel: ["CP","CNP"]
+      iso: ["*"]
+      reason: "allow_travel_transport"
+
+    # Allow: digital / ecommerce CNP (cross-border is common)
+    - id: "allow_digital_cnp"
+      priority: 110
+      decision: "allow"
+      mcc:
+        - "4810-4899"         # telecom / digital services bands
+        - "5960-5969"         # direct marketing / ecommerce
+        - "5815"              # digital goods (scheme dependent)
+        - "5816"
+        - "5817"
+        - "5818"
+      channel: ["CNP"]
+      iso: ["*"]
+      reason: "allow_digital_cnp"
+
+    # Allow: general retail ecommerce band (moderate broadness, still CNP-only)
+    - id: "allow_retail_cnp"
+      priority: 200
+      decision: "allow"
+      mcc:
+        - "5000-5999"         # broad retail band
+        - "5300-5399"         # discount/warehouse
+        - "5400-5599"         # grocery / food retail band
+      channel: ["CNP"]
+      iso: ["*"]
+      reason: "allow_retail_cnp"
+
+    # Allow: home in major economies / payment hubs (covers “international brands” outside the bands above)
+    - id: "allow_home_hubs_major_markets"
+      priority: 300
+      decision: "allow"
+      mcc: ["*"]
+      channel: ["*"]
+      iso:
+        - "AE"
+        - "AU"
+        - "BE"
+        - "BR"
+        - "CA"
+        - "CH"
+        - "CN"
+        - "DE"
+        - "DK"
+        - "ES"
+        - "FR"
+        - "GB"
+        - "HK"
+        - "IE"
+        - "IL"
+        - "IN"
+        - "IT"
+        - "JP"
+        - "KR"
+        - "LU"
+        - "MX"
+        - "NL"
+        - "NO"
+        - "SA"
+        - "SE"
+        - "SG"
+        - "US"
+      reason: "allow_home_hubs_major_markets"
 
 ztp:
+  rule_set_id: "ztp_link.v1.2025-12-31"
+
+  # Fixed-order link parameters θ for:
+  #   η = θ0 + θ1*log(N) + θ2*X
+  #   λ = exp(η)
+  theta_order:
+    - "theta0_intercept"
+    - "theta1_log_n_sites"
+    - "theta2_openness"
   theta:
-    theta0: -1.5
-    theta_log_n: 0.7
-    theta_x: 0.5
-  x_transform:
-    kind: "clamp01"
-  x_default: 0.0
-  max_ztp_zero_attempts: 64
-  ztp_exhaustion_policy: "downgrade_domestic"
+    theta0_intercept: -1.8
+    theta1_log_n_sites: 0.85
+    theta2_openness: 1.0
+
+  # Feature X ∈ [0,1]; if missing, S4 MUST use X_default.
+  feature_x:
+    feature_id: "openness"
+    x_default: 0.0
+    x_transform: "clamp01"   # governance-defined; stays deterministic
+
+  # Exhaustion controls (governed)
+  MAX_ZTP_ZERO_ATTEMPTS: 64
+  ztp_exhaustion_policy: "downgrade_domestic"   # "abort" | "downgrade_domestic"
 ```
 
 This is intentionally “small but real”: it validates, it’s deterministic, it supports S0 + S4, and you can expand it later without redesign.

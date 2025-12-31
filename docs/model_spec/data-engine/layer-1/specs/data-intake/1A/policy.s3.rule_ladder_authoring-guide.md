@@ -155,62 +155,465 @@ All operations must be evaluated deterministically; numeric comparisons follow t
 > **Note:** this minimal file is sufficient for plumbing/validation, but it is **not** a production-realistic country policy. Treat it as a starter template and expand the country sets + rules for realism before you rely on synthetic outputs.
 
 ```yaml
-precedence_order: ["DENY","ALLOW","CLASS","LEGAL","THRESHOLD","DEFAULT"]
-
+# config/policy/s3.rule_ladder.yaml
+# Authority: S3.1 rule ladder + S3.2 candidate admission + S3.3 ordering-key reconstruction (deterministic).
+#
+# Provenance / vintages
+# - SANCTIONED / HIGH_RISK: authored-for-simulation placeholders (NOT an authoritative real-world list), vintage=2025-01-01.
+# - GDP_PC_BUCKET_GE{3,4}_2024: derived offline from gdp_bucket_map_2024 (method=jenks, k=5, source_year=2024).
+# - ISO2 validity checked against iso3166_canonical_2024.
+# - Channel values follow schemas.ingress.layer1.yaml#/merchant_ids: {card_present, card_not_present}.
+#
+precedence_order:
+- DENY
+- ALLOW
+- CLASS
+- LEGAL
+- THRESHOLD
+- DEFAULT
 reason_codes:
-  - "DENY_SANCTIONED"
-  - "ALLOW_GLOBAL"
-  - "DEFAULT_DENY"
-
+- DENY_HOME_SANCTIONED
+- ALLOW_CNP_DIGITAL
+- ALLOW_TRAVEL_TRANSPORT
+- CLASS_HOME_HUB_JURISDICTION
+- GEO_HOME_EEA_REGIONAL
+- GEO_HOME_USMCA_REGIONAL
+- GEO_HOME_ASEAN_REGIONAL
+- GEO_HOME_GCC_REGIONAL
+- THRESHOLD_LARGE_CHAIN
+- DEFAULT_DOMESTIC_ONLY
 filter_tags:
-  - "ADMISSIBLE"
-  - "HOME"
-  - "SANCTIONED"
-
+- ADMISSIBLE
+- BIG_MARKET
+- CNP
+- DIGITAL
+- FIN_HUB
+- GEO
+- HOME
+- HUB_HOME
+- LARGE_CHAIN
+- REGIONAL_ASEAN
+- REGIONAL_EEA
+- REGIONAL_GCC
+- REGIONAL_NA
+- SANCTIONED
+- TRAVEL
 country_sets:
-  SANCTIONED: ["IR","KP","RU"]
-  GLOBAL_CORE: ["AE","CA","CH","DE","FR","GB","NL","SG","US"]
-
-# Closed mapping needed by S3.3: reason_code -> rule_id
+  SANCTIONED:
+  - BY
+  - CU
+  - IR
+  - KP
+  - RU
+  - SD
+  - SY
+  HIGH_RISK:
+  - AF
+  - IQ
+  - LY
+  - SO
+  - SS
+  - VE
+  - YE
+  HUB_JURISDICTIONS:
+  - AD
+  - AE
+  - BM
+  - GG
+  - GI
+  - HK
+  - IM
+  - JE
+  - KY
+  - LI
+  - MC
+  - MO
+  - SG
+  - TC
+  - VG
+  - 'NO'
+  FINANCIAL_HUBS:
+  - AE
+  - AU
+  - BE
+  - CA
+  - CH
+  - DE
+  - DK
+  - FR
+  - GB
+  - HK
+  - IE
+  - JP
+  - LU
+  - NL
+  - 'NO'
+  - SE
+  - SG
+  - US
+  BIG_MARKETS:
+  - AU
+  - BR
+  - CA
+  - CN
+  - DE
+  - ES
+  - FR
+  - GB
+  - ID
+  - IN
+  - IT
+  - JP
+  - KR
+  - MX
+  - NL
+  - PL
+  - SA
+  - SE
+  - TH
+  - TR
+  - US
+  EEA_UK_CH:
+  - AT
+  - BE
+  - BG
+  - CH
+  - CY
+  - CZ
+  - DE
+  - DK
+  - EE
+  - ES
+  - FI
+  - FR
+  - GB
+  - GR
+  - HR
+  - HU
+  - IE
+  - IS
+  - IT
+  - LI
+  - LT
+  - LU
+  - LV
+  - MT
+  - NL
+  - 'NO'
+  - PL
+  - PT
+  - RO
+  - SE
+  - SI
+  - SK
+  USMCA:
+  - CA
+  - MX
+  - US
+  ASEAN:
+  - BN
+  - ID
+  - KH
+  - LA
+  - MM
+  - MY
+  - PH
+  - SG
+  - TH
+  - VN
+  GCC:
+  - AE
+  - BH
+  - KW
+  - OM
+  - QA
+  - SA
+  GDP_PC_BUCKET_GE3_2024:
+  - AD
+  - AE
+  - AT
+  - AU
+  - BE
+  - BM
+  - CA
+  - CH
+  - DE
+  - DK
+  - FI
+  - FO
+  - FR
+  - GB
+  - HK
+  - IE
+  - IL
+  - IS
+  - LU
+  - MC
+  - 'NO'
+  - NZ
+  - SE
+  - SG
+  - TC
+  - US
+  - CW
+  - MO
+  - SM
+  GDP_PC_BUCKET_GE4_2024:
+  - BM
+  - CH
+  - IE
+  - LU
+  - MC
+  - 'NO'
 reason_code_to_rule_id:
-  DENY_SANCTIONED: "RL_DENY_SANCTIONED"
-  ALLOW_GLOBAL:    "RL_ALLOW_GLOBAL"
-  DEFAULT_DENY:    "RL_DEFAULT_DENY"
-
+  DENY_HOME_SANCTIONED: RL_DENY_HOME_SANCTIONED
+  ALLOW_CNP_DIGITAL: RL_ALLOW_CNP_DIGITAL
+  ALLOW_TRAVEL_TRANSPORT: RL_ALLOW_TRAVEL_TRANSPORT
+  CLASS_HOME_HUB_JURISDICTION: RL_CLASS_HOME_HUB_JURISDICTION
+  GEO_HOME_EEA_REGIONAL: RL_GEO_HOME_EEA_REGIONAL
+  GEO_HOME_USMCA_REGIONAL: RL_GEO_HOME_USMCA_REGIONAL
+  GEO_HOME_ASEAN_REGIONAL: RL_GEO_HOME_ASEAN_REGIONAL
+  GEO_HOME_GCC_REGIONAL: RL_GEO_HOME_GCC_REGIONAL
+  THRESHOLD_LARGE_CHAIN: RL_THRESHOLD_LARGE_CHAIN
+  DEFAULT_DOMESTIC_ONLY: RL_DEFAULT_DOMESTIC_ONLY
 rules:
-  - rule_id: "RL_DENY_SANCTIONED"
-    precedence: "DENY"
-    priority: 10
-    is_decision_bearing: true
-    predicate:
-      op: "IN_SET"
-      field: "home_country_iso"
-      set: "SANCTIONED"
-    outcome:
-      reason_code: "DENY_SANCTIONED"
-      tags: ["SANCTIONED"]
+- rule_id: RL_DENY_HOME_SANCTIONED
+  precedence: DENY
+  priority: 10
+  is_decision_bearing: true
+  predicate:
+    op: IN_SET
+    field: home_country_iso
+    set: SANCTIONED
+  outcome:
+    reason_code: DENY_HOME_SANCTIONED
+    tags:
+    - SANCTIONED
 
-  - rule_id: "RL_ALLOW_GLOBAL"
-    precedence: "ALLOW"
-    priority: 100
-    is_decision_bearing: true
-    predicate: { op: "TRUE" }
-    outcome:
-      reason_code: "ALLOW_GLOBAL"
-      tags: ["ADMISSIBLE"]
-    admit_sets: ["GLOBAL_CORE"]
-    deny_sets: ["SANCTIONED"]
-    row_tags: ["ADMISSIBLE"]
+- rule_id: RL_ALLOW_CNP_DIGITAL
+  precedence: ALLOW
+  priority: 100
+  is_decision_bearing: true
+  predicate:
+    op: AND
+    args:
+    - op: CHANNEL_IN
+      values:
+      - card_not_present
+    - op: MCC_IN
+      codes:
+      - '5815'
+      - '5816'
+      - '5817'
+      - '5818'
+      ranges:
+      - 4810-4899
+      - 5960-5969
+  outcome:
+    reason_code: ALLOW_CNP_DIGITAL
+    tags:
+    - ADMISSIBLE
+    - CNP
+    - DIGITAL
+  admit_sets:
+  - BIG_MARKETS
+  - FINANCIAL_HUBS
+  - GDP_PC_BUCKET_GE3_2024
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - BIG_MARKET
+  - FIN_HUB
 
-  # Mandatory terminal DEFAULT (exactly one, decision-bearing, guaranteed to fire)
-  - rule_id: "RL_DEFAULT_DENY"
-    precedence: "DEFAULT"
-    priority: 999999
-    is_decision_bearing: true
-    predicate: { op: "TRUE" }
-    outcome:
-      reason_code: "DEFAULT_DENY"
-      tags: []
+- rule_id: RL_ALLOW_TRAVEL_TRANSPORT
+  precedence: ALLOW
+  priority: 200
+  is_decision_bearing: true
+  predicate:
+    op: MCC_IN
+    codes:
+    - '4511'
+    - '4722'
+    - '7011'
+    - '7012'
+    - '4111'
+    - '4121'
+    - '4131'
+    - '4411'
+    - '4582'
+    - '4789'
+    ranges:
+    - 3000-3999
+  outcome:
+    reason_code: ALLOW_TRAVEL_TRANSPORT
+    tags:
+    - ADMISSIBLE
+    - TRAVEL
+  admit_sets:
+  - EEA_UK_CH
+  - USMCA
+  - ASEAN
+  - GCC
+  - BIG_MARKETS
+  - FINANCIAL_HUBS
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - TRAVEL
+
+- rule_id: RL_CLASS_HOME_HUB_JURISDICTION
+  precedence: CLASS
+  priority: 10
+  is_decision_bearing: true
+  predicate:
+    op: IN_SET
+    field: home_country_iso
+    set: HUB_JURISDICTIONS
+  outcome:
+    reason_code: CLASS_HOME_HUB_JURISDICTION
+    tags:
+    - HUB_HOME
+  admit_sets:
+  - FINANCIAL_HUBS
+  - BIG_MARKETS
+  - GDP_PC_BUCKET_GE3_2024
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - FIN_HUB
+  - HUB_HOME
+
+- rule_id: RL_GEO_HOME_EEA_REGIONAL
+  precedence: LEGAL
+  priority: 10
+  is_decision_bearing: false
+  predicate:
+    op: IN_SET
+    field: home_country_iso
+    set: EEA_UK_CH
+  outcome:
+    reason_code: GEO_HOME_EEA_REGIONAL
+    tags:
+    - GEO
+    - REGIONAL_EEA
+  admit_sets:
+  - EEA_UK_CH
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - REGIONAL_EEA
+
+- rule_id: RL_GEO_HOME_USMCA_REGIONAL
+  precedence: LEGAL
+  priority: 20
+  is_decision_bearing: false
+  predicate:
+    op: IN_SET
+    field: home_country_iso
+    set: USMCA
+  outcome:
+    reason_code: GEO_HOME_USMCA_REGIONAL
+    tags:
+    - GEO
+    - REGIONAL_NA
+  admit_sets:
+  - USMCA
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - REGIONAL_NA
+
+- rule_id: RL_GEO_HOME_ASEAN_REGIONAL
+  precedence: LEGAL
+  priority: 30
+  is_decision_bearing: false
+  predicate:
+    op: IN_SET
+    field: home_country_iso
+    set: ASEAN
+  outcome:
+    reason_code: GEO_HOME_ASEAN_REGIONAL
+    tags:
+    - GEO
+    - REGIONAL_ASEAN
+  admit_sets:
+  - ASEAN
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - REGIONAL_ASEAN
+
+- rule_id: RL_GEO_HOME_GCC_REGIONAL
+  precedence: LEGAL
+  priority: 40
+  is_decision_bearing: false
+  predicate:
+    op: IN_SET
+    field: home_country_iso
+    set: GCC
+  outcome:
+    reason_code: GEO_HOME_GCC_REGIONAL
+    tags:
+    - GEO
+    - REGIONAL_GCC
+  admit_sets:
+  - GCC
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - REGIONAL_GCC
+
+- rule_id: RL_THRESHOLD_LARGE_CHAIN
+  precedence: THRESHOLD
+  priority: 10
+  is_decision_bearing: true
+  predicate:
+    op: N_GE
+    value: 20
+  outcome:
+    reason_code: THRESHOLD_LARGE_CHAIN
+    tags:
+    - ADMISSIBLE
+    - LARGE_CHAIN
+  admit_sets:
+  - EEA_UK_CH
+  - USMCA
+  - ASEAN
+  - GCC
+  - BIG_MARKETS
+  - FINANCIAL_HUBS
+  - GDP_PC_BUCKET_GE3_2024
+  deny_sets:
+  - SANCTIONED
+  - HIGH_RISK
+  row_tags:
+  - ADMISSIBLE
+  - LARGE_CHAIN
+
+- rule_id: RL_DEFAULT_DOMESTIC_ONLY
+  precedence: DEFAULT
+  priority: 999999
+  is_decision_bearing: true
+  predicate:
+    op: TRUE
+  outcome:
+    reason_code: DEFAULT_DOMESTIC_ONLY
+    tags: []
+
 ```
 
 This satisfies:
