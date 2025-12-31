@@ -1,0 +1,5 @@
+SEE-FILES
+
+This repository includes assets with license terms documented per-file.
+Review the referenced LICENSES entries and provenance notes before use or redistribution.
+If an artefact uses SEE-FILES, consult its provenance sidecar for the specific upstream license(s).

@@ -132,7 +132,7 @@ subsegments:
     version: '{release_tag}'
     digest: '{sha256}'
     manifest_key: mlr.2A.ingress.tzdb_release
-    license: Public Domain
+    license: Public-Domain
     role: "Pinned IANA tzdata archive + tag."
     dependencies: []
     source: external

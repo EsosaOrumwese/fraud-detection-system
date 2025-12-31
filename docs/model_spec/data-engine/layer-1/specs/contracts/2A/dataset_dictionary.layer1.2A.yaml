@@ -106,7 +106,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: Public Domain
+  licence: Public-Domain
 
 # ── Policy/Config/Artefacts sealed by 2A.S0 ───────────────────────────────
 policies:
@@ -163,7 +163,7 @@ artefacts:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: Public Domain
+  licence: Public-Domain
 
 # ── Internally generated datasets (2A) ────────────────────────────────────
 datasets:

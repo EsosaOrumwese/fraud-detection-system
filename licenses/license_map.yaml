@@ -1,5 +1,5 @@
-semver: "1.0.0"
-version: "2024-12-31"
+semver: "1.0.1"
+version: "2025-12-31"
 
 licenses:
   ODbL-1.0:
@@ -57,3 +57,17 @@ licenses:
       Redistribution outside the project is not permitted.
       See LICENSES/Proprietary-Internal.txt.
     notes: "Used for engine-generated or internally authored artefacts."
+
+  SEE-FILES:
+    spdx: null
+    osi_approved: null
+    redistribution: "restricted"
+    notice_required: true
+    sharealike: false
+    source_disclosure: false
+    text_path: "LICENSES/SEE-FILES.txt"
+    attribution_template: |
+      License: See files / provenance for asset-specific terms.
+      Review LICENSES entries and provenance before redistribution.
+      See LICENSES/SEE-FILES.txt.
+    notes: "Used when an artefact bundles multiple upstream licenses or per-file terms."

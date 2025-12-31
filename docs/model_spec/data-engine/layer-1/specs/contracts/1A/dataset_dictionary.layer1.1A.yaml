@@ -123,7 +123,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: Public Domain
+  licence: Public-Domain
 
 - id: tz_world_2025a
   status: approved

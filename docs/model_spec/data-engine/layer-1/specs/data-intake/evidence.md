@@ -212,3 +212,11 @@ Use one section per artefact:
 - new_path: config/policy.s6.selection.yaml
 - realism_checks:
   - Selection policy uses Gumbel-top-k defaults with full candidate logging and zero-weight exclusion.
+
+## license_map_2025-12-31
+- artefact_id: license_map
+- deprecated_path: none
+- new_path: licenses/license_map.yaml
+- realism_checks:
+  - Added SEE-FILES entry for multi-license artefacts with `LICENSES/SEE-FILES.txt` notice file.
+  - Normalized layer-1 license keys to match license_map canonical values (CC-BY-4.0, Public-Domain, Proprietary-Internal, SEE-FILES).
