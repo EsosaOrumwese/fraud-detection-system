@@ -8,16 +8,17 @@ This router tells you what is binding, what to read first, and which parts of th
 ## 0) Scope (you are here)
 - Package: `packages\engine`
 - Specs: `docs\model_spec\data-engine`
-- Spec posture: Specs are authoritative for 1A-6B. Segments 1A-3B are implemented; 5A-6B are spec-ready. Spec updates are allowed when replacing placeholder externals or when the USER requests, and must be logged.
+- Spec posture: Specs are authoritative for 1A-6B. Layer-1 (1A-3B) externals are complete; focus is now build quality and spec conformance for layer-1. Layer-2/3 (5A-6B) are spec-ready and actively being built with data-intake support. Spec updates are allowed when replacing placeholder externals or when the USER requests, and must be logged.
 - Binding specs: Contracts and expanded docs for 1A-6B govern code. There are no "locked" areas; focus is driven by the current job plan.
 - Implementation note: current engine code is provisional (placeholder-driven) and will be refactored as real externals land; treat specs as the source of truth.
 
 ---
 
 ### 0.1) Current Job
-- You are currently materialising data intake (the externals needed to run the engine).
-- Work sequentially, segment by segment, following the order in the guides.
-- We'll be working sequentially, layer by layer. At this point, this is where you route to the next AGENTS.md for data-intake unless complete
+- Validate layer-1 (1A-3B) engine implementation against the binding specs and improve build quality.
+- For 5A+ work hand-in-hand with data-intake (layer-2/layer-3) to author or acquire externals as needed.
+- Pay special attention to run-scoped artefacts: anything dependent on a run-specific manifest fingerprint must be produced inside the run output tree and referenced via the sealing inventory/dictionary so no manual copying is required.
+- Work sequentially, segment by segment, following the order in the guides where data-intake is involved.
 
 
 Route immediately to:
@@ -84,6 +85,8 @@ Read these in order before touching code so you align with the frozen specs.
 - **Specs state intent; code must deliver outcomes.** If the literal steps in a spec would break determinism, efficiency, or memory posture, design the implementation that hits the stated end-goal instead and document the rationale in the logbook. Contracts and public artefacts still govern what you emit.
 - **Performance first.** Treat every state like a production data job: profile, stream, and vectorise. Target sub-15 minute executions for the heavy kernels by default, and justify any regression.
 - **No more manual hand-offs.** Ensure prior segment staging covers every reference that next segment consumes. Within the next segment, publish receipts, manifests, and dataset dictionaries so dependent states locate what they need without operator intervention.
+- **Run-scoped artefacts live in the run tree.** If an artefact depends on a run manifest fingerprint, it must be emitted under the run root (and its dictionary/registry entry must point there). Do not write run-scoped outputs into the repo root and do not require manual copies into runs/.
+- **Output layout must be coherent.** Keep run outputs grouped by layer/segment/state and sealed with receipts; avoid scattering artefacts across unrelated folders. If the spec’s paths are ambiguous, resolve them by contract registry and document the decision in the logbook.
 - **Memory-aware by design.** Use chunked IO, deterministic spill directories, and bounded concurrency to keep RSS under control. Loading entire rasters or catalogues into RAM without back-pressure is considered a bug.
 - **Resumable orchestration.** The orchestrator must be able to read existing `_passed.flag` artefacts, receipts, and RNG logs to resume from the point of failure (or clearly instruct the operator when manual repair is required) instead of rerunning the entire stateflow from scratch.
 - **Operational visibility.** Instrument long-running steps with structured logging (progress counts, ETA-style checkpoints, RNG envelopes) so smoke tests and production monitors never look "stuck".
