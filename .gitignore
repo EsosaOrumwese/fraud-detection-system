@@ -157,6 +157,8 @@ docs/temp/scratch.md
 terraform-provider-aws_v*.zip
 terraform-provider-aws_v*.exe
 terraform-provider-aws_v*/
+*.tif
+*.tiff
 artefacts/spatial/population_raster/**/*.tif
 artefacts/rasters/source/hrsl_general/
 temp/scratch.md

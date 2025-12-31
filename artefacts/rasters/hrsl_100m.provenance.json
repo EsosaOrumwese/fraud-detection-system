@@ -1,0 +1,27 @@
+{
+  "dataset_id": "hrsl_raster",
+  "vintage": "HRSL_2025-12-31",
+  "semver": "1.0.0",
+  "source": {
+    "aws_registry_entry": "dataforgood-fb-hrsl",
+    "bucket": "s3://dataforgood-fb-data/hrsl-cogs/",
+    "vrt_url": "https://dataforgood-fb-data.s3.amazonaws.com/hrsl-cogs/hrsl_general/hrsl_general-latest.vrt",
+    "vrt_sha256": "8b14b44ae50e2fcd0ebb99782c563e221e0fcef66e1dac6fe31b13745afd076e",
+    "vrt_bytes": 110123
+  },
+  "build": {
+    "tr_deg": 0.0008333333333333334,
+    "resampling_law": "avg_then_times_9",
+    "nodata": 0.0,
+    "toolchain": {
+      "rasterio": "1.4.3",
+      "gdal": "3.9.3"
+    }
+  },
+  "output": {
+    "path": "artefacts\\rasters\\hrsl_100m.tif",
+    "sha256": "9bc447d5b8f1b55636420cf9bc887c004c7d31b5ec1b8be94c04626491793211",
+    "bytes": 1540757963
+  },
+  "retrieved_at_utc": "2025-12-31T21:36:30.031047+00:00"
+}
