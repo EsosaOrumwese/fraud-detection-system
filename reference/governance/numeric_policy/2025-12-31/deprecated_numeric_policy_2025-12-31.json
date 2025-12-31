@@ -2,8 +2,12 @@
   "version": "2025-12-31",
   "binary_format": "ieee754-binary64",
   "rounding": "RNE",
+  "rounding_mode": "rne",
   "fma": "off",
+  "fma_allowed": false,
   "ftz_daz": "off",
+  "flush_to_zero": false,
+  "denormals_are_zero": false,
   "subnormals": "preserved",
   "reductions": {
     "sum_policy": "serial_neumaier",
@@ -19,8 +23,8 @@
     "forbid_derived_constants": true
   },
   "exceptions": {
-    "nan_inf_is_hard_error": true,
-    "mask_fp_exceptions": true
+    "mask_fp_exceptions": true,
+    "nan_inf_is_hard_error": true
   },
-  "notes": "Pinned for layer-1 determinism."
+  "notes": null
 }

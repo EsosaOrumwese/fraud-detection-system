@@ -1,7 +1,20 @@
 defaults:
-  emit_membership_dataset: false
+  emit_membership_dataset: true
   log_all_candidates: true
-  max_candidates_cap: 0
+  max_candidates_cap: 25
   zero_weight_rule: "exclude"
+  dp_score_print: 6
 
-per_currency: {}
+per_currency:
+  EUR:
+    max_candidates_cap: 35
+  USD:
+    max_candidates_cap: 20
+  XCD:
+    max_candidates_cap: 15
+  XOF:
+    max_candidates_cap: 15
+  XAF:
+    max_candidates_cap: 15
+  AUD:
+    max_candidates_cap: 15

@@ -1,0 +1,59 @@
+# source=authored; vintage=2025-12-31
+precedence_order: ["DENY", "ALLOW", "CLASS", "LEGAL", "THRESHOLD", "DEFAULT"]
+
+reason_codes:
+  - "DENY_SANCTIONED_HOME"
+  - "ALLOW_GLOBAL_CORE"
+  - "DEFAULT_DENY"
+
+filter_tags:
+  - "ADMISSIBLE"
+  - "HOME"
+  - "SANCTIONED"
+
+country_sets:
+  SANCTIONED: ["IR", "KP", "RU"]
+  GLOBAL_CORE: ["AE", "CA", "CH", "DE", "FR", "GB", "NL", "SG", "US"]
+
+reason_code_to_rule_id:
+  DENY_SANCTIONED_HOME: "RL_DENY_SANCTIONED_HOME"
+  ALLOW_GLOBAL_CORE: "RL_ALLOW_GLOBAL_CORE"
+  DEFAULT_DENY: "RL_DEFAULT_DENY"
+
+rules:
+  - rule_id: "RL_DENY_SANCTIONED_HOME"
+    precedence: "DENY"
+    priority: 10
+    is_decision_bearing: true
+    predicate:
+      op: "IN_SET"
+      field: "home_country_iso"
+      set: "SANCTIONED"
+    outcome:
+      reason_code: "DENY_SANCTIONED_HOME"
+      tags: ["SANCTIONED"]
+
+  - rule_id: "RL_ALLOW_GLOBAL_CORE"
+    precedence: "ALLOW"
+    priority: 100
+    is_decision_bearing: true
+    predicate:
+      op: "AND"
+      args:
+        - { op: "CHANNEL_IN", values: ["CP"] }
+        - { op: "MCC_IN", ranges: ["4000-4799", "5000-5999", "5300-5599"] }
+    outcome:
+      reason_code: "ALLOW_GLOBAL_CORE"
+      tags: ["ADMISSIBLE"]
+    admit_sets: ["GLOBAL_CORE"]
+    deny_sets: ["SANCTIONED"]
+    row_tags: ["ADMISSIBLE"]
+
+  - rule_id: "RL_DEFAULT_DENY"
+    precedence: "DEFAULT"
+    priority: 999999
+    is_decision_bearing: true
+    predicate: { op: "TRUE" }
+    outcome:
+      reason_code: "DEFAULT_DENY"
+      tags: []

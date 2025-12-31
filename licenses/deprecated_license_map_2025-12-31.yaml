@@ -1,4 +1,4 @@
-semver: "1.1.0"
+semver: "1.0.1"
 version: "2025-12-31"
 
 licenses:
@@ -12,9 +12,9 @@ licenses:
     text_path: "LICENSES/ODbL-1.0.txt"
     attribution_template: |
       License: ODbL 1.0 (Open Data Commons Open Database License).
-      Attribute the upstream data source (e.g., OpenStreetMap contributors) and keep share-alike for derived databases.
+      You MUST retain attribution and share-alike terms for derivative databases.
       See LICENSES/ODbL-1.0.txt.
-    notes: "Use for ODbL-backed spatial or reference datasets (e.g., OSM-derived boundaries)."
+    notes: "Use for databases derived from OpenStreetMap / ODbL sources."
 
   CC-BY-4.0:
     spdx: "CC-BY-4.0"
@@ -26,9 +26,9 @@ licenses:
     text_path: "LICENSES/CC-BY-4.0.txt"
     attribution_template: |
       License: CC BY 4.0.
-      You MUST provide attribution to the original source and include the license link when redistributing.
+      You MUST provide attribution to the original source.
       See LICENSES/CC-BY-4.0.txt.
-    notes: "Used for World Bank indicators, HRSL raster, and other CC BY 4.0 data sources."
+    notes: null
 
   Public-Domain:
     spdx: null
@@ -42,7 +42,7 @@ licenses:
       Public domain / no known restrictions.
       Source attribution is recommended as a best practice.
       See LICENSES/Public-Domain.txt.
-    notes: "Used for Natural Earth and other public domain sources."
+    notes: "Used for Natural Earth (public domain) and similar sources."
 
   Proprietary-Internal:
     spdx: null
@@ -56,7 +56,7 @@ licenses:
       Proprietary / Internal use only.
       Redistribution outside the project is not permitted.
       See LICENSES/Proprietary-Internal.txt.
-    notes: "Used for engine-generated, synthetic, or internally authored artefacts."
+    notes: "Used for engine-generated or internally authored artefacts."
 
   SEE-FILES:
     spdx: null

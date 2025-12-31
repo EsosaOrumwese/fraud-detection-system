@@ -905,7 +905,7 @@ def main() -> None:
     if not (0.05 <= float(pi_eval.mean()) <= 0.30):
         raise RuntimeError("Belt-and-braces: mean_pi out of bounds.")
     if not (3.0 <= q90_mu <= 40.0):
-        raise RuntimeError("Belt-and-braces: q90_mu out of bounds.")
+        raise RuntimeError(f"Belt-and-braces: q90_mu out of bounds: {q90_mu:.4f}")
     if median_mu_over_phi < 0.02:
         raise RuntimeError("Belt-and-braces: median_mu_over_phi too low.")
 

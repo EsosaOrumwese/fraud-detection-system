@@ -1,8 +1,8 @@
-semver: "1.0.0"
-version: "2024-12-31"
+semver: "1.1.0"
+version: "2025-12-31"
 
 cusum:
-  reference_k: 0.5
-  threshold_h: 8.0
+  reference_k: 0.45
+  threshold_h: 9.0
 
-notes: "CUSUM corridor parameters for 1A.S2 run-scoped validation. Missing => fail closed."
+notes: "CUSUM corridor tuned for a 50k-merchant universe: k=0.45 and h=9.0 flag sustained drift without triggering on short-lived noise."

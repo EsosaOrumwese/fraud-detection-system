@@ -1,0 +1,58 @@
+{
+  "dataset_digests": {
+    "logistic": "da7fdbd584b2d12f7b76d638b9549cbe67bc1e970dbdb92bb81fb70ddcf4b99a",
+    "nb_mean": "b8fc131dd597037356979e754899f1ac77c8ba4832d243f5b49530634f68c653"
+  },
+  "datasets": {
+    "logistic": "logistic.parquet",
+    "nb_mean": "nb_mean.parquet"
+  },
+  "fit_adjustments": {
+    "beta_mu_intercept_shift": 0.3044131753483119,
+    "beta_mu_scale": 1.0,
+    "mu_floor": 4.0
+  },
+  "generated_at_utc": "20251231T084401Z",
+  "inputs": {
+    "gdp_bucket_map": {
+      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet",
+      "sha256": "624c9d1029e81980c7d7eb368a7ed07d67c62d8423d0c053cdcd9c58a6c80a3b"
+    },
+    "iso3166_canonical": {
+      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet",
+      "sha256": "bfb68d1770abef6a74571cfea4d659eefb7b6c7b39e81f1b6cc483bd60bd8b5f"
+    },
+    "priors": {
+      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/config/models/hurdle/hurdle_simulation.priors.yaml",
+      "sha256": "e7c82d4a13057774789c3b1d25dd4eac6dd832956b49425b83c6a14d7d26780e"
+    },
+    "transaction_schema_merchant_ids": {
+      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.parquet",
+      "sha256": "a5ce122a1c61a4247ba4ece8624a201fe824c72c10f352cfba74623e54a0cb12"
+    },
+    "world_bank_gdp_per_capita": {
+      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet",
+      "sha256": "1eb6d9ae47639b17fd41e7875c03247c4133a849b442c0e3ebe61a4cb2c06074"
+    }
+  },
+  "simulation_config": {
+    "calibration": {
+      "base_log_mean": 1.73569088235937,
+      "base_log_phi": 2.7966171723842184,
+      "base_logit": -2.0658110996390846
+    },
+    "config_path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/config/models/hurdle/hurdle_simulation.priors.yaml",
+    "rng": {
+      "algorithm": "philox2x64-10",
+      "seed": 9248923
+    },
+    "semver": "1.1.0",
+    "version": "2025-12-31"
+  },
+  "summary": {
+    "mean_mu_multi_weighted": 7.499999999999999,
+    "mean_pi": 0.14000000000000007,
+    "rows_logistic": 50000,
+    "rows_nb": 6930
+  }
+}

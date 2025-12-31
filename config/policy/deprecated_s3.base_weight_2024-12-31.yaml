@@ -1,13 +1,13 @@
-version: "1.1.0"
+version: "1.0.0"
 
-dp: 7
+dp: 8
 
 model:
   kind: "loglinear_rank_home"
   coeffs:
     beta0: 0.0
-    beta_home: 1.4
-    beta_rank: -0.12
+    beta_home: 1.6
+    beta_rank: -0.35
 
 bounds:
   log_w_min: -50.0
