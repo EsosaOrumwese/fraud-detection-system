@@ -268,6 +268,14 @@ Use one section per artefact:
   - Derived from tz_world_2025a country×tzid geometries and population_raster_2025; eps smoothing ensures strictly positive shares.
   - Area fallback used only where population mass is missing for the majority of zones; per-country notes record fallback usage.
   - Coverage uses tz_world_2025a country set (249 ISO2s); world_countries missing >5% ISO2s is logged as a deviation in the logbook.
+
+## crossborder_features_2025-12-31
+- artefact_id: crossborder_features
+- new_path: data/layer1/1A/crossborder_features/parameter_hash=088159d536bd4fb64a24b1712dbbc55192d2f7fce609cf598e2c08a89c5fd01e/
+- realism_checks:
+  - Derived deterministically from GDP bucket, channel, and MCC tilt; missing GDP buckets default to bucket=1 and are marked in `source`.
+  - Channel separation holds (mean CNP ≈ 0.257 > mean CP ≈ 0.137) and bucket gradient holds (mean bucket5 ≈ 0.368 > bucket1 ≈ 0.080).
+  - Non-degenerate spread (p5 ≈ 0.02, p50 ≈ 0.17, p95 ≈ 0.34) with openness clamped in [0,1].
 ## route_rng_policy_v1
 - artefact_id: route_rng_policy_v1
 - new_path: contracts/policy/2B/route_rng_policy_v1.json
