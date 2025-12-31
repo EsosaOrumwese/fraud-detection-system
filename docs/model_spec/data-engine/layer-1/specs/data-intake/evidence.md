@@ -127,6 +127,15 @@ Use one section per artefact:
   - Enforces IEEE-754 binary64, RNE rounding, FMA off, FTZ/DAZ off, and serial Neumaier reductions.
   - Removed redundant synonymous keys to avoid drift (single source of truth for rounding/FMA/FTZ fields).
 
+## math_profile_manifest_openlibm-v0.8.7
+- artefact_id: math_profile_manifest
+- deprecated_path: none
+- new_path: reference/governance/math_profile/openlibm-v0.8.7/math_profile_manifest.json
+- realism_checks:
+  - Built OpenLibm v0.8.7 from the pinned tarball with deterministic flags (no fast-math, no FMA contraction) under WSL Ubuntu 24.04.2 / GCC 13.3.0.
+  - Ran `make test` (double/float test suites) and copied the built `libopenlibm.so` into `reference/governance/math_profile/openlibm-v0.8.7/`.
+  - Manifest includes sha256 for `openlibm-v0.8.7.tar.gz` and `libopenlibm.so` plus checksum over canonical JSON with required function set.
+
 ## validation_policy_2024-12-31
 - artefact_id: validation_policy
 - deprecated_path: config/policy/deprecated_validation_policy_2024-12-31.yaml
