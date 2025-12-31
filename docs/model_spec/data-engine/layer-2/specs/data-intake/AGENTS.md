@@ -32,7 +32,7 @@ Use this router when authoring, acquiring, or deriving any intake artefacts for 
 - Slogan: no stopping until we're green.
 - If a guide lacks realism guardrails, add them before authoring.
 - Make decisions autonomously to meet realism intent; do not pause for basic questions. Only stop on contract/spec conflicts, and log the decision trail.
-- After reading the expanded specs and contracts for the segment, but before authoring any artefact, list the guides in dependency order (topological order) in a local text file (one per segment folder under data-intake).
+- After reading the expanded specs and contracts for the segment, but before authoring any artefact, list the guides in dependency order (topological order) in `guide_order.txt` (one per segment folder under data-intake).
 
 ---
 
@@ -50,10 +50,11 @@ Use this router when authoring, acquiring, or deriving any intake artefacts for 
 ## 4) Documentation (required)
 Two evidence streams:
 1) Layer evidence file (one per layer):
-   - `docs/logbook/evidence/layer-2_data-intake.md`
+   - `docs/model_spec/data-engine/layer-2/specs/data-intake/evidence.md`
 2) Daily logbook: `docs/logbook/<YYYY-MM>/<YYYY-MM-DD>.md`
    - Append entries in time order, at local time, as you work (not just at the end).
    - Create the log if missing and keep the format consistent with existing logbooks.
+   - Before starting work, verify the evidence file and logbook exist; create them if missing and log that creation.
 
 If a snag occurs, log the snag and attempted resolutions before proceeding.
 
