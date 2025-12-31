@@ -90,34 +90,6 @@ Use one section per artefact:
   - Ensured min distinct home countries (>=50) and MCCs (>=200) with channel mix per MCC rules.
   - Provenance recorded at `reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.provenance.json` with config sha256 and counts.
 
-## hurdle_simulation_priors
-- artefact_id: hurdle_simulation_priors
-- deprecated_path: config/models/hurdle/deprecated_hurdle_simulation.priors_2025-12-31.yaml
-- new_path: config/models/hurdle/hurdle_simulation.priors.yaml
-- realism_checks:
-  - Re-authored MCC offsets using the actual top MCCs in `transaction_schema_merchant_ids` (food/retail + auto supply codes) plus negative offsets for digital-only/financial MCCs.
-  - Set channel offsets based on observed CP/CNP mix (CP-heavy) and monotone GDP bucket offsets from `gdp_bucket_map_2024`.
-  - Updated semver/version to 1.1.0 / 2025-12-31; calibration targets set for realistic multi-site rates and dispersion.
-
-## hurdle_coefficients_2025-12-31
-- artefact_id: hurdle_coefficients
-- deprecated_path: none (new export run; prior exports remain under version=2025-10-09)
-- new_path: config/models/hurdle/exports/version=2025-12-31/20251231T084444Z/hurdle_coefficients.yaml
-- realism_checks:
-  - Offline simulation + deterministic design + ridge IRLS fit via `scripts/build_hurdle_exports.py`.
-  - Dictionary orders: dict_mcc from merchant universe; dict_ch=[CP,CNP]; dict_dev5=[1..5].
-  - Belt-and-braces lock PASS recorded in `config/models/hurdle/exports/version=2025-12-31/20251231T084444Z/bundle_selfcheck.json`.
-  - Training manifest with input digests stored at `artefacts/training/1A/hurdle_sim/simulation_version=2025-12-31/seed=9248923/20251231T084444Z/manifest.json`.
-
-## nb_dispersion_coefficients_2025-12-31
-- artefact_id: nb_dispersion_coefficients
-- deprecated_path: none (new export run; prior exports remain under version=2025-10-09)
-- new_path: config/models/hurdle/exports/version=2025-12-31/20251231T084444Z/nb_dispersion_coefficients.yaml
-- realism_checks:
-  - MOM phi targets computed per (mcc, channel, gdp_bucket) with pooling and clamp rules from priors.
-  - dict_mcc/dict_ch aligned to paired hurdle export; beta_phi order includes ln_gdp_pc_usd_2015.
-  - Belt-and-braces lock PASS recorded alongside hurdle export.
-
 ## numeric_policy_profile_2025-12-31
 - artefact_id: numeric_policy_profile
 - deprecated_path: reference/governance/numeric_policy/2025-12-31/deprecated_numeric_policy_2025-12-31.json
@@ -151,23 +123,6 @@ Use one section per artefact:
   - dp_resid=7 chosen to preserve minimum ccy_country_shares precision while keeping deterministic largest-remainder behaviour.
   - Stable residual sort with deterministic tiebreaks (country_iso, merchant_id).
 
-## policy_s3_rule_ladder_2025-12-31
-- artefact_id: policy.s3.rule_ladder.yaml
-- deprecated_path: config/policy/deprecated_s3.rule_ladder_2025-12-31.yaml
-- new_path: config/policy/s3.rule_ladder.yaml
-- realism_checks:
-  - Structured predicate DSL with closed vocab, explicit precedence order, and terminal DEFAULT.
-  - Authored country sets (GLOBAL_CORE, SANCTIONED) include major economies and a sanctions list with vintage note.
-  - Admit-bearing rules target travel/retail MCC ranges and multi-site merchants; high-risk CNP MCCs are denied.
-
-## policy_s3_base_weight_2024-12-31
-- artefact_id: policy.s3.base_weight.yaml
-- deprecated_path: config/policy/deprecated_s3.base_weight_2024-12-31.yaml
-- new_path: config/policy/s3.base_weight.yaml
-- realism_checks:
-  - Loglinear home/rank prior tuned for ~25-country candidate sets with dp=7 quantisation.
-  - Home bias (exp(1.4) ~4x) and rank decay (-0.12 per rank) keep top foreigns competitive without collapsing the tail.
-
 ## policy_s3_thresholds_2024-12-31
 - artefact_id: policy.s3.thresholds.yaml
 - deprecated_path: config/policy/deprecated_s3.thresholds_2024-12-31.yaml
@@ -175,15 +130,6 @@ Use one section per artefact:
 - realism_checks:
   - Bounded Hamilton thresholds enforce home minimum and at least one foreign when foreigns exist, without forcing one-per-country.
   - Parameters aligned to current N distribution (median 7, q90 13 from hurdle sim).
-
-## crossborder_hyperparams_2025-12-31
-- artefact_id: crossborder_hyperparams
-- deprecated_path: config/policy/deprecated_crossborder_hyperparams_2025-12-31.yaml
-- new_path: config/policy/crossborder_hyperparams.yaml
-- realism_checks:
-  - Eligibility rules deny sanctioned homes and high-risk CNP MCCs; allow CP retail/travel ranges and selected low-risk CNP MCCs.
-  - Eligibility rate ~58% on the current merchant universe (non-degenerate).
-  - ZTP parameters calibrated for N~7 median (lambda_extra ~1.8) with clamp01 X and downgrade-domestic fallback.
 
 ## ccy_country_shares_2024Q4
 - artefact_id: ccy_country_shares_2024Q4
@@ -211,21 +157,6 @@ Use one section per artefact:
   - Scaled base-share Dirichlet with total_concentration=25 and home_boost_multiplier=1.30 for ~25-country candidate sets.
   - Alpha clamps tightened (min 0.03, max 150) to limit extreme draws while keeping randomness.
 
-## ccy_smoothing_params_2024-12-31
-- artefact_id: ccy_smoothing_params
-- deprecated_path: config/allocation/deprecated_ccy_smoothing_params_2024-12-31.yaml
-- new_path: config/allocation/ccy_smoothing_params.yaml
-- realism_checks:
-  - Blend+shrink defaults keyed off obs_count floor (5000) with dp=7 output precision aligned to ccy_country_shares min share.
-  - Per-currency overrides added for multi-country currencies (EUR, USD, XOF, XAF, XCD, AUD) to avoid uniform artifacts.
-
-## s6_selection_policy_2024-12-31
-- artefact_id: s6_selection_policy
-- deprecated_path: config/deprecated_policy.s6.selection_2024-12-31.yaml
-- new_path: config/policy.s6.selection.yaml
-- realism_checks:
-  - Selection policy emits membership dataset, logs all candidates, and caps candidate count at 25 by default.
-  - Per-currency caps added for multi-country currencies (EUR, USD, XCD, XOF, XAF, AUD).
 
 ## license_map_2025-12-31
 - artefact_id: license_map
