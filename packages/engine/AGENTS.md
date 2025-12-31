@@ -1,65 +1,68 @@
 # AGENTS.md - Data Engine Router (Specs sealed; implementation next)
-_As of 2025-11-25_
+_As of 2025-12-31_
 
-This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A, 1B, 2A, 2B, 3A, and 3B** are **online and sealed**. Specs for **5A, 5B, 6A, and 6B** are sealed but **remain locked** until the USER explicitly opens them.
+This router tells you what is binding, what to read first, and which parts of the engine are in play. All technical specifications for all segments, 1A to 6B are ready. **Ensure you have read the repo's root AGENTS.md**.
 
 ---
 
 ## 0) Scope (you are here)
-- Package: packages/engine
-- Current posture: Layer-1 / Segments **1A-3B** are **built, online, and sealed**. Layer-2 / Segments **5A-5B** and Layer-3 / Segments **6A-6B** are spec-sealed but **locked until opened by the USER**.
-- Sealed references: Segments 1A, 1B, 2A, 2B, 3A, and 3B act as authority surfaces for downstream inputs.
-- Binding specs: 5A/5B (L2) and 6A/6B (L3) are spec-sealed but locked. Code changes must conform to the governing specs for any opened segment.
-- Other segments (4A/4B overlays, future layers) remain locked until explicitly opened.
-
-**Environment posture.** We are intentionally deferring integration with the shared dev environment (full artefact replay and manifest hookups) until the **entire Data Engine**—all layers, segments, and states—is built and wired together. While we are still in that build-out phase, every new state must be treated as if the complete engine were already live: wire states together locally, exercise deterministic cross-state invariants, and extend regression tests so the chain remains ready to run end-to-end the moment we connect to real artefacts. No shortcuts.
+- Package: `packages\engine`
+- Specs: `docs\model_spec\data-engine`
+- Spec posture: Specs are authoritative for 1A-6B. Segments 1A-3B are implemented; 5A-6B are spec-ready. Spec updates are allowed when replacing placeholder externals or when the USER requests, and must be logged.
+- Binding specs: Contracts and expanded docs for 1A-6B govern code. There are no "locked" areas; focus is driven by the current job plan.
+- Implementation note: current engine code is provisional (placeholder-driven) and will be refactored as real externals land; treat specs as the source of truth.
 
 ---
+
+### 0.1) Current Job
+- You are currently materialising data intake (the externals needed to run the engine).
+- Work sequentially, segment by segment, following the order in the guides.
+- We'll be working sequentially, layer by layer. At this point, this is where you route to the next AGENTS.md for data-intake unless complete
+
+
+Route immediately to:
+   - `docs\model_spec\data-engine\layer-1\specs\data-intake\AGENTS.md` [status:in-progress]
+   - `docs\model_spec\data-engine\layer-2\specs\data-intake\AGENTS.md` [status:in-progress]
+   - `docs\model_spec\data-engine\layer-3\specs\data-intake\AGENTS.md` [status:in-progress]
 
 ## 1) Reading order (strict)
 Read these in order before touching code so you align with the frozen specs.
 
-**A. Conceptual references (repo-wide, non-binding)**
-- docs/references/closed-world-enterprise-conceptual-design*.md
-- docs/references/closed-world-synthetic-data-engine-with-realism*.md
-
-**B. Layer-1 implementation references (Segments 1A-3B)**
+**A. Layer-1 implementation references (Segments 1A-3B)**
 - Review the current implementation of the project which for now involves understanding the implemented data engine in packages/engine and also its run tests in `runs/`.
-- Ensure to read (strict) else you'll mess the whole project up:
-   - docs/model_spec/data-engine/layer-1/specs/state-flow/1A/s#*.expanded.md (S0-S9)
-   - docs/model_spec/data-engine/layer-1/specs/state-flow/1B/s#*.expanded.md (S0-S9)
-   - docs/model_spec/data-engine/layer-1/specs/state-flow/2A/s#*.expanded.md (S0-S5)
-   - docs/model_spec/data-engine/layer-1/specs/state-flow/2B/s#*.expanded.md (S0-S8)
-   - docs/model_spec/data-engine/layer-1/specs/state-flow/3A/s#*.expanded.md (S0-S7)
-   - docs/model_spec/data-engine/layer-1/specs/state-flow/3B/s#*.expanded.md (S0-S5)
+- Read in order; do not skip:
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s#.expanded.md
+      * docs/model_spec/data-engine/layer-1/specs/contracts/1A/*
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/1B/state.1B.s#.expanded.md
+      * docs/model_spec/data-engine/layer-1/specs/contracts/1B/*
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s#.expanded.md
+      * docs/model_spec/data-engine/layer-1/specs/contracts/2A/*
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s#.expanded.md
+      * docs/model_spec/data-engine/layer-1/specs/contracts/2B/*
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s#.expanded.md
+      * docs/model_spec/data-engine/layer-1/specs/contracts/3A/*
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/3B/state.3B.s#.expanded.md
+      * docs/model_spec/data-engine/layer-1/specs/contracts/3B/*
 
-**C. Layer-2 state design (5A/5B specs)**
+**B. Layer-2 state design (5A/5B specs)**
 - docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s#.expanded.md
+      * docs/model_spec/data-engine/layer-2/specs/contracts/5A/*
 - docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s#.expanded.md
-- docs/model_spec/data-engine/layer-2/specs/contracts/5A/*
-- docs/model_spec/data-engine/layer-2/specs/contracts/5B/*
+      * docs/model_spec/data-engine/layer-2/specs/contracts/5B/*
 
-**D. Layer-3 state design (6A/6B specs)**
+**C. Layer-3 state design (6A/6B specs)**
 - docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s#.expanded.md
-- docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state-flow-overview.6B.md
+      * docs/model_spec/data-engine/layer-3/specs/contracts/6A/*
 - docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s#.expanded.md
-- docs/model_spec/data-engine/layer-3/specs/contracts/6A/*
-- docs/model_spec/data-engine/layer-3/specs/contracts/6B/*
+      * docs/model_spec/data-engine/layer-3/specs/contracts/6B/*
 
-**E. Shared Layer-1 contract packs**
-- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml
-- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml
-
-_Same goes for layer-2 (`schemas.layer2.yaml` and `schemas.ingress.layer2.yaml`) and layer-3 (`schemas.layer3.yaml` and `schemas.ingress.layer3.yaml`)_
 
 > Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
 ---
 
 ## 2) Test-yourself policy
-- Run targeted pytest jobs (python -m pytest ...) for the state you modify.
-- When adding RNG or egress logic, layer in regression cases that exercise both happy-path and gate-fail scenarios (mirror the Segment 1A test harness).
-- Document results when handing work off (logbook or PR notes).
+- Always, always test yourself robustly.
 
 ---
 
