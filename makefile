@@ -324,6 +324,9 @@ VIRTUAL_EDGE_POLICY_CMD = $(PY) scripts/build_virtual_edge_policy_v1.py
 ZONE_FLOOR_POLICY_CMD = $(PY) scripts/build_zone_floor_policy_3a.py
 COUNTRY_ZONE_ALPHAS_CMD = $(PY) scripts/build_country_zone_alphas_3a.py
 CROSSBORDER_FEATURES_CMD = $(PY) scripts/build_crossborder_features_1a.py
+MERCHANT_CLASS_POLICY_5A_CMD = $(PY) scripts/build_merchant_class_policy_5a.py
+DEMAND_SCALE_POLICY_5A_CMD = $(PY) scripts/build_demand_scale_policy_5a.py
+SHAPE_LIBRARY_5A_CMD = $(PY) scripts/build_shape_library_5a.py --bucket-minutes 60
 CDN_WEIGHTS_EXT_VINTAGE = WDI_ITU_internet_users_share_2024
 CDN_WEIGHTS_EXT_YEAR = 2024
 CDN_WEIGHTS_EXT_CMD = $(PY) scripts/build_cdn_weights_ext_yaml.py --vintage $(CDN_WEIGHTS_EXT_VINTAGE) --vintage-year $(CDN_WEIGHTS_EXT_YEAR)
@@ -339,7 +342,7 @@ PELIAS_CACHED_CMD = $(PY) scripts/build_pelias_cached_sqlite_3b.py --pelias-vers
 VIRTUAL_SETTLEMENT_CMD = $(PY) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
@@ -370,6 +373,21 @@ country_zone_alphas:
 crossborder_features:
 	@echo "Building 1A crossborder_features"
 	$(CROSSBORDER_FEATURES_CMD)
+
+merchant_class_policy_5a:
+	@echo "Building 5A merchant_class_policy_5A"
+	$(MERCHANT_CLASS_POLICY_5A_CMD)
+
+demand_scale_policy_5a:
+	@echo "Building 5A demand_scale_policy_5A"
+	$(DEMAND_SCALE_POLICY_5A_CMD)
+
+shape_library_5a:
+	@echo "Building 5A shape_library_5A"
+	$(SHAPE_LIBRARY_5A_CMD)
+
+policies_5a: merchant_class_policy_5a demand_scale_policy_5a shape_library_5a
+	@echo "5A policy scripts complete (manual configs: baseline_intensity, scenario_horizon, scenario_overlay)"
 
 cdn_weights_ext:
 	@echo "Building 3B cdn_weights_ext_yaml (WDI $(CDN_WEIGHTS_EXT_YEAR))"

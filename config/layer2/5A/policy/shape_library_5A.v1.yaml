@@ -1,33 +1,2455 @@
-# Shape library (5A.S2) - v1
-version: v1
-time_grid:
-  bucket_minutes: 60
-  buckets_per_week: 168
-  tz_reference: local
-  bucket_label: hour_of_week
+policy_id: shape_library_5A
+version: v1.0.0
+scenario_mode: scenario_agnostic
+grid:
+  bucket_duration_minutes: 60
+  week_start: monday_00_00_local
+  day_of_week_encoding: 1=Mon,...,7=Sun
+  minutes_per_day: 1440
+  days_per_week: 7
+  T_week: 168
+  bucket_index_law: k=(dow-1)*T_day + floor(minute/bucket_minutes)
+  derived_flags:
+    weekend_days:
+    - 6
+    - 7
+    is_weekend_law: dow in weekend_days
+channel_groups:
+- card_present
+- card_not_present
+- mixed
+zone_group_mode:
+  mode: tzid_hash_bucket_v1
+  buckets: 8
+  zone_group_id_prefix: zg
 templates:
-  - demand_class: digital
-    channel_group: online
-    type: flat
-  - demand_class: travel
-    type: weekday_peaks
-  - demand_class: lodging
-    type: late_evening
-  - demand_class: food_bev
-    type: lunch_dinner
-  - demand_class: grocery
-    type: daytime_skew
-  - demand_class: transport
-    type: commute_peaks
-  - demand_class: services
-    type: weekday_flat
-  - demand_class: retail_daytime
-    type: daytime_skew
-  - demand_class: fuel
-    type: morning_evening
-  - demand_class: entertainment
-    type: weekend_evening
-  - demand_class: utilities
-    type: flat
-notes: |
-  TODO: Replace with governed shapes; current templates are interpreted by S2 as simple deterministic curves.
+- template_id: always_on_local.card_not_present.v1
+  demand_class: always_on_local
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.95
+  - 0.95
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 162.0
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 162.0
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.card_not_present.v2
+  demand_class: always_on_local
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 180.0
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 180.0
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.card_not_present.v3
+  demand_class: always_on_local
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.05
+  - 1.05
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 198.00000000000003
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 198.00000000000003
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.card_present.v1
+  demand_class: always_on_local
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.95
+  - 0.95
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 162.0
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 162.0
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.card_present.v2
+  demand_class: always_on_local
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 180.0
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 180.0
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.card_present.v3
+  demand_class: always_on_local
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.05
+  - 1.05
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 198.00000000000003
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 198.00000000000003
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.mixed.v1
+  demand_class: always_on_local
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.95
+  - 0.95
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 162.0
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 162.0
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.mixed.v2
+  demand_class: always_on_local
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 180.0
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 180.0
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: always_on_local.mixed.v3
+  demand_class: always_on_local
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.05
+  - 1.05
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 198.00000000000003
+    amplitude: 0.6
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 198.00000000000003
+    amplitude: 0.6
+  baseline_floor: 0.25
+  power: 0.85
+  notes: Broad, always-on profile with mild peaks.
+- template_id: bills_utilities.card_not_present.v1
+  demand_class: bills_utilities
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.475
+  - 0.38
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 90.0
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 99.0
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.card_not_present.v2
+  demand_class: bills_utilities
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.5
+  - 0.4
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 100.0
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 840
+    sigma_min: 110.0
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.card_not_present.v3
+  demand_class: bills_utilities
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.525
+  - 0.42000000000000004
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 110.00000000000001
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 900
+    sigma_min: 121.00000000000001
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.card_present.v1
+  demand_class: bills_utilities
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.475
+  - 0.38
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 90.0
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 99.0
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.card_present.v2
+  demand_class: bills_utilities
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.5
+  - 0.4
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 100.0
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 840
+    sigma_min: 110.0
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.card_present.v3
+  demand_class: bills_utilities
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.525
+  - 0.42000000000000004
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 110.00000000000001
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 900
+    sigma_min: 121.00000000000001
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.mixed.v1
+  demand_class: bills_utilities
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.475
+  - 0.38
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 90.0
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 99.0
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.mixed.v2
+  demand_class: bills_utilities
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.5
+  - 0.4
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 100.0
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 840
+    sigma_min: 110.0
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: bills_utilities.mixed.v3
+  demand_class: bills_utilities
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.525
+  - 0.42000000000000004
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 110.00000000000001
+    amplitude: 0.9
+  - kind: gaussian_peak
+    center_min: 900
+    sigma_min: 121.00000000000001
+    amplitude: 0.7
+  baseline_floor: 0.05
+  power: 1.05
+  notes: Bills/utilities weekday bias.
+- template_id: consumer_daytime.card_not_present.v1
+  demand_class: consumer_daytime
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.855
+  - 0.855
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 108.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 960
+    sigma_min: 126.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.card_not_present.v2
+  demand_class: consumer_daytime
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.9
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 120.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1020
+    sigma_min: 140.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.card_not_present.v3
+  demand_class: consumer_daytime
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9450000000000001
+  - 0.9450000000000001
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 132.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 154.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.card_present.v1
+  demand_class: consumer_daytime
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.855
+  - 0.855
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 108.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 960
+    sigma_min: 126.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.card_present.v2
+  demand_class: consumer_daytime
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.9
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 120.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1020
+    sigma_min: 140.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.card_present.v3
+  demand_class: consumer_daytime
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9450000000000001
+  - 0.9450000000000001
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 132.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 154.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.mixed.v1
+  demand_class: consumer_daytime
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.855
+  - 0.855
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 108.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 960
+    sigma_min: 126.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.mixed.v2
+  demand_class: consumer_daytime
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.9
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 120.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1020
+    sigma_min: 140.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: consumer_daytime.mixed.v3
+  demand_class: consumer_daytime
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9450000000000001
+  - 0.9450000000000001
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 132.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 154.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.1
+  notes: Daytime consumer activity with weekend continuity.
+- template_id: evening_weekend.card_not_present.v1
+  demand_class: evening_weekend
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.52
+  - 1.4249999999999998
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 0
+    sigma_min: 108.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 99.0
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1290
+    sigma_min: 108.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.card_not_present.v2
+  demand_class: evening_weekend
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.6
+  - 1.5
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 60
+    sigma_min: 120.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 110.0
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1350
+    sigma_min: 120.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.card_not_present.v3
+  demand_class: evening_weekend
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.6800000000000002
+  - 1.5750000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 120
+    sigma_min: 132.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1260
+    sigma_min: 121.00000000000001
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1410
+    sigma_min: 132.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.card_present.v1
+  demand_class: evening_weekend
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.52
+  - 1.4249999999999998
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 0
+    sigma_min: 108.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 99.0
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1290
+    sigma_min: 108.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.card_present.v2
+  demand_class: evening_weekend
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.6
+  - 1.5
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 60
+    sigma_min: 120.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 110.0
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1350
+    sigma_min: 120.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.card_present.v3
+  demand_class: evening_weekend
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.6800000000000002
+  - 1.5750000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 120
+    sigma_min: 132.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1260
+    sigma_min: 121.00000000000001
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1410
+    sigma_min: 132.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.mixed.v1
+  demand_class: evening_weekend
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.52
+  - 1.4249999999999998
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 0
+    sigma_min: 108.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 99.0
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1290
+    sigma_min: 108.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.mixed.v2
+  demand_class: evening_weekend
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.6
+  - 1.5
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 60
+    sigma_min: 120.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 110.0
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1350
+    sigma_min: 120.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: evening_weekend.mixed.v3
+  demand_class: evening_weekend
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.6800000000000002
+  - 1.5750000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 120
+    sigma_min: 132.0
+    amplitude: 0.3
+  - kind: gaussian_peak
+    center_min: 1260
+    sigma_min: 121.00000000000001
+    amplitude: 1.2
+  - kind: gaussian_peak
+    center_min: 1410
+    sigma_min: 132.0
+    amplitude: 0.8
+  baseline_floor: 0.08
+  power: 1.3
+  notes: Evening peaks and weekend uplift.
+- template_id: fuel_convenience.card_not_present.v1
+  demand_class: fuel_convenience
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.855
+  - 0.855
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 420
+    sigma_min: 81.0
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 990
+    sigma_min: 90.0
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.card_not_present.v2
+  demand_class: fuel_convenience
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.9
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 90.0
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 1050
+    sigma_min: 100.0
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.card_not_present.v3
+  demand_class: fuel_convenience
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9450000000000001
+  - 0.9450000000000001
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 99.00000000000001
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 1110
+    sigma_min: 110.00000000000001
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.card_present.v1
+  demand_class: fuel_convenience
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.855
+  - 0.855
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 420
+    sigma_min: 81.0
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 990
+    sigma_min: 90.0
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.card_present.v2
+  demand_class: fuel_convenience
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.9
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 90.0
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 1050
+    sigma_min: 100.0
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.card_present.v3
+  demand_class: fuel_convenience
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9450000000000001
+  - 0.9450000000000001
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 99.00000000000001
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 1110
+    sigma_min: 110.00000000000001
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.mixed.v1
+  demand_class: fuel_convenience
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.855
+  - 0.855
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 420
+    sigma_min: 81.0
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 990
+    sigma_min: 90.0
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.mixed.v2
+  demand_class: fuel_convenience
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+  - 0.9
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 90.0
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 1050
+    sigma_min: 100.0
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: fuel_convenience.mixed.v3
+  demand_class: fuel_convenience
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9450000000000001
+  - 0.9450000000000001
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 99.00000000000001
+    amplitude: 1.1
+  - kind: gaussian_peak
+    center_min: 1110
+    sigma_min: 110.00000000000001
+    amplitude: 1.0
+  baseline_floor: 0.07
+  power: 1.1
+  notes: Fuel and convenience peaks around commute.
+- template_id: low_volume_tail.card_not_present.v1
+  demand_class: low_volume_tail
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.95
+  - 0.95
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 180.0
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.card_not_present.v2
+  demand_class: low_volume_tail
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 200.0
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.card_not_present.v3
+  demand_class: low_volume_tail
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.05
+  - 1.05
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 220.00000000000003
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.card_present.v1
+  demand_class: low_volume_tail
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.95
+  - 0.95
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 180.0
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.card_present.v2
+  demand_class: low_volume_tail
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 200.0
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.card_present.v3
+  demand_class: low_volume_tail
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.05
+  - 1.05
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 220.00000000000003
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.mixed.v1
+  demand_class: low_volume_tail
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.95
+  - 0.95
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 180.0
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.mixed.v2
+  demand_class: low_volume_tail
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 200.0
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: low_volume_tail.mixed.v3
+  demand_class: low_volume_tail
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.05
+  - 1.05
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 220.00000000000003
+    amplitude: 0.4
+  baseline_floor: 0.1
+  power: 0.8
+  notes: Sparse activity with non-flat shape.
+- template_id: office_hours.card_not_present.v1
+  demand_class: office_hours
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.33249999999999996
+  - 0.285
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 81.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 81.0
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.card_not_present.v2
+  demand_class: office_hours
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.35
+  - 0.3
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 90.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 840
+    sigma_min: 90.0
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.card_not_present.v3
+  demand_class: office_hours
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.3675
+  - 0.315
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 99.00000000000001
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 900
+    sigma_min: 99.00000000000001
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.card_present.v1
+  demand_class: office_hours
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.33249999999999996
+  - 0.285
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 81.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 81.0
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.card_present.v2
+  demand_class: office_hours
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.35
+  - 0.3
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 90.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 840
+    sigma_min: 90.0
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.card_present.v3
+  demand_class: office_hours
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.3675
+  - 0.315
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 99.00000000000001
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 900
+    sigma_min: 99.00000000000001
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.mixed.v1
+  demand_class: office_hours
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.33249999999999996
+  - 0.285
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 81.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 780
+    sigma_min: 81.0
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.mixed.v2
+  demand_class: office_hours
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.35
+  - 0.3
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 90.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 840
+    sigma_min: 90.0
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: office_hours.mixed.v3
+  demand_class: office_hours
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.3675
+  - 0.315
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 99.00000000000001
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 900
+    sigma_min: 99.00000000000001
+    amplitude: 0.9
+  baseline_floor: 0.07
+  power: 1.2
+  notes: Weekday office hours with light weekend activity.
+- template_id: online_24h.card_not_present.v1
+  demand_class: online_24h
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.045
+  - 1.045
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 0
+    sigma_min: 135.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 144.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.card_not_present.v2
+  demand_class: online_24h
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.1
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 60
+    sigma_min: 150.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1260
+    sigma_min: 160.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.card_not_present.v3
+  demand_class: online_24h
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.1550000000000002
+  - 1.1550000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 120
+    sigma_min: 165.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1320
+    sigma_min: 176.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.card_present.v1
+  demand_class: online_24h
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.045
+  - 1.045
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 0
+    sigma_min: 135.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 144.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.card_present.v2
+  demand_class: online_24h
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.1
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 60
+    sigma_min: 150.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1260
+    sigma_min: 160.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.card_present.v3
+  demand_class: online_24h
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.1550000000000002
+  - 1.1550000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 120
+    sigma_min: 165.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1320
+    sigma_min: 176.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.mixed.v1
+  demand_class: online_24h
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.045
+  - 1.045
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 0
+    sigma_min: 135.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 144.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.mixed.v2
+  demand_class: online_24h
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.1
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 60
+    sigma_min: 150.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1260
+    sigma_min: 160.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_24h.mixed.v3
+  demand_class: online_24h
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.1550000000000002
+  - 1.1550000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 120
+    sigma_min: 165.0
+    amplitude: 0.8
+  - kind: gaussian_peak
+    center_min: 1320
+    sigma_min: 176.0
+    amplitude: 0.7
+  baseline_floor: 0.2
+  power: 0.9
+  notes: Online 24/7 with elevated night mass.
+- template_id: online_bursty.card_not_present.v1
+  demand_class: online_bursty
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.3299999999999998
+  - 1.2349999999999999
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 30
+    sigma_min: 126.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 63.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 72.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.card_not_present.v2
+  demand_class: online_bursty
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.4
+  - 1.3
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 90
+    sigma_min: 140.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 70.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 80.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.card_not_present.v3
+  demand_class: online_bursty
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.47
+  - 1.3650000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 150
+    sigma_min: 154.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 77.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 88.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.card_present.v1
+  demand_class: online_bursty
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.3299999999999998
+  - 1.2349999999999999
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 30
+    sigma_min: 126.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 63.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 72.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.card_present.v2
+  demand_class: online_bursty
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.4
+  - 1.3
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 90
+    sigma_min: 140.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 70.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 80.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.card_present.v3
+  demand_class: online_bursty
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.47
+  - 1.3650000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 150
+    sigma_min: 154.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 77.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 88.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.mixed.v1
+  demand_class: online_bursty
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.3299999999999998
+  - 1.2349999999999999
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 30
+    sigma_min: 126.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 63.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 72.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.mixed.v2
+  demand_class: online_bursty
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.4
+  - 1.3
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 90
+    sigma_min: 140.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 660
+    sigma_min: 70.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 80.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: online_bursty.mixed.v3
+  demand_class: online_bursty
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.47
+  - 1.3650000000000002
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 150
+    sigma_min: 154.0
+    amplitude: 0.4
+  - kind: gaussian_peak
+    center_min: 720
+    sigma_min: 77.0
+    amplitude: 1.4
+  - kind: gaussian_peak
+    center_min: 1200
+    sigma_min: 88.0
+    amplitude: 1.2
+  baseline_floor: 0.1
+  power: 1.6
+  notes: High-variance online bursts.
+- template_id: travel_hospitality.card_not_present.v1
+  demand_class: travel_hospitality
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.4249999999999998
+  - 1.3299999999999998
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 108.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1020
+    sigma_min: 126.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.card_not_present.v2
+  demand_class: travel_hospitality
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.5
+  - 1.4
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 120.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 140.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.card_not_present.v3
+  demand_class: travel_hospitality
+  channel_group: card_not_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.5750000000000002
+  - 1.47
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 132.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 154.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.card_present.v1
+  demand_class: travel_hospitality
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.4249999999999998
+  - 1.3299999999999998
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 108.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1020
+    sigma_min: 126.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.card_present.v2
+  demand_class: travel_hospitality
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.5
+  - 1.4
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 120.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 140.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.card_present.v3
+  demand_class: travel_hospitality
+  channel_group: card_present
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.5750000000000002
+  - 1.47
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 132.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 154.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.mixed.v1
+  demand_class: travel_hospitality
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.4249999999999998
+  - 1.3299999999999998
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 480
+    sigma_min: 108.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1020
+    sigma_min: 126.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.mixed.v2
+  demand_class: travel_hospitality
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.5
+  - 1.4
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 540
+    sigma_min: 120.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1080
+    sigma_min: 140.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+- template_id: travel_hospitality.mixed.v3
+  demand_class: travel_hospitality
+  channel_group: mixed
+  shape_kind: daily_gaussian_mixture
+  dow_weights:
+  - 0.8
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.1
+  - 1.5750000000000002
+  - 1.47
+  daily_components:
+  - kind: gaussian_peak
+    center_min: 600
+    sigma_min: 132.0
+    amplitude: 1.0
+  - kind: gaussian_peak
+    center_min: 1140
+    sigma_min: 154.0
+    amplitude: 0.9
+  baseline_floor: 0.06
+  power: 1.15
+  notes: Travel/hospitality with weekend uplift.
+template_resolution:
+  mode: deterministic_choice_by_tzid_v1
+  default_template_id: always_on_local.card_not_present.v1
+  rules:
+  - demand_class: always_on_local
+    channel_group: card_not_present
+    candidate_template_ids:
+    - always_on_local.card_not_present.v1
+    - always_on_local.card_not_present.v2
+    - always_on_local.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: always_on_local
+    channel_group: card_present
+    candidate_template_ids:
+    - always_on_local.card_present.v1
+    - always_on_local.card_present.v2
+    - always_on_local.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: always_on_local
+    channel_group: mixed
+    candidate_template_ids:
+    - always_on_local.mixed.v1
+    - always_on_local.mixed.v2
+    - always_on_local.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: bills_utilities
+    channel_group: card_not_present
+    candidate_template_ids:
+    - bills_utilities.card_not_present.v1
+    - bills_utilities.card_not_present.v2
+    - bills_utilities.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: bills_utilities
+    channel_group: card_present
+    candidate_template_ids:
+    - bills_utilities.card_present.v1
+    - bills_utilities.card_present.v2
+    - bills_utilities.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: bills_utilities
+    channel_group: mixed
+    candidate_template_ids:
+    - bills_utilities.mixed.v1
+    - bills_utilities.mixed.v2
+    - bills_utilities.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: consumer_daytime
+    channel_group: card_not_present
+    candidate_template_ids:
+    - consumer_daytime.card_not_present.v1
+    - consumer_daytime.card_not_present.v2
+    - consumer_daytime.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: consumer_daytime
+    channel_group: card_present
+    candidate_template_ids:
+    - consumer_daytime.card_present.v1
+    - consumer_daytime.card_present.v2
+    - consumer_daytime.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: consumer_daytime
+    channel_group: mixed
+    candidate_template_ids:
+    - consumer_daytime.mixed.v1
+    - consumer_daytime.mixed.v2
+    - consumer_daytime.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: evening_weekend
+    channel_group: card_not_present
+    candidate_template_ids:
+    - evening_weekend.card_not_present.v1
+    - evening_weekend.card_not_present.v2
+    - evening_weekend.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: evening_weekend
+    channel_group: card_present
+    candidate_template_ids:
+    - evening_weekend.card_present.v1
+    - evening_weekend.card_present.v2
+    - evening_weekend.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: evening_weekend
+    channel_group: mixed
+    candidate_template_ids:
+    - evening_weekend.mixed.v1
+    - evening_weekend.mixed.v2
+    - evening_weekend.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: fuel_convenience
+    channel_group: card_not_present
+    candidate_template_ids:
+    - fuel_convenience.card_not_present.v1
+    - fuel_convenience.card_not_present.v2
+    - fuel_convenience.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: fuel_convenience
+    channel_group: card_present
+    candidate_template_ids:
+    - fuel_convenience.card_present.v1
+    - fuel_convenience.card_present.v2
+    - fuel_convenience.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: fuel_convenience
+    channel_group: mixed
+    candidate_template_ids:
+    - fuel_convenience.mixed.v1
+    - fuel_convenience.mixed.v2
+    - fuel_convenience.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: low_volume_tail
+    channel_group: card_not_present
+    candidate_template_ids:
+    - low_volume_tail.card_not_present.v1
+    - low_volume_tail.card_not_present.v2
+    - low_volume_tail.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: low_volume_tail
+    channel_group: card_present
+    candidate_template_ids:
+    - low_volume_tail.card_present.v1
+    - low_volume_tail.card_present.v2
+    - low_volume_tail.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: low_volume_tail
+    channel_group: mixed
+    candidate_template_ids:
+    - low_volume_tail.mixed.v1
+    - low_volume_tail.mixed.v2
+    - low_volume_tail.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: office_hours
+    channel_group: card_not_present
+    candidate_template_ids:
+    - office_hours.card_not_present.v1
+    - office_hours.card_not_present.v2
+    - office_hours.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: office_hours
+    channel_group: card_present
+    candidate_template_ids:
+    - office_hours.card_present.v1
+    - office_hours.card_present.v2
+    - office_hours.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: office_hours
+    channel_group: mixed
+    candidate_template_ids:
+    - office_hours.mixed.v1
+    - office_hours.mixed.v2
+    - office_hours.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: online_24h
+    channel_group: card_not_present
+    candidate_template_ids:
+    - online_24h.card_not_present.v1
+    - online_24h.card_not_present.v2
+    - online_24h.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: online_24h
+    channel_group: card_present
+    candidate_template_ids:
+    - online_24h.card_present.v1
+    - online_24h.card_present.v2
+    - online_24h.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: online_24h
+    channel_group: mixed
+    candidate_template_ids:
+    - online_24h.mixed.v1
+    - online_24h.mixed.v2
+    - online_24h.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: online_bursty
+    channel_group: card_not_present
+    candidate_template_ids:
+    - online_bursty.card_not_present.v1
+    - online_bursty.card_not_present.v2
+    - online_bursty.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: online_bursty
+    channel_group: card_present
+    candidate_template_ids:
+    - online_bursty.card_present.v1
+    - online_bursty.card_present.v2
+    - online_bursty.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: online_bursty
+    channel_group: mixed
+    candidate_template_ids:
+    - online_bursty.mixed.v1
+    - online_bursty.mixed.v2
+    - online_bursty.mixed.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: travel_hospitality
+    channel_group: card_not_present
+    candidate_template_ids:
+    - travel_hospitality.card_not_present.v1
+    - travel_hospitality.card_not_present.v2
+    - travel_hospitality.card_not_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: travel_hospitality
+    channel_group: card_present
+    candidate_template_ids:
+    - travel_hospitality.card_present.v1
+    - travel_hospitality.card_present.v2
+    - travel_hospitality.card_present.v3
+    selection_law: u_det_pick_index_v1
+  - demand_class: travel_hospitality
+    channel_group: mixed
+    candidate_template_ids:
+    - travel_hospitality.mixed.v1
+    - travel_hospitality.mixed.v2
+    - travel_hospitality.mixed.v3
+    selection_law: u_det_pick_index_v1
+constraints:
+  min_mass_night: 0.02
+  night_window_minutes:
+    start_min: 0
+    end_min: 360
+  min_weekend_mass_for_weekend_classes: 0.3
+  office_hours_window:
+    weekday_start_min: 480
+    weekday_end_min: 1080
+    min_weekday_office_mass: 0.65
+  shape_nonflat_ratio_min: 1.6
+realism_floors:
+  min_total_templates: 40
+  min_templates_per_class_per_channel: 2
+  require_all_classes_present: true
+  require_all_channel_groups_present: true
+  min_nonflat_templates_fraction: 0.9
+  min_night_mass_online24h: 0.08
+  min_weekend_mass_evening_weekend: 0.3
+  min_weekday_mass_office_hours: 0.65
