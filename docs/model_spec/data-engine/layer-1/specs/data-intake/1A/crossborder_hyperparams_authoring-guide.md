@@ -103,10 +103,14 @@ This logic drives:
 
 ```yaml
 ztp:
-  theta: { ... }                     # ZTP link coefficients
-  x_transform: { ... }               # monotone transform into [0,1]
-  x_default: <float in [0,1]>        # used if X missing; overrides 0.0 if present
-  max_ztp_zero_attempts: <int >= 1>  # default 64 if you keep v1 default
+  rule_set_id: "<non-empty string>"
+  theta_order: ["<coef_name_0>", "<coef_name_1>", "..."]  # evaluation order (fixed)
+  theta: { ... }                                         # map coef_name -> float
+  feature_x:
+    feature_id: "<string>"            # e.g., "openness"
+    x_default: <float in [0,1]>       # used if X missing; overrides 0.0 if present
+    x_transform: { ... }              # monotone transform into [0,1]
+  MAX_ZTP_ZERO_ATTEMPTS: <int >= 1>   # default 64 if you keep v1 default
   ztp_exhaustion_policy: "abort" | "downgrade_domestic"
 ```
 
@@ -120,18 +124,22 @@ S4 evaluates (binary64, fixed operation order):
 * `λ_extra = exp(η)` and MUST be finite and > 0
 * Then it runs the ZTP loop (Poisson draws rejecting 0) with:
 
-  * attempt cap = `max_ztp_zero_attempts`
+  * attempt cap = `MAX_ZTP_ZERO_ATTEMPTS`
   * policy on cap hit = `ztp_exhaustion_policy`
 
-### 4.3 `theta` representation (v1 baseline)
+### 4.3 `theta_order` + `theta` representation (v1 baseline)
 
-For v1, keep the link basis minimal and explicit:
+For v1, keep the link basis minimal and explicit, and pin evaluation order:
 
 ```yaml
+theta_order:
+  - "theta0_intercept"
+  - "theta1_log_n_sites"
+  - "theta2_openness"   # align with `feature_x.feature_id`
 theta:
-  theta0: <float>      # intercept
-  theta_log_n: <float> # coefficient on log(N)
-  theta_x: <float>     # coefficient on X
+  theta0_intercept: <float>       # intercept
+  theta1_log_n_sites: <float>     # coefficient on log(N)
+  theta2_openness: <float>        # coefficient on X (`feature_x`)
 ```
 
 If you later add more terms (“…”) you add new explicit keys (semver bump as needed).
@@ -145,7 +153,7 @@ x_transform:
   kind: "clamp01"   # v1
 ```
 
-Meaning: treat X as already in [0,1], clamp if needed.
+Meaning: treat X as already in [0,1], clamp if needed (applies to `ztp.feature_x.x_transform`).
 
 ---
 
@@ -166,10 +174,13 @@ Do not introduce additional keys without a semver bump.
 * This file is **parsed**, then the engine computes `parameter_hash` using a canonical serialization discipline.
 * For the **S4-controlled portion**, the hash must be sensitive to:
 
+  * `rule_set_id`
+  * `theta_order`
   * `theta`
-  * `x_transform`
-  * `x_default`
-  * `max_ztp_zero_attempts`
+  * `feature_x.feature_id`
+  * `feature_x.x_transform`
+  * `feature_x.x_default`
+  * `MAX_ZTP_ZERO_ATTEMPTS`
   * `ztp_exhaustion_policy`
 
 So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structure simple and stable.
@@ -179,9 +190,12 @@ So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structu
 ## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
-# config/models/crossborder_hyperparams.yaml
+# config/policy/crossborder_hyperparams.yaml
 # source=authored; vintage=2025-12-31
 # Governs: 1A.S0.6 eligibility + 1A.S4 ZTP link/exhaustion (participates in parameter_hash)
+
+semver: "1.0.0"
+version: "2025-12-31"
 
 eligibility:
   rule_set_id: "eligibility.v1.2025-12-31"
@@ -310,7 +324,8 @@ ztp:
   feature_x:
     feature_id: "openness"
     x_default: 0.0
-    x_transform: "clamp01"   # governance-defined; stays deterministic
+    x_transform:
+      kind: "clamp01"   # governance-defined; stays deterministic
 
   # Exhaustion controls (governed)
   MAX_ZTP_ZERO_ATTEMPTS: 64
@@ -330,15 +345,15 @@ This is intentionally “small but real”: it validates, it’s deterministic, 
 * rule `id` unique
 * `priority` in range
 * `decision` valid
-* `channel` is `"*"` or subset of `{CP,CNP}`
-* `iso` is `"*"` or all entries exist in `iso3166_canonical_2024`
-* `mcc` is `"*"` or valid selectors; ranges expand; reject invalid MCCs
+* `channel` contains `"*"` or is a subset of `{CP,CNP}`
+* `iso` contains `"*"` or all entries exist in `iso3166_canonical_2024`
+* `mcc` contains `"*"` or valid selectors; ranges expand; reject invalid MCCs
 
 ### ZTP
 
-* `theta` has required keys
-* `x_default ∈ [0,1]`
-* `max_ztp_zero_attempts >= 1`
+* `theta_order` non-empty; every name in `theta_order` exists in `theta` (and no extra keys in `theta`)
+* `feature_x.x_default ∈ [0,1]`
+* `MAX_ZTP_ZERO_ATTEMPTS >= 1`
 * `ztp_exhaustion_policy ∈ {abort, downgrade_domestic}`
 
 ---

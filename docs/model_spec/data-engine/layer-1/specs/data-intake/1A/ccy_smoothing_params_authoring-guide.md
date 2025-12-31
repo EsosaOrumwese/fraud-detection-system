@@ -20,6 +20,7 @@ This policy controls whether currency-to-country weights look like the real worl
 * Calibrate `blend_weight` / `alpha` / `obs_floor` / `shrink_exponent` so the output is neither nearly-uniform nor dominated by noise.
 * Provide `per_currency` overrides for major multi-country currencies where a single global default is not credible (e.g., shared-currency areas with very uneven member sizes).
 * Validate that the output weight distributions look plausible for a small audit sample of major currencies (top shares sensible; long tail present; sum=1 at dp).
+* This policy is **deterministic**: **1A.S5 is RNG-free**. Do not introduce randomness (no sampling, no nondeterministic shuffles).
 
 ---
 
@@ -34,14 +35,16 @@ This policy controls whether currency-to-country weights look like the real worl
 
 ## 2) Required top-level structure
 
-The YAML **MUST contain exactly** these top-level keys (no extras):
+The YAML **MUST allow only** these top-level keys (no extras):
 
-* `semver` : string (`MAJOR.MINOR.PATCH`)
-* `version` : string (`YYYY-MM-DD`)
-* `dp` : int in `[0, 18]` (fixed decimals for OUTPUT weights)
-* `defaults` : object (required)
-* `per_currency` : object (optional)
-* `overrides` : object (optional)
+* `semver` : string (`MAJOR.MINOR.PATCH`) **[required]**
+* `version` : string (`YYYY-MM-DD`) **[required]**
+* `dp` : int in `[0, 18]` (fixed decimals for OUTPUT weights) **[required]**
+* `defaults` : object **[required]**
+* `per_currency` : object **[optional]**
+* `overrides` : object **[optional]**
+
+Required keys are: `semver`, `version`, `dp`, `defaults`.
 
 **Fail closed** on:
 
@@ -175,6 +178,8 @@ defaults:
   blend_weight: 0.65
 
   # Light Dirichlet smoothing (keeps tails nonzero without inflating microstates too much)
+  # Note: some baselines cite α≈0.5; this guide uses α=0.20 as a lighter default to preserve observed concentration
+  # while still preventing exact zeros in low-evidence tails.
   alpha: 0.20
 
   # Minimum effective mass after shrink (stabilises low-evidence currencies)

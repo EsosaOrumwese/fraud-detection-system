@@ -139,7 +139,7 @@ Supported forms:
 
 * `{ op: "TRUE" }`
 * `{ op: "IN_SET", field: "home_country_iso", set: "<COUNTRY_SET_NAME>" }`
-* `{ op: "CHANNEL_IN", values: ["CP","CNP"] }`
+* `{ op: "CHANNEL_IN", values: ["card_present","card_not_present"] }`
 * `{ op: "MCC_IN", codes: ["7995","4829"], ranges: ["5000-5999"] }`
 * `{ op: "N_GE", value: 2 }`
 * `{ op: "AND", args: [<predicate>, ...] }`
