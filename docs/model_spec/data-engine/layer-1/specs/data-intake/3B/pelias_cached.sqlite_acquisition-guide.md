@@ -22,6 +22,17 @@ Codex must be given (by config/manifest):
 
 ---
 
+### 1.1 Placeholder resolution (MUST)
+
+Replace placeholder tokens consistently:
+
+* `{pelias_version}` and `<pelias_version>`: the pinned version label provided by intake.
+* `<sha256 of pelias_cached.sqlite bytes>`: the lowercase hex SHA-256 of the final sqlite bytes.
+
+Do not infer a new version from upstream "latest" metadata.
+
+---
+
 ### 2) Source strategy (authoritative; fail-closed)
 
 This project treats the bundle as a **SQLite gazetteer built deterministically from GeoNames dumps** (the same ecosystem Pelias commonly imports). ([GitHub][2])
@@ -119,7 +130,7 @@ This bundle is built from **text dumps**, so:
 
 ---
 
-### 5) Engine-fit validation (must pass)
+### 5) Engine-fit validation checklist (must pass)
 
 Codex MUST validate the built sqlite file before sealing:
 

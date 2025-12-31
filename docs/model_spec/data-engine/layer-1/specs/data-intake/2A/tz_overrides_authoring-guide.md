@@ -71,6 +71,14 @@ Even though the schema types `target` as a string, **S2 matching depends on a pr
 * `target` MUST encode the site key `(merchant_id, legal_country_iso, site_order)` as:
   **`"<merchant_id>|<ISO2>|<site_order>"`**
 
+#### 4.3.1 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens in the pattern as follows:
+
+* `<merchant_id>`: base-10 unsigned integer (no leading zeros).
+* `<ISO2>`: ISO-3166-1 alpha-2 uppercase country code.
+* `<site_order>`: base-10 integer >= 1 (no leading zeros).
+
 Constraints:
 
 * `merchant_id` is base-10 uint64, no leading zeros: `[1-9][0-9]{0,19}`

@@ -116,6 +116,18 @@ All ISO2 keys must be uppercase and FK-valid to `iso3166_canonical_2024`.
 
 ---
 
+### 4.5 Placeholder resolution (MUST)
+
+The angle-bracket tokens in the override examples are literal placeholders. Replace them with:
+
+* `<CCY>`: ISO-4217 alpha-3 currency code present in `ccy_country_shares_2024Q4.currency`.
+* `<ISO2>`: ISO-3166-1 alpha-2 country code present in `iso3166_canonical_2024`.
+* `<Q>`: one of the allowed quantity names in this section (exact field names only).
+
+Do not introduce new field names or currencies outside the input currency universe.
+
+---
+
 ## 5) S5 algorithm semantics this policy controls
 
 For each currency `cur` and each country `c` in the **union** country set from both input share surfaces:

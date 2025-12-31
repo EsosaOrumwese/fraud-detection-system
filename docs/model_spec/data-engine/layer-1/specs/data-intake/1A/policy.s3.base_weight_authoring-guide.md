@@ -38,6 +38,15 @@ model: { ... }            # deterministic formula definition
 bounds: { ... }           # safety clamps (log-space and/or linear space)
 ```
 
+### 3.1 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens in the shape block with:
+
+* `<semver>`: semantic version string like `1.0.0`.
+* `<u8>`: integer in `[0,255]` representing the fixed decimal precision.
+
+Do not add new top-level keys without a semver bump.
+
 Unknown top-level keys SHOULD be rejected (avoid silent drift).
 
 ---

@@ -37,6 +37,16 @@ This MCC authority table is **not yet sealed** in the engine contracts. Before u
 
 Until then, treat this guide as **acquisition-only** (do not claim the engine has sealed it).
 
+### 1.1.2 Placeholder resolution (MUST)
+
+`<vintage>` is the version label for this MCC snapshot. Use a date string in `YYYY-MM-DD` format, and apply it consistently in:
+
+* the artefact ID `mcc_canonical_<vintage>`
+* the folder path `reference/industry/mcc_canonical/<vintage>/`
+* provenance metadata (`source_vintage` and retrieval date)
+
+Do not mix multiple vintages in a single published parquet.
+
 ### 1.2 Minimal schema (MUST)
 
 * `mcc` (int32) **PK**

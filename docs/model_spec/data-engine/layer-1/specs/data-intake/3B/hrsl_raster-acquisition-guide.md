@@ -62,6 +62,14 @@ If either is missing → **FAIL CLOSED**.
 
 ---
 
+### 3.1 Placeholder resolution (MUST)
+
+Replace placeholder tokens consistently:
+
+* `{vintage}`: the governance label pinned in intake (e.g., `HRSL_2025Q4`).
+* `{semver}`: your shaping pipeline semver (e.g., `1.0.0`).
+* `<tmp>`: a local temp directory used during acquisition (not part of any sealed output paths).
+
 ## 4) Acquisition + shaping procedure (Codex implements; this doc specifies)
 
 ### 4.1 Fetch the upstream VRT (MUST)
@@ -119,7 +127,7 @@ Write final output as a **Cloud-Optimized GeoTIFF**:
 
 ---
 
-## 5) Engine-fit validation (MUST pass)
+## 5) Engine-fit validation checklist (MUST pass)
 
 Codex MUST validate the produced file before sealing:
 

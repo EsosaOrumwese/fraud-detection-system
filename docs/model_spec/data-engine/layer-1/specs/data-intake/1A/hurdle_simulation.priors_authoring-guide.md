@@ -55,6 +55,16 @@ nb_mean: { ... }
 dispersion: { ... }
 ```
 
+### 3.1 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens in the snippet with concrete values:
+
+* `<MAJOR.MINOR.PATCH>`: semantic version for the priors file (e.g., `1.0.0`).
+* `<YYYY-MM-DD>`: release date label for the priors file.
+* `<uint64>`: RNG seed as an unsigned integer in `[0, 2^64-1]`.
+
+Use finite numeric values for any inline `<float>` placeholders later in the file; do not leave placeholders in a sealed priors file.
+
 Reject unknown top-level keys (fail closed).
 
 ---

@@ -54,6 +54,16 @@ attribution_template: <string|null>
 notes: <string|null>
 ```
 
+### 3.1 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens in the shape block with concrete values:
+
+* `<string>`: a non-empty string (for `text_path`, use a repo-relative path under `LICENSES/`).
+* `<string|null>`: either a non-empty string or literal `null`.
+* `<bool|null>`: `true`, `false`, or `null`.
+
+Do not leave placeholders in a sealed `license_map.yaml`.
+
 Rules:
 
 * `text_path` MUST exist in repo (Codex must create it if missing).

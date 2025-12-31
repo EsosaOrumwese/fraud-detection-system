@@ -22,6 +22,14 @@ This dataset is a **processed, column-normalised snapshot** (not a raw export). 
 * **PII:** `false` (do not include names/addresses/real-world identifiers)
 * **License:** Proprietary-Internal
 
+### 1.1.1 Placeholder resolution (MUST)
+
+Replace the inline placeholder tokens as follows:
+
+* `{version}`: the snapshot label selected by the Scenario Runner (use `YYYY-MM-DD` for v1 and keep it consistent across all references).
+* `<vintage>` in `mcc_canonical_<vintage>`: the pinned MCC authority vintage label (same `YYYY-MM-DD` used in the MCC canonical artefact path).
+* If you use `mcc_enrichment_<vintage>`, it MUST share the same `<vintage>` value as `mcc_canonical_<vintage>`.
+
 ### 1.2 Schema (MUST match `schemas.ingress.layer1.yaml#/merchant_ids`)
 
 Columns (exactly these for v1 of the engine):

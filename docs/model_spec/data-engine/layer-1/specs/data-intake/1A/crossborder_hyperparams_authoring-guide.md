@@ -149,6 +149,18 @@ Meaning: treat X as already in [0,1], clamp if needed.
 
 ---
 
+### 4.5 Placeholder resolution (MUST)
+
+The angle-bracket tokens in the YAML snippets are literal placeholders. Replace them with:
+
+* `<non-empty string>`: a stable, human-readable `rule_set_id` (e.g., `eligibility.v1.2025-04-15`).
+* `<float>`: a finite numeric value (no NaN/Inf), chosen to meet the realism sanity check in 4.2.
+* `<int >= 1>`: a positive integer cap for ZTP zero-attempts (use 64 unless you have evidence to lower it).
+
+Do not introduce additional keys without a semver bump.
+
+---
+
 ## 5) Determinism and hashing obligations (what Codex must respect)
 
 * This file is **parsed**, then the engine computes `parameter_hash` using a canonical serialization discipline.

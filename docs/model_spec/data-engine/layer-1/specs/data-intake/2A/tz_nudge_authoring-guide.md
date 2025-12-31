@@ -82,6 +82,8 @@ semver=<semver>
 epsilon_degrees=<epsilon_string>
 ```
 
+### 5.1 Placeholder resolution (MUST)
+
 Where:
 
 * `<semver>` is the literal `semver` value.

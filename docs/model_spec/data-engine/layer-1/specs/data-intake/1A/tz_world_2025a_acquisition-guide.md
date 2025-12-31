@@ -93,6 +93,15 @@ GitHub release assets follow a stable pattern:
 https://github.com/evansiroky/timezone-boundary-builder/releases/download/<TAG>/<ASSET_FILENAME>
 ```
 
+### 3.4 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens as follows:
+
+* `<TAG>`: the tzdb release tag (v1 is `2025a`).
+* `<ASSET_FILENAME>`: the exact asset name chosen by the pinned preference order in 3.1.
+
+The resolved URL MUST match an asset listed under the chosen tag; do not guess filenames outside that list.
+
 So for `2025a`, the default asset is expected at:
 
 ```text

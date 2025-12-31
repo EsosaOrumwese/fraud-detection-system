@@ -94,6 +94,17 @@ If that version token cannot be resolved from the intake manifest/path → **FAI
 
 ---
 
+### 4.3 Placeholder resolution (MUST)
+
+Replace placeholder tokens as follows:
+
+* `<version token ...>`: the exact `{version}` directory label of the pinned `transaction_schema_merchant_ids` snapshot (e.g., `2025-12-01`).
+* `{geonameid}` in the evidence URL: the integer GeoNames id from the chosen candidate row.
+
+Do not invent new batch labels; they must be derivable from pinned inputs.
+
+---
+
 ## 5) Candidate settlement universe per country (MUST)
 
 For each ISO2 country `c` appearing in `transaction_schema_merchant_ids.home_country_iso`:
@@ -196,7 +207,7 @@ For each merchant `m`:
 
 ---
 
-## 8) Validations (MUST; fail closed)
+## 8) Validation checklist (MUST; fail closed)
 
 ### 8.1 Structural
 

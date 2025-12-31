@@ -154,6 +154,20 @@ If a collision ever occurs (shouldn’t), append `"-2"`, `"-3"` deterministicall
 
 ---
 
+### 6.1 Placeholder resolution (MUST)
+
+The angle-bracket tokens in the canonical string are placeholders for the row's actual values:
+
+* `<event_type>` is the row's `event_type`.
+* `<start_utc>` and `<end_utc>` are the row's UTC timestamps.
+* `<shape_kind>` is the row's `shape_kind`.
+* `<amplitude_or_null>`, `<amplitude_peak_or_null>`, `<ramp_in_or_null>`, `<ramp_out_or_null>` are the row values, rendered as `null` if absent.
+* `<country_or_null>`, `<tzid_or_null>`, `<demand_class_or_null>`, `<merchant_id_or_null>` are rendered as `null` when the corresponding field is null.
+
+Use the exact string rendering shown (no extra spaces) to keep hashes stable.
+
+---
+
 ### 7) Deterministic generation algorithm (v1; non-toy)
 
 #### 7.1 Setup
@@ -270,7 +284,7 @@ If `is_stress=true`, generate **2–4** stress windows:
 
 ---
 
-### 8) Hard validations (MUST; fail closed)
+### 8) Validation checklist (MUST; fail closed)
 
 After generating, Codex MUST validate:
 

@@ -66,7 +66,7 @@ No other columns, joins, or enrichment are permitted.
 
 ---
 
-## 4) Engine-fit validation (MUST pass before publishing)
+## 4) Engine-fit validation checklist (MUST pass before publishing)
 
 Codex MUST validate:
 

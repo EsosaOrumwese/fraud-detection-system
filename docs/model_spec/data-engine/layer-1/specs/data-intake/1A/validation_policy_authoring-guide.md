@@ -47,6 +47,10 @@ cusum:
   threshold_h: <float>
 ```
 
+### 3.1.1 Placeholder resolution (MUST)
+
+Replace `<float>` with finite numeric values (no NaN/Inf). Both must be strictly greater than 0.
+
 ### 3.2 Semantics
 
 * `reference_k` is the **CUSUM reference value** `k > 0`

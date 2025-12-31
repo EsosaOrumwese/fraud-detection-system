@@ -58,6 +58,17 @@ foreign_cap_mode: "none" | "n_minus_home_min"
 on_infeasible: "fail"
 ```
 
+### 3.1 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens in the shape block with:
+
+* `<MAJOR.MINOR.PATCH>`: semantic version string like `1.0.0`.
+* `<YYYY-MM-DD>`: release date label for the policy.
+* `<true|false>`: YAML boolean value (`true` or `false`).
+* `<int >= 0>`: non-negative integer.
+
+Do not introduce additional keys without a semver bump.
+
 Rules:
 
 * Unknown keys: **reject** (fail closed).

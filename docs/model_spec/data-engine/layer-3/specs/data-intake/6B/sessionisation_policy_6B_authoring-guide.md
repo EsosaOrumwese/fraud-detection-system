@@ -288,6 +288,13 @@ guardrails:
 
 ---
 
+### 11.1 Placeholder resolution (MUST)
+
+Replace `<NULL>` with the literal string you want to use as the null sentinel in `session_key.encoding.null_token`.
+Use a value that cannot collide with real IDs (e.g., `"__NULL__"`). Do not leave the angle-bracket token in a sealed policy.
+
+---
+
 ## 12) Acceptance checklist (MUST)
 
 1. **Contract pins:** correct path + schema_ref, and registered as required for S0/S1.

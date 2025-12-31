@@ -75,6 +75,16 @@ alpha_model:
   home_boost_multiplier: <number >= 1.0>
 ```
 
+### 4.1.1 Placeholder resolution (MUST)
+
+Replace the angle-bracket tokens as follows:
+
+* `<number > 0>`: a finite float strictly greater than zero.
+* `<number >= 1.0>`: a finite float greater than or equal to 1.0.
+* `<bool>`: `true` or `false` (YAML boolean).
+
+Do not introduce additional keys without a semver bump.
+
 ### 4.2 Model kinds
 
 #### A) `uniform`

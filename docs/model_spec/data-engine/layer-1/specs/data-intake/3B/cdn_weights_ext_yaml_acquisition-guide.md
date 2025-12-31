@@ -27,6 +27,16 @@ countries:
   ...
 ```
 
+### 1.1 Placeholder resolution (MUST)
+
+Replace the placeholders as follows:
+
+* `<vintage>`: the version label provided by intake (e.g., `WDI_ITU_internet_users_share_2024`), used in the YAML payload.
+* `{vintage_year}` in URLs: the integer year pinned in intake (e.g., `2024`).
+* `{vintage_year-MAX_LAG_YEARS}`: compute as `vintage_year - MAX_LAG_YEARS` with `MAX_LAG_YEARS = 5`.
+
+Do not infer a new vintage from upstream "latest" metadata.
+
 ---
 
 ### 2) Inputs Codex must be given (FAIL CLOSED if missing)
@@ -144,6 +154,16 @@ Write YAML:
   * `len(countries) ≥ 200`
 
 If any fail → abort (do not publish).
+
+---
+
+### 7.3 Acceptance checklist (MUST)
+
+* YAML matches the required shape (`version`, `countries[]` with `country_iso`, `weight`).
+* `country_iso` values are ISO2 uppercase, no duplicates.
+* `weight > 0` for all rows and sums to 1.0 within 1e-12.
+* Heavy-tail and coverage checks pass (`|countries| >= 200` and top-weight mass bounds).
+* Provenance sidecar exists with raw response SHA-256 values and URLs.
 
 ---
 

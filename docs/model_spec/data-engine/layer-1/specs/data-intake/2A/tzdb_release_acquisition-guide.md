@@ -106,6 +106,13 @@ A single JSON object:
 }
 ```
 
+### 4.2.1 Placeholder resolution (MUST)
+
+Replace placeholders as follows:
+
+* `<sha256 of tzdata2025a.tar.gz bytes>`: the lowercase hex SHA-256 of the downloaded archive bytes.
+* `{release_tag}` elsewhere in this guide: the pinned tzdb release string (e.g., `2025a`), applied consistently in paths and filenames.
+
 Must validate against `schemas.2A.yaml#/ingress/tzdb_release_v1`:
 
 * `release_tag` matches `^20[0-9]{2}[a-z]?$`
