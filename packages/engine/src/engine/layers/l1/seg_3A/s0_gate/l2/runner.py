@@ -25,6 +25,7 @@ from ...shared.dictionary import (
     render_dataset_path,
     repository_root,
 )
+from engine.shared.run_bundle import RunBundleError, materialize_repo_asset
 from ...shared.run_report import SegmentStateKey, write_segment_state_run_report
 from ..exceptions import S0GateError, err
 from ..l0 import (
@@ -324,6 +325,13 @@ class S0GateRunner:
                 base_choice = spec.get("base", "repo")
                 base_path = inputs.base_path if base_choice == "base" else repo_root
                 resolved_path = (base_path / resolved_path).resolve()
+                if base_choice == "repo":
+                    try:
+                        resolved_path = materialize_repo_asset(
+                            source_path=resolved_path, repo_root=repo_root, run_root=inputs.base_path
+                        )
+                    except RunBundleError as exc:
+                        raise err("E_POLICY_PATH", str(exc)) from exc
             if not resolved_path.exists():
                 raise err("E_POLICY_PATH", f"asset '{asset_id}' not found at {resolved_path}")
             if resolved_path.is_dir():

@@ -35,6 +35,11 @@ from engine.layers.l2.seg_5A.shared.dictionary import (
 from engine.layers.l2.seg_5A.shared.scenario_assets import ensure_scenario_calendar
 from engine.layers.l2.seg_5A.shared.run_report import SegmentStateKey, write_segment_state_run_report
 from engine.layers.l2.seg_5A.s0_gate.inputs import SealedArtefact, ensure_unique_assets
+from engine.shared.run_bundle import (
+    RunBundleError,
+    materialize_repo_file,
+    materialize_repo_files,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -598,7 +603,7 @@ class S0GateRunner:
                 dataset_args["manifest_fingerprint"] = segment_fp
                 dataset_args["fingerprint"] = segment_fp
             try:
-                files = self._expand_dataset_files(
+                source_files = self._expand_dataset_files(
                     base_path=base_dir,
                     template=path_template,
                     template_args=dataset_args,
@@ -609,6 +614,17 @@ class S0GateRunner:
                     logger.warning("Skipping optional dataset %s: %s", spec.dataset_id, err)
                     continue
                 raise
+            if base_dir == repo_root:
+                try:
+                    files = materialize_repo_files(
+                        source_files=source_files,
+                        repo_root=repo_root,
+                        run_root=inputs.base_path,
+                    )
+                except RunBundleError as exc:
+                    raise DictionaryError(f"run bundle failed for {spec.dataset_id}: {exc}") from exc
+            else:
+                files = source_files
             digests = tuple(hash_files(files, error_prefix=spec.dataset_id))
             manifest_key = spec.manifest_key or self._registry_manifest_key(spec.owner_segment, path_template)
             assets.append(
@@ -686,7 +702,7 @@ class S0GateRunner:
                         scenario_id=scenario.scenario_id,
                     )
                     try:
-                        files = self._expand_dataset_files(
+                        source_files = self._expand_dataset_files(
                             base_path=base_dir,
                             template=path_template,
                             template_args=scenario_values,
@@ -697,6 +713,19 @@ class S0GateRunner:
                             logger.warning("Skipping optional scenario calendar %s: %s", scenario.scenario_id, err)
                             continue
                         raise
+                    if base_dir == repo_root:
+                        try:
+                            files = materialize_repo_files(
+                                source_files=source_files,
+                                repo_root=repo_root,
+                                run_root=inputs.base_path,
+                            )
+                        except RunBundleError as exc:
+                            raise DictionaryError(
+                                f"run bundle failed for {dataset_id}:{scenario.scenario_id}: {exc}"
+                            ) from exc
+                    else:
+                        files = source_files
                     scenario_info.per_scenario_paths.setdefault(scenario.scenario_id, []).extend(files)
                     digests = tuple(hash_files(files, error_prefix=f"{dataset_id}:{scenario.scenario_id}"))
                     assets.append(
@@ -723,7 +752,7 @@ class S0GateRunner:
                 continue
             else:
                 try:
-                    files = self._expand_dataset_files(
+                    source_files = self._expand_dataset_files(
                         base_path=base_dir,
                         template=path_template,
                         template_args=template_values,
@@ -734,6 +763,17 @@ class S0GateRunner:
                         logger.warning("Skipping optional dataset %s: %s", dataset_id, err)
                         continue
                     raise
+                if base_dir == repo_root:
+                    try:
+                        files = materialize_repo_files(
+                            source_files=source_files,
+                            repo_root=repo_root,
+                            run_root=inputs.base_path,
+                        )
+                    except RunBundleError as exc:
+                        raise DictionaryError(f"run bundle failed for {dataset_id}: {exc}") from exc
+                else:
+                    files = source_files
             digests = tuple(hash_files(files, error_prefix=dataset_id))
             assets.append(
                 SealedArtefact(
@@ -768,7 +808,15 @@ class S0GateRunner:
         for logical_id, path in contract_assets:
             if not path.exists():
                 raise DictionaryError(f"contract asset '{logical_id}' not found at {path}")
-            digests = tuple(hash_files([path], error_prefix=logical_id))
+            try:
+                materialized = materialize_repo_file(
+                    source_path=path,
+                    repo_root=repo_root,
+                    run_root=inputs.base_path,
+                )
+            except RunBundleError as exc:
+                raise DictionaryError(f"run bundle failed for {logical_id}: {exc}") from exc
+            digests = tuple(hash_files([materialized], error_prefix=logical_id))
             assets.append(
                 SealedArtefact(
                     manifest_fingerprint=inputs.upstream_manifest_fingerprint,
@@ -799,7 +847,7 @@ class S0GateRunner:
     ) -> ScenarioPlan:
         entry = get_dataset_entry("scenario_horizon_config_5A", dictionary=dictionary)
         path_template = self._extract_path_template(entry, "scenario_horizon_config_5A")
-        files = self._expand_dataset_files(
+        source_files = self._expand_dataset_files(
             base_path=repo_root,
             template=path_template,
             template_args={
@@ -809,6 +857,14 @@ class S0GateRunner:
             },
             dataset_id="scenario_horizon_config_5A",
         )
+        try:
+            files = materialize_repo_files(
+                source_files=source_files,
+                repo_root=repo_root,
+                run_root=inputs.base_path,
+            )
+        except RunBundleError as exc:
+            raise DictionaryError(f"run bundle failed for scenario_horizon_config_5A: {exc}") from exc
         config_path = files[0]
         payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
         if not isinstance(payload, Mapping):

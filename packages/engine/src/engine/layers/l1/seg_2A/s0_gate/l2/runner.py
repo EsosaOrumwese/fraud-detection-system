@@ -20,6 +20,7 @@ from ...shared.dictionary import (
     render_dataset_path,
     repository_root,
 )
+from engine.shared.run_bundle import RunBundleError, materialize_repo_asset
 from ..exceptions import S0GateError, err
 from ..l0 import (
     ArtifactDigest,
@@ -274,6 +275,7 @@ class S0GateRunner:
         seed = str(inputs.seed)
         base_path = inputs.base_path
         upstream_fp = inputs.upstream_manifest_fingerprint
+        repo_root = repository_root()
 
         def add_asset(
             asset_id: str,
@@ -296,6 +298,17 @@ class S0GateRunner:
                 resolved_path = resolved_override.resolve()
             else:
                 resolved_path = (base_path / catalog_path).resolve()
+                if not resolved_path.exists():
+                    repo_candidate = (repo_root / catalog_path).resolve()
+                    if repo_candidate.exists():
+                        try:
+                            resolved_path = materialize_repo_asset(
+                                source_path=repo_candidate,
+                                repo_root=repo_root,
+                                run_root=base_path,
+                            )
+                        except RunBundleError as exc:
+                            raise err("E_ASSET_PATH", str(exc)) from exc
             ensure_within_base(resolved_path, base_path=base_path)
 
             if file_override is not None:

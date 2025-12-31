@@ -20,6 +20,7 @@ from ...shared.dictionary import (
     render_dataset_path,
     repository_root,
 )
+from engine.shared.run_bundle import RunBundleError, materialize_repo_asset
 from ..exceptions import S0GateError, err
 from ..l0 import (
     ArtifactDigest,
@@ -245,7 +246,15 @@ class S0GateRunner:
             repo_candidate = (repo_root / catalog_path).resolve()
             if repo_candidate.exists():
                 ensure_within_base(repo_candidate, base_path=repo_root)
-                return repo_candidate, repo_root
+                try:
+                    materialized = materialize_repo_asset(
+                        source_path=repo_candidate,
+                        repo_root=repo_root,
+                        run_root=data_root,
+                    )
+                except RunBundleError as exc:
+                    raise err("2B-S0-010", str(exc)) from exc
+                return materialized, data_root
             return candidate, data_root
 
         def add_asset(
