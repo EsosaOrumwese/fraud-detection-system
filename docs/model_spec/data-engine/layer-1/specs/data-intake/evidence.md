@@ -5,7 +5,6 @@ Purpose: record deprecated paths, new paths, and realism checks per artefact.
 
 Use one section per artefact:
 - artefact_id:
-- deprecated_path:
 - new_path:
 - realism_checks:
 

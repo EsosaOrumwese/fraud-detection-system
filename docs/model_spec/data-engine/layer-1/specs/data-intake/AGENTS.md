@@ -67,10 +67,8 @@ If a snag occurs, log the snag and attempted resolutions before proceeding.
 
 ## 5) Replacement protocol (for existing externals)
 For each external:
-- Locate the current external; deprecate it (e.g., prefix with `deprecated_`), and log the change.
 - Materialize the new version to meet realism.
 - Record in evidence file:
-  - deprecated path (if any)
   - new path
   - how realism checks were satisfied
 
