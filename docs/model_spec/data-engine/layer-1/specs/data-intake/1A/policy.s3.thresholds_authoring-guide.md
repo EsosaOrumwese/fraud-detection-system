@@ -130,7 +130,7 @@ After constructing all bounds:
 
 ---
 
-## 5) Minimal v1 file (Codex can author verbatim)
+## 5) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 semver: "1.0.0"

@@ -384,7 +384,7 @@ These means drive node counts via `N_ip_target = E / μ`.
 
 ---
 
-## 9) Minimal v1 example (shape only)
+## 9) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

@@ -216,7 +216,7 @@ No single segment may exceed:
 
 ---
 
-## 8) Minimal v1 example (illustrative)
+## 8) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

@@ -276,7 +276,7 @@ These must be compatible with bank_view + delay models.
 
 ---
 
-## 15) Minimal v1 skeleton (copy/paste baseline)
+## 15) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

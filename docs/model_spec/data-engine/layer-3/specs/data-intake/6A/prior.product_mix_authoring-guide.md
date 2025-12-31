@@ -226,7 +226,7 @@ MUST satisfy:
 
 ---
 
-## 7) Minimal v1 example (illustrative only)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

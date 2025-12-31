@@ -159,7 +159,7 @@ These are validated in S5 (segment validation) as part of behavioural realism an
 
 ---
 
-## 11) Minimal v1 example (starter)
+## 11) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

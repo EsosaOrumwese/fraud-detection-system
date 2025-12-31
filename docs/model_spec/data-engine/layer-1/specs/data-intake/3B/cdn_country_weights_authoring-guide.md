@@ -241,7 +241,7 @@ Let `rank_final` be the top 20 by final `w`.
 
 ---
 
-## 7) Minimal structure example (NOT a real file)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 Real file will contain ~200+ countries.
 

@@ -162,7 +162,7 @@ Must align with S0/Sx required vs optional rules: optional artefacts missing sho
 
 ---
 
-## 5) Minimal v1 example (safe, realistic defaults)
+## 5) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

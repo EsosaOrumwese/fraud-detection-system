@@ -305,7 +305,7 @@ Required:
 
 ---
 
-## 8) Minimal v1 example (illustrative; must match your taxonomies)
+## 8) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

@@ -319,7 +319,7 @@ Required:
 
 ---
 
-## 8) Minimal v1 example (illustrative shape)
+## 8) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

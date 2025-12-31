@@ -148,7 +148,7 @@ Rules:
 
 ---
 
-## 7) Minimal v1 file (Codex can author verbatim)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 This is a sane “realistic” configuration: it uses base shares and adds controlled randomness.
 

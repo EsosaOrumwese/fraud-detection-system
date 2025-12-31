@@ -104,7 +104,7 @@ https://www.geonames.org/about.html
 
 GeoNames terms (cc-by, commercial allowed, as-is) are stated on their export/about pages. ([GeoNames][1])
 
-**Acquisition (example)**
+**Acquisition (EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP)**
 
 ```bash
 curl -L "https://download.geonames.org/export/dump/countryInfo.txt" -o countryInfo.txt

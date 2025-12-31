@@ -150,7 +150,7 @@ All operations must be evaluated deterministically; numeric comparisons follow t
 
 ---
 
-## 8) Minimal v1 file (Codex can author verbatim)
+## 8) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 > **Note:** this minimal file is sufficient for plumbing/validation, but it is **not** a production-realistic country policy. Treat it as a starter template and expand the country sets + rules for realism before you rely on synthetic outputs.
 

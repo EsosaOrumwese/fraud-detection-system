@@ -137,7 +137,7 @@ At authoring time, the pack must satisfy:
 
 ---
 
-## 7) Minimal v1 example (starter skeleton)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

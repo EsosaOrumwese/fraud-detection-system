@@ -102,7 +102,7 @@ Based on the datasets you’ve pinned so far, you need at least:
 
 ---
 
-## 6) Minimal v1 `license_map.yaml` (Codex can author verbatim)
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 semver: "1.0.0"

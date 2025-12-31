@@ -196,7 +196,7 @@ Codex MUST reject policies that violate any of:
 
 ---
 
-## 9) Complete v1 production policy (example; non-toy)
+## 9) Complete v1 production policy - EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```json
 {

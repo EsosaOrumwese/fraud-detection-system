@@ -70,7 +70,7 @@ Separately, runtime must serialize effective flags/env into an attestation artef
 
 ---
 
-## 6) Minimal v1 file content (Codex can write this verbatim)
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```json
 {

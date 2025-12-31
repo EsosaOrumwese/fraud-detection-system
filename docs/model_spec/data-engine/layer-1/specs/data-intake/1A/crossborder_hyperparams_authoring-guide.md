@@ -176,7 +176,7 @@ So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structu
 
 ---
 
-## 6) Minimal v1 example file (Codex can write verbatim)
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 semver: "1.0.0"

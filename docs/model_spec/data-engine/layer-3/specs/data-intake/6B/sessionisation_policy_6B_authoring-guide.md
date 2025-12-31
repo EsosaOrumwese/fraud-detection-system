@@ -233,7 +233,7 @@ Sessionisation can blow up in degenerate scenarios; this policy must pin caps:
 
 ---
 
-## 11) Minimal v1 policy (copy/paste baseline)
+## 11) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

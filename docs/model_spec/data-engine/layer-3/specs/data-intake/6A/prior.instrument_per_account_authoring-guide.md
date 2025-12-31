@@ -272,7 +272,7 @@ Instrument groups are either:
 
 ---
 
-## 9) Minimal v1 example (illustrative)
+## 9) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

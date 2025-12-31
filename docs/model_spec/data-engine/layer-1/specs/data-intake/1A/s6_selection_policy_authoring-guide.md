@@ -105,7 +105,7 @@ S6 then selects the top `K_target` keys (ties broken deterministically by `candi
 
 ---
 
-## 6) Minimal v1 file (Codex can author verbatim)
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 defaults:

@@ -250,7 +250,7 @@ Defines what S5 emits in the validation bundle beyond `_passed.flag`:
 
 ---
 
-## 12) Minimal v1 skeleton
+## 12) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

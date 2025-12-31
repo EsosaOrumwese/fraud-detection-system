@@ -225,7 +225,7 @@ Tag realism (if tags used):
 
 ---
 
-## 8) Minimal v1 example (realistic)
+## 8) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

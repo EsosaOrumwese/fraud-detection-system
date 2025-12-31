@@ -298,7 +298,7 @@ These are used by S5 validation policy to decide PASS/WARN/FAIL.
 
 ---
 
-## 12) Minimal v1 skeleton
+## 12) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

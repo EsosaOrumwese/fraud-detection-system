@@ -184,7 +184,7 @@ Unknown keys ⇒ INVALID.
 
 ---
 
-## 9) Minimal v1 policy (copy/paste baseline)
+## 9) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

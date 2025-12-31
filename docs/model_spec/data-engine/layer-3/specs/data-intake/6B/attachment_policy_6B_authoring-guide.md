@@ -198,7 +198,7 @@ This policy MUST define:
 
 ---
 
-## 9) Minimal v1 YAML skeleton (copy/paste baseline)
+## 9) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

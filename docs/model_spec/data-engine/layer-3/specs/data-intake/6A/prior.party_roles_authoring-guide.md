@@ -301,7 +301,7 @@ These corridors are where you enforce “not toy, not absurd”.
 
 ---
 
-## 13) Minimal v1 example (realistic shape)
+## 13) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

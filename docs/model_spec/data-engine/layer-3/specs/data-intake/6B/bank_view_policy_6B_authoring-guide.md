@@ -290,7 +290,7 @@ These should be checked in S5 validation against realised outputs.
 
 ---
 
-## 11) Minimal v1 skeleton (copy/paste starter)
+## 11) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

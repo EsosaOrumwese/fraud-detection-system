@@ -101,7 +101,7 @@ This makes the override target stable across seeds (site identity is key-based, 
 
 ---
 
-## 6) Minimal v1 file (Codex can write verbatim)
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 # tz_overrides (2A) — governed override list

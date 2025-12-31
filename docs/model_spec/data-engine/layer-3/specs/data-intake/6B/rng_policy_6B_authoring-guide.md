@@ -168,7 +168,7 @@ Unknown keys: **INVALID**.
 
 ---
 
-## 8) Minimal v1 policy (copy/paste baseline)
+## 8) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 policy_id: rng_policy_6B

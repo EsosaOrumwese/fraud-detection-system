@@ -255,7 +255,7 @@ Fail closed if the lock fails (no PASS -> no publish).
 
 ---
 
-# 7) Minimal YAML structure (shape, not placeholder)
+# 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 semver: "1.0.0"

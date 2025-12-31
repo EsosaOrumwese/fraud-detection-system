@@ -122,7 +122,7 @@ Codex MUST abort authoring if any fails:
 
 ---
 
-## 6) Recommended v1 production file (example)
+## 6) Recommended v1 production file - EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 version: v1.0.0

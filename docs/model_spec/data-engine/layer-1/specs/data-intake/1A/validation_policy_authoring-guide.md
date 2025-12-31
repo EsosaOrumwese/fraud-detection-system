@@ -80,7 +80,7 @@ If this file is missing, unreadable, or lacks either `cusum.reference_k` or `cus
 
 ---
 
-## 5) Minimal v1 file (Codex can author verbatim)
+## 5) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 These defaults match the values referenced in your S2 corridor write-up.
 

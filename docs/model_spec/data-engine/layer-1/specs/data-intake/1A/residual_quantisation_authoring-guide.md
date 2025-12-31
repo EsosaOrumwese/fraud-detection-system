@@ -129,7 +129,7 @@ If the policy lists a tiebreak key that doesn’t exist in the consumer frame �
 
 ---
 
-## 7) Minimal v1 file (Codex can author verbatim)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 This matches the dp=8 discipline you’ve already pinned in 1A integerisation.
 

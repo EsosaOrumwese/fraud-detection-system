@@ -314,7 +314,7 @@ Minimum heterogeneity floor:
 
 ---
 
-## 10) Minimal v1 example (illustrative)
+## 10) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

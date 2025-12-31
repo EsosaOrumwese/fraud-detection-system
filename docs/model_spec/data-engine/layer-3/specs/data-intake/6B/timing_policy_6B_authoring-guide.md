@@ -226,7 +226,7 @@ These are sanity checks the policy must satisfy and S5 may validate.
 
 ---
 
-## 12) Minimal v1 example (copy/paste baseline)
+## 12) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

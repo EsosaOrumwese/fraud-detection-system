@@ -254,7 +254,7 @@ Non-toy corridors checked at authoring time (and optionally validated in S5):
 
 ---
 
-## 13) Minimal v1 example (skeleton)
+## 13) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

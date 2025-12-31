@@ -264,7 +264,7 @@ At minimum include corridors:
 
 ---
 
-## 14) Minimal v1 example (shape)
+## 14) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

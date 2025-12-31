@@ -192,7 +192,7 @@ S4 uses the configured RNG keying for ambiguity (see §5).
 * `is_fraud_event_truth`
 * `truth_event_role`
 
-Minimal v1 rule set:
+EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 * For `truth_label=LEGIT`: all events → `is_fraud_event_truth=false`, `truth_event_role=LEGIT_CONTEXT`.
 * For `truth_label in {FRAUD, ABUSE}`:
@@ -218,7 +218,7 @@ Event label consistency is strict; inconsistencies must fail S4.
 
 ---
 
-## 13) Minimal v1 example skeleton
+## 13) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 schema_version: 1

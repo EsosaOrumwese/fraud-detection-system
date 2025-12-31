@@ -106,7 +106,7 @@ Recommended v1 bounds:
 
 ---
 
-## 6) Minimal v1 file (Codex can author verbatim)
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 version: "1.0.0"

@@ -299,7 +299,7 @@ Policy must explicitly pin what S2 writes in the index so decoders and audits ca
 
 ---
 
-## 11) Recommended “v1 production” policy (example JSON)
+## 11) Recommended “v1 production” policy - EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 This is a complete, non-toy baseline that Codex can write deterministically:
 

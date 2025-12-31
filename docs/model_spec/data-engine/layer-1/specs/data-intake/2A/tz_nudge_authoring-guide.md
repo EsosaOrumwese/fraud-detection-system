@@ -101,7 +101,7 @@ This makes the digest stable and independent of YAML formatting/whitespace.
 
 ---
 
-## 6) Minimal valid example
+## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
 semver: v1.0.0-alpha

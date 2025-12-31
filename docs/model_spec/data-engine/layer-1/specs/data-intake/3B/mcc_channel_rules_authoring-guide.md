@@ -202,7 +202,7 @@ Using the final rules table:
 
 ---
 
-## 7) Minimal structure example (NOT a real file)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 Real file will contain **hundreds/thousands** of rules.
 

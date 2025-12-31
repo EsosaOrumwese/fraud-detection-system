@@ -245,7 +245,7 @@ Populate `notes` with a compact provenance string (still deterministic), e.g.:
 
 ---
 
-## 7) Minimal shape example (DO NOT use as a real file)
+## 7) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 Just to show structure (real file must be ~2000 edges):
 
