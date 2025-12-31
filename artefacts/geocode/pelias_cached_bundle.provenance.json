@@ -1,0 +1,50 @@
+{
+  "dataset_id": "pelias_cached_bundle",
+  "pelias_version": "2025-12-31",
+  "upstream_sources": {
+    "base_url": "https://download.geonames.org/export/dump/",
+    "files": [
+      {
+        "name": "cities500.zip",
+        "sha256": "791060479073d3b5e3f34dabb1d44d7f06e849f759c1313f5d1420127ff29006",
+        "bytes": 12653233
+      },
+      {
+        "name": "countryInfo.txt",
+        "sha256": "8e2d031441e14c2b0b012b6b42ed94bfb4be7b98911df4b4d3121cd71e06512a",
+        "bytes": 31668
+      },
+      {
+        "name": "admin1CodesASCII.txt",
+        "sha256": "37f5d642717ab8f154198378a2376f01e1ccfdd7ecfd2ef78374f355a06f311a",
+        "bytes": 145882
+      },
+      {
+        "name": "timeZones.txt",
+        "sha256": "4ab5cf64eb46cc2dd2de413eff25054f2fce568a93d6e1a56cbe11ce67951b59",
+        "bytes": 13896
+      }
+    ]
+  },
+  "build": {
+    "sqlite_version": "3.45.1",
+    "row_counts": {
+      "geoname": 226894,
+      "country_info": 252,
+      "admin1_codes": 3864,
+      "timezones": 419
+    },
+    "indexes": [
+      "geoname_country_code_idx",
+      "geoname_feature_idx",
+      "geoname_population_idx",
+      "geoname_name_idx",
+      "geoname_asciiname_idx"
+    ]
+  },
+  "output": {
+    "sha256": "d0fd700625f6d15819b2a8430be6f08e1cba48507687a70f052b460d068ce0ee",
+    "bytes": 56500224
+  },
+  "retrieved_at_utc": "2025-12-31T16:37:50.304131+00:00"
+}

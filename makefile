@@ -331,9 +331,15 @@ MCC_CHANNEL_RULES_CMD = $(PY) scripts/build_mcc_channel_rules_3b.py
 CDN_COUNTRY_WEIGHTS_CMD = $(PY) scripts/build_cdn_country_weights_3b.py
 VIRTUAL_VALIDATION_CMD = $(PY) scripts/build_virtual_validation_3b.py
 CDN_KEY_DIGEST_CMD = $(PY) scripts/build_cdn_key_digest_3b.py
+HRSL_VINTAGE = HRSL_2025-12-31
+HRSL_SEMVER = 1.0.0
+HRSL_RASTER_CMD = $(PY) scripts/build_hrsl_raster_3b.py --vintage $(HRSL_VINTAGE) --semver $(HRSL_SEMVER)
+PELIAS_VERSION = 2025-12-31
+PELIAS_CACHED_CMD = $(PY) scripts/build_pelias_cached_sqlite_3b.py --pelias-version $(PELIAS_VERSION)
+VIRTUAL_SETTLEMENT_CMD = $(PY) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
@@ -384,6 +390,18 @@ virtual_validation:
 cdn_key_digest:
 	@echo "Building 3B cdn_key_digest"
 	$(CDN_KEY_DIGEST_CMD)
+
+hrsl_raster:
+	@echo "Building 3B hrsl_raster"
+	$(HRSL_RASTER_CMD)
+
+pelias_cached:
+	@echo "Building 3B pelias_cached.sqlite"
+	$(PELIAS_CACHED_CMD)
+
+virtual_settlement_coords:
+	@echo "Building 3B virtual_settlement_coords"
+	$(VIRTUAL_SETTLEMENT_CMD)
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"

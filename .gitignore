@@ -158,8 +158,12 @@ terraform-provider-aws_v*.zip
 terraform-provider-aws_v*.exe
 terraform-provider-aws_v*/
 artefacts/spatial/population_raster/**/*.tif
+artefacts/rasters/source/hrsl_general/
 temp/scratch.md
 scratch_files/
 
 # Exclude runs directory (generated/temporary data)
 runs/
+artefacts/rasters/hrsl_100m.tmp.tif
+.gitignore
+artefacts/rasters/source/hrsl/cog_globallat_0_lon_160_general-v1.5.1.tif

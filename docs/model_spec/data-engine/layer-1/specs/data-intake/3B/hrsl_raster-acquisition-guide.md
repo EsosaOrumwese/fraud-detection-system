@@ -37,6 +37,14 @@ Source posture: Meta+CIESIN HRSL (public, CC-BY-4.0) hosted as Cloud-Optimized G
 * COG bucket: `s3://dataforgood-fb-data/hrsl-cogs/` (no-sign-request) ([Open Data Registry][1])
 * These data are distributed as **Cloud-Optimized GeoTIFFs** and described as **1 arcsecond blocks**. ([Open Data Registry][1])
 
+Quick sanity check (optional, deterministic):
+
+```
+aws s3 ls --no-sign-request s3://dataforgood-fb-data/hrsl-cogs/
+```
+
+You should see the `hrsl_general/` prefix.
+
 ### Access convenience: “general population” VRT mosaic
 
 Use the upstream VRT as the stable “mosaic view”:
@@ -80,6 +88,10 @@ Download bytes of the VRT:
   `aws s3 cp --no-sign-request s3://dataforgood-fb-data/hrsl-cogs/hrsl_general/hrsl_general-latest.vrt <tmp>/hrsl_general.vrt` ([Open Data Registry][1])
 * Or HTTP:
   `curl -L -o <tmp>/hrsl_general.vrt https://dataforgood-fb-data.s3.amazonaws.com/hrsl-cogs/hrsl_general/hrsl_general-latest.vrt` ([LinkedIn][3])
+
+Important:
+
+* The VRT references tiles **relative to the `hrsl_general/` prefix** (e.g., `v1.5/...tif`). Ensure the downstream reader resolves those relative paths against `https://dataforgood-fb-data.s3.amazonaws.com/hrsl-cogs/hrsl_general/` or rewrite the VRT paths to absolute `/vsicurl/` URLs before warping.
 
 Compute and record:
 

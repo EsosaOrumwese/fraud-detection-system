@@ -345,3 +345,19 @@ Use one section per artefact:
 - new_path: config/logging/virtual_logging.yml
 - realism_checks:
   - v1 retention and rotation limits set per guide (16 MiB edge_progress, 256 MiB audit, 365-day retention, 200-run minimum).
+
+## pelias_cached_sqlite_2025-12-31
+- artefact_id: pelias_cached_sqlite
+- new_path: artefacts/geocode/pelias_cached.sqlite
+- realism_checks:
+  - GeoNames dumps ingested (cities500, countryInfo, admin1CodesASCII, timeZones) with deterministic insertion and indexes; geoname rows=226,894 across 200+ countries.
+  - Bundle metadata recorded in `artefacts/geocode/pelias_cached_bundle.json` with sha256 of sqlite bytes.
+  - Provenance recorded in `artefacts/geocode/pelias_cached_bundle.provenance.json` with raw file hashes and row counts.
+
+## virtual_settlement_coords_2025-12-31
+- artefact_id: virtual_settlement_coords
+- new_path: artefacts/virtual/virtual_settlement_coords.csv
+- realism_checks:
+  - Deterministic bucketed selection per country from pelias geoname candidates (top 500, population-weighted) with coordinate_batch=2025-12-31.
+  - Diversity floor holds: 11,189 distinct settlements over 50,000 merchants; max top-settlement share <=0.248 in large countries.
+  - Per-country spread floors enforce >=min(10,candidate_count) for countries with >=200 merchants (microstate candidate limits recorded in provenance).
