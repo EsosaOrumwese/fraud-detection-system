@@ -165,45 +165,93 @@ For each currency `cur` and each country `c` in the **union** country set from b
 
 ```yaml
 semver: "1.0.0"
-version: "2024-12-31"
+version: "2025-12-31"
 
 # Fixed decimals for OUTPUT weights in ccy_country_weights_cache.weight
 dp: 8
 
 defaults:
-  # w in q[c] = w*s_ccy + (1-w)*s_settle
-  blend_weight: 0.60
+  # q = w*s_ccy + (1-w)*s_settle
+  blend_weight: 0.65
 
-  # Dirichlet alpha per ISO (applied uniformly unless overridden)
-  alpha: 0.50
+  # Light Dirichlet smoothing (keeps tails nonzero without inflating microstates too much)
+  alpha: 0.20
 
-  # Minimum effective mass after shrink
+  # Minimum effective mass after shrink (stabilises low-evidence currencies)
   obs_floor: 1000
 
-  # Post-smoothing floor per ISO (keep 0 unless you have a strong reason)
+  # Keep zero globally; introduce floors only via explicit ISO overrides if you ever need them
   min_share: 0.0
 
-  # Shrink large evidence masses: N_eff = max(obs_floor, N0^(1/max(shrink_exponent,1)))
+  # Shrink large N0 (most currencies end up at obs_floor; major ones can override)
   shrink_exponent: 2.0
 
-# Optional in schema, but v1 includes minimal overrides for major multi-country currencies (realism bar).
+# Overrides for major multi-country currencies / shared currency areas (realism bar).
 per_currency:
+  # EUR is the only currency where the two surfaces differ materially -> trust ccy_country_shares more,
+  # and reduce smoothing inflation by using a less aggressive shrink and higher obs_floor.
   EUR:
-    blend_weight: 0.75
-    alpha: 0.30
+    blend_weight: 0.85
+    alpha: 0.08
     obs_floor: 2000
-    shrink_exponent: 2.0
+    shrink_exponent: 1.6
+
+  # USD has very high settlement mass; keep distribution close to observed shares (less shrink).
+  USD:
+    blend_weight: 0.60
+    alpha: 0.10
+    obs_floor: 2000
+    shrink_exponent: 1.6
+
+  # Currency unions / pegs with small evidence mass: modestly higher alpha to avoid spiky tails.
+  XCD:
+    blend_weight: 0.70
+    alpha: 0.30
   XOF:
     blend_weight: 0.70
     alpha: 0.35
   XAF:
     blend_weight: 0.70
     alpha: 0.35
-  XCD:
+  XPF:
     blend_weight: 0.70
-    alpha: 0.35
+    alpha: 0.30
 
-# Optional; omit entirely if unused
+  # Small multi-country but not “true unions”; keep fairly close to shares.
+  GBP:
+    blend_weight: 0.65
+    alpha: 0.15
+
+  # Dominant-home currencies with tiny territory tails: minimise alpha inflation and reduce shrink.
+  AUD:
+    blend_weight: 0.65
+    alpha: 0.05
+    obs_floor: 1500
+    shrink_exponent: 1.6
+  NZD:
+    blend_weight: 0.65
+    alpha: 0.05
+    obs_floor: 1500
+    shrink_exponent: 1.6
+  NOK:
+    blend_weight: 0.65
+    alpha: 0.05
+    obs_floor: 1500
+    shrink_exponent: 1.6
+  CHF:
+    blend_weight: 0.65
+    alpha: 0.05
+    obs_floor: 1500
+    shrink_exponent: 1.6
+
+  # Two-country cases with overwhelming primary country: keep very light smoothing.
+  MAD:
+    blend_weight: 0.65
+    alpha: 0.10
+  ZAR:
+    blend_weight: 0.65
+    alpha: 0.10
+
 overrides: {}
 ```
 
