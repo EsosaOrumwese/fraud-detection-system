@@ -247,6 +247,27 @@ Use one section per artefact:
 - realism_checks:
   - Empty override list to avoid unverified tzid pins; no MCC-scope overrides enabled without a sealed merchant_mcc_map.
 
+## zone_mixture_policy_3A
+- artefact_id: zone_mixture_policy
+- new_path: config/policy/3A/zone_mixture_policy.yaml
+- realism_checks:
+  - Deterministic escalation mix with theta_mix=0.35 and rule ladder guarding tiny site counts and single-zone countries.
+  - Forced escalation triggers at zone_count_country>=4 or site_count>=35 for large, multi-zone merchants.
+
+## zone_floor_policy_3A
+- artefact_id: zone_floor_policy
+- new_path: config/allocation/zone_floor_policy.yaml
+- realism_checks:
+  - Derived from tz_world_2025a tzid presence counts; 100% tzid coverage with mixed bump_thresholds (>=10% at 0.60, >=50% at 0.00).
+  - floor_value mapped from log1p presence score with sqrt shaping; >=200 tzids have positive floors and >=50 tzids >=0.05.
+
+## country_zone_alphas_3A
+- artefact_id: country_zone_alphas
+- new_path: config/allocation/country_zone_alphas.yaml
+- realism_checks:
+  - Derived from tz_world_2025a country×tzid geometries and population_raster_2025; eps smoothing ensures strictly positive shares.
+  - Area fallback used only where population mass is missing for the majority of zones; per-country notes record fallback usage.
+  - Coverage uses tz_world_2025a country set (249 ISO2s); world_countries missing >5% ISO2s is logged as a deviation in the logbook.
 ## route_rng_policy_v1
 - artefact_id: route_rng_policy_v1
 - new_path: contracts/policy/2B/route_rng_policy_v1.json

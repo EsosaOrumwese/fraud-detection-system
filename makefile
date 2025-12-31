@@ -321,9 +321,11 @@ MERCHANT_BUILD_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) scripts/build_transac
 HURDLE_EXPORT_CMD = $(PY) scripts/build_hurdle_exports.py
 CURRENCY_REF_CMD = $(PY) scripts/build_currency_reference_surfaces.py
 VIRTUAL_EDGE_POLICY_CMD = $(PY) scripts/build_virtual_edge_policy_v1.py
+ZONE_FLOOR_POLICY_CMD = $(PY) scripts/build_zone_floor_policy_3a.py
+COUNTRY_ZONE_ALPHAS_CMD = $(PY) scripts/build_country_zone_alphas_3a.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
@@ -342,6 +344,14 @@ currency_refs:
 virtual_edge_policy:
 	@echo "Building 2B virtual_edge_policy_v1"
 	$(VIRTUAL_EDGE_POLICY_CMD)
+
+zone_floor_policy:
+	@echo "Building 3A zone_floor_policy"
+	$(ZONE_FLOOR_POLICY_CMD)
+
+country_zone_alphas:
+	@echo "Building 3A country_zone_alphas"
+	$(COUNTRY_ZONE_ALPHAS_CMD)
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
