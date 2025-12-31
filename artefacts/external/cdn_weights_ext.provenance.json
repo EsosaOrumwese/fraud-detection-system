@@ -1,0 +1,102 @@
+{
+  "dataset_id": "cdn_weights_ext_yaml",
+  "vintage": "WDI_ITU_internet_users_share_2024",
+  "vintage_year": 2024,
+  "MAX_LAG_YEARS": 5,
+  "retrieved_at_utc": "2025-12-31T16:16:40.044507+00:00",
+  "urls": {
+    "internet_users": "https://api.worldbank.org/v2/country/all/indicator/IT.NET.USER.ZS?date=2019:2024&format=json&per_page=20000",
+    "population": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?date=2019:2024&format=json&per_page=20000"
+  },
+  "raw": {
+    "internet_users": {
+      "path": "artefacts\\external\\source\\cdn_weights_ext\\IT.NET.USER.ZS_2019_2024.json",
+      "sha256": "92404ed8269678572dac595471cb15fca9486757d7c2d08f70c38b10ef63c00d",
+      "bytes": 372178
+    },
+    "population": {
+      "path": "artefacts\\external\\source\\cdn_weights_ext\\SP.POP.TOTL_2019_2024.json",
+      "sha256": "d3d5031f5b83cc4276bf3936f2d14659470b0af35b6512aa9d6dd36b3c06a522",
+      "bytes": 321106
+    }
+  },
+  "counts": {
+    "countries_total_seen": 214,
+    "countries_valid": 214,
+    "countries_missing": 0,
+    "countries_imputed": 22
+  },
+  "summary": {
+    "top5_weight": 0.5013392179618459,
+    "top10_weight": 0.5973058753853184,
+    "top10": [
+      {
+        "country_iso": "CN",
+        "weight": 0.2313087767788554
+      },
+      {
+        "country_iso": "IN",
+        "weight": 0.1447308120978223
+      },
+      {
+        "country_iso": "US",
+        "weight": 0.056529925060562994
+      },
+      {
+        "country_iso": "ID",
+        "weight": 0.03681733901990127
+      },
+      {
+        "country_iso": "BR",
+        "weight": 0.03195236500470405
+      },
+      {
+        "country_iso": "RU",
+        "weight": 0.024169422780573328
+      },
+      {
+        "country_iso": "JP",
+        "weight": 0.019242580262347486
+      },
+      {
+        "country_iso": "MX",
+        "weight": 0.018957340957042625
+      },
+      {
+        "country_iso": "PH",
+        "weight": 0.017315761724172683
+      },
+      {
+        "country_iso": "NG",
+        "weight": 0.016281551699336462
+      }
+    ]
+  },
+  "filter_mode": "iso3166_impute_users_pct",
+  "imputed_internet_pct": 81.61675,
+  "imputed_countries": [
+    "AS",
+    "AW",
+    "BM",
+    "CW",
+    "FO",
+    "GI",
+    "GL",
+    "GU",
+    "IM",
+    "KP",
+    "KY",
+    "MF",
+    "MP",
+    "NC",
+    "PF",
+    "PW",
+    "SX",
+    "TC",
+    "TM",
+    "VE",
+    "VG",
+    "VI"
+  ],
+  "license": "CC-BY-4.0 (World Bank Open Data)"
+}

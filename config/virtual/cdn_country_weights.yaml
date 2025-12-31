@@ -1,0 +1,708 @@
+version: v1.0.0
+edge_scale: 500
+countries:
+  - country_iso: AD
+    weight: 0.000013494456
+    notes: "src=akamai_ext"
+  - country_iso: AE
+    weight: 0.001895699627
+    notes: "src=akamai_ext"
+  - country_iso: AF
+    weight: 0.001303164376
+    notes: "src=akamai_ext"
+  - country_iso: AG
+    weight: 0.000012551986
+    notes: "src=akamai_ext"
+  - country_iso: AI
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: AL
+    weight: 0.000340999483
+    notes: "src=akamai_ext"
+  - country_iso: AM
+    weight: 0.000418725728
+    notes: "src=akamai_ext"
+  - country_iso: AO
+    weight: 0.002925922266
+    notes: "src=akamai_ext"
+  - country_iso: AQ
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: AR
+    weight: 0.007070130384
+    notes: "src=akamai_ext"
+  - country_iso: AS
+    weight: 0.000006585888
+    notes: "src=akamai_ext"
+  - country_iso: AT
+    weight: 0.001503203146
+    notes: "src=akamai_ext"
+  - country_iso: AU
+    weight: 0.004554977902
+    notes: "src=akamai_ext"
+  - country_iso: AW
+    weight: 0.000015208874
+    notes: "src=akamai_ext"
+  - country_iso: AX
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: AZ
+    weight: 0.001566840449
+    notes: "src=akamai_ext"
+  - country_iso: BA
+    weight: 0.000470102985
+    notes: "src=akamai_ext"
+  - country_iso: BB
+    weight: 0.000038987915
+    notes: "src=akamai_ext"
+  - country_iso: BD
+    weight: 0.013327725367
+    notes: "src=akamai_ext"
+  - country_iso: BE
+    weight: 0.001959763624
+    notes: "src=akamai_ext"
+  - country_iso: BF
+    weight: 0.000691685135
+    notes: "src=akamai_ext"
+  - country_iso: BG
+    weight: 0.000916280655
+    notes: "src=akamai_ext"
+  - country_iso: BH
+    weight: 0.000274124475
+    notes: "src=akamai_ext"
+  - country_iso: BI
+    weight: 0.000268533852
+    notes: "src=akamai_ext"
+  - country_iso: BJ
+    weight: 0.000803770419
+    notes: "src=akamai_ext"
+  - country_iso: BL
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: BM
+    weight: 0.000009102651
+    notes: "src=akamai_ext"
+  - country_iso: BN
+    weight: 0.000079070756
+    notes: "src=akamai_ext"
+  - country_iso: BO
+    weight: 0.001504411382
+    notes: "src=akamai_ext"
+  - country_iso: BR
+    weight: 0.030896986917
+    notes: "src=akamai_ext"
+  - country_iso: BS
+    weight: 0.000065653580
+    notes: "src=akamai_ext"
+  - country_iso: BT
+    weight: 0.000120769755
+    notes: "src=akamai_ext"
+  - country_iso: BW
+    weight: 0.000353933644
+    notes: "src=akamai_ext"
+  - country_iso: BY
+    weight: 0.001485407668
+    notes: "src=akamai_ext"
+  - country_iso: BZ
+    weight: 0.000052073972
+    notes: "src=akamai_ext"
+  - country_iso: CA
+    weight: 0.006693767636
+    notes: "src=akamai_ext"
+  - country_iso: CD
+    weight: 0.005760003432
+    notes: "src=akamai_ext"
+  - country_iso: CF
+    weight: 0.000069069912
+    notes: "src=akamai_ext"
+  - country_iso: CG
+    weight: 0.000419387727
+    notes: "src=akamai_ext"
+  - country_iso: CH
+    weight: 0.001512644509
+    notes: "src=akamai_ext"
+  - country_iso: CI
+    weight: 0.002240067112
+    notes: "src=akamai_ext"
+  - country_iso: CK
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: CL
+    weight: 0.003221379507
+    notes: "src=akamai_ext"
+  - country_iso: CM
+    weight: 0.002106039673
+    notes: "src=akamai_ext"
+  - country_iso: CN
+    weight: 0.223668709616
+    notes: "src=akamai_ext"
+  - country_iso: CO
+    weight: 0.007057397492
+    notes: "src=akamai_ext"
+  - country_iso: CR
+    weight: 0.000755886893
+    notes: "src=akamai_ext"
+  - country_iso: CU
+    weight: 0.001350346119
+    notes: "src=akamai_ext"
+  - country_iso: CV
+    weight: 0.000066602323
+    notes: "src=akamai_ext"
+  - country_iso: CW
+    weight: 0.000021964743
+    notes: "src=akamai_ext"
+  - country_iso: CY
+    weight: 0.000213795898
+    notes: "src=akamai_ext"
+  - country_iso: CZ
+    weight: 0.001649985306
+    notes: "src=akamai_ext"
+  - country_iso: DE
+    weight: 0.013474060645
+    notes: "src=akamai_ext"
+  - country_iso: DJ
+    weight: 0.000131130695
+    notes: "src=akamai_ext"
+  - country_iso: DK
+    weight: 0.001028947656
+    notes: "src=akamai_ext"
+  - country_iso: DM
+    weight: 0.000009575932
+    notes: "src=akamai_ext"
+  - country_iso: DO
+    weight: 0.001794400598
+    notes: "src=akamai_ext"
+  - country_iso: DZ
+    weight: 0.006212477202
+    notes: "src=akamai_ext"
+  - country_iso: EC
+    weight: 0.002414942637
+    notes: "src=akamai_ext"
+  - country_iso: EE
+    weight: 0.000218416796
+    notes: "src=akamai_ext"
+  - country_iso: EG
+    weight: 0.014616948304
+    notes: "src=akamai_ext"
+  - country_iso: EH
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: ER
+    weight: 0.000122076869
+    notes: "src=akamai_ext"
+  - country_iso: ES
+    weight: 0.008071256921
+    notes: "src=akamai_ext"
+  - country_iso: ET
+    weight: 0.003804974073
+    notes: "src=akamai_ext"
+  - country_iso: FI
+    weight: 0.000906817150
+    notes: "src=akamai_ext"
+  - country_iso: FJ
+    weight: 0.000127164991
+    notes: "src=akamai_ext"
+  - country_iso: FK
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: FM
+    weight: 0.000007689873
+    notes: "src=akamai_ext"
+  - country_iso: FO
+    weight: 0.000007700694
+    notes: "src=akamai_ext"
+  - country_iso: GA
+    weight: 0.000315102684
+    notes: "src=akamai_ext"
+  - country_iso: GB
+    weight: 0.011502817539
+    notes: "src=akamai_ext"
+  - country_iso: GD
+    weight: 0.000014990070
+    notes: "src=akamai_ext"
+  - country_iso: GE
+    weight: 0.000522714420
+    notes: "src=akamai_ext"
+  - country_iso: GG
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: GH
+    weight: 0.004155010155
+    notes: "src=akamai_ext"
+  - country_iso: GI
+    weight: 0.000005538681
+    notes: "src=akamai_ext"
+  - country_iso: GL
+    weight: 0.000008004181
+    notes: "src=akamai_ext"
+  - country_iso: GM
+    weight: 0.000218657110
+    notes: "src=akamai_ext"
+  - country_iso: GN
+    weight: 0.000674707939
+    notes: "src=akamai_ext"
+  - country_iso: GQ
+    weight: 0.000197127310
+    notes: "src=akamai_ext"
+  - country_iso: GR
+    weight: 0.001548888242
+    notes: "src=akamai_ext"
+  - country_iso: GS
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: GT
+    weight: 0.001780265358
+    notes: "src=akamai_ext"
+  - country_iso: GU
+    weight: 0.000023627939
+    notes: "src=akamai_ext"
+  - country_iso: GW
+    weight: 0.000123320061
+    notes: "src=akamai_ext"
+  - country_iso: GY
+    weight: 0.000117192582
+    notes: "src=akamai_ext"
+  - country_iso: HK
+    weight: 0.001246061470
+    notes: "src=akamai_ext"
+  - country_iso: HM
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: HN
+    weight: 0.001088633192
+    notes: "src=akamai_ext"
+  - country_iso: HR
+    weight: 0.000557921366
+    notes: "src=akamai_ext"
+  - country_iso: HT
+    weight: 0.000797548932
+    notes: "src=akamai_ext"
+  - country_iso: HU
+    weight: 0.001547288888
+    notes: "src=akamai_ext"
+  - country_iso: ID
+    weight: 0.035601272138
+    notes: "src=akamai_ext"
+  - country_iso: IE
+    weight: 0.000898431083
+    notes: "src=akamai_ext"
+  - country_iso: IL
+    weight: 0.001517689091
+    notes: "src=akamai_ext"
+  - country_iso: IM
+    weight: 0.000011852205
+    notes: "src=akamai_ext"
+  - country_iso: IN
+    weight: 0.139950392002
+    notes: "src=akamai_ext"
+  - country_iso: IO
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: IQ
+    weight: 0.006492996310
+    notes: "src=akamai_ext"
+  - country_iso: IR
+    weight: 0.012581668194
+    notes: "src=akamai_ext"
+  - country_iso: IS
+    weight: 0.000066578171
+    notes: "src=akamai_ext"
+  - country_iso: IT
+    weight: 0.009075769839
+    notes: "src=akamai_ext"
+  - country_iso: JE
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: JM
+    weight: 0.000438327056
+    notes: "src=akamai_ext"
+  - country_iso: JO
+    weight: 0.001844622250
+    notes: "src=akamai_ext"
+  - country_iso: JP
+    weight: 0.018607002972
+    notes: "src=akamai_ext"
+  - country_iso: KE
+    weight: 0.003405802409
+    notes: "src=akamai_ext"
+  - country_iso: KG
+    weight: 0.001102453249
+    notes: "src=akamai_ext"
+  - country_iso: KH
+    weight: 0.001847966944
+    notes: "src=akamai_ext"
+  - country_iso: KI
+    weight: 0.000020425711
+    notes: "src=akamai_ext"
+  - country_iso: KM
+    weight: 0.000053336334
+    notes: "src=akamai_ext"
+  - country_iso: KN
+    weight: 0.000006176898
+    notes: "src=akamai_ext"
+  - country_iso: KP
+    weight: 0.003731814079
+    notes: "src=akamai_ext"
+  - country_iso: KR
+    weight: 0.008741713760
+    notes: "src=akamai_ext"
+  - country_iso: KW
+    weight: 0.000842885716
+    notes: "src=akamai_ext"
+  - country_iso: KY
+    weight: 0.000010485737
+    notes: "src=akamai_ext"
+  - country_iso: KZ
+    weight: 0.003318432365
+    notes: "src=akamai_ext"
+  - country_iso: LA
+    weight: 0.000853014135
+    notes: "src=akamai_ext"
+  - country_iso: LB
+    weight: 0.000836449899
+    notes: "src=akamai_ext"
+  - country_iso: LC
+    weight: 0.000021736203
+    notes: "src=akamai_ext"
+  - country_iso: LI
+    weight: 0.000006794283
+    notes: "src=akamai_ext"
+  - country_iso: LK
+    weight: 0.001936178398
+    notes: "src=akamai_ext"
+  - country_iso: LR
+    weight: 0.000227574738
+    notes: "src=akamai_ext"
+  - country_iso: LS
+    weight: 0.000193558047
+    notes: "src=akamai_ext"
+  - country_iso: LT
+    weight: 0.000441073140
+    notes: "src=akamai_ext"
+  - country_iso: LU
+    weight: 0.000115370348
+    notes: "src=akamai_ext"
+  - country_iso: LV
+    weight: 0.000298517609
+    notes: "src=akamai_ext"
+  - country_iso: LY
+    weight: 0.001127115829
+    notes: "src=akamai_ext"
+  - country_iso: MA
+    weight: 0.005979513176
+    notes: "src=akamai_ext"
+  - country_iso: MC
+    weight: 0.000006609087
+    notes: "src=akamai_ext"
+  - country_iso: MD
+    weight: 0.000332494938
+    notes: "src=akamai_ext"
+  - country_iso: ME
+    weight: 0.000095627926
+    notes: "src=akamai_ext"
+  - country_iso: MF
+    weight: 0.000003679732
+    notes: "src=akamai_ext"
+  - country_iso: MG
+    weight: 0.001123356039
+    notes: "src=akamai_ext"
+  - country_iso: MH
+    weight: 0.000004257781
+    notes: "src=akamai_ext"
+  - country_iso: MK
+    weight: 0.000274442111
+    notes: "src=akamai_ext"
+  - country_iso: ML
+    weight: 0.001482210764
+    notes: "src=akamai_ext"
+  - country_iso: MM
+    weight: 0.005504681061
+    notes: "src=akamai_ext"
+  - country_iso: MN
+    weight: 0.000504905346
+    notes: "src=akamai_ext"
+  - country_iso: MO
+    weight: 0.000105716128
+    notes: "src=akamai_ext"
+  - country_iso: MP
+    weight: 0.000006235645
+    notes: "src=akamai_ext"
+  - country_iso: MR
+    weight: 0.000333429168
+    notes: "src=akamai_ext"
+  - country_iso: MS
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: MT
+    weight: 0.000090373368
+    notes: "src=akamai_ext"
+  - country_iso: MU
+    weight: 0.000170892205
+    notes: "src=akamai_ext"
+  - country_iso: MV
+    weight: 0.000077124024
+    notes: "src=akamai_ext"
+  - country_iso: MW
+    weight: 0.000672145561
+    notes: "src=akamai_ext"
+  - country_iso: MX
+    weight: 0.018331185045
+    notes: "src=akamai_ext"
+  - country_iso: MY
+    weight: 0.006014019139
+    notes: "src=akamai_ext"
+  - country_iso: MZ
+    weight: 0.001185781971
+    notes: "src=akamai_ext"
+  - country_iso: NC
+    weight: 0.000041212183
+    notes: "src=akamai_ext"
+  - country_iso: NE
+    weight: 0.001081584200
+    notes: "src=akamai_ext"
+  - country_iso: NF
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: NG
+    weight: 0.015743776392
+    notes: "src=akamai_ext"
+  - country_iso: NI
+    weight: 0.000694920502
+    notes: "src=akamai_ext"
+  - country_iso: NL
+    weight: 0.003011837819
+    notes: "src=akamai_ext"
+  - country_iso: NP
+    weight: 0.002853430882
+    notes: "src=akamai_ext"
+  - country_iso: NR
+    weight: 0.000001683286
+    notes: "src=akamai_ext"
+  - country_iso: NU
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: NZ
+    weight: 0.000877356533
+    notes: "src=akamai_ext"
+  - country_iso: OM
+    weight: 0.000868055037
+    notes: "src=akamai_ext"
+  - country_iso: PA
+    weight: 0.000534103379
+    notes: "src=akamai_ext"
+  - country_iso: PE
+    weight: 0.004838975164
+    notes: "src=akamai_ext"
+  - country_iso: PF
+    weight: 0.000039686719
+    notes: "src=akamai_ext"
+  - country_iso: PG
+    weight: 0.000439210503
+    notes: "src=akamai_ext"
+  - country_iso: PH
+    weight: 0.016743826736
+    notes: "src=akamai_ext"
+  - country_iso: PK
+    weight: 0.011869207386
+    notes: "src=akamai_ext"
+  - country_iso: PL
+    weight: 0.005588192819
+    notes: "src=akamai_ext"
+  - country_iso: PM
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: PN
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: PR
+    weight: 0.000482485763
+    notes: "src=akamai_ext"
+  - country_iso: PS
+    weight: 0.000790691518
+    notes: "src=akamai_ext"
+  - country_iso: PT
+    weight: 0.001632906899
+    notes: "src=akamai_ext"
+  - country_iso: PW
+    weight: 0.000002491977
+    notes: "src=akamai_ext"
+  - country_iso: PY
+    weight: 0.000975366543
+    notes: "src=akamai_ext"
+  - country_iso: QA
+    weight: 0.000491404126
+    notes: "src=akamai_ext"
+  - country_iso: RO
+    weight: 0.003001067807
+    notes: "src=akamai_ext"
+  - country_iso: RS
+    weight: 0.000996599737
+    notes: "src=akamai_ext"
+  - country_iso: RU
+    weight: 0.023371113197
+    notes: "src=akamai_ext"
+  - country_iso: RW
+    weight: 0.000841320619
+    notes: "src=akamai_ext"
+  - country_iso: SA
+    weight: 0.006091051447
+    notes: "src=akamai_ext"
+  - country_iso: SB
+    weight: 0.000060017779
+    notes: "src=akamai_ext"
+  - country_iso: SC
+    weight: 0.000018301392
+    notes: "src=akamai_ext"
+  - country_iso: SD
+    weight: 0.002301441220
+    notes: "src=akamai_ext"
+  - country_iso: SE
+    weight: 0.001742263120
+    notes: "src=akamai_ext"
+  - country_iso: SG
+    weight: 0.000983091975
+    notes: "src=akamai_ext"
+  - country_iso: SH
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: SI
+    weight: 0.000333176979
+    notes: "src=akamai_ext"
+  - country_iso: SK
+    weight: 0.000840382242
+    notes: "src=akamai_ext"
+  - country_iso: SL
+    weight: 0.000307704579
+    notes: "src=akamai_ext"
+  - country_iso: SM
+    weight: 0.000005102196
+    notes: "src=akamai_ext"
+  - country_iso: SN
+    weight: 0.001935051225
+    notes: "src=akamai_ext"
+  - country_iso: SO
+    weight: 0.000905286241
+    notes: "src=akamai_ext"
+  - country_iso: SR
+    weight: 0.000085820553
+    notes: "src=akamai_ext"
+  - country_iso: SS
+    weight: 0.000191064385
+    notes: "src=akamai_ext"
+  - country_iso: ST
+    weight: 0.000024978647
+    notes: "src=akamai_ext"
+  - country_iso: SV
+    weight: 0.000739919735
+    notes: "src=akamai_ext"
+  - country_iso: SX
+    weight: 0.000006104956
+    notes: "src=akamai_ext"
+  - country_iso: SY
+    weight: 0.001475146288
+    notes: "src=akamai_ext"
+  - country_iso: SZ
+    weight: 0.000123565236
+    notes: "src=akamai_ext"
+  - country_iso: TC
+    weight: 0.000006553498
+    notes: "src=akamai_ext"
+  - country_iso: TD
+    weight: 0.000461755667
+    notes: "src=akamai_ext"
+  - country_iso: TF
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: TG
+    weight: 0.000607850919
+    notes: "src=akamai_ext"
+  - country_iso: TH
+    weight: 0.011236902563
+    notes: "src=akamai_ext"
+  - country_iso: TJ
+    weight: 0.001037833317
+    notes: "src=akamai_ext"
+  - country_iso: TL
+    weight: 0.000082221097
+    notes: "src=akamai_ext"
+  - country_iso: TM
+    weight: 0.001055445865
+    notes: "src=akamai_ext"
+  - country_iso: TN
+    weight: 0.001532759354
+    notes: "src=akamai_ext"
+  - country_iso: TO
+    weight: 0.000010521590
+    notes: "src=akamai_ext"
+  - country_iso: TR
+    weight: 0.012883342492
+    notes: "src=akamai_ext"
+  - country_iso: TT
+    weight: 0.000199979857
+    notes: "src=akamai_ext"
+  - country_iso: TV
+    weight: 0.000001236903
+    notes: "src=akamai_ext"
+  - country_iso: TW
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: TZ
+    weight: 0.003438256853
+    notes: "src=akamai_ext"
+  - country_iso: UA
+    weight: 0.005381400639
+    notes: "src=akamai_ext"
+  - country_iso: UG
+    weight: 0.000772378143
+    notes: "src=akamai_ext"
+  - country_iso: UM
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: US
+    weight: 0.054662756723
+    notes: "src=akamai_ext"
+  - country_iso: UY
+    weight: 0.000537554244
+    notes: "src=akamai_ext"
+  - country_iso: UZ
+    weight: 0.005584914922
+    notes: "src=akamai_ext"
+  - country_iso: VA
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: VC
+    weight: 0.000013193288
+    notes: "src=akamai_ext"
+  - country_iso: VE
+    weight: 0.004000336366
+    notes: "src=akamai_ext"
+  - country_iso: VG
+    weight: 0.000005558678
+    notes: "src=akamai_ext"
+  - country_iso: VI
+    weight: 0.000014699353
+    notes: "src=akamai_ext"
+  - country_iso: VN
+    weight: 0.014663466756
+    notes: "src=akamai_ext"
+  - country_iso: VU
+    weight: 0.000025864622
+    notes: "src=akamai_ext"
+  - country_iso: WF
+    weight: 0.001933395005
+    notes: "src=tail_uniform"
+  - country_iso: WS
+    weight: 0.000021871221
+    notes: "src=akamai_ext"
+  - country_iso: YE
+    weight: 0.000967424757
+    notes: "src=akamai_ext"
+  - country_iso: ZA
+    weight: 0.008356118758
+    notes: "src=akamai_ext"
+  - country_iso: ZM
+    weight: 0.001213703203
+    notes: "src=akamai_ext"
+  - country_iso: ZW
+    weight: 0.001102941589
+    notes: "src=akamai_ext"

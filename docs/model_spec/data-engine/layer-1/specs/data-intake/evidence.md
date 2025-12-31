@@ -304,3 +304,44 @@ Use one section per artefact:
   - 2000 edges with deterministic ip_country/edge_id ordering and weights normalized to sum=1; heavy-tail check passes via top-5% mass ≥30%.
   - Edge catalogue derived from iso3166_canonical_2024 + world_countries + population_raster_2025 with POP fallback for raster gaps and synthetic candidate grids for countries with insufficient raster cells (e.g., Antarctica).
   - Allocation uses k_alloc=Q^0.30 to avoid flat weights under current inputs; missing world_countries ISO2 polygons (15/250) excluded with notes in the policy file.
+
+## cdn_weights_ext_yaml_2024
+- artefact_id: cdn_weights_ext_yaml
+- new_path: artefacts/external/cdn_weights_ext.yaml
+- realism_checks:
+  - WDI IT.NET.USER.ZS + SP.POP.TOTL (2019-2024) ingested; latest per ISO2 used with iso3166 canonical filter.
+  - Coverage floor met via deterministic median internet-user imputation for 22 ISO2s (median=81.61675), yielding 214 countries.
+  - Heavy-tail check passes (top5=0.5013, top10=0.5973); raw response hashes recorded in `artefacts/external/cdn_weights_ext.provenance.json`.
+
+## mcc_channel_rules_v1
+- artefact_id: mcc_channel_rules
+- new_path: config/virtual/mcc_channel_rules.yaml
+- realism_checks:
+  - Derived from mcc_canonical_2025-12-31 + transaction_schema_merchant_ids (2025-12-31) using keyword scores; 290 MCCs produce 580 rules.
+  - CNP virtual share = 0.1217 (target 0.12, corridor 0.04-0.20); overall virtual share = 0.02998.
+
+## cdn_country_weights_v1
+- artefact_id: cdn_country_weights
+- new_path: config/virtual/cdn_country_weights.yaml
+- realism_checks:
+  - Built from cdn_weights_ext_yaml (WDI 2024) and iso3166/world_countries intersection; 235 countries with polygons.
+  - Tail mass applied to 23 missing ext weights; edge_scale=500; heavy-tail check top5=0.4848, top10=0.5776.
+  - world_countries missing >5% ISO2 polygons, so the intersection set was used (deviation logged in logbook).
+
+## virtual_validation_policy_v1
+- artefact_id: virtual_validation_policy
+- new_path: config/virtual/virtual_validation.yml
+- realism_checks:
+  - ip_country_tolerance=0.010000 derived from edge_scale=500; cutoff_tolerance_seconds=1800.
+
+## cdn_key_digest_v1
+- artefact_id: cdn_key_digest
+- new_path: config/virtual/cdn_key_digest.yaml
+- realism_checks:
+  - Semantic digest computed from cdn_country_weights v1.0.0 with canonical 12dp weights and edge_scale=500.
+
+## virtual_logging_policy_v1
+- artefact_id: virtual_logging_policy
+- new_path: config/logging/virtual_logging.yml
+- realism_checks:
+  - v1 retention and rotation limits set per guide (16 MiB edge_progress, 256 MiB audit, 365-day retention, 200-run minimum).

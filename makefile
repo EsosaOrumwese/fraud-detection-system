@@ -324,9 +324,16 @@ VIRTUAL_EDGE_POLICY_CMD = $(PY) scripts/build_virtual_edge_policy_v1.py
 ZONE_FLOOR_POLICY_CMD = $(PY) scripts/build_zone_floor_policy_3a.py
 COUNTRY_ZONE_ALPHAS_CMD = $(PY) scripts/build_country_zone_alphas_3a.py
 CROSSBORDER_FEATURES_CMD = $(PY) scripts/build_crossborder_features_1a.py
+CDN_WEIGHTS_EXT_VINTAGE = WDI_ITU_internet_users_share_2024
+CDN_WEIGHTS_EXT_YEAR = 2024
+CDN_WEIGHTS_EXT_CMD = $(PY) scripts/build_cdn_weights_ext_yaml.py --vintage $(CDN_WEIGHTS_EXT_VINTAGE) --vintage-year $(CDN_WEIGHTS_EXT_YEAR)
+MCC_CHANNEL_RULES_CMD = $(PY) scripts/build_mcc_channel_rules_3b.py
+CDN_COUNTRY_WEIGHTS_CMD = $(PY) scripts/build_cdn_country_weights_3b.py
+VIRTUAL_VALIDATION_CMD = $(PY) scripts/build_virtual_validation_3b.py
+CDN_KEY_DIGEST_CMD = $(PY) scripts/build_cdn_key_digest_3b.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
@@ -357,6 +364,26 @@ country_zone_alphas:
 crossborder_features:
 	@echo "Building 1A crossborder_features"
 	$(CROSSBORDER_FEATURES_CMD)
+
+cdn_weights_ext:
+	@echo "Building 3B cdn_weights_ext_yaml (WDI $(CDN_WEIGHTS_EXT_YEAR))"
+	$(CDN_WEIGHTS_EXT_CMD)
+
+mcc_channel_rules:
+	@echo "Building 3B mcc_channel_rules"
+	$(MCC_CHANNEL_RULES_CMD)
+
+cdn_country_weights:
+	@echo "Building 3B cdn_country_weights"
+	$(CDN_COUNTRY_WEIGHTS_CMD)
+
+virtual_validation:
+	@echo "Building 3B virtual_validation"
+	$(VIRTUAL_VALIDATION_CMD)
+
+cdn_key_digest:
+	@echo "Building 3B cdn_key_digest"
+	$(CDN_KEY_DIGEST_CMD)
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"

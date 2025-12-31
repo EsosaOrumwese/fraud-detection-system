@@ -1,0 +1,2322 @@
+version: v1.0.0
+rules:
+  - mcc: "0742"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "0742"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "0743"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "0743"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "0744"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "0744"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "0763"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "0763"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "0780"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "0780"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1520"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1520"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1711"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1711"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1731"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1731"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1740"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1740"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1750"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1750"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1761"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1761"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1771"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1771"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "1799"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "1799"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "2741"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "2741"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "2791"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "2791"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "2842"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "2842"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4011"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4011"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4111"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4111"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4112"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4112"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4119"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4119"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4121"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4121"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4131"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4131"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4214"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4214"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4215"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4215"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4225"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4225"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4411"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4411"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4457"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4457"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4468"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4468"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4511"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4511"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4582"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4582"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4722"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4722"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4784"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4784"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4789"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4789"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4812"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=3"
+  - mcc: "4812"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4814"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "4814"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4815"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "4815"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4816"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "4816"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4821"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4821"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4829"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4829"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4899"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "4899"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "4900"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "4900"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5013"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5013"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5021"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5021"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5039"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5039"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5044"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5044"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5045"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5045"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5046"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5046"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5047"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5047"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5051"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5051"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5065"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5065"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5072"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5072"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5074"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5074"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5085"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5085"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5094"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5094"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5099"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5099"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5111"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5111"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5122"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5122"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5131"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5131"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5137"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5137"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5139"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5139"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5169"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5169"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5172"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5172"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5192"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5192"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5193"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5193"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5198"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5198"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5199"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5199"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5200"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5200"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5211"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5211"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5231"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5231"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5251"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5251"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5261"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5261"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5262"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5262"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5271"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5271"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5300"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5300"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5309"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5309"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5310"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5310"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5311"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5311"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5331"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5331"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5399"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5399"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5411"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5411"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5422"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5422"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5441"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5441"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5451"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5451"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5462"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5462"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5499"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5499"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5511"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5511"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5521"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5521"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5531"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5531"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5532"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5532"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5533"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5533"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5541"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5541"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5542"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5542"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5551"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5551"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5552"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5552"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5561"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5561"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5571"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5571"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5592"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5592"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5598"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5598"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5599"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5599"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5611"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5611"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5621"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5621"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5631"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5631"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5641"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5641"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5651"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5651"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5655"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5655"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5661"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5661"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5681"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5681"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5691"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5691"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5697"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5697"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5698"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5698"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5699"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5699"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5712"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5712"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5713"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5713"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5714"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5714"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5715"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5715"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5718"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5718"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5719"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5719"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5722"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5722"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5732"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5732"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5733"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5733"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5734"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=2"
+  - mcc: "5734"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5735"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5735"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5811"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5811"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5812"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5812"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5813"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5813"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5814"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5814"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5815"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=2"
+  - mcc: "5815"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5816"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5816"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5817"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=3"
+  - mcc: "5817"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5818"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5818"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5912"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5912"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5921"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5921"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5931"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5931"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5932"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5932"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5933"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5933"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5935"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5935"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5937"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5937"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5940"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5940"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5941"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5941"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5942"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5942"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5943"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5943"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5944"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5944"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5945"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5945"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5946"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5946"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5947"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5947"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5948"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5948"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5949"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5949"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5950"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5950"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5960"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5960"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5962"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5962"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5963"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5963"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5964"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=1"
+  - mcc: "5964"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5965"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "5965"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5966"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "5966"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5967"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "5967"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5968"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=2"
+  - mcc: "5968"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5969"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "5969"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5970"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5970"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5971"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5971"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5972"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5972"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5973"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5973"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5975"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5975"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5976"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5976"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5977"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5977"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5978"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5978"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5983"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5983"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5992"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5992"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5993"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5993"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5994"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5994"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5995"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5995"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5996"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5996"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5997"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5997"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5998"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5998"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "5999"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "5999"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "6010"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "6010"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "6011"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "6011"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "6012"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "6012"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "6051"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "6051"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "6211"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "6211"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "6300"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "6300"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7011"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7011"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7012"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7012"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7032"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7032"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7033"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7033"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7210"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7210"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7211"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7211"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7216"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7216"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7217"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7217"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7221"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7221"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7230"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7230"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7251"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7251"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7261"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7261"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7273"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7273"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7276"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7276"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7277"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7277"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7278"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7278"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7296"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7296"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7297"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7297"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7298"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7298"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7299"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7299"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7311"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7311"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7321"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7321"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7322"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7322"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7333"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7333"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7338"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7338"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7339"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7339"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7342"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7342"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7349"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7349"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7361"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7361"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7372"
+    channel: card_not_present
+    decision: virtual
+    notes: "v1:cnp=>virtual;score=2"
+  - mcc: "7372"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7375"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7375"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7379"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7379"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7392"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7392"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7393"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7393"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7394"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7394"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7395"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7395"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7399"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7399"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7512"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7512"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7513"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7513"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7519"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7519"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7523"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7523"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7531"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7531"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7534"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7534"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7535"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7535"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7538"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7538"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7542"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7542"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7549"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7549"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7622"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7622"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7623"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7623"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7629"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7629"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7631"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7631"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7641"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7641"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7692"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7692"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7699"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7699"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7800"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7800"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7801"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7801"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7802"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7802"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7829"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7829"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7832"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7832"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7841"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7841"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7911"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7911"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7922"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7922"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7929"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7929"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7932"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7932"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7933"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7933"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7941"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7941"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7991"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7991"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7992"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7992"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7993"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7993"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7994"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7994"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7995"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
+  - mcc: "7995"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7996"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7996"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7997"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7997"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7998"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7998"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "7999"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "7999"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8011"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8011"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8021"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8021"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8031"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8031"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8041"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8041"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8042"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8042"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8043"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8043"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8049"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8049"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8050"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8050"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8062"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8062"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8071"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8071"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8099"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8099"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8111"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8111"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8211"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8211"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8220"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8220"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8241"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8241"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8244"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8244"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8249"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8249"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8299"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8299"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8351"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8351"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8398"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8398"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8641"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8641"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8651"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8651"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8661"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8661"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8675"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8675"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8699"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8699"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8734"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8734"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8911"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8911"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8931"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8931"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "8999"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "8999"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "9211"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "9211"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "9222"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "9222"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "9223"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "9223"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "9311"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "9311"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "9399"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "9399"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"
+  - mcc: "9402"
+    channel: card_not_present
+    decision: physical
+    notes: "v1:cnp=>physical;score=0"
+  - mcc: "9402"
+    channel: card_present
+    decision: physical
+    notes: "v1:card_present=>physical"

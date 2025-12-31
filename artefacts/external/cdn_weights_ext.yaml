@@ -1,0 +1,430 @@
+version: "WDI_ITU_internet_users_share_2024"
+countries:
+  - country_iso: "AD"
+    weight: 0.000013955399
+  - country_iso: "AE"
+    weight: 0.001960452862
+  - country_iso: "AF"
+    weight: 0.001347677815
+  - country_iso: "AG"
+    weight: 0.000012980736
+  - country_iso: "AL"
+    weight: 0.000352647330
+  - country_iso: "AM"
+    weight: 0.000433028545
+  - country_iso: "AO"
+    weight: 0.003025865806
+  - country_iso: "AR"
+    weight: 0.007311631625
+  - country_iso: "AS"
+    weight: 0.000006810849
+  - country_iso: "AT"
+    weight: 0.001554549501
+  - country_iso: "AU"
+    weight: 0.004710566662
+  - country_iso: "AW"
+    weight: 0.000015728378
+  - country_iso: "AZ"
+    weight: 0.001620360525
+  - country_iso: "BA"
+    weight: 0.000486160745
+  - country_iso: "BB"
+    weight: 0.000040319663
+  - country_iso: "BD"
+    weight: 0.013782973296
+  - country_iso: "BE"
+    weight: 0.002026705154
+  - country_iso: "BF"
+    weight: 0.000715311689
+  - country_iso: "BG"
+    weight: 0.000947578934
+  - country_iso: "BH"
+    weight: 0.000283488008
+  - country_iso: "BI"
+    weight: 0.000277706421
+  - country_iso: "BJ"
+    weight: 0.000831225578
+  - country_iso: "BM"
+    weight: 0.000009413579
+  - country_iso: "BN"
+    weight: 0.000081771652
+  - country_iso: "BO"
+    weight: 0.001555799008
+  - country_iso: "BR"
+    weight: 0.031952365005
+  - country_iso: "BS"
+    weight: 0.000067896173
+  - country_iso: "BT"
+    weight: 0.000124895004
+  - country_iso: "BW"
+    weight: 0.000366023296
+  - country_iso: "BY"
+    weight: 0.001536146166
+  - country_iso: "BZ"
+    weight: 0.000053852713
+  - country_iso: "CA"
+    weight: 0.006922413093
+  - country_iso: "CD"
+    weight: 0.005956753407
+  - country_iso: "CF"
+    weight: 0.000071429199
+  - country_iso: "CG"
+    weight: 0.000433713157
+  - country_iso: "CH"
+    weight: 0.001564313362
+  - country_iso: "CI"
+    weight: 0.002316583238
+  - country_iso: "CL"
+    weight: 0.003331415264
+  - country_iso: "CM"
+    weight: 0.002177977695
+  - country_iso: "CN"
+    weight: 0.231308776779
+  - country_iso: "CO"
+    weight: 0.007298463804
+  - country_iso: "CR"
+    weight: 0.000781706448
+  - country_iso: "CU"
+    weight: 0.001396471190
+  - country_iso: "CV"
+    weight: 0.000068877323
+  - country_iso: "CW"
+    weight: 0.000022715014
+  - country_iso: "CY"
+    weight: 0.000221098730
+  - country_iso: "CZ"
+    weight: 0.001706345441
+  - country_iso: "DE"
+    weight: 0.013934307089
+  - country_iso: "DJ"
+    weight: 0.000135609852
+  - country_iso: "DK"
+    weight: 0.001064094410
+  - country_iso: "DM"
+    weight: 0.000009903026
+  - country_iso: "DO"
+    weight: 0.001855693665
+  - country_iso: "DZ"
+    weight: 0.006424682759
+  - country_iso: "EC"
+    weight: 0.002497432155
+  - country_iso: "EE"
+    weight: 0.000225877469
+  - country_iso: "EG"
+    weight: 0.015116233461
+  - country_iso: "ER"
+    weight: 0.000126246766
+  - country_iso: "ES"
+    weight: 0.008346954604
+  - country_iso: "ET"
+    weight: 0.003934944231
+  - country_iso: "FI"
+    weight: 0.000937792175
+  - country_iso: "FJ"
+    weight: 0.000131508688
+  - country_iso: "FM"
+    weight: 0.000007952543
+  - country_iso: "FO"
+    weight: 0.000007963734
+  - country_iso: "FR"
+    weight: 0.010844668585
+  - country_iso: "GA"
+    weight: 0.000325865949
+  - country_iso: "GB"
+    weight: 0.011895730337
+  - country_iso: "GD"
+    weight: 0.000015502100
+  - country_iso: "GE"
+    weight: 0.000540569279
+  - country_iso: "GH"
+    weight: 0.004296936832
+  - country_iso: "GI"
+    weight: 0.000005727871
+  - country_iso: "GL"
+    weight: 0.000008277588
+  - country_iso: "GM"
+    weight: 0.000226125991
+  - country_iso: "GN"
+    weight: 0.000697754587
+  - country_iso: "GQ"
+    weight: 0.000203860777
+  - country_iso: "GR"
+    weight: 0.001601795107
+  - country_iso: "GT"
+    weight: 0.001841075594
+  - country_iso: "GU"
+    weight: 0.000024435021
+  - country_iso: "GW"
+    weight: 0.000127532423
+  - country_iso: "GY"
+    weight: 0.000121195642
+  - country_iso: "HK"
+    weight: 0.001288624390
+  - country_iso: "HN"
+    weight: 0.001125818683
+  - country_iso: "HR"
+    weight: 0.000576978823
+  - country_iso: "HT"
+    weight: 0.000824791578
+  - country_iso: "HU"
+    weight: 0.001600141122
+  - country_iso: "ID"
+    weight: 0.036817339020
+  - country_iso: "IE"
+    weight: 0.000929119657
+  - country_iso: "IL"
+    weight: 0.001569530257
+  - country_iso: "IM"
+    weight: 0.000012257052
+  - country_iso: "IN"
+    weight: 0.144730812098
+  - country_iso: "IQ"
+    weight: 0.006714783828
+  - country_iso: "IR"
+    weight: 0.013011432331
+  - country_iso: "IS"
+    weight: 0.000068852346
+  - country_iso: "IT"
+    weight: 0.009385779635
+  - country_iso: "JM"
+    weight: 0.000453299415
+  - country_iso: "JO"
+    weight: 0.001907630786
+  - country_iso: "JP"
+    weight: 0.019242580262
+  - country_iso: "KE"
+    weight: 0.003522137677
+  - country_iso: "KG"
+    weight: 0.001140110805
+  - country_iso: "KH"
+    weight: 0.001911089728
+  - country_iso: "KI"
+    weight: 0.000021123412
+  - country_iso: "KM"
+    weight: 0.000055158194
+  - country_iso: "KN"
+    weight: 0.000006387888
+  - country_iso: "KP"
+    weight: 0.003859285241
+  - country_iso: "KR"
+    weight: 0.009040312882
+  - country_iso: "KW"
+    weight: 0.000871676974
+  - country_iso: "KY"
+    weight: 0.000010843908
+  - country_iso: "KZ"
+    weight: 0.003431783250
+  - country_iso: "LA"
+    weight: 0.000882151359
+  - country_iso: "LB"
+    weight: 0.000865021323
+  - country_iso: "LC"
+    weight: 0.000022478667
+  - country_iso: "LI"
+    weight: 0.000007026362
+  - country_iso: "LK"
+    weight: 0.002002314305
+  - country_iso: "LR"
+    weight: 0.000235348227
+  - country_iso: "LS"
+    weight: 0.000200169595
+  - country_iso: "LT"
+    weight: 0.000456139299
+  - country_iso: "LU"
+    weight: 0.000119311164
+  - country_iso: "LV"
+    weight: 0.000308714362
+  - country_iso: "LY"
+    weight: 0.001165615808
+  - country_iso: "MA"
+    weight: 0.006183761157
+  - country_iso: "MC"
+    weight: 0.000006834840
+  - country_iso: "MD"
+    weight: 0.000343852287
+  - country_iso: "ME"
+    weight: 0.000098894381
+  - country_iso: "MF"
+    weight: 0.000003805424
+  - country_iso: "MG"
+    weight: 0.001161727591
+  - country_iso: "MH"
+    weight: 0.000004403218
+  - country_iso: "MK"
+    weight: 0.000283816494
+  - country_iso: "ML"
+    weight: 0.001532840062
+  - country_iso: "MM"
+    weight: 0.005692709745
+  - country_iso: "MN"
+    weight: 0.000522151883
+  - country_iso: "MO"
+    weight: 0.000109327175
+  - country_iso: "MP"
+    weight: 0.000006448642
+  - country_iso: "MR"
+    weight: 0.000344818429
+  - country_iso: "MT"
+    weight: 0.000093460338
+  - country_iso: "MU"
+    weight: 0.000176729534
+  - country_iso: "MV"
+    weight: 0.000079758424
+  - country_iso: "MW"
+    weight: 0.000695104683
+  - country_iso: "MX"
+    weight: 0.018957340957
+  - country_iso: "MY"
+    weight: 0.006219445773
+  - country_iso: "MZ"
+    weight: 0.001226285866
+  - country_iso: "NC"
+    weight: 0.000042619907
+  - country_iso: "NE"
+    weight: 0.001118528911
+  - country_iso: "NG"
+    weight: 0.016281551699
+  - country_iso: "NI"
+    weight: 0.000718657570
+  - country_iso: "NL"
+    weight: 0.003114716059
+  - country_iso: "NO"
+    weight: 0.000984394197
+  - country_iso: "NP"
+    weight: 0.002950898264
+  - country_iso: "NR"
+    weight: 0.000001740784
+  - country_iso: "NZ"
+    weight: 0.000907325244
+  - country_iso: "OM"
+    weight: 0.000897706028
+  - country_iso: "PA"
+    weight: 0.000552347262
+  - country_iso: "PE"
+    weight: 0.005004264691
+  - country_iso: "PF"
+    weight: 0.000041042336
+  - country_iso: "PG"
+    weight: 0.000454213039
+  - country_iso: "PH"
+    weight: 0.017315761724
+  - country_iso: "PK"
+    weight: 0.012274635315
+  - country_iso: "PL"
+    weight: 0.005779074094
+  - country_iso: "PR"
+    weight: 0.000498966493
+  - country_iso: "PS"
+    weight: 0.000817699928
+  - country_iso: "PT"
+    weight: 0.001688683670
+  - country_iso: "PW"
+    weight: 0.000002577098
+  - country_iso: "PY"
+    weight: 0.001008683076
+  - country_iso: "QA"
+    weight: 0.000508189489
+  - country_iso: "RO"
+    weight: 0.003103578166
+  - country_iso: "RS"
+    weight: 0.001030641552
+  - country_iso: "RU"
+    weight: 0.024169422781
+  - country_iso: "RW"
+    weight: 0.000870058416
+  - country_iso: "SA"
+    weight: 0.006299109348
+  - country_iso: "SB"
+    weight: 0.000062067864
+  - country_iso: "SC"
+    weight: 0.000018926530
+  - country_iso: "SD"
+    weight: 0.002380053761
+  - country_iso: "SE"
+    weight: 0.001801775277
+  - country_iso: "SG"
+    weight: 0.001016672393
+  - country_iso: "SI"
+    weight: 0.000344557625
+  - country_iso: "SK"
+    weight: 0.000869087986
+  - country_iso: "SL"
+    weight: 0.000318215140
+  - country_iso: "SM"
+    weight: 0.000005276477
+  - country_iso: "SN"
+    weight: 0.002001148630
+  - country_iso: "SO"
+    weight: 0.000936208974
+  - country_iso: "SR"
+    weight: 0.000088752008
+  - country_iso: "SS"
+    weight: 0.000197590755
+  - country_iso: "ST"
+    weight: 0.000025831867
+  - country_iso: "SV"
+    weight: 0.000765193885
+  - country_iso: "SX"
+    weight: 0.000006313489
+  - country_iso: "SY"
+    weight: 0.001525534278
+  - country_iso: "SZ"
+    weight: 0.000127785973
+  - country_iso: "TC"
+    weight: 0.000006777352
+  - country_iso: "TD"
+    weight: 0.000477528299
+  - country_iso: "TG"
+    weight: 0.000628613867
+  - country_iso: "TH"
+    weight: 0.011620732248
+  - country_iso: "TJ"
+    weight: 0.001073283587
+  - country_iso: "TL"
+    weight: 0.000085029602
+  - country_iso: "TM"
+    weight: 0.001091497744
+  - country_iso: "TN"
+    weight: 0.001585115289
+  - country_iso: "TO"
+    weight: 0.000010880986
+  - country_iso: "TR"
+    weight: 0.013323411208
+  - country_iso: "TT"
+    weight: 0.000206810761
+  - country_iso: "TV"
+    weight: 0.000001279153
+  - country_iso: "TZ"
+    weight: 0.003555700698
+  - country_iso: "UA"
+    weight: 0.005565218315
+  - country_iso: "UG"
+    weight: 0.000798761006
+  - country_iso: "US"
+    weight: 0.056529925061
+  - country_iso: "UY"
+    weight: 0.000555916001
+  - country_iso: "UZ"
+    weight: 0.005775684231
+  - country_iso: "VC"
+    weight: 0.000013643944
+  - country_iso: "VE"
+    weight: 0.004136979702
+  - country_iso: "VG"
+    weight: 0.000005748551
+  - country_iso: "VI"
+    weight: 0.000015201453
+  - country_iso: "VN"
+    weight: 0.015164340888
+  - country_iso: "VU"
+    weight: 0.000026748105
+  - country_iso: "WS"
+    weight: 0.000022618297
+  - country_iso: "YE"
+    weight: 0.001000470015
+  - country_iso: "ZA"
+    weight: 0.008641546741
+  - country_iso: "ZM"
+    weight: 0.001255160830
+  - country_iso: "ZW"
+    weight: 0.001140615825
