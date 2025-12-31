@@ -1,0 +1,142 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "docs/model_spec/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml"
+title: "Cross-cutting Rails — HashGate Receipt"
+description: >
+  Canonical receipt for HashGate verification outcomes (PASS/FAIL), bound to an exact
+  target instance via target_ref + target_digest and the canonical identity tuple.
+  Used to enforce 'no PASS → no read' across authority surfaces and shared planes.
+
+type: object
+additionalProperties: false
+
+required:
+  - schema_ref
+  - receipt_id
+  - gate_outcome
+  - validator_id
+  - validator_version
+  - verified_at
+  - target_ref
+  - target_digest
+  - parameter_hash
+  - manifest_fingerprint
+  - scenario_id
+  - run_id
+  - reason_codes
+
+properties:
+  # ---------------------------
+  # Schema authority (self)
+  # ---------------------------
+  schema_ref:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
+    description: "Pinned reference to the authoritative schema governing this HashGate receipt."
+
+  # ---------------------------
+  # Receipt identity
+  # ---------------------------
+  receipt_id:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/receipt_id"
+    description: "Unique identifier for this receipt instance."
+
+  # ---------------------------
+  # Outcome
+  # ---------------------------
+  gate_outcome:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/hashgate_outcome"
+    description: "HashGate verification outcome."
+
+  reason_codes:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
+    description: >
+      Reason codes. MUST be non-empty when gate_outcome=FAIL.
+      MAY be empty when gate_outcome=PASS.
+
+  # ---------------------------
+  # Validator provenance
+  # ---------------------------
+  validator_id:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validator_id"
+  validator_version:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validator_version"
+  verified_at:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+
+  # ---------------------------
+  # Target binding (what was gated)
+  # ---------------------------
+  target_ref:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+    description: >
+      Reference to the gated target (bundle path, surface URI, stream checkpoint, etc.).
+
+  target_digest:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
+    description: "Digest (or digest-set reference) that binds this receipt to the exact target instance."
+
+  # Optional: if the gated target is a multi-file bundle, a manifest reference may be included.
+  bundle_manifest_ref:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+    description: "Optional reference to the bundle manifest enumerating gated members and their digests."
+
+  # Optional: scope classification (informative but useful)
+  scope_class:
+    type: string
+    enum: ["GLOBAL", "WORLD", "SCENARIO", "RUN", "COMPOSITE"]
+    description: "Optional declaration of the gated target's scope class."
+
+  # ---------------------------
+  # Canonical identity tuple
+  # ---------------------------
+  parameter_hash:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+  manifest_fingerprint:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+  scenario_id:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
+  run_id:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+  seed:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+    description: >
+      Present when the gated target is stochastic or derived from stochastic inputs.
+      (Conditional requirement enforced by validator policy.)
+
+  # ---------------------------
+  # Gate chaining (optional)
+  # ---------------------------
+  upstream_pass_refs:
+    type: array
+    minItems: 0
+    maxItems: 512
+    items:
+      $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+    uniqueItems: true
+    description: >
+      Optional references to upstream PASS receipts that this validation relied on.
+
+  # ---------------------------
+  # Extensions / notes (optional)
+  # ---------------------------
+  notes:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
+    description: "Optional human-readable summary for audit/debug."
+
+  extensions:
+    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
+    description: "Optional additive metadata; must not contradict canonical fields."
+
+allOf:
+  # Enforce: if FAIL then reason_codes must be non-empty
+  - if:
+      properties:
+        gate_outcome:
+          const: "FAIL"
+    then:
+      properties:
+        reason_codes:
+          minItems: 1
+    else:
+      properties:
+        reason_codes:
+          minItems: 0
