@@ -320,9 +320,10 @@ MERCHANT_BUILD_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) scripts/build_transac
 
 HURDLE_EXPORT_CMD = $(PY) scripts/build_hurdle_exports.py
 CURRENCY_REF_CMD = $(PY) scripts/build_currency_reference_surfaces.py
+VIRTUAL_EDGE_POLICY_CMD = $(PY) scripts/build_virtual_edge_policy_v1.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
@@ -337,6 +338,10 @@ hurdle_exports:
 currency_refs:
 	@echo "Building ISO legal tender + currency share references (2024Q4)"
 	$(CURRENCY_REF_CMD)
+
+virtual_edge_policy:
+	@echo "Building 2B virtual_edge_policy_v1"
+	$(VIRTUAL_EDGE_POLICY_CMD)
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"

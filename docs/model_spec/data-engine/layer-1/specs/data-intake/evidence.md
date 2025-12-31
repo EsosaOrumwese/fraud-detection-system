@@ -246,3 +246,32 @@ Use one section per artefact:
 - new_path: config/timezone/tz_overrides.yaml
 - realism_checks:
   - Empty override list to avoid unverified tzid pins; no MCC-scope overrides enabled without a sealed merchant_mcc_map.
+
+## route_rng_policy_v1
+- artefact_id: route_rng_policy_v1
+- new_path: contracts/policy/2B/route_rng_policy_v1.json
+- realism_checks:
+  - Philox2x64-10 with `routing_selection` and `routing_edge` streams; event budgets are single-uniform per arrival (2 for S5, 1 for S6).
+  - Stream IDs are namespaced (`2B.routing`, `2B.routing_edge`) and key_basis is `[seed, parameter_hash, run_id]`.
+
+## alias_layout_policy_v1
+- artefact_id: alias_layout_policy_v1
+- new_path: contracts/policy/2B/alias_layout_policy_v1.json
+- realism_checks:
+  - Quantised_bits=24, prob_qbits=32, and `walker_vose_q0_32` decode law pinned; deterministic residual adjustment rules included.
+  - Floor_spec uses absolute floor 1e-12 with uniform fallback and normalisation_epsilon=1e-9 to keep alias weights stable.
+
+## day_effect_policy_v1
+- artefact_id: day_effect_policy_v1
+- new_path: contracts/policy/2B/day_effect_policy_v1.json
+- realism_checks:
+  - Day range is 2024-01-01 through 2025-12-31 (inclusive), meeting the multi-year volume floor.
+  - Sigma_gamma=0.32 with Philox2x64-10 and deterministic key/counter derivation; sha256_hex computed per canonical JSON rules.
+
+## virtual_edge_policy_v1
+- artefact_id: virtual_edge_policy_v1
+- new_path: contracts/policy/2B/virtual_edge_policy_v1.json
+- realism_checks:
+  - 2000 edges with deterministic ip_country/edge_id ordering and weights normalized to sum=1; heavy-tail check passes via top-5% mass ≥30%.
+  - Edge catalogue derived from iso3166_canonical_2024 + world_countries + population_raster_2025 with POP fallback for raster gaps and synthetic candidate grids for countries with insufficient raster cells (e.g., Antarctica).
+  - Allocation uses k_alloc=Q^0.30 to avoid flat weights under current inputs; missing world_countries ISO2 polygons (15/250) excluded with notes in the policy file.

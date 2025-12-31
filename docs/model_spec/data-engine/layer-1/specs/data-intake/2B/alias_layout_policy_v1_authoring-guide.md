@@ -61,12 +61,13 @@ The JSON object MUST contain these keys (unknown top-level keys are allowed only
 ### 3.3 Quantisation + tolerance keys (MUST)
 
 * `quantised_bits` (int) — bit-depth **b** used for grid size **G = 2^b**
-* `quantisation_epsilon` (number > 0) — εₛ used by S1/S2 validators
+* `normalisation_epsilon` (number > 0) - epsilon used by S1 to validate sum(p_weight)=1
+* `quantisation_epsilon` (number > 0) - epsilon_q used by S1/S2 validators
 
 ### 3.4 Weight policy keys (MUST)
 
 * `weight_source` (object) — deterministic rule label + parameters
-* `floor_cap` (object) — floor/cap rules for weights
+* `floor_spec` (object) - floor rules for weights (v1 uses absolute floor; caps are not required)
 * `fallback` (object) — what to do if a merchant’s pre-normalised weights are degenerate
 * `required_s1_provenance` (object) — required emitted flags/fields
 
@@ -315,16 +316,17 @@ This is a complete, non-toy baseline that Codex can write deterministically:
     "pad_included_in_slice_length": false
   },
   "quantised_bits": 24,
+  "normalisation_epsilon": 1e-9,
   "quantisation_epsilon": 1e-6,
   "weight_source": {
     "id": "uniform_by_site",
+    "mode": "uniform",
     "notes": "Deterministic baseline: equal weight per site within a merchant."
   },
-  "floor_cap": {
-    "floor_p": 1e-12,
-    "cap_p": 0.999999,
-    "apply_floor_then_renormalise": true,
-    "apply_cap_then_renormalise": true
+  "floor_spec": {
+    "mode": "absolute",
+    "value": 1e-12,
+    "fallback": "uniform"
   },
   "fallback": {
     "on_all_zero_or_nonfinite": "uniform_by_site",
@@ -395,9 +397,10 @@ The canonical digest is recorded by S0 in the sealing inventory; do not embed it
 4. Realism floors in §9 pass.
 5. `required_index_fields` includes all fields in §10.
 6. `record_layout.prob_qbits` ∈ {24,32}; if 32 then `decode_law == "walker_vose_q0_32"`.
-7. `quantised_bits` ∈ [1,30] and ≥ 20 for production.
-8. `endianness` ∈ {little,big}; `alignment_bytes` ≥ 1 and recommended set for production.
-9. No `sha256_hex` key is present (token-less posture; digest recorded by S0).
+7. `normalisation_epsilon` > 0 and `floor_spec` includes `mode`, `value`, and `fallback`.
+8. `quantised_bits` ∈ [1,30] and ≥ 20 for production.
+9. `endianness` ∈ {little,big}; `alignment_bytes` ≥ 1 and recommended set for production.
+10. No `sha256_hex` key is present (token-less posture; digest recorded by S0).
 
 If any check fails → **FAIL CLOSED** (do not emit or seal the policy).
 
