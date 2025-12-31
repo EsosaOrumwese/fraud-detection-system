@@ -1,26 +1,51 @@
-semver: "1.1.0"
+semver: "1.2.0"
 version: "2025-12-31"
 
 dp: 7
 
 defaults:
-  blend_weight: 0.60
-  alpha: 0.40
+  blend_weight: 0.62
+  alpha: 0.25
   obs_floor: 5000
   min_share: 0.0
   shrink_exponent: 1.8
 
 per_currency:
   EUR:
-    blend_weight: 0.70
-    alpha: 0.30
+    blend_weight: 0.80
+    alpha: 0.12
     obs_floor: 8000
-    shrink_exponent: 2.0
+    shrink_exponent: 1.6
   USD:
-    blend_weight: 0.50
-    alpha: 0.25
+    blend_weight: 0.55
+    alpha: 0.10
     obs_floor: 10000
-    shrink_exponent: 2.0
+    shrink_exponent: 1.6
+  GBP:
+    blend_weight: 0.65
+    alpha: 0.15
+    obs_floor: 7000
+    shrink_exponent: 1.7
+  AUD:
+    blend_weight: 0.60
+    alpha: 0.08
+    obs_floor: 6000
+    shrink_exponent: 1.6
+  NZD:
+    blend_weight: 0.60
+    alpha: 0.08
+    obs_floor: 6000
+    shrink_exponent: 1.6
+  NOK:
+    blend_weight: 0.60
+    alpha: 0.08
+    obs_floor: 6000
+    shrink_exponent: 1.6
+  CHF:
+    blend_weight: 0.60
+    alpha: 0.08
+    obs_floor: 6000
+    shrink_exponent: 1.6
   XOF:
     blend_weight: 0.75
     alpha: 0.35
@@ -36,8 +61,8 @@ per_currency:
     alpha: 0.35
     obs_floor: 6000
     shrink_exponent: 1.8
-  AUD:
-    blend_weight: 0.55
+  XPF:
+    blend_weight: 0.75
     alpha: 0.30
     obs_floor: 6000
     shrink_exponent: 1.8

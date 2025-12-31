@@ -1,7 +1,7 @@
 # Evidence - Layer 1 Data Intake
 
 Created: 2025-12-31
-Purpose: record deprecated paths, new paths, and realism checks per artefact.
+Purpose: record new paths and realism checks per artefact.
 
 Use one section per artefact:
 - artefact_id:
@@ -129,7 +129,7 @@ Use one section per artefact:
 - new_path: config/policy/s3.thresholds.yaml
 - realism_checks:
   - Bounded Hamilton thresholds enforce home minimum and at least one foreign when foreigns exist, without forcing one-per-country.
-  - Parameters aligned to current N distribution (median 7, q90 13 from hurdle sim).
+  - Parameters aligned to current N distribution (median 1, q90 5 from hurdle sim).
 
 ## ccy_country_shares_2024Q4
 - artefact_id: ccy_country_shares_2024Q4
@@ -154,7 +154,7 @@ Use one section per artefact:
 - deprecated_path: config/models/allocation/deprecated_dirichlet_alpha_policy_2024-12-31.yaml
 - new_path: config/models/allocation/dirichlet_alpha_policy.yaml
 - realism_checks:
-  - Scaled base-share Dirichlet with total_concentration=25 and home_boost_multiplier=1.30 for ~25-country candidate sets.
+  - Scaled base-share Dirichlet with total_concentration=24 and home_boost_multiplier=1.25 to keep home bias without collapsing foreign mass.
   - Alpha clamps tightened (min 0.03, max 150) to limit extreme draws while keeping randomness.
 
 
@@ -166,3 +166,62 @@ Use one section per artefact:
   - Re-authored attribution templates to reflect actual upstream sources (World Bank CC BY, ODbL/OSM, public domain sources).
   - Added SEE-FILES entry for multi-license artefacts with `LICENSES/SEE-FILES.txt` notice file.
   - Normalized layer-1 license keys to match license_map canonical values (CC-BY-4.0, Public-Domain, Proprietary-Internal, SEE-FILES).
+
+## hurdle_simulation_priors_2025-12-31
+- artefact_id: hurdle_simulation_priors
+- new_path: config/models/hurdle/hurdle_simulation.priors.yaml
+- realism_checks:
+  - Semver 1.2.0 calibrated to the current 50k merchant universe (mean_pi_target=0.16, mean_mu_target_multi=6.5, median_phi_target=45.0).
+  - MCC offsets aligned to the top observed merchant MCCs (54xx grocery, 58xx dining, 55xx auto) with negative offsets for digital/high-risk codes.
+  - Channel and GDP-bucket offsets preserve higher multi-site propensity in CP and higher-income buckets while keeping clamps corridor-safe.
+
+## hurdle_coefficients_2025-12-31
+- artefact_id: hurdle_coefficients
+- new_path: config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/hurdle_coefficients.yaml
+- realism_checks:
+  - Offline simulation + deterministic design + ridge IRLS fit via `scripts/build_hurdle_exports.py`.
+  - Training manifest recorded at `artefacts/training/1A/hurdle_sim/simulation_version=2025-12-31/seed=9248923/20251231T134200Z/manifest.json`.
+  - Belt-and-braces selfcheck recorded at `config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/bundle_selfcheck.json`.
+
+## nb_dispersion_coefficients_2025-12-31
+- artefact_id: nb_dispersion_coefficients
+- new_path: config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/nb_dispersion_coefficients.yaml
+- realism_checks:
+  - MOM phi targets computed with pooling thresholds from priors; dict_mcc/dict_ch aligned with hurdle export.
+  - Selfcheck bundle recorded alongside hurdle export for deterministic validation.
+
+## policy_s3_rule_ladder_2025-12-31
+- artefact_id: policy.s3.rule_ladder.yaml
+- new_path: config/policy/s3.rule_ladder.yaml
+- realism_checks:
+  - Channel enums aligned to `card_present`/`card_not_present` to match ingress schema.
+  - High-risk CNP deny list expanded to include digital goods MCCs and cash-like categories.
+  - GLOBAL_CORE set extended to include major economies and payment hubs observed in the merchant universe; sanctions list pinned to 2025-12-31 vintage.
+
+## policy_s3_base_weight_2025-12-31
+- artefact_id: policy.s3.base_weight.yaml
+- new_path: config/policy/s3.base_weight.yaml
+- realism_checks:
+  - Semver 1.2.0 with beta_home=1.25 and beta_rank=-0.10 to keep home competitive while preserving foreign tail mass.
+  - Quantisation dp=7 with w_min=1e-7 to avoid zeroing weights after rounding.
+
+## crossborder_hyperparams_2025-12-31
+- artefact_id: crossborder_hyperparams
+- new_path: config/policy/crossborder_hyperparams.yaml
+- realism_checks:
+  - Eligibility rules deny sanctioned homes and high-risk CNP MCCs, allow travel/transport and CNP retail, and whitelist major hub home countries.
+  - ZTP link uses ordered coefficients with clamp01 feature transform and deterministic exhaustion policy.
+
+## ccy_smoothing_params_2025-12-31
+- artefact_id: ccy_smoothing_params
+- new_path: config/allocation/ccy_smoothing_params.yaml
+- realism_checks:
+  - Defaults blend ccy-country and settlement shares with light alpha smoothing and dp=7 output precision.
+  - Per-currency overrides tuned for EUR/USD and currency unions (XOF/XAF/XCD/XPF) to prevent uniform artifacts.
+
+## s6_selection_policy_2025-12-31
+- artefact_id: s6_selection_policy
+- new_path: config/policy.s6.selection.yaml
+- realism_checks:
+  - Default cap 25 preserves non-trivial candidate sets; EUR override allows the full union candidate set.
+  - Membership emission and full logging enabled for deterministic replay.

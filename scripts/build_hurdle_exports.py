@@ -320,6 +320,18 @@ def main() -> None:
 
     merchants = pl.read_parquet(merchant_path)
     merchants = merchants.sort("merchant_id")
+    merchants = merchants.with_columns(
+        pl.when(pl.col("channel") == "card_present")
+        .then(pl.lit("CP"))
+        .when(pl.col("channel") == "card_not_present")
+        .then(pl.lit("CNP"))
+        .otherwise(pl.col("channel"))
+        .alias("channel")
+    )
+    if (
+        merchants.filter(~pl.col("channel").is_in(["CP", "CNP"])).height > 0
+    ):
+        raise RuntimeError("Unsupported channel values in merchant schema.")
     gdp = pl.read_parquet(gdp_path).filter(pl.col("observation_year") == 2024)
     buckets = pl.read_parquet(bucket_path).select(["country_iso", "bucket_id"])
     iso = (

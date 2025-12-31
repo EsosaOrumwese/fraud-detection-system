@@ -1,0 +1,37 @@
+semver: "1.0.0"
+version: "2024-12-31"
+
+rng:
+  algorithm: "philox2x64-10"
+  # seed = uint64_le(first_8_bytes(sha256("transaction_schema_merchant_ids:" + version)))
+  seed: 9993812854061348570
+
+scale:
+  n_merchants: 50000
+  merchant_id_start: 1
+
+home_country:
+  # weights: w(c) = floor_weight + bucket_base^(bucket_id(c)-1)
+  floor_weight: 0.10
+  bucket_base: 2.0
+  min_distinct: 50
+
+mcc:
+  min_distinct: 200
+  range_boosts:
+    - {mcc_min: 5000, mcc_max: 5999, factor: 2.0}
+    - {mcc_min: 5400, mcc_max: 5499, factor: 4.0}
+    - {mcc_min: 5500, mcc_max: 5599, factor: 3.0}
+    - {mcc_min: 5800, mcc_max: 5899, factor: 4.0}
+    - {mcc_min: 9000, mcc_max: 9999, factor: 0.5}
+
+channel:
+  base_p_cnp: 0.25
+
+  online_heavy:
+    mcc_set: [5964, 5969, 6051, 6012]
+    p_cnp: 0.75
+
+  in_person_heavy:
+    mcc_set: [5411, 5541, 5542, 5812, 5814]
+    p_cnp: 0.10

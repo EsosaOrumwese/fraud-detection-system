@@ -1,4 +1,4 @@
-# source=authored; vintage=2025-12-31; basis=major economies and payment hubs
+# source=authored; vintage=2025-12-31; basis=merchant universe + major payment hubs
 precedence_order: ["DENY", "ALLOW", "CLASS", "LEGAL", "THRESHOLD", "DEFAULT"]
 
 reason_codes:
@@ -19,9 +19,10 @@ filter_tags:
 country_sets:
   SANCTIONED: ["BY", "CU", "IR", "KP", "RU", "SD", "SY", "VE"]
   GLOBAL_CORE: [
-    "AE", "AR", "AU", "BR", "CA", "CH", "CN", "DE", "ES", "FR",
-    "GB", "HK", "IE", "IN", "IT", "JP", "KR", "MX", "NL", "NO",
-    "PL", "SA", "SE", "SG", "US"
+    "AD", "AE", "AT", "AU", "BE", "BM", "BR", "CA", "CH", "CN",
+    "DE", "DK", "ES", "FI", "FO", "FR", "GB", "HK", "IE", "IL",
+    "IN", "IS", "IT", "JP", "KR", "LU", "MC", "MO", "MX", "NL",
+    "NO", "NZ", "PL", "QA", "SA", "SE", "SG", "US"
   ]
 
 reason_code_to_rule_id:
@@ -51,8 +52,8 @@ rules:
     predicate:
       op: "AND"
       args:
-        - { op: "CHANNEL_IN", values: ["CNP"] }
-        - { op: "MCC_IN", codes: ["4829", "5815", "6011", "7995"], ranges: ["7800-7999"] }
+        - { op: "CHANNEL_IN", values: ["card_not_present"] }
+        - { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] }
     outcome:
       reason_code: "DENY_HIGH_RISK_CNP"
       tags: ["HIGH_RISK"]
@@ -65,7 +66,7 @@ rules:
       op: "AND"
       args:
         - { op: "N_GE", value: 2 }
-        - { op: "CHANNEL_IN", values: ["CP", "CNP"] }
+        - { op: "CHANNEL_IN", values: ["card_present", "card_not_present"] }
         - { op: "MCC_IN", ranges: ["4000-4799", "5000-5999", "5300-5399", "5400-5599"] }
     outcome:
       reason_code: "ALLOW_TRAVEL_RETAIL"
@@ -82,7 +83,7 @@ rules:
       op: "AND"
       args:
         - { op: "N_GE", value: 2 }
-        - { op: "NOT", arg: { op: "MCC_IN", codes: ["4829", "5815", "6011", "7995"], ranges: ["7800-7999"] } }
+        - { op: "NOT", arg: { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] } }
     outcome:
       reason_code: "ALLOW_CORE_MULTI"
       tags: ["ADMISSIBLE", "CORE"]

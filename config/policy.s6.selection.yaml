@@ -8,13 +8,3 @@ defaults:
 per_currency:
   EUR:
     max_candidates_cap: 35
-  USD:
-    max_candidates_cap: 20
-  XCD:
-    max_candidates_cap: 15
-  XOF:
-    max_candidates_cap: 15
-  XAF:
-    max_candidates_cap: 15
-  AUD:
-    max_candidates_cap: 15
