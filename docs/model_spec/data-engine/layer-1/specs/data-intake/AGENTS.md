@@ -43,6 +43,7 @@ Use this router when authoring, acquiring, or deriving any intake artefacts for 
 
 ## 3) Intake rules (must follow)
 - Path correctness: output paths must match artefact registry + data dictionary.
+- Contracts are authoritative for artefact locations; the artefact registry is the final source of truth for each path.
 - Schema anchor exists: any `schema_ref` must resolve to a real anchor.
 - No guessing: every placeholder must be resolved per guide; missing required inputs fail closed.
 - Determinism and provenance: hash raw bytes unless guide says normalize; record digests and source metadata.

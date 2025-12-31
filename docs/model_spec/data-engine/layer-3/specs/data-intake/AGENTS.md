@@ -38,6 +38,7 @@ Use this router when authoring, acquiring, or deriving any intake artefacts for 
 
 ## 3) Intake rules (must follow)
 - Path correctness: output paths must match artefact registry + data dictionary.
+- Contracts are authoritative for artefact locations; the artefact registry is the final source of truth for each path.
 - Schema anchor exists: any `schema_ref` must resolve to a real anchor.
 - No guessing: every placeholder must be resolved per guide; missing required inputs fail closed.
 - Determinism and provenance: hash raw bytes unless guide says normalize; record digests and source metadata.
@@ -62,10 +63,8 @@ If a snag occurs, log the snag and attempted resolutions before proceeding.
 
 ## 5) Replacement protocol (for existing externals)
 For each external:
-- Locate the current external; deprecate it (e.g., prefix with `deprecated_`), and log the change.
 - Materialize the new version to meet realism.
 - Record in evidence file:
-  - deprecated path (if any)
   - new path
   - how realism checks were satisfied
 
