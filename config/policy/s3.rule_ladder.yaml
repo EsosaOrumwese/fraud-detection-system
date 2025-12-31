@@ -1,75 +1,59 @@
-semver: "0.1.0"
-version: "2025-10-09"
-
-rule_set_id: "CB-2025.10"
-notes: "Synthetic ladder: deny non-region/sanctioned, prioritise home then EEA grocery CNP, closed vocab and default fallback."
+# source=authored; vintage=2025-12-31
+precedence_order: ["DENY", "ALLOW", "CLASS", "LEGAL", "THRESHOLD", "DEFAULT"]
 
 reason_codes:
-  - ALLOW_HOME
-  - ALLOW_EEA_CNP_GROCERY
-  - CLASS_BASELINE
-  - DENY_NON_REGION
-  - DENY_SANCTIONED_CP
-  - DEFAULT_FALLBACK
+  - "DENY_SANCTIONED_HOME"
+  - "ALLOW_GLOBAL_CORE"
+  - "DEFAULT_DENY"
 
 filter_tags:
-  - HOME
-  - EEA
-  - GROCERY
-  - REGION_SCOPE
-  - SANCTIONED
+  - "ADMISSIBLE"
+  - "HOME"
+  - "SANCTIONED"
+
+country_sets:
+  SANCTIONED: ["IR", "KP", "RU"]
+  GLOBAL_CORE: ["AE", "CA", "CH", "DE", "FR", "GB", "NL", "SG", "US"]
+
+reason_code_to_rule_id:
+  DENY_SANCTIONED_HOME: "RL_DENY_SANCTIONED_HOME"
+  ALLOW_GLOBAL_CORE: "RL_ALLOW_GLOBAL_CORE"
+  DEFAULT_DENY: "RL_DEFAULT_DENY"
 
 rules:
-  - rule_id: "DENY_NON_REGION"
-    precedence: "DENY"
-    priority: 5
-    is_decision_bearing: true
-    predicate: 'country_iso not in {"AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI","FR","GR","HR","HU","IE","IT","LT","LU","LV","MT","NL","PL","PT","RO","SE","SI"} && country_iso != home_country_iso'
-    outcome:
-      reason_code: "DENY_NON_REGION"
-      tags: ["REGION_SCOPE"]
-
-  - rule_id: "DENY_SANCTIONED_CP"
+  - rule_id: "RL_DENY_SANCTIONED_HOME"
     precedence: "DENY"
     priority: 10
     is_decision_bearing: true
-    predicate: 'channel == "CP" && country_iso in {"IR","KP","RU"}'
+    predicate:
+      op: "IN_SET"
+      field: "home_country_iso"
+      set: "SANCTIONED"
     outcome:
-      reason_code: "DENY_SANCTIONED_CP"
+      reason_code: "DENY_SANCTIONED_HOME"
       tags: ["SANCTIONED"]
 
-  - rule_id: "ALLOW_HOME"
+  - rule_id: "RL_ALLOW_GLOBAL_CORE"
     precedence: "ALLOW"
-    priority: 10
+    priority: 100
     is_decision_bearing: true
-    predicate: 'country_iso == home_country_iso'
+    predicate:
+      op: "AND"
+      args:
+        - { op: "CHANNEL_IN", values: ["CP"] }
+        - { op: "MCC_IN", ranges: ["4000-4799", "5000-5999", "5300-5599"] }
     outcome:
-      reason_code: "ALLOW_HOME"
-      tags: ["HOME"]
+      reason_code: "ALLOW_GLOBAL_CORE"
+      tags: ["ADMISSIBLE"]
+    admit_sets: ["GLOBAL_CORE"]
+    deny_sets: ["SANCTIONED"]
+    row_tags: ["ADMISSIBLE"]
 
-  - rule_id: "ALLOW_EEA_CNP_GROCERY"
-    precedence: "ALLOW"
-    priority: 20
-    is_decision_bearing: true
-    predicate: 'channel == "CNP" && mcc == 5411 && country_iso != home_country_iso && country_iso in {"AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI","FR","GR","HR","HU","IE","IT","LT","LU","LV","MT","NL","PL","PT","RO","SE","SI"}'
-    outcome:
-      reason_code: "ALLOW_EEA_CNP_GROCERY"
-      tags: ["EEA","GROCERY"]
-
-  - rule_id: "CLASS_BASELINE"
-    precedence: "CLASS"
-    priority: 30
-    is_decision_bearing: false
-    predicate: 'country_iso != home_country_iso'
-    outcome:
-      reason_code: "CLASS_BASELINE"
-      tags: []
-
-  - rule_id: "DEFAULT"
+  - rule_id: "RL_DEFAULT_DENY"
     precedence: "DEFAULT"
-    priority: 9999
+    priority: 999999
     is_decision_bearing: true
-    predicate: "true"
+    predicate: { op: "TRUE" }
     outcome:
-      reason_code: "DEFAULT_FALLBACK"
+      reason_code: "DEFAULT_DENY"
       tags: []

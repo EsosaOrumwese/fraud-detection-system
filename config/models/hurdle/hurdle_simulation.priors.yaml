@@ -8,8 +8,8 @@ rng:
 calibration:
   enabled: true
   mean_pi_target: 0.12
-  mean_mu_target_multi: 4.5
-  median_phi_target: 20.0
+  mean_mu_target_multi: 9.0
+  median_phi_target: 45.0
   fixed_iters: 64
   brackets:
     base_logit: [-10.0, 2.0]
@@ -23,7 +23,7 @@ noise:
 
 clamps:
   pi: { min: 0.01, max: 0.80 }
-  mu: { min: 2.0,  max: 40.0 }
+  mu: { min: 4.0,  max: 40.0 }
   phi: { min: 8.0, max: 80.0 }
 
 hurdle:

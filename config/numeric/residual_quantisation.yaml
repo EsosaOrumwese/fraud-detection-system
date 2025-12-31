@@ -1,0 +1,19 @@
+semver: "1.0.0"
+version: "2024-12-31"
+
+dp_resid: 8
+rounding: "RNE"
+
+sort:
+  primary_key: "residual_desc"
+  stable: true
+
+tiebreak:
+  keys:
+    - "country_iso_asc"
+    - "merchant_id_asc"
+
+validation:
+  forbid_nan_inf: true
+  residual_domain: [0.0, 1.0]
+  enforce_residual_domain: true

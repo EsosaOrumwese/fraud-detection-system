@@ -318,15 +318,25 @@ MERCHANT_BUILD_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) scripts/build_transac
 	--gdp-version $(MERCHANT_GDP_VERSION) \
 	--bucket-version $(MERCHANT_BUCKET_VERSION)
 
+HURDLE_EXPORT_CMD = $(PY) scripts/build_hurdle_exports.py
+CURRENCY_REF_CMD = $(PY) scripts/build_currency_reference_surfaces.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs profile-all profile-seg1b clean-results
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
 
 merchant_ids:
 	@echo "Building transaction_schema_merchant_ids version $(MERCHANT_VERSION)"
 	$(MERCHANT_BUILD_CMD)
+
+hurdle_exports:
+	@echo "Building hurdle + dispersion export bundles"
+	$(HURDLE_EXPORT_CMD)
+
+currency_refs:
+	@echo "Building ISO legal tender + currency share references (2024Q4)"
+	$(CURRENCY_REF_CMD)
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"

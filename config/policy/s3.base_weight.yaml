@@ -1,0 +1,16 @@
+version: "1.0.0"
+
+dp: 8
+
+model:
+  kind: "loglinear_rank_home"
+  coeffs:
+    beta0: 0.0
+    beta_home: 1.6
+    beta_rank: -0.35
+
+bounds:
+  log_w_min: -50.0
+  log_w_max: 50.0
+  w_min: 1.0e-12
+  w_max: 1.0e12

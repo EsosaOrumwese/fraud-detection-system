@@ -1,0 +1,7 @@
+defaults:
+  emit_membership_dataset: false
+  log_all_candidates: true
+  max_candidates_cap: 0
+  zero_weight_rule: "exclude"
+
+per_currency: {}
