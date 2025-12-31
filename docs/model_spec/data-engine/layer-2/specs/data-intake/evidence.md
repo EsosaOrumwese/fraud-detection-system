@@ -33,5 +33,5 @@ Use one section per artefact:
   realism_checks: Event vocab and bounds set per v1; multiplicative clamp [0,5]; max_events_per_scenario=50000 and overlap cap=20.
 
 - artefact_id: scenario_calendar_5A
-  new_path: pending (requires zone_alloc + manifest_fingerprint)
-  realism_checks: Blocked until 3A zone_alloc and 5A manifest_fingerprint exist; will generate via guide-defined deterministic calendar.
+  new_path: config/layer2/5A/scenario/calendar/fingerprint=e22b195ba9fa8ed582f4669a26009c67637760bfe3b51c9ac77af92b6aa572e9/scenario={baseline_v1,stress_peak_online_v1}/scenario_calendar_5A.parquet
+  realism_checks: baseline_v1=4356 events, stress_peak_online_v1=2947 events; country coverage=183 for both; max overlap sample {baseline:2, stress:3}; event types include PAYDAY/HOLIDAY/CAMPAIGN/OUTAGE/(STRESS for stress).
