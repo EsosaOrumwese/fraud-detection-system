@@ -1,3 +1,7 @@
 # List guides in dependency order after reading expanded specs and contracts.
 # One guide per line.
+tzdb_release_acquisition-guide.md
+tz_nudge_authoring-guide.md
+tz_overrides_authoring-guide.md
+merchant_mcc_map_derivation-guide.md
 

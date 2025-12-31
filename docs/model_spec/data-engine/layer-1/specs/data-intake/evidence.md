@@ -225,3 +225,24 @@ Use one section per artefact:
 - realism_checks:
   - Default cap 25 preserves non-trivial candidate sets; EUR override allows the full union candidate set.
   - Membership emission and full logging enabled for deterministic replay.
+
+## tzdb_release_2025a
+- artefact_id: tzdb_release
+- new_path: artefacts/priors/tzdata/2025a/
+- realism_checks:
+  - Pinned release_tag to 2025a to align with tz_world_2025a coverage.
+  - archive_sha256 computed from tzdata2025a.tar.gz bytes and recorded in tzdb_release.json.
+  - Provenance recorded with file size and sha256 in tzdb_release.provenance.json.
+
+## tz_nudge_2025-12-31
+- artefact_id: tz_nudge
+- new_path: config/timezone/tz_nudge.yml
+- realism_checks:
+  - epsilon_degrees set to 0.000005 (~0.55m) to break border ties without relocating sites materially.
+  - sha256_digest computed from the semver+epsilon payload per the guide and recorded in the policy file.
+
+## tz_overrides_2025-12-31
+- artefact_id: tz_overrides
+- new_path: config/timezone/tz_overrides.yaml
+- realism_checks:
+  - Empty override list to avoid unverified tzid pins; no MCC-scope overrides enabled without a sealed merchant_mcc_map.

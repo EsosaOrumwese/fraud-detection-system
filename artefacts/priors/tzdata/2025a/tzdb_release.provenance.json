@@ -1,0 +1,15 @@
+{
+  "artefact_id": "tzdb_release",
+  "release_tag": "2025a",
+  "upstream": {
+    "primary_url": "https://www.iana.org/time-zones/repository/releases/tzdata2025a.tar.gz",
+    "fallback_urls_attempted": []
+  },
+  "retrieved_at_utc": "2025-11-12T19:32:38Z",
+  "raw": {
+    "filename": "tzdata2025a.tar.gz",
+    "bytes": 462943,
+    "sha256": "4d5fcbc72c7c450ebfe0b659bd0f1c02fbf52fd7f517a9ea13fe71c21eb5f0d0"
+  },
+  "licence_note": "IANA time zone database distributions are public domain per IANA notices."
+}
