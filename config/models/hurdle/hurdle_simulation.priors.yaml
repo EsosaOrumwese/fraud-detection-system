@@ -1,45 +1,116 @@
-semver: "0.1.0"
-version: "2025-10-09"
+semver: "1.0.0"
+version: "2025-12-31"
 
 rng:
   algorithm: "philox2x64-10"
   seed: 9248923
 
+calibration:
+  enabled: true
+  mean_pi_target: 0.12
+  mean_mu_target_multi: 4.5
+  median_phi_target: 20.0
+  fixed_iters: 64
+  brackets:
+    base_logit: [-10.0, 2.0]
+    base_log_mean: [-2.0, 4.0]
+    base_log_phi: [1.0, 5.0]
+
+noise:
+  per_merchant_logit_sd: 0.35
+  per_merchant_log_mu_sd: 0.25
+  per_merchant_log_phi_sd: 0.20
+
+clamps:
+  pi: { min: 0.01, max: 0.80 }
+  mu: { min: 2.0,  max: 40.0 }
+  phi: { min: 8.0, max: 80.0 }
+
 hurdle:
   base_logit: -1.20
+
   channel_offsets:
     CP: 0.0
-    CNP: -1.05
+    CNP: -0.85
+
   bucket_offsets:
-    "1": -0.60
-    "2": -0.30
+    "1": -0.70
+    "2": -0.35
     "3": 0.0
-    "4": 0.25
-    "5": 0.55
+    "4": 0.35
+    "5": 0.70
+
+  mcc_range_offsets:
+    - { range: "1500-1799", offset: 0.10 }
+    - { range: "4000-4799", offset: 0.40 }
+    - { range: "4800-4999", offset: 0.20 }
+    - { range: "5000-5999", offset: 0.20 }
+    - { range: "5300-5399", offset: 0.45 }
+    - { range: "5400-5599", offset: 0.55 }
+    - { range: "8000-8999", offset: -0.45 }
+    - { range: "9000-9999", offset: -0.55 }
+
   mcc_offsets:
-    "5411": 0.45
-    "5812": 0.65
-    "5732": -0.20
+    "5411": 0.80
+    "5541": 0.70
+    "5542": 0.70
+    "5812": 0.35
+    "5814": 0.35
+    "5912": 0.60
+    "7011": 0.55
+    "7995": -0.35
     "6011": -0.10
 
 nb_mean:
   base_log_mean: 0.95
+
   channel_offsets:
     CP: 0.05
-    CNP: -0.25
+    CNP: -0.15
+
+  mcc_range_offsets:
+    - { range: "1500-1799", offset: 0.10 }
+    - { range: "4000-4799", offset: 0.45 }
+    - { range: "5000-5999", offset: 0.20 }
+    - { range: "5300-5399", offset: 0.40 }
+    - { range: "5400-5599", offset: 0.55 }
+    - { range: "8000-8999", offset: -0.25 }
+    - { range: "9000-9999", offset: -0.30 }
+
   mcc_offsets:
-    "5411": 0.35
-    "5812": 0.50
-    "5732": -0.15
+    "5411": 0.75
+    "5541": 0.60
+    "5542": 0.60
+    "5812": 0.30
+    "5814": 0.30
+    "7011": 0.55
+    "7995": -0.20
     "6011": -0.10
 
 dispersion:
-  base_log_phi: -0.70
-  gdp_log_slope: -0.12
+  base_log_phi: 2.90
+  gdp_log_slope: 0.08
+
+  mom:
+    epsilon: 1.0e-6
+    n_min: 30
+    cell_weight_rule: "n_cell"
+
   channel_offsets:
-    CP: 0.0
-    CNP: 0.30
+    CP: 0.00
+    CNP: -0.05
+
+  mcc_range_offsets:
+    - { range: "4000-4799", offset: 0.10 }
+    - { range: "4800-4999", offset: 0.15 }
+    - { range: "5300-5399", offset: 0.20 }
+    - { range: "5400-5599", offset: 0.25 }
+    - { range: "8000-8999", offset: -0.15 }
+    - { range: "9000-9999", offset: -0.20 }
+
   mcc_offsets:
-    "5411": -0.05
-    "5812": -0.10
-    "5732": 0.15
+    "5411": 0.30
+    "5541": 0.30
+    "5542": 0.30
+    "7011": 0.15
+    "7995": -0.25

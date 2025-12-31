@@ -71,6 +71,24 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+- id: mcc_canonical_2025-12-31
+  status: approved
+  owner_subsegment: ingress
+  description: Canonical MCC mapping (ISO 18245 base) for validation and enrichment.
+  version: '2025-12-31'
+  format: parquet
+  path: reference/industry/mcc_canonical/2025-12-31/mcc_canonical.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/mcc_canonical
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: iso_legal_tender_2024
   status: approved
   owner_subsegment: ingress
@@ -905,7 +923,7 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256:
-  dataset_count: 43
+  dataset_count: 44
 
 open_questions: []
 

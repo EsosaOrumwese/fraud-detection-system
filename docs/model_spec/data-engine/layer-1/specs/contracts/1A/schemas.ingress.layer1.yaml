@@ -112,6 +112,18 @@ iso3166_canonical_2024:
   - type: unique
     columns: [alpha3, numeric_code]
 
+# -- Canonical MCC list (ISO 18245) ----------------------------------------
+mcc_canonical:
+  type: table
+  primary_key: [mcc]
+  description: Canonical MCC mapping for validation and enrichment.
+  columns:
+  - {name: mcc, type: int32, nullable: false, description: Merchant Category Code., minimum: 0, maximum: 9999}
+  - {name: description, type: string, nullable: false, description: MCC description.}
+  - {name: source_system, type: string, nullable: true, description: Source system or publisher (e.g., ISO18245, Alipay+).}
+  - {name: source_vintage, type: string, nullable: true, description: Source vintage label (e.g., Apr-2024).}
+  - {name: mcc_kind, type: string, nullable: true, description: MCC type., enum: [iso_generic, merchant_specific, private_use]}
+
 # -- ISO legal tender (optional fallback) -----------------------------------
 iso_legal_tender_2024:
   type: table

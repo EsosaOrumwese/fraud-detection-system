@@ -1,0 +1,19 @@
+{
+  "dataset_id": "iso3166_canonical_2024",
+  "exclusions": {
+    "country_iso": [
+      "UK",
+      "XK"
+    ],
+    "excluded_count": 1
+  },
+  "is_exact_vintage": false,
+  "notes": "GeoNames countryInfo.txt snapshot; excluded XK and UK per guide. Optional region/subregion/start_date/end_date left null.",
+  "output_sha256": "bfb68d1770abef6a74571cfea4d659eefb7b6c7b39e81f1b6cc483bd60bd8b5f",
+  "raw_bytes_sha256": "8e2d031441e14c2b0b012b6b42ed94bfb4be7b98911df4b4d3121cd71e06512a",
+  "row_count": 250,
+  "upstream_retrieved_utc": "2025-12-31T02:58:44Z",
+  "upstream_url": "https://download.geonames.org/export/dump/countryInfo.txt",
+  "upstream_version_label": null,
+  "version": "2024-12-31"
+}

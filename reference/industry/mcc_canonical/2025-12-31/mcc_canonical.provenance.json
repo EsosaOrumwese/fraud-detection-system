@@ -1,0 +1,14 @@
+{
+  "dataset_id": "mcc_canonical_2025-12-31",
+  "downloaded_at_utc": "2025-12-31T03:10:17Z",
+  "notes": "Parsed ISO A1 MCC list; non-ISO tables (A2/A3) excluded.",
+  "output_sha256": "71cbc167bcdde7680460c17d56f46465f8130e228f7b36730b08dda0cc2a7335",
+  "raw_sha256": "862048a251223324f812ea192878ef42d3028a50daf44a5580e0f91ebc3ef28f",
+  "row_count": 290,
+  "scope": "ISO-only (A1)",
+  "sheet": "Table A1",
+  "source_system": "Alipay+",
+  "source_url": "https://mdn.alipayobjects.com/huamei_a2hisw/afts/file/A*-fNFRa2B5wYAAAAAAAAAAAAADtPfAQ/Merchant%20Category%20Codes%20-%20Apr.%202024%20release.xlsx",
+  "source_vintage": "Apr-2024",
+  "version": "2025-12-31"
+}

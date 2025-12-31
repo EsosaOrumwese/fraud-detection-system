@@ -1530,7 +1530,26 @@ subsegments:
     digest: '{reference_digest}'
     manifest_key: mlr.ref.iso3166_canonical_2024
     license: SPDX:CC-BY-4.0
-    role: Canonical ISO‑3166 with deterministic lexicographic order for tie‑breaks.
+    role: Canonical ISO-3166 with deterministic lexicographic order for tie-breaks.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, staging, prod]
+    schema:
+    cross_layer: true
+    notes:
+
+  - name: mcc_canonical_2025-12-31
+    path: reference/industry/mcc_canonical/2025-12-31/mcc_canonical.parquet
+    type: reference
+    category: reference
+    semver: 2025.12.31
+    version: '2025-12-31'
+    digest: '{reference_digest}'
+    manifest_key: mlr.ref.mcc_canonical_2025_12_31
+    license: Proprietary-Internal
+    role: Canonical MCC list (ISO 18245 base) for validation and enrichment.
     dependencies: []
     source: external
     owner: {data_governance_team: null}

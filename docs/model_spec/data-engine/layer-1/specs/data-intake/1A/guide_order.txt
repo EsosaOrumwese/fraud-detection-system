@@ -1,3 +1,29 @@
 # List guides in dependency order after reading expanded specs and contracts.
 # One guide per line.
+license_map_authoring-guide.md
+iso3166_canonical_2024_acquisition-guide.md
+world_countries_acquistion-guide.md
+population_raster_2025_acquisition-guide.md
+tz_world_2025a_acquisition-guide.md
+world_bank_gdp_per_capita_20250415_acquisition-guide.md
+gdp_bucket_map_2024_acquisition-guide.md
+mcc_canonical_vintage_acquisition-guide.md
+transaction_schema_merchant_ids_acquisition-guide.md
+hurdle_simulation.priors_authoring-guide.md
+hurdle_coefficients_authoring-guide.md
+nb_dispersion_coefficients_authoring-guide.md
+numeric_policy_authoring-guide.md
+math_profile_manifest_authoring-guide.md
+validation_policy_authoring-guide.md
+residual_quantisation_authoring-guide.md
+policy.s3.rule_ladder_authoring-guide.md
+policy.s3.base_weight_authoring-guide.md
+policy.s3.thresholds_authoring-guide.md
+crossborder_hyperparams_authoring-guide.md
+dirichlet_alpha_policy_authoring-guide.md
+ccy_country_shares_2024Q4_acquisition-guide.md
+iso_legal_tender_2024_acquisition-guide.md
+settlement_shares_2024Q4_acquisition-guide.md
+ccy_smoothing_params_authoring-guide.md
+s6_selection_policy_authoring-guide.md
 

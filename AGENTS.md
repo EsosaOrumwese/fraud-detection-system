@@ -32,6 +32,7 @@ Read these in order before modifying code so you share the project context:
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
 - Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
+- Ensure to check truly large files into git LFS
 - As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable.
 - When working on a task, log every decision and action taken (not just the summary at the end) in the associated logbook in `docs\logbook` ensuring that you use one with the actual local date (if none exist, create one in the same format as the other logs) and log at the local time and not any random time. This will allow the USER to review the AGENTS actions and decisions
 
