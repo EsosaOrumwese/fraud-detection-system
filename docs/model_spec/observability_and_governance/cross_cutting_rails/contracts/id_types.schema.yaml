@@ -1,5 +1,5 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml"
+$id: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml"
 title: "Cross-cutting Rails — ID & Primitive Types"
 description: >
   Reusable JSON-Schema definitions (expressed in YAML) for canonical identifiers,

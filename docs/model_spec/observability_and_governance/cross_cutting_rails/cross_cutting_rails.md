@@ -17,8 +17,8 @@
 ### 0.1 Document identity (authoritative)
 This file is the **single authoritative** definition of platform-wide “rails” (cross-cutting invariants and canonical interfaces).
 
-- **Canonical path (authoritative):** `docs/model_spec/cross_cutting_rails/rails.md`
-- **Companion contracts (authoritative):** `docs/model_spec/cross_cutting_rails/contracts/`
+- **Canonical path (authoritative):** `docs/model_spec/observability_and_governance/cross_cutting_rails/cross_cutting_rails.md`
+- **Companion contracts (authoritative):** `docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/`
 - **Applies to (mandatory):** every specification and component under `docs/model_spec/**`
 - **Non-authoritative copies:** any duplicated text outside the canonical path is **informative only** and MUST NOT be treated as binding.
 
@@ -51,7 +51,7 @@ Everything else is **Informative** only if explicitly labelled informative (e.g.
 This document is designed to be referenced by other specs using section anchors.
 
 - Components MUST reference rails requirements via:
-  - `docs/model_spec/cross_cutting_rails/rails.md#<section-anchor>`
+  - `docs/model_spec/observability_and_governance/cross_cutting_rails/cross_cutting_rails.md#<section-anchor>`
 - Section numbers/headings that are referenced externally MUST NOT be renumbered or renamed without a **MAJOR** version bump.
 - If a requirement is moved, the old anchor MUST be preserved via a redirect note (or an explicit “Moved to §X.Y” stub) for at least one MINOR cycle.
 
@@ -740,7 +740,7 @@ Missing or invalid `schema_ref` at a boundary MUST result in **reject or quarant
 Schemas are pinned to the spec repo layout:
 
 1. **Platform-wide pinned schemas (highest authority)**
-   Located under: `docs/model_spec/cross_cutting_rails/contracts/`
+  Located under: `docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/`
    Includes (minimum): canonical event envelope, run record, receipts, id types.
 
 2. **Component schemas (component authority, subordinate to Rails)**
@@ -906,7 +906,7 @@ Rules:
 ### 7.3 Schema authority for the envelope (pinned)
 
 * The authoritative envelope schema MUST live under:
-  `docs/model_spec/cross_cutting_rails/contracts/canonical_event_envelope.schema.(yaml|json)`
+ `docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/canonical_event_envelope.schema.(yaml|json)`
 * Every emitted event MUST be valid against that schema (in addition to any payload schema).
 
 ### 7.4 Canonical envelope field set (required unless stated optional)
@@ -1562,6 +1562,8 @@ Components MAY define their own modes, but any mode they define MUST map to one 
 * **STALE_ALLOWED**: use explicitly pinned “last known good” authoritative surfaces or cached outputs, within declared freshness bounds.
 * **RULES_ONLY / GUARDRAILS_ONLY**: bypass learned/scored components while maintaining conservative safety rules (component-defined).
 * **FAIL_CLOSED**: refuse to produce the primary output (or produce only refusal outcomes) because correctness/safety cannot be guaranteed.
+
+A component MUST encode `platform.degrade_mode` using exactly these canonical tokens. If finer detail is needed, it MUST be emitted under a namespaced extension key rather than inventing additional `platform.degrade_mode` values (see §10.11).
 
 A component spec MUST declare which of these categories it supports and in what order it may transition.
 
@@ -2328,7 +2330,7 @@ Illustrative refusal outcome showing reason codes:
   "target_identity": {"event_id": "evt_01JHNHM0A1B2C3D4E5F6G7H8I9"},
   "target_digest": "sha256:9a88d1e0...",
 
-  "schema_ref": "docs/model_spec/control_and_ingress/ingestion_gate/contracts/ingestion_receipt.schema.yaml#v1.0",
+  "schema_ref": "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/ingestion_receipt.schema.yaml#v1.0",
   "validated_schema_ref": "docs/model_spec/real_time_decision_loop/feature_plane/contracts/feature_vector.event.schema.yaml#v2.2",
 
   "parameter_hash": "ph_7f3c9a4b1d2e...",
@@ -2439,7 +2441,7 @@ Scenario: the boundary has already accepted an event with `event_id = evt_...`, 
 
   "target_digest": "sha256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
 
-  "schema_ref": "docs/model_spec/control_and_ingress/ingestion_gate/contracts/ingestion_receipt.schema.yaml#v1.0",
+  "schema_ref": "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/ingestion_receipt.schema.yaml#v1.0",
   "validated_schema_ref": "docs/model_spec/real_time_decision_loop/decision_fabric/contracts/decision_emitted.event.schema.yaml#v1.0",
 
   "parameter_hash": "ph_7f3c9a4b1d2e...",
@@ -2461,7 +2463,7 @@ Scenario: the boundary has already accepted an event with `event_id = evt_...`, 
     "existing_target_ref": "bus://main/events/decision.emitted/partition=account:acct_tok_9f21b8/offset=883201",
     "existing_target_digest": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 
-    "existing_receipt_id": "rcpt_01JHNHK5ZP8Y6R1W3Q9T4B2C7D",
+    "existing_receipt_ref": "receipt://ingestion/rcpt_01JHNHK5ZP8Y6R1W3Q9T4B2C7D",
     "notes": "Same event_id previously ACCEPTED, but new submission differs in content digest; last-write-wins is prohibited."
   }
 }

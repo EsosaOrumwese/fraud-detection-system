@@ -1,5 +1,5 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/cross_cutting_rails/contracts/ingestion_receipt.schema.yaml"
+$id: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/ingestion_receipt.schema.yaml"
 title: "Cross-cutting Rails — Ingestion Receipt"
 description: >
   Canonical receipt for boundary admission decisions (ACCEPTED / REJECTED / QUARANTINED)
@@ -33,14 +33,14 @@ properties:
   # Schema authority (self)
   # ---------------------------
   schema_ref:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
     description: "Pinned reference to the authoritative schema governing this ingestion receipt."
 
   # ---------------------------
   # Receipt identity
   # ---------------------------
   receipt_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/receipt_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/receipt_id"
     description: "Unique identifier for this receipt instance."
 
   receipt_type:
@@ -49,24 +49,24 @@ properties:
     description: "Receipt class discriminator (pinned)."
 
   issued_at:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
     description: "UTC timestamp when this receipt was issued."
 
   # ---------------------------
   # Issuer provenance (boundary)
   # ---------------------------
   issuer_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/issuer_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/issuer_id"
     description: "Identity of the boundary service issuing this receipt."
   issuer_version:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/issuer_version"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/issuer_version"
     description: "Build/version identifier of the boundary service."
 
   # ---------------------------
   # Target binding (what was evaluated)
   # ---------------------------
   target_ref:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
     description: >
       Deterministic reference to the submitted target (landing URI, bus topic+partition+offset,
       blob path, etc.).
@@ -81,14 +81,14 @@ properties:
       while still requiring at least one identifying field.
     properties:
       event_id:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_id"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_id"
       producer_id:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/producer_id"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/producer_id"
       event_type:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_type"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_type"
 
   target_digest:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
     description: >
       Digest (or digest-set reference) binding this receipt to the exact submitted content instance.
 
@@ -96,7 +96,7 @@ properties:
   # Schema validation proof
   # ---------------------------
   validated_schema_ref:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validated_schema_ref"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validated_schema_ref"
     description: "Pinned reference to the schema that the boundary validated the target against."
 
   # ---------------------------
@@ -108,7 +108,7 @@ properties:
     maxItems: 512
     uniqueItems: true
     items:
-      $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+      $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
     description: >
       Optional references to upstream PASS/verification receipts that justified admission
       (e.g., engine validation PASS). When admission requires PASS, this MUST be non-empty.
@@ -117,15 +117,15 @@ properties:
   # Canonical identity tuple
   # ---------------------------
   parameter_hash:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
   manifest_fingerprint:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
   scenario_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
   run_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
   seed:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
     description: >
       Present when the admitted/rejected/quarantined target is stochastic or derived from stochastic inputs.
       (Conditional requirement enforced by boundary policy.)
@@ -134,11 +134,11 @@ properties:
   # Outcome + reasons
   # ---------------------------
   outcome:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/ingestion_outcome"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/ingestion_outcome"
     description: "Boundary decision outcome."
 
   reason_codes:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
     description: >
       Machine-readable reason codes. MUST be non-empty when outcome is REJECTED or QUARANTINED.
       MAY be empty when outcome is ACCEPTED.
@@ -164,29 +164,29 @@ properties:
         maxLength: 128
         description: "What key was reused (e.g., 'event_id')."
       conflict_value:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
         description: "The reused key value (opaque)."
       existing_target_ref:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
         description: "Reference to the previously admitted/known target instance."
       existing_target_digest:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
         description: "Digest of the previously admitted/known target instance."
       existing_receipt_ref:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
         description: "Optional reference to the previously issued receipt (if addressable)."
       notes:
-        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
 
   # ---------------------------
   # Optional notes + extensions
   # ---------------------------
   notes:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
     description: "Optional human-readable summary."
 
   extensions:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
     description: "Optional additive metadata; must not contradict canonical fields."
 
 allOf:

@@ -1,5 +1,5 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml"
+$id: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml"
 title: "Cross-cutting Rails — HashGate Receipt"
 description: >
   Canonical receipt for HashGate verification outcomes (PASS/FAIL), bound to an exact
@@ -29,25 +29,25 @@ properties:
   # Schema authority (self)
   # ---------------------------
   schema_ref:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
     description: "Pinned reference to the authoritative schema governing this HashGate receipt."
 
   # ---------------------------
   # Receipt identity
   # ---------------------------
   receipt_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/receipt_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/receipt_id"
     description: "Unique identifier for this receipt instance."
 
   # ---------------------------
   # Outcome
   # ---------------------------
   gate_outcome:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/hashgate_outcome"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/hashgate_outcome"
     description: "HashGate verification outcome."
 
   reason_codes:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
     description: >
       Reason codes. MUST be non-empty when gate_outcome=FAIL.
       MAY be empty when gate_outcome=PASS.
@@ -56,27 +56,27 @@ properties:
   # Validator provenance
   # ---------------------------
   validator_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validator_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validator_id"
   validator_version:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validator_version"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/validator_version"
   verified_at:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
 
   # ---------------------------
   # Target binding (what was gated)
   # ---------------------------
   target_ref:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
     description: >
       Reference to the gated target (bundle path, surface URI, stream checkpoint, etc.).
 
   target_digest:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
     description: "Digest (or digest-set reference) that binds this receipt to the exact target instance."
 
   # Optional: if the gated target is a multi-file bundle, a manifest reference may be included.
   bundle_manifest_ref:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
     description: "Optional reference to the bundle manifest enumerating gated members and their digests."
 
   # Optional: scope classification (informative but useful)
@@ -89,15 +89,15 @@ properties:
   # Canonical identity tuple
   # ---------------------------
   parameter_hash:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
   manifest_fingerprint:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
   scenario_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
   run_id:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
   seed:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
     description: >
       Present when the gated target is stochastic or derived from stochastic inputs.
       (Conditional requirement enforced by validator policy.)
@@ -110,7 +110,7 @@ properties:
     minItems: 0
     maxItems: 512
     items:
-      $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+      $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
     uniqueItems: true
     description: >
       Optional references to upstream PASS receipts that this validation relied on.
@@ -119,11 +119,11 @@ properties:
   # Extensions / notes (optional)
   # ---------------------------
   notes:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/nonempty_string"
     description: "Optional human-readable summary for audit/debug."
 
   extensions:
-    $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
     description: "Optional additive metadata; must not contradict canonical fields."
 
 allOf:
