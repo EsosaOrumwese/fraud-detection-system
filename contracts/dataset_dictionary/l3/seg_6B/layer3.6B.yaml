@@ -1,0 +1,650 @@
+# Dataset dictionary for Layer-3 / Segment 6B
+
+# --- S0: gate & sealed inputs ---
+
+- id: s0_gate_receipt_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint
+    summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+  partitioning: [fingerprint]
+  primary_key: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
+  lineage:
+    produced_by: [ '6B.S0' ]
+    consumed_by: [ '6B.S1', '6B.S2', '6B.S3', '6B.S4', '6B.S5', '4A', '4B' ]
+
+- id: sealed_inputs_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Sealed list of all artefacts 6B is allowed to read for a given
+    manifest_fingerprint, with roles, schema_refs and digests.
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+  partitioning: [fingerprint]
+  primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]
+  ordering: [owner_layer, owner_segment, manifest_key]
+  schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
+  lineage:
+    produced_by: [ '6B.S0' ]
+    consumed_by: [ '6B.S1', '6B.S2', '6B.S3', '6B.S4', '6B.S5' ]
+
+# --- S0 sealed inputs (policy/config) ---
+
+- id: attachment_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Attachment policy for entity selection and linking (S1).
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/attachment_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/attachment_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1' ]
+
+- id: sessionisation_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Session key and inactivity gap policy (S1).
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/sessionisation_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/sessionisation_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1' ]
+
+- id: behaviour_config_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: optional
+  description: Optional feature flags and guardrails for 6B behaviour.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/behaviour_config_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/behaviour_config_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1', '6B.S2', '6B.S3', '6B.S4', '6B.S5' ]
+
+- id: behaviour_prior_pack_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Behaviour priors pack for 6B (distributions/parameters used by S1-S4; sealed by S0).
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/behaviour_prior_pack_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/behaviour_prior_pack_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1', '6B.S2', '6B.S3', '6B.S4' ]
+
+- id: rng_profile_layer3
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Layer-3 RNG profile (Philox parameters and invariants).
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/rng_profile_layer3.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/rng_profile_layer3
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1', '6B.S2', '6B.S3', '6B.S4' ]
+
+- id: rng_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: RNG family mapping for S1 decision families.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/rng_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/rng_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S1' ]
+
+- id: flow_shape_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Flow shape policy for S2.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/flow_shape_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/flow_shape_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S2' ]
+
+- id: amount_model_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Amount model policy for S2.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/amount_model_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/amount_model_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S2' ]
+
+- id: timing_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Timing policy for S2.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/timing_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/timing_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S2' ]
+
+- id: flow_rng_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: RNG policy for S2 flows.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/flow_rng_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/flow_rng_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S2' ]
+
+- id: fraud_campaign_catalogue_config_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Fraud campaign catalogue configuration for S3.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/fraud_campaign_catalogue_config_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/fraud_campaign_catalogue_config_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S3' ]
+
+- id: fraud_overlay_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Fraud overlay policy for S3.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/fraud_overlay_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/fraud_overlay_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S3' ]
+
+- id: fraud_rng_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: RNG policy for S3 fraud overlays.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/fraud_rng_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/fraud_rng_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S3' ]
+
+- id: truth_labelling_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Truth labelling policy for S4.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/truth_labelling_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/truth_labelling_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S4' ]
+
+- id: bank_view_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Bank-view policy for S4.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/bank_view_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/bank_view_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S4' ]
+
+- id: delay_models_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Delay models for S4.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/delay_models_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/delay_models_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S4' ]
+
+- id: case_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Case policy for S4.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/case_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/case_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S4' ]
+
+- id: label_rng_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: RNG policy for S4 labelling.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/label_rng_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/label_rng_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S4' ]
+
+- id: segment_validation_policy_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: Segment validation policy for S5.
+  version: 'v1'
+  format: yaml
+  path: config/layer3/6B/segment_validation_policy_6B.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.6B.yaml#/policy/segment_validation_policy_6B
+  lineage:
+    produced_by: []
+    consumed_by: [ '6B.S0', '6B.S5' ]
+
+# --- S1: arrivals → entities & sessions ---
+
+- id: s1_arrival_entities_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Arrival events from 5B enriched with entity attachments and session
+    identifiers for Layer-3 behaviour; one row per arrival.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - merchant_id
+    - arrival_seq
+  ordering: [seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
+  schema_ref: schemas.6B.yaml#/s1/arrival_entities_6B
+  lineage:
+    produced_by: [ '6B.S1' ]
+    consumed_by: [ '6B.S2', '6B.S3', '6B.S4', '6B.S5' ]
+
+- id: s1_session_index_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Session index for 6B arrivals; one row per session with party/device/IP
+    relationships and anchor metadata.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - session_id
+  ordering: [seed, manifest_fingerprint, scenario_id, session_id]
+  schema_ref: schemas.6B.yaml#/s1/session_index_6B
+  lineage:
+    produced_by: [ '6B.S1' ]
+    consumed_by: [ '6B.S2', '6B.S3', '6B.S4', '6B.S5' ]
+
+# --- S2: baseline flows & events ---
+
+- id: s2_flow_anchor_baseline_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Baseline flow anchors (all-legit) for 6B. One row per flow_id per
+    (seed, manifest_fingerprint, scenario_id).
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
+  schema_ref: schemas.6B.yaml#/s2/flow_anchor_baseline_6B
+  lineage:
+    produced_by: [ '6B.S2' ]
+    consumed_by: [ '6B.S3', '6B.S4', '6B.S5' ]
+
+- id: s2_event_stream_baseline_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Baseline event stream for each flow (auth/clearing/refund/etc.).
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+    - event_seq
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
+  schema_ref: schemas.6B.yaml#/s2/event_stream_baseline_6B
+  lineage:
+    produced_by: [ '6B.S2' ]
+    consumed_by: [ '6B.S3', '6B.S4', '6B.S5' ]
+
+# --- S3: fraud overlays ---
+
+- id: s3_campaign_catalogue_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Catalogue of realised fraud/abuse campaigns with campaign_id, fraud_type,
+    parameters and the flows affected.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - campaign_id
+  ordering: [campaign_id]
+  schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
+  lineage:
+    produced_by: [ '6B.S3' ]
+    consumed_by: [ '6B.S4', '6B.S5' ]
+
+- id: s3_flow_anchor_with_fraud_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Flow anchors after fraud overlays and campaign adjustments are applied.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
+  schema_ref: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
+  lineage:
+    produced_by: [ '6B.S3' ]
+    consumed_by: [ '6B.S4', '6B.S5' ]
+
+- id: s3_event_stream_with_fraud_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Event stream after fraud overlays. Contains synthetic fraud behaviours
+    for training/labelling flows.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+    - event_seq
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
+  schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
+  lineage:
+    produced_by: [ '6B.S3' ]
+    consumed_by: [ '6B.S4', '6B.S5' ]
+
+# --- S4: truth labels, bank view, case timeline ---
+
+- id: s4_flow_truth_labels_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Flow-level ground truth labels used by 4A/4B and model training.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
+  schema_ref: schemas.6B.yaml#/s4/flow_truth_labels_6B
+  lineage:
+    produced_by: [ '6B.S4' ]
+    consumed_by: [ '6B.S5', '4A', '4B', 'model_training' ]
+
+- id: s4_flow_bank_view_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Bank-view classification of each flow (what the institution sees / would act on).
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id]
+  schema_ref: schemas.6B.yaml#/s4/flow_bank_view_6B
+  lineage:
+    produced_by: [ '6B.S4' ]
+    consumed_by: [ '6B.S5', '4A', '4B', 'model_training' ]
+
+- id: s4_event_labels_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Event-level truth and bank-view labels keyed to s3_event_stream_with_fraud_6B.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+    - event_seq
+  ordering: [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
+  schema_ref: schemas.6B.yaml#/s4/event_labels_6B
+  lineage:
+    produced_by: [ '6B.S4' ]
+    consumed_by: [ '6B.S5', '4A', '4B', 'model_training' ]
+
+- id: s4_case_timeline_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Case timeline events for flows promoted to manual review or automated cases.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
+  format: parquet
+  path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+  partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+  primary_key:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - case_id
+    - case_event_seq
+  ordering: [case_id, case_event_seq]
+  schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
+  lineage:
+    produced_by: [ '6B.S4' ]
+    consumed_by: [ '6B.S5', '4A', '4B', 'model_training' ]
+
+# --- S5: validation artefacts ---
+
+- id: s5_validation_report_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Segment 6B world-level validation report; one JSON document summarising
+    the results of S5 checks across S1-S4 artefacts.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+  partitioning: [fingerprint]
+  primary_key: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer3.yaml#/validation/6B/s5_validation_report
+  lineage:
+    produced_by: [ '6B.S5' ]
+    consumed_by: [ '6B.S5_bundle', '4A', '4B', 'ops_tooling' ]
+
+- id: s5_issue_table_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: optional
+  description: >
+    Structured list of validation issues for 6B (one row per failing/warning check).
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+  partitioning: [fingerprint]
+  primary_key:
+    - manifest_fingerprint
+    - check_id
+    - issue_id
+  ordering: [manifest_fingerprint, check_id, issue_id]
+  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
+  lineage:
+    produced_by: [ '6B.S5' ]
+    consumed_by: [ '6B.S5_bundle', 'ops_tooling' ]
+
+- id: validation_bundle_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    World-level validation bundle for Segment 6B; directory of validation artefacts
+    plus index.json and _passed.flag.
+  version: '{manifest_fingerprint}'
+  format: directory
+  path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  primary_key: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
+  lineage:
+    produced_by: [ '6B.S5' ]
+    consumed_by: [ '6B.S5', '4A', '4B', 'ops_tooling' ]
+
+- id: validation_passed_flag_6B
+  owner_layer: 3
+  owner_segment: 6B
+  status: required
+  description: >
+    Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  primary_key: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
+  lineage:
+    produced_by: [ '6B.S5' ]
+    consumed_by: [ '6B.S5', '4A', '4B', 'ops_tooling' ]

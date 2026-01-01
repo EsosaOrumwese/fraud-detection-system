@@ -15,6 +15,8 @@ from .segment1a import main as run_segment1a
 from .segment2a import main as run_segment2a
 from .segment2b import main as run_segment2b
 from .segment3a import main as run_segment3a
+from .segment6a import main as run_segment6a
+from .segment6b import main as run_segment6b
 
 __all__ = [
     'run_s0_foundations',
@@ -26,4 +28,6 @@ __all__ = [
     'run_segment2a',
     'run_segment2b',
     'run_segment3a',
+    'run_segment6a',
+    'run_segment6b',
 ]

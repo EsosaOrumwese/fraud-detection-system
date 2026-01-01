@@ -1,0 +1,153 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: schemas.6B.yaml
+title: "Layer-3 / Segment 6B — business dataset schemas"
+description: >-
+  Anchors for the Layer-3 / Segment 6B business datasets (S1–S4). Each anchor
+  will be fleshed out with concrete properties as implementation proceeds.
+type: object
+additionalProperties: false
+
+policy:
+  description: "6B policy/config inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    attachment_policy_6B:
+      $id: "#/policy/attachment_policy_6B"
+      type: object
+      description: "Attachment policy for entity selection and linking (S1)."
+    sessionisation_policy_6B:
+      $id: "#/policy/sessionisation_policy_6B"
+      type: object
+      description: "Session key + inactivity gap policy (S1)."
+    behaviour_config_6B:
+      $id: "#/policy/behaviour_config_6B"
+      type: object
+      description: "Optional feature flags and guardrails for 6B."
+    behaviour_prior_pack_6B:
+      $id: "#/policy/behaviour_prior_pack_6B"
+      type: object
+      description: "Behaviour priors pack for 6B (sealed by S0; used by S1-S4)."
+    rng_profile_layer3:
+      $id: "#/policy/rng_profile_layer3"
+      type: object
+      description: "Layer-3 RNG profile (Philox parameters and invariants)."
+    rng_policy_6B:
+      $id: "#/policy/rng_policy_6B"
+      type: object
+      description: "RNG family mapping for 6B.S1 decision families."
+    flow_shape_policy_6B:
+      $id: "#/policy/flow_shape_policy_6B"
+      type: object
+      description: "Flow shape policy for S2."
+    amount_model_6B:
+      $id: "#/policy/amount_model_6B"
+      type: object
+      description: "Amount model policy for S2."
+    timing_policy_6B:
+      $id: "#/policy/timing_policy_6B"
+      type: object
+      description: "Timing policy for S2."
+    flow_rng_policy_6B:
+      $id: "#/policy/flow_rng_policy_6B"
+      type: object
+      description: "RNG policy for S2 flows."
+    fraud_campaign_catalogue_config_6B:
+      $id: "#/policy/fraud_campaign_catalogue_config_6B"
+      type: object
+      description: "Fraud campaign catalogue configuration for S3."
+    fraud_overlay_policy_6B:
+      $id: "#/policy/fraud_overlay_policy_6B"
+      type: object
+      description: "Fraud overlay policy for S3."
+    fraud_rng_policy_6B:
+      $id: "#/policy/fraud_rng_policy_6B"
+      type: object
+      description: "RNG policy for S3 fraud overlays."
+    truth_labelling_policy_6B:
+      $id: "#/policy/truth_labelling_policy_6B"
+      type: object
+      description: "Truth labelling policy for S4."
+    bank_view_policy_6B:
+      $id: "#/policy/bank_view_policy_6B"
+      type: object
+      description: "Bank-view policy for S4."
+    delay_models_6B:
+      $id: "#/policy/delay_models_6B"
+      type: object
+      description: "Delay models for S4."
+    case_policy_6B:
+      $id: "#/policy/case_policy_6B"
+      type: object
+      description: "Case policy for S4."
+    label_rng_policy_6B:
+      $id: "#/policy/label_rng_policy_6B"
+      type: object
+      description: "RNG policy for S4 labelling."
+    segment_validation_policy_6B:
+      $id: "#/policy/segment_validation_policy_6B"
+      type: object
+      description: "Validation policy for S5."
+
+s1:
+  description: "State 6B.S1 outputs"
+  additionalProperties: false
+  properties:
+    arrival_entities_6B:
+      $id: "#/s1/arrival_entities_6B"
+      type: object
+      description: "Row in s1_arrival_entities_6B (arrival enriched with session + entity attachments)."
+    session_index_6B:
+      $id: "#/s1/session_index_6B"
+      type: object
+      description: "Row in s1_session_index_6B (one session entry with participants and anchor metadata)."
+
+s2:
+  description: "State 6B.S2 outputs"
+  additionalProperties: false
+  properties:
+    flow_anchor_baseline_6B:
+      $id: "#/s2/flow_anchor_baseline_6B"
+      type: object
+      description: "Baseline (all-legit) flow/transaction anchor row."
+    event_stream_baseline_6B:
+      $id: "#/s2/event_stream_baseline_6B"
+      type: object
+      description: "Baseline event stream row for authorisation/clearing/refund events."
+
+s3:
+  description: "State 6B.S3 outputs"
+  additionalProperties: false
+  properties:
+    campaign_catalogue_6B:
+      $id: "#/s3/campaign_catalogue_6B"
+      type: object
+      description: "Fraud/abuse campaign catalogue row."
+    flow_anchor_with_fraud_6B:
+      $id: "#/s3/flow_anchor_with_fraud_6B"
+      type: object
+      description: "Flow anchor row after fraud overlays have been applied."
+    event_stream_with_fraud_6B:
+      $id: "#/s3/event_stream_with_fraud_6B"
+      type: object
+      description: "Event stream row with injected fraud behaviours."
+
+s4:
+  description: "State 6B.S4 outputs"
+  additionalProperties: false
+  properties:
+    flow_truth_labels_6B:
+      $id: "#/s4/flow_truth_labels_6B"
+      type: object
+      description: "Flow-level ground truth row."
+    flow_bank_view_6B:
+      $id: "#/s4/flow_bank_view_6B"
+      type: object
+      description: "Flow view as seen by the bank/institution."
+    event_labels_6B:
+      $id: "#/s4/event_labels_6B"
+      type: object
+      description: "Event-level truth/bank view labels."
+    case_timeline_6B:
+      $id: "#/s4/case_timeline_6B"
+      type: object
+      description: "Timeline of case events produced during adjudication."

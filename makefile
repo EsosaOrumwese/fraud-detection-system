@@ -3,6 +3,11 @@ SHELL := C:/Progra~1/Git/bin/bash.exe
 
 PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
+PYTHONUNBUFFERED ?= 1
+
+# Python command wrappers (unbuffered to keep console output responsive).
+PY_ENGINE = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY)
+PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 
 # Paths and summaries
 RUN_ROOT ?= runs/local_layer1_regen4
@@ -13,6 +18,10 @@ SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
 SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
 SEG3A_RESULT_JSON ?= $(SUMMARY_DIR)/segment3a_result.json
 SEG3B_RESULT_JSON ?= $(SUMMARY_DIR)/segment3b_result.json
+SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
+SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
+SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
+SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
 RUN_ID ?= run-0
 LOG ?= $(RUN_ROOT)/run_log_regen4.log
 SEED ?= 2025121401
@@ -56,7 +65,7 @@ SEG1A_ARGS = \
 	--stage-seg1b-refs \
 	--result-json $(RESULT_JSON) \
 	$(SEG1A_EXTRA)
-SEG1A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1a $(SEG1A_ARGS)
+SEG1A_CMD = $(PY_ENGINE) -m engine.cli.segment1a $(SEG1A_ARGS)
 
 # Segment 1B
 SEG1B_BASIS ?= population
@@ -78,7 +87,7 @@ SEG1B_ARGS = \
 	--result-json $(SEG1B_RESULT_JSON) \
 	--quiet-summary \
 	$(SEG1B_EXTRA)
-SEG1B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
+SEG1B_CMD = $(PY_ENGINE) -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 # Segment 2A
 SEG2A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml
@@ -109,7 +118,7 @@ SEG2A_ARGS = \
 	--result-json $(SEG2A_RESULT_JSON) \
 	--quiet-summary \
 	$(SEG2A_EXTRA)
-SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
+SEG2A_CMD = $(PY_ENGINE) -m engine.cli.segment2a $(SEG2A_ARGS)
 
 # Segment 2B
 SEG2B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml
@@ -229,7 +238,7 @@ SEG2B_ARGS = \
 	--result-json "$(SEG2B_RESULT_JSON)" \
 	--quiet-summary \
 	$(SEG2B_EXTRA)
-SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
+SEG2B_CMD = $(PY_ENGINE) -m engine.cli.segment2b $(SEG2B_ARGS)
 
 # Segment 3A
 SEG3A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3A/layer1.3A.yaml
@@ -254,7 +263,7 @@ SEG3A_ARGS = \
 	--result-json "$(SEG3A_RESULT_JSON)" \
 	--quiet-summary \
 	$(SEG3A_EXTRA)
-SEG3A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3a $(SEG3A_ARGS)
+SEG3A_CMD = $(PY_ENGINE) -m engine.cli.segment3a $(SEG3A_ARGS)
 
 # Segment 3B
 SEG3B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml
@@ -292,10 +301,9 @@ SEG3B_ARGS = \
 	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
 	--result-json "$(SEG3B_RESULT_JSON)" \
 	$(SEG3B_EXTRA)
-SEG3B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment3b $(SEG3B_ARGS)
+SEG3B_CMD = $(PY_ENGINE) -m engine.cli.segment3b $(SEG3B_ARGS)
 
 # Segment 5A
-SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5A_DICTIONARY ?= contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml
 SEG5A_ARGS = \
 	--data-root "$(RUN_ROOT)" \
@@ -310,44 +318,104 @@ SEG5A_ARGS = \
 	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
 	--validation-bundle-3b "$$VALIDATION_BUNDLE_3B" \
 	--result-json "$(SEG5A_RESULT_JSON)"
-SEG5A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment5a $(SEG5A_ARGS)
+SEG5A_CMD = $(PY_ENGINE) -m engine.cli.segment5a $(SEG5A_ARGS)
 
-MERCHANT_BUILD_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) scripts/build_transaction_schema_merchant_ids.py \
+# Segment 5B
+SEG5B_DICTIONARY ?= contracts/dataset_dictionary/l2/seg_5B/layer2.5B.yaml
+SEG5B_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--seed $(SEED) \
+	--run-id "$(RUN_ID)" \
+	--dictionary-path "$(SEG5B_DICTIONARY)" \
+	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
+	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
+	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--validation-bundle-2b "$$VALIDATION_BUNDLE_2B" \
+	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
+	--validation-bundle-3b "$$VALIDATION_BUNDLE_3B" \
+	--validation-bundle-5a "$$VALIDATION_BUNDLE_5A" \
+	--result-json "$(SEG5B_RESULT_JSON)"
+SEG5B_CMD = $(PY_ENGINE) -m engine.cli.segment5b $(SEG5B_ARGS)
+
+# Segment 6A
+SEG6A_DICTIONARY ?= contracts/dataset_dictionary/l3/seg_6A/layer3.6A.yaml
+SEG6A_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--seed $(SEED) \
+	--run-id "$(RUN_ID)" \
+	--dictionary-path "$(SEG6A_DICTIONARY)" \
+	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
+	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
+	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--validation-bundle-2b "$$VALIDATION_BUNDLE_2B" \
+	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
+	--validation-bundle-3b "$$VALIDATION_BUNDLE_3B" \
+	--validation-bundle-5a "$$VALIDATION_BUNDLE_5A" \
+	--validation-bundle-5b "$$VALIDATION_BUNDLE_5B" \
+	--result-json "$(SEG6A_RESULT_JSON)"
+SEG6A_CMD = $(PY_ENGINE) -m engine.cli.segment6a $(SEG6A_ARGS)
+
+# Segment 6B
+SEG6B_DICTIONARY ?= contracts/dataset_dictionary/l3/seg_6B/layer3.6B.yaml
+SEG6B_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--seed $(SEED) \
+	--run-id "$(RUN_ID)" \
+	--dictionary-path "$(SEG6B_DICTIONARY)" \
+	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
+	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
+	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--validation-bundle-2b "$$VALIDATION_BUNDLE_2B" \
+	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
+	--validation-bundle-3b "$$VALIDATION_BUNDLE_3B" \
+	--validation-bundle-5a "$$VALIDATION_BUNDLE_5A" \
+	--validation-bundle-5b "$$VALIDATION_BUNDLE_5B" \
+	--validation-bundle-6a "$$VALIDATION_BUNDLE_6A" \
+	--result-json "$(SEG6B_RESULT_JSON)"
+SEG6B_CMD = $(PY_ENGINE) -m engine.cli.segment6b $(SEG6B_ARGS)
+
+MERCHANT_BUILD_CMD = $(PY_ENGINE) scripts/build_transaction_schema_merchant_ids.py \
 	--version $(MERCHANT_VERSION) \
 	--iso-version $(MERCHANT_ISO_VERSION) \
 	--gdp-version $(MERCHANT_GDP_VERSION) \
 	--bucket-version $(MERCHANT_BUCKET_VERSION)
 
-HURDLE_EXPORT_CMD = $(PY) scripts/build_hurdle_exports.py
-CURRENCY_REF_CMD = $(PY) scripts/build_currency_reference_surfaces.py
-VIRTUAL_EDGE_POLICY_CMD = $(PY) scripts/build_virtual_edge_policy_v1.py
-ZONE_FLOOR_POLICY_CMD = $(PY) scripts/build_zone_floor_policy_3a.py
-COUNTRY_ZONE_ALPHAS_CMD = $(PY) scripts/build_country_zone_alphas_3a.py
-CROSSBORDER_FEATURES_CMD = $(PY) scripts/build_crossborder_features_1a.py
-MERCHANT_CLASS_POLICY_5A_CMD = $(PY) scripts/build_merchant_class_policy_5a.py
-DEMAND_SCALE_POLICY_5A_CMD = $(PY) scripts/build_demand_scale_policy_5a.py
-SHAPE_LIBRARY_5A_CMD = $(PY) scripts/build_shape_library_5a.py --bucket-minutes 60
+HURDLE_EXPORT_CMD = $(PY_SCRIPT) scripts/build_hurdle_exports.py
+CURRENCY_REF_CMD = $(PY_SCRIPT) scripts/build_currency_reference_surfaces.py
+VIRTUAL_EDGE_POLICY_CMD = $(PY_SCRIPT) scripts/build_virtual_edge_policy_v1.py
+ZONE_FLOOR_POLICY_CMD = $(PY_SCRIPT) scripts/build_zone_floor_policy_3a.py
+COUNTRY_ZONE_ALPHAS_CMD = $(PY_SCRIPT) scripts/build_country_zone_alphas_3a.py
+CROSSBORDER_FEATURES_CMD = $(PY_SCRIPT) scripts/build_crossborder_features_1a.py
+MERCHANT_CLASS_POLICY_5A_CMD = $(PY_SCRIPT) scripts/build_merchant_class_policy_5a.py
+DEMAND_SCALE_POLICY_5A_CMD = $(PY_SCRIPT) scripts/build_demand_scale_policy_5a.py
+SHAPE_LIBRARY_5A_CMD = $(PY_SCRIPT) scripts/build_shape_library_5a.py --bucket-minutes 60
 SCENARIO_CAL_FINGERPRINT ?= e22b195ba9fa8ed582f4669a26009c67637760bfe3b51c9ac77af92b6aa572e9
 SCENARIO_CAL_ZONE_ALLOC ?= runs/local_layer1_regen4/data/layer1/3A/zone_alloc/seed=2025121401/fingerprint=$(SCENARIO_CAL_FINGERPRINT)/part-0.parquet
-SCENARIO_CAL_CMD = $(PY) scripts/build_scenario_calendar_5a.py --manifest-fingerprint $(SCENARIO_CAL_FINGERPRINT) --zone-alloc-path $(SCENARIO_CAL_ZONE_ALLOC)
+SCENARIO_CAL_CMD = $(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint $(SCENARIO_CAL_FINGERPRINT) --zone-alloc-path $(SCENARIO_CAL_ZONE_ALLOC)
 CDN_WEIGHTS_EXT_VINTAGE = WDI_ITU_internet_users_share_2024
 CDN_WEIGHTS_EXT_YEAR = 2024
-CDN_WEIGHTS_EXT_CMD = $(PY) scripts/build_cdn_weights_ext_yaml.py --vintage $(CDN_WEIGHTS_EXT_VINTAGE) --vintage-year $(CDN_WEIGHTS_EXT_YEAR)
-MCC_CHANNEL_RULES_CMD = $(PY) scripts/build_mcc_channel_rules_3b.py
-CDN_COUNTRY_WEIGHTS_CMD = $(PY) scripts/build_cdn_country_weights_3b.py
-VIRTUAL_VALIDATION_CMD = $(PY) scripts/build_virtual_validation_3b.py
-CDN_KEY_DIGEST_CMD = $(PY) scripts/build_cdn_key_digest_3b.py
+CDN_WEIGHTS_EXT_CMD = $(PY_SCRIPT) scripts/build_cdn_weights_ext_yaml.py --vintage $(CDN_WEIGHTS_EXT_VINTAGE) --vintage-year $(CDN_WEIGHTS_EXT_YEAR)
+MCC_CHANNEL_RULES_CMD = $(PY_SCRIPT) scripts/build_mcc_channel_rules_3b.py
+CDN_COUNTRY_WEIGHTS_CMD = $(PY_SCRIPT) scripts/build_cdn_country_weights_3b.py
+VIRTUAL_VALIDATION_CMD = $(PY_SCRIPT) scripts/build_virtual_validation_3b.py
+CDN_KEY_DIGEST_CMD = $(PY_SCRIPT) scripts/build_cdn_key_digest_3b.py
 HRSL_VINTAGE = HRSL_2025-12-31
 HRSL_SEMVER = 1.0.0
-HRSL_RASTER_CMD = $(PY) scripts/build_hrsl_raster_3b.py --vintage $(HRSL_VINTAGE) --semver $(HRSL_SEMVER)
+HRSL_RASTER_CMD = $(PY_SCRIPT) scripts/build_hrsl_raster_3b.py --vintage $(HRSL_VINTAGE) --semver $(HRSL_SEMVER)
 PELIAS_VERSION = 2025-12-31
-PELIAS_CACHED_CMD = $(PY) scripts/build_pelias_cached_sqlite_3b.py --pelias-version $(PELIAS_VERSION)
-VIRTUAL_SETTLEMENT_CMD = $(PY) scripts/build_virtual_settlement_coords_3b.py
+PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --pelias-version $(PELIAS_VERSION)
+VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 
-all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
+all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 merchant_ids:
 	@echo "Building transaction_schema_merchant_ids version $(MERCHANT_VERSION)"
@@ -429,6 +497,7 @@ virtual_settlement_coords:
 	$(VIRTUAL_SETTLEMENT_CMD)
 
 segment1a:
+	@echo "Running Segment 1A (S0-S9)"
 	@mkdir -p "$(RUN_ROOT)"
 	@mkdir -p "$(SUMMARY_DIR)"
 ifeq ($(strip $(LOG)),)
@@ -439,6 +508,7 @@ else
 endif
 
 segment1b:
+	@echo "Running Segment 1B (S0-S9)"
 	@if [ ! -f "$(RESULT_JSON)" ]; then \
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
@@ -453,6 +523,7 @@ segment1b:
 	 fi
 
 segment2a:
+	@echo "Running Segment 2A (S0-S5)"
 	@if [ ! -f "$(RESULT_JSON)" ]; then \
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
@@ -490,6 +561,7 @@ segment2a:
 	 fi
 
 segment2b:
+	@echo "Running Segment 2B (S0-S8)"
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
 		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
 		exit 1; \
@@ -520,6 +592,7 @@ segment2b:
 	 fi
 
 segment3a:
+	@echo "Running Segment 3A (S0-S7)"
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
 		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
 		exit 1; \
@@ -547,6 +620,7 @@ segment3a:
 	 fi
 
 segment3b:
+	@echo "Running Segment 3B (S0-S5)"
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/3A" ]; then \
 		echo "Segment 3A outputs not found under '$(RUN_ROOT)/data/layer1/3A'. Run 'make segment3a' first." >&2; \
 		exit 1; \
@@ -576,6 +650,7 @@ segment3b:
 	 fi
 
 segment5a:
+	@echo "Running Segment 5A (S0-S5)"
 	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
 		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
 		exit 1; \
@@ -595,11 +670,80 @@ segment5a:
 		$(SEG5A_CMD); \
 	 fi
 
+segment5b:
+	@echo "Running Segment 5B (S0-S5)"
+	@if [ ! -f "$(SEG5A_RESULT_JSON)" ]; then \
+		echo "Segment 5A summary '$(SEG5A_RESULT_JSON)' not found. Run 'make segment5a' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_5A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG5B_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG5B_CMD); \
+	 fi
+
+segment6a:
+	@echo "Running Segment 6A (S0-S5)"
+	@if [ ! -f "$(SEG5B_RESULT_JSON)" ]; then \
+		echo "Segment 5B summary '$(SEG5B_RESULT_JSON)' not found. Run 'make segment5b' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_5A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_5B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG6A_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG6A_CMD); \
+	 fi
+
+segment6b:
+	@echo "Running Segment 6B (S0-S5)"
+	@if [ ! -f "$(SEG6A_RESULT_JSON)" ]; then \
+		echo "Segment 6A summary '$(SEG6A_RESULT_JSON)' not found. Run 'make segment6a' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_5A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_5B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 VALIDATION_BUNDLE_6A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer3/6A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG6B_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG6B_CMD); \
+	 fi
+
 profile-all:
-	PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
+	$(PY_ENGINE) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
-	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
+	 $(PY_ENGINE) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 profile-seg1b:
 	@if [ ! -f "$(RESULT_JSON)" ]; then \
@@ -608,7 +752,7 @@ profile-seg1b:
 	fi
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
-	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
+	 $(PY_ENGINE) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 clean-results:
 	rm -rf "$(SUMMARY_DIR)"

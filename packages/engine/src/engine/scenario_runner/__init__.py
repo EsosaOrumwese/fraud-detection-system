@@ -7,6 +7,9 @@ from .l1_seg_2B import Segment2BConfig, Segment2BOrchestrator, Segment2BResult
 from .l1_seg_3A import Segment3AConfig, Segment3AOrchestrator, Segment3AResult
 from .l1_seg_3B import Segment3BConfig, Segment3BOrchestrator, Segment3BResult
 from .l2_seg_5A import Segment5AConfig, Segment5AOrchestrator, Segment5AResult
+from .l2_seg_5B import Segment5BConfig, Segment5BOrchestrator, Segment5BResult
+from .l3_seg_6A import Segment6AConfig, Segment6AOrchestrator, Segment6AResult
+from .l3_seg_6B import Segment6BConfig, Segment6BOrchestrator, Segment6BResult
 from .l1_seg_1A_contexts import (
     HurdleStateContext,
     S2StateContext,
@@ -59,6 +62,15 @@ __all__ = [
     "Segment5AConfig",
     "Segment5AOrchestrator",
     "Segment5AResult",
+    "Segment5BConfig",
+    "Segment5BOrchestrator",
+    "Segment5BResult",
+    "Segment6AConfig",
+    "Segment6AOrchestrator",
+    "Segment6AResult",
+    "Segment6BConfig",
+    "Segment6BOrchestrator",
+    "Segment6BResult",
     "build_hurdle_context",
     "build_s2_context",
     "build_s3_context",
