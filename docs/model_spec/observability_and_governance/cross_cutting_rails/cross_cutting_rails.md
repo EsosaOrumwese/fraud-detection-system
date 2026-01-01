@@ -1,4 +1,16 @@
-# Platform Rails: Invariants & Canonical Interfaces
+# Cross-cutting Rails (Platform Invariants)
+
+| Field | Value |
+|---|---|
+| **Title** | Cross-cutting Rails (Platform Invariants) |
+| **Spec class** | Binding |
+| **Status** | DRAFT |
+| **Effective date** | <YYYY-MM-DD> |
+| **Spec version** | vMAJOR.MINOR |
+| **Owner** | <team/role> |
+| **Review cadence** | <per release \| quarterly> |
+| **Last updated** | <YYYY-MM-DDTHH:MM:SSZ> |
+| **Change log pointer** | git history |
 
 ## 0. Front matter (Binding)
 
@@ -1099,44 +1111,34 @@ Therefore:
 
 ### 8.4 Canonical receipt fields (minimum required)
 
-Every receipt (of any class) MUST include, at minimum:
+Receipts come in multiple classes (ingestion vs HashGate verification). The platform pins:
+1) a **common minimum** that all receipts MUST carry, and
+2) **class-specific** fields pinned by the authoritative receipt schemas under `cross_cutting_rails/contracts/`.
 
-* **Receipt identity**
+#### 8.4.1 Common receipt minimum (applies to all receipt classes)
+Every receipt MUST include, at minimum:
+* **Schema authority (self)**: `schema_ref`
+* **Receipt identity**: `receipt_id`
+* **Target binding**: `target_ref`, `target_digest` (or digest-set reference)
+* **Canonical identity tuple (§3)**: `parameter_hash`, `manifest_fingerprint`, `scenario_id`, `run_id` (and `seed` where applicable)
+* **Reasons**: `reason_codes` (class-specific constraints may require non-empty on failure)
 
-  * `receipt_id` (unique, collision-resistant)
-  * `receipt_type` (e.g., `ingestion`, `hashgate_verification`)
-  * `issued_at` (UTC timestamp)
+#### 8.4.2 Ingestion receipts (additional required fields)
+Ingestion receipts MUST additionally include (see `contracts/ingestion_receipt.schema.*`):
+* `receipt_type` = `ingestion`
+* `issued_at`
+* `issuer_id`, `issuer_version`
+* `target_identity` (for events SHOULD include `event_id`)
+* `validated_schema_ref`
+* `outcome` ∈ {ACCEPTED, REJECTED, QUARANTINED}
 
-* **Issuer provenance**
+#### 8.4.3 HashGate receipts (additional required fields)
+HashGate receipts MUST additionally include (see `contracts/hashgate_receipt.schema.*`):
+* `gate_outcome` ∈ {PASS, FAIL}
+* `validator_id`, `validator_version`
+* `verified_at`
 
-  * `issuer_id` (boundary/validator component identity)
-  * `issuer_version` (build/version identifier)
-
-* **Target binding**
-
-  * `target_ref` (address/URI/topic+partition+offset/checkpoint/path/etc.)
-  * `target_identity` sufficient to identify the target instance:
-
-    * for events: `event_id` (and `producer_id` if needed for uniqueness)
-    * for bundles/surfaces: bundle ref + digest-set pointer
-  * `target_digest` (or digest-set reference) sufficient to bind receipt to exact content
-
-* **Schema authority**
-
-  * `schema_ref` for the receipt itself
-  * `validated_schema_ref` (required when the receipt asserts schema validation occurred at a boundary)
-
-* **Canonical identity tuple (§3)**
-
-  * MUST include: `parameter_hash`, `manifest_fingerprint`, `scenario_id`, `run_id`
-  * MUST include: `seed` where applicable (stochastic targets or stochastic derivation)
-
-* **Outcome + reasons**
-
-  * `outcome` (class-specific; see §8.5 and §5.10 for HashGates)
-  * `reason_codes` (required for non-success outcomes; MAY be empty on success)
-
-A component MAY add additional fields, but MUST NOT rename or redefine these canonical fields.
+A component MAY add additional fields, but MUST NOT rename or redefine any canonical field pinned by the authoritative receipt schemas.
 
 ### 8.5 Outcome vocabularies (pinned)
 
@@ -2373,6 +2375,8 @@ Example `hashgate_receipt.json` (informative shape; aligns with §5.10 minimums)
 
 ```json
 {
+  "schema_ref": "docs/model_spec/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml#v1.0",
+  "receipt_id": "rcpt_01JHNHK5ZP8Y6R1W3Q9T4B2C7D",
   "gate_outcome": "PASS",
   "validator_id": "engine_validation",
   "validator_version": "2025.12.31+build.9001",
@@ -2394,6 +2398,8 @@ Example `hashgate_receipt.json` (informative shape; aligns with §5.10 minimums)
 
 ```json
 {
+  "schema_ref": "docs/model_spec/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml#v1.0",
+  "receipt_id": "rcpt_01JHNHM0H7D3X9K1P2Q8R6S5T4",
   "gate_outcome": "FAIL",
   "validator_id": "engine_validation",
   "validator_version": "2025.12.31+build.9001",

@@ -36,7 +36,8 @@ $defs:
   utc_timestamp:
     type: string
     format: date-time
-    description: "UTC timestamp in RFC3339 format (date-time)."
+    pattern: "Z$"
+    description: "UTC timestamp in RFC3339 format (date-time), must end with 'Z'."
 
   utc_timestamp_or_null:
     description: "UTC timestamp (RFC3339) or null (e.g., not yet set at emission)."

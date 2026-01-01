@@ -115,6 +115,9 @@ properties:
       platform.degraded:
         type: boolean
         description: "True if event produced in a degraded mode (see rails §10)."
+      platform.classification:
+        $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/classification"
+        description: "Optional data classification tag for routing/access posture (rails §9)."
       platform.degrade_mode:
         $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/degrade_mode"
       platform.degrade_reason_codes:
