@@ -491,14 +491,14 @@ class S0GateRunner:
                 raise DictionaryError(f"dataset '{dataset_id}' missing path template")
             path = repo_root / path_template
             if not path.exists():
-                raise FileNotFoundError(f"required config missing for 6A: {path}")
+                raise FileNotFoundError(f"required config missing for 6B: {path}")
             sha256_hex = self._hash_paths([path])
-            manifest_key = self._registry_manifest_key("6A", path_template)
+            manifest_key = self._registry_manifest_key("6B", path_template)
             rows.append(
                 {
                     "manifest_fingerprint": inputs.manifest_fingerprint,
                     "owner_layer": 3,
-                    "owner_segment": "6A",
+                    "owner_segment": "6B",
                     "manifest_key": manifest_key or f"mlr.6B.config.{dataset_id}",
                     "path_template": path_template,
                     "partition_keys": list(parse_partition_keys(path_template)),
@@ -593,7 +593,7 @@ class S0GateRunner:
                 {
                     "manifest_fingerprint": manifest_fingerprint,
                     "owner_layer": 3,
-                    "owner_segment": "6A",
+                    "owner_segment": "6B",
                     "manifest_key": f"mlr.6B.contract.{spec['logical_id']}",
                     "path_template": path_template,
                     "partition_keys": [],

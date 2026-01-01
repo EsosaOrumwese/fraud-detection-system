@@ -11,10 +11,9 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 import polars as pl
-import yaml
 
-from engine.layers.l3.seg_6B.shared.control_plane import SealedInventory, load_control_plane
-from engine.layers.l3.seg_6B.shared.dictionary import get_dataset_entry, load_dictionary, render_dataset_path, repository_root
+from engine.layers.l3.seg_6B.shared.control_plane import load_control_plane
+from engine.layers.l3.seg_6B.shared.dictionary import get_dataset_entry, load_dictionary, render_dataset_path
 
 logger = logging.getLogger(__name__)
 
@@ -45,26 +44,15 @@ class ValidationRunner:
 
     def run(self, inputs: ValidationInputs) -> ValidationOutputs:
         dictionary = load_dictionary(inputs.dictionary_path)
-        repo_root = repository_root()
-        receipt, sealed_df = load_control_plane(
+        receipt, _ = load_control_plane(
             data_root=inputs.data_root,
             manifest_fingerprint=inputs.manifest_fingerprint,
             parameter_hash=inputs.parameter_hash,
             dictionary_path=inputs.dictionary_path,
         )
-        inventory = SealedInventory(
-            dataframe=sealed_df,
-            base_path=inputs.data_root,
-            repo_root=repo_root,
-            template_args={
-                "manifest_fingerprint": inputs.manifest_fingerprint,
-                "parameter_hash": inputs.parameter_hash,
-                "seed": str(inputs.seed),
-            },
-        )
         self._assert_upstream_pass(receipt.payload)
 
-        scenarios = self._discover_scenarios(inventory, dictionary, sealed_df)
+        scenarios = self._discover_scenarios(inputs, dictionary)
         if not scenarios:
             scenarios = ["baseline"]
 
@@ -135,7 +123,7 @@ class ValidationRunner:
             dictionary=dictionary,
         )
         bundle_dir.mkdir(parents=True, exist_ok=True)
-        index_payload, bundle_digest = self._bundle_index_payload(
+        index_payload, items = self._bundle_index_payload(
             bundle_dir=bundle_dir,
             report_path=report_path,
             issue_table_path=issue_table_path,
@@ -143,6 +131,10 @@ class ValidationRunner:
         )
         bundle_index_path = bundle_dir / "index.json"
         bundle_index_path.write_text(json.dumps(index_payload, indent=2, sort_keys=True), encoding="utf-8")
+        bundle_digest = self._bundle_digest(
+            items + [self._bundle_item(bundle_dir, bundle_index_path, role="index")],
+            bundle_dir,
+        )
 
         passed_flag_path = None
         if overall_status == "PASS":
@@ -168,12 +160,25 @@ class ValidationRunner:
 
     def _discover_scenarios(
         self,
-        inventory: SealedInventory,
+        inputs: ValidationInputs,
         dictionary: Mapping[str, object] | Sequence[object],
-        sealed_df: pl.DataFrame,
     ) -> list[str]:
-        manifest_key = self._manifest_key_for("s1_arrival_entities_6B", dictionary, sealed_df)
-        paths = inventory.resolve_files(manifest_key=manifest_key)
+        entry = get_dataset_entry("s1_arrival_entities_6B", dictionary=dictionary)
+        path_template = str(entry.get("path") or "").strip()
+        if not path_template:
+            return []
+        template_args = {
+            "seed": inputs.seed,
+            "manifest_fingerprint": inputs.manifest_fingerprint,
+            "parameter_hash": inputs.parameter_hash,
+            "run_id": inputs.run_id,
+            "scenario_id": "*",
+        }
+        try:
+            glob_pattern = path_template.format(**template_args)
+        except KeyError as exc:
+            raise ValueError(f"missing template arg {exc} for scenario discovery") from exc
+        paths = list(inputs.data_root.glob(glob_pattern))
         scenarios: set[str] = set()
         for path in paths:
             match = self._SCENARIO_PATTERN.search(path.as_posix())
@@ -265,19 +270,18 @@ class ValidationRunner:
         report_path: Path,
         issue_table_path: Path,
         inputs: ValidationInputs,
-    ) -> tuple[Mapping[str, object], str]:
+    ) -> tuple[Mapping[str, object], list[Mapping[str, object]]]:
         items = [
             self._bundle_item(bundle_dir, report_path, role="validation_report"),
             self._bundle_item(bundle_dir, issue_table_path, role="issue_table"),
         ]
-        digest = self._bundle_digest(items, bundle_dir)
         index_payload = {
             "manifest_fingerprint": inputs.manifest_fingerprint,
             "parameter_hash": inputs.parameter_hash,
             "spec_version_6B": self._SPEC_VERSION,
             "items": items,
         }
-        return index_payload, digest
+        return index_payload, items
 
     @staticmethod
     def _bundle_item(bundle_dir: Path, path: Path, *, role: str) -> Mapping[str, object]:
