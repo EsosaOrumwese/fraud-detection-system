@@ -19,10 +19,11 @@ This router tells you what is binding, what to read first, and which parts of th
 - For 5A+ work hand-in-hand with data-intake (layer-2/layer-3) to author or acquire externals as needed.
 - Pay special attention to run-scoped artefacts: anything dependent on a run-specific manifest fingerprint must be produced inside the run output tree and referenced via the sealing inventory/dictionary so no manual copying is required.
 - Work sequentially, segment by segment, following the order in the guides where data-intake is involved.
+- **Audit + fix mode for 1A-3B:** for each segment, read expanded specs + contracts, then review data-intake (note: 1A and 1B share the same intake folder) to list expected externals and their locations or acquisition/authoring guides, then audit code paths to confirm the implementation consumes the correct artefacts and follows spec intent.
 
 
 Route immediately to:
-   - `docs\model_spec\data-engine\layer-1\specs\data-intake\AGENTS.md` [status:in-progress]
+   - `docs\model_spec\data-engine\layer-1\specs\data-intake\AGENTS.md` [status:complete]
    - `docs\model_spec\data-engine\layer-2\specs\data-intake\AGENTS.md` [status:in-progress]
    - `docs\model_spec\data-engine\layer-3\specs\data-intake\AGENTS.md` [status:in-progress]
 
