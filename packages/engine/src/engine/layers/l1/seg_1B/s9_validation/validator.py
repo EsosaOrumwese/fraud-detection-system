@@ -17,7 +17,7 @@ KEY_COLUMNS = ("merchant_id", "legal_country_iso", "site_order")
 _RNG_FAMILY_CONFIG: Mapping[str, Mapping[str, Any]] = {
     c.RNG_EVENT_SITE_TILE_ASSIGN: {
         "id": "site_tile_assign",
-        "module": "1B.s5_site_tile_assignment",
+        "module": "1B.S5.assigner",
         "substream": "site_tile_assign",
         "expected_blocks": 1,
         "expected_draws": 1,

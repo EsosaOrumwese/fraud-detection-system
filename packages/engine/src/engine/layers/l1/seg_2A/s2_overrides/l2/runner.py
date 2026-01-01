@@ -124,6 +124,7 @@ class OverridesRunner:
             determinism_receipt = load_determinism_receipt(
                 base_path=data_root,
                 manifest_fingerprint=config.manifest_fingerprint,
+                dictionary=dictionary,
             )
             self._emit_event(
                 "GATE",
@@ -153,6 +154,7 @@ class OverridesRunner:
                 data_root=data_root,
                 seed=config.seed,
                 manifest_fingerprint=config.manifest_fingerprint,
+                dictionary=dictionary,
             )
             if output_dir.exists():
                 if config.resume:
@@ -239,6 +241,7 @@ class OverridesRunner:
             errors_out: list[dict[str, str]] = []
             run_report_path = self._write_run_report(
                 config=config,
+                dictionary=dictionary,
                 context=context,
                 output_dir=output_dir,
                 receipt=receipt,
@@ -281,6 +284,7 @@ class OverridesRunner:
             warnings_out = sorted(warnings_accum.union(stats.warnings))
             run_report_path = self._write_run_report(
                 config=config,
+                dictionary=dictionary,
                 context=context,
                 output_dir=output_dir,
                 receipt=receipt,
@@ -311,6 +315,7 @@ class OverridesRunner:
             warnings_out = sorted(warnings_accum.union(stats.warnings))
             run_report_path = self._write_run_report(
                 config=config,
+                dictionary=dictionary,
                 context=context,
                 output_dir=output_dir,
                 receipt=receipt,
@@ -390,16 +395,14 @@ class OverridesRunner:
         data_root: Path,
         seed: int,
         manifest_fingerprint: str,
+        dictionary: Mapping[str, object],
     ) -> Path:
-        return (
-            data_root
-            / "reports"
-            / "l1"
-            / "s2_overrides"
-            / f"seed={seed}"
-            / f"fingerprint={manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+        rel_path = render_dataset_path(
+            "s2_run_report_2A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        return (data_root / rel_path).resolve()
 
     def _emit_event(
         self,
@@ -453,6 +456,7 @@ class OverridesRunner:
         self,
         *,
         config: OverridesInputs,
+        dictionary: Mapping[str, object],
         context: OverridesContext | None,
         output_dir: Path | None,
         receipt: GateReceiptSummary | None,
@@ -475,6 +479,7 @@ class OverridesRunner:
             data_root=data_root,
             seed=config.seed,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         finished_at = _utc_now()
         duration_ms = max(0, int((time.perf_counter() - start_wall) * 1000))
@@ -704,13 +709,19 @@ class OverridesRunner:
                 "E_S2_OVERRIDES_MISSING",
                 f"tz_overrides policy missing at '{policy_path}'",
             )
-        payload = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
-        overrides = payload.get("overrides") or []
-        if not isinstance(overrides, list):
-            raise err("E_S2_OVERRIDES_INVALID", "overrides must be an array")
+        payload = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+        if payload is None:
+            overrides = []
+        elif isinstance(payload, list):
+            overrides = payload
+        else:
+            raise err(
+                "E_S2_OVERRIDES_INVALID",
+                "tz_overrides must be a YAML list of override entries",
+            )
 
-        semver = str(payload.get("semver") or "unknown")
-        sha256_declared = str(payload.get("sha256_digest") or "")
+        semver = "unknown"
+        sha256_declared = ""
         sha256_computed = _sha256_file(policy_path)
         meta = OverridePolicyMetadata(
             semver=semver,
@@ -934,6 +945,8 @@ class OverridesRunner:
                 "must have both nudge coordinates set or both null",
             )
         return {
+            "seed": context.seed,
+            "fingerprint": context.manifest_fingerprint,
             "merchant_id": merchant,
             "legal_country_iso": country,
             "site_order": site_order,

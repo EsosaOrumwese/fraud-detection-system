@@ -169,7 +169,7 @@ class AliasTable:
 class S5RouterRunner:
     """High-level runner for state-5."""
 
-    MODULE_NAME = "2B.router"
+    MODULE_NAME = "2B.S5.router"
     GROUP_EVENT_ID = "rng_event_alias_pick_group"
     SITE_EVENT_ID = "rng_event_alias_pick_site"
     RNG_STREAM_ID = "router_core"
@@ -369,12 +369,12 @@ class S5RouterRunner:
                     seed=seed_int,
                     parameter_hash=parameter_hash,
                     manifest=manifest,
+                    run_id=run_id,
                     payload={
                         "merchant_id": merchant_id,
                         "utc_day": utc_day,
                         "tz_group_id": tz_group_str,
                         "p_group": p_group,
-                        "selection_seq": selection_seq,
                     },
                 )
             )
@@ -387,21 +387,18 @@ class S5RouterRunner:
                     seed=seed_int,
                     parameter_hash=parameter_hash,
                     manifest=manifest,
+                    run_id=run_id,
                     payload={
                         "merchant_id": merchant_id,
                         "utc_day": utc_day,
                         "tz_group_id": tz_group_str,
                         "site_id": site_id,
-                        "selection_seq": selection_seq,
                     },
                 )
             )
             if config.emit_selection_log:
                 selection_logs[utc_day].append(
                     {
-                        "seed": seed_int,
-                        "parameter_hash": parameter_hash,
-                        "run_id": run_id,
                         "utc_day": utc_day,
                         "utc_timestamp": utc_ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                         "merchant_id": merchant_id,
@@ -414,7 +411,6 @@ class S5RouterRunner:
                         "ctr_site_lo": int(site_before.counter_lo),
                         "manifest_fingerprint": manifest,
                         "created_utc": receipt.verified_at_utc,
-                        "selection_seq": selection_seq,
                     }
                 )
             if len(selection_samples) < 20:
@@ -738,10 +734,12 @@ class S5RouterRunner:
         seed: int,
         parameter_hash: str,
         manifest: str,
+        run_id: str,
         payload: Mapping[str, object],
     ) -> dict:
         return {
             "ts_utc": ts_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "run_id": run_id,
             "module": self.MODULE_NAME,
             "substream_label": substream_label,
             "rng_counter_before_hi": int(before.counter_hi),
@@ -811,7 +809,6 @@ class S5RouterRunner:
             "parameter_hash": parameter_hash,
             "manifest_fingerprint": manifest,
             "run_id": run_id,
-            "module": self.MODULE_NAME,
             "algorithm": "philox2x64-10",
             "build_commit": git_commit,
             "hostname": socket.gethostname(),

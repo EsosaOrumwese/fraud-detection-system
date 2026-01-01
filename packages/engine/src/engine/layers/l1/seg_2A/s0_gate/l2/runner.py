@@ -113,15 +113,15 @@ class S0GateRunner:
     """High-level helper that wires together the 2A S0 workflow."""
 
     _ASSET_KIND_MAP = {
-        "validation_bundle_1B": "validation",
-        "validation_passed_flag_1B": "validation",
-        "site_locations": "reference",
-        "tz_world_2025a": "reference",
-        "iso3166_canonical_2024": "reference",
-        "tzdb_release": "artefact",
-        "tz_overrides": "policy",
-        "tz_nudge": "policy",
-        "merchant_mcc_map": "reference",
+        "validation_bundle_1B": "bundle",
+        "validation_passed_flag_1B": "bundle",
+        "site_locations": "dataset",
+        "tz_world_2025a": "dataset",
+        "iso3166_canonical_2024": "dataset",
+        "tzdb_release": "dataset",
+        "tz_overrides": "config",
+        "tz_nudge": "config",
+        "merchant_mcc_map": "dataset",
     }
 
     def run(self, inputs: GateInputs) -> GateOutputs:
@@ -192,10 +192,12 @@ class S0GateRunner:
             dictionary=dictionary,
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             sealed_assets=sealed_assets,
+            created_utc=verified_at.isoformat(timespec="microseconds").replace("+00:00", "Z"),
         )
         inventory_write_ms = int(round((time.perf_counter() - inventory_timer) * 1000))
         determinism_receipt = self._write_determinism_receipt(
             inputs=inputs,
+            dictionary=dictionary,
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             files=[receipt_path, inventory_path],
         )
@@ -225,6 +227,7 @@ class S0GateRunner:
         )
         run_report_path = self._write_run_report(
             inputs=inputs,
+            dictionary=dictionary,
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             payload=run_report,
         )
@@ -335,7 +338,12 @@ class S0GateRunner:
             version = self._render_template(version_template, template_args)
             license_class = str(entry.get("license", ""))
             notes = entry.get("notes")
-            asset_kind = self._ASSET_KIND_MAP.get(asset_id, "unknown")
+            asset_kind = self._ASSET_KIND_MAP.get(asset_id)
+            if asset_kind is None:
+                raise err(
+                    "E_ASSET_KIND_UNKNOWN",
+                    f"sealed asset '{asset_id}' has no asset_kind mapping",
+                )
 
             assets.append(
                 SealedAsset(
@@ -474,9 +482,13 @@ class S0GateRunner:
         dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         sealed_assets: Sequence[SealedAsset],
+        created_utc: str,
     ) -> Path:
         rows = [
-            asset.as_inventory_row(manifest_fingerprint=manifest_fingerprint)
+            asset.as_inventory_row(
+                manifest_fingerprint=manifest_fingerprint,
+                created_utc=created_utc,
+            )
             for asset in sorted(sealed_assets, key=lambda a: (a.asset_kind, a.asset_id))
         ]
         frame = pl.DataFrame(rows)
@@ -512,6 +524,7 @@ class S0GateRunner:
         self,
         *,
         inputs: GateInputs,
+        dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         files: Sequence[Path],
     ) -> Mapping[str, object]:
@@ -526,14 +539,12 @@ class S0GateRunner:
             "files_hashed": [str(path.resolve()) for path in files],
             "generated_at_utc": generated_at,
         }
-        receipt_path = (
-            inputs.output_base_path
-            / "reports"
-            / "l1"
-            / "s0_gate"
-            / f"fingerprint={manifest_fingerprint}"
-            / "determinism_receipt.json"
-        ).resolve()
+        receipt_rel_path = render_dataset_path(
+            "s0_determinism_receipt_2A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        receipt_path = (inputs.output_base_path / receipt_rel_path).resolve()
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return payload
@@ -665,17 +676,16 @@ class S0GateRunner:
         self,
         *,
         inputs: GateInputs,
+        dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         payload: Mapping[str, object],
     ) -> Path:
-        report_path = (
-            inputs.output_base_path
-            / "reports"
-            / "l1"
-            / "s0_gate"
-            / f"fingerprint={manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+        report_rel_path = render_dataset_path(
+            "s0_run_report_2A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        report_path = (inputs.output_base_path / report_rel_path).resolve()
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return report_path

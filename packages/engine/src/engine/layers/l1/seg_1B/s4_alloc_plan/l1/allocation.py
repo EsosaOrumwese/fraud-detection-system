@@ -114,18 +114,14 @@ def allocate_country_sites(
 
         ties = 0
 
-        # TODO(2A): replace argpartition-based selection with a fully deterministic ordering
-        # that considers all equal residues (e.g., sort (-residue, tile_id)) so tie-breaks
-        # never depend on how argpartition chooses among equals.
         if shortfall > 0:
             if shortfall > allocation.size:
                 raise err(
                     "E403_SHORTFALL_MISMATCH",
                     f"insufficient tiles to distribute shortfall for merchant {merchant_id} in '{country_iso}'",
                 )
-            top_idx = np.argpartition(residue_buffer, residue_buffer.size - shortfall)[-shortfall:]
-            order = np.lexsort((tile_ids[top_idx], -residue_buffer[top_idx]))
-            selection = top_idx[order]
+            order = np.lexsort((tile_ids, -residue_buffer))
+            selection = order[:shortfall]
             allocation[selection] = allocation[selection] + 1
             selected_residue = residue_buffer[selection]
             ties = int(len(selected_residue) - np.unique(selected_residue).size)

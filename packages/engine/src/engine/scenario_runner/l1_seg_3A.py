@@ -46,9 +46,8 @@ class Segment3AConfig:
     run_s5: bool = False
     run_s6: bool = False
     run_s7: bool = False
-    run_s7: bool = False
     parameter_hash: Optional[str] = None
-    run_id: str = "run-0"
+    run_id: str = "00000000000000000000000000000000"
 
 
 @dataclass(frozen=True)
@@ -59,7 +58,6 @@ class Segment3AResult:
     parameter_hash: str
     receipt_path: Path
     sealed_inputs_path: Path
-    determinism_receipt_path: Path
     resumed: bool
     s1_output_path: Path | None = None
     s1_run_report_path: Path | None = None
@@ -77,7 +75,8 @@ class Segment3AResult:
     s5_run_report_path: Path | None = None
     s5_universe_hash_path: Path | None = None
     s5_resumed: bool = False
-    s6_validation_bundle_path: Path | None = None
+    s6_report_path: Path | None = None
+    s6_issues_path: Path | None = None
     s6_receipt_path: Path | None = None
     s6_run_report_path: Path | None = None
     s6_resumed: bool = False
@@ -86,19 +85,6 @@ class Segment3AResult:
     s7_index_path: Path | None = None
     s7_run_report_path: Path | None = None
     s7_resumed: bool = False
-    s7_bundle_path: Path | None = None
-    s7_passed_flag_path: Path | None = None
-    s7_index_path: Path | None = None
-    s7_run_report_path: Path | None = None
-    s7_resumed: bool = False
-    s5_output_path: Path | None = None
-    s5_run_report_path: Path | None = None
-    s5_resumed: bool = False
-    s5_universe_hash_path: Path | None = None
-    s6_validation_bundle_path: Path | None = None
-    s6_receipt_path: Path | None = None
-    s6_run_report_path: Path | None = None
-    s6_resumed: bool = False
 
 
 class Segment3AOrchestrator:
@@ -144,7 +130,8 @@ class Segment3AOrchestrator:
         s5_run_report_path = None
         s5_resumed = False
         s5_universe_hash_path = None
-        s6_validation_bundle_path = None
+        s6_report_path = None
+        s6_issues_path = None
         s6_receipt_path = None
         s6_run_report_path = None
         s6_resumed = False
@@ -166,21 +153,12 @@ class Segment3AOrchestrator:
                 parameter_hash = payload.get("parameter_hash")
                 if not isinstance(parameter_hash, str) or not parameter_hash:
                     raise ValueError(f"segment3a receipt '{receipt_path}' missing parameter_hash")
-                det_path = (
-                    data_root
-                    / "data"
-                    / "layer1"
-                    / "3A"
-                    / "s0_gate_receipt"
-                    / "determinism_receipt.json"
-                )
                 parameter_hash_from_receipt = parameter_hash
                 return Segment3AResult(
                     manifest_fingerprint=resume_manifest,
                     parameter_hash=parameter_hash,
                     receipt_path=receipt_path,
                     sealed_inputs_path=sealed_inputs_path,
-                    determinism_receipt_path=det_path,
                     resumed=True,
                 )
 
@@ -289,11 +267,13 @@ class Segment3AOrchestrator:
                     manifest_fingerprint=outputs.manifest_fingerprint,
                     parameter_hash=parameter_hash_to_use,
                     seed=config.seed,
+                    run_id=config.run_id,
                     dictionary_path=config.dictionary_path,
                 )
             )
-            logger.info("Segment3A S6 completed (bundle=%s)", s6_result.validation_bundle_path)
-            s6_validation_bundle_path = s6_result.validation_bundle_path
+            logger.info("Segment3A S6 completed (report=%s)", s6_result.report_path)
+            s6_report_path = s6_result.report_path
+            s6_issues_path = s6_result.issues_path
             s6_receipt_path = s6_result.receipt_path
             s6_run_report_path = s6_result.run_report_path
             s6_resumed = s6_result.resumed
@@ -321,7 +301,6 @@ class Segment3AOrchestrator:
             parameter_hash=parameter_hash,
             receipt_path=outputs.receipt_path,
             sealed_inputs_path=outputs.sealed_inputs_path,
-            determinism_receipt_path=outputs.determinism_receipt_path,
             resumed=False,
             s1_output_path=s1_output_path,
             s1_run_report_path=s1_run_report_path,
@@ -339,7 +318,8 @@ class Segment3AOrchestrator:
             s5_run_report_path=s5_run_report_path,
             s5_universe_hash_path=s5_universe_hash_path,
             s5_resumed=s5_resumed,
-            s6_validation_bundle_path=s6_validation_bundle_path,
+            s6_report_path=s6_report_path,
+            s6_issues_path=s6_issues_path,
             s6_receipt_path=s6_receipt_path,
             s6_run_report_path=s6_run_report_path,
             s6_resumed=s6_resumed,

@@ -23,7 +23,7 @@ INDEX_IDS = {
     "rng_accounting.json": "rng_accounting",
     "s9_summary.json": "s9_summary",
     "egress_checksums.json": "egress_checksums",
-    "index.json": "self_index",
+    "index.json": "bundle_index",
 }
 
 
@@ -151,12 +151,10 @@ def _prepare_bundle_artifacts(
     result: S9ValidationResult,
 ) -> Mapping[str, bytes]:
     artifacts: dict[str, bytes] = {}
-    digests: dict[str, str] = {}
 
     def _add_json(path: str, payload: Mapping[str, object] | Sequence[object]) -> None:
         data = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
         artifacts[path] = data
-        digests[path] = hashlib.sha256(data).hexdigest()
 
     manifest_payload = {
         "identity": {
@@ -193,27 +191,24 @@ def _prepare_bundle_artifacts(
         index_entries.append(
             {
                 "artifact_id": INDEX_IDS[path],
+                "kind": "summary",
                 "path": path,
-                "sha256_hex": digests[path],
+                "mime": "application/json",
+                "notes": None,
             }
         )
 
-    index_payload = {"artifacts": sorted(index_entries, key=lambda item: item["path"])}
-    index_payload["artifacts"].append(
+    index_entries.append(
         {
             "artifact_id": INDEX_IDS["index.json"],
+            "kind": "summary",
             "path": "index.json",
-            "sha256_hex": "0" * 64,
+            "mime": "application/json",
+            "notes": None,
         }
     )
-    index_payload["artifacts"] = sorted(index_payload["artifacts"], key=lambda item: item["path"])
-    placeholder_bytes = json.dumps(index_payload, indent=2, sort_keys=True).encode("utf-8")
-    placeholder_digest = hashlib.sha256(placeholder_bytes).hexdigest()
-    for entry in index_payload["artifacts"]:
-        if entry["path"] == "index.json":
-            entry["sha256_hex"] = placeholder_digest
-            break
-    index_bytes = json.dumps(index_payload, indent=2, sort_keys=True).encode("utf-8")
+    index_entries = sorted(index_entries, key=lambda item: item["path"])
+    index_bytes = json.dumps(index_entries, indent=2, sort_keys=True).encode("utf-8")
     artifacts["index.json"] = index_bytes
 
     return artifacts

@@ -466,3 +466,93 @@ datasets:
   retention_days: 1095
   pii: false
   licence: Proprietary-Internal
+
+- id: s1_run_report_3B
+  status: draft
+  owner_subsegment: 3B
+  description: Run report for 3B.S1 virtual classification.
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: reports/l1/3B/s1_virtuals/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 3B.S1
+    consumed_by: [ops]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s2_run_report_3B
+  status: draft
+  owner_subsegment: 3B
+  description: Run report for 3B.S2 edge catalogue.
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: reports/l1/3B/s2_edges/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [ops]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s3_run_report_3B
+  status: draft
+  owner_subsegment: 3B
+  description: Run report for 3B.S3 alias packaging.
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: reports/l1/3B/s3_alias/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 3B.S3
+    consumed_by: [ops]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s4_run_report_3B
+  status: draft
+  owner_subsegment: 3B
+  description: Run report for 3B.S4 routing policy compilation.
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: reports/l1/3B/s4_routing/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 3B.S4
+    consumed_by: [ops]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s5_run_report_3B
+  status: draft
+  owner_subsegment: 3B
+  description: Run report for 3B.S5 validation bundle.
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: reports/l1/3B/s5_validation/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 3B.S5
+    consumed_by: [ops]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal

@@ -7,13 +7,10 @@ from dataclasses import dataclass
 from typing import Iterable, List, Sequence
 
 from ..s0_foundations.exceptions import err
-from .policy import IntegerisationPolicy
+from .policy import IntegerisationPolicy, ResidualQuantisationPolicy
 from .types import DomainAllocation, DomainMember, MerchantAllocationInput, MerchantAllocationResult
 
 __all__ = ["allocate_merchants"]
-
-DP_RESID = 8
-_TEN_POW_DP = 10.0 ** DP_RESID
 
 
 @dataclass(frozen=True)
@@ -35,7 +32,11 @@ def allocate_merchants(
 
     results: list[MerchantAllocationResult] = []
     for merchant in merchants:
-        scratch = _prepare_allocation(merchant, bounds_enabled=policy.bounds_enabled)
+        scratch = _prepare_allocation(
+            merchant,
+            bounds_enabled=policy.bounds_enabled,
+            residual_policy=policy.residual_policy,
+        )
         counts = scratch.counts[:]
         remainder = merchant.total_outlets - sum(counts)
         if remainder < 0:
@@ -48,6 +49,7 @@ def allocate_merchants(
             scratch=scratch,
             remainder=remainder,
             bounds_enabled=policy.bounds_enabled,
+            tiebreak_keys=policy.residual_policy.tiebreak_keys,
         )
 
         domain_allocations: list[DomainAllocation] = []
@@ -89,6 +91,7 @@ def _prepare_allocation(
     merchant: MerchantAllocationInput,
     *,
     bounds_enabled: bool,
+    residual_policy: ResidualQuantisationPolicy,
 ) -> _AllocationScratch:
     members = list(merchant.domain)
     if not members:
@@ -107,7 +110,11 @@ def _prepare_allocation(
     raw_targets = [merchant.total_outlets * share for share in shares]
     floors = [math.floor(value) for value in raw_targets]
     residuals = [
-        _quantise_residual(raw - floor) for raw, floor in zip(raw_targets, floors)
+        _quantise_residual(
+            raw - floor,
+            residual_policy=residual_policy,
+        )
+        for raw, floor in zip(raw_targets, floors)
     ]
 
     if bounds_enabled:
@@ -125,7 +132,12 @@ def _prepare_allocation(
         floors = adjusted
 
     counts = floors[:]
-    order = _residual_ranking(members=members, residuals=residuals)
+    order = _residual_ranking(
+        members=members,
+        residuals=residuals,
+        merchant_id=merchant.merchant_id,
+        tiebreak_keys=residual_policy.tiebreak_keys,
+    )
     return _AllocationScratch(
         members=tuple(members),
         shares=tuple(shares),
@@ -142,6 +154,7 @@ def _distribute_remainder(
     scratch: _AllocationScratch,
     remainder: int,
     bounds_enabled: bool,
+    tiebreak_keys: Sequence[str],
 ) -> List[int]:
     counts = scratch.counts[:]
     members = scratch.members
@@ -158,7 +171,10 @@ def _distribute_remainder(
         return counts
 
     ranked_indices = _residual_sort_indices(
-        members=members, residuals=scratch.residuals
+        members=members,
+        residuals=scratch.residuals,
+        merchant_id=merchant.merchant_id,
+        tiebreak_keys=tiebreak_keys,
     )
     remaining = remainder
     for index in ranked_indices:
@@ -179,26 +195,54 @@ def _distribute_remainder(
     return counts
 
 
-def _quantise_residual(value: float) -> float:
-    scaled = value * _TEN_POW_DP
-    rounded = round(scaled)
-    return rounded / _TEN_POW_DP
+def _quantise_residual(
+    value: float,
+    *,
+    residual_policy: ResidualQuantisationPolicy,
+) -> float:
+    if residual_policy.forbid_nan_inf and not math.isfinite(value):
+        raise err("E_RESIDUAL_POLICY", "residual is non-finite")
+    if residual_policy.enforce_residual_domain:
+        lower, upper = residual_policy.residual_domain
+        if value < lower or value > upper:
+            raise err(
+                "E_RESIDUAL_POLICY",
+                f"residual {value!r} outside [{lower}, {upper}]",
+            )
+    scale = 10.0 ** residual_policy.dp_resid
+    rounded = round(value * scale)
+    return rounded / scale
 
 
 def _residual_sort_indices(
     *,
     members: Sequence[DomainMember],
     residuals: Sequence[float],
+    merchant_id: int,
+    tiebreak_keys: Sequence[str],
 ) -> Sequence[int]:
-    indexed = list(
-        enumerate(zip(members, residuals, range(len(members)), strict=False))
-    )
+    indexed = list(enumerate(zip(members, residuals, range(len(members)), strict=False)))
+
+    def _tiebreak_values(member: DomainMember) -> tuple[object, ...]:
+        values: list[object] = []
+        for key in tiebreak_keys:
+            if key == "country_iso_asc":
+                values.append(member.country_iso)
+            elif key == "candidate_rank_asc":
+                values.append(int(member.candidate_rank))
+            elif key == "merchant_id_asc":
+                values.append(int(merchant_id))
+            else:
+                raise err(
+                    "E_RESIDUAL_POLICY",
+                    f"tiebreak key '{key}' not available for S7 residual sorting",
+                )
+        return tuple(values)
 
     indexed.sort(
         key=lambda item: (
-            -item[1][1],  # residual desc
-            item[1][0].country_iso,
-            item[1][0].candidate_rank,
+            -item[1][1],
+            *_tiebreak_values(item[1][0]),
             item[0],
         )
     )
@@ -209,8 +253,15 @@ def _residual_ranking(
     *,
     members: Sequence[DomainMember],
     residuals: Sequence[float],
+    merchant_id: int,
+    tiebreak_keys: Sequence[str],
 ) -> Sequence[int]:
-    order = _residual_sort_indices(members=members, residuals=residuals)
+    order = _residual_sort_indices(
+        members=members,
+        residuals=residuals,
+        merchant_id=merchant_id,
+        tiebreak_keys=tiebreak_keys,
+    )
     ranks = [0] * len(members)
     for rank, index in enumerate(order, start=1):
         ranks[index] = rank

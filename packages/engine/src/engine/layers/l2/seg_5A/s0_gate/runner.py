@@ -269,6 +269,44 @@ class S0GateRunner:
     """High-level helper that wires together the 5A S0 workflow."""
 
     _UPSTREAM_SEGMENTS = ("1A", "1B", "2A", "2B", "3A", "3B")
+    _UPSTREAM_BUNDLE_SPECS: Mapping[str, Mapping[str, str]] = {
+        "1A": {
+            "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_1A/layer1.1A.yaml",
+            "bundle_id": "validation_bundle_1A",
+            "flag_id": "validation_passed_flag_1A",
+            "override_attr": "validation_bundle_1a",
+        },
+        "1B": {
+            "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml",
+            "bundle_id": "validation_bundle_1B",
+            "flag_id": "validation_passed_flag_1B",
+            "override_attr": "validation_bundle_1b",
+        },
+        "2A": {
+            "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml",
+            "bundle_id": "validation_bundle_2A",
+            "flag_id": "validation_passed_flag_2A",
+            "override_attr": "validation_bundle_2a",
+        },
+        "2B": {
+            "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
+            "bundle_id": "validation_bundle_2B",
+            "flag_id": "validation_passed_flag_2B",
+            "override_attr": "validation_bundle_2b",
+        },
+        "3A": {
+            "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_3A/layer1.3A.yaml",
+            "bundle_id": "validation_bundle_3A",
+            "flag_id": "validation_passed_flag_3A",
+            "override_attr": "validation_bundle_3a",
+        },
+        "3B": {
+            "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
+            "bundle_id": "validation_bundle_3B",
+            "flag_id": "validation_passed_flag_3B",
+            "override_attr": "validation_bundle_3b",
+        },
+    }
 
     def __init__(self) -> None:
         self._dictionary_cache: dict[Path, Mapping[str, object]] = {}
@@ -376,35 +414,96 @@ class S0GateRunner:
         self, *, base_path: Path, manifest_fingerprint: str
     ) -> dict[str, Mapping[str, object]]:
         results: dict[str, Mapping[str, object]] = {}
-        overrides = {
-            "1A": getattr(self, "_validation_bundle_1a", None),
-            "1B": getattr(self, "_validation_bundle_1b", None),
-            "2A": getattr(self, "_validation_bundle_2a", None),
-            "2B": getattr(self, "_validation_bundle_2b", None),
-            "3A": getattr(self, "_validation_bundle_3a", None),
-            "3B": getattr(self, "_validation_bundle_3b", None),
-        }
         for segment in self._UPSTREAM_SEGMENTS:
-            override_path = overrides.get(segment)
-            bundle_path = (
-                override_path
-                if isinstance(override_path, Path)
-                else base_path / f"data/layer1/{segment}/validation/fingerprint={manifest_fingerprint}"
+            spec = self._UPSTREAM_BUNDLE_SPECS.get(segment)
+            if spec is None:
+                continue
+            override_path = getattr(self, spec["override_attr"], None)
+
+            bundle_entry = self._dictionary_entry(
+                spec["dictionary_rel_path"], spec["bundle_id"]
             )
-            logger.info("S0 bundle check: segment=%s, bundle_path=%s", segment, bundle_path)
-            bundle_path = self._resolve_bundle_path(bundle_path)
+            bundle_template = self._extract_path_template(
+                bundle_entry, spec["bundle_id"]
+            )
+            bundle_partition_keys = tuple(
+                bundle_entry.get("partitioning")
+                or bundle_entry.get("partition_keys")
+                or ()
+            )
+            bundle_schema_ref = bundle_entry.get("schema_ref")
+            if not isinstance(bundle_schema_ref, str) or not bundle_schema_ref.strip():
+                raise DictionaryError(
+                    f"dictionary entry '{spec['bundle_id']}' missing schema_ref"
+                )
+            template_args = {
+                "manifest_fingerprint": manifest_fingerprint,
+                "fingerprint": manifest_fingerprint,
+            }
+            expected_root = base_path / bundle_template.format(**template_args)
+            bundle_root = (
+                override_path if isinstance(override_path, Path) else expected_root
+            )
+            logger.info(
+                "S0 bundle check: segment=%s, bundle_path=%s", segment, bundle_root
+            )
+            bundle_path = self._resolve_bundle_path(bundle_root)
             if not bundle_path.exists() or not bundle_path.is_dir():
-                raise FileNotFoundError(f"{segment} validation bundle missing at {bundle_path}")
+                raise FileNotFoundError(
+                    f"{segment} validation bundle missing at {bundle_path}"
+                )
+
+            flag_entry = self._dictionary_entry(
+                spec["dictionary_rel_path"], spec["flag_id"]
+            )
+            flag_template = self._extract_path_template(flag_entry, spec["flag_id"])
+            flag_partition_keys = tuple(
+                flag_entry.get("partitioning")
+                or flag_entry.get("partition_keys")
+                or ()
+            )
+            flag_schema_ref = flag_entry.get("schema_ref")
+            if not isinstance(flag_schema_ref, str) or not flag_schema_ref.strip():
+                raise DictionaryError(
+                    f"dictionary entry '{spec['flag_id']}' missing schema_ref"
+                )
+            expected_flag_path = base_path / flag_template.format(**template_args)
+            flag_path = self._find_flag_file(bundle_path)
+            if (
+                override_path is None
+                and expected_flag_path.resolve() != flag_path.resolve()
+            ):
+                raise ValueError(
+                    f"{segment} pass-flag path mismatch (expected {expected_flag_path}, got {flag_path})"
+                )
+
             try:
                 index = load_index(bundle_path)
             except Exception:
                 index = self._load_index_lenient(bundle_path)
-            computed_flag = self._compute_digest_for_segment(segment, bundle_path, index)
+            computed_flag = self._compute_digest_for_segment(
+                segment, bundle_path, index
+            )
             declared_flag = self._read_pass_flag(bundle_path)
             if computed_flag != declared_flag:
-                raise ValueError(f"{segment} computed digest does not match _passed.flag")
+                raise ValueError(
+                    f"{segment} computed digest does not match _passed.flag"
+                )
             results[segment] = {
                 "path": bundle_path,
+                "bundle_id": spec["bundle_id"],
+                "flag_id": spec["flag_id"],
+                "bundle_template": bundle_template,
+                "flag_template": flag_template,
+                "bundle_partition_keys": bundle_partition_keys,
+                "flag_partition_keys": flag_partition_keys,
+                "bundle_schema_ref": bundle_schema_ref.strip(),
+                "flag_schema_ref": flag_schema_ref.strip(),
+                "bundle_manifest_key": self._registry_manifest_key(
+                    segment, bundle_template
+                ),
+                "flag_manifest_key": self._registry_manifest_key(segment, flag_template),
+                "dictionary_rel_path": spec["dictionary_rel_path"],
                 "bundle_sha256_hex": computed_flag,
                 "flag_sha256_hex": declared_flag,
                 "manifest_fingerprint": self._extract_manifest_fingerprint(bundle_path),
@@ -450,18 +549,28 @@ class S0GateRunner:
         if segment == "3B":
             index_path = bundle_path / "index.json"
             payload = json.loads(index_path.read_text(encoding="utf-8"))
-            items = []
+            members: list[Mapping[str, object]] = []
             if isinstance(payload, dict):
-                items = payload.get("items") or payload.get("artifacts") or payload.get("files") or []
+                raw_members = (
+                    payload.get("members")
+                    or payload.get("items")
+                    or payload.get("artifacts")
+                    or payload.get("files")
+                    or []
+                )
+                if isinstance(raw_members, list):
+                    members = [item for item in raw_members if isinstance(item, Mapping)]
             elif isinstance(payload, list):
-                items = payload
-            digests = [
-                item.get("sha256_hex")
-                for item in items
-                if isinstance(item, Mapping) and isinstance(item.get("sha256_hex"), str)
-            ]
-            if digests:
-                return hashlib.sha256("".join(digests).encode("utf-8")).hexdigest()
+                members = [item for item in payload if isinstance(item, Mapping)]
+            if members:
+                members_sorted = sorted(members, key=lambda item: item.get("path", ""))
+                digests = [
+                    item.get("sha256_hex")
+                    for item in members_sorted
+                    if isinstance(item.get("sha256_hex"), str)
+                ]
+                if digests:
+                    return hashlib.sha256("".join(digests).encode("utf-8")).hexdigest()
         return compute_index_digest(bundle_path, index)
 
     @staticmethod
@@ -474,7 +583,7 @@ class S0GateRunner:
         version = None
         if isinstance(payload, dict):
             version = payload.get("version") if isinstance(payload.get("version"), str) else None
-            for key in ("items", "artifacts", "files"):
+            for key in ("members", "items", "artifacts", "files"):
                 if isinstance(payload.get(key), list):
                     items = payload[key]
                     break
@@ -527,6 +636,23 @@ class S0GateRunner:
         assets: list[SealedArtefact] = []
         for segment, info in upstream_bundles.items():
             bundle_path: Path = info["path"]  # type: ignore[assignment]
+            bundle_id = str(info.get("bundle_id") or f"validation_bundle_{segment}")
+            flag_id = str(info.get("flag_id") or f"validation_passed_flag_{segment}")
+            bundle_schema_ref = str(info.get("bundle_schema_ref") or "").strip()
+            flag_schema_ref = str(info.get("flag_schema_ref") or "").strip()
+            bundle_template = str(
+                info.get("bundle_template") or f"data/layer1/{segment}/validation/fingerprint={{manifest_fingerprint}}"
+            )
+            flag_template = str(
+                info.get("flag_template")
+                or f"data/layer1/{segment}/validation/fingerprint={{manifest_fingerprint}}/_passed.flag"
+            )
+            bundle_partition_keys = tuple(info.get("bundle_partition_keys") or ("manifest_fingerprint",))
+            flag_partition_keys = tuple(info.get("flag_partition_keys") or ("manifest_fingerprint",))
+            bundle_manifest_key = info.get("bundle_manifest_key") or f"mlr.{segment}.validation.bundle"
+            flag_manifest_key = info.get("flag_manifest_key") or f"mlr.{segment}.validation.passed_flag"
+            dictionary_rel_path = str(info.get("dictionary_rel_path") or "")
+            source_manifest = str(info.get("manifest_fingerprint") or inputs.upstream_manifest_fingerprint)
             if bundle_path.is_dir():
                 bundle_files = [p for p in bundle_path.rglob("*") if p.is_file()]
             else:
@@ -538,16 +664,17 @@ class S0GateRunner:
                     parameter_hash=inputs.parameter_hash,
                     owner_layer="layer1",
                     owner_segment=segment,
-                    artifact_id=f"validation_bundle_{segment}",
-                    manifest_key=f"mlr.{segment}.validation.bundle",
+                    artifact_id=bundle_id,
+                    manifest_key=bundle_manifest_key,
                     role="validation_bundle",
-                    schema_ref="schemas.layer1.yaml#/validation/validation_bundle",
-                    path_template=f"data/layer1/{segment}/validation/fingerprint={{manifest_fingerprint}}",
-                    partition_keys=("manifest_fingerprint",),
-                    version=inputs.upstream_manifest_fingerprint,
+                    schema_ref=bundle_schema_ref,
+                    path_template=bundle_template,
+                    partition_keys=bundle_partition_keys,
+                    version=source_manifest,
                     digests=bundle_digests,
-                    source_dictionary=f"contracts/dataset_dictionary/l1/seg_{segment}/layer1.{segment}.yaml",
+                    source_dictionary=dictionary_rel_path,
                     source_registry=self._registry_rel_path(segment),
+                    notes=f"source_manifest={source_manifest}",
                 )
             )
             flag_path = self._find_flag_file(bundle_path)
@@ -558,17 +685,18 @@ class S0GateRunner:
                     parameter_hash=inputs.parameter_hash,
                     owner_layer="layer1",
                     owner_segment=segment,
-                    artifact_id=f"passed_flag_{segment}",
-                    manifest_key=f"mlr.{segment}.validation.passed_flag",
+                    artifact_id=flag_id,
+                    manifest_key=flag_manifest_key,
                     role="validation_flag",
-                    schema_ref="schemas.layer1.yaml#/validation/passed_flag",
-                    path_template=f"data/layer1/{segment}/validation/fingerprint={{manifest_fingerprint}}/_passed.flag",
-                    partition_keys=("manifest_fingerprint",),
-                    version=inputs.upstream_manifest_fingerprint,
+                    schema_ref=flag_schema_ref,
+                    path_template=flag_template,
+                    partition_keys=flag_partition_keys,
+                    version=source_manifest,
                     digests=flag_digests,
-                    source_dictionary=f"contracts/dataset_dictionary/l1/seg_{segment}/layer1.{segment}.yaml",
+                    source_dictionary=dictionary_rel_path,
                     source_registry=self._registry_rel_path(segment),
                     read_scope="METADATA_ONLY",
+                    notes=f"source_manifest={source_manifest}",
                 )
             )
         return assets
@@ -1258,7 +1386,10 @@ class S0GateRunner:
         sealed_inputs_digest: str,
         scenario_manifest_path: Path | None,
     ) -> Path:
-        run_report_path = inputs.output_base_path / "reports/l2/segment_states/segment_state_runs.jsonl"
+        dictionary = load_dictionary(inputs.dictionary_path)
+        run_report_path = inputs.output_base_path / render_dataset_path(
+            dataset_id="segment_state_runs", template_args={}, dictionary=dictionary
+        )
         key = SegmentStateKey(
             layer="layer2",
             segment="5A",

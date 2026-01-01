@@ -10,7 +10,7 @@ from engine.layers.l1.seg_1A.s0_foundations.l1.rng import (
 )
 
 
-MODULE_NAME = "1B.s5_site_tile_assignment"
+MODULE_NAME = "1B.S5.assigner"
 SUBSTREAM_LABEL = "site_tile_assign"
 
 

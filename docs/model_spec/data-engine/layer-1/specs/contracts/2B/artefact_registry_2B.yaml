@@ -76,7 +76,7 @@ artifacts:
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema:
-      index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+      index_schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
 
   - name: validation_passed_flag_1B
     path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -426,7 +426,7 @@ artifacts:
     owner: { owner_team: "l1-2b-governance" }
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     cross_layer: true
     notes: "Write-once; atomic publish; hashing law matches 1A bundle contract."
 

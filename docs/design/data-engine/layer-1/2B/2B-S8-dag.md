@@ -52,7 +52,7 @@ Authoritative inputs (read-only at S8 entry)
     - validation_bundle_2B
         · index.json @ data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
         · partition: [fingerprint]
-        · schema: schemas.1A.yaml#/validation/validation_bundle.index_schema
+        · schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
         · role: authoritative PASS bundle index for Segment 2B
     - validation_passed_flag_2B
         · _passed.flag @ data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -175,7 +175,7 @@ sealed_inputs_v1,
                         · UTF-8,
                         · consistently ordered keys and whitespace so that re-runs produce identical bytes.
                     - Validate `index.json` against the canonical bundle index schema
-                      (schemas.1A.yaml#/validation/validation_bundle.index_schema).
+                      (schemas.layer1.yaml#/validation/validation_bundle/index_schema).
 
 (Bundle workspace with index.json),
 [Schema+Dict]

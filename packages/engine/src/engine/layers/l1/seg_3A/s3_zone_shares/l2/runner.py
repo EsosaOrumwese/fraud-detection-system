@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,7 +42,7 @@ class ZoneSharesInputs:
     manifest_fingerprint: str
     parameter_hash: str
     seed: int
-    run_id: str = "run-0"
+    run_id: str = "00000000000000000000000000000000"
     dictionary_path: Path | None = None
 
 
@@ -84,7 +85,7 @@ class _DirichletEventWriter:
 
     @property
     def events_path(self) -> Path:
-        return self._events_root / "dirichlet_zone_share" / self._partition("part-00000.jsonl")
+        return self._events_root / "zone_dirichlet_share" / self._partition("part-00000.jsonl")
 
     @property
     def trace_path(self) -> Path:
@@ -107,16 +108,18 @@ class _DirichletEventWriter:
         self,
         *,
         merchant_id: int,
-        legal_country_iso: str,
+        country_iso: str,
+        tzid: str,
         counter_before: PhiloxState,
         counter_after: PhiloxState,
         draws_used: int,
         blocks_used: int,
-        zone_count: int,
+        share_drawn: float,
         alpha_sum: float,
         module: str,
         substream_label: str,
-        stream_id: str,
+        prior_pack_id: str,
+        prior_pack_version: str,
     ) -> None:
         if draws_used <= 0 or blocks_used < 0:
             raise err("E_RNG_BUDGET", "Dirichlet event must consume draws > 0 and blocks >= 0")
@@ -133,15 +136,18 @@ class _DirichletEventWriter:
             "parameter_hash": self.parameter_hash,
             "manifest_fingerprint": self.manifest_fingerprint,
             "merchant_id": int(merchant_id),
-            "legal_country_iso": str(legal_country_iso),
+            "country_iso": str(country_iso),
+            "tzid": str(tzid),
+            "share_drawn": float(share_drawn),
+            "prior_pack_id": prior_pack_id,
+            "prior_pack_version": prior_pack_version,
+            "alpha_sum_country": float(alpha_sum),
             "rng_counter_before_hi": int(counter_before.counter_hi),
             "rng_counter_before_lo": int(counter_before.counter_lo),
             "rng_counter_after_hi": int(counter_after.counter_hi),
             "rng_counter_after_lo": int(counter_after.counter_lo),
-            "draws": int(draws_used),
+            "draws": str(int(draws_used)),
             "blocks": int(blocks_used),
-            "zone_count": int(zone_count),
-            "alpha_sum_country": float(alpha_sum),
         }
         self._append_jsonl(self.events_path, record)
         key = (module, substream_label)
@@ -155,8 +161,6 @@ class _DirichletEventWriter:
             "substream_label": substream_label,
             "seed": self.seed,
             "run_id": self.run_id,
-            "parameter_hash": self.parameter_hash,
-            "manifest_fingerprint": self.manifest_fingerprint,
             "rng_counter_before_hi": int(counter_before.counter_hi),
             "rng_counter_before_lo": int(counter_before.counter_lo),
             "rng_counter_after_hi": int(counter_after.counter_hi),
@@ -171,8 +175,8 @@ class _DirichletEventWriter:
 class ZoneSharesRunner:
     """Deterministic Dirichlet share sampler for Segment 3A."""
 
-    _SUBSTREAM_LABEL = "dirichlet_zone_share"
-    _MODULE_NAME = "3A.dirichlet_zone_share"
+    _SUBSTREAM_LABEL = "zone_dirichlet_share"
+    _MODULE_NAME = "3A.zone_shares"
 
     def run(self, inputs: ZoneSharesInputs) -> ZoneSharesResult:
         dictionary = load_dictionary(inputs.dictionary_path)
@@ -181,6 +185,8 @@ class ZoneSharesRunner:
         parameter_hash = inputs.parameter_hash
         seed = inputs.seed
         run_id = inputs.run_id
+        if not re.fullmatch(r"[a-f0-9]{32}", run_id):
+            raise err("E_RUN_ID", "run_id must be 32 lowercase hex characters")
 
         s0_receipt = self._load_s0_receipt(
             base=data_root, manifest_fingerprint=manifest_fingerprint, dictionary=dictionary
@@ -235,7 +241,11 @@ class ZoneSharesRunner:
             )
             output_file = output_dir / "part-0.parquet"
             empty_df.write_parquet(output_file)
-            run_report_path = data_root / "runs/layer1/3A/s3_zone_shares/run_report.json"
+            run_report_path = data_root / render_dataset_path(
+                dataset_id="s3_run_report_3A",
+                template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+                dictionary=dictionary,
+            )
             run_report_path.parent.mkdir(parents=True, exist_ok=True)
             run_report_path.write_text(
                 json.dumps(
@@ -244,9 +254,15 @@ class ZoneSharesRunner:
                         "segment": "3A",
                         "state": "S3",
                         "status": "PASS",
+                        "seed": seed,
+                        "manifest_fingerprint": manifest_fingerprint,
+                        "parameter_hash": parameter_hash,
+                        "run_id": run_id,
                         "pairs_total": 0,
                         "zones_total": 0,
                         "resumed": False,
+                        "rng_events_path": None,
+                        "rng_trace_path": str(rng_trace_path),
                     },
                     indent=2,
                     sort_keys=True,
@@ -284,34 +300,52 @@ class ZoneSharesRunner:
             before_state = substream.snapshot()
             before_blocks, before_draws = substream.blocks, substream.draws
             gamma_values = []
+            event_meta = []
             alpha_sum = 0.0
             for prior in priors:
                 alpha = float(prior["alpha_effective"])
                 alpha_sum += alpha
-                gamma_values.append((prior, substream.gamma(alpha)))
+                before_state = substream.snapshot()
+                before_blocks, before_draws = substream.blocks, substream.draws
+                gamma_value = substream.gamma(alpha)
+                after_state = substream.snapshot()
+                blocks_used = substream.blocks - before_blocks
+                draws_used = substream.draws - before_draws
+                gamma_values.append((prior, gamma_value))
+                event_meta.append(
+                    {
+                        "prior": prior,
+                        "gamma_value": gamma_value,
+                        "before_state": before_state,
+                        "after_state": after_state,
+                        "draws_used": draws_used,
+                        "blocks_used": blocks_used,
+                    }
+                )
             gamma_total = sum(value for _, value in gamma_values)
             if gamma_total <= 0.0:
                 raise err("E_DIRICHLET_DEGENERATE", f"gamma total zero for {merchant_id}/{country}")
             shares = [(prior, value / gamma_total) for prior, value in gamma_values]
-            after_state = substream.snapshot()
-            blocks_used = substream.blocks - before_blocks
-            draws_used = substream.draws - before_draws
-
-            event_writer.write_dirichlet_event(
-                merchant_id=merchant_id,
-                legal_country_iso=country,
-                counter_before=before_state,
-                counter_after=after_state,
-                draws_used=draws_used,
-                blocks_used=blocks_used,
-                zone_count=len(priors),
-                alpha_sum=alpha_sum,
-                module=self._MODULE_NAME,
-                substream_label=self._SUBSTREAM_LABEL,
-                stream_id=f"{self._SUBSTREAM_LABEL}|{merchant_id}|{country}",
-            )
-
             share_sum_total = sum(val for _, val in shares)
+            for entry in event_meta:
+                prior = entry["prior"]
+                share_value = entry["gamma_value"] / gamma_total
+                event_writer.write_dirichlet_event(
+                    merchant_id=merchant_id,
+                    country_iso=country,
+                    tzid=str(prior["tzid"]),
+                    counter_before=entry["before_state"],
+                    counter_after=entry["after_state"],
+                    draws_used=entry["draws_used"],
+                    blocks_used=entry["blocks_used"],
+                    share_drawn=float(share_value),
+                    alpha_sum=alpha_sum,
+                    module=self._MODULE_NAME,
+                    substream_label=self._SUBSTREAM_LABEL,
+                    prior_pack_id=str(prior["prior_pack_id"]),
+                    prior_pack_version=str(prior["prior_pack_version"]),
+                )
+
             for prior, share_value in shares:
                 rows.append(
                     {
@@ -374,9 +408,10 @@ class ZoneSharesRunner:
         else:
             result_df.write_parquet(output_file)
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s3_run_report_3A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {

@@ -58,7 +58,6 @@ def _print_summary(result: Segment3AResult) -> None:
         "parameter_hash": result.parameter_hash,
         "receipt_path": str(result.receipt_path),
         "sealed_inputs_path": str(result.sealed_inputs_path),
-        "determinism_receipt_path": str(result.determinism_receipt_path),
         "resumed": result.resumed,
     }
     if result.s1_output_path:
@@ -93,8 +92,10 @@ def _print_summary(result: Segment3AResult) -> None:
         payload["s5_universe_hash_path"] = str(result.s5_universe_hash_path)
     if result.s5_resumed:
         payload["s5_resumed"] = result.s5_resumed
-    if result.s6_validation_bundle_path:
-        payload["s6_validation_bundle_path"] = str(result.s6_validation_bundle_path)
+    if result.s6_report_path:
+        payload["s6_report_path"] = str(result.s6_report_path)
+    if result.s6_issues_path:
+        payload["s6_issues_path"] = str(result.s6_issues_path)
     if result.s6_receipt_path:
         payload["s6_receipt_path"] = str(result.s6_receipt_path)
     if result.s6_run_report_path:
@@ -171,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--run-id",
         type=str,
-        default="run-0",
+        default="00000000000000000000000000000000",
         help="Run identifier for RNG/event logs (S3).",
     )
     parser.add_argument(

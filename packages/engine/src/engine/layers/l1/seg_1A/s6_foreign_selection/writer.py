@@ -80,10 +80,6 @@ class GumbelEventWriter:
     def trace_path(self) -> Path:
         return self._trace_root / self._partition("rng_trace_log.jsonl")
 
-    @property
-    def module_trace_path(self) -> Path:
-        return self._trace_root / "gumbel_key" / self._partition("part-00000.jsonl")
-
     def write_gumbel_event(
         self,
         *,
@@ -108,17 +104,38 @@ class GumbelEventWriter:
                 f"counter delta {expected_blocks} does not match blocks {blocks_used}",
             )
         _assert_consuming(blocks_used=blocks_used, draws_used=draws_used)
+        if blocks_used != 1 or draws_used != 1:
+            raise err(
+                "E_RNG_BUDGET",
+                f"gumbel_key must consume exactly 1 block/1 draw (blocks={blocks_used}, draws={draws_used})",
+            )
+        if selected and selection_order is None:
+            raise err("E_RNG_BUDGET", "selected gumbel_key requires selection_order")
+        if (not selected) and selection_order is not None:
+            raise err("E_RNG_BUDGET", "non-selected gumbel_key must omit selection_order")
+        if float(weight) == 0.0:
+            if key is not None or selected or selection_order is not None:
+                raise err(
+                    "E_RNG_BUDGET",
+                    "zero-weight gumbel_key must have key=null and selected=false",
+                )
+        else:
+            if key is None:
+                raise err(
+                    "E_RNG_BUDGET",
+                    "non-zero gumbel_key must include key",
+                )
 
         payload: Dict[str, object] = {
             "merchant_id": int(merchant_id),
             "country_iso": str(country_iso),
             "weight": float(weight),
             "selected": bool(selected),
+            "key": float(key) if key is not None else None,
         }
-        if uniform is not None:
-            payload["u"] = float(uniform)
-        if key is not None:
-            payload["key"] = float(key)
+        if uniform is None:
+            raise err("E_RNG_BUDGET", "gumbel_key missing uniform draw")
+        payload["u"] = float(uniform)
         if selection_order is not None:
             payload["selection_order"] = int(selection_order)
 
@@ -206,8 +223,6 @@ class GumbelEventWriter:
             "substream_label": c.SUBSTREAM_LABEL_GUMBEL,
             "seed": int(self.seed),
             "run_id": str(self.run_id),
-            "parameter_hash": str(self.parameter_hash),
-            "manifest_fingerprint": str(self.manifest_fingerprint),
             "rng_counter_before_hi": int(counter_before.counter_hi),
             "rng_counter_before_lo": int(counter_before.counter_lo),
             "rng_counter_after_hi": int(counter_after.counter_hi),
@@ -217,7 +232,6 @@ class GumbelEventWriter:
             "events_total": stats["events"],
         }
         _append_jsonl(self.trace_path, trace_payload)
-        _append_jsonl(self.module_trace_path, trace_payload)
 
 
 __all__ = ["GumbelEventWriter"]

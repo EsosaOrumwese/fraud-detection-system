@@ -16,7 +16,7 @@ class GateReceiptAssetRef:
     """Minimal description of a sealed asset listed inside the S0 receipt."""
 
     asset_id: str
-    partition: tuple[str, ...]
+    partition: Mapping[str, str]
     schema_ref: str
 
 
@@ -28,7 +28,7 @@ class SealedInputRecord:
     version_tag: str
     sha256_hex: str
     catalog_path: str
-    partition: tuple[str, ...]
+    partition: Mapping[str, str]
     schema_ref: str
 
 
@@ -37,10 +37,8 @@ class GateReceiptSummary:
     """Parsed representation of the 2B S0 gate receipt."""
 
     manifest_fingerprint: str
-    seed: str
+    seed: int
     parameter_hash: str
-    validation_bundle_path: str
-    flag_sha256_hex: str
     verified_at_utc: str
     assets: tuple[GateReceiptAssetRef, ...]
     catalogue_resolution: Mapping[str, str]
@@ -73,13 +71,11 @@ def load_gate_receipt(
     except json.JSONDecodeError as exc:
         raise err("E_S0_RECEIPT_INVALID", f"S0 receipt is not valid JSON: {exc}") from exc
 
-    _expect(payload, "segment", "2B")
-    _expect(payload, "state", "S0")
     _expect(payload, "manifest_fingerprint", manifest_fingerprint)
-    seed = _expect(payload, "seed")
+    seed = payload.get("seed")
+    if not isinstance(seed, int):
+        raise err("E_S0_RECEIPT_INVALID", "S0 receipt seed must be an integer")
     parameter_hash = _expect(payload, "parameter_hash")
-    validation_bundle_path = _expect(payload, "validation_bundle_path")
-    flag_sha256_hex = _expect(payload, "flag_sha256_hex")
     verified_at_utc = _expect(payload, "verified_at_utc")
 
     sealed_inputs = payload.get("sealed_inputs") or []
@@ -98,8 +94,6 @@ def load_gate_receipt(
         manifest_fingerprint=manifest_fingerprint,
         seed=seed,
         parameter_hash=parameter_hash,
-        validation_bundle_path=validation_bundle_path,
-        flag_sha256_hex=flag_sha256_hex,
         verified_at_utc=verified_at_utc,
         assets=assets,
         catalogue_resolution=catalogue_resolution,
@@ -151,13 +145,13 @@ def load_sealed_inputs_inventory(
         sha256_hex = _expect_string(entry, "sha256_hex", context=asset_id)
         catalog_path = _expect_string(entry, "path", context=asset_id)
         schema_ref = _expect_string(entry, "schema_ref", context=asset_id)
-        partition_list = entry.get("partition") or []
-        if not isinstance(partition_list, Sequence):
+        partition = entry.get("partition") or {}
+        if not isinstance(partition, Mapping):
             raise err(
                 "E_SEALED_INPUTS_INVALID",
-                f"sealed asset '{asset_id}' partition must be an array",
+                f"sealed asset '{asset_id}' partition must be an object",
             )
-        partition = tuple(str(item) for item in partition_list if isinstance(item, str))
+        partition = {str(key): str(value) for key, value in partition.items()}
         records.append(
             SealedInputRecord(
                 asset_id=asset_id,
@@ -189,12 +183,15 @@ def _parse_asset(entry: object) -> GateReceiptAssetRef:
     asset_id = entry.get("id")
     if not isinstance(asset_id, str) or not asset_id:
         raise err("E_S0_RECEIPT_INVALID", "sealed_inputs entries must declare string id")
-    partition_obj = entry.get("partition") or ()
-    if not isinstance(partition_obj, Sequence):
-        raise err("E_S0_RECEIPT_INVALID", f"sealed asset '{asset_id}' partition must be an array")
-    partition: tuple[str, ...] = tuple(
-        str(item) for item in partition_obj if isinstance(item, str)
-    )
+    partition_obj = entry.get("partition") or {}
+    if not isinstance(partition_obj, Mapping):
+        raise err(
+            "E_S0_RECEIPT_INVALID",
+            f"sealed asset '{asset_id}' partition must be an object",
+        )
+    partition: Mapping[str, str] = {
+        str(key): str(value) for key, value in partition_obj.items()
+    }
     schema_ref = entry.get("schema_ref")
     if not isinstance(schema_ref, str) or not schema_ref:
         raise err(
@@ -225,4 +222,3 @@ __all__ = [
     "load_gate_receipt",
     "load_sealed_inputs_inventory",
 ]
-

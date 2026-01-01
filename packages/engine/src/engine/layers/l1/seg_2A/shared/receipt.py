@@ -46,9 +46,8 @@ class SealedInputRecord:
     version_tag: str
     sha256_hex: str
     size_bytes: int
-    partition_keys: tuple[str, ...]
     license_class: str | None
-    notes: str | None
+    created_utc: str
 
 
 def load_gate_receipt(
@@ -130,13 +129,12 @@ def load_sealed_inputs_inventory(
                 version_tag=str(row.get("version_tag") or ""),
                 sha256_hex=str(row["sha256_hex"]),
                 size_bytes=int(row.get("size_bytes") or 0),
-                partition_keys=tuple(row.get("partition_keys") or ()),
                 license_class=(
                     str(row["license_class"])
                     if row.get("license_class") is not None
                     else None
                 ),
-                notes=str(row["notes"]) if row.get("notes") is not None else None,
+                created_utc=str(row.get("created_utc") or ""),
             )
         )
     return tuple(records)
@@ -146,17 +144,16 @@ def load_determinism_receipt(
     *,
     base_path: Path,
     manifest_fingerprint: str,
+    dictionary: Mapping[str, object],
 ) -> Mapping[str, object]:
     """Load the determinism receipt emitted by S0 for the given fingerprint."""
 
-    receipt_path = (
-        base_path
-        / "reports"
-        / "l1"
-        / "s0_gate"
-        / f"fingerprint={manifest_fingerprint}"
-        / "determinism_receipt.json"
-    ).resolve()
+    receipt_rel = render_dataset_path(
+        "s0_determinism_receipt_2A",
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
+    )
+    receipt_path = (base_path / receipt_rel).resolve()
     if not receipt_path.exists():
         raise err(
             "2A-S0-044",

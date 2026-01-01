@@ -18,6 +18,7 @@ from ..l1.verification import (
     ensure_reference_surfaces,
     validate_receipt_payload,
     verify_bundle,
+    verify_license_map_coverage,
     verify_outlet_catalogue_lineage,
 )
 
@@ -80,6 +81,8 @@ class S0GateRunner:
             manifest_fingerprint=inputs.manifest_fingerprint,
             seed=inputs.seed,
         )
+        sealed_inputs = build_sealed_inputs(dictionary=dictionary)
+        verify_license_map_coverage(sealed_inputs=sealed_inputs, dictionary=dictionary)
 
         receipt_payload = self._build_receipt_payload(
             inputs=inputs,

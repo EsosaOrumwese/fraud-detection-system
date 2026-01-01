@@ -30,7 +30,7 @@ BUNDLE_REQUIRED_FILES = (
     "index.json",
 )
 
-INDEX_SCHEMA_REF = "schemas.1A.yaml#/validation/validation_bundle.index_schema"
+INDEX_SCHEMA_REF = "schemas.1B.yaml#/validation/validation_bundle_1B/index_schema"
 
 STAGE_LOG_ROOT = Path("logs/stages/s9_validation/segment_1B")
 STAGE_LOG_FILENAME = "S9_STAGES.jsonl"

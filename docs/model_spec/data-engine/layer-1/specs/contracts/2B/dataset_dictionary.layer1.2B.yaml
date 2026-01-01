@@ -63,7 +63,7 @@ datasets:
     path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
     partitioning: [fingerprint]
     ordering: []
-    schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+  schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     lineage:
       produced_by: 1B.validation
       consumed_by: [2B]
@@ -380,7 +380,7 @@ datasets:
     path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
     partitioning: [fingerprint]
     ordering: []
-    schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     lineage:
       produced_by: 2B.S8
       consumed_by: []

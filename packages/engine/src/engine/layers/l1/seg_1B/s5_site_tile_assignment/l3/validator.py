@@ -427,7 +427,7 @@ def _validate_rng_events(
                 "E507_RNG_EVENT_MISMATCH",
                 f"RNG event missing required fields {sorted(missing)}",
             )
-        if event["module"] != "1B.s5_site_tile_assignment":
+        if event["module"] != "1B.S5.assigner":
             raise err("E507_RNG_EVENT_MISMATCH", "RNG event module mismatch")
         if event["substream_label"] != "site_tile_assign":
             raise err("E507_RNG_EVENT_MISMATCH", "RNG event substream mismatch")

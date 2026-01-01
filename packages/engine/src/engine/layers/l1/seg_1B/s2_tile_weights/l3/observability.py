@@ -24,9 +24,11 @@ def build_run_report(
     population_entry = None
     if prepared.governed.basis == "population":
         population_entry = get_dataset_entry("population_raster_2025", dictionary=dictionary)
+    world_entry = get_dataset_entry("world_countries", dictionary=dictionary)
 
     ingress_versions = {
         "iso3166": iso_entry.get("version"),
+        "world_countries": world_entry.get("version"),
         "population_raster": population_entry.get("version") if population_entry else None,
     }
 
@@ -35,7 +37,7 @@ def build_run_report(
         "basis": prepared.governed.basis,
         "dp": prepared.governed.dp,
         "rows_emitted": quantised.rows_emitted,
-        "countries_total": len(quantised.summaries),
+        "countries_total": len(prepared.tile_index.country_set),
         "ingress_versions": ingress_versions,
         "pat": prepared.pat.to_dict(),
         "normalisation_summaries": quantised.summaries,

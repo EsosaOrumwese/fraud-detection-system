@@ -110,6 +110,7 @@ class ValidationRunner:
         run_report_path = self._resolve_run_report_path(
             data_root=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         receipt = load_gate_receipt(
             base_path=data_root,
@@ -119,6 +120,7 @@ class ValidationRunner:
         determinism_receipt = load_determinism_receipt(
             base_path=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         self._log_event(
             event="GATE",
@@ -606,13 +608,14 @@ class ValidationRunner:
         *,
         data_root: Path,
         manifest_fingerprint: str,
+        dictionary: Mapping[str, object],
     ) -> Path:
-        return (
-            data_root
-            / self.RUN_REPORT_ROOT
-            / f"fingerprint={manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+        rel_path = render_dataset_path(
+            "s5_run_report_2A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        return (data_root / rel_path).resolve()
 
     def _write_run_report(
         self,

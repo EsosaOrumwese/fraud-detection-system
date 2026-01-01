@@ -1,4 +1,4 @@
-"""Scenario runner for Segment 5A (S0 gate)."""
+"""Scenario runner for Segment 5A (S0 gate through S5 validation)."""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ class Segment5AConfig:
     run_s1: bool = True
     run_s2: bool = True
     run_s3: bool = True
+    run_s5: bool = True
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,13 @@ class Segment5AResult:
     s4_scenario_utc_path: Path | None = None
     s4_run_report_path: Path | None = None
     s4_resumed: bool = False
+    s5_bundle_index_path: Path | None = None
+    s5_report_path: Path | None = None
+    s5_issue_table_path: Path | None = None
+    s5_passed_flag_path: Path | None = None
+    s5_run_report_path: Path | None = None
+    s5_overall_status: str | None = None
+    s5_resumed: bool = False
 
 
 class Segment5AOrchestrator:
@@ -198,6 +206,37 @@ class Segment5AOrchestrator:
             s4_run_report_path = s4_result.run_report_path
             s4_resumed = s4_result.resumed
 
+        s5_bundle_index_path = None
+        s5_report_path = None
+        s5_issue_table_path = None
+        s5_passed_flag_path = None
+        s5_run_report_path = None
+        s5_overall_status = None
+        s5_resumed = False
+        if config.run_s5:
+            logger.info("Segment5A S5 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            from engine.layers.l2.seg_5A.s5_validation.runner import (
+                ValidationInputs,
+                ValidationRunner,
+            )  # lazy import
+
+            s5_inputs = ValidationInputs(
+                data_root=data_root,
+                manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                run_id=config.run_id,
+                dictionary_path=config.dictionary_path,
+                parameter_hash=s0_outputs.parameter_hash,
+            )
+            s5_result = ValidationRunner().run(s5_inputs)
+            logger.info("Segment5A S5 completed (status=%s)", s5_result.overall_status)
+            s5_bundle_index_path = s5_result.bundle_index_path
+            s5_report_path = s5_result.report_path
+            s5_issue_table_path = s5_result.issue_table_path
+            s5_passed_flag_path = s5_result.passed_flag_path
+            s5_run_report_path = s5_result.run_report_path
+            s5_overall_status = s5_result.overall_status
+            s5_resumed = s5_result.resumed
+
         return Segment5AResult(
             manifest_fingerprint=s0_outputs.manifest_fingerprint,
             parameter_hash=s0_outputs.parameter_hash,
@@ -224,6 +263,13 @@ class Segment5AOrchestrator:
             s4_scenario_utc_path=s4_scenario_utc_path,
             s4_run_report_path=s4_run_report_path,
             s4_resumed=s4_resumed,
+            s5_bundle_index_path=s5_bundle_index_path,
+            s5_report_path=s5_report_path,
+            s5_issue_table_path=s5_issue_table_path,
+            s5_passed_flag_path=s5_passed_flag_path,
+            s5_run_report_path=s5_run_report_path,
+            s5_overall_status=s5_overall_status,
+            s5_resumed=s5_resumed,
         )
 
 

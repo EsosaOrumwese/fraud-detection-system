@@ -253,16 +253,12 @@ class S6VirtualEdgeRunner:
                 manifest=manifest,
                 run_id=run_id,
                 arrival=arrival,
-                edge_entry=edge_entry,
             )
             rng_events.append(event_payload)
 
             if config.emit_edge_log:
                 edge_log_rows[arrival.utc_day].append(
                     {
-                        "seed": seed_int,
-                        "parameter_hash": parameter_hash,
-                        "run_id": run_id,
                         "utc_day": arrival.utc_day,
                         "utc_timestamp": ts_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                         "merchant_id": arrival.merchant_id,
@@ -278,7 +274,6 @@ class S6VirtualEdgeRunner:
                         "ctr_edge_lo": int(before.counter_lo),
                         "manifest_fingerprint": manifest,
                         "created_utc": receipt.verified_at_utc,
-                        "selection_seq": arrival.selection_seq,
                     }
                 )
 
@@ -389,65 +384,60 @@ class S6VirtualEdgeRunner:
     def _prepare_edge_entries(
         self, payload: Mapping[str, object]
     ) -> tuple[List[EdgeEntry], Dict[str, List[EdgeEntry]]]:
-        default_edges = payload.get("default_edges") or []
-        if not isinstance(default_edges, Sequence) or not default_edges:
-            raise err("E_S6_POLICY_MINIMA", "virtual_edge_policy_v1 missing default_edges")
-        metadata = payload.get("geo_metadata") or {}
-        if not isinstance(metadata, Mapping):
-            metadata = {}
+        edges_payload = payload.get("edges") or []
+        if not isinstance(edges_payload, Sequence) or not edges_payload:
+            raise err("E_S6_POLICY_MINIMA", "virtual_edge_policy_v1 missing edges")
 
-        def build_entries(entries_payload: Sequence[Mapping[str, object]]) -> List[EdgeEntry]:
-            entries: List[EdgeEntry] = []
-            for entry in entries_payload:
-                if not isinstance(entry, Mapping):
-                    continue
-                edge_id = str(entry.get("edge_id", "")).strip()
-                country = str(entry.get("country_iso", "")).strip().upper()
+        entries: List[EdgeEntry] = []
+        for entry in edges_payload:
+            if not isinstance(entry, Mapping):
+                raise err("E_S6_POLICY_MINIMA", "edge entries must be objects")
+            edge_id = str(entry.get("edge_id", "")).strip()
+            ip_country = str(entry.get("ip_country", "")).strip().upper()
+            lat = entry.get("edge_lat")
+            lon = entry.get("edge_lon")
+            if not edge_id or not ip_country:
+                raise err("E_S6_POLICY_MINIMA", "edge entries must declare edge_id and ip_country")
+            if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' missing edge_lat/edge_lon")
+            if not (-90.0 <= float(lat) <= 90.0):
+                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' latitude out of range")
+            if not (-180.0 < float(lon) <= 180.0):
+                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' longitude out of range")
+            weight: Optional[float] = None
+            if "weight" in entry:
                 weight = float(entry.get("weight", 0.0))
-                if not edge_id or not country:
-                    raise err("E_S6_POLICY_MINIMA", "edge entries must declare edge_id and country_iso")
-                if weight <= 0 or not math.isfinite(weight):
-                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' weight must be positive")
-                geo_entry = metadata.get(edge_id)
-                if isinstance(entry.get("lat"), (int, float)) and isinstance(entry.get("lon"), (int, float)):
-                    geo_entry = {"lat": entry["lat"], "lon": entry["lon"]}
-                if not isinstance(geo_entry, Mapping):
-                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' missing geo_metadata")
-                lat = float(geo_entry.get("lat", 0.0))
-                lon = float(geo_entry.get("lon", 0.0))
-                if not (-90.0 <= lat <= 90.0):
-                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' latitude out of range")
-                if not (-180.0 < lon <= 180.0):
-                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' longitude out of range")
-                entries.append(
-                    EdgeEntry(
-                        edge_id=edge_id,
-                        ip_country=country,
-                        weight=weight,
-                        lat=lat,
-                        lon=lon,
+            elif "country_weights" in entry:
+                weights_map = entry.get("country_weights")
+                if not isinstance(weights_map, Mapping):
+                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' country_weights must be a map")
+                if ip_country not in weights_map:
+                    raise err(
+                        "E_S6_POLICY_MINIMA",
+                        f"edge '{edge_id}' missing country_weights for {ip_country}",
                     )
+                weight = float(weights_map[ip_country])
+            if weight is None or weight <= 0 or not math.isfinite(weight):
+                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' weight must be positive")
+            entries.append(
+                EdgeEntry(
+                    edge_id=edge_id,
+                    ip_country=ip_country,
+                    weight=weight,
+                    lat=float(lat),
+                    lon=float(lon),
                 )
-            if not entries:
-                raise err("E_S6_POLICY_MINIMA", "edge set produced zero entries")
-            total = sum(item.weight for item in entries)
-            if not math.isfinite(total) or total <= 0.0:
-                raise err("E_S6_POLICY_MINIMA", "edge weights must sum to > 0")
-            if abs(total - 1.0) > 1e-6:
-                raise err("E_S6_POLICY_MINIMA", "edge weights must sum to 1 ± epsilon")
-            entries.sort(key=lambda item: item.edge_id)
-            return entries
+            )
 
-        default_entries = build_entries(default_edges)
-        override_payload = payload.get("merchant_overrides") or {}
-        merchant_overrides: Dict[str, List[EdgeEntry]] = {}
-        if isinstance(override_payload, Mapping):
-            for merchant_id, entries_payload in override_payload.items():
-                key = str(merchant_id)
-                if not isinstance(entries_payload, Sequence) or not entries_payload:
-                    continue
-                merchant_overrides[key] = build_entries(entries_payload)
-        return default_entries, merchant_overrides
+        if not entries:
+            raise err("E_S6_POLICY_MINIMA", "edge set produced zero entries")
+        total = sum(item.weight for item in entries)
+        if not math.isfinite(total) or total <= 0.0:
+            raise err("E_S6_POLICY_MINIMA", "edge weights must sum to > 0")
+        if abs(total - 1.0) > 1e-6:
+            raise err("E_S6_POLICY_MINIMA", "edge weights must sum to 1 ñ epsilon")
+        entries.sort(key=lambda item: (item.ip_country, item.edge_id))
+        return entries, {}
 
     def _validate_virtual_stream(self, payload: Mapping[str, object]) -> None:
         streams = payload.get("substreams") or []
@@ -539,7 +529,6 @@ class S6VirtualEdgeRunner:
         manifest: str,
         run_id: str,
         arrival: RouterVirtualArrival,
-        edge_entry: EdgeEntry,
     ) -> Mapping[str, object]:
         return {
             "ts_utc": ts_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
@@ -556,15 +545,6 @@ class S6VirtualEdgeRunner:
             "rng_counter_after_lo": int(after.counter_lo),
             "rng_counter_after_hi": int(after.counter_hi),
             "merchant_id": arrival.merchant_id,
-            "utc_day": arrival.utc_day,
-            "tz_group_id": arrival.tz_group_id,
-            "site_id": arrival.site_id,
-            "edge_id": edge_entry.edge_id,
-            "ip_country": edge_entry.ip_country,
-            "edge_lat": edge_entry.lat,
-            "edge_lon": edge_entry.lon,
-            "selection_seq": arrival.selection_seq,
-            "is_virtual": True,
         }
 
     def _write_event_partition(
@@ -666,7 +646,6 @@ class S6VirtualEdgeRunner:
             "parameter_hash": parameter_hash,
             "manifest_fingerprint": manifest,
             "run_id": run_id,
-            "module": self.MODULE_NAME,
             "algorithm": "philox2x64-10",
             "build_commit": git_commit,
             "hostname": socket.gethostname(),
@@ -758,7 +737,7 @@ class S6VirtualEdgeRunner:
                     "sha256_hex": edge_policy_digest,
                     "file_sha256_hex": edge_policy_file_digest,
                     "path": str(edge_policy_path),
-                    "edges_total": len(edge_policy.get("default_edges") or []),
+                    "edges_total": len(edge_policy.get("edges") or []),
                 },
             },
             "rng_accounting": rng_accounting,

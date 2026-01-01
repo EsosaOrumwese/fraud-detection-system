@@ -509,7 +509,7 @@ class S5CurrencyWeightsRunner:
         base_path: Path,
         deterministic: S5DeterministicContext,
     ) -> Dict[str, int]:
-        rng_root = (base_path / "rng_logs").resolve()
+        rng_root = (base_path / "logs" / "rng").resolve()
         totals: Dict[str, int] = {"events_total": 0, "draws_total": 0, "blocks_total": 0}
         trace_dir = (
             rng_root

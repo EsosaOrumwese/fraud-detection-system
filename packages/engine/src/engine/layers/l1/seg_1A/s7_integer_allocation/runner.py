@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence, Tuple
 
+import pandas as pd
 from ..s0_foundations.exceptions import err
 from ..s0_foundations.l1.rng import PhiloxEngine, PhiloxState, comp_u64
-from ..shared.dictionary import load_dictionary
+from ..shared.dictionary import load_dictionary, resolve_dataset_path
 from ..s6_foreign_selection.contexts import S6DeterministicContext
 from ..s6_foreign_selection.types import MerchantSelectionResult
 from ..s2_nb_outlets.l2.runner import NBFinalRecord
 from .kernel import allocate_merchants
 from .loader import build_deterministic_context
-from .policy import IntegerisationPolicy, load_policy
+from .policy import DirichletAlphaPolicy, IntegerisationPolicy, load_policy
 from .types import MerchantAllocationResult
 from .writer import S7EventWriter
 from . import constants as c
@@ -63,10 +65,11 @@ class S7Runner:
         policy_path = Path(policy_path).expanduser().resolve()
         dictionary = load_dictionary()
         policy = load_policy(policy_path)
-        policy_digest = _sha256_file(policy_path)
-        artefact_digests: Dict[str, str] = {str(policy_path): policy_digest}
-        for path, digest in policy.digests.items():
-            artefact_digests[path] = digest
+        policy_digest = _sha256_file(policy_path) if policy_path.exists() else ""
+        artefact_digests: Dict[str, str] = {}
+        if policy_digest:
+            artefact_digests[str(policy_path)] = policy_digest
+        artefact_digests.update(policy.digests)
 
         deterministic = build_deterministic_context(
             base_path=base_path,
@@ -108,13 +111,21 @@ class S7Runner:
                 residual_events += 1
 
         dirichlet_events = 0
-        if policy.dirichlet_enabled:
+        base_weight_priors = None
+        if policy.dirichlet_enabled and policy.dirichlet_policy is not None:
+            if policy.dirichlet_policy.base_share_source == "base_weight_priors":
+                base_weight_priors = self._load_base_weight_priors(
+                    base_path=base_path,
+                    parameter_hash=parameter_hash,
+                    dictionary=dictionary,
+                )
             dirichlet_events = self._emit_dirichlet_events(
                 writer=writer,
                 allocation_results=allocation_results,
                 policy=policy,
                 seed=seed,
                 manifest_fingerprint=manifest_fingerprint,
+                base_weight_priors=base_weight_priors,
             )
 
         trace_events = residual_events + dirichlet_events
@@ -153,11 +164,13 @@ class S7Runner:
         policy: IntegerisationPolicy,
         seed: int,
         manifest_fingerprint: str,
+        base_weight_priors: Mapping[int, Mapping[str, float]] | None,
     ) -> int:
-        if policy.dirichlet_alpha0 is None:
+        dirichlet_policy = policy.dirichlet_policy
+        if dirichlet_policy is None or not dirichlet_policy.enabled:
             raise err(
                 "E_DIRICHLET_CONFIG",
-                "dirichlet lane enabled but alpha0 not provided",
+                "dirichlet lane enabled but policy disabled",
             )
 
         engine = PhiloxEngine(seed=seed, manifest_fingerprint=manifest_fingerprint)
@@ -171,7 +184,8 @@ class S7Runner:
             before = substream.snapshot()
             alphas = _build_dirichlet_alpha_vector(
                 merchant=merchant,
-                alpha0=policy.dirichlet_alpha0,
+                policy=dirichlet_policy,
+                base_weight_priors=base_weight_priors,
             )
             gamma_raw = tuple(substream.gamma(value) for value in alphas)
             after = substream.snapshot()
@@ -264,6 +278,49 @@ class S7Runner:
         }
         return metrics
 
+    def _load_base_weight_priors(
+        self,
+        *,
+        base_path: Path,
+        parameter_hash: str,
+        dictionary: Mapping[str, object],
+    ) -> Mapping[int, Mapping[str, float]] | None:
+        try:
+            dataset_path = resolve_dataset_path(
+                "s3_base_weight_priors",
+                base_path=base_path,
+                template_args={"parameter_hash": parameter_hash},
+                dictionary=dictionary,
+            )
+        except Exception:
+            return None
+
+        if not dataset_path.exists() and not dataset_path.parent.exists():
+            return None
+
+        if dataset_path.exists():
+            files = [dataset_path]
+        else:
+            pattern = dataset_path.name.replace("00000", "*.parquet")
+            files = sorted(dataset_path.parent.glob(pattern))
+        if not files:
+            return None
+
+        frame = pd.read_parquet(files, columns=["merchant_id", "country_iso", "base_weight_dp"])
+        priors: Dict[int, Dict[str, float]] = {}
+        for row in frame.itertuples(index=False):
+            merchant_id = int(row.merchant_id)
+            country_iso = str(row.country_iso).upper()
+            try:
+                weight = float(row.base_weight_dp)
+            except (TypeError, ValueError) as exc:
+                raise err(
+                    "E_DIRICHLET_CONFIG",
+                    f"invalid base_weight_dp for merchant {merchant_id} ({country_iso})",
+                ) from exc
+            priors.setdefault(merchant_id, {})[country_iso] = weight
+        return priors
+
 
 def _home_country(merchant: MerchantAllocationResult) -> str:
     for alloc in merchant.domain_allocations:
@@ -278,13 +335,110 @@ def _home_country(merchant: MerchantAllocationResult) -> str:
 def _build_dirichlet_alpha_vector(
     *,
     merchant: MerchantAllocationResult,
-    alpha0: float,
+    policy: DirichletAlphaPolicy,
+    base_weight_priors: Mapping[int, Mapping[str, float]] | None,
 ) -> Tuple[float, ...]:
-    alpha: list[float] = []
-    for alloc in merchant.domain_allocations:
-        base = max(alpha0 * alloc.share, 1e-12)
-        alpha.append(base)
+    base_shares = _resolve_base_shares(
+        merchant=merchant,
+        policy=policy,
+        base_weight_priors=base_weight_priors,
+    )
+    if policy.include_home_boost:
+        base_shares = _apply_home_boost(merchant, base_shares, policy.home_boost_multiplier)
+    alpha = [policy.total_concentration * share for share in base_shares]
+    alpha = _clamp_and_renormalise(alpha, policy)
+    if any(not math.isfinite(value) for value in alpha):
+        raise err(
+            "E_DIRICHLET_CONFIG",
+            "non-finite alpha values produced by policy",
+        )
     return tuple(alpha)
+
+
+def _resolve_base_shares(
+    *,
+    merchant: MerchantAllocationResult,
+    policy: DirichletAlphaPolicy,
+    base_weight_priors: Mapping[int, Mapping[str, float]] | None,
+) -> Sequence[float]:
+    count = len(merchant.domain_allocations)
+    if count == 0:
+        raise err("E_DIRICHLET_CONFIG", "empty domain for dirichlet alpha")
+
+    if policy.kind == "uniform":
+        return _uniform_shares(count)
+
+    if policy.base_share_source == "uniform":
+        return _uniform_shares(count)
+
+    if policy.base_share_source == "ccy_country_weights_cache":
+        return _normalise_weights([alloc.weight for alloc in merchant.domain_allocations])
+
+    if policy.base_share_source == "base_weight_priors":
+        prior_map = base_weight_priors.get(merchant.merchant_id, {}) if base_weight_priors else {}
+        weights = []
+        for alloc in merchant.domain_allocations:
+            weight = prior_map.get(alloc.country_iso)
+            weights.append(float(weight) if weight is not None else 0.0)
+        if sum(weights) <= 0.0:
+            if policy.on_missing_base_shares == "uniform":
+                return _uniform_shares(count)
+            raise err(
+                "E_DIRICHLET_CONFIG",
+                f"base_weight_priors missing for merchant {merchant.merchant_id}",
+            )
+        return _normalise_weights(weights)
+
+    raise err(
+        "E_DIRICHLET_CONFIG",
+        f"unsupported base_share_source '{policy.base_share_source}'",
+    )
+
+
+def _uniform_shares(count: int) -> Sequence[float]:
+    if count <= 0:
+        raise err("E_DIRICHLET_CONFIG", "domain size must be positive")
+    value = 1.0 / float(count)
+    return [value] * count
+
+
+def _normalise_weights(weights: Sequence[float]) -> Sequence[float]:
+    total = float(sum(weights))
+    if total <= 0.0:
+        raise err("E_DIRICHLET_CONFIG", "base share weights sum to zero")
+    return [float(value) / total for value in weights]
+
+
+def _apply_home_boost(
+    merchant: MerchantAllocationResult,
+    base_shares: Sequence[float],
+    multiplier: float,
+) -> Sequence[float]:
+    boosted = list(base_shares)
+    home_idx = None
+    for idx, alloc in enumerate(merchant.domain_allocations):
+        if alloc.is_home:
+            home_idx = idx
+            break
+    if home_idx is None:
+        raise err(
+            "E_DIRICHLET_CONFIG",
+            f"home entry missing for merchant {merchant.merchant_id}",
+        )
+    boosted[home_idx] = boosted[home_idx] * multiplier
+    return _normalise_weights(boosted)
+
+
+def _clamp_and_renormalise(
+    alpha: Sequence[float],
+    policy: DirichletAlphaPolicy,
+) -> Sequence[float]:
+    clamped = [min(max(value, policy.alpha_min), policy.alpha_max) for value in alpha]
+    total = float(sum(clamped))
+    if total <= 0.0:
+        raise err("E_DIRICHLET_CONFIG", "alpha sum must be positive after clamp")
+    scale = policy.total_concentration / total
+    return [value * scale for value in clamped]
 
 
 def _normalise_gamma(values: Tuple[float, ...]) -> Tuple[float, ...]:

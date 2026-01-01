@@ -13,6 +13,7 @@ import polars as pl
 
 from ..s0_foundations.exceptions import err
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..shared.passed_flag import parse_passed_flag
 from .contexts import S9DeterministicContext, S9InputSurfaces
 from . import constants as c
 
@@ -150,6 +151,7 @@ def load_deterministic_context(
     upstream_manifest = _load_upstream_manifest(
         base_path=base_path,
         manifest_fingerprint=manifest_fingerprint,
+        dictionary=dictionary,
     )
 
     source_paths = {
@@ -167,7 +169,11 @@ def load_deterministic_context(
     for dataset_id, files in rng_event_paths.items():
         source_paths[dataset_id] = files
 
-    lineage_paths = _discover_lineage_paths(base_path=base_path, manifest_fingerprint=manifest_fingerprint)
+    lineage_paths = _discover_lineage_paths(
+        base_path=base_path,
+        manifest_fingerprint=manifest_fingerprint,
+        dictionary=dictionary,
+    )
 
     return S9DeterministicContext(
         base_path=base_path,
@@ -277,11 +283,10 @@ def _verify_s6_pass_receipt(
 
     payload = receipt_path.read_text(encoding="utf-8")
     expected = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-    flag_text = flag_path.read_text(encoding="ascii").strip()
-    prefix = "sha256_hex="
-    if not flag_text.startswith(prefix):
-        raise err("E_S9_S6_RECEIPT_INVALID", f"six _passed.flag malformed at {flag_path}")
-    actual = flag_text[len(prefix) :].strip()
+    try:
+        actual = parse_passed_flag(flag_path.read_text(encoding="ascii"))
+    except ValueError as exc:
+        raise err("E_S9_S6_RECEIPT_INVALID", f"six _passed.flag malformed at {flag_path}") from exc
     if expected != actual:
         raise err(
             "E_S9_S6_RECEIPT_INVALID",
@@ -289,13 +294,19 @@ def _verify_s6_pass_receipt(
         )
 
 
-def _load_upstream_manifest(*, base_path: Path, manifest_fingerprint: str) -> Mapping[str, object] | None:
+def _load_upstream_manifest(
+    *,
+    base_path: Path,
+    manifest_fingerprint: str,
+    dictionary: Mapping[str, object],
+) -> Mapping[str, object] | None:
     """Load the upstream S0 manifest for context reuse when present."""
 
-    bundle_dir = (
-        Path(base_path)
-        / "validation_bundle"
-        / f"manifest_fingerprint={manifest_fingerprint}"
+    bundle_dir = resolve_dataset_path(
+        c.VALIDATION_DATASET_ID,
+        base_path=base_path,
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
     )
     manifest_path = bundle_dir / "MANIFEST.json"
     if not manifest_path.exists():
@@ -309,11 +320,17 @@ def _load_upstream_manifest(*, base_path: Path, manifest_fingerprint: str) -> Ma
         ) from exc
 
 
-def _discover_lineage_paths(*, base_path: Path, manifest_fingerprint: str) -> Mapping[str, Path]:
-    bundle_dir = (
-        Path(base_path)
-        / "validation_bundle"
-        / f"manifest_fingerprint={manifest_fingerprint}"
+def _discover_lineage_paths(
+    *,
+    base_path: Path,
+    manifest_fingerprint: str,
+    dictionary: Mapping[str, object],
+) -> Mapping[str, Path]:
+    bundle_dir = resolve_dataset_path(
+        c.VALIDATION_DATASET_ID,
+        base_path=base_path,
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
     )
     paths: dict[str, Path] = {}
     for name in ("param_digest_log.jsonl", "fingerprint_artifacts.jsonl", "MANIFEST.json"):

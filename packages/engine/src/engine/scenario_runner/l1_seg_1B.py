@@ -139,7 +139,7 @@ class Segment1BOrchestrator:
         )
 
         logger.info("Segment1B S2 starting")
-        prepared_s2 = self._s2_runner.prepare(
+        s2_result = self._s2_runner.run(
             S2RunnerConfig(
                 data_root=data_root,
                 parameter_hash=config.parameter_hash,
@@ -148,19 +148,6 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
-        masses = self._s2_runner.compute_masses(prepared_s2)
-        self._s2_runner.measure_baselines(
-            prepared_s2,
-            measure_raster=prepared_s2.governed.basis == "population",
-        )
-        quantised = self._s2_runner.quantise(prepared_s2, masses)
-        logger.info(
-            "Segment1B S2 progress (rows_emitted=%d, countries=%d, temp_dir=%s)",
-            quantised.rows_emitted,
-            len(quantised.summaries),
-            quantised.temp_dir,
-        )
-        s2_result = self._s2_runner.materialise(prepared_s2, quantised)
         logger.info(
             "Segment1B S2 completed (weights=%s, report=%s)",
             s2_result.tile_weights_path,

@@ -188,9 +188,10 @@ class RoutingRunner:
         else:
             run_summary_path.write_text(json.dumps(summary_payload, indent=2, sort_keys=True), encoding="utf-8")
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3B/s4_routing/fingerprint={manifest_fingerprint}/run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s4_run_report_3B",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {
@@ -198,6 +199,7 @@ class RoutingRunner:
             "segment": "3B",
             "state": "S4",
             "status": "PASS",
+            "seed": seed,
             "manifest_fingerprint": manifest_fingerprint,
             "parameter_hash": routing_policy["parameter_hash"],
             "routing_policy_path": str(routing_policy_path),
@@ -318,9 +320,9 @@ class RoutingRunner:
         digests: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         try:
-            _ = edge_hash_payload["edge_universe_hash"]
+            _ = edge_hash_payload["universe_hash"]
         except Exception:
-            raise err("E_SCHEMA", "edge_universe_hash_3B missing edge_universe_hash")
+            raise err("E_SCHEMA", "edge_universe_hash_3B missing universe_hash")
 
         alias_layout_version = "synthetic-v1"
         try:
@@ -345,7 +347,7 @@ class RoutingRunner:
         routing_policy = {
             "manifest_fingerprint": manifest_fingerprint,
             "parameter_hash": parameter_hash,
-            "edge_universe_hash": edge_hash_payload.get("edge_universe_hash"),
+            "edge_universe_hash": edge_hash_payload.get("universe_hash"),
             "routing_policy_id": "virtual_routing_policy",
             "routing_policy_version": "synthetic-v1",
             "virtual_validation_policy_id": "virtual_validation_policy",

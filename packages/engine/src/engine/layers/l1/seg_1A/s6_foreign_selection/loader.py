@@ -12,6 +12,7 @@ import logging
 import pandas as pd
 
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..shared.passed_flag import parse_passed_flag
 from .contexts import S6DeterministicContext
 from .types import CandidateInput, MerchantSelectionInput
 
@@ -196,11 +197,10 @@ def verify_s5_pass(partition_dir: Path) -> None:
 
     receipt_text = receipt_path.read_text(encoding="utf-8")
     expected_digest = hashlib.sha256(receipt_text.encode("utf-8")).hexdigest()
-    flag_text = flag_path.read_text(encoding="ascii").strip()
-    prefix = "sha256_hex="
-    if not flag_text.startswith(prefix):
-        raise S6LoaderError(f"s5 _passed.flag malformed at {flag_path}")
-    actual_digest = flag_text[len(prefix) :].strip()
+    try:
+        actual_digest = parse_passed_flag(flag_path.read_text(encoding="ascii"))
+    except ValueError as exc:
+        raise S6LoaderError(f"s5 _passed.flag malformed at {flag_path}") from exc
     if actual_digest != expected_digest:
         raise S6LoaderError(
             "S5 PASS receipt hash mismatch; refusing to read weights "

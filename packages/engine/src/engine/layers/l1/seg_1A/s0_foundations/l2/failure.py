@@ -37,7 +37,7 @@ def emit_failure_record(
 ) -> Path:
     """Write a structured failure record and return the final directory."""
 
-    failures_root = base_path / "validation_failures"
+    failures_root = base_path / "data" / "layer1" / "1A" / "validation" / "failures"
     failures_root.mkdir(parents=True, exist_ok=True)
 
     final_dir = (

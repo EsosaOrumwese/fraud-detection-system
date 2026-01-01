@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from engine.layers.l1.seg_3A.s0_gate.exceptions import err
-from engine.layers.l1.seg_3A.s0_gate.l0 import aggregate_sha256, expand_files, hash_files
+from engine.layers.l1.seg_3A.s0_gate.l0 import aggregate_sha256, expand_files, hash_files, total_size_bytes
 from engine.layers.l1.seg_3A.shared import SegmentStateKey, render_dataset_path, write_segment_state_run_report
 from engine.layers.l1.seg_3A.shared.dictionary import load_dictionary
 
@@ -70,7 +70,7 @@ class BundleRunner:
         )
         bundle_dir.mkdir(parents=True, exist_ok=True)
         index_path = bundle_dir / "index.json"
-        passed_flag_path = bundle_dir / "_passed.flag_3A"
+        passed_flag_path = bundle_dir / "_passed.flag"
 
         components = self._gather_components(
             data_root=data_root,
@@ -79,7 +79,13 @@ class BundleRunner:
             parameter_hash=parameter_hash,
             seed=seed,
         )
-        bundle_index = self._build_index(components)
+        s6_receipt_digest = self._find_component_digest(components, "s6_receipt_3A")
+        bundle_index = self._build_index(
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            s6_receipt_digest=s6_receipt_digest,
+            components=components,
+        )
         bundle_digest = self._compute_bundle_digest(bundle_index)
 
         # idempotency
@@ -96,9 +102,10 @@ class BundleRunner:
             index_path.write_text(json.dumps(bundle_index, indent=2, sort_keys=True), encoding="utf-8")
             passed_flag_path.write_text(f"sha256_hex = {bundle_digest}", encoding="utf-8")
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3A/s7_bundle/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s7_run_report_3A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {
@@ -209,34 +216,55 @@ class BundleRunner:
             path = data_root / rel_path
             if not path.exists():
                 raise err("E_COMPONENT_MISSING", f"bundle component '{dataset_id}' missing at '{path}'")
-            schema_ref = self._schema_ref_for(dataset_id, dictionary)
+            entry = self._entry_for(dataset_id, dictionary)
+            schema_ref = entry.get("schema_ref")
+            if not isinstance(schema_ref, str):
+                raise err("E_DICTIONARY_RESOLUTION_FAILED", f"schema_ref missing for {dataset_id}")
             digest = aggregate_sha256(hash_files(expand_files(path), error_prefix=dataset_id))
+            size_bytes = total_size_bytes(expand_files(path))
             components.append(
                 {
-                    "dataset_id": dataset_id,
-                    "role": role,
+                    "logical_id": dataset_id,
+                    "role": entry.get("description", role),
                     "path": str(path),
                     "schema_ref": schema_ref,
                     "sha256_hex": digest,
+                    "size_bytes": size_bytes,
+                    "notes": entry.get("notes"),
                 }
             )
-        components.sort(key=lambda c: (c["dataset_id"], c["path"]))
+        components.sort(key=lambda c: c["path"])
         return components
 
-    def _build_index(self, components: Iterable[Mapping[str, Any]]) -> Mapping[str, Any]:
-        return {"version": "1.0.0", "items": list(components)}
+    def _build_index(
+        self,
+        *,
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        s6_receipt_digest: str,
+        components: Iterable[Mapping[str, Any]],
+    ) -> Mapping[str, Any]:
+        return {
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+            "s6_receipt_digest": s6_receipt_digest,
+            "members": list(components),
+        }
 
     def _compute_bundle_digest(self, index: Mapping[str, Any]) -> str:
-        concat = "".join(item["sha256_hex"] for item in index.get("items", []))
+        concat = "".join(item["sha256_hex"] for item in index.get("members", []))
         from hashlib import sha256
 
         return sha256(concat.encode()).hexdigest()
 
-    def _schema_ref_for(self, dataset_id: str, dictionary: Mapping[str, object]) -> str:
+    def _entry_for(self, dataset_id: str, dictionary: Mapping[str, object]) -> Mapping[str, object]:
         from engine.layers.l1.seg_3A.shared.dictionary import get_dataset_entry
 
         entry = get_dataset_entry(dataset_id, dictionary=dictionary)
-        ref = entry.get("schema_ref")
-        if not isinstance(ref, str):
-            raise err("E_DICTIONARY_RESOLUTION_FAILED", f"schema_ref missing for {dataset_id}")
-        return ref
+        return entry
+
+    def _find_component_digest(self, components: Sequence[Mapping[str, Any]], logical_id: str) -> str:
+        for item in components:
+            if item.get("logical_id") == logical_id:
+                return str(item.get("sha256_hex"))
+        raise err("E_COMPONENT_MISSING", f"bundle component '{logical_id}' missing from index")

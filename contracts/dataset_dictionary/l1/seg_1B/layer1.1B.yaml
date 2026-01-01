@@ -215,6 +215,60 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s1_run_report:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run report for S1 tile index (outside dataset partition).
+    version: '{parameter_hash}'
+    format: json
+    path: control/s1_tile_index/parameter_hash={parameter_hash}/s1_run_report.json
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S1
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s1_country_summaries:
+    status: draft
+    owner_subsegment: 1B
+    description: Per-country S1 summaries for eligibility counts and tile ranges.
+    version: '{parameter_hash}'
+    format: jsonl
+    path: control/s1_tile_index/parameter_hash={parameter_hash}/s1_country_summaries.jsonl
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S1
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s1_failure_event:
+    status: draft
+    owner_subsegment: 1B
+    description: Failure event log for S1 (one JSON object per line).
+    version: '{parameter_hash}'
+    format: jsonl
+    path: control/s1_tile_index/parameter_hash={parameter_hash}/s1_failure_events.jsonl
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S1
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
   tile_weights:
     status: draft
     owner_subsegment: 1B
@@ -230,6 +284,60 @@ datasets:
       consumed_by: [1B]
       final_in_layer: false
     retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  s2_run_report:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run report for S2 tile weights (outside dataset partition).
+    version: '{parameter_hash}'
+    format: json
+    path: control/s2_tile_weights/parameter_hash={parameter_hash}/s2_run_report.json
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S2
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s2_country_summaries:
+    status: draft
+    owner_subsegment: 1B
+    description: Per-country S2 summaries for weight mass and counts.
+    version: '{parameter_hash}'
+    format: jsonl
+    path: control/s2_tile_weights/parameter_hash={parameter_hash}/s2_country_summaries.jsonl
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S2
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s2_failure_event:
+    status: draft
+    owner_subsegment: 1B
+    description: Failure event log for S2 (one JSON object per line).
+    version: '{parameter_hash}'
+    format: jsonl
+    path: control/s2_tile_weights/parameter_hash={parameter_hash}/s2_failure_events.jsonl
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S2
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
     pii: false
     license: Proprietary-Internal
 
@@ -359,16 +467,34 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s3_failure_event:
+    status: draft
+    owner_subsegment: 1B
+    description: Failure event log for S3 (one JSON object per line).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: jsonl
+    path: control/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_failure_events.jsonl
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S3
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
   validation_bundle_1B:
     status: draft
     owner_subsegment: 1B
     description: Segment 1B validation bundle emitted by S9.
     version: '{manifest_fingerprint}'
     format: directory
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
     partitioning: [fingerprint]
     ordering: []
-    schema_ref: schemas.1B.yaml#/validation/bundle
+    schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
     lineage:
       produced_by: 1B.S9
       consumed_by: []
@@ -383,10 +509,10 @@ datasets:
     description: PASS flag for the Segment 1B validation bundle.
     version: '{manifest_fingerprint}'
     format: file
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/_passed.flag
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
     partitioning: [fingerprint]
     ordering: []
-    schema_ref: schemas.1B.yaml#/validation/pass_flag
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
     lineage:
       produced_by: 1B.S9
       consumed_by: []
@@ -413,6 +539,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s4_failure_event:
+    status: draft
+    owner_subsegment: 1B
+    description: Failure event log for S4 (one JSON object per line).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: jsonl
+    path: control/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_failure_events.jsonl
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S4
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
   s5_run_report:
     status: draft
     owner_subsegment: 1B
@@ -423,6 +567,24 @@ datasets:
     partitioning: [seed, fingerprint, parameter_hash]
     ordering: []
     schema_ref: schemas.1B.yaml#/control/s5_run_report
+    lineage:
+      produced_by: 1B.S5
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s5_failure_event:
+    status: draft
+    owner_subsegment: 1B
+    description: Failure event log for S5 (one JSON object per line).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: jsonl
+    path: control/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_failure_events.jsonl
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: null
     lineage:
       produced_by: 1B.S5
       consumed_by: [1B]

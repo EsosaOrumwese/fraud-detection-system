@@ -20,8 +20,6 @@ __all__ = [
     "load_policy",
 ]
 
-_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _ISO4217_RE = re.compile(r"^[A-Z]{3}$")
 _ZERO_WEIGHT_RULES = {"exclude", "include"}
 
@@ -43,8 +41,6 @@ class SelectionOverrides:
 class SelectionPolicy:
     """Container for the resolved S6 policy (global + overrides)."""
 
-    policy_semver: str
-    policy_version: str
     emit_membership_dataset: bool
     log_all_candidates: bool
     max_candidates_cap: int
@@ -77,31 +73,18 @@ def load_policy(path: str | Path) -> SelectionPolicy:
         raise PolicyValidationError(f"failed to parse policy YAML: {exc}") from exc
 
     mapping = _expect_mapping(payload, "policy")
-    allowed_keys = {"policy_semver", "policy_version", "defaults", "per_currency", "notes"}
+    allowed_keys = {"defaults", "per_currency"}
     unknown = set(mapping) - allowed_keys
-    missing = {"policy_semver", "policy_version", "defaults", "per_currency"} - set(mapping)
+    missing = {"defaults"} - set(mapping)
     if unknown:
         raise PolicyValidationError(f"unknown top-level keys: {sorted(unknown)}")
     if missing:
         raise PolicyValidationError(f"missing required keys: {sorted(missing)}")
 
-    policy_semver = _expect_string(mapping["policy_semver"], "policy_semver")
-    if not _SEMVER_RE.fullmatch(policy_semver):
-        raise PolicyValidationError(
-            f"policy_semver must match MAJOR.MINOR.PATCH, got '{policy_semver}'"
-        )
-    policy_version = _expect_string(mapping["policy_version"], "policy_version")
-    if not _DATE_RE.fullmatch(policy_version):
-        raise PolicyValidationError(
-            f"policy_version must match YYYY-MM-DD, got '{policy_version}'"
-        )
-
     defaults = _parse_defaults(mapping["defaults"])
-    per_currency = _parse_per_currency(mapping["per_currency"], defaults)
+    per_currency = _parse_per_currency(mapping.get("per_currency", {}), defaults)
 
     return SelectionPolicy(
-        policy_semver=policy_semver,
-        policy_version=policy_version,
         emit_membership_dataset=defaults.emit_membership_dataset,
         log_all_candidates=defaults.log_all_candidates,
         max_candidates_cap=defaults.max_candidates_cap,

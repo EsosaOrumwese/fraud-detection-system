@@ -9,6 +9,27 @@ $defs:
   rfc3339_micros:
     $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
 
+run_report:
+  segment_state_run:
+    type: object
+    additionalProperties: true
+    required:
+      - layer
+      - segment
+      - state
+      - parameter_hash
+      - manifest_fingerprint
+      - run_id
+      - status
+    properties:
+      layer: {type: string}
+      segment: {type: string}
+      state: {type: string}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      run_id: {type: string}
+      status: {type: string}
+
 validation:
   validation_bundle_index_5A:
     type: object

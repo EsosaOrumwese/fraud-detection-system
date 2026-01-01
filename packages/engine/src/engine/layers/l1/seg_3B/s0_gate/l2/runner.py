@@ -29,6 +29,7 @@ from engine.layers.l1.seg_1A.s0_foundations.l1.hashing import (
 from engine.layers.l1.seg_3B.shared import SegmentStateKey, write_segment_state_run_report
 from engine.layers.l1.seg_3B.shared.dictionary import (
     default_dictionary_path,
+    get_dataset_entry,
     load_dictionary,
     render_dataset_path,
     repository_root,
@@ -136,7 +137,7 @@ class S0GateRunner:
         run_started_at = datetime.now(timezone.utc)
         gate_timer = time.perf_counter()
 
-        upstream_bundles = self._verify_upstream_bundles(inputs)
+        upstream_bundles = self._verify_upstream_bundles(inputs=inputs, dictionary=dictionary)
         gate_verify_ms = int(round((time.perf_counter() - gate_timer) * 1000))
 
         sealed_assets = self._collect_sealed_assets(inputs=inputs, dictionary=dictionary, upstream_bundles=upstream_bundles)
@@ -204,49 +205,65 @@ class S0GateRunner:
         )
 
     # -------------------- internal helpers --------------------
-    def _verify_upstream_bundles(self, inputs: GateInputs) -> dict[str, Mapping[str, object]]:
+    def _verify_upstream_bundles(
+        self,
+        *,
+        inputs: GateInputs,
+        dictionary: Mapping[str, object],
+    ) -> dict[str, Mapping[str, object]]:
         base = inputs.base_path
         fingerprint = inputs.upstream_manifest_fingerprint
-        defaults = {
-            "1A": base / f"data/layer1/1A/validation/fingerprint={fingerprint}",
-            "1B": base / f"data/layer1/1B/validation/fingerprint={fingerprint}",
-            "2A": base / f"data/layer1/2A/validation/fingerprint={fingerprint}",
-            "3A": base / f"data/layer1/3A/validation/fingerprint={fingerprint}",
-        }
-        bundle_paths: dict[str, Path] = {
-            "1A": inputs.validation_bundle_1a or defaults["1A"],
-            "1B": inputs.validation_bundle_1b or defaults["1B"],
-            "2A": inputs.validation_bundle_2a or defaults["2A"],
-            "3A": inputs.validation_bundle_3a or defaults["3A"],
+        segments = {
+            "1A": ("validation_bundle_1A", "validation_passed_flag_1A", "validation_bundle_1a"),
+            "1B": ("validation_bundle_1B", "validation_passed_flag_1B", "validation_bundle_1b"),
+            "2A": ("validation_bundle_2A", "validation_passed_flag_2A", "validation_bundle_2a"),
+            "3A": ("validation_bundle_3A", "validation_passed_flag_3A", "validation_bundle_3a"),
         }
 
         results: dict[str, Mapping[str, object]] = {}
-        for segment, bundle_path in bundle_paths.items():
-            resolved = self._resolve_bundle_path(bundle_path)
-            if not resolved.exists() or not resolved.is_dir():
-                raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {resolved}")
-            bundle_index = load_index(resolved)
-            computed_flag = compute_index_digest(resolved, bundle_index)
-            flag_names: Sequence[str] = ["_passed.flag_3A", "_passed.flag"] if segment == "3A" else ["_passed.flag"]
-            declared_flag: str | None = None
-            for flag_name in flag_names:
-                if (resolved / flag_name).exists():
-                    declared_flag = read_pass_flag(resolved, flag_name=flag_name)
-                    break
-            if declared_flag is None:
-                raise err("E_PASS_MISSING", f"{segment} validation bundle missing pass flag")
+        for segment, (bundle_id, flag_id, attr_name) in segments.items():
+            expected_root = base / render_dataset_path(
+                dataset_id=bundle_id,
+                template_args={"manifest_fingerprint": fingerprint},
+                dictionary=dictionary,
+            )
+            expected_bundle_path = self._resolve_bundle_path(expected_root)
+            expected_flag_path = base / render_dataset_path(
+                dataset_id=flag_id,
+                template_args={"manifest_fingerprint": fingerprint},
+                dictionary=dictionary,
+            )
+            provided_path = getattr(inputs, attr_name)
+            candidate_path = self._resolve_bundle_path(provided_path or expected_root)
+            if candidate_path.resolve() != expected_bundle_path.resolve():
+                raise err(
+                    "E_BUNDLE_PATH",
+                    f"{segment} validation bundle path mismatch (expected {expected_bundle_path}, got {candidate_path})",
+                )
+            if expected_flag_path.resolve() != (candidate_path / "_passed.flag").resolve():
+                raise err(
+                    "E_FLAG_PATH",
+                    f"{segment} pass flag path mismatch (expected {expected_flag_path})",
+                )
+            if not candidate_path.exists() or not candidate_path.is_dir():
+                raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {candidate_path}")
+            bundle_index = load_index(candidate_path)
+            computed_flag = compute_index_digest(candidate_path, bundle_index)
+            declared_flag = read_pass_flag(candidate_path)
             if computed_flag != declared_flag:
                 raise err("E_FLAG_HASH_MISMATCH", f"{segment} computed digest does not match _passed.flag")
-            # persist resolved path on inputs for downstream use
-            if segment == "1A":
-                object.__setattr__(inputs, "validation_bundle_1a", resolved)
-            elif segment == "1B":
-                object.__setattr__(inputs, "validation_bundle_1b", resolved)
-            elif segment == "2A":
-                object.__setattr__(inputs, "validation_bundle_2a", resolved)
-            else:
-                object.__setattr__(inputs, "validation_bundle_3a", resolved)
-            results[segment] = {"path": resolved, "sha256_hex": declared_flag}
+            object.__setattr__(inputs, attr_name, candidate_path)
+            entry = get_dataset_entry(bundle_id, dictionary=dictionary)
+            schema_ref = entry.get("schema_ref")
+            if not isinstance(schema_ref, str) or not schema_ref:
+                raise err("E_SCHEMA_REF", f"schema_ref missing for {bundle_id}")
+            results[segment] = {
+                "path": candidate_path,
+                "sha256_hex": declared_flag,
+                "schema_ref": schema_ref,
+                "role": entry.get("description", bundle_id),
+                "license_class": entry.get("licence", "Proprietary-Internal"),
+            }
         return results
 
     def _resolve_bundle_path(self, bundle_path: Path) -> Path:
@@ -270,12 +287,6 @@ class S0GateRunner:
         dictionary: Mapping[str, object],
         upstream_bundles: Mapping[str, Mapping[str, object]],
     ) -> list[SealedArtefact]:
-        def _fingerprint_from_path(path: Path) -> str | None:
-            for part in path.parts:
-                if part.startswith("fingerprint="):
-                    return part.split("=", 1)[1]
-            return None
-
         assets: list[SealedArtefact] = []
         repo_root = repository_root()
 
@@ -288,8 +299,7 @@ class S0GateRunner:
             token_builder = spec.get("tokens")
             template_args: Mapping[str, object]
             if asset_id == "site_locations":
-                fp = _fingerprint_from_path(Path(upstream_bundles.get("1B", {}).get("path", "")))
-                template_args = {"seed": inputs.seed, "manifest_fingerprint": fp or inputs.upstream_manifest_fingerprint}
+                template_args = {"seed": inputs.seed, "manifest_fingerprint": inputs.upstream_manifest_fingerprint}
             elif callable(token_builder):
                 template_args = token_builder(inputs)  # type: ignore[arg-type]
             else:
@@ -348,9 +358,9 @@ class S0GateRunner:
                     artefact_kind="validation",
                     logical_id=f"validation_bundle_{segment}",
                     path=bundle_path,
-                    schema_ref=f"schemas.{segment}.yaml#/validation/validation_bundle",
-                    role=f"{segment} validation gate",
-                    license_class="Proprietary-Internal",
+                    schema_ref=str(bundle_info["schema_ref"]),
+                    role=str(bundle_info["role"]),
+                    license_class=str(bundle_info["license_class"]),
                     digests=bundle_digests,
                 )
             )
@@ -386,7 +396,6 @@ class S0GateRunner:
             "verified_at_utc": verified_at.isoformat(),
             "upstream_gates": {},
             "sealed_policy_set": [],
-            "notes": inputs.notes,
             "digests": {},
         }
 
@@ -395,7 +404,6 @@ class S0GateRunner:
             sha = bundle_info["sha256_hex"]
             receipt_payload["upstream_gates"][f"segment_{segment}"] = {
                 "bundle_id": f"validation_bundle_{segment}",
-                "bundle_path": str(bundle_path),
                 "flag_path": str(bundle_path / "_passed.flag"),
                 "sha256_hex": sha,
                 "status": "PASS",

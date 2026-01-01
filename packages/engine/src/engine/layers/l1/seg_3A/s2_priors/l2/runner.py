@@ -125,15 +125,18 @@ class PriorsRunner:
         else:
             result_df.write_parquet(output_file)
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3A/s2_priors/parameter_hash={inputs.parameter_hash}/run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s2_run_report_3A",
+            template_args={"parameter_hash": inputs.parameter_hash},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         self._write_run_report(
             path=run_report_path,
             result_df=result_df,
+            manifest_fingerprint=manifest_fingerprint,
             parameter_hash=inputs.parameter_hash,
+            seed=inputs.seed,
             prior_meta=prior_payload,
             floor_meta=floor_payload,
             resumed=resumed,
@@ -324,7 +327,9 @@ class PriorsRunner:
         *,
         path: Path,
         result_df: pl.DataFrame,
+        manifest_fingerprint: str,
         parameter_hash: str,
+        seed: int,
         prior_meta: Mapping[str, Any],
         floor_meta: Mapping[str, Any],
         resumed: bool,
@@ -337,6 +342,8 @@ class PriorsRunner:
             "state": "S2",
             "status": "PASS",
             "parameter_hash": parameter_hash,
+            "manifest_fingerprint": manifest_fingerprint,
+            "seed": seed,
             "prior_pack_id": prior_meta.get("policy_id") or prior_meta.get("id"),
             "prior_pack_version": prior_meta.get("version") or prior_meta.get("semver"),
             "floor_policy_id": floor_meta.get("policy_id") or floor_meta.get("id"),

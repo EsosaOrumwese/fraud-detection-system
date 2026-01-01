@@ -183,7 +183,11 @@ class S0GateRunner:
             write_result=write_result,
             gate_verify_ms=gate_verify_ms,
         )
-        run_report_path = self._write_run_report(inputs=inputs, payload=run_report)
+        run_report_path = self._write_run_report(
+            inputs=inputs,
+            dictionary=dictionary,
+            payload=run_report,
+        )
         logger.info(
             "Segment2B S0 run-report saved to %s (manifest=%s)",
             run_report_path,
@@ -311,13 +315,28 @@ class S0GateRunner:
                     "2B-S0-031",
                     f"dictionary entry '{asset_id}' missing version",
                 )
+            partition: dict[str, str] = {}
+            for key in partitioning:
+                if key not in template_args:
+                    raise err(
+                        "2B-S0-031",
+                        f"partition key '{key}' missing for asset '{asset_id}'",
+                    )
+                value = template_args[key]
+                if value is None:
+                    raise err(
+                        "2B-S0-031",
+                        f"partition key '{key}' resolved to empty value for asset '{asset_id}'",
+                    )
+                partition[str(key)] = str(value)
+
             assets.append(
                 SealedAsset(
                     asset_id=asset_id,
                     schema_ref=str(entry.get("schema_ref", "")),
                     catalog_path=catalog_path,
                     resolved_path=resolved_path,
-                    partition_keys=tuple(str(part) for part in partitioning),
+                    partition=partition,
                     version_tag=version,
                     digests=tuple(digests),
                 )
@@ -346,16 +365,15 @@ class S0GateRunner:
         for policy_id in inputs.policy_asset_ids:
             add_asset(policy_id, template_args={})
 
-        if inputs.pin_civil_time:
-            for asset_id in self._CIVIL_OPTIONAL_IDS:
-                add_asset(
-                    asset_id,
-                    template_args={
-                        "seed": seed,
-                        "manifest_fingerprint": inputs.seg2a_manifest_fingerprint,
-                    },
-                    allow_missing=False,
-                )
+        for asset_id in self._CIVIL_OPTIONAL_IDS:
+            add_asset(
+                asset_id,
+                template_args={
+                    "seed": seed,
+                    "manifest_fingerprint": inputs.seg2a_manifest_fingerprint,
+                },
+                allow_missing=False,
+            )
 
         return ensure_unique_assets(assets)
 
@@ -397,24 +415,24 @@ class S0GateRunner:
         catalogue_resolution = self._catalogue_resolution(dictionary)
         determinism_receipt = {
             "engine_commit": inputs.git_commit_hex,
+            "python_version": sys.version.split()[0],
+            "platform": platform.platform(),
             "policy_ids": policy_ids,
             "policy_digests": policy_digests,
         }
+        try:
+            seed_value = int(inputs.seed)
+        except (TypeError, ValueError) as exc:
+            raise err("2B-S0-020", "seed must be an unsigned integer") from exc
         receipt_payload = {
-            "segment": "2B",
-            "state": "S0",
             "manifest_fingerprint": inputs.manifest_fingerprint,
-            "seed": str(inputs.seed),
+            "seed": seed_value,
             "parameter_hash": inputs.parameter_hash,
-            "validation_bundle_path": str(bundle_path),
-            "flag_sha256_hex": flag_sha256_hex,
             "verified_at_utc": _now_utc(),
             "sealed_inputs": sealed_entries,
             "catalogue_resolution": catalogue_resolution,
             "determinism_receipt": determinism_receipt,
         }
-        if inputs.notes:
-            receipt_payload["notes"] = inputs.notes
         validate_receipt_payload(receipt_payload)
 
         receipt_rel = render_dataset_path(
@@ -520,10 +538,15 @@ class S0GateRunner:
         gate_verify_ms: int,
     ) -> dict:
         sealed_id_set = {asset.asset_id for asset in sealed_assets}
-        required_ids = {"validation_bundle_1B", "validation_passed_flag_1B", "site_locations"}
+        required_ids = {
+            "validation_bundle_1B",
+            "validation_passed_flag_1B",
+            "site_locations",
+            *self._CIVIL_OPTIONAL_IDS,
+        }
         required_ids.update(inputs.policy_asset_ids)
         required_present = sum(1 for asset_id in required_ids if asset_id in sealed_id_set)
-        optional_ids = set(self._CIVIL_OPTIONAL_IDS) if inputs.pin_civil_time else set()
+        optional_ids: set[str] = set()
         optional_present = sum(1 for asset_id in optional_ids if asset_id in sealed_id_set)
         sha_counts = Counter(row["sha256_hex"] for row in inventory_rows)
         duplicate_byte_sets = sum(1 for count in sha_counts.values() if count > 1)
@@ -534,7 +557,7 @@ class S0GateRunner:
                     "version_tag": row["version_tag"],
                     "sha256_hex": row["sha256_hex"],
                     "path": row["path"],
-                    "partition": list(row.get("partition", [])),
+                    "partition": dict(row.get("partition") or {}),
                 }
                 for row in inventory_rows
             ],
@@ -643,15 +666,19 @@ class S0GateRunner:
             validators.append({"id": vid, "status": status, "codes": codes})
         return validators
 
-    def _write_run_report(self, *, inputs: GateInputs, payload: Mapping[str, object]) -> Path:
-        report_path = (
-            inputs.data_root
-            / "reports"
-            / "l1"
-            / "s0_gate"
-            / f"fingerprint={inputs.manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+    def _write_run_report(
+        self,
+        *,
+        inputs: GateInputs,
+        dictionary: Mapping[str, object],
+        payload: Mapping[str, object],
+    ) -> Path:
+        report_rel = render_dataset_path(
+            "s0_run_report_2B",
+            template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        report_path = (inputs.data_root / report_rel).resolve()
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return report_path

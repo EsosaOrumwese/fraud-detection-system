@@ -59,12 +59,15 @@ def build_outlet_catalogue(
         if overflow_entries:
             overflow_merchants.add(merchant_id)
             for entry in overflow_entries:
+                overflow_by = int(entry.allocated_count) - MAX_SEQUENCE
                 overflow_events.append(
                     SiteSequenceOverflowEvent(
                         merchant_id=merchant_id,
-                        legal_country_iso=entry.legal_country_iso,
-                        attempted_sequence=int(entry.allocated_count),
-                        manifest_fingerprint=context.manifest_fingerprint,
+                        country_iso=entry.legal_country_iso,
+                        attempted_count=int(entry.allocated_count),
+                        max_seq=MAX_SEQUENCE,
+                        overflow_by=overflow_by,
+                        severity="ERROR",
                     )
                 )
             # Guardrail: merchant fails wholesale on overflow, no rows emitted.
@@ -111,11 +114,10 @@ def build_outlet_catalogue(
             sequence_events.append(
                 SequenceFinalizeEvent(
                     merchant_id=merchant_id,
-                    legal_country_iso=iso,
-                    site_order_start=1,
-                    site_order_end=allocated,
+                    country_iso=iso,
+                    start_sequence=f"{1:06d}",
+                    end_sequence=f"{allocated:06d}",
                     site_count=allocated,
-                    manifest_fingerprint=context.manifest_fingerprint,
                 )
             )
 

@@ -289,7 +289,7 @@ class S4GroupWeightsRunner:
             "site_timezones",
             template_args={
                 "seed": config.seed,
-                "manifest_fingerprint": config.seg2a_manifest_fingerprint,
+                "manifest_fingerprint": config.manifest_fingerprint,
             },
             dictionary=dictionary,
         )
@@ -613,7 +613,7 @@ class S4GroupWeightsRunner:
             "manifest_fingerprint": config.manifest_fingerprint,
         }
         if dataset_id in {"site_timezones", "tz_timetable_cache"}:
-            template_args["manifest_fingerprint"] = config.seg2a_manifest_fingerprint
+        template_args["manifest_fingerprint"] = config.manifest_fingerprint
         rel = render_dataset_path(dataset_id, template_args=template_args, dictionary=dictionary)
         return (config.data_root / rel).resolve()
 

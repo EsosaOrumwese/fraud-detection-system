@@ -161,19 +161,38 @@ def _eligibility_lookup(flags: pl.DataFrame) -> Mapping[int, bool]:
     }
 
 
-def _feature_lookup(path: Path | None) -> tuple[Mapping[int, float], Path | None]:
+def _feature_lookup(
+    path: Path | None,
+    *,
+    parameter_hash: str,
+) -> tuple[Mapping[int, float], Path | None]:
     if path is None:
         return {}, None
-    if not path.exists():
+    candidate_path = path
+    if not candidate_path.exists():
+        if candidate_path.is_dir():
+            raise err("ERR_S4_POLICY_INVALID", f"feature view '{path}' missing")
+        if candidate_path.parent.exists():
+            shard_candidates = sorted(candidate_path.parent.glob(candidate_path.name.replace("00000", "*.parquet")))
+            if shard_candidates:
+                candidate_path = shard_candidates[0]
+    if not candidate_path.exists():
         raise err("ERR_S4_POLICY_INVALID", f"feature view '{path}' missing")
-    frame = pl.read_parquet(path, columns=["merchant_id", "feature_value"])
-    if "merchant_id" not in frame.columns or "feature_value" not in frame.columns:
+
+    frame = pl.read_parquet(candidate_path, columns=["merchant_id", "openness", "parameter_hash"])
+    if "merchant_id" not in frame.columns or "openness" not in frame.columns:
         raise err(
             "ERR_S4_POLICY_INVALID",
-            "feature view must include 'merchant_id' and 'feature_value' columns",
+            "feature view must include 'merchant_id' and 'openness' columns",
         )
+    if "parameter_hash" in frame.columns and frame.height > 0:
+        if not bool((frame.get_column("parameter_hash") == parameter_hash).all()):
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "crossborder_features parameter_hash mismatch",
+            )
     mapping: dict[int, float] = {}
-    for merchant_id, value in frame.iter_rows():
+    for merchant_id, value, _param in frame.iter_rows():
         try:
             feature_value = float(value)
         except (TypeError, ValueError) as exc:
@@ -182,7 +201,7 @@ def _feature_lookup(path: Path | None) -> tuple[Mapping[int, float], Path | None
                 f"feature value for merchant {merchant_id} is non-numeric",
             ) from exc
         mapping[int(merchant_id)] = feature_value
-    return mapping, path
+    return mapping, candidate_path
 
 
 def _candidate_universe_counts(path: Path) -> Mapping[int, int]:
@@ -227,7 +246,10 @@ def build_deterministic_context(
     decision_map = _decision_lookup(hurdle_decisions)
     final_map = _final_lookup(nb_finals)
     eligibility_map = _eligibility_lookup(crossborder_flags)
-    feature_map, feature_path = _feature_lookup(feature_view_path)
+    feature_map, feature_path = _feature_lookup(
+        feature_view_path,
+        parameter_hash=parameter_hash,
+    )
     candidate_counts = _candidate_universe_counts(candidate_set_path)
 
     merchants: list[S4MerchantTarget] = []
@@ -272,7 +294,7 @@ def build_deterministic_context(
         run_id=str(run_id),
         hyperparams=hyperparams,
         merchants=tuple(merchants),
-        feature_name="x",
+        feature_name="openness",
         feature_source_path=feature_path,
         artefact_digests=artefacts.to_mapping(),
     )

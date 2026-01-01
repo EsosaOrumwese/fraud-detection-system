@@ -193,11 +193,10 @@ class _S8EventWriter:
     def write_sequence_finalize(self, event: SequenceFinalizeEvent) -> None:
         record = {
             "merchant_id": int(event.merchant_id),
-            "legal_country_iso": str(event.legal_country_iso),
-            "site_order_start": int(event.site_order_start),
-            "site_order_end": int(event.site_order_end),
+            "country_iso": str(event.country_iso),
+            "start_sequence": str(event.start_sequence),
+            "end_sequence": str(event.end_sequence),
             "site_count": int(event.site_count),
-            "manifest_fingerprint": event.manifest_fingerprint,
         }
         self._write_event(
             dataset_id=EVENT_FAMILY_SEQUENCE_FINALIZE,
@@ -208,12 +207,11 @@ class _S8EventWriter:
     def write_site_sequence_overflow(self, event: SiteSequenceOverflowEvent) -> None:
         record = {
             "merchant_id": int(event.merchant_id),
-            "legal_country_iso": str(event.legal_country_iso),
-            "attempted_count": int(event.attempted_sequence),
-            "max_seq": 999_999,
-            "overflow_by": max(int(event.attempted_sequence) - 999_999, 0),
-            "severity": "ERROR",
-            "manifest_fingerprint": event.manifest_fingerprint,
+            "country_iso": str(event.country_iso),
+            "attempted_count": int(event.attempted_count),
+            "max_seq": int(event.max_seq),
+            "overflow_by": int(event.overflow_by),
+            "severity": str(event.severity),
         }
         self._write_event(
             dataset_id=EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW,
@@ -300,11 +298,9 @@ class _S8EventWriter:
             "substream_label": substream,
             "seed": int(self._config.seed),
             "run_id": str(self._config.run_id),
-            "parameter_hash": str(self._config.parameter_hash),
-            "manifest_fingerprint": str(self._config.manifest_fingerprint),
             "events_total": stats["events"],
-            "draws_total": "0",
-            "blocks_total": "0",
+            "draws_total": 0,
+            "blocks_total": 0,
             "rng_counter_before_hi": int(self._zero_state.counter_hi),
             "rng_counter_before_lo": int(self._zero_state.counter_lo),
             "rng_counter_after_hi": int(self._zero_state.counter_hi),
@@ -345,8 +341,8 @@ class _S8EventWriter:
                     continue
                 totals[key] = {
                     "events": int(record.get("events_total", 0)),
-                    "blocks": int(str(record.get("blocks_total", "0"))),
-                    "draws": int(str(record.get("draws_total", "0"))),
+                    "blocks": int(record.get("blocks_total", 0)),
+                    "draws": int(record.get("draws_total", 0)),
                 }
         return totals
 

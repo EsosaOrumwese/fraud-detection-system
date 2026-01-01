@@ -237,7 +237,7 @@ datasets:
     path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
     partitioning: [fingerprint]
     ordering: []
-    schema_ref: schemas.layer1.yaml#/validation/validation_bundle.index_schema
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     lineage:
       produced_by: 2B.S8
       consumed_by: [2B]
@@ -292,6 +292,24 @@ datasets:
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
+    lineage:
+      produced_by: 2B.S0
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: s0_run_report_2B
+    status: draft
+    owner_subsegment: 2B
+    description: "Control-plane run report for 2B S0 gate."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: control/s0_gate/fingerprint={manifest_fingerprint}/s0_run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
     lineage:
       produced_by: 2B.S0
       consumed_by: [2B]

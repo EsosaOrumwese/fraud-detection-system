@@ -13,6 +13,7 @@ from ..s1_hurdle.l2.runner import HurdleDecision
 from ..s2_nb_outlets.l2.runner import NBFinalRecord
 from ..s7_integer_allocation.types import MerchantAllocationResult
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..shared.passed_flag import parse_passed_flag
 from .contexts import (
     CountrySequencingInput,
     MerchantSequencingInput,
@@ -80,11 +81,10 @@ def _verify_s6_pass(
         )
     payload = receipt_path.read_text(encoding="utf-8")
     expected = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-    content = flag_path.read_text(encoding="ascii").strip()
-    prefix = "sha256_hex="
-    if not content.startswith(prefix):
-        raise err("E_S8_S6_GATE", f"S6 _passed.flag malformed at '{flag_path}'")
-    actual = content[len(prefix) :].strip()
+    try:
+        actual = parse_passed_flag(flag_path.read_text(encoding="ascii"))
+    except ValueError as exc:
+        raise err("E_S8_S6_GATE", f"S6 _passed.flag malformed at '{flag_path}'") from exc
     if expected != actual:
         raise err(
             "E_S8_S6_GATE",

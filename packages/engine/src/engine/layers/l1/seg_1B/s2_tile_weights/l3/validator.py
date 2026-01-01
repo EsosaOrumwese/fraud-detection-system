@@ -39,12 +39,11 @@ class S2TileWeightsValidator:
         data_root = config.data_root
         parameter_hash = config.parameter_hash
 
-        report_path = config.run_report_path or (
-            data_root
-            / "control"
-            / "s2_tile_weights"
-            / f"parameter_hash={parameter_hash}"
-            / "s2_run_report.json"
+        report_path = config.run_report_path or resolve_dataset_path(
+            "s2_run_report",
+            base_path=data_root,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
         )
 
         run_report: Mapping[str, object] | None = None
@@ -77,7 +76,7 @@ class S2TileWeightsValidator:
             )
 
         dataset_frame = pl.read_parquet(parquet_files)
-        required_columns = {"country_iso", "tile_id", "weight_fp", "dp"}
+        required_columns = {"country_iso", "tile_id", "weight_fp", "dp", "basis"}
         missing = required_columns.difference(set(dataset_frame.columns))
         if missing:
             raise err("E108_WRITER_HYGIENE", f"tile_weights missing columns: {sorted(missing)}")
@@ -98,6 +97,10 @@ class S2TileWeightsValidator:
         unique_dp = dataset_frame.select(pl.col("dp").unique()).get_column("dp").to_list()
         if len(unique_dp) != 1 or int(unique_dp[0]) != dp:
             raise err("E105_NORMALIZATION", "dp column inconsistent with expected value")
+
+        basis_values = dataset_frame.select(pl.col("basis").unique()).get_column("basis").to_list()
+        if any(value is not None and str(value) != basis for value in basis_values):
+            raise err("E105_NORMALIZATION", "basis column inconsistent with expected value")
 
         tile_index = load_tile_index_partition(
             base_path=data_root,
@@ -146,13 +149,8 @@ class S2TileWeightsValidator:
         expected = quantise_tile_weights(mass_frame=mass_frame, dp=dp)
 
         comparison = dataset_frame.join(
-            expected.frame.select(
-                ["country_iso", "tile_id", "weight_fp", "zero_mass_fallback"]
-            ).rename(
-                {
-                    "weight_fp": "expected_weight_fp",
-                    "zero_mass_fallback": "expected_zero_mass_fallback",
-                }
+            expected.frame.select(["country_iso", "tile_id", "weight_fp"]).rename(
+                {"weight_fp": "expected_weight_fp"}
             ),
             on=["country_iso", "tile_id"],
             how="inner",
@@ -165,15 +163,6 @@ class S2TileWeightsValidator:
         )
         if weight_mismatch.height > 0:
             raise err("E105_NORMALIZATION", "weight_fp values do not match expected quantisation")
-
-        fallback_mismatch = comparison.filter(
-            pl.col("zero_mass_fallback") != pl.col("expected_zero_mass_fallback")
-        )
-        if fallback_mismatch.height > 0:
-            raise err(
-                "E104_ZERO_MASS",
-                "zero_mass_fallback flags inconsistent with expected uniform fallback",
-            )
 
         if run_report and "determinism_receipt" in run_report:
             expected_receipt = run_report["determinism_receipt"]

@@ -249,7 +249,7 @@ JSON-Schema is **sole** shape authority. S8 binds to the canonical **bundle inde
 ---
 
 **6.2 Bundle index — `index.json` (Binding)**
-**Anchor (canonical):** `schemas.1A.yaml#/validation/validation_bundle.index_schema`
+**Anchor (canonical):** `schemas.layer1.yaml#/validation/validation_bundle/index_schema`
 **Fields-strict** JSON array of objects with exactly:
 
 * `path` (string) — **relative** to the bundle root; **no** leading `/`, **no** `..` segments; UTF-8.
@@ -878,7 +878,7 @@ Require a coordinated **major** for S8 and contract packs:
 **A.1 Shape authorities (packs)**
 
 * **Bundle laws (canonical):**
-  • **Index schema:** `schemas.1A.yaml#/validation/validation_bundle.index_schema` (array of `{path, sha256_hex}`; paths **relative**; entries **ASCII-lex**).
+  • **Index schema:** `schemas.layer1.yaml#/validation/validation_bundle/index_schema` (array of `{path, sha256_hex}`; paths **relative**; entries **ASCII-lex**).
   • **PASS flag:** `schemas.1B.yaml#/validation/passed_flag` (single line `sha256_hex = <hex64>`; **flag not indexed**).
 * **2B pack (segment surfaces):** `schemas.2B.yaml` — `#/validation/s7_audit_report_v1` (S7 report), plus S2/S3/S4 plan/binary anchors and policy anchors.
 * **Layer-1 pack (only if needed for provenance checks elsewhere):** common `$defs` (e.g., `hex64`, `uint64`, `rfc3339_micros`).

@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
 import polars as pl
+import yaml
 from jsonschema import Draft202012Validator, ValidationError
 
 from ...shared import dictionary as dict_utils
+from ...shared.dictionary import get_dataset_entry, get_repo_root
 from ...shared.schema import load_schema
 from ..exceptions import err
 from ..l0.bundle import BundleIndex, compute_index_digest, load_index, read_pass_flag
@@ -169,6 +171,53 @@ def build_sealed_inputs(
     return sealed
 
 
+def verify_license_map_coverage(
+    *,
+    sealed_inputs: Sequence[Mapping[str, object]],
+    dictionary: Mapping[str, object],
+) -> None:
+    """Ensure sealed inputs declare a license present in license_map.yaml."""
+
+    repo_root = get_repo_root()
+    license_map_path = repo_root / "licenses" / "license_map.yaml"
+    if not license_map_path.exists():
+        raise err("E_LICENSE_MAP_MISSING", f"license map missing at '{license_map_path}'")
+
+    payload = yaml.safe_load(license_map_path.read_text(encoding="utf-8")) or {}
+    licenses = payload.get("licenses")
+    if not isinstance(licenses, Mapping):
+        raise err("E_LICENSE_MAP_INVALID", "license_map.yaml missing 'licenses' mapping")
+
+    for entry in sealed_inputs:
+        dataset_id = entry.get("id")
+        if not isinstance(dataset_id, str) or not dataset_id:
+            raise err("E_LICENSE_MAP_INVALID", "sealed input missing dataset id")
+        dataset_entry = get_dataset_entry(dataset_id, dictionary=dictionary)
+        license_name = dataset_entry.get("license") if isinstance(dataset_entry, Mapping) else None
+        if not isinstance(license_name, str) or not license_name.strip():
+            raise err(
+                "E_LICENSE_MAP_INVALID",
+                f"sealed input '{dataset_id}' missing license declaration in dictionary",
+            )
+        license_block = licenses.get(license_name)
+        if not isinstance(license_block, Mapping):
+            raise err(
+                "E_LICENSE_MAP_INVALID",
+                f"license '{license_name}' for '{dataset_id}' not present in license_map.yaml",
+            )
+        text_path = license_block.get("text_path")
+        if not isinstance(text_path, str) or not text_path.strip():
+            raise err(
+                "E_LICENSE_MAP_INVALID",
+                f"license '{license_name}' missing text_path in license_map.yaml",
+            )
+        if not (repo_root / text_path).exists():
+            raise err(
+                "E_LICENSE_MAP_INVALID",
+                f"license text file '{text_path}' missing for '{license_name}'",
+            )
+
+
 def validate_receipt_payload(payload: Mapping[str, object]) -> None:
     """Validate the payload against the canonical JSON schema."""
 
@@ -189,5 +238,6 @@ __all__ = [
     "verify_outlet_catalogue_lineage",
     "ensure_reference_surfaces",
     "build_sealed_inputs",
+    "verify_license_map_coverage",
     "validate_receipt_payload",
 ]

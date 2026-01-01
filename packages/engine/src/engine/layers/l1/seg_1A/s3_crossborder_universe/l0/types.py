@@ -98,16 +98,15 @@ class RuleDefinition:
     precedence: str
     precedence_rank: int
     priority: int
-    predicate: str
+    predicate: object
     is_decision_bearing: bool
     reason_code: str | None
-    crossborder: bool | None
     outcome_tags: Tuple[str, ...]
     row_tags: Tuple[str, ...]
     admit_countries: Tuple[str, ...]
-    admit_named_sets: Tuple[str, ...]
+    admit_sets: Tuple[str, ...]
     deny_countries: Tuple[str, ...]
-    deny_named_sets: Tuple[str, ...]
+    deny_sets: Tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -119,6 +118,7 @@ class RuleLadder:
     precedence_order: Tuple[str, ...]
     rules: Tuple[RuleDefinition, ...]
     reason_code_vocab: Tuple[str, ...]
+    reason_code_to_rule_id: Mapping[str, str]
     filter_tag_vocab: Tuple[str, ...]
     named_sets: Mapping[str, Tuple[str, ...]]
     default_admit_sets: Tuple[str, ...]

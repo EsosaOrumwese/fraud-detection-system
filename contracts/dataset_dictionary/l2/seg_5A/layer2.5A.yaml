@@ -603,5 +603,114 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  # Run reports
+  - id: segment_state_runs
+    status: draft
+    owner_subsegment: 5A
+    description: Layer-2 segment-state run-report (JSONL), one row per state invocation.
+    version: latest
+    format: jsonl
+    path: reports/l2/segment_states/segment_state_runs.jsonl
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+    lineage:
+      produced_by: [5A.S0, 5A.S1, 5A.S2, 5A.S3, 5A.S4, 5A.S5]
+      consumed_by: [orchestrator, ops]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: s1_run_report_5A
+    status: draft
+    owner_subsegment: 5A
+    description: Run report for 5A.S1 demand profiles.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: reports/l2/5A/s1_profiles/fingerprint={manifest_fingerprint}/run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+    lineage:
+      produced_by: [5A.S1]
+      consumed_by: [ops]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: s2_run_report_5A
+    status: draft
+    owner_subsegment: 5A
+    description: Run report for 5A.S2 shape synthesis.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: reports/l2/5A/s2_shapes/fingerprint={manifest_fingerprint}/run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+    lineage:
+      produced_by: [5A.S2]
+      consumed_by: [ops]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: s3_run_report_5A
+    status: draft
+    owner_subsegment: 5A
+    description: Run report for 5A.S3 baseline intensity synthesis.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: reports/l2/5A/s3_baselines/fingerprint={manifest_fingerprint}/run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+    lineage:
+      produced_by: [5A.S3]
+      consumed_by: [ops]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: s4_run_report_5A
+    status: draft
+    owner_subsegment: 5A
+    description: Run report for 5A.S4 scenario overlays.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: reports/l2/5A/s4_overlays/fingerprint={manifest_fingerprint}/run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+    lineage:
+      produced_by: [5A.S4]
+      consumed_by: [ops]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: s5_run_report_5A
+    status: draft
+    owner_subsegment: 5A
+    description: Run report for 5A.S5 validation bundle.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: reports/l2/5A/s5_validation/fingerprint={manifest_fingerprint}/run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+    lineage:
+      produced_by: [5A.S5]
+      consumed_by: [ops]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
 notes:
   - "Derived from docs/model_spec/data-engine/layer-2/specs/state-flow/5A/s#.expanded.md section 5."

@@ -17,6 +17,7 @@ from referencing import Registry, Resource
 
 from ..s0_foundations.l1.rng import PhiloxEngine, comp_iso, comp_u64
 from ..shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
+from ..shared.passed_flag import parse_passed_flag
 from . import constants as c
 from .loader import verify_s5_pass
 from .runner import S6RunOutputs
@@ -117,11 +118,10 @@ def _load_receipt(receipt_path: Path | None) -> Mapping[str, object]:
         raise S6ValidationError(f"_passed.flag missing alongside {receipt_file}")
 
     expected_digest = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
-    flag_text = flag_path.read_text(encoding="ascii").strip()
-    prefix = "sha256_hex="
-    if not flag_text.startswith(prefix):
-        raise S6ValidationError(f"_passed.flag contents malformed at {flag_path}")
-    observed_digest = flag_text[len(prefix) :].strip()
+    try:
+        observed_digest = parse_passed_flag(flag_path.read_text(encoding="ascii"))
+    except ValueError as exc:
+        raise S6ValidationError(f"_passed.flag contents malformed at {flag_path}") from exc
     if observed_digest != expected_digest:
         raise S6ValidationError(
             "_passed.flag digest does not match S6_VALIDATION.json contents"

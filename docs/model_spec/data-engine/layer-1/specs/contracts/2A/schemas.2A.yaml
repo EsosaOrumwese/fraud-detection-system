@@ -250,3 +250,27 @@ cache:
       tz_index_digest:      { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       rle_cache_bytes:      { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
       created_utc:          { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+
+  tz_offset_adjustments:
+    type: object
+    description: "Per-tzid adjustment log emitted during S3 compilation."
+    additionalProperties: false
+    required: [manifest_fingerprint, created_utc, count, adjustments]
+    properties:
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc:          { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      count:                { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      adjustments:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [tzid, transition_unix_utc, raw_seconds, adjusted_minutes, reasons]
+          properties:
+            tzid:               { $ref: '#/$defs/iana_tzid' }
+            transition_unix_utc: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+            raw_seconds:        { type: integer }
+            adjusted_minutes:   { type: integer }
+            reasons:
+              type: array
+              items: { type: string }

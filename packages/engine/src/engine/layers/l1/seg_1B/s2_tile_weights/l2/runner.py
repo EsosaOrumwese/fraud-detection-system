@@ -239,6 +239,26 @@ class S2RunResult:
 class S2TileWeightsRunner:
     """High-level helper that prepares deterministic inputs for S2."""
 
+    def run(self, config: RunnerConfig) -> S2RunResult:
+        dictionary = config.dictionary or load_dictionary()
+        try:
+            prepared = self.prepare(config)
+            masses = self.compute_masses(prepared)
+            self.measure_baselines(
+                prepared,
+                measure_raster=prepared.governed.basis == "population",
+            )
+            quantised = self.quantise(prepared, masses)
+            return self.materialise(prepared, quantised)
+        except Exception as exc:
+            _emit_failure_event(
+                base_path=config.data_root,
+                parameter_hash=config.parameter_hash,
+                dictionary=dictionary,
+                failure=exc,
+            )
+            raise
+
     def prepare(self, config: RunnerConfig) -> PreparedInputs:
         dictionary = config.dictionary or load_dictionary()
         governed = GovernedParameters.from_config(config)
@@ -441,14 +461,14 @@ class S2TileWeightsRunner:
 
                 country_column = np.full(tile_ids.size, iso, dtype="U4")
                 dp_column = np.full(tile_ids.size, dp, dtype=np.uint32)
-                fallback_column = np.full(tile_ids.size, fallback, dtype=bool)
+                basis_column = np.full(tile_ids.size, prepared.governed.basis, dtype="U16")
 
                 writer.append_batch(
                     country_iso=country_column,
                     tile_id=tile_ids,
                     weight_fp=weights_fp,
                     dp=dp_column,
-                    zero_mass_fallback=fallback_column,
+                    basis=basis_column,
                 )
 
                 rows_emitted += tile_ids.size
@@ -489,7 +509,7 @@ class S2TileWeightsRunner:
         finally:
             masses.close()
 
-        prepared.pat.countries_processed = len(summaries)
+        prepared.pat.countries_processed = countries_processed
         prepared.pat.rows_emitted = rows_emitted
 
         iso_codes = frozenset(prepared.iso_table.codes)
@@ -543,15 +563,13 @@ class S2TileWeightsRunner:
 
         prepared.pat.validate_envelope()
 
-        control_dir = (
-            prepared.data_root
-            / "control"
-            / "s2_tile_weights"
-            / f"parameter_hash={prepared.tile_index.parameter_hash}"
+        summaries_path = resolve_dataset_path(
+            "s2_country_summaries",
+            base_path=prepared.data_root,
+            template_args={"parameter_hash": prepared.tile_index.parameter_hash},
+            dictionary=dictionary,
         )
-        control_dir.mkdir(parents=True, exist_ok=True)
-
-        summaries_path = control_dir / "normalisation_summaries.jsonl"
+        summaries_path.parent.mkdir(parents=True, exist_ok=True)
         with summaries_path.open("w", encoding="utf-8") as handle:
             for entry in quantised.summaries:
                 handle.write(json.dumps(entry) + "\n")
@@ -561,7 +579,13 @@ class S2TileWeightsRunner:
             quantised=quantised,
             determinism_receipt=determinism_receipt,
         )
-        report_path = control_dir / "s2_run_report.json"
+        report_path = resolve_dataset_path(
+            "s2_run_report",
+            base_path=prepared.data_root,
+            template_args={"parameter_hash": prepared.tile_index.parameter_hash},
+            dictionary=dictionary,
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True), encoding="utf-8")
 
         return S2RunResult(
@@ -689,6 +713,66 @@ class S2TileWeightsRunner:
         return weights_fp, residue_allocations, fallback, mass_sum, float(weights.sum())
 
 
+def _emit_failure_event(
+    *,
+    base_path: Path,
+    parameter_hash: str,
+    dictionary: Mapping[str, object],
+    failure: Exception,
+) -> None:
+    try:
+        event_path = resolve_dataset_path(
+            "s2_failure_event",
+            base_path=base_path,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
+        )
+    except Exception:
+        logger.exception("S2: unable to resolve failure event path")
+        return
+    event_path.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, object] = {
+        "event": "S2_ERROR",
+        "code": _infer_failure_code(failure),
+        "at": _utc_now_rfc3339_micros(),
+        "parameter_hash": parameter_hash,
+    }
+    country_iso = getattr(failure, "country_iso", None)
+    if isinstance(country_iso, str) and country_iso:
+        payload["country_iso"] = country_iso
+    tile_id = getattr(failure, "tile_id", None)
+    if tile_id is not None:
+        payload["tile_id"] = tile_id
+    with event_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload) + "\n")
+
+
+def _infer_failure_code(exc: Exception) -> str:
+    message = str(exc).lower()
+    if "tile_index" in message or "missing" in message:
+        return "E101_TILE_INDEX_MISSING"
+    if "fk" in message or "iso" in message:
+        return "E102_FK_MISMATCH"
+    if "zero mass" in message:
+        return "E104_ZERO_MASS"
+    if "normal" in message or "quantisation" in message:
+        return "E105_NORMALIZATION"
+    if "monotonic" in message:
+        return "E106_MONOTONICITY"
+    if "determinism" in message:
+        return "E107_DETERMINISM"
+    if "writer" in message or "partition" in message:
+        return "E108_WRITER_HYGIENE"
+    return "E109_PERF_BUDGET"
+
+
+def _utc_now_rfc3339_micros() -> str:
+    now = time.time()
+    seconds = time.strftime("%Y-%m-%dT%H:%M:%S.", time.gmtime(now))
+    micros = int((now % 1) * 1_000_000)
+    return f"{seconds}{micros:06d}Z"
+
+
 __all__ = [
     "PatCounters",
     "PreparedInputs",
@@ -710,14 +794,14 @@ class _TileWeightsBatchWriter:
         "tile_id",
         "weight_fp",
         "dp",
-        "zero_mass_fallback",
+        "basis",
     )
     _schema: Mapping[str, pl.DataType] = {
         "country_iso": pl.Utf8,
         "tile_id": pl.UInt64,
         "weight_fp": pl.UInt64,
         "dp": pl.UInt32,
-        "zero_mass_fallback": pl.Boolean,
+        "basis": pl.Utf8,
     }
 
     def __init__(self, *, temp_dir: Path, batch_size: int = 1_000_000) -> None:
@@ -737,7 +821,7 @@ class _TileWeightsBatchWriter:
         tile_id: np.ndarray,
         weight_fp: np.ndarray,
         dp: np.ndarray,
-        zero_mass_fallback: np.ndarray,
+        basis: np.ndarray,
     ) -> None:
         if self._closed:
             raise RuntimeError("Cannot append to a closed writer")
@@ -746,7 +830,7 @@ class _TileWeightsBatchWriter:
             "tile_id": tile_id,
             "weight_fp": weight_fp,
             "dp": dp,
-            "zero_mass_fallback": zero_mass_fallback,
+            "basis": basis,
         }
         length = len(tile_id)
         for column, values in arrays.items():

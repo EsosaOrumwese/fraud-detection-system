@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import logging
+import time
 from typing import Mapping
 
 from ..l0 import (
@@ -20,6 +22,7 @@ from ..l1.validators import validate_path_embeddings
 from .aggregate import AggregationResult, compute_requirements
 from .config import RunnerConfig
 from .materialise import S3RunResult, materialise_requirements
+from ..shared.dictionary import load_dictionary as _shared_load_dictionary, resolve_dataset_path
 
 
 @dataclass(frozen=True)
@@ -93,30 +96,75 @@ class S3RequirementsRunner:
 
     def run(self, config: RunnerConfig) -> S3RunResult:
         logger = logging.getLogger(__name__)
-        prepared = self.prepare(config)
-        outlet_rows = int(prepared.outlet_catalogue.frame.height)
-        tile_weight_rows = int(prepared.tile_weights.frame.height)
-        logger.info(
-            "S3: prepared inputs (outlet_rows=%d, tile_weight_rows=%d, iso_rows=%d)",
-            outlet_rows,
-            tile_weight_rows,
-            int(prepared.iso_table.table.height),
-        )
-        aggregation = self.aggregate(prepared)
-        logger.info(
-            "S3: aggregation summary (rows=%d, merchants=%d, countries=%d, source_rows=%d)",
-            aggregation.rows_emitted,
-            aggregation.merchants_total,
-            aggregation.countries_total,
-            aggregation.source_rows_total,
-        )
+        dictionary = config.dictionary or _shared_load_dictionary()
+        try:
+            prepared = self.prepare(config)
+            outlet_rows = int(prepared.outlet_catalogue.frame.height)
+            tile_weight_rows = int(prepared.tile_weights.frame.height)
+            logger.info(
+                "S3: prepared inputs (outlet_rows=%d, tile_weight_rows=%d, iso_rows=%d)",
+                outlet_rows,
+                tile_weight_rows,
+                int(prepared.iso_table.table.height),
+            )
+            aggregation = self.aggregate(prepared)
+            logger.info(
+                "S3: aggregation summary (rows=%d, merchants=%d, countries=%d, source_rows=%d)",
+                aggregation.rows_emitted,
+                aggregation.merchants_total,
+                aggregation.countries_total,
+                aggregation.source_rows_total,
+            )
+        except Exception as exc:
+            _emit_failure_event_from_config(config=config, dictionary=dictionary, failure=exc)
+            raise
         return self.materialise(prepared, aggregation)
 
 
 def _load_dictionary() -> Mapping[str, object]:
-    from ..shared.dictionary import load_dictionary as _shared_load_dictionary
-
     return _shared_load_dictionary()
+
+
+def _emit_failure_event_from_config(
+    *,
+    config: RunnerConfig,
+    dictionary: Mapping[str, object],
+    failure: Exception,
+) -> None:
+    try:
+        event_path = resolve_dataset_path(
+            "s3_failure_event",
+            base_path=config.data_root,
+            template_args={
+                "seed": config.seed,
+                "manifest_fingerprint": config.manifest_fingerprint,
+                "parameter_hash": config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
+    except Exception:
+        return
+    event_path.parent.mkdir(parents=True, exist_ok=True)
+    code = getattr(getattr(failure, "context", None), "code", None)
+    if isinstance(code, str) and code == "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL":
+        code = "E313_NONDETERMINISTIC_OUTPUT"
+    payload = {
+        "event": "S3_ERROR",
+        "code": code if isinstance(code, str) else "E313_NONDETERMINISTIC_OUTPUT",
+        "at": _utc_now_rfc3339_micros(),
+        "seed": str(config.seed),
+        "manifest_fingerprint": config.manifest_fingerprint,
+        "parameter_hash": config.parameter_hash,
+    }
+    with event_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload) + "\n")
+
+
+def _utc_now_rfc3339_micros() -> str:
+    now = time.time()
+    seconds = time.strftime("%Y-%m-%dT%H:%M:%S.", time.gmtime(now))
+    micros = int((now % 1) * 1_000_000)
+    return f"{seconds}{micros:06d}Z"
 
 
 __all__ = ["PreparedInputs", "S3RequirementsRunner", "prepare_inputs"]

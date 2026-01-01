@@ -53,128 +53,131 @@ def materialise_assignment(
 
     dictionary = prepared.dictionary
     config = prepared.config
+    try:
+        start_wall = time.perf_counter()
+        start_cpu = time.process_time()
 
-    start_wall = time.perf_counter()
-    start_cpu = time.process_time()
+        dataset_path = resolve_dataset_path(
+            "s5_site_tile_assignment",
+            base_path=config.data_root,
+            template_args={
+                "seed": config.seed,
+                "manifest_fingerprint": config.manifest_fingerprint,
+                "parameter_hash": config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
 
-    dataset_path = resolve_dataset_path(
-        "s5_site_tile_assignment",
-        base_path=config.data_root,
-        template_args={
-            "seed": config.seed,
-            "manifest_fingerprint": config.manifest_fingerprint,
-            "parameter_hash": config.parameter_hash,
-        },
-        dictionary=dictionary,
-    )
+        staged_dir = _write_staged_partition(assignment.assignments, dataset_path)
+        staged_digest = compute_partition_digest(staged_dir)
 
-    staged_dir = _write_staged_partition(assignment.assignments, dataset_path)
-    staged_digest = compute_partition_digest(staged_dir)
-
-    if dataset_path.exists():
-        existing_digest = compute_partition_digest(dataset_path)
-        if existing_digest != staged_digest:
+        if dataset_path.exists():
+            existing_digest = compute_partition_digest(dataset_path)
+            if existing_digest != staged_digest:
+                shutil.rmtree(staged_dir, ignore_errors=True)
+                raise err(
+                    "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL",
+                    f"s5_site_tile_assignment partition '{dataset_path}' already exists with different content",
+                )
             shutil.rmtree(staged_dir, ignore_errors=True)
-            raise err(
-                "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL",
-                f"s5_site_tile_assignment partition '{dataset_path}' already exists with different content",
-            )
-        shutil.rmtree(staged_dir, ignore_errors=True)
-        digest = existing_digest
-    else:
-        dataset_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(staged_dir), str(dataset_path))
-        digest = staged_digest
+            digest = existing_digest
+        else:
+            dataset_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(staged_dir), str(dataset_path))
+            digest = staged_digest
 
-    determinism_receipt = {
-        "partition_path": str(dataset_path),
-        "sha256_hex": digest,
-    }
+        determinism_receipt = {
+            "partition_path": str(dataset_path),
+            "sha256_hex": digest,
+        }
 
-    rng_log_path = _write_rng_events(
-        assignment.rng_events,
-        base_path=config.data_root,
-        dictionary=dictionary,
-        seed=config.seed,
-        parameter_hash=config.parameter_hash,
-        run_id=assignment.run_id,
-    )
-    trace_path = resolve_dataset_path(
-        "rng_trace_log",
-        base_path=config.data_root,
-        template_args={
-            "seed": config.seed,
-            "parameter_hash": config.parameter_hash,
-            "run_id": assignment.run_id,
-        },
-        dictionary=dictionary,
-    )
-    append_trace_records(
-        trace_path=trace_path,
-        events=assignment.rng_events,
-        seed=int(config.seed),
-        run_id=assignment.run_id,
-    )
+        rng_log_path = _write_rng_events(
+            assignment.rng_events,
+            base_path=config.data_root,
+            dictionary=dictionary,
+            seed=config.seed,
+            parameter_hash=config.parameter_hash,
+            run_id=assignment.run_id,
+        )
+        trace_path = resolve_dataset_path(
+            "rng_trace_log",
+            base_path=config.data_root,
+            template_args={
+                "seed": config.seed,
+                "parameter_hash": config.parameter_hash,
+                "run_id": assignment.run_id,
+            },
+            dictionary=dictionary,
+        )
+        append_trace_records(
+            trace_path=trace_path,
+            events=assignment.rng_events,
+            seed=int(config.seed),
+            run_id=assignment.run_id,
+        )
 
-    wall_clock_seconds_total = time.perf_counter() - start_wall
-    cpu_seconds_total = time.process_time() - start_cpu
+        wall_clock_seconds_total = time.perf_counter() - start_wall
+        cpu_seconds_total = time.process_time() - start_cpu
 
-    iso_path = resolve_dataset_path(
-        "iso3166_canonical_2024",
-        base_path=config.data_root,
-        template_args={},
-        dictionary=dictionary,
-    )
-    metrics = {
-        "bytes_read_alloc_plan": _sum_file_sizes(prepared.alloc_plan.path),
-        "bytes_read_tile_index": _sum_file_sizes(prepared.tile_index.path),
-        "bytes_read_iso": _sum_file_sizes(iso_path),
-        "wall_clock_seconds_total": wall_clock_seconds_total,
-        "cpu_seconds_total": cpu_seconds_total,
-    }
-    metrics.update(_collect_resource_metrics())
+        iso_path = resolve_dataset_path(
+            "iso3166_canonical_2024",
+            base_path=config.data_root,
+            template_args={},
+            dictionary=dictionary,
+        )
+        metrics = {
+            "bytes_read_alloc_plan": _sum_file_sizes(prepared.alloc_plan.path),
+            "bytes_read_tile_index": _sum_file_sizes(prepared.tile_index.path),
+            "bytes_read_iso": _sum_file_sizes(iso_path),
+            "wall_clock_seconds_total": wall_clock_seconds_total,
+            "cpu_seconds_total": cpu_seconds_total,
+        }
+        metrics.update(_collect_resource_metrics())
 
-    anomalies = _compute_anomaly_counters(
-        assignments=assignment.assignments,
-        alloc_plan=prepared.alloc_plan.frame,
-        tile_index=prepared.tile_index,
-        iso_codes=prepared.iso_table.codes,
-    )
+        anomalies = _compute_anomaly_counters(
+            assignments=assignment.assignments,
+            alloc_plan=prepared.alloc_plan.frame,
+            tile_index=prepared.tile_index,
+            iso_codes=prepared.iso_table.codes,
+        )
 
-    run_report_path = resolve_dataset_path(
-        "s5_run_report",
-        base_path=config.data_root,
-        template_args={
-            "seed": config.seed,
-            "manifest_fingerprint": config.manifest_fingerprint,
-            "parameter_hash": config.parameter_hash,
-        },
-        dictionary=dictionary,
-    )
-    run_report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_payload = build_run_report(
-        prepared=prepared,
-        assignment=assignment,
-        iso_version=iso_version,
-        determinism_receipt=determinism_receipt,
-        metrics=metrics,
-        anomalies=anomalies,
-    )
-    run_report_path.write_text(
-        json.dumps(report_payload, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
+        run_report_path = resolve_dataset_path(
+            "s5_run_report",
+            base_path=config.data_root,
+            template_args={
+                "seed": config.seed,
+                "manifest_fingerprint": config.manifest_fingerprint,
+                "parameter_hash": config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
+        run_report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_payload = build_run_report(
+            prepared=prepared,
+            assignment=assignment,
+            iso_version=iso_version,
+            determinism_receipt=determinism_receipt,
+            metrics=metrics,
+            anomalies=anomalies,
+        )
+        run_report_path.write_text(
+            json.dumps(report_payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
 
-    return S5RunResult(
-        dataset_path=dataset_path,
-        rng_log_path=rng_log_path,
-        run_report_path=run_report_path,
-        determinism_receipt=determinism_receipt,
-        rows_emitted=assignment.rows_emitted,
-        pairs_total=assignment.pairs_total,
-        rng_events_emitted=assignment.rng_events_emitted,
-        run_id=assignment.run_id,
-    )
+        return S5RunResult(
+            dataset_path=dataset_path,
+            rng_log_path=rng_log_path,
+            run_report_path=run_report_path,
+            determinism_receipt=determinism_receipt,
+            rows_emitted=assignment.rows_emitted,
+            pairs_total=assignment.pairs_total,
+            rng_events_emitted=assignment.rng_events_emitted,
+            run_id=assignment.run_id,
+        )
+    except Exception as exc:
+        _emit_failure_event(prepared=prepared, dictionary=dictionary, failure=exc)
+        raise
 
 
 def _write_staged_partition(frame: pl.DataFrame, dataset_path: Path) -> Path:
@@ -350,6 +353,49 @@ def _collect_resource_metrics() -> dict[str, int]:
     except Exception:  # pragma: no cover - defensive
         pass
     return metrics
+
+
+def _emit_failure_event(*, prepared: PreparedInputs, dictionary: Mapping[str, object], failure: Exception) -> None:
+    try:
+        event_path = resolve_dataset_path(
+            "s5_failure_event",
+            base_path=prepared.config.data_root,
+            template_args={
+                "seed": prepared.config.seed,
+                "manifest_fingerprint": prepared.config.manifest_fingerprint,
+                "parameter_hash": prepared.config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
+    except Exception:
+        return
+    event_path.parent.mkdir(parents=True, exist_ok=True)
+    code = getattr(getattr(failure, "context", None), "code", None)
+    if isinstance(code, str) and code == "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL":
+        code = "E410_NONDETERMINISTIC_OUTPUT"
+    payload = {
+        "event": "S5_ERROR",
+        "code": code if isinstance(code, str) else "E410_NONDETERMINISTIC_OUTPUT",
+        "at": _utc_now_rfc3339_micros(),
+        "seed": str(prepared.config.seed),
+        "manifest_fingerprint": prepared.config.manifest_fingerprint,
+        "parameter_hash": prepared.config.parameter_hash,
+    }
+    merchant_id = getattr(failure, "merchant_id", None)
+    if merchant_id is not None:
+        payload["merchant_id"] = merchant_id
+    legal_country_iso = getattr(failure, "legal_country_iso", None)
+    if isinstance(legal_country_iso, str) and legal_country_iso:
+        payload["legal_country_iso"] = legal_country_iso
+    with event_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload) + "\n")
+
+
+def _utc_now_rfc3339_micros() -> str:
+    now = time.time()
+    seconds = time.strftime("%Y-%m-%dT%H:%M:%S.", time.gmtime(now))
+    micros = int((now % 1) * 1_000_000)
+    return f"{seconds}{micros:06d}Z"
 
 
 __all__ = ["S5RunResult", "materialise_assignment"]

@@ -13,6 +13,7 @@ import time
 import polars as pl
 
 from ..s0_foundations.exceptions import err
+from ..shared.passed_flag import format_passed_flag
 from . import constants as c
 from .contexts import S9DeterministicContext, S9ValidationResult
 
@@ -112,7 +113,7 @@ def write_validation_bundle(
         if result.passed and not result.failures:
             digest = _compute_bundle_digest(staging_dir, index_entries)
             passed_flag_path = staging_dir / "_passed.flag"
-            passed_flag_path.write_text(f"sha256_hex = {digest}\n", encoding="ascii")
+            passed_flag_path.write_text(format_passed_flag(digest), encoding="ascii")
 
         _atomic_replace(staging_dir, bundle_root)
         final_flag_path = bundle_root / passed_flag_path.name if passed_flag_path is not None else None

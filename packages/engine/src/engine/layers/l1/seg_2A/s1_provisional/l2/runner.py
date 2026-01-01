@@ -92,6 +92,7 @@ class ProvisionalLookupRunner:
         determinism_receipt = load_determinism_receipt(
             base_path=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         context = self._prepare_context(
             data_root=data_root,
@@ -113,6 +114,7 @@ class ProvisionalLookupRunner:
             data_root=data_root,
             seed=config.seed,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         if output_dir.exists():
             if config.resume:
@@ -397,11 +399,17 @@ class ProvisionalLookupRunner:
 
     def _load_nudge_policy(self, tz_nudge_path: Path) -> float:
         payload = yaml.safe_load(tz_nudge_path.read_text(encoding="utf-8")) or {}
-        epsilon = payload.get("nudge_distance_degrees")
+        epsilon = payload.get("epsilon_degrees")
+        sha256_digest = payload.get("sha256_digest")
         if not isinstance(epsilon, (int, float)) or epsilon <= 0:
             raise err(
                 "E_S1_NUDGE_POLICY_INVALID",
-                "tz_nudge policy must declare positive nudge_distance_degrees",
+                "tz_nudge policy must declare positive epsilon_degrees",
+            )
+        if not isinstance(sha256_digest, str) or len(sha256_digest) != 64:
+            raise err(
+                "E_S1_NUDGE_POLICY_INVALID",
+                "tz_nudge policy must declare sha256_digest (hex64)",
             )
         return float(epsilon)
 
@@ -436,6 +444,8 @@ class ProvisionalLookupRunner:
                     batch,
                     tz_index,
                     epsilon,
+                    context.seed,
+                    context.manifest_fingerprint,
                     context.verified_at_utc,
                 )
                 part_path = output_dir / f"part-{part_idx:05d}.parquet"
@@ -585,16 +595,14 @@ class ProvisionalLookupRunner:
         data_root: Path,
         seed: int,
         manifest_fingerprint: str,
+        dictionary: Mapping[str, object],
     ) -> Path:
-        return (
-            data_root
-            / "reports"
-            / "l1"
-            / "s1_provisional"
-            / f"seed={seed}"
-            / f"fingerprint={manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+        rel_path = render_dataset_path(
+            "s1_run_report_2A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        return (data_root / rel_path).resolve()
 
     def _write_run_report(self, *, path: Path, payload: Mapping[str, object]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -605,6 +613,8 @@ class ProvisionalLookupRunner:
         batch: pl.DataFrame,
         tz_index: "TimeZoneIndex",
         epsilon: float,
+        seed: int,
+        manifest_fingerprint: str,
         created_utc: str,
     ) -> tuple[pl.DataFrame, int, list[str]]:
         lons = batch["lon_deg"].to_list()
@@ -616,6 +626,8 @@ class ProvisionalLookupRunner:
         )
         output = pl.DataFrame(
             {
+                "seed": pl.Series([seed] * len(batch), dtype=pl.UInt64),
+                "fingerprint": pl.Series([manifest_fingerprint] * len(batch), dtype=pl.Utf8),
                 "merchant_id": batch["merchant_id"],
                 "legal_country_iso": batch["legal_country_iso"],
                 "site_order": batch["site_order"],

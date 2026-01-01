@@ -158,9 +158,10 @@ class EdgesRunner:
         else:
             index_df.write_parquet(idx_path)
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3B/s2_edges/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s2_run_report_3B",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {
@@ -170,6 +171,7 @@ class EdgesRunner:
             "status": "PASS",
             "seed": seed,
             "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": str(receipt.get("parameter_hash", "")),
             "edges_total": edge_df.height,
             "virtual_merchants": virtuals.height,
             "resumed": resumed,

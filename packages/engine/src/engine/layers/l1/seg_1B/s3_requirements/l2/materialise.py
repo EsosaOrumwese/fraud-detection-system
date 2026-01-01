@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, TYPE_CHECKING
@@ -45,72 +46,77 @@ def materialise_requirements(
 ) -> S3RunResult:
     """Write the requirements dataset and associated run report."""
 
-    frame = _normalise_frame(aggregation.frame)
-    _enforce_schema(frame)
-    _enforce_sort_order(frame)
-    _enforce_positive_counts(frame)
-
     dictionary = prepared.dictionary
-    dataset_path = resolve_dataset_path(
-        "s3_requirements",
-        base_path=prepared.config.data_root,
-        template_args={
-            "seed": prepared.config.seed,
-            "manifest_fingerprint": prepared.config.manifest_fingerprint,
-            "parameter_hash": prepared.config.parameter_hash,
-        },
-        dictionary=dictionary,
-    )
+    try:
+        frame = _normalise_frame(aggregation.frame)
+        _enforce_schema(frame)
+        _enforce_sort_order(frame)
+        _enforce_positive_counts(frame)
 
-    stage_dir = _write_staged_partition(frame, dataset_path)
-    staged_digest = compute_partition_digest(stage_dir)
+        dataset_path = resolve_dataset_path(
+            "s3_requirements",
+            base_path=prepared.config.data_root,
+            template_args={
+                "seed": prepared.config.seed,
+                "manifest_fingerprint": prepared.config.manifest_fingerprint,
+                "parameter_hash": prepared.config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
 
-    if dataset_path.exists():
-        existing_digest = compute_partition_digest(dataset_path)
-        if existing_digest != staged_digest:
+        stage_dir = _write_staged_partition(frame, dataset_path)
+        staged_digest = compute_partition_digest(stage_dir)
+
+        if dataset_path.exists():
+            existing_digest = compute_partition_digest(dataset_path)
+            if existing_digest != staged_digest:
+                shutil.rmtree(stage_dir, ignore_errors=True)
+                raise err(
+                    "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL",
+                    f"s3_requirements partition '{dataset_path}' already exists with different content",
+                )
             shutil.rmtree(stage_dir, ignore_errors=True)
-            raise err(
-                "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL",
-                f"s3_requirements partition '{dataset_path}' already exists with different content",
-            )
-        shutil.rmtree(stage_dir, ignore_errors=True)
-        digest = existing_digest
-    else:
-        dataset_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(stage_dir), str(dataset_path))
-        digest = staged_digest
+            digest = existing_digest
+        else:
+            dataset_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(stage_dir), str(dataset_path))
+            digest = staged_digest
 
-    determinism_receipt = {
-        "partition_path": str(dataset_path),
-        "sha256_hex": digest,
-    }
+        determinism_receipt = {
+            "partition_path": str(dataset_path),
+            "sha256_hex": digest,
+        }
 
-    report_dir = (
-        prepared.config.data_root
-        / "control"
-        / "s3_requirements"
-        / f"seed={prepared.config.seed}"
-        / f"fingerprint={prepared.config.manifest_fingerprint}"
-        / f"parameter_hash={prepared.config.parameter_hash}"
-    )
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / "s3_run_report.json"
-    run_report = build_run_report(
-        prepared=prepared,
-        aggregation=aggregation,
-        determinism_receipt=determinism_receipt,
-    )
-    report_path.write_text(json.dumps(run_report, indent=2, sort_keys=True), encoding="utf-8")
+        report_path = resolve_dataset_path(
+            "s3_run_report",
+            base_path=prepared.config.data_root,
+            template_args={
+                "seed": prepared.config.seed,
+                "manifest_fingerprint": prepared.config.manifest_fingerprint,
+                "parameter_hash": prepared.config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        run_report = build_run_report(
+            prepared=prepared,
+            aggregation=aggregation,
+            determinism_receipt=determinism_receipt,
+        )
+        report_path.write_text(json.dumps(run_report, indent=2, sort_keys=True), encoding="utf-8")
 
-    return S3RunResult(
-        requirements_path=dataset_path,
-        report_path=report_path,
-        determinism_receipt=determinism_receipt,
-        rows_emitted=aggregation.rows_emitted,
-        merchants_total=aggregation.merchants_total,
-        countries_total=aggregation.countries_total,
-        source_rows_total=aggregation.source_rows_total,
-    )
+        return S3RunResult(
+            requirements_path=dataset_path,
+            report_path=report_path,
+            determinism_receipt=determinism_receipt,
+            rows_emitted=aggregation.rows_emitted,
+            merchants_total=aggregation.merchants_total,
+            countries_total=aggregation.countries_total,
+            source_rows_total=aggregation.source_rows_total,
+        )
+    except Exception as exc:
+        _emit_failure_event(prepared=prepared, dictionary=dictionary, failure=exc)
+        raise
 
 
 def _normalise_frame(frame: pl.DataFrame) -> pl.DataFrame:
@@ -153,6 +159,50 @@ def _write_staged_partition(frame: pl.DataFrame, dataset_path: Path) -> Path:
     output_file = stage_dir / "part-00000.parquet"
     frame.write_parquet(output_file)
     return stage_dir
+
+
+def _emit_failure_event(*, prepared: "PreparedInputs", dictionary: Mapping[str, object], failure: Exception) -> None:
+    try:
+        event_path = resolve_dataset_path(
+            "s3_failure_event",
+            base_path=prepared.config.data_root,
+            template_args={
+                "seed": prepared.config.seed,
+                "manifest_fingerprint": prepared.config.manifest_fingerprint,
+                "parameter_hash": prepared.config.parameter_hash,
+            },
+            dictionary=dictionary,
+        )
+    except Exception:
+        return
+    event_path.parent.mkdir(parents=True, exist_ok=True)
+    code = getattr(getattr(failure, "context", None), "code", None)
+    if isinstance(code, str):
+        if code == "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL":
+            code = "E313_NONDETERMINISTIC_OUTPUT"
+    payload = {
+        "event": "S3_ERROR",
+        "code": code if isinstance(code, str) else "E313_NONDETERMINISTIC_OUTPUT",
+        "at": _utc_now_rfc3339_micros(),
+        "seed": str(prepared.config.seed),
+        "manifest_fingerprint": prepared.config.manifest_fingerprint,
+        "parameter_hash": prepared.config.parameter_hash,
+    }
+    merchant_id = getattr(failure, "merchant_id", None)
+    if merchant_id is not None:
+        payload["merchant_id"] = merchant_id
+    legal_country_iso = getattr(failure, "legal_country_iso", None)
+    if isinstance(legal_country_iso, str) and legal_country_iso:
+        payload["legal_country_iso"] = legal_country_iso
+    with event_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload) + "\n")
+
+
+def _utc_now_rfc3339_micros() -> str:
+    now = time.time()
+    seconds = time.strftime("%Y-%m-%dT%H:%M:%S.", time.gmtime(now))
+    micros = int((now % 1) * 1_000_000)
+    return f"{seconds}{micros:06d}Z"
 
 
 __all__ = ["S3RunResult", "materialise_requirements"]

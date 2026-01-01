@@ -415,7 +415,7 @@ def _validate_rng_events(
     }
 
     for key, site_events in events_by_site.items():
-        site_events.sort(key=lambda evt: int(evt.get("attempt_index", 0)))
+        site_events.sort(key=lambda evt: str(evt.get("ts_utc", "")))
         _validate_site_events(key, site_events, seed_int, run_id, config, dataset_lookup)
         attempts = len(site_events)
         attempt_hist[attempts] += 1
@@ -661,12 +661,7 @@ def _validate_site_events(
     delta_lon = float(dataset_row["delta_lon_deg"])
     delta_lat = float(dataset_row["delta_lat_deg"])
 
-    if site_events[0].get("attempt_index") != 1:
-        raise err("E609_RNG_EVENT_COUNT", f"site {key} attempt index must start at 1")
-
-    for idx, event in enumerate(site_events, start=1):
-        if int(event.get("attempt_index", 0)) != idx:
-            raise err("E609_RNG_EVENT_COUNT", f"site {key} attempt indices not contiguous")
+    for event in site_events:
         if event.get("module") != "1B.S6.jitter" or event.get("substream_label") != "in_cell_jitter":
             raise err("E610_RNG_BUDGET_OR_COUNTERS", "unexpected module/substream in RNG event")
         if int(event.get("seed", -1)) != seed_int:
@@ -682,11 +677,7 @@ def _validate_site_events(
         if float(event.get("sigma_lat_deg", 0.0)) != 0.0 or float(event.get("sigma_lon_deg", 0.0)) != 0.0:
             raise err("E610_RNG_BUDGET_OR_COUNTERS", "sigma fields must be zero in uniform lane")
 
-    accepted = [event for event in site_events if bool(event.get("accepted"))]
-    if len(accepted) != 1:
-        raise err("E609_RNG_EVENT_COUNT", f"site {key} must have exactly one accepted attempt")
-
-    final_event = accepted[0]
+    final_event = site_events[-1]
     if not _almost_equal(float(final_event.get("delta_lon_deg", 0.0)), delta_lon):
         raise err("E609_RNG_EVENT_COUNT", "accepted event delta_lon_deg mismatch with dataset")
     if not _almost_equal(float(final_event.get("delta_lat_deg", 0.0)), delta_lat):

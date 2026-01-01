@@ -15,6 +15,8 @@ from ..l0.artifacts import hash_artifact
 from ..l1.hashing import compute_manifest_fingerprint, compute_parameter_hash
 from ..l2.output import S0Outputs
 from ..l2.runner import SealedFoundations
+from ...shared.dictionary import load_dictionary, resolve_dataset_path
+from ...shared.passed_flag import parse_passed_flag
 
 
 def _load_parquet(path: Path) -> pl.DataFrame:
@@ -66,8 +68,12 @@ def _verify_pass_flag(bundle_dir: Path) -> None:
     flag_path = bundle_dir / "_passed.flag"
     if not flag_path.exists():
         raise err("E_VALIDATION_DIGEST", "missing _passed.flag")
-    expected = f"sha256_hex = {digest.hexdigest()}"
-    if flag_path.read_text(encoding="utf-8").strip() != expected:
+    expected = digest.hexdigest()
+    try:
+        flag_digest = parse_passed_flag(flag_path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise err("E_VALIDATION_DIGEST", "validation bundle digest malformed") from exc
+    if flag_digest != expected:
         raise err("E_VALIDATION_DIGEST", "validation bundle digest mismatch")
 
 
@@ -88,12 +94,37 @@ def _load_jsonl(path: Path) -> list[dict]:
     return records
 
 
-def _rehash_artifacts(records: list[dict]) -> list:
+def _rehash_param_artifacts(records: list[dict], sealed: SealedFoundations) -> list:
+    digests = []
+    by_name = {
+        digest.basename: digest.path for digest in sealed.parameter_hash.artefacts
+    }
+    for record in records:
+        name = record.get("filename")
+        if not isinstance(name, str):
+            raise err("E_VALIDATION_DIGEST", "param_digest_log missing filename")
+        path = by_name.get(name)
+        if path is None:
+            raise err(
+                "E_VALIDATION_DIGEST",
+                f"param_digest_log references unknown file '{name}'",
+            )
+        digest = hash_artifact(path, error_prefix="E_VALIDATION_DIGEST")
+        if digest.sha256_hex != record.get("sha256_hex"):
+            raise err(
+                "E_VALIDATION_DIGEST",
+                f"param digest mismatch for '{path}'",
+            )
+        digests.append(digest)
+    return digests
+
+
+def _rehash_fingerprint_artifacts(records: list[dict]) -> list:
     digests = []
     for record in records:
         path = Path(record["path"])
         digest = hash_artifact(path, error_prefix="E_VALIDATION_DIGEST")
-        if digest.sha256_hex != record["sha256_hex"]:
+        if digest.sha256_hex != record.get("sha256"):
             raise err(
                 "E_VALIDATION_DIGEST",
                 f"artefact '{path}' digest mismatch",
@@ -104,13 +135,13 @@ def _rehash_artifacts(records: list[dict]) -> list:
 
 def _verify_lineage(bundle_dir: Path, sealed: SealedFoundations) -> None:
     param_records = _load_jsonl(bundle_dir / "param_digest_log.jsonl")
-    param_digests = _rehash_artifacts(param_records)
+    param_digests = _rehash_param_artifacts(param_records, sealed)
     recomputed_param = compute_parameter_hash(param_digests)
     if recomputed_param.parameter_hash != sealed.parameter_hash.parameter_hash:
         raise err("E_VALIDATION_DIGEST", "parameter_hash mismatch")
 
     manifest_records = _load_jsonl(bundle_dir / "fingerprint_artifacts.jsonl")
-    manifest_digests = _rehash_artifacts(manifest_records)
+    manifest_digests = _rehash_fingerprint_artifacts(manifest_records)
     manifest_result = compute_manifest_fingerprint(
         manifest_digests,
         git_commit_raw=bytes.fromhex(sealed.manifest_fingerprint.git_commit_hex),
@@ -146,15 +177,24 @@ def validate_outputs(
 
     parameter_hash = sealed.parameter_hash.parameter_hash
     manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
-
-    parameter_dir = base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
-    if not parameter_dir.exists():
-        raise err("E_VALIDATION_MISMATCH", "parameter-scoped directory missing")
+    dictionary = load_dictionary()
 
     observed_flags = _load_parquet(
-        parameter_dir / "crossborder_eligibility_flags.parquet"
+        resolve_dataset_path(
+            "crossborder_eligibility_flags",
+            base_path=base_path,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
+        )
     )
-    observed_design = _load_parquet(parameter_dir / "hurdle_design_matrix.parquet")
+    observed_design = _load_parquet(
+        resolve_dataset_path(
+            "hurdle_design_matrix",
+            base_path=base_path,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
+        )
+    )
 
     authority = sealed.context.schema_authority
     _assert_schema(
@@ -181,7 +221,12 @@ def validate_outputs(
         dataset="hurdle_design_matrix",
     )
 
-    diag_path = parameter_dir / "hurdle_pi_probs.parquet"
+    diag_path = resolve_dataset_path(
+        "hurdle_pi_probs",
+        base_path=base_path,
+        template_args={"parameter_hash": parameter_hash},
+        dictionary=dictionary,
+    )
     if outputs.diagnostics is not None:
         observed_diag = _load_parquet(diag_path)
         _assert_schema(
@@ -198,8 +243,11 @@ def validate_outputs(
     elif diag_path.exists():
         raise err("E_VALIDATION_MISMATCH", "unexpected diagnostics parquet present")
 
-    bundle_dir = (
-        base_path / "validation_bundle" / f"manifest_fingerprint={manifest_fingerprint}"
+    bundle_dir = resolve_dataset_path(
+        "validation_bundle_1A",
+        base_path=base_path,
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
     )
     if not bundle_dir.exists():
         raise err("E_VALIDATION_MISMATCH", "validation bundle missing")
@@ -214,24 +262,29 @@ def validate_outputs(
     _verify_lineage(bundle_dir, sealed)
     _verify_numeric_attest(bundle_dir)
 
-    rng_dir = (
-        base_path
-        / "rng_logs"
-        / f"seed={seed}"
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
+    audit_path = resolve_dataset_path(
+        "rng_audit_log",
+        base_path=base_path,
+        template_args={
+            "seed": seed,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
     )
-    audit_path = rng_dir / "rng_audit_log.json"
-    if not audit_path.exists():
-        raise err("E_VALIDATION_MISMATCH", "rng_audit_log.json missing")
-    audit = _load_json(audit_path)
+    audit_rows = _load_jsonl(audit_path)
+    if len(audit_rows) != 1:
+        raise err(
+            "E_VALIDATION_MISMATCH", "rng_audit_log must contain exactly one record"
+        )
+    audit = audit_rows[0]
     if (
         audit.get("parameter_hash") != parameter_hash
         or audit.get("manifest_fingerprint") != manifest_fingerprint
     ):
         raise err("E_VALIDATION_MISMATCH", "rng audit lineage mismatch")
 
-    events_root = base_path / "rng_logs" / "events"
+    events_root = base_path / "logs" / "rng" / "events"
     event_exists = any(events_root.rglob("part-00000.jsonl"))
     if not event_exists:
         raise err("E_VALIDATION_MISMATCH", "rng event logs missing")

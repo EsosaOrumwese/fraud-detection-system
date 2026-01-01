@@ -188,7 +188,7 @@ class S3DayEffectsRunner:
             "site_timezones",
             template_args={
                 "seed": config.seed,
-                "manifest_fingerprint": config.seg2a_manifest_fingerprint,
+                "manifest_fingerprint": config.manifest_fingerprint,
             },
             dictionary=dictionary,
         )

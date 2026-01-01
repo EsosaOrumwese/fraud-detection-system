@@ -178,8 +178,10 @@ class BaselineRunner:
                 utc_baseline_path.parent.mkdir(parents=True, exist_ok=True)
                 self._write_parquet(utc_baseline_path, utc_df)
 
-        run_report_path = (
-            data_root / "reports/l2/5A/s3_baselines" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s3_run_report_5A",
+            template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         report_payload = {
@@ -207,7 +209,9 @@ class BaselineRunner:
             parameter_hash=inputs.parameter_hash,
             run_id=inputs.run_id,
         )
-        segment_state_path = data_root / "reports/l2/segment_states/segment_state_runs.jsonl"
+        segment_state_path = data_root / render_dataset_path(
+            dataset_id="segment_state_runs", template_args={}, dictionary=dictionary
+        )
         write_segment_state_run_report(
             path=segment_state_path,
             key=key,

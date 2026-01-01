@@ -82,6 +82,7 @@ class LegalityRunner:
             data_root=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
             seed=config.seed,
+            dictionary=dictionary,
         )
         receipt = load_gate_receipt(
             base_path=data_root,
@@ -91,6 +92,7 @@ class LegalityRunner:
         determinism_receipt = load_determinism_receipt(
             base_path=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         context = self._prepare_context(
             data_root=data_root,
@@ -342,8 +344,6 @@ class LegalityRunner:
         status: str,
     ) -> int:
         payload = {
-            "segment": "2A",
-            "state": "S4",
             "manifest_fingerprint": context.manifest_fingerprint,
             "seed": context.seed,
             "generated_utc": context.verified_at_utc,
@@ -398,14 +398,14 @@ class LegalityRunner:
         data_root: Path,
         manifest_fingerprint: str,
         seed: int,
+        dictionary: Mapping[str, object],
     ) -> Path:
-        return (
-            data_root
-            / self.RUN_REPORT_ROOT
-            / f"seed={seed}"
-            / f"fingerprint={manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+        rel_path = render_dataset_path(
+            "s4_run_report_2A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        return (data_root / rel_path).resolve()
 
     def _write_run_report(
         self,

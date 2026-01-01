@@ -5,10 +5,12 @@ from __future__ import annotations
 import concurrent.futures
 import errno
 import hashlib
+import io
 import json
 import logging
 import os
 import shutil
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -222,6 +224,8 @@ class WorkerResult:
     cells_included_total: int
     wall_clock_seconds: float
     cpu_seconds: float
+    max_rss_bytes: int
+    open_files_peak: int
 
 
 @dataclass
@@ -234,6 +238,8 @@ class WorkerRuntimeStats:
     cells_scanned_total: int
     wall_clock_seconds: float
     cpu_seconds: float
+    max_rss_bytes: int
+    open_files_peak: int
 
     @property
     def tiles_per_second(self) -> float | None:
@@ -251,182 +257,219 @@ class S1TileIndexRunner:
         parameter_hash = config.parameter_hash
         inclusion_rule = InclusionRule.parse(config.inclusion_rule)
         requested_workers = max(1, config.workers)
+        try:
+            iso_path = data_root / Path(
+                render_dataset_path("iso3166_canonical_2024", template_args={}, dictionary=dictionary)
+            )
+            country_path = data_root / Path(
+                render_dataset_path("world_countries", template_args={}, dictionary=dictionary)
+            )
+            raster_path = data_root / Path(
+                render_dataset_path("population_raster_2025", template_args={}, dictionary=dictionary)
+            )
+            baseline = _measure_io_baselines(
+                raster_path=raster_path,
+                vector_paths=(iso_path, country_path),
+            )
+            bytes_read_raster = baseline["bytes_read_raster"]
+            bytes_read_vectors = baseline["bytes_read_vectors"]
+            io_baseline_raster_bps = baseline["io_baseline_raster_bps"]
+            io_baseline_vectors_bps = baseline["io_baseline_vectors_bps"]
 
-        iso_path = data_root / Path(
-            render_dataset_path("iso3166_canonical_2024", template_args={}, dictionary=dictionary)
-        )
-        country_path = data_root / Path(
-            render_dataset_path("world_countries", template_args={}, dictionary=dictionary)
-        )
-        raster_path = data_root / Path(
-            render_dataset_path("population_raster_2025", template_args={}, dictionary=dictionary)
-        )
+            logger.info("S1: loading ISO canonical table from %s", iso_path)
+            iso_table = load_iso_countries(iso_path)
+            logger.info("S1: ISO table loaded (rows=%d)", iso_table.table.height)
+            iso_codes = iso_table.codes
 
-        logger.info("S1: loading ISO canonical table from %s", iso_path)
-        iso_table = load_iso_countries(iso_path)
-        logger.info("S1: ISO table loaded (rows=%d)", iso_table.table.height)
-        iso_codes = iso_table.codes
+            logger.info("S1: loading world polygon surface from %s", country_path)
+            country_polygons = load_country_polygons(country_path)
+            logger.info("S1: country polygons ready (countries=%d)", len(country_polygons))
 
-        logger.info("S1: loading world polygon surface from %s", country_path)
-        country_polygons = load_country_polygons(country_path)
-        logger.info("S1: country polygons ready (countries=%d)", len(country_polygons))
-
-        logger.info("S1: loading population raster metadata from %s", raster_path)
-        raster = load_population_raster(raster_path)
-        logger.info(
-            "S1: population raster ready (rows=%d, cols=%d)",
-            raster.nrows,
-            raster.ncols,
-        )
-
-        start_wall = time.perf_counter()
-        start_cpu = time.process_time()
-
-        eligible_countries = [country for country in country_polygons if country.country_iso in iso_codes]
-        if not eligible_countries:
-            raise S1RunError("No eligible countries found in country polygon surface")
-        total_countries = len(eligible_countries)
-        worker_target = min(requested_workers, total_countries)
-        if worker_target < requested_workers:
+            logger.info("S1: loading population raster metadata from %s", raster_path)
+            raster = load_population_raster(raster_path)
             logger.info(
-                "S1: requested %d workers but only %d eligible countries available; using %d workers",
-                requested_workers,
+                "S1: population raster ready (rows=%d, cols=%d)",
+                raster.nrows,
+                raster.ncols,
+            )
+
+            start_wall = time.perf_counter()
+            start_cpu = time.process_time()
+            rss_peak, files_peak = _sample_process_metrics()
+
+            eligible_countries = [
+                country for country in country_polygons if country.country_iso in iso_codes
+            ]
+            if not eligible_countries:
+                raise S1RunError("No eligible countries found in country polygon surface")
+            total_countries = len(eligible_countries)
+            worker_target = min(requested_workers, total_countries)
+            if worker_target < requested_workers:
+                logger.info(
+                    "S1: requested %d workers but only %d eligible countries available; using %d workers",
+                    requested_workers,
+                    total_countries,
+                    worker_target,
+                )
+            logger.info(
+                "S1: enumerating tiles (countries=%d, inclusion_rule=%s, workers=%d)",
                 total_countries,
+                inclusion_rule.value,
                 worker_target,
             )
-        logger.info(
-            "S1: enumerating tiles (countries=%d, inclusion_rule=%s, workers=%d)",
-            total_countries,
-            inclusion_rule.value,
-            worker_target,
-        )
-        tile_index_dir = resolve_dataset_path(
-            "tile_index",
-            base_path=data_root,
-            template_args={"parameter_hash": parameter_hash},
-            dictionary=dictionary,
-        )
-        tile_bounds_dir = resolve_dataset_path(
-            "tile_bounds",
-            base_path=data_root,
-            template_args={"parameter_hash": parameter_hash},
-            dictionary=dictionary,
-        )
-        if tile_index_dir.exists():
-            raise S1RunError(f"Output partition already exists: {tile_index_dir}")
-        if tile_bounds_dir.exists():
-            raise S1RunError(f"Output partition already exists: {tile_bounds_dir}")
-
-        if worker_target == 1:
-            execution = self._run_single(
-                inclusion_rule=inclusion_rule,
-                iso_codes=iso_codes,
-                country_polygons=country_polygons,
-                raster=raster,
-                tile_index_dir=tile_index_dir,
-                tile_bounds_dir=tile_bounds_dir,
+            tile_index_dir = resolve_dataset_path(
+                "tile_index",
+                base_path=data_root,
+                template_args={"parameter_hash": parameter_hash},
+                dictionary=dictionary,
             )
-        else:
-            execution = self._run_multi(
-                inclusion_rule=inclusion_rule,
-                countries=eligible_countries,
-                raster_path=raster_path,
-                tile_index_dir=tile_index_dir,
-                tile_bounds_dir=tile_bounds_dir,
-                worker_count=worker_target,
+            tile_bounds_dir = resolve_dataset_path(
+                "tile_bounds",
+                base_path=data_root,
+                template_args={"parameter_hash": parameter_hash},
+                dictionary=dictionary,
             )
+            if tile_index_dir.exists():
+                raise S1RunError(f"Output partition already exists: {tile_index_dir}")
+            if tile_bounds_dir.exists():
+                raise S1RunError(f"Output partition already exists: {tile_bounds_dir}")
 
-        tile_temp_dir = execution.tile_temp_dir
-        bounds_temp_dir = execution.bounds_temp_dir
-        _publish_partition(tile_temp_dir, tile_index_dir, label="tile_index")
-        _publish_partition(bounds_temp_dir, tile_bounds_dir, label="tile_bounds")
+            if worker_target == 1:
+                execution = self._run_single(
+                    inclusion_rule=inclusion_rule,
+                    iso_codes=iso_codes,
+                    country_polygons=country_polygons,
+                    raster=raster,
+                    tile_index_dir=tile_index_dir,
+                    tile_bounds_dir=tile_bounds_dir,
+                )
+            else:
+                execution = self._run_multi(
+                    inclusion_rule=inclusion_rule,
+                    countries=eligible_countries,
+                    raster_path=raster_path,
+                    tile_index_dir=tile_index_dir,
+                    tile_bounds_dir=tile_bounds_dir,
+                    worker_count=worker_target,
+                )
 
-        summaries = execution.summaries
-        rows_emitted = execution.rows_emitted
+            tile_temp_dir = execution.tile_temp_dir
+            bounds_temp_dir = execution.bounds_temp_dir
+            _publish_partition(tile_temp_dir, tile_index_dir, label="tile_index")
+            _publish_partition(bounds_temp_dir, tile_bounds_dir, label="tile_bounds")
 
-        digest = compute_partition_digest(tile_index_dir)
+            summaries = execution.summaries
+            rows_emitted = execution.rows_emitted
 
-        wall_elapsed = time.perf_counter() - start_wall
-        cpu_elapsed = time.process_time() - start_cpu
-        bytes_read_raster = _safe_stat_size(raster_path)
-        bytes_read_vectors = sum(
-            _safe_stat_size(path) for path in (iso_path, country_path)
-        )
-        worker_runtimes = execution.worker_runtimes or []
-        workers_used = max(1, len(worker_runtimes))
-        tiles_per_second_avg = None if wall_elapsed <= 0 else rows_emitted / wall_elapsed
-        worker_tile_rates: list[dict[str, object]] = []
-        for stats in worker_runtimes:
-            rate = stats.tiles_per_second
-            worker_tile_rates.append(
-                {
-                    "worker_id": stats.worker_id,
-                    "countries": stats.countries_processed,
-                    "tiles": stats.rows_emitted,
-                    "tiles_per_second": rate,
-                }
+            digest = compute_partition_digest(tile_index_dir)
+
+            wall_elapsed = time.perf_counter() - start_wall
+            cpu_elapsed = time.process_time() - start_cpu
+            rss_now, files_now = _sample_process_metrics()
+            rss_peak = max(rss_peak, rss_now)
+            files_peak = max(files_peak, files_now)
+            worker_runtimes = execution.worker_runtimes or []
+            workers_used = max(1, len(worker_runtimes))
+            tiles_per_second_avg = None if wall_elapsed <= 0 else rows_emitted / wall_elapsed
+            worker_tile_rates: list[dict[str, object]] = []
+            max_worker_rss = max([stats.max_rss_bytes for stats in worker_runtimes] + [rss_peak])
+            open_files_peak = max(
+                [stats.open_files_peak for stats in worker_runtimes] + [files_peak]
             )
-            logger.info(
-                "S1: worker %d complete (countries=%d, tiles=%d, tiles/sec=%s)",
-                stats.worker_id,
-                stats.countries_processed,
-                stats.rows_emitted,
-                f"{rate:.1f}" if rate is not None else "n/a",
+            for stats in worker_runtimes:
+                rate = stats.tiles_per_second
+                worker_tile_rates.append(
+                    {
+                        "worker_id": stats.worker_id,
+                        "countries": stats.countries_processed,
+                        "tiles": stats.rows_emitted,
+                        "tiles_per_second": rate,
+                        "max_rss_bytes": stats.max_rss_bytes,
+                        "open_files_peak": stats.open_files_peak,
+                    }
+                )
+                logger.info(
+                    "S1: worker %d complete (countries=%d, tiles=%d, tiles/sec=%s)",
+                    stats.worker_id,
+                    stats.countries_processed,
+                    stats.rows_emitted,
+                    f"{rate:.1f}" if rate is not None else "n/a",
+                )
+
+            report_path = resolve_dataset_path(
+                "s1_run_report",
+                base_path=data_root,
+                template_args={"parameter_hash": parameter_hash},
+                dictionary=dictionary,
             )
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            summary_path = resolve_dataset_path(
+                "s1_country_summaries",
+                base_path=data_root,
+                template_args={"parameter_hash": parameter_hash},
+                dictionary=dictionary,
+            )
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
 
-        report_dir = data_root / "reports" / "l1" / "s1_tile_index" / f"parameter_hash={parameter_hash}"
-        report_dir.mkdir(parents=True, exist_ok=True)
-        report_path = report_dir / "run_report.json"
-        summary_path = report_dir / "country_summaries.jsonl"
+            ingress_versions = {
+                "iso3166_canonical_2024": get_dataset_entry(
+                    "iso3166_canonical_2024", dictionary=dictionary
+                ).get("version", "unknown"),
+                "world_countries": get_dataset_entry("world_countries", dictionary=dictionary).get(
+                    "version",
+                    "unknown",
+                ),
+                "population_raster_2025": get_dataset_entry(
+                    "population_raster_2025", dictionary=dictionary
+                ).get("version", "unknown"),
+            }
+            run_report = RunReport(
+                parameter_hash=parameter_hash,
+                predicate=inclusion_rule.value,
+                ingress_versions=ingress_versions,
+                grid_dims={"nrows": raster.nrows, "ncols": raster.ncols},
+                countries_total=total_countries,
+                rows_emitted=rows_emitted,
+                determinism_receipt={
+                    "partition_path": str(tile_index_dir),
+                    "sha256_hex": digest,
+                },
+                pat={
+                    "wall_clock_seconds_total": wall_elapsed,
+                    "cpu_seconds_total": cpu_elapsed,
+                    "countries_processed": total_countries,
+                    "cells_scanned_total": sum(s.cells_visited for s in summaries.values()),
+                    "cells_included_total": rows_emitted,
+                    "bytes_read_raster_total": bytes_read_raster,
+                    "bytes_read_vectors_total": bytes_read_vectors,
+                    "max_worker_rss_bytes": int(max_worker_rss),
+                    "open_files_peak": int(open_files_peak),
+                    "workers_used": workers_used,
+                    "chunk_size": _CHUNK_SIZE,
+                    "io_baseline_raster_bps": io_baseline_raster_bps,
+                    "io_baseline_vectors_bps": io_baseline_vectors_bps,
+                    "tiles_per_second_avg": tiles_per_second_avg,
+                    "tiles_per_second_per_worker": worker_tile_rates,
+                },
+            )
+            report_path.write_text(json.dumps(run_report.to_dict(), indent=2), encoding="utf-8")
+            self._write_country_summaries(summary_path, summaries.values())
 
-        ingress_versions = {
-            "iso3166_canonical_2024": get_dataset_entry(
-                "iso3166_canonical_2024", dictionary=dictionary
-            ).get("version", "unknown"),
-            "world_countries": get_dataset_entry("world_countries", dictionary=dictionary).get("version", "unknown"),
-            "population_raster_2025": get_dataset_entry(
-                "population_raster_2025", dictionary=dictionary
-            ).get("version", "unknown"),
-        }
-        run_report = RunReport(
-            parameter_hash=parameter_hash,
-            predicate=inclusion_rule.value,
-            ingress_versions=ingress_versions,
-            grid_dims={"nrows": raster.nrows, "ncols": raster.ncols},
-            countries_total=len(summaries),
-            rows_emitted=rows_emitted,
-            determinism_receipt={
-                "partition_path": str(tile_index_dir),
-                "sha256_hex": digest,
-            },
-            pat={
-                "wall_clock_seconds_total": wall_elapsed,
-                "cpu_seconds_total": cpu_elapsed,
-                "countries_processed": len(summaries),
-                "cells_scanned_total": sum(s.cells_visited for s in summaries.values()),
-                "cells_included_total": rows_emitted,
-                "bytes_read_raster_total": bytes_read_raster,
-                "bytes_read_vectors_total": bytes_read_vectors,
-                "max_worker_rss_bytes": None,
-                "open_files_peak": None,
-                "workers_used": workers_used,
-                "chunk_size": _CHUNK_SIZE,
-                "io_baseline_raster_bps": None,
-                "io_baseline_vectors_bps": None,
-                "tiles_per_second_avg": tiles_per_second_avg,
-                "tiles_per_second_per_worker": worker_tile_rates,
-            },
-        )
-        report_path.write_text(json.dumps(run_report.to_dict(), indent=2), encoding="utf-8")
-        self._write_country_summaries(summary_path, summaries.values())
-
-        return S1RunResult(
-            tile_index_path=tile_index_dir,
-            tile_bounds_path=tile_bounds_dir,
-            report_path=report_path,
-            country_summary_path=summary_path,
-            rows_emitted=rows_emitted,
-        )
+            return S1RunResult(
+                tile_index_path=tile_index_dir,
+                tile_bounds_path=tile_bounds_dir,
+                report_path=report_path,
+                country_summary_path=summary_path,
+                rows_emitted=rows_emitted,
+            )
+        except Exception as exc:
+            _emit_failure_event(
+                base_path=data_root,
+                parameter_hash=parameter_hash,
+                dictionary=dictionary,
+                failure=exc,
+            )
+            raise
 
     def _run_single(
         self,
@@ -459,6 +502,7 @@ class S1TileIndexRunner:
         processed_count = sum(1 for country in country_polygons if country.country_iso in iso_codes)
         start_wall = time.perf_counter()
         start_cpu = time.process_time()
+        rss_peak, files_peak = _sample_process_metrics()
         try:
             summaries, rows_emitted = self._enumerate_tiles(
                 inclusion_rule,
@@ -480,6 +524,9 @@ class S1TileIndexRunner:
 
         wall_elapsed = time.perf_counter() - start_wall
         cpu_elapsed = time.process_time() - start_cpu
+        rss_now, files_now = _sample_process_metrics()
+        rss_peak = max(rss_peak, rss_now)
+        files_peak = max(files_peak, files_now)
         logger.info(
             "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d)",
             len(summaries),
@@ -492,6 +539,8 @@ class S1TileIndexRunner:
             cells_scanned_total=sum(s.cells_visited for s in summaries.values()),
             wall_clock_seconds=wall_elapsed,
             cpu_seconds=cpu_elapsed,
+            max_rss_bytes=rss_peak,
+            open_files_peak=files_peak,
         )
 
         return ExecutionResult(
@@ -574,6 +623,8 @@ class S1TileIndexRunner:
                 cells_scanned_total=result.cells_scanned_total,
                 wall_clock_seconds=result.wall_clock_seconds,
                 cpu_seconds=result.cpu_seconds,
+                max_rss_bytes=result.max_rss_bytes,
+                open_files_peak=result.open_files_peak,
             )
             for result in worker_results
         ]
@@ -637,6 +688,7 @@ class S1TileIndexRunner:
                     col_min,
                     col_max,
                 )
+                summaries[iso] = summary
                 continue
             logger.info(
                 "%sS1: country %d/%d (%s) window rows=%d..%d cols=%d..%d",
@@ -824,8 +876,7 @@ class S1TileIndexRunner:
                         duration,
                     )
 
-            if summary.cells_visited:
-                summaries[iso] = summary
+            summaries[iso] = summary
             if total_countries > 0 and (processed % 25 == 0 or processed == total_countries):
                 logger.info(
                     "%sS1: processed %d/%d countries (tiles_emitted=%d)",
@@ -1096,6 +1147,7 @@ def _worker_entry(assignment: WorkerAssignment) -> WorkerResult:
     )
     start_wall = time.perf_counter()
     start_cpu = time.process_time()
+    rss_peak, files_peak = _sample_process_metrics()
     try:
         raster = load_population_raster(assignment.raster_path)
         polygons = _build_country_polygons_from_payloads(assignment.countries)
@@ -1118,6 +1170,9 @@ def _worker_entry(assignment: WorkerAssignment) -> WorkerResult:
         raise
     wall_elapsed = time.perf_counter() - start_wall
     cpu_elapsed = time.process_time() - start_cpu
+    rss_now, files_now = _sample_process_metrics()
+    rss_peak = max(rss_peak, rss_now)
+    files_peak = max(files_peak, files_now)
     cells_scanned_total = sum(summary.cells_visited for summary in summaries.values())
     return WorkerResult(
         worker_id=assignment.worker_id,
@@ -1130,6 +1185,8 @@ def _worker_entry(assignment: WorkerAssignment) -> WorkerResult:
         cells_included_total=rows_emitted,
         wall_clock_seconds=wall_elapsed,
         cpu_seconds=cpu_elapsed,
+        max_rss_bytes=rss_peak,
+        open_files_peak=files_peak,
     )
 
 
@@ -1217,7 +1274,201 @@ def _configure_worker_logging() -> None:
     logging.getLogger(__name__).setLevel(logging.INFO)
 
 
+def _emit_failure_event(
+    *,
+    base_path: Path,
+    parameter_hash: str,
+    dictionary: Mapping[str, object],
+    failure: Exception,
+) -> None:
+    try:
+        event_path = resolve_dataset_path(
+            "s1_failure_event",
+            base_path=base_path,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
+        )
+    except Exception:
+        logger.exception("S1: unable to resolve failure event path")
+        return
+    event_path.parent.mkdir(parents=True, exist_ok=True)
+    payload: Dict[str, object] = {
+        "event": "S1_ERROR",
+        "code": _infer_failure_code(failure),
+        "at": _utc_now_rfc3339_micros(),
+        "parameter_hash": parameter_hash,
+    }
+    country_iso = getattr(failure, "country_iso", None)
+    if isinstance(country_iso, str) and country_iso:
+        payload["country_iso"] = country_iso
+    raster_row = getattr(failure, "raster_row", None)
+    if raster_row is not None:
+        payload["raster_row"] = raster_row
+    raster_col = getattr(failure, "raster_col", None)
+    if raster_col is not None:
+        payload["raster_col"] = raster_col
+    with event_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload) + "\n")
+
+
+def _infer_failure_code(exc: Exception) -> str:
+    message = str(exc).lower()
+    if "predicate" in message or "inclusion" in message:
+        return "E008_INCLUSION_RULE"
+    if "iso" in message or "country_iso" in message:
+        return "E005_ISO_FK"
+    if "area" in message:
+        return "E006_AREA_NONPOS"
+    if "crs" in message or "wgs84" in message:
+        return "E007_CRS_MISMATCH"
+    if "raster" in message or "tile_id" in message:
+        return "E002_RASTER_MISMATCH"
+    if "geometry" in message or "polygon" in message:
+        return "E001_GEO_INVALID"
+    return "E009_PERF_BUDGET"
+
+
+def _utc_now_rfc3339_micros() -> str:
+    now = time.time()
+    seconds = time.strftime("%Y-%m-%dT%H:%M:%S.", time.gmtime(now))
+    micros = int((now % 1) * 1_000_000)
+    return f"{seconds}{micros:06d}Z"
+
+
 __all__ = ["RunnerConfig", "S1RunResult", "S1TileIndexRunner", "S1RunError", "compute_partition_digest"]
+
+
+_BASELINE_TARGET_BYTES = 1_073_741_824
+_BASELINE_CHUNK_BYTES = 8 * 1024 * 1024
+
+
+def _measure_io_baselines(
+    *,
+    raster_path: Path,
+    vector_paths: Sequence[Path],
+) -> dict[str, float | int | None]:
+    """Measure sustained read throughput for PAT baselines."""
+
+    bytes_read_raster = 0
+    io_baseline_raster_bps: float | None = None
+    if raster_path.exists():
+        bytes_read_raster, elapsed = _stream_read_file(
+            raster_path, target_bytes=_BASELINE_TARGET_BYTES
+        )
+        if bytes_read_raster > 0 and elapsed > 0:
+            io_baseline_raster_bps = bytes_read_raster / elapsed
+
+    bytes_read_vectors = 0
+    elapsed_vectors = 0.0
+    for path in vector_paths:
+        if not path.exists():
+            continue
+        bytes_read, elapsed = _stream_read_file(path, target_bytes=None)
+        bytes_read_vectors += bytes_read
+        elapsed_vectors += elapsed
+    io_baseline_vectors_bps = None
+    if bytes_read_vectors > 0 and elapsed_vectors > 0:
+        io_baseline_vectors_bps = bytes_read_vectors / elapsed_vectors
+
+    return {
+        "bytes_read_raster": bytes_read_raster,
+        "bytes_read_vectors": bytes_read_vectors,
+        "io_baseline_raster_bps": io_baseline_raster_bps,
+        "io_baseline_vectors_bps": io_baseline_vectors_bps,
+    }
+
+
+def _stream_read_file(path: Path, *, target_bytes: int | None) -> tuple[int, float]:
+    """Stream-read up to ``target_bytes`` bytes and return (bytes, elapsed_seconds)."""
+
+    total = 0
+    start = time.perf_counter()
+    with path.open("rb") as handle:
+        while True:
+            if target_bytes is not None and total >= target_bytes:
+                break
+            remaining = None if target_bytes is None else max(0, target_bytes - total)
+            chunk_size = _BASELINE_CHUNK_BYTES if remaining is None else min(_BASELINE_CHUNK_BYTES, remaining)
+            data = handle.read(chunk_size)
+            if not data:
+                break
+            total += len(data)
+    elapsed = time.perf_counter() - start
+    return total, elapsed
+
+
+def _sample_process_metrics() -> tuple[int, int]:
+    """Return (rss_bytes, open_files_count) for the current process."""
+
+    return _get_rss_bytes(), _get_open_files_count()
+
+
+def _get_rss_bytes() -> int:
+    if sys.platform.startswith("win"):
+        return _get_windows_rss_bytes()
+    try:
+        import resource  # noqa: WPS433
+    except ImportError:
+        return 0
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+    rss = getattr(usage, "ru_maxrss", 0) or 0
+    if sys.platform == "darwin":
+        return int(rss)
+    return int(rss) * 1024
+
+
+def _get_windows_rss_bytes() -> int:
+    try:
+        import ctypes
+        import ctypes.wintypes
+    except Exception:
+        return 0
+
+    class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+        _fields_ = [
+            ("cb", ctypes.wintypes.DWORD),
+            ("PageFaultCount", ctypes.wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.wintypes.SIZE_T),
+            ("WorkingSetSize", ctypes.wintypes.SIZE_T),
+            ("QuotaPeakPagedPoolUsage", ctypes.wintypes.SIZE_T),
+            ("QuotaPagedPoolUsage", ctypes.wintypes.SIZE_T),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.wintypes.SIZE_T),
+            ("QuotaNonPagedPoolUsage", ctypes.wintypes.SIZE_T),
+            ("PagefileUsage", ctypes.wintypes.SIZE_T),
+            ("PeakPagefileUsage", ctypes.wintypes.SIZE_T),
+        ]
+
+    counters = PROCESS_MEMORY_COUNTERS()
+    counters.cb = ctypes.sizeof(counters)
+    handle = ctypes.windll.kernel32.GetCurrentProcess()
+    if ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+        return int(counters.WorkingSetSize)
+    return 0
+
+
+def _get_open_files_count() -> int:
+    if sys.platform.startswith("win"):
+        return _get_windows_handle_count()
+    fd_dir = Path("/proc/self/fd")
+    if fd_dir.exists():
+        try:
+            return len(list(fd_dir.iterdir()))
+        except OSError:
+            return 0
+    return 0
+
+
+def _get_windows_handle_count() -> int:
+    try:
+        import ctypes
+        import ctypes.wintypes
+    except Exception:
+        return 0
+    handle = ctypes.windll.kernel32.GetCurrentProcess()
+    count = ctypes.wintypes.DWORD()
+    if ctypes.windll.kernel32.GetProcessHandleCount(handle, ctypes.byref(count)):
+        return int(count.value)
+    return 0
 
 
 def compute_partition_digest(partition_dir: Path) -> str:

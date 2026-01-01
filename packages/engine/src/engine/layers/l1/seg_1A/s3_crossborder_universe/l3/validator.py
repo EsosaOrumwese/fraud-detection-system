@@ -155,6 +155,53 @@ def _group_expected_sequence(
     }
 
 
+def _threshold_bounds_for_merchant(
+    policy: ThresholdsPolicy | None,
+    rows: Sequence[RankedCandidateRow],
+    *,
+    n_outlets: int,
+) -> tuple[Dict[str, int], Dict[str, int | None]]:
+    if policy is None or not policy.enabled:
+        return {}, {}
+    if not rows:
+        return {}, {}
+    home_rows = [row for row in rows if row.is_home]
+    if len(home_rows) != 1:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "candidate set must contain exactly one home row for bounds",
+        )
+    num_candidates = len(rows)
+    L_home = min(int(policy.home_min), int(n_outlets))
+    if (
+        policy.force_at_least_one_foreign_if_foreign_present
+        and num_candidates > 1
+        and n_outlets >= 2
+    ):
+        U_home = int(n_outlets) - 1
+    else:
+        U_home = int(n_outlets)
+    if policy.min_one_per_country_when_feasible and n_outlets >= num_candidates and n_outlets >= 2:
+        L_foreign = 1
+    else:
+        L_foreign = 0
+    if policy.foreign_cap_mode == "n_minus_home_min":
+        U_foreign = max(L_foreign, int(n_outlets) - L_home)
+    else:
+        U_foreign = int(n_outlets)
+
+    floors: Dict[str, int] = {}
+    ceilings: Dict[str, int | None] = {}
+    for row in rows:
+        if row.is_home:
+            floors[row.country_iso] = L_home
+            ceilings[row.country_iso] = U_home
+        else:
+            floors[row.country_iso] = L_foreign
+            ceilings[row.country_iso] = U_foreign
+    return floors, ceilings
+
+
 def _assert_unique(
     frame: pl.DataFrame,
     columns: list[str],
@@ -377,9 +424,6 @@ def validate_s3_outputs(
             f"s3_candidate_set contains unexpected merchants {sorted(extra)}",
         )
 
-    floors_map = thresholds_policy.floors if thresholds_policy else {}
-    ceilings_map = thresholds_policy.ceilings if thresholds_policy else {}
-
     eligible_crossborder = 0
     floor_hits_total = 0
     ceiling_hits_total = 0
@@ -513,6 +557,12 @@ def validate_s3_outputs(
             ceiling_hits = 0
             residual_hits = 0
             total_count = 0
+            merchant_total = merchants_map.get(merchant_id)
+            floors_map, ceilings_map = _threshold_bounds_for_merchant(
+                thresholds_policy,
+                expected_rows,
+                n_outlets=merchant_total.n_outlets if merchant_total else 0,
+            )
             for row in merchant_counts:
                 key = (merchant_id, str(row["country_iso"]))
                 remaining_counts.discard(key)

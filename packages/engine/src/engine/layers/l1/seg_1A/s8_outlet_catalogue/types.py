@@ -26,11 +26,10 @@ class SequenceFinalizeEvent:
     """Payload written to the `sequence_finalize` RNG event stream."""
 
     merchant_id: int
-    legal_country_iso: str
-    site_order_start: int
-    site_order_end: int
+    country_iso: str
+    start_sequence: str
+    end_sequence: str
     site_count: int
-    manifest_fingerprint: str
 
 
 @dataclass(frozen=True)
@@ -38,9 +37,11 @@ class SiteSequenceOverflowEvent:
     """Guardrail event for site-id space exhaustion."""
 
     merchant_id: int
-    legal_country_iso: str
-    attempted_sequence: int
-    manifest_fingerprint: str
+    country_iso: str
+    attempted_count: int
+    max_seq: int
+    overflow_by: int
+    severity: str
 
 
 __all__ = [

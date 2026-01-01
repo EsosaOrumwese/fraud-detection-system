@@ -129,6 +129,7 @@ class TimetableRunner:
         run_report_path = self._resolve_run_report_path(
             data_root=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         receipt = load_gate_receipt(
             base_path=data_root,
@@ -143,6 +144,7 @@ class TimetableRunner:
         determinism_receipt = load_determinism_receipt(
             base_path=data_root,
             manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
         )
         context = self._prepare_context(
             data_root=data_root,
@@ -523,13 +525,14 @@ class TimetableRunner:
         *,
         data_root: Path,
         manifest_fingerprint: str,
+        dictionary: Mapping[str, object],
     ) -> Path:
-        return (
-            data_root
-            / self.RUN_REPORT_ROOT
-            / f"fingerprint={manifest_fingerprint}"
-            / "run_report.json"
-        ).resolve()
+        rel_path = render_dataset_path(
+            "s3_run_report_2A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        return (data_root / rel_path).resolve()
 
     def _build_transition_map(
         self,
@@ -539,7 +542,7 @@ class TimetableRunner:
     ) -> tuple[
         dict[str, list[list[int]]], int, int, int, list[OffsetAdjustmentRecord]
     ]:
-        archive_path = self._resolve_archive_path(assets.tzdb_dir)
+        archive_path = self._resolve_archive_path(assets.tzdb_dir, assets.tzdb_release_tag)
         transitions: dict[str, list[list[int]]] = {}
         transition_changes = 0
         offset_min: Optional[int] = None
@@ -772,14 +775,28 @@ class TimetableRunner:
             )
         return proc.stdout.strip()
 
-    def _resolve_archive_path(self, tzdb_dir: Path) -> Path:
+    def _resolve_archive_path(self, tzdb_dir: Path, release_tag: str) -> Path:
+        archive_path = tzdb_dir / f"tzdata{release_tag}.tar.gz"
+        if archive_path.exists():
+            return archive_path
         archive_candidates = sorted(tzdb_dir.glob("*.tar.gz"))
         if not archive_candidates:
             raise err(
                 "E_S3_TZDB_ARCHIVE_MISSING",
                 f"no tzdata archive found under '{tzdb_dir}'",
             )
-        return archive_candidates[0]
+        raise err(
+            "E_S3_TZDB_ARCHIVE_MISSING",
+            f"tzdata archive for release '{release_tag}' not found under '{tzdb_dir}'",
+        )
+
+
+def _sha256_file(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
     def _extract_archive(self, *, archive_path: Path, target_dir: Path) -> None:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -799,15 +816,14 @@ class TimetableRunner:
         tar_handle.extractall(target_dir)
 
     def _verify_tzdb_digest(self, assets: TimetableAssets) -> str:
-        files = expand_files(assets.tzdb_dir)
-        digests = hash_files(files, error_prefix="E_S3_TZDB")
-        aggregate = aggregate_sha256(digests)
-        if aggregate != assets.tzdb_archive_sha256:
+        archive_path = self._resolve_archive_path(assets.tzdb_dir, assets.tzdb_release_tag)
+        digest = _sha256_file(archive_path)
+        if digest != assets.tzdb_archive_sha256:
             raise err(
                 "2A-S3-013 TZDB_DIGEST_INVALID",
-                "computed tzdb aggregate digest did not match sealed value",
+                "computed tzdb archive digest did not match sealed value",
             )
-        return aggregate
+        return digest
 
     def _load_tz_world_ids(self, path: Path) -> set[str]:
         if not path.exists():
@@ -870,7 +886,6 @@ class TimetableRunner:
             "state": "S3",
             "status": status,
             "manifest_fingerprint": context.manifest_fingerprint,
-            "seed": 0,
             "started_utc": started_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "finished_utc": finished_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "durations": {"wall_ms": max(0, int((finished_at - started_at).total_seconds() * 1000))},

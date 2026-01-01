@@ -119,14 +119,15 @@ class S3RequirementsValidator:
 
         _ensure_counts_match(frame, expected)
 
-        run_report_path = config.run_report_path or (
-            config.data_root
-            / "control"
-            / "s3_requirements"
-            / f"seed={config.seed}"
-            / f"fingerprint={config.manifest_fingerprint}"
-            / f"parameter_hash={config.parameter_hash}"
-            / "s3_run_report.json"
+        run_report_path = config.run_report_path or resolve_dataset_path(
+            "s3_run_report",
+            base_path=config.data_root,
+            template_args={
+                "seed": config.seed,
+                "manifest_fingerprint": config.manifest_fingerprint,
+                "parameter_hash": config.parameter_hash,
+            },
+            dictionary=dictionary,
         )
         _validate_run_report(
             report_path=run_report_path,

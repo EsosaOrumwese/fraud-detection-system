@@ -50,7 +50,12 @@ class SealedAsset:
             "schema_ref": self.schema_ref,
         }
 
-    def as_inventory_row(self, *, manifest_fingerprint: str) -> dict[str, object]:
+    def as_inventory_row(
+        self,
+        *,
+        manifest_fingerprint: str,
+        created_utc: str,
+    ) -> dict[str, object]:
         """Row payload for the sealed_inputs_v1 manifest."""
 
         return {
@@ -61,11 +66,10 @@ class SealedAsset:
             "version_tag": self.version_tag,
             "schema_ref": self.schema_ref,
             "catalog_path": self.catalog_path,
-            "partition_keys": list(self.partition_keys),
             "sha256_hex": self.sha256_hex,
             "size_bytes": self.size_bytes,
             "license_class": self.license_class,
-            "notes": self.notes,
+            "created_utc": created_utc,
         }
 
 

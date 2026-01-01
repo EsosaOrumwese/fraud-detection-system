@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping
 
 from ..exceptions import err
 from ..l0 import ArtifactDigest, aggregate_sha256, total_size_bytes
@@ -18,7 +18,7 @@ class SealedAsset:
     schema_ref: str
     catalog_path: str
     resolved_path: Path
-    partition_keys: Sequence[str]
+    partition: Mapping[str, str]
     version_tag: str
     digests: tuple[ArtifactDigest, ...]
     notes: str | None = None
@@ -46,7 +46,7 @@ class SealedAsset:
 
         return {
             "id": self.asset_id,
-            "partition": list(self.partition_keys),
+            "partition": dict(self.partition),
             "schema_ref": self.schema_ref,
         }
 
@@ -58,7 +58,7 @@ class SealedAsset:
             "version_tag": self.version_tag,
             "sha256_hex": self.sha256_hex,
             "path": self.catalog_path,
-            "partition": list(self.partition_keys),
+            "partition": dict(self.partition),
             "schema_ref": self.schema_ref,
         }
 
@@ -80,4 +80,3 @@ def ensure_unique_assets(assets: Iterable[SealedAsset]) -> list[SealedAsset]:
 
 
 __all__ = ["SealedAsset", "ensure_unique_assets"]
-

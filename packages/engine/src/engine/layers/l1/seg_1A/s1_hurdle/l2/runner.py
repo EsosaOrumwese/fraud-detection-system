@@ -218,7 +218,7 @@ class S1HurdleRunner:
         base_path: Path, seed: int, parameter_hash: str, run_id: str
     ) -> None:
         root = base_path.resolve()
-        candidates = [
+        audit_path = (
             root
             / "logs"
             / "rng"
@@ -226,15 +226,9 @@ class S1HurdleRunner:
             / f"seed={seed}"
             / f"parameter_hash={parameter_hash}"
             / f"run_id={run_id}"
-            / "rng_audit_log.jsonl",
-            root
-            / "rng_logs"
-            / f"seed={seed}"
-            / f"parameter_hash={parameter_hash}"
-            / f"run_id={run_id}"
-            / "rng_audit_log.json",
-        ]
-        if not any(path.exists() for path in candidates):
+            / "rng_audit_log.jsonl"
+        )
+        if not audit_path.exists():
             raise err(
                 "E_RNG_COUNTER",
                 "rng audit log missing for hurdle run "

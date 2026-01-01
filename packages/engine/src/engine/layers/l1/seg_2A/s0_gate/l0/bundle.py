@@ -58,6 +58,8 @@ def load_index(bundle_dir: Path) -> BundleIndex:
             entries_key = "files"
         elif "items" in payload:
             entries_key = "items"
+        elif "members" in payload:
+            entries_key = "members"
         version_value = payload.get("version")
         if isinstance(version_value, str):
             index_version = version_value
@@ -72,7 +74,7 @@ def load_index(bundle_dir: Path) -> BundleIndex:
         else:
             raise err(
                 "E_INDEX_INVALID",
-                "index.json must contain `artifacts` or `files` array",
+                "index.json must contain `artifacts`, `files`, `items`, or `members` array",
             )
     elif not isinstance(payload, list):
         raise err("E_INDEX_INVALID", "index.json must be a JSON array")
@@ -89,7 +91,7 @@ def load_index(bundle_dir: Path) -> BundleIndex:
             )
 
         path_value = item.get("path")
-        artifact_id = item.get("artifact_id")
+        artifact_id = item.get("artifact_id") or item.get("logical_id")
         if not isinstance(artifact_id, str) or not artifact_id:
             # tolerate legacy entries without artifact_id by falling back to path
             if isinstance(path_value, str) and path_value:
@@ -190,6 +192,13 @@ def compute_index_digest(bundle_dir: Path, index: BundleIndex) -> str:
     digest = sha256()
     # Newer indexes (e.g., 3A) carry per-entry sha256_hex; use those to mirror bundle assembly.
     use_component_hashes = bool(index.version)
+    if not use_component_hashes:
+        use_component_hashes = any(
+            isinstance(entry.raw, dict)
+            and isinstance(entry.raw.get("sha256_hex"), str)
+            and re.fullmatch(r"[a-f0-9]{64}", entry.raw.get("sha256_hex", ""))
+            for entry in index.iter_entries()
+        )
     component_digests: list[str] = []
     for entry in sorted(index.iter_entries(), key=lambda e: e.path):
         relative_path = entry.path

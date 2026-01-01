@@ -31,7 +31,6 @@ def quantise_tile_weights(*, mass_frame: pl.DataFrame, dp: int) -> QuantisationR
         empty = mass_frame.with_columns(
             pl.lit(dp).cast(pl.UInt32).alias("dp"),
             pl.lit(0, dtype=pl.UInt64).alias("weight_fp"),
-            pl.lit(False).alias("zero_mass_fallback"),
         )
         return QuantisationResult(frame=empty, summaries=[])
 
@@ -95,7 +94,6 @@ def quantise_tile_weights(*, mass_frame: pl.DataFrame, dp: int) -> QuantisationR
             record = dict(row)
             record["dp"] = dp
             record["weight_fp"] = base[idx]
-            record["zero_mass_fallback"] = fallback
             record["weight_real"] = float(weights[idx])
             record["residue"] = float(residues[idx])
             records.append(record)
@@ -104,7 +102,6 @@ def quantise_tile_weights(*, mass_frame: pl.DataFrame, dp: int) -> QuantisationR
         pl.col("tile_id").cast(pl.UInt64),
         pl.col("weight_fp").cast(pl.UInt64),
         pl.col("dp").cast(pl.UInt32),
-        pl.col("zero_mass_fallback").cast(pl.Boolean),
         pl.col("weight_real").cast(pl.Float64),
         pl.col("residue").cast(pl.Float64),
     )

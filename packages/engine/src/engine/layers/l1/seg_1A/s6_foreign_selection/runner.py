@@ -182,7 +182,7 @@ class S6Runner:
             for result in results
         )
 
-        trace_events, trace_totals = self._trace_summary(writer.module_trace_path)
+        trace_events, trace_totals = self._trace_summary(writer.trace_path)
         trace_reconciled = trace_events == events_written
 
         rng_isolation_ok = True
@@ -225,7 +225,7 @@ class S6Runner:
             policy_digest=policy_digest,
             results=tuple(results),
             events_path=writer.events_path if events_written > 0 else None,
-            trace_path=writer.module_trace_path if trace_events > 0 else None,
+            trace_path=writer.trace_path if trace_events > 0 else None,
             membership_path=membership_path,
             receipt_path=receipt_path,
             events_expected=events_expected,
@@ -298,13 +298,18 @@ class S6Runner:
         with trace_path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 if line.strip():
-                    last_record = json.loads(line)
+                    record = json.loads(line)
+                    if record.get("module") != c.MODULE_NAME:
+                        continue
+                    if record.get("substream_label") != c.SUBSTREAM_LABEL_GUMBEL:
+                        continue
+                    last_record = record
                     count += 1
         totals = {"events_total": 0, "blocks_total": 0, "draws_total": 0}
         if last_record is not None:
             totals["events_total"] = int(last_record.get("events_total", 0))
-            totals["blocks_total"] = int(last_record.get("blocks_total", "0"))
-            totals["draws_total"] = int(last_record.get("draws_total", "0"))
+            totals["blocks_total"] = int(last_record.get("blocks_total", 0))
+            totals["draws_total"] = int(last_record.get("draws_total", 0))
         return count, totals
 
     def _check_rng_isolation(self, events_path: Path) -> bool:

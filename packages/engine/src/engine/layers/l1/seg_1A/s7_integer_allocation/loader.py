@@ -13,7 +13,7 @@ from ..s6_foreign_selection.types import MerchantSelectionResult
 from ..s6_foreign_selection.contexts import S6DeterministicContext
 from ..s2_nb_outlets.l2.runner import NBFinalRecord
 from .contexts import S7DeterministicContext
-from .policy import BoundsPolicy, IntegerisationPolicy
+from .policy import IntegerisationPolicy, ThresholdsPolicy
 from .types import DomainMember, MerchantAllocationInput
 
 __all__ = [
@@ -78,7 +78,7 @@ def build_deterministic_context(
             candidates=merchant.candidates,
             selected=selected,
             total_outlets=total_outlets,
-            bounds=policy.bounds,
+            thresholds=policy.thresholds if policy.bounds_enabled else None,
         )
         merchants.append(
             MerchantAllocationInput(
@@ -109,29 +109,21 @@ def _build_domain_members(
     candidates: Sequence,
     selected: set[str],
     total_outlets: int,
-    bounds: BoundsPolicy | None,
+    thresholds: ThresholdsPolicy | None,
 ) -> Sequence[DomainMember]:
     domain: list[DomainMember] = []
     for candidate in sorted(candidates, key=lambda item: item.candidate_rank):
         iso = candidate.country_iso.upper()
         if not candidate.is_home and iso not in selected:
             continue
-        lower = bounds.lower_bound(iso) if bounds is not None else 0
-        upper = bounds.upper_bound(iso) if bounds is not None else None
-        if upper is not None and upper < lower:
-            raise err(
-                "E_BOUNDS_INFEASIBLE",
-                f"bounds infeasible for merchant {merchant_id}: "
-                f"upper {upper} < lower {lower} for ISO {iso}",
-            )
         domain.append(
             DomainMember(
                 country_iso=iso,
                 candidate_rank=int(candidate.candidate_rank),
                 is_home=bool(candidate.is_home),
                 weight=float(candidate.weight),
-                lower_bound=int(lower),
-                upper_bound=None if upper is None else int(upper),
+                lower_bound=0,
+                upper_bound=None,
             )
         )
 
@@ -149,7 +141,92 @@ def _build_domain_members(
             f"expected exactly one home entry for merchant {merchant_id}, found {home_count}",
         )
 
+    if thresholds is not None:
+        return _apply_threshold_bounds(domain, thresholds, total_outlets, merchant_id)
+
     return domain
+
+
+def _resolve_bounds(
+    *,
+    thresholds: ThresholdsPolicy | None,
+    iso: str,
+    is_home: bool,
+    total_outlets: int,
+    domain_size: int,
+) -> tuple[int, int | None]:
+    if thresholds is None or not thresholds.enabled:
+        return 0, None
+
+    if is_home:
+        lower = min(thresholds.home_min, total_outlets)
+        if (
+            thresholds.force_at_least_one_foreign_if_foreign_present
+            and domain_size > 1
+            and total_outlets >= 2
+        ):
+            upper = total_outlets - 1
+        else:
+            upper = total_outlets
+    else:
+        if thresholds.min_one_per_country_when_feasible and total_outlets >= domain_size and total_outlets >= 2:
+            lower = 1
+        else:
+            lower = 0
+        if thresholds.foreign_cap_mode == "n_minus_home_min":
+            upper = max(lower, total_outlets - min(thresholds.home_min, total_outlets))
+        else:
+            upper = total_outlets
+    return int(lower), int(upper)
+
+
+def _apply_threshold_bounds(
+    domain: Sequence[DomainMember],
+    thresholds: ThresholdsPolicy,
+    total_outlets: int,
+    merchant_id: int,
+) -> Sequence[DomainMember]:
+    domain_size = len(domain)
+    bounds = []
+    for member in domain:
+        lower, upper = _resolve_bounds(
+            thresholds=thresholds,
+            iso=member.country_iso,
+            is_home=member.is_home,
+            total_outlets=total_outlets,
+            domain_size=domain_size,
+        )
+        if upper is not None and upper < lower:
+            raise err(
+                "E_BOUNDS_INFEASIBLE",
+                f"bounds infeasible for merchant {merchant_id}: upper {upper} < lower {lower} for ISO {member.country_iso}",
+            )
+        bounds.append((lower, upper))
+
+    floor_sum = sum(lower for lower, _ in bounds)
+    ceiling_sum = sum(
+        (upper if upper is not None else total_outlets) for _, upper in bounds
+    )
+    if floor_sum > total_outlets or ceiling_sum < total_outlets:
+        if thresholds.on_infeasible == "fail":
+            raise err(
+                "E_BOUNDS_INFEASIBLE",
+                f"threshold infeasible for merchant {merchant_id} (L_sum={floor_sum}, U_sum={ceiling_sum}, N={total_outlets})",
+            )
+
+    updated: list[DomainMember] = []
+    for member, (lower, upper) in zip(domain, bounds, strict=False):
+        updated.append(
+            DomainMember(
+                country_iso=member.country_iso,
+                candidate_rank=member.candidate_rank,
+                is_home=member.is_home,
+                weight=member.weight,
+                lower_bound=int(lower),
+                upper_bound=None if upper is None else int(upper),
+            )
+        )
+    return updated
 
 
 def _enforce_s5_pass(

@@ -19,7 +19,6 @@ from ..constants import SITE_SEQUENCE_LIMIT
 from ..l0.policy import (
     BaseWeightPolicy,
     BoundsPolicy,
-    PolicyNormalisation,
     ThresholdsPolicy,
     evaluate_base_weight,
 )
@@ -89,27 +88,6 @@ def _format_fixed_dp(value: Decimal, dp: int) -> str:
     return f"{quantized:.{dp}f}"
 
 
-def _apply_normalisation(
-    config: PolicyNormalisation,
-    scores: Sequence[Decimal],
-) -> List[Decimal]:
-    if not scores:
-        return list(scores)
-    if config.method == "none":
-        return [Decimal(score) for score in scores]
-    if config.method == "sum_to_target":
-        total = sum(scores)
-        if total <= Decimal("0"):
-            return [Decimal(score) for score in scores]
-        target = config.target if config.target is not None else Decimal("1")
-        scale = target / total
-        return [score * scale for score in scores]
-    raise err(
-        "ERR_S3_PRIOR_DOMAIN",
-        f"unsupported normalisation method '{config.method}'",
-    )
-
-
 def _compute_priors(
     ranked: Sequence[RankedCandidateRow],
     *,
@@ -136,20 +114,14 @@ def _compute_priors(
             raise err("ERR_S3_PRIOR_DOMAIN", "prior score produced negative weight")
         evaluations.append((candidate, score))
 
-    raw_scores: List[Decimal] = [
-        Decimal("0") if score is None else score for _, score in evaluations
-    ]
-    if policy.normalisation is not None and raw_scores:
-        raw_scores = _apply_normalisation(policy.normalisation, raw_scores)
-
     priors: List[PriorRow] = []
     weights: List[Decimal] = []
     scored_any = False
-    for (candidate, score), normalised in zip(evaluations, raw_scores):
+    for candidate, score in evaluations:
         if score is None:
             weights.append(Decimal("0"))
             continue
-        quant = _quantize_decimal(normalised, policy.dp)
+        quant = _quantize_decimal(score, policy.dp)
         priors.append(
             PriorRow(
                 merchant_id=candidate.merchant_id,
@@ -171,6 +143,68 @@ def _compute_priors(
     return priors, weight_list
 
 
+def _derive_threshold_bounds(
+    policy: ThresholdsPolicy,
+    ranked: Sequence[RankedCandidateRow],
+    *,
+    n_outlets: int,
+) -> tuple[List[int], List[Optional[int]]]:
+    if not policy.enabled:
+        return [0 for _ in ranked], [None for _ in ranked]
+
+    num_candidates = len(ranked)
+    if num_candidates == 0:
+        return [], []
+
+    home_indices = [idx for idx, row in enumerate(ranked) if row.is_home]
+    if len(home_indices) != 1:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "candidate set must contain exactly one home row for bounds",
+        )
+    home_index = home_indices[0]
+
+    L_home = min(int(policy.home_min), int(n_outlets))
+    if (
+        policy.force_at_least_one_foreign_if_foreign_present
+        and num_candidates > 1
+        and n_outlets >= 2
+    ):
+        U_home = int(n_outlets) - 1
+    else:
+        U_home = int(n_outlets)
+
+    if policy.min_one_per_country_when_feasible and n_outlets >= num_candidates and n_outlets >= 2:
+        L_foreign = 1
+    else:
+        L_foreign = 0
+
+    if policy.foreign_cap_mode == "n_minus_home_min":
+        U_foreign = max(L_foreign, int(n_outlets) - L_home)
+    else:
+        U_foreign = int(n_outlets)
+
+    floors: List[int] = []
+    ceilings: List[Optional[int]] = []
+    for idx, _row in enumerate(ranked):
+        if idx == home_index:
+            floors.append(L_home)
+            ceilings.append(U_home)
+        else:
+            floors.append(L_foreign)
+            ceilings.append(U_foreign)
+
+    floor_sum = sum(floors)
+    ceiling_sum = sum(ceiling for ceiling in ceilings if ceiling is not None)
+    if floor_sum > n_outlets or ceiling_sum < n_outlets:
+        if policy.on_infeasible == "fail":
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                "integer bounds infeasible for merchant",
+            )
+    return floors, ceilings
+
+
 def _compute_integerised_counts(
     ranked: Sequence[RankedCandidateRow],
     *,
@@ -181,7 +215,7 @@ def _compute_integerised_counts(
 ) -> Tuple[List[CountRow], List[int]]:
     if n_outlets < 0:
         raise err("ERR_S3_INTEGER_FEASIBILITY", "S2 outlet count must be non-negative")
-    dp_resid = policy.residual_dp if policy else 8
+    dp_resid = 8
 
     num_candidates = len(ranked)
     if num_candidates == 0:
@@ -192,27 +226,21 @@ def _compute_integerised_counts(
             )
         return [], []
 
-    floors_map = policy.floors if policy else {}
-    ceilings_map = policy.ceilings if policy else {}
-
-    floors: List[int] = []
-    ceilings: List[Optional[int]] = []
+    if policy is None:
+        floors = [0 for _ in ranked]
+        ceilings = [None for _ in ranked]
+    else:
+        floors, ceilings = _derive_threshold_bounds(policy, ranked, n_outlets=n_outlets)
 
     def _country_cap(iso: str) -> Optional[int]:
         if bounds_policy is None:
             return SITE_SEQUENCE_LIMIT
         return bounds_policy.cap_for(iso)
 
-    for candidate in ranked:
+    for idx, candidate in enumerate(ranked):
         iso = candidate.country_iso
-        floor_value = int(floors_map.get(iso, 0))
-        if floor_value < 0:
-            raise err(
-                "ERR_S3_INTEGER_FEASIBILITY",
-                f"floor for {iso} must be non-negative",
-            )
-        ceiling_value_raw = ceilings_map.get(iso)
-        ceiling_value = None if ceiling_value_raw is None else int(ceiling_value_raw)
+        floor_value = floors[idx]
+        ceiling_value = ceilings[idx]
         cap_value = _country_cap(iso)
         if cap_value is not None:
             if cap_value <= 0:
@@ -229,8 +257,8 @@ def _compute_integerised_counts(
                 "ERR_S3_INTEGER_FEASIBILITY",
                 f"ceiling for {iso} below its floor",
             )
-        floors.append(floor_value)
-        ceilings.append(ceiling_value)
+        floors[idx] = floor_value
+        ceilings[idx] = ceiling_value
 
     floor_sum = sum(floors)
     if floor_sum > n_outlets:

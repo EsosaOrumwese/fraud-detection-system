@@ -147,6 +147,11 @@ class ZTPEventWriter:
     ) -> None:
         """Persist a consuming Poisson attempt for the ZTP sampler."""
 
+        if attempt_index < 1 or attempt_index > 64:
+            raise err(
+                "E_RNG_BUDGET",
+                f"ztp attempt index must be 1..64, got {attempt_index}",
+            )
         expected_blocks = _delta(counter_before, counter_after)
         if expected_blocks != blocks_used:
             raise err(
@@ -163,6 +168,7 @@ class ZTPEventWriter:
         }
         self._write_event(
             stream=c.STREAM_POISSON_COMPONENT,
+            substream_label=c.STREAM_POISSON_COMPONENT,
             counter_before=counter_before,
             counter_after=counter_after,
             blocks=blocks_used,
@@ -182,6 +188,11 @@ class ZTPEventWriter:
     ) -> None:
         """Persist the non-consuming ZTP rejection marker."""
 
+        if attempt_index < 1 or attempt_index > 64:
+            raise err(
+                "E_RNG_BUDGET",
+                f"ztp rejection attempt index must be 1..64, got {attempt_index}",
+            )
         expected_blocks = _delta(counter_before, counter_after)
         if expected_blocks != blocks_used:
             raise err(
@@ -196,13 +207,13 @@ class ZTPEventWriter:
         )
         payload = {
             "merchant_id": int(merchant_id),
-            "context": c.CONTEXT,
             "lambda_extra": float(lambda_extra),
             "k": 0,
             "attempt": int(attempt_index),
         }
         self._write_event(
             stream=c.STREAM_ZTP_REJECTION,
+            substream_label=c.STREAM_ZTP_REJECTION,
             counter_before=counter_before,
             counter_after=counter_after,
             blocks=blocks_used,
@@ -235,15 +246,20 @@ class ZTPEventWriter:
             blocks_used=blocks_used,
             draws_used=0,
         )
+        if int(attempts) != 64 or not bool(aborted):
+            raise err(
+                "E_RNG_BUDGET",
+                "ztp_retry_exhausted must record attempts=64 and aborted=true",
+            )
         payload = {
             "merchant_id": int(merchant_id),
-            "context": c.CONTEXT,
             "lambda_extra": float(lambda_extra),
-            "attempts": int(attempts),
-            "aborted": bool(aborted),
+            "attempts": 64,
+            "aborted": True,
         }
         self._write_event(
             stream=c.STREAM_ZTP_RETRY_EXHAUSTED,
+            substream_label=c.STREAM_ZTP_RETRY_EXHAUSTED,
             counter_before=counter_before,
             counter_after=counter_after,
             blocks=blocks_used,
@@ -293,6 +309,7 @@ class ZTPEventWriter:
             payload["reason"] = str(reason)
         self._write_event(
             stream=c.STREAM_ZTP_FINAL,
+            substream_label=c.STREAM_ZTP_FINAL,
             counter_before=counter_before,
             counter_after=counter_after,
             blocks=blocks_used,
@@ -318,6 +335,7 @@ class ZTPEventWriter:
         self,
         *,
         stream: str,
+        substream_label: str,
         counter_before: PhiloxState,
         counter_after: PhiloxState,
         blocks: int,
@@ -330,7 +348,7 @@ class ZTPEventWriter:
         record = {
             "ts_utc": _utc_timestamp(),
             "module": c.MODULE_NAME,
-            "substream_label": c.SUBSTREAM_LABEL,
+            "substream_label": substream_label,
             "seed": int(self.seed),
             "run_id": str(self.run_id),
             "parameter_hash": str(self.parameter_hash),
@@ -350,6 +368,7 @@ class ZTPEventWriter:
             draws=draws,
             blocks=blocks,
             ts_utc=record["ts_utc"],
+            substream_label=substream_label,
         )
 
     def _update_trace(
@@ -360,8 +379,9 @@ class ZTPEventWriter:
         draws: int,
         blocks: int,
         ts_utc: str,
+        substream_label: str,
     ) -> None:
-        key = (c.MODULE_NAME, c.SUBSTREAM_LABEL)
+        key = (c.MODULE_NAME, substream_label)
         stats = self._trace_totals.setdefault(
             key, {"draws": 0, "blocks": 0, "events": 0}
         )
@@ -372,11 +392,9 @@ class ZTPEventWriter:
         trace_payload = {
             "ts_utc": ts_utc,
             "module": c.MODULE_NAME,
-            "substream_label": c.SUBSTREAM_LABEL,
+            "substream_label": substream_label,
             "seed": int(self.seed),
             "run_id": str(self.run_id),
-            "parameter_hash": str(self.parameter_hash),
-            "manifest_fingerprint": str(self.manifest_fingerprint),
             "rng_counter_before_hi": int(counter_before.counter_hi),
             "rng_counter_before_lo": int(counter_before.counter_lo),
             "rng_counter_after_hi": int(counter_after.counter_hi),

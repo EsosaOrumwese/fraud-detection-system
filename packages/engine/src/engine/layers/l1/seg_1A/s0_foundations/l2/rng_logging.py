@@ -29,7 +29,6 @@ def _utc_timestamp() -> str:
 
 
 U64_MAX = 2**64 - 1
-U128_MAX = 2**128 - 1
 
 
 @dataclass
@@ -43,8 +42,9 @@ class RNGLogWriter:
     run_id: str
 
     def __post_init__(self) -> None:  # pragma: no cover - simple validation
-        self._events_root = (self.base_path / "events").resolve()
-        self._trace_root = (self.base_path / "trace").resolve()
+        rng_root = (self.base_path / "logs" / "rng").resolve()
+        self._events_root = rng_root / "events"
+        self._trace_root = rng_root / "trace"
         self._ensure_dir(self._events_root)
         self._ensure_dir(self._trace_root)
         self._trace_totals: MutableMapping[tuple[str, str], Dict[str, int]] = {}
@@ -87,23 +87,18 @@ class RNGLogWriter:
             "ts_utc": _utc_timestamp(),
             "module": module,
             "substream_label": substream_label,
-            "event": event,
-            "rng_counter_before": {
-                "hi": counter_before.counter_hi,
-                "lo": counter_before.counter_lo,
-            },
-            "rng_counter_after": {
-                "hi": counter_after.counter_hi,
-                "lo": counter_after.counter_lo,
-            },
+            "rng_counter_before_hi": counter_before.counter_hi,
+            "rng_counter_before_lo": counter_before.counter_lo,
+            "rng_counter_after_hi": counter_after.counter_hi,
+            "rng_counter_after_lo": counter_after.counter_lo,
             "blocks": blocks,
             "draws": str(draws),
-            "payload": dict(payload or {}),
             "manifest_fingerprint": self.manifest_fingerprint,
             "parameter_hash": self.parameter_hash,
             "seed": self.seed,
             "run_id": self.run_id,
         }
+        record.update(payload or {})
         self._append_jsonl(event_file, record)
         self._events_total = min(self._events_total + 1, 2**64 - 1)
         self._draws_total = min(self._draws_total + max(0, int(draws)), 2**64 - 1)
@@ -115,7 +110,7 @@ class RNGLogWriter:
         )
         totals["events"] = min(totals["events"] + 1, U64_MAX)
         totals["blocks"] = min(totals["blocks"] + blocks, U64_MAX)
-        totals["draws"] = min(totals["draws"] + max(0, int(str(draws))), U128_MAX)
+        totals["draws"] = min(totals["draws"] + max(0, int(str(draws))), U64_MAX)
         trace_dir = self._trace_root / self._seed_path
         self._ensure_dir(trace_dir)
         trace_file = trace_dir / "rng_trace_log.jsonl"
@@ -125,15 +120,13 @@ class RNGLogWriter:
             "substream_label": substream_label,
             "events_total": totals["events"],
             "blocks_total": totals["blocks"],
-            "draws_total": str(totals["draws"]),
+            "draws_total": totals["draws"],
             "rng_counter_before_hi": counter_before.counter_hi,
             "rng_counter_before_lo": counter_before.counter_lo,
             "rng_counter_after_hi": counter_after.counter_hi,
             "rng_counter_after_lo": counter_after.counter_lo,
             "run_id": self.run_id,
             "seed": self.seed,
-            "parameter_hash": self.parameter_hash,
-            "manifest_fingerprint": self.manifest_fingerprint,
         }
         self._append_jsonl(trace_file, trace_record)
         self._write_summary()

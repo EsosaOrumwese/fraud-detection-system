@@ -142,8 +142,10 @@ class OverlaysRunner:
                 scenario_utc_path.parent.mkdir(parents=True, exist_ok=True)
                 self._write_parquet(scenario_utc_path, utc_df)
 
-        run_report_path = (
-            data_root / "reports/l2/5A/s4_overlays" / f"fingerprint={inputs.manifest_fingerprint}" / "run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s4_run_report_5A",
+            template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         report_payload = {
@@ -171,7 +173,9 @@ class OverlaysRunner:
             parameter_hash=inputs.parameter_hash,
             run_id=inputs.run_id,
         )
-        segment_state_path = data_root / "reports/l2/segment_states/segment_state_runs.jsonl"
+        segment_state_path = data_root / render_dataset_path(
+            dataset_id="segment_state_runs", template_args={}, dictionary=dictionary
+        )
         write_segment_state_run_report(
             path=segment_state_path,
             key=key,

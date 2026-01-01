@@ -127,9 +127,11 @@ class EscalationRunner:
         else:
             classification.write_parquet(output_file)
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3A/s1_escalation/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+        run_report_path = self._resolve_dataset_path(
+            dictionary=dictionary,
+            dataset_id="s1_run_report_3A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            base=data_root,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = self._write_run_report(
@@ -284,7 +286,7 @@ class EscalationRunner:
             return pl.DataFrame(
                 schema={
                     "seed": pl.Int64,
-                    "manifest_fingerprint": pl.Utf8,
+                    "fingerprint": pl.Utf8,
                     "merchant_id": pl.Int64,
                     "legal_country_iso": pl.Utf8,
                     "site_count": pl.Int64,
@@ -368,7 +370,7 @@ class EscalationRunner:
             records.append(
                 {
                     "seed": seed,
-                    "manifest_fingerprint": manifest_fingerprint,
+                    "fingerprint": manifest_fingerprint,
                     "merchant_id": row["merchant_id"],
                     "legal_country_iso": row["legal_country_iso"],
                     "site_count": site_count,
@@ -385,7 +387,7 @@ class EscalationRunner:
 
         schema = {
             "seed": pl.Int64,
-            "manifest_fingerprint": pl.Utf8,
+            "fingerprint": pl.Utf8,
             "merchant_id": pl.UInt64,
             "legal_country_iso": pl.Utf8,
             "site_count": pl.Int64,

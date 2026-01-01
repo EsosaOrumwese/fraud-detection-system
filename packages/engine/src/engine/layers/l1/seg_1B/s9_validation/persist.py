@@ -52,9 +52,7 @@ def write_validation_bundle(
 
         flag_bytes: bytes | None = None
         if passed:
-            sorted_paths = sorted(artifacts.keys())
-            concat = b"".join(artifacts[path] for path in sorted_paths)
-            digest = hashlib.sha256(concat).hexdigest()
+            digest = _compute_bundle_digest(stage_dir)
             flag_bytes = f"sha256_hex = {digest}".encode("ascii")
             (stage_dir / "_passed.flag").write_bytes(flag_bytes)
 
@@ -118,6 +116,33 @@ def _ensure_existing_bundle_identity(
             "E913_ATOMIC_PUBLISH_VIOLATION",
             "_passed.flag content mismatch for re-publish",
         )
+
+
+def _compute_bundle_digest(bundle_dir: Path) -> str:
+    index_path = bundle_dir / "index.json"
+    if not index_path.exists():
+        raise err("E908_BUNDLE_CONTENTS_MISSING", "index.json missing from bundle")
+    try:
+        entries = json.loads(index_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise err("E909_INDEX_INVALID", f"index.json invalid JSON: {exc}") from exc
+    if not isinstance(entries, list):
+        raise err("E909_INDEX_INVALID", "index.json must be a list of entries")
+
+    hasher = hashlib.sha256()
+    for entry in sorted(entries, key=lambda item: item.get("path", "")):
+        path = entry.get("path")
+        if not isinstance(path, str) or not path:
+            raise err("E909_INDEX_INVALID", "index entry missing path")
+        if path == "_passed.flag":
+            continue
+        file_path = bundle_dir / path
+        if not file_path.exists():
+            raise err("E908_BUNDLE_CONTENTS_MISSING", f"bundle file missing: {path}")
+        with file_path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 __all__ = ["PersistConfig", "write_validation_bundle", "write_stage_log"]

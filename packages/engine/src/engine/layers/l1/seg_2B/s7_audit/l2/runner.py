@@ -229,12 +229,8 @@ class S7AuditRunner:
         validators.extend(day_validators)
         metrics.update(day_metrics)
 
-        router_section: Mapping[str, object] = {
-            "s5": {"present": False},
-            "s6": {"present": False},
-        }
         if config.s5_evidence or config.s6_evidence:
-            router_section, router_validators, router_metrics = self._validate_router_evidence(
+            router_validators, router_metrics = self._validate_router_evidence(
                 seed=seed_int,
                 manifest=config.manifest_fingerprint,
                 parameter_hash=config.parameter_hash,
@@ -248,19 +244,22 @@ class S7AuditRunner:
             metrics.update(router_metrics)
 
         inputs_digest = self._inputs_digest(sealed_inputs)
+        warn_count = sum(1 for item in validators if item.get("status") == "WARN")
+        fail_count = sum(1 for item in validators if item.get("status") == "FAIL")
         report = {
             "component": "2B.S7",
-            "state": "S7",
-            "seed": int(config.seed),
-            "manifest_fingerprint": config.manifest_fingerprint,
-            "parameter_hash": config.parameter_hash,
+            "fingerprint": config.manifest_fingerprint,
+            "seed": seed_int,
             "created_utc": receipt.verified_at_utc,
             "catalogue_resolution": dict(receipt.catalogue_resolution),
             "inputs_digest": inputs_digest,
-            "validators": validators,
+            "checks": validators,
             "metrics": metrics,
-            "router_evidence": router_section,
-            "determinism": dict(receipt.determinism_receipt),
+            "summary": {
+                "overall_status": "FAIL" if fail_count else "PASS",
+                "warn_count": warn_count,
+                "fail_count": fail_count,
+            },
         }
         report_path = self._write_report(
             base_path=config.data_root,
@@ -299,7 +298,7 @@ class S7AuditRunner:
         )
         return (base_path / rel).resolve()
 
-    def _inputs_digest(self, sealed_inputs: Sequence[SealedInputRecord]) -> List[Mapping[str, object]]:
+    def _inputs_digest(self, sealed_inputs: Sequence[SealedInputRecord]) -> Mapping[str, object]:
         digest: List[Mapping[str, object]] = []
         for record in sealed_inputs:
             digest.append(
@@ -308,11 +307,11 @@ class S7AuditRunner:
                     "version_tag": record.version_tag,
                     "sha256_hex": record.sha256_hex,
                     "path": record.catalog_path,
-                    "partition": list(record.partition),
+                    "partition": dict(record.partition),
                     "schema_ref": record.schema_ref,
                 }
             )
-        return digest
+        return {"sealed_inputs": digest}
 
     # ---------------------------------------------------------------- alias
     def _validate_alias_mechanics(
@@ -378,13 +377,20 @@ class S7AuditRunner:
         mass_error = max((err_val for _, err_val in decode_metrics), default=0.0)
         metrics = {
             "alias_decode_max_abs_delta": alias_decode_delta,
-            "alias_decode_mass_error": mass_error,
         }
         validators = [
             {"id": "V-04", "status": "PASS", "codes": ["2B-S7-200", "2B-S7-201"]},
             {"id": "V-05", "status": "PASS", "codes": ["2B-S7-202", "2B-S7-205"]},
             {"id": "V-06", "status": "PASS", "codes": ["2B-S7-203", "2B-S7-204"]},
-            {"id": "V-07", "status": "PASS", "codes": ["2B-S7-206"], "metrics": {"alias_decode_max_abs_delta": alias_decode_delta}},
+            {
+                "id": "V-07",
+                "status": "PASS",
+                "codes": ["2B-S7-206"],
+                "context": {
+                    "alias_decode_max_abs_delta": alias_decode_delta,
+                    "alias_decode_mass_error": mass_error,
+                },
+            },
         ]
         return metrics, validators
 
@@ -540,16 +546,20 @@ class S7AuditRunner:
         validators: List[Mapping[str, object]] = [
             {"id": "V-08", "status": "PASS", "codes": ["2B-S7-300"]},
             {"id": "V-09", "status": "PASS", "codes": ["2B-S7-301"]},
-            {"id": "V-10", "status": "PASS", "codes": ["2B-S7-302"], "metrics": {"max_abs_mass_error_s4": mass_error}},
+            {
+                "id": "V-10",
+                "status": "PASS",
+                "codes": ["2B-S7-302"],
+                "context": {"max_abs_mass_error_s4": mass_error},
+            },
         ]
         if "base_share" in s4.columns:
-            metrics["max_abs_base_share_error"] = base_share_error
             validators.append(
                 {
                     "id": "V-11",
                     "status": "PASS",
                     "codes": ["2B-S7-303", "2B-S7-304"],
-                    "metrics": {"max_abs_base_share_error": base_share_error},
+                    "context": {"max_abs_base_share_error": base_share_error},
                 }
             )
         return metrics, validators
@@ -566,26 +576,25 @@ class S7AuditRunner:
         virtual_edge_policy: Optional[Mapping[str, object]],
         s5: Optional[RouterEvidence],
         s6: Optional[RouterEvidence],
-    ) -> tuple[Mapping[str, object], List[Mapping[str, object]], Mapping[str, object]]:
+    ) -> tuple[List[Mapping[str, object]], Mapping[str, object]]:
         validators: List[Mapping[str, object]] = []
         metrics: Dict[str, object] = {}
-        evidence_section: Dict[str, Mapping[str, object]] = {
-            "s5": {"present": False},
-            "s6": {"present": False},
-        }
         if not s5 and not s6:
-            return evidence_section, validators, metrics
+            return validators, metrics
 
         v15_codes: set[str] = set()
         trace_rows_checked = False
         v16_checked = False
+        selections_checked = 0
+        draws_expected = 0
+        draws_observed = 0
 
         if s5:
             if route_policy is None:
                 raise err("E_S7_POLICY_ROUTE", "route_rng_policy_v1 required for S5 evidence")
             if site_timezones is None and s5.selection_log_paths:
                 raise err("E_S7_SITE_TIMEZONE", "site_timezones lookup required when S5 selection logs are present")
-            s5_section, s5_outcome = self._check_s5_evidence(
+            _, s5_outcome = self._check_s5_evidence(
                 seed=seed,
                 manifest=manifest,
                 parameter_hash=parameter_hash,
@@ -593,9 +602,9 @@ class S7AuditRunner:
                 site_timezones=site_timezones,
                 route_policy=route_policy,
             )
-            evidence_section["s5"] = s5_section
-            metrics["router_rng_expected_draws"] = metrics.get("router_rng_expected_draws", 0) + s5_outcome.expected_draws
-            metrics["router_rng_observed_draws"] = metrics.get("router_rng_observed_draws", 0) + s5_outcome.observed_draws
+            selections_checked += s5_outcome.selections
+            draws_expected += s5_outcome.expected_draws
+            draws_observed += s5_outcome.observed_draws
             if s5_outcome.mapping_verified:
                 v15_codes.add("2B-S7-410")
             trace_rows_checked = trace_rows_checked or s5_outcome.log_rows_checked
@@ -606,7 +615,7 @@ class S7AuditRunner:
                 raise err("E_S7_POLICY_ROUTE", "route_rng_policy_v1 required for S6 evidence")
             if virtual_edge_policy is None:
                 raise err("E_S7_POLICY_VIRTUAL", "virtual_edge_policy_v1 required for S6 evidence")
-            s6_section, s6_outcome = self._check_s6_evidence(
+            _, s6_outcome = self._check_s6_evidence(
                 seed=seed,
                 manifest=manifest,
                 parameter_hash=parameter_hash,
@@ -614,9 +623,9 @@ class S7AuditRunner:
                 route_policy=route_policy,
                 virtual_edge_policy=virtual_edge_policy,
             )
-            evidence_section["s6"] = s6_section
-            metrics["router_rng_expected_draws"] = metrics.get("router_rng_expected_draws", 0) + s6_outcome.expected_draws
-            metrics["router_rng_observed_draws"] = metrics.get("router_rng_observed_draws", 0) + s6_outcome.observed_draws
+            selections_checked += s6_outcome.virtual_arrivals
+            draws_expected += s6_outcome.expected_draws
+            draws_observed += s6_outcome.observed_draws
             if s6_outcome.mapping_verified:
                 v15_codes.add("2B-S7-411")
             trace_rows_checked = trace_rows_checked or s6_outcome.log_rows_checked
@@ -656,7 +665,13 @@ class S7AuditRunner:
             )
         if v16_checked:
             validators.append({"id": "V-16", "status": "PASS", "codes": ["2B-S7-402"]})
-        return evidence_section, validators, metrics
+        if selections_checked:
+            metrics["selections_checked"] = selections_checked
+        if draws_expected:
+            metrics["draws_expected"] = draws_expected
+        if draws_observed:
+            metrics["draws_observed"] = draws_observed
+        return validators, metrics
 
     def _check_s5_evidence(
         self,
@@ -694,7 +709,7 @@ class S7AuditRunner:
             parameter_hash=evidence_hash,
             manifest=manifest,
             run_id=run_id,
-            expected_module="2B.router",
+            expected_module="2B.S5.router",
             expected_label="alias_pick_group",
             validate_schema=False,
         )
@@ -705,7 +720,7 @@ class S7AuditRunner:
             parameter_hash=evidence_hash,
             manifest=manifest,
             run_id=run_id,
-            expected_module="2B.router",
+            expected_module="2B.S5.router",
             expected_label="alias_pick_site",
             validate_schema=False,
         )
@@ -732,8 +747,8 @@ class S7AuditRunner:
                 seed=seed,
                 run_id=run_id,
             )
-            group_key = ("2B.router", "alias_pick_group")
-            site_key = ("2B.router", "alias_pick_site")
+            group_key = ("2B.S5.router", "alias_pick_group")
+            site_key = ("2B.S5.router", "alias_pick_site")
             group_trace = summary.get(group_key)
             site_trace = summary.get(site_key)
             if group_trace is None or site_trace is None:
@@ -895,13 +910,14 @@ class S7AuditRunner:
                 for line in handle:
                     payload = json.loads(line)
                     validator.validate(payload)
-                    if payload.get("manifest_fingerprint") != manifest:
+                    manifest_value = payload.get("manifest_fingerprint")
+                    if manifest_value is not None and manifest_value != manifest:
                         raise err("E_S7_TRACE_MANIFEST", "trace manifest fingerprint mismatch")
-                    if int(payload.get("seed", -1)) != seed:
+                    if "seed" in payload and int(payload.get("seed", -1)) != seed:
                         raise err("E_S7_TRACE_MANIFEST", "trace seed mismatch")
-                    if str(payload.get("parameter_hash", "")).lower() != parameter_hash:
+                    if "parameter_hash" in payload and str(payload.get("parameter_hash", "")).lower() != parameter_hash:
                         raise err("E_S7_TRACE_MANIFEST", "trace parameter hash mismatch")
-                    if str(payload.get("run_id", "")).lower() != run_id:
+                    if "run_id" in payload and str(payload.get("run_id", "")).lower() != run_id:
                         raise err("E_S7_TRACE_MANIFEST", "trace run_id mismatch")
                     if "utc_day" in payload and partition.get("utc_day"):
                         if payload["utc_day"] != partition["utc_day"]:
@@ -1080,43 +1096,30 @@ class S7AuditRunner:
             if tz_expected != tz_logged:
                 raise err("E_S7_ROUTER_TZ_MISMATCH", f"site_id {site_id} tz mismatch ({tz_logged} != {tz_expected})")
 
-    def _build_edge_attribute_map(self, payload: Mapping[str, object]) -> Mapping[str, Mapping[str, float]]:
-        attributes: Dict[str, Dict[str, float]] = {}
+    def _build_edge_attribute_map(self, payload: Mapping[str, object]) -> Mapping[str, Mapping[str, object]]:
+        attributes: Dict[str, Dict[str, object]] = {}
 
         def register(entry: Mapping[str, object]) -> None:
             edge_id = str(entry.get("edge_id", "")).strip()
             if not edge_id:
                 return
             target = attributes.setdefault(edge_id, {})
-            country = entry.get("country_iso")
+            country = entry.get("ip_country")
             if country:
-                target["country_iso"] = str(country).upper()
+                target["ip_country"] = str(country).upper()
+            if "edge_lat" in entry and "edge_lon" in entry:
+                target["lat"] = float(entry["edge_lat"])
+                target["lon"] = float(entry["edge_lon"])
 
-        for entry in payload.get("default_edges", []) or []:
+        for entry in payload.get("edges", []) or []:
             if isinstance(entry, Mapping):
                 register(entry)
-        overrides = payload.get("merchant_overrides") or {}
-        if isinstance(overrides, Mapping):
-            for entries in overrides.values():
-                if isinstance(entries, Sequence):
-                    for entry in entries:
-                        if isinstance(entry, Mapping):
-                            register(entry)
-        metadata = payload.get("geo_metadata") or {}
-        if isinstance(metadata, Mapping):
-            for edge_id, meta in metadata.items():
-                if not isinstance(meta, Mapping):
-                    continue
-                target = attributes.setdefault(str(edge_id), {})
-                if "lat" in meta and "lon" in meta:
-                    target["lat"] = float(meta["lat"])
-                    target["lon"] = float(meta["lon"])
         return attributes
 
     def _verify_edge_samples(
         self,
         samples: Sequence[Mapping[str, object]],
-        edge_attributes: Mapping[str, Mapping[str, float]],
+        edge_attributes: Mapping[str, Mapping[str, object]],
     ) -> None:
         for sample in samples:
             if not sample.get("is_virtual", False):
@@ -1126,8 +1129,8 @@ class S7AuditRunner:
             if attrs is None:
                 raise err("E_S7_EDGE_ATTR", f"edge '{edge_id}' missing from virtual_edge_policy_v1")
             country = str(sample.get("ip_country", "")).upper()
-            if attrs.get("country_iso") and attrs["country_iso"] != country:
-                raise err("E_S7_EDGE_ATTR", f"edge '{edge_id}' country mismatch ({country} != {attrs['country_iso']})")
+            if attrs.get("ip_country") and attrs["ip_country"] != country:
+                raise err("E_S7_EDGE_ATTR", f"edge '{edge_id}' country mismatch ({country} != {attrs['ip_country']})")
             lat = float(sample.get("edge_lat", 0.0))
             lon = float(sample.get("edge_lon", 0.0))
             if "lat" in attrs and abs(lat - float(attrs["lat"])) > 1e-6:

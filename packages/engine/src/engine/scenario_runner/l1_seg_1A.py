@@ -245,13 +245,9 @@ class Segment1AOrchestrator:
         if s7_policy_path not in extras:
             extras.append(s7_policy_path)
         try:
-            s7_policy_preview = load_s7_policy(s7_policy_path)
+            load_s7_policy(s7_policy_path)
         except PolicyLoadingError as exc:
             raise err("E_GOVERNANCE_INVALID", str(exc)) from exc
-        if s7_policy_preview.bounds is not None:
-            bounds_path = s7_policy_preview.bounds.path
-            if bounds_path not in extras:
-                extras.append(bounds_path)
         feature_path_input = s4_features.expanduser().resolve() if s4_features else None
         if feature_path_input is not None:
             extras.append(feature_path_input)
@@ -480,11 +476,6 @@ class Segment1AOrchestrator:
                 "ERR_S3_AUTHORITY_MISSING",
                 "policy.s3.base_weight.yaml required when priors are enabled",
             )
-        if s3_toggles.integerisation_enabled and bounds_path is None:
-            raise err(
-                "ERR_S3_AUTHORITY_MISSING",
-                "policy.s3.bounds.yaml required when integerisation is enabled",
-            )
         s3_deterministic = build_s3_deterministic_context(
             parameter_hash=s2_result.deterministic.parameter_hash,
             manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
@@ -544,7 +535,7 @@ class Segment1AOrchestrator:
                 iso_countries=s3_deterministic.iso_countries,
             )
         bounds_policy = None
-        if s3_toggles.integerisation_enabled:
+        if bounds_path is not None:
             bounds_policy = load_bounds_policy(
                 bounds_path,
                 iso_countries=s3_deterministic.iso_countries,

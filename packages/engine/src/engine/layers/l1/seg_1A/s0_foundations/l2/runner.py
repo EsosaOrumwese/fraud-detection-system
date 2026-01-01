@@ -14,6 +14,9 @@ from typing import Iterable, Mapping, Optional, Sequence
 import time
 
 import polars as pl
+import yaml
+import fnmatch
+import re
 
 from ..exceptions import S0Error, err
 from ..l0.artifacts import ArtifactDigest, hash_artifacts
@@ -50,11 +53,14 @@ from ..l1.rng import PhiloxEngine, comp_u64
 from ..l2.failure import emit_failure_record
 from ..l2.output import S0Outputs, write_outputs
 from ..l2.rng_logging import RNGLogWriter, rng_event
+from ...shared.dictionary import get_repo_root
 
 _REQUIRED_PARAMETER_FILES = (
     "hurdle_coefficients.yaml",
     "nb_dispersion_coefficients.yaml",
     "crossborder_hyperparams.yaml",
+    "ccy_smoothing_params.yaml",
+    "s6_selection_policy.yaml",
 )
 
 logger = logging.getLogger(__name__)
@@ -86,6 +92,7 @@ class S0FoundationsRunner:
 
     def __init__(self, schema_authority: SchemaAuthority) -> None:
         self.schema_authority = schema_authority
+        self._registry_index: dict[str, Mapping[str, object]] | None = None
 
     @staticmethod
     def load_table(path: Path) -> pl.DataFrame:
@@ -110,6 +117,130 @@ class S0FoundationsRunner:
                     artifacts.append(file_path)
         return artifacts
 
+    @staticmethod
+    def _normalize_parameter_files(
+        parameter_files: Mapping[str, Path],
+    ) -> dict[str, Path]:
+        resolved: dict[str, Path] = {}
+        for key, raw in parameter_files.items():
+            path = Path(raw)
+            resolved[key] = path
+            resolved[path.name] = path
+        return resolved
+
+    def _load_registry_index(self) -> dict[str, Mapping[str, object]]:
+        if self._registry_index is not None:
+            return self._registry_index
+        repo_root = get_repo_root()
+        registry_path = (
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / "artefact_registry_1A.yaml"
+        )
+        if not registry_path.exists():
+            raise err(
+                "E_ARTIFACT_REGISTRY_MISSING", f"registry '{registry_path}' missing"
+            )
+        payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+        index: dict[str, Mapping[str, object]] = {}
+        for block in payload.get("subsegments", []):
+            if not isinstance(block, Mapping):
+                continue
+            artifacts = block.get("artifacts") or []
+            if not isinstance(artifacts, Iterable):
+                continue
+            for artifact in artifacts:
+                if not isinstance(artifact, Mapping):
+                    continue
+                name = artifact.get("name")
+                if isinstance(name, str) and name not in index:
+                    index[name] = artifact
+        self._registry_index = index
+        return index
+
+    @staticmethod
+    def _template_to_glob(template: str) -> str:
+        normalized = template.replace("\\", "/").strip()
+        normalized = re.sub(r"\{[^}]+\}", "*", normalized)
+        if normalized.endswith("/"):
+            normalized = normalized.rstrip("/") + "/**"
+        return normalized
+
+    def _match_registry_name(self, rel_path: str) -> str | None:
+        index = self._load_registry_index()
+        for name, artifact in index.items():
+            path_template = artifact.get("path")
+            if not isinstance(path_template, str) or not path_template.strip():
+                continue
+            pattern = self._template_to_glob(path_template)
+            if fnmatch.fnmatch(rel_path, pattern):
+                return name
+        return None
+
+    def _resolve_registry_dependency_paths(self, dependency: str) -> list[Path]:
+        index = self._load_registry_index()
+        artifact = index.get(dependency)
+        if artifact is None:
+            raise err(
+                "E_ARTIFACT_DEP_MISSING", f"dependency '{dependency}' not in registry"
+            )
+        path_template = artifact.get("path")
+        if not isinstance(path_template, str) or not path_template.strip():
+            raise err(
+                "E_ARTIFACT_DEP_MISSING", f"dependency '{dependency}' missing path"
+            )
+        repo_root = get_repo_root()
+        pattern = self._template_to_glob(path_template)
+        matches = sorted(repo_root.glob(pattern))
+        if not matches:
+            raise err(
+                "E_ARTIFACT_DEP_MISSING",
+                f"dependency '{dependency}' path not found for pattern '{pattern}'",
+            )
+        return [path.resolve() for path in matches]
+
+    def _expand_registry_dependencies(self, paths: Iterable[Path]) -> list[Path]:
+        repo_root = get_repo_root()
+        resolved_paths = [Path(p).resolve() for p in paths]
+        seen_paths = {str(path) for path in resolved_paths}
+        resolved_names: set[str] = set()
+
+        for path in resolved_paths:
+            try:
+                rel = path.resolve().relative_to(repo_root).as_posix()
+            except ValueError:
+                continue
+            name = self._match_registry_name(rel)
+            if name:
+                resolved_names.add(name)
+
+        pending = list(resolved_names)
+        while pending:
+            name = pending.pop()
+            artifact = self._load_registry_index().get(name) or {}
+            deps = artifact.get("dependencies") or []
+            if not isinstance(deps, Iterable):
+                continue
+            for dep in deps:
+                if not isinstance(dep, str):
+                    continue
+                if dep in resolved_names:
+                    continue
+                dep_paths = self._resolve_registry_dependency_paths(dep)
+                for dep_path in dep_paths:
+                    if str(dep_path) not in seen_paths:
+                        resolved_paths.append(dep_path)
+                        seen_paths.add(str(dep_path))
+                resolved_names.add(dep)
+                pending.append(dep)
+        return resolved_paths
+
     def seal(
         self,
         *,
@@ -123,11 +254,18 @@ class S0FoundationsRunner:
         numeric_policy_path: Optional[Path] = None,
         math_profile_manifest_path: Optional[Path] = None,
     ) -> SealedFoundations:
+        normalized_params = self._normalize_parameter_files(parameter_files)
         missing = [
-            name for name in _REQUIRED_PARAMETER_FILES if name not in parameter_files
+            name for name in _REQUIRED_PARAMETER_FILES if name not in normalized_params
         ]
         if missing:
             raise err("E_PARAM_MISSING", f"missing parameter files {missing}")
+        if numeric_policy_path is None:
+            raise err("E_GOVERNANCE_MISSING", "numeric_policy.json path is required")
+        if math_profile_manifest_path is None:
+            raise err(
+                "E_GOVERNANCE_MISSING", "math_profile_manifest.json path is required"
+            )
 
         context = build_run_context(
             merchant_table=merchant_table,
@@ -137,32 +275,23 @@ class S0FoundationsRunner:
             schema_authority=self.schema_authority,
         )
 
-        param_paths = [parameter_files[name] for name in _REQUIRED_PARAMETER_FILES]
+        param_paths = [normalized_params[name] for name in _REQUIRED_PARAMETER_FILES]
         parameter_digests = hash_artifacts(param_paths, error_prefix="E_PARAM")
         parameter_hash = compute_parameter_hash(parameter_digests)
 
         manifest_paths = list(manifest_artifacts)
-        policy_obj = None
-        policy_digest = None
-        profile_obj = None
-        profile_digest = None
-        attestation = None
-
-        if numeric_policy_path is not None:
-            policy_obj, policy_digest = load_numeric_policy(numeric_policy_path)
-            manifest_paths.append(numeric_policy_path)
-        if math_profile_manifest_path is not None:
-            profile_obj, profile_digest = load_math_profile_manifest(
-                math_profile_manifest_path
-            )
-            manifest_paths.append(math_profile_manifest_path)
-        if policy_obj and profile_obj and policy_digest and profile_digest:
-            attestation = build_numeric_policy_attestation(
-                policy=policy_obj,
-                policy_digest=policy_digest,
-                math_profile=profile_obj,
-                math_digest=profile_digest,
-            )
+        policy_obj, policy_digest = load_numeric_policy(numeric_policy_path)
+        profile_obj, profile_digest = load_math_profile_manifest(
+            math_profile_manifest_path
+        )
+        manifest_paths.append(numeric_policy_path)
+        manifest_paths.append(math_profile_manifest_path)
+        attestation = build_numeric_policy_attestation(
+            policy=policy_obj,
+            policy_digest=policy_digest,
+            math_profile=profile_obj,
+            math_digest=profile_digest,
+        )
 
         manifest_digests = hash_artifacts(manifest_paths, error_prefix="E_ARTIFACT")
         manifest_fingerprint = compute_manifest_fingerprint(
@@ -231,13 +360,16 @@ class S0FoundationsRunner:
     ) -> S0Outputs:
         parameter_hash = sealed.parameter_hash.parameter_hash
         manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
+        normalized_params = self._normalize_parameter_files(parameter_files)
 
-        hurdle_cfg = self.load_yaml_mapping(parameter_files["hurdle_coefficients.yaml"])
+        hurdle_cfg = self.load_yaml_mapping(
+            normalized_params["hurdle_coefficients.yaml"]
+        )
         dispersion_cfg = self.load_yaml_mapping(
-            parameter_files["nb_dispersion_coefficients.yaml"]
+            normalized_params["nb_dispersion_coefficients.yaml"]
         )
         crossborder_cfg = self.load_yaml_mapping(
-            parameter_files["crossborder_hyperparams.yaml"]
+            normalized_params["crossborder_hyperparams.yaml"]
         )
 
         hurdle, dispersion, vectors = self.build_design_vectors(
@@ -373,8 +505,13 @@ class S0FoundationsRunner:
             Path(gdp_table_path),
             Path(bucket_table_path),
         ]
+        if numeric_policy_path is not None:
+            manifest_sources.append(Path(numeric_policy_path))
+        if math_profile_manifest_path is not None:
+            manifest_sources.append(Path(math_profile_manifest_path))
         if extra_manifest_artifacts is not None:
             manifest_sources.extend(Path(p) for p in extra_manifest_artifacts)
+        manifest_sources = self._expand_registry_dependencies(manifest_sources)
         manifest_artifacts = self._collect_manifest_artifacts(manifest_sources)
 
         try:
@@ -402,16 +539,30 @@ class S0FoundationsRunner:
         )
 
         start_ns = start_time_ns or time.time_ns()
+        audit_root = (
+            base_path
+            / "logs"
+            / "rng"
+            / "audit"
+            / f"seed={seed}"
+            / f"parameter_hash={sealed.parameter_hash.parameter_hash}"
+        )
+        existing_ids: list[str] = []
+        if audit_root.exists():
+            for candidate in audit_root.glob("run_id=*"):
+                if candidate.is_dir():
+                    existing_ids.append(candidate.name.split("=", 1)[-1])
         run_id = self.issue_run_id(
             manifest_fingerprint_bytes=sealed.manifest_fingerprint.manifest_fingerprint_bytes,
             seed=seed,
             start_time_ns=start_ns,
+            existing_ids=existing_ids,
         )
         engine = self.philox_engine(
             seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
         )
         rng_logger = RNGLogWriter(
-            base_path=base_path / "rng_logs",
+            base_path=base_path,
             seed=seed,
             parameter_hash=sealed.parameter_hash.parameter_hash,
             manifest_fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,

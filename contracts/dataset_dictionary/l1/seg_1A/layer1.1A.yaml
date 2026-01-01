@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2, s3, s4, s5, s6, s7]
+states: [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9]
 
 reference:
   transaction_schema_merchant_ids:
@@ -47,7 +47,7 @@ reference:
   settlement_shares_2024Q4:
     description: Currency-to-country settlement shares used by S0.
     format: parquet
-    path: reference/network/settlement_shares/2025-10-26/settlement_shares.parquet
+    path: reference/network/settlement_shares/2024Q4/settlement_shares.parquet
     schema_ref: l1/seg_1A/settlement_shares.schema.json
     partitioning: []
     owner: reference
@@ -55,7 +55,7 @@ reference:
   ccy_country_shares_2024Q4:
     description: Currency-to-country usage shares consumed by S5/S6 smoothing.
     format: parquet
-    path: reference/network/ccy_country_shares/2025-10-26/ccy_country_shares.parquet
+    path: reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet
     schema_ref: l1/seg_1A/ccy_country_shares.schema.json
     partitioning: []
     owner: reference
@@ -122,6 +122,14 @@ model:
     partitioning: [parameter_hash]
     owner: 1A
     retention_days: 30
+  crossborder_features:
+    description: Deterministic merchant openness features used by S4.
+    format: parquet
+    path: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/model/crossborder_features
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
 
 allocation:
   ccy_country_weights_cache:
@@ -151,6 +159,14 @@ allocation:
 
 validation:
   validation_bundle:
+    description: Fingerprint-scoped validation pack emitted at the end of S0.
+    format: directory
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
+    partitioning: [fingerprint]
+    owner: 1A
+    retention_days: 365
+  validation_bundle_1A:
     description: Fingerprint-scoped validation pack emitted at the end of S0.
     format: directory
     path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/

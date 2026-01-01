@@ -287,11 +287,11 @@ class S8ValidationRunner:
             else None
         )
         if not status:
-            validators = payload.get("validators") or []
-            if isinstance(validators, Sequence) and validators:
+            checks = payload.get("checks") or payload.get("validators") or []
+            if isinstance(checks, Sequence) and checks:
                 status = "PASS" if all(
                     isinstance(item, Mapping) and item.get("status") == "PASS"
-                    for item in validators
+                    for item in checks
                 ) else "FAIL"
         if status != "PASS":
             raise err(

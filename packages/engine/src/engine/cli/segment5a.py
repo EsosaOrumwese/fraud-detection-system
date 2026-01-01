@@ -1,4 +1,4 @@
-"""CLI runner for Segment 5A (S0 gate)."""
+"""CLI runner for Segment 5A (S0 gate plus optional S1-S5)."""
 
 from __future__ import annotations
 
@@ -67,6 +67,30 @@ def _print_summary(result: Segment5AResult) -> None:
         payload["s3_run_report_path"] = str(result.s3_run_report_path)
     if result.s3_resumed:
         payload["s3_resumed"] = result.s3_resumed
+    if result.s4_scenario_local_path:
+        payload["s4_scenario_local_path"] = str(result.s4_scenario_local_path)
+    if result.s4_overlay_factors_path:
+        payload["s4_overlay_factors_path"] = str(result.s4_overlay_factors_path)
+    if result.s4_scenario_utc_path:
+        payload["s4_scenario_utc_path"] = str(result.s4_scenario_utc_path)
+    if result.s4_run_report_path:
+        payload["s4_run_report_path"] = str(result.s4_run_report_path)
+    if result.s4_resumed:
+        payload["s4_resumed"] = result.s4_resumed
+    if result.s5_bundle_index_path:
+        payload["s5_bundle_index_path"] = str(result.s5_bundle_index_path)
+    if result.s5_report_path:
+        payload["s5_report_path"] = str(result.s5_report_path)
+    if result.s5_issue_table_path:
+        payload["s5_issue_table_path"] = str(result.s5_issue_table_path)
+    if result.s5_passed_flag_path:
+        payload["s5_passed_flag_path"] = str(result.s5_passed_flag_path)
+    if result.s5_run_report_path:
+        payload["s5_run_report_path"] = str(result.s5_run_report_path)
+    if result.s5_overall_status:
+        payload["s5_overall_status"] = result.s5_overall_status
+    if result.s5_resumed:
+        payload["s5_resumed"] = result.s5_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -74,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     if not logging.getLogger().handlers:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-    parser = argparse.ArgumentParser(description="Run Segment 5A S0 gate (and optional S1/S2).")
+    parser = argparse.ArgumentParser(description="Run Segment 5A S0 gate (and optional S1-S5).")
     parser.add_argument("--data-root", required=True, type=Path, help="Run root base path.")
     parser.add_argument(
         "--upstream-manifest-fingerprint", required=True, help="Upstream manifest fingerprint (64 hex)."
@@ -91,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--skip-s1", action="store_true", help="Skip S1 demand profiles (runs S0 only).")
     parser.add_argument("--skip-s2", action="store_true", help="Skip S2 shapes (runs S0/S1 only).")
     parser.add_argument("--skip-s3", action="store_true", help="Skip S3 baselines (runs S0/S1/S2 only).")
+    parser.add_argument("--skip-s5", action="store_true", help="Skip S5 validation bundle.")
     parser.add_argument("--notes", type=str, required=False, help="Optional run notes for receipts.")
     parser.add_argument("--result-json", type=Path, required=False, help="Path to write a JSON summary.")
 
@@ -113,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         run_s1=not args.skip_s1,
         run_s2=not args.skip_s2,
         run_s3=not args.skip_s3,
+        run_s5=not args.skip_s5,
     )
 
     orchestrator = Segment5AOrchestrator()

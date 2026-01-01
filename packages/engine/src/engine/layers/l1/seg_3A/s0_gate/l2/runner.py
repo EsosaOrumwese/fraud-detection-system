@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 import polars as pl
-import re
-
 from ....seg_1A.s0_foundations.l1.hashing import (
     ParameterHashResult,
     compute_manifest_fingerprint,
@@ -21,6 +19,7 @@ from ....seg_1A.s0_foundations.l1.hashing import (
 )
 from ...shared.dictionary import (
     default_dictionary_path,
+    get_dataset_entry,
     load_dictionary,
     render_dataset_path,
     repository_root,
@@ -40,22 +39,12 @@ from ..l1.sealed_inputs import SealedArtefact, ensure_unique_assets
 
 
 logger = logging.getLogger(__name__)
-_FINGERPRINT_RE = re.compile(r"fingerprint=([a-f0-9]{64})")
 
 
 def _format_utc(dt: datetime) -> str:
     """Render a UTC timestamp with fixed microsecond precision and trailing Z."""
 
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
-
-def _extract_fingerprint(path: Optional[Path]) -> Optional[str]:
-    """Parse a manifest fingerprint token from a validation bundle path."""
-
-    if path is None:
-        return None
-    match = _FINGERPRINT_RE.search(str(path))
-    return match.group(1) if match else None
 
 
 @dataclass(frozen=True)
@@ -118,8 +107,6 @@ class GateOutputs:
     sealed_assets: tuple[SealedArtefact, ...]
     validation_bundles: Mapping[str, Path]
     verified_at_utc: datetime
-    determinism_receipt: Mapping[str, object]
-    determinism_receipt_path: Path
 
 
 class S0GateRunner:
@@ -136,8 +123,7 @@ class S0GateRunner:
             "base": "base",
             "tokens": lambda inputs: {
                 "seed": inputs.seed,
-                "manifest_fingerprint": _extract_fingerprint(inputs.validation_bundle_1a)
-                or inputs.upstream_manifest_fingerprint,
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
             },
         },
         "site_timezones": {
@@ -146,8 +132,7 @@ class S0GateRunner:
             "base": "base",
             "tokens": lambda inputs: {
                 "seed": inputs.seed,
-                "manifest_fingerprint": _extract_fingerprint(inputs.validation_bundle_2a)
-                or inputs.upstream_manifest_fingerprint,
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
             },
         },
         "tz_timetable_cache": {
@@ -155,8 +140,7 @@ class S0GateRunner:
             "kind": "cache",
             "base": "base",
             "tokens": lambda inputs: {
-                "manifest_fingerprint": _extract_fingerprint(inputs.validation_bundle_2a)
-                or inputs.upstream_manifest_fingerprint,
+                "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
             },
         },
         "iso3166_canonical_2024": {"owner": "ingress", "kind": "reference", "base": "repo"},
@@ -177,7 +161,7 @@ class S0GateRunner:
         gate_timer = time.perf_counter()
 
         # verify upstream bundles
-        upstream_bundles = self._verify_upstream_bundles(inputs)
+        upstream_bundles = self._verify_upstream_bundles(inputs=inputs, dictionary=dictionary)
         gate_verify_ms = int(round((time.perf_counter() - gate_timer) * 1000))
 
         sealed_assets = self._collect_sealed_assets(
@@ -217,11 +201,6 @@ class S0GateRunner:
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             sealed_assets=sealed_assets,
         )
-        determinism_receipt, det_path = self._write_determinism_receipt(
-            inputs=inputs,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
-            files=[receipt_path, sealed_inputs_path],
-        )
         run_report_path = inputs.output_base_path / render_dataset_path(
             dataset_id="segment_state_runs",
             template_args={},
@@ -250,47 +229,71 @@ class S0GateRunner:
             sealed_assets=tuple(sealed_assets),
             validation_bundles={k: v["path"] for k, v in upstream_bundles.items()},
             verified_at_utc=verified_at,
-            determinism_receipt=determinism_receipt,
-            determinism_receipt_path=det_path,
         )
 
     # -------------------- internal helpers --------------------
-    def _verify_upstream_bundles(self, inputs: GateInputs) -> dict[str, Mapping[str, object]]:
+    def _verify_upstream_bundles(
+        self,
+        *,
+        inputs: GateInputs,
+        dictionary: Mapping[str, object],
+    ) -> dict[str, Mapping[str, object]]:
         base = inputs.base_path
         fingerprint = inputs.upstream_manifest_fingerprint
-        defaults = {
-            "1A": base / f"data/layer1/1A/validation/fingerprint={fingerprint}",
-            "1B": base / f"data/layer1/1B/validation/fingerprint={fingerprint}",
-            "2A": base / f"data/layer1/2A/validation/fingerprint={fingerprint}",
-        }
-        bundle_paths: dict[str, Path] = {
-            "1A": inputs.validation_bundle_1a or defaults["1A"],
-            "1B": inputs.validation_bundle_1b or defaults["1B"],
-            "2A": inputs.validation_bundle_2a or defaults["2A"],
+        segments = {
+            "1A": ("validation_bundle_1A", "validation_passed_flag_1A", "validation_bundle_1a"),
+            "1B": ("validation_bundle_1B", "validation_passed_flag_1B", "validation_bundle_1b"),
+            "2A": ("validation_bundle_2A", "validation_passed_flag_2A", "validation_bundle_2a"),
         }
 
         results: dict[str, Mapping[str, object]] = {}
-        for segment, bundle_path in bundle_paths.items():
-            logger.info("S0 bundle check: segment=%s, bundle_path=%s", segment, bundle_path)
-            bundle_path = self._resolve_bundle_path(bundle_path)
-            if not bundle_path.exists() or not bundle_path.is_dir():
-                raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {bundle_path}")
-            bundle_index = load_index(bundle_path)
-            computed_flag = compute_index_digest(bundle_path, bundle_index)
-            declared_flag = read_pass_flag(bundle_path)
+        for segment, (bundle_id, flag_id, attr_name) in segments.items():
+            expected_root = base / render_dataset_path(
+                dataset_id=bundle_id,
+                template_args={"manifest_fingerprint": fingerprint},
+                dictionary=dictionary,
+            )
+            expected_bundle_path = self._resolve_bundle_path(expected_root)
+            expected_flag_path = base / render_dataset_path(
+                dataset_id=flag_id,
+                template_args={"manifest_fingerprint": fingerprint},
+                dictionary=dictionary,
+            )
+            provided_path = getattr(inputs, attr_name)
+            candidate_path = self._resolve_bundle_path(provided_path or expected_root)
+            if candidate_path.resolve() != expected_bundle_path.resolve():
+                raise err(
+                    "E_BUNDLE_PATH",
+                    f"{segment} validation bundle path mismatch (expected {expected_bundle_path}, got {candidate_path})",
+                )
+            if expected_flag_path.resolve() != (candidate_path / "_passed.flag").resolve():
+                raise err(
+                    "E_FLAG_PATH",
+                    f"{segment} pass flag path mismatch (expected {expected_flag_path})",
+                )
+            logger.info("S0 bundle check: segment=%s, bundle_path=%s", segment, candidate_path)
+            if not candidate_path.exists() or not candidate_path.is_dir():
+                raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {candidate_path}")
+            bundle_index = load_index(candidate_path)
+            computed_flag = compute_index_digest(candidate_path, bundle_index)
+            declared_flag = read_pass_flag(candidate_path)
             if computed_flag != declared_flag:
                 raise err(
                     "E_FLAG_HASH_MISMATCH",
                     f"{segment} computed digest does not match _passed.flag",
                 )
-            # persist resolved path on inputs for downstream use
-            if segment == "1A":
-                object.__setattr__(inputs, "validation_bundle_1a", bundle_path)
-            elif segment == "1B":
-                object.__setattr__(inputs, "validation_bundle_1b", bundle_path)
-            else:
-                object.__setattr__(inputs, "validation_bundle_2a", bundle_path)
-            results[segment] = {"path": bundle_path, "sha256_hex": declared_flag}
+            object.__setattr__(inputs, attr_name, candidate_path)
+            entry = get_dataset_entry(bundle_id, dictionary=dictionary)
+            schema_ref = entry.get("schema_ref")
+            if not isinstance(schema_ref, str) or not schema_ref:
+                raise err("E_SCHEMA_REF", f"schema_ref missing for {bundle_id}")
+            results[segment] = {
+                "path": candidate_path,
+                "sha256_hex": declared_flag,
+                "schema_ref": schema_ref,
+                "role": entry.get("description", bundle_id),
+                "license_class": entry.get("licence", "Proprietary-Internal"),
+            }
         return results
 
     def _collect_sealed_assets(
@@ -371,9 +374,9 @@ class S0GateRunner:
                     artefact_kind="validation",
                     logical_id=f"validation_bundle_{segment}",
                     path=bundle_path,
-                    schema_ref=f"schemas.{segment}.yaml#/validation/validation_bundle",
-                    role=f"{segment} validation gate",
-                    license_class="Proprietary-Internal",
+                    schema_ref=str(bundle_info["schema_ref"]),
+                    role=str(bundle_info["role"]),
+                    license_class=str(bundle_info["license_class"]),
                     digests=bundle_digests,
                 )
             )
@@ -489,31 +492,6 @@ class S0GateRunner:
         df = pl.DataFrame(rows)
         df.write_parquet(output_path)
         return output_path
-
-    def _write_determinism_receipt(
-        self,
-        inputs: GateInputs,
-        manifest_fingerprint: str,
-        files: Sequence[Path],
-    ) -> tuple[Mapping[str, object], Path]:
-        payload = {
-            "manifest_fingerprint": manifest_fingerprint,
-            "files": [
-                {
-                    "path": str(path),
-                    "sha256_hex": hash_files(
-                        [path], error_prefix="determinism_receipt"
-                    )[0].sha256_hex,
-                }
-                for path in files
-            ],
-        }
-        output_path = (
-            inputs.output_base_path / "data/layer1/3A/s0_gate_receipt/determinism_receipt.json"
-        )
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, indent=2))
-        return payload, output_path
 
     def _write_segment_run_report(
         self,

@@ -13,6 +13,7 @@ import json
 import shutil
 import time
 import uuid
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Optional, TYPE_CHECKING
@@ -24,6 +25,8 @@ from ..l1.context import RunContext
 from ..l1.design import DispersionCoefficients, HurdleCoefficients
 from ..l1.numeric import NumericPolicyAttestation
 from ..l1.rng import PhiloxEngine, PhiloxState
+from ...shared.dictionary import load_dictionary, resolve_dataset_path
+from ...shared.passed_flag import format_passed_flag
 
 if TYPE_CHECKING:
     from ..l2.runner import SealedFoundations
@@ -65,6 +68,15 @@ def _write_jsonl(path: Path, rows: list[Mapping[str, object]]) -> None:
             handle.write("\n")
 
 
+def _utc_timestamp() -> str:
+    """Return an RFC-3339 timestamp with microsecond precision."""
+    return (
+        datetime.now(timezone.utc)
+        .replace(tzinfo=timezone.utc)
+        .strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    )
+
+
 def refresh_validation_bundle_flag(bundle_dir: Path) -> None:
     """Recompute the validation bundle digest and overwrite ``_passed.flag``."""
 
@@ -80,7 +92,7 @@ def refresh_validation_bundle_flag(bundle_dir: Path) -> None:
     for file_path in files_for_hash:
         digest.update(file_path.read_bytes())
     (bundle_dir / "_passed.flag").write_text(
-        f"sha256_hex = {digest.hexdigest()}\n",
+        format_passed_flag(digest.hexdigest()),
         encoding="utf-8",
     )
 
@@ -114,14 +126,13 @@ def _audit_payload(
 ) -> Mapping[str, object]:
     """Build the payload recorded in ``rng_audit_log.json``."""
     return {
+        "ts_utc": _utc_timestamp(),
         "seed": seed,
         "run_id": run_id,
         "algorithm": "philox2x64-10",
         "parameter_hash": sealed.parameter_hash.parameter_hash,
         "manifest_fingerprint": sealed.manifest_fingerprint.manifest_fingerprint,
-        "rng_key": state.key,
-        "rng_counter_hi": state.counter_hi,
-        "rng_counter_lo": state.counter_lo,
+        "build_commit": sealed.manifest_fingerprint.git_commit_hex,
     }
 
 
@@ -135,7 +146,14 @@ def _materialise_validation_bundle(
     """Create the validation bundle, gate it with `_passed.flag`, and publish."""
     parameter_hash = sealed.parameter_hash.parameter_hash
     manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
-    bundle_root = base_path / "validation_bundle"
+    dictionary = load_dictionary()
+    final_dir = resolve_dataset_path(
+        "validation_bundle_1A",
+        base_path=base_path,
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
+    )
+    bundle_root = final_dir.parent
     bundle_root.mkdir(parents=True, exist_ok=True)
 
     temp_dir = bundle_root / f"_tmp.{uuid.uuid4().hex}"
@@ -196,7 +214,6 @@ def _materialise_validation_bundle(
             [
                 {
                     "filename": digest.basename,
-                    "path": str(digest.path),
                     "size_bytes": digest.size_bytes,
                     "sha256_hex": digest.sha256_hex,
                     "mtime_ns": digest.mtime_ns,
@@ -209,11 +226,9 @@ def _materialise_validation_bundle(
             temp_dir / "fingerprint_artifacts.jsonl",
             [
                 {
-                    "filename": digest.basename,
                     "path": str(digest.path),
                     "size_bytes": digest.size_bytes,
-                    "sha256_hex": digest.sha256_hex,
-                    "mtime_ns": digest.mtime_ns,
+                    "sha256": digest.sha256_hex,
                 }
                 for digest in manifest_artefacts
             ],
@@ -221,15 +236,15 @@ def _materialise_validation_bundle(
 
         _write_json(validation_summary, temp_dir / "validation_summary.json")
 
-        if outputs.numeric_attestation is not None:
-            (temp_dir / "numeric_policy_attest.json").write_text(
-                outputs.numeric_attestation.to_json(),
-                encoding="utf-8",
-            )
+        if outputs.numeric_attestation is None:
+            raise err("E_NUMERIC_POLICY_MISSING", "numeric_policy_attest required")
+        (temp_dir / "numeric_policy_attest.json").write_text(
+            outputs.numeric_attestation.to_json(),
+            encoding="utf-8",
+        )
 
         refresh_validation_bundle_flag(temp_dir)
 
-        final_dir = bundle_root / f"manifest_fingerprint={manifest_fingerprint}"
         if final_dir.exists():
             shutil.rmtree(final_dir)
         temp_dir.rename(final_dir)
@@ -253,9 +268,15 @@ def write_outputs(
         context = sealed.context
     parameter_hash = sealed.parameter_hash.parameter_hash
     manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
+    dictionary = load_dictionary()
 
-    parameter_dir = base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
-    _ensure_directory(parameter_dir)
+    crossborder_path = resolve_dataset_path(
+        "crossborder_eligibility_flags",
+        base_path=base_path,
+        template_args={"parameter_hash": parameter_hash},
+        dictionary=dictionary,
+    )
+    crossborder_path.parent.mkdir(parents=True, exist_ok=True)
     _assert_partition_value(
         outputs.crossborder_flags,
         column="parameter_hash",
@@ -271,8 +292,15 @@ def write_outputs(
         )
     _write_parquet(
         outputs.crossborder_flags,
-        parameter_dir / "crossborder_eligibility_flags.parquet",
+        crossborder_path,
     )
+    design_path = resolve_dataset_path(
+        "hurdle_design_matrix",
+        base_path=base_path,
+        template_args={"parameter_hash": parameter_hash},
+        dictionary=dictionary,
+    )
+    design_path.parent.mkdir(parents=True, exist_ok=True)
     _assert_partition_value(
         outputs.design_matrix,
         column="parameter_hash",
@@ -287,9 +315,17 @@ def write_outputs(
             dataset="hurdle_design_matrix",
         )
     _write_parquet(
-        outputs.design_matrix, parameter_dir / "hurdle_design_matrix.parquet"
+        outputs.design_matrix,
+        design_path,
     )
     if outputs.diagnostics is not None:
+        diag_path = resolve_dataset_path(
+            "hurdle_pi_probs",
+            base_path=base_path,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
+        )
+        diag_path.parent.mkdir(parents=True, exist_ok=True)
         _assert_partition_value(
             outputs.diagnostics,
             column="parameter_hash",
@@ -303,7 +339,7 @@ def write_outputs(
                 expected=manifest_fingerprint,
                 dataset="hurdle_pi_probs",
             )
-        _write_parquet(outputs.diagnostics, parameter_dir / "hurdle_pi_probs.parquet")
+        _write_parquet(outputs.diagnostics, diag_path)
 
     validation_summary = {
         "parameter_hash": parameter_hash,
@@ -325,31 +361,22 @@ def write_outputs(
         outputs=outputs,
     )
 
-    rng_dir = (
-        base_path
-        / "rng_logs"
-        / f"seed={seed}"
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
+    audit_jsonl_path = resolve_dataset_path(
+        "rng_audit_log",
+        base_path=base_path,
+        template_args={
+            "seed": seed,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
     )
-    _ensure_directory(rng_dir)
+    audit_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
     root_state = philox_engine.root_state
     audit_payload = _audit_payload(
         philox_engine, root_state, sealed, seed=seed, run_id=run_id
     )
-    _write_json(audit_payload, rng_dir / "rng_audit_log.json")
-
-    audit_jsonl_dir = (
-        base_path
-        / "logs"
-        / "rng"
-        / "audit"
-        / f"seed={seed}"
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
-    )
-    _ensure_directory(audit_jsonl_dir)
-    _write_jsonl(audit_jsonl_dir / "rng_audit_log.jsonl", [audit_payload])
+    _write_jsonl(audit_jsonl_path, [audit_payload])
 
 
 __all__ = ["S0Outputs", "refresh_validation_bundle_flag", "write_outputs"]

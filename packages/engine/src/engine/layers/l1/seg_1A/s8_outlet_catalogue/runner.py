@@ -125,7 +125,7 @@ class S8Runner:
         rng_accounting_payload["pk_hash_hex"] = metrics_payload.get("pk_hash_hex", "")
 
         validation_dir = resolve_dataset_path(
-            "validation_bundle",
+            "validation_bundle_1A",
             base_path=base_path,
             template_args={"manifest_fingerprint": manifest_fingerprint},
             dictionary=dictionary,
@@ -145,7 +145,7 @@ class S8Runner:
             if path is not None:
                 auxiliary_paths[key] = path
         if validation_bundle_path is not None:
-            auxiliary_paths["validation_bundle"] = validation_dir
+            auxiliary_paths["validation_bundle_1A"] = validation_dir
 
         return S8RunOutputs(
             deterministic=deterministic,

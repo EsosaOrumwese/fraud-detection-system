@@ -200,9 +200,10 @@ class ZoneAllocRunner:
         )
         universe_path.write_text(json.dumps(universe_payload, indent=2, sort_keys=True), encoding="utf-8")
 
-        run_report_path = (
-            data_root
-            / f"reports/l1/3A/s5_zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json"
+        run_report_path = data_root / render_dataset_path(
+            dataset_id="s5_run_report_3A",
+            template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
         )
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
         run_report = {

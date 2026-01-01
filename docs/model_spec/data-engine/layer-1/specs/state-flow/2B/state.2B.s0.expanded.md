@@ -293,7 +293,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 
 * **Upstream gate (Layer-1 / 1B)**
 
-  * `schemas.1A.yaml#/validation/validation_bundle.index_schema` — bundle index shape used for hash recomputation.
+  * `schemas.layer1.yaml#/validation/validation_bundle/index_schema` — bundle index shape used for hash recomputation.
   * `schemas.1B.yaml#/egress/site_locations` — 1B egress consumed by 2B.
 
 * **Required pins (Layer-2 / 2A)**
@@ -939,7 +939,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
 * **PASS bundle (root):** `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`
 
-  * **Index shape (hashing law):** `schemas.1A.yaml#/validation/validation_bundle.index_schema`
+  * **Index shape (hashing law):** `schemas.layer1.yaml#/validation/validation_bundle/index_schema`
   * **Flag format:** `_passed.flag` with single line `sha256_hex = <hex64>`
   * **Flag shape (schema anchor):** `schemas.1B.yaml#/validation/passed_flag`
 * **Egress consumed by 2B:**
