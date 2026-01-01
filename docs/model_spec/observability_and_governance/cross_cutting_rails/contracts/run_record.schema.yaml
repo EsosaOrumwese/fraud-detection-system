@@ -110,37 +110,6 @@ properties:
     $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
     description: "Machine-readable reason codes for FAILED/CANCELLED states."
 
-allOf:
-  - if:
-      properties:
-        status: { const: "PLANNED" }
-    then:
-      required: ["planned_at"]
-  - if:
-      properties:
-        status: { const: "STARTED" }
-    then:
-      required: ["started_at"]
-  - if:
-      properties:
-        status: { const: "COMPLETED" }
-    then:
-      required: ["completed_at"]
-  - if:
-      properties:
-        status: { const: "FAILED" }
-    then:
-      required: ["failed_at", "failure_reason_codes"]
-      properties:
-        failure_reason_codes: { minItems: 1 }
-  - if:
-      properties:
-        status: { const: "CANCELLED" }
-    then:
-      required: ["cancelled_at", "failure_reason_codes"]
-      properties:
-        failure_reason_codes: { minItems: 1 }
-
   # ---------------------------
   # Scenario + plan pinning (tool-agnostic)
   # ---------------------------
@@ -207,3 +176,34 @@ allOf:
     $ref: "docs/model_spec/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
     description: >
       Additive metadata map for run-specific annotations. Must not contradict canonical identity fields.
+
+allOf:
+  - if:
+      properties:
+        status: { const: "PLANNED" }
+    then:
+      required: ["planned_at"]
+  - if:
+      properties:
+        status: { const: "STARTED" }
+    then:
+      required: ["started_at"]
+  - if:
+      properties:
+        status: { const: "COMPLETED" }
+    then:
+      required: ["completed_at"]
+  - if:
+      properties:
+        status: { const: "FAILED" }
+    then:
+      required: ["failed_at", "failure_reason_codes"]
+      properties:
+        failure_reason_codes: { minItems: 1 }
+  - if:
+      properties:
+        status: { const: "CANCELLED" }
+    then:
+      required: ["cancelled_at", "failure_reason_codes"]
+      properties:
+        failure_reason_codes: { minItems: 1 }

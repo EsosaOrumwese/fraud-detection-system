@@ -1584,10 +1584,12 @@ Any output produced in a degraded mode MUST be marked so downstream consumers an
 For events, this MUST be expressed using canonical keys under the envelope `extensions` object (§7.4.8). The following extension keys are **reserved and canonical** when degrade applies:
 
 * `platform.degraded` = true
-* `platform.degrade_mode` = one of the canonical categories (§10.9) or a component-mapped value
+* `platform.degrade_mode` = one of the canonical categories (§10.9)
 * `platform.degrade_reason_codes` = list of reason codes (aligned to §10.7 classes)
 * `platform.last_good_ref` (optional) = reference to the last-known-good surface/receipt used (if stale/cached behaviour occurred)
 * `platform.degrade_entered_at` (optional) = UTC timestamp
+
+If a component needs finer-grained detail than the canonical categories, it MUST emit that detail under a namespaced extension key (e.g., `component.<name>.degrade_detail`) and MUST NOT overload `platform.degrade_mode`.
 
 For non-event artefacts/surfaces, the same marking MUST exist in provenance metadata or the bundle manifest.
 
@@ -2293,7 +2295,7 @@ Boundary receipt emitted by the Ingestion Gate after validating envelope + schem
   "target_identity": {"event_id": "evt_01JHNHK3R8M9QZ8F2S5D7E1B4C"},
   "target_digest": "sha256:5d1b2f8c...",
 
-  "schema_ref": "docs/model_spec/control_and_ingress/ingestion_gate/contracts/ingestion_receipt.schema.yaml#v1.0",
+  "schema_ref": "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/ingestion_receipt.schema.yaml#v1.0",
   "validated_schema_ref": "docs/model_spec/real_time_decision_loop/decision_fabric/contracts/decision_emitted.event.schema.yaml#v1.0",
 
   "parameter_hash": "ph_7f3c9a4b1d2e...",
@@ -2375,7 +2377,7 @@ Example `hashgate_receipt.json` (informative shape; aligns with §5.10 minimums)
 
 ```json
 {
-  "schema_ref": "docs/model_spec/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml#v1.0",
+  "schema_ref": "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml#v1.0",
   "receipt_id": "rcpt_01JHNHK5ZP8Y6R1W3Q9T4B2C7D",
   "gate_outcome": "PASS",
   "validator_id": "engine_validation",
@@ -2398,7 +2400,7 @@ Example `hashgate_receipt.json` (informative shape; aligns with §5.10 minimums)
 
 ```json
 {
-  "schema_ref": "docs/model_spec/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml#v1.0",
+  "schema_ref": "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml#v1.0",
   "receipt_id": "rcpt_01JHNHM0H7D3X9K1P2Q8R6S5T4",
   "gate_outcome": "FAIL",
   "validator_id": "engine_validation",
