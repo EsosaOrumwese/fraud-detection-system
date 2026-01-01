@@ -1,0 +1,37 @@
+policy_id: arrival_count_config_5B
+version: v1.0.0
+count_law_id: nb2
+lambda_zero_eps: 0.000000001
+max_count_per_bucket: 200000
+poisson_sampler:
+  kind: cdf_inversion_one_u_bounded_v1
+  p0_law: exp_minus_lambda
+  recurrence: p_next = p * lambda / (n+1)
+  poisson_exact_lambda_max: 50.0
+  poisson_n_cap_exact: 200000
+  normal_icdf: erfinv_v1
+nb2:
+  kappa_law:
+    base_by_scenario_band: {baseline: 30.0, stress: 12.0}
+    class_multipliers:
+      office_hours: 1.10
+      consumer_daytime: 1.00
+      evening_weekend: 0.90
+      always_on_local: 1.05
+      online_24h: 0.85
+      online_bursty: 0.40
+      travel_hospitality: 0.80
+      fuel_convenience: 0.95
+      bills_utilities: 1.20
+      low_volume_tail: 0.60
+    kappa_bounds: [2.0, 200.0]
+  gamma_sampler:
+    kind: gamma_one_u_approx_v1
+    shape: kappa
+    rate: kappa_over_mu
+  poisson_on_gamma:
+    kind: cdf_inversion_reuse_u2_v1
+realism_floors:
+  max_count_per_bucket_min: 5000
+  lambda_zero_eps_max: 0.000001
+  require_kappa_distinct_values_min: 3

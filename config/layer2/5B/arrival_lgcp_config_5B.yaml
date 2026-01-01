@@ -1,0 +1,69 @@
+policy_id: arrival_lgcp_config_5B
+version: v1.0.0
+
+latent_model_id: log_gaussian_ou_v1
+normal_method: box_muller_u2
+latent_dims_mode: horizon_buckets_H
+
+kernel:
+  kind: ou_ar1_buckets_v1
+  length_scale_buckets_bounds: [2.0, 168.0]
+
+hyperparam_law:
+  group_feature_sources:
+    scenario_band: from_s1_time_grid_flags
+    demand_class: from_5A_labels
+    channel_group: from_5A_labels
+    virtual_band: from_5A_or_3B_labels
+    zone_group_id: from_grouping_policy
+
+  sigma:
+    base_by_scenario_band: { baseline: 0.25, stress: 0.40 }
+    class_multipliers:
+      office_hours: 0.85
+      consumer_daytime: 1.00
+      evening_weekend: 1.05
+      always_on_local: 0.95
+      online_24h: 1.10
+      online_bursty: 1.60
+      travel_hospitality: 1.15
+      fuel_convenience: 1.05
+      bills_utilities: 0.90
+      low_volume_tail: 1.25
+    channel_multipliers: { card_present: 1.00, card_not_present: 1.10, mixed: 1.05 }
+    virtual_multipliers: { physical: 1.00, virtual: 1.15 }
+    sigma_bounds: [0.05, 1.20]
+
+  length_scale_buckets:
+    base_by_scenario_band: { baseline: 24.0, stress: 12.0 }
+    class_multipliers:
+      office_hours: 1.20
+      consumer_daytime: 1.00
+      evening_weekend: 0.95
+      always_on_local: 1.10
+      online_24h: 0.90
+      online_bursty: 0.50
+      travel_hospitality: 0.80
+      fuel_convenience: 0.85
+      bills_utilities: 1.10
+      low_volume_tail: 0.70
+    length_scale_bounds: [2.0, 168.0]
+
+latent_transform:
+  kind: exp_mean_one_v1
+  mean_correction: subtract_half_sigma2
+
+clipping:
+  min_factor: 0.20
+  max_factor: 5.00
+  lambda_max_enabled: true
+  lambda_max: 1000000000.0
+
+diagnostics:
+  emit_latent_field_diagnostic: false
+
+realism_floors:
+  require_sigma_distinct_values_min: 3
+  require_stress_sigma_ge_fraction: 0.10
+  require_baseline_median_L_bounds: [8.0, 72.0]
+  require_transform_kind: exp_mean_one_v1

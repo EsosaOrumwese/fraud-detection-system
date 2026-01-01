@@ -1,0 +1,34 @@
+policy_id: arrival_routing_policy_5B
+version: v1.0.0
+
+virtual_mode_source: virtual_classification_3B
+
+hybrid_policy:
+  p_virtual_hybrid: 0.35
+  coin_source: arrival_site_pick.first_uniform
+
+physical_router:
+  zone_representation: tzid
+  router_key_fields: [merchant_id, tzid, bucket_index]
+  use_group_weights: true
+  rng_source: arrival_site_pick
+  draws_required_u64: 2
+
+virtual_router:
+  edge_key_fields: [merchant_id, bucket_index]
+  rng_source: arrival_edge_pick
+  draws_required_u64: 1
+  require_virtual_routing_policy_3B: true
+
+fail_closed_rules:
+  require_2B_pass: true
+  require_3B_pass_for_virtual: true
+  require_site_alias_tables_for_physical: true
+  require_edge_alias_tables_for_virtual: true
+  forbid_missing_router_rows: true
+  require_site_pick_event_for_hybrid_coin: true
+
+realism_floors:
+  hybrid_p_virtual_bounds: [0.05, 0.80]
+  require_existing_rng_coin: true
+  require_pass_gates: true
