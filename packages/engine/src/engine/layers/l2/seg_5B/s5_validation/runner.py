@@ -82,6 +82,8 @@ class ValidationRunner:
         routing_ok = True
         civil_time_ok = True
         rng_accounting_ok = True
+        schema_partition_pk_ok = True
+        tz_cache_ok = True
         arrivals_total = 0
         arrivals_virtual = 0
         arrivals_physical = 0
@@ -93,6 +95,7 @@ class ValidationRunner:
 
         virtual_modes = _load_virtual_modes(inventory, issues, inputs)
         site_timezone_map = _load_site_timezones(inventory, issues, inputs)
+        tz_cache_ok = _check_tz_timetable_cache(inventory, site_timezone_map, issues, inputs)
         virtual_settlement = _load_virtual_settlement(inventory, issues, inputs)
         edge_catalogue = _load_edge_catalogue(inventory, issues, inputs)
         zone_alloc_hash = _load_zone_alloc_hash(inventory, issues, inputs)
@@ -201,24 +204,52 @@ class ValidationRunner:
             if "count_N" in counts_df.columns:
                 buckets_nonzero += int(counts_df.filter(pl.col("count_N") > 0).height)
 
-            arrivals_df = pl.read_parquet(arrivals_path).select(
+            try:
+                arrivals_full = pl.read_parquet(arrivals_path)
+            except Exception as exc:
+                schema_partition_pk_ok = False
+                issues.append(
+                    self._issue(
+                        inputs,
+                        "S5_ARRIVAL_READ_FAILED",
+                        "ERROR",
+                        scenario_id=scenario_id,
+                        message=f"failed to read arrival_events_5B: {exc}",
+                    )
+                )
+                continue
+
+            schema_ok = self._check_arrival_schema_partition_pk(
+                arrivals_full=arrivals_full,
+                inputs=inputs,
+                scenario_id=scenario_id,
+                issues=issues,
+            )
+            if not schema_ok:
+                schema_partition_pk_ok = False
+
+            arrivals_df = arrivals_full.select(
                 [
-                    "merchant_id",
-                    "zone_representation",
-                    "channel_group",
-                    "bucket_index",
-                    "ts_utc",
-                    "is_virtual",
-                    "tzid_primary",
-                    "ts_local_primary",
-                    "tzid_settlement",
-                    "ts_local_settlement",
-                    "tzid_operational",
-                    "ts_local_operational",
-                    "tz_group_id",
-                    "site_id",
-                    "edge_id",
-                    "routing_universe_hash",
+                    col
+                    for col in [
+                        "merchant_id",
+                        "zone_representation",
+                        "channel_group",
+                        "bucket_index",
+                        "ts_utc",
+                        "is_virtual",
+                        "tzid_primary",
+                        "ts_local_primary",
+                        "tzid_settlement",
+                        "ts_local_settlement",
+                        "tzid_operational",
+                        "ts_local_operational",
+                        "tz_group_id",
+                        "site_id",
+                        "edge_id",
+                        "routing_universe_hash",
+                    ]
+                    if col in arrivals_full.columns
                 ]
             )
             arrivals_total += arrivals_df.height
@@ -247,32 +278,95 @@ class ValidationRunner:
             expected_rng["S4.arrival_time_jitter.v1"]["draws"] += arrivals_df.height
             expected_rng["S4.arrival_time_jitter.v1"]["blocks"] += arrivals_df.height
 
-            for row in arrivals_df.to_dicts():
-                merchant_id = str(row.get("merchant_id"))
-                is_virtual = bool(row.get("is_virtual"))
-                mode = virtual_modes.get(merchant_id, "NON_VIRTUAL")
-                if mode != "VIRTUAL_ONLY":
-                    expected_site_pick += 1
-                if is_virtual:
-                    expected_edge_pick += 1
-
-                routing_issue = _check_routing_row(
-                    row=row,
-                    merchant_id=merchant_id,
-                    site_timezone_map=site_timezone_map,
-                    virtual_settlement=virtual_settlement,
-                    edge_catalogue=edge_catalogue,
-                    zone_alloc_hash=zone_alloc_hash,
-                    edge_universe_hash=edge_universe_hash,
+            missing_routing_cols = [col for col in ("merchant_id", "is_virtual") if col not in arrivals_df.columns]
+            if missing_routing_cols:
+                routing_ok = False
+                issues.append(
+                    self._issue(
+                        inputs,
+                        "S5_ARRIVAL_COLUMNS_MISSING",
+                        "ERROR",
+                        scenario_id=scenario_id,
+                        context={"missing": missing_routing_cols, "check": "routing"},
+                        message="arrival_events_5B missing required routing columns",
+                    )
                 )
-                if routing_issue:
-                    routing_ok = False
-                    issues.append(self._issue(inputs, "S5_ROUTING_MISMATCH", "ERROR", scenario_id=scenario_id, message=routing_issue))
+            missing_rng_cols = [col for col in ("merchant_id", "is_virtual") if col not in arrivals_df.columns]
+            if missing_rng_cols:
+                rng_accounting_ok = False
+                issues.append(
+                    self._issue(
+                        inputs,
+                        "S5_ARRIVAL_COLUMNS_MISSING",
+                        "ERROR",
+                        scenario_id=scenario_id,
+                        context={"missing": missing_rng_cols, "check": "rng_accounting"},
+                        message="arrival_events_5B missing columns required for rng accounting",
+                    )
+                )
+            missing_civil_cols = [col for col in ("ts_utc",) if col not in arrivals_df.columns]
+            if missing_civil_cols:
+                civil_time_ok = False
+                issues.append(
+                    self._issue(
+                        inputs,
+                        "S5_ARRIVAL_COLUMNS_MISSING",
+                        "ERROR",
+                        scenario_id=scenario_id,
+                        context={"missing": missing_civil_cols, "check": "civil_time"},
+                        message="arrival_events_5B missing required civil-time columns",
+                    )
+                )
 
-                civil_issue = _check_civil_time_row(row=row)
-                if civil_issue:
-                    civil_time_ok = False
-                    issues.append(self._issue(inputs, "S5_CIVIL_TIME_MISMATCH", "ERROR", scenario_id=scenario_id, message=civil_issue))
+            do_routing = not missing_routing_cols
+            do_civil = not missing_civil_cols
+            do_rng = not missing_rng_cols
+            if do_routing or do_civil or do_rng:
+                for row in arrivals_df.to_dicts():
+                    merchant_id = str(row.get("merchant_id"))
+                    is_virtual = bool(row.get("is_virtual"))
+                    mode = virtual_modes.get(merchant_id, "NON_VIRTUAL")
+                    if do_rng:
+                        if mode != "VIRTUAL_ONLY":
+                            expected_site_pick += 1
+                        if is_virtual:
+                            expected_edge_pick += 1
+
+                    if do_routing:
+                        routing_issue = _check_routing_row(
+                            row=row,
+                            merchant_id=merchant_id,
+                            site_timezone_map=site_timezone_map,
+                            virtual_settlement=virtual_settlement,
+                            edge_catalogue=edge_catalogue,
+                            zone_alloc_hash=zone_alloc_hash,
+                            edge_universe_hash=edge_universe_hash,
+                        )
+                        if routing_issue:
+                            routing_ok = False
+                            issues.append(
+                                self._issue(
+                                    inputs,
+                                    "S5_ROUTING_MISMATCH",
+                                    "ERROR",
+                                    scenario_id=scenario_id,
+                                    message=routing_issue,
+                                )
+                            )
+
+                    if do_civil:
+                        civil_issue = _check_civil_time_row(row=row)
+                        if civil_issue:
+                            civil_time_ok = False
+                            issues.append(
+                                self._issue(
+                                    inputs,
+                                    "S5_CIVIL_TIME_MISMATCH",
+                                    "ERROR",
+                                    scenario_id=scenario_id,
+                                    message=civil_issue,
+                                )
+                            )
 
             bucket_join = counts_df.join(grid_df, on="bucket_index", how="left")
             missing_grid = bucket_join.filter(pl.col("bucket_start_utc").is_null())
@@ -288,56 +382,90 @@ class ValidationRunner:
                     )
                 )
 
-            arrival_counts = (
-                arrivals_df.group_by(
-                    ["merchant_id", "zone_representation", "channel_group", "bucket_index"]
-                )
-                .len()
-                .rename({"len": "count_arrivals"})
-            )
-            merged = counts_df.join(
-                arrival_counts,
-                on=["merchant_id", "zone_representation", "channel_group", "bucket_index"],
-                how="left",
-            ).with_columns(pl.col("count_arrivals").fill_null(0))
-            mismatch = merged.filter(pl.col("count_N") != pl.col("count_arrivals"))
-            if mismatch.height:
+            missing_count_cols = [
+                col
+                for col in ("merchant_id", "zone_representation", "channel_group", "bucket_index")
+                if col not in arrivals_df.columns
+            ]
+            if missing_count_cols:
                 counts_ok = False
                 issues.append(
                     self._issue(
                         inputs,
-                        "S5_COUNT_MISMATCH",
+                        "S5_ARRIVAL_COLUMNS_MISSING",
                         "ERROR",
                         scenario_id=scenario_id,
-                        message="s4_arrival_events_5B counts do not match s3_bucket_counts_5B",
+                        context={"missing": missing_count_cols, "check": "count_match"},
+                        message="arrival_events_5B missing columns required for count validation",
                     )
                 )
+            else:
+                arrival_counts = (
+                    arrivals_df.group_by(
+                        ["merchant_id", "zone_representation", "channel_group", "bucket_index"]
+                    )
+                    .len()
+                    .rename({"len": "count_arrivals"})
+                )
+                merged = counts_df.join(
+                    arrival_counts,
+                    on=["merchant_id", "zone_representation", "channel_group", "bucket_index"],
+                    how="left",
+                ).with_columns(pl.col("count_arrivals").fill_null(0))
+                mismatch = merged.filter(pl.col("count_N") != pl.col("count_arrivals"))
+                if mismatch.height:
+                    counts_ok = False
+                    issues.append(
+                        self._issue(
+                            inputs,
+                            "S5_COUNT_MISMATCH",
+                            "ERROR",
+                            scenario_id=scenario_id,
+                            message="s4_arrival_events_5B counts do not match s3_bucket_counts_5B",
+                        )
+                    )
 
-            arrivals_ts = arrivals_df.with_columns(
-                pl.col("ts_utc").str.strptime(pl.Datetime, strict=False).alias("ts_utc_dt")
-            )
-            grid_ts = grid_df.with_columns(
-                [
-                    pl.col("bucket_start_utc").str.strptime(pl.Datetime, strict=False).alias("bucket_start_dt"),
-                    pl.col("bucket_end_utc").str.strptime(pl.Datetime, strict=False).alias("bucket_end_dt"),
-                ]
-            )
-            arrival_with_grid = arrivals_ts.join(grid_ts, on="bucket_index", how="left")
-            out_of_window = arrival_with_grid.filter(
-                (pl.col("ts_utc_dt") < pl.col("bucket_start_dt"))
-                | (pl.col("ts_utc_dt") >= pl.col("bucket_end_dt"))
-            )
-            if out_of_window.height:
+            missing_time_cols = [
+                col for col in ("bucket_index", "ts_utc") if col not in arrivals_df.columns
+            ]
+            if missing_time_cols:
                 time_ok = False
                 issues.append(
                     self._issue(
                         inputs,
-                        "S5_TIME_WINDOW_FAIL",
+                        "S5_ARRIVAL_COLUMNS_MISSING",
                         "ERROR",
                         scenario_id=scenario_id,
-                        message="arrival events fall outside time grid window",
+                        context={"missing": missing_time_cols, "check": "time_window"},
+                        message="arrival_events_5B missing columns required for time window validation",
                     )
                 )
+            else:
+                arrivals_ts = arrivals_df.with_columns(
+                    pl.col("ts_utc").str.strptime(pl.Datetime, strict=False).alias("ts_utc_dt")
+                )
+                grid_ts = grid_df.with_columns(
+                    [
+                        pl.col("bucket_start_utc").str.strptime(pl.Datetime, strict=False).alias("bucket_start_dt"),
+                        pl.col("bucket_end_utc").str.strptime(pl.Datetime, strict=False).alias("bucket_end_dt"),
+                    ]
+                )
+                arrival_with_grid = arrivals_ts.join(grid_ts, on="bucket_index", how="left")
+                out_of_window = arrival_with_grid.filter(
+                    (pl.col("ts_utc_dt") < pl.col("bucket_start_dt"))
+                    | (pl.col("ts_utc_dt") >= pl.col("bucket_end_dt"))
+                )
+                if out_of_window.height:
+                    time_ok = False
+                    issues.append(
+                        self._issue(
+                            inputs,
+                            "S5_TIME_WINDOW_FAIL",
+                            "ERROR",
+                            scenario_id=scenario_id,
+                            message="arrival events fall outside time grid window",
+                        )
+                    )
 
         expected_rng["S4.arrival_site_pick.v1"]["events"] += expected_site_pick
         expected_rng["S4.arrival_site_pick.v1"]["draws"] += expected_site_pick * 2
@@ -378,8 +506,10 @@ class ValidationRunner:
             scenario_count=len(scenario_ids),
             routing_ok=routing_ok,
             civil_time_ok=civil_time_ok,
+            schema_partition_pk_ok=schema_partition_pk_ok,
             rng_accounting_ok=rng_accounting_ok,
             bundle_sha256=None,
+            tz_cache_ok=tz_cache_ok,
         )
         report_path = data_root / render_dataset_path(
             dataset_id="validation_report_5B",
@@ -499,6 +629,153 @@ class ValidationRunner:
             )
         return issues
 
+    def _check_arrival_schema_partition_pk(
+        self,
+        *,
+        arrivals_full: pl.DataFrame,
+        inputs: ValidationInputs,
+        scenario_id: str,
+        issues: list[Mapping[str, object]],
+    ) -> bool:
+        ok = True
+        columns = set(arrivals_full.columns)
+        required = {
+            "manifest_fingerprint",
+            "parameter_hash",
+            "seed",
+            "scenario_id",
+            "merchant_id",
+            "zone_representation",
+            "bucket_index",
+            "arrival_seq",
+            "ts_utc",
+            "tzid_primary",
+            "ts_local_primary",
+            "is_virtual",
+        }
+        missing_required = sorted(required.difference(columns))
+        if missing_required:
+            issues.append(
+                self._issue(
+                    inputs,
+                    "S5_ARRIVAL_SCHEMA_MISSING_COLUMNS",
+                    "ERROR",
+                    scenario_id=scenario_id,
+                    context={"missing": missing_required},
+                    message="arrival_events_5B missing required schema columns",
+                )
+            )
+            ok = False
+
+        ok &= self._check_arrival_partition_value(
+            arrivals_full,
+            inputs,
+            scenario_id,
+            issues,
+            column="manifest_fingerprint",
+            expected=inputs.manifest_fingerprint,
+            issue_code="S5_ARRIVAL_PARTITION_MISMATCH",
+        )
+        ok &= self._check_arrival_partition_value(
+            arrivals_full,
+            inputs,
+            scenario_id,
+            issues,
+            column="seed",
+            expected=inputs.seed,
+            issue_code="S5_ARRIVAL_PARTITION_MISMATCH",
+        )
+        ok &= self._check_arrival_partition_value(
+            arrivals_full,
+            inputs,
+            scenario_id,
+            issues,
+            column="scenario_id",
+            expected=scenario_id,
+            issue_code="S5_ARRIVAL_PARTITION_MISMATCH",
+        )
+        ok &= self._check_arrival_partition_value(
+            arrivals_full,
+            inputs,
+            scenario_id,
+            issues,
+            column="parameter_hash",
+            expected=inputs.parameter_hash,
+            issue_code="S5_ARRIVAL_PARAMETER_HASH_MISMATCH",
+        )
+
+        pk_cols = [
+            "seed",
+            "manifest_fingerprint",
+            "scenario_id",
+            "merchant_id",
+            "arrival_seq",
+        ]
+        if all(col in columns for col in pk_cols):
+            dupes = (
+                arrivals_full.select(pk_cols)
+                .group_by(pk_cols)
+                .len()
+                .filter(pl.col("len") > 1)
+            )
+            if dupes.height:
+                issues.append(
+                    self._issue(
+                        inputs,
+                        "S5_ARRIVAL_PK_DUPLICATE",
+                        "ERROR",
+                        scenario_id=scenario_id,
+                        context={"duplicate_groups": int(dupes.height)},
+                        message="arrival_events_5B primary key is not unique",
+                    )
+                )
+                ok = False
+
+        return ok
+
+    def _check_arrival_partition_value(
+        self,
+        arrivals_full: pl.DataFrame,
+        inputs: ValidationInputs,
+        scenario_id: str,
+        issues: list[Mapping[str, object]],
+        *,
+        column: str,
+        expected: object,
+        issue_code: str,
+    ) -> bool:
+        if column not in arrivals_full.columns:
+            return False
+        series = arrivals_full.get_column(column)
+        null_count = int(series.null_count())
+        if null_count:
+            issues.append(
+                self._issue(
+                    inputs,
+                    "S5_ARRIVAL_NULL_PARTITION",
+                    "ERROR",
+                    scenario_id=scenario_id,
+                    context={"column": column, "nulls": null_count},
+                    message="arrival_events_5B partition column contains nulls",
+                )
+            )
+            return False
+        values = {str(val) for val in series.unique().to_list() if val is not None}
+        expected_value = str(expected)
+        if values != {expected_value}:
+            issues.append(
+                self._issue(
+                    inputs,
+                    issue_code,
+                    "ERROR",
+                    scenario_id=scenario_id,
+                    context={"column": column, "expected": expected_value, "observed": sorted(values)},
+                    message="arrival_events_5B partition value mismatch",
+                )
+            )
+            return False
+        return True
+
     def _require_path(
         self,
         *,
@@ -582,8 +859,10 @@ class ValidationRunner:
         scenario_count: int,
         routing_ok: bool,
         civil_time_ok: bool,
+        schema_partition_pk_ok: bool,
         rng_accounting_ok: bool,
         bundle_sha256: str | None,
+        tz_cache_ok: bool,
     ) -> Mapping[str, object]:
         payload = {
             "manifest_fingerprint": inputs.manifest_fingerprint,
@@ -601,9 +880,10 @@ class ValidationRunner:
             "time_windows_ok": time_ok,
             "civil_time_ok": civil_time_ok,
             "routing_ok": routing_ok,
-            "schema_partition_pk_ok": True,
+            "schema_partition_pk_ok": schema_partition_pk_ok,
             "rng_accounting_ok": rng_accounting_ok,
             "bundle_integrity_ok": overall_status == "PASS",
+            "tz_cache_ok": tz_cache_ok,
         }
         if bundle_sha256:
             payload["bundle_sha256"] = bundle_sha256
@@ -746,6 +1026,198 @@ def _load_yaml(
         )
         return {}
     return yaml.safe_load(files[0].read_text(encoding="utf-8")) or {}
+
+
+def _check_tz_timetable_cache(
+    inventory: SealedInventory,
+    site_timezone_map: Mapping[int, str],
+    issues: list[Mapping[str, object]],
+    inputs: ValidationInputs,
+) -> bool:
+    files = inventory.resolve_files("tz_timetable_cache")
+    if not files:
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_MISSING",
+                "severity": "ERROR",
+                "context": {},
+                "message": "tz_timetable_cache missing from sealed inputs",
+            }
+        )
+        return False
+
+    cache_root = files[0]
+    if cache_root.is_file():
+        cache_root = cache_root.parent
+    manifest_path = cache_root / "tz_timetable_cache.json"
+    index_path = cache_root / "tz_index.json"
+    if not manifest_path.exists() or not index_path.exists():
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_FILES_MISSING",
+                "severity": "ERROR",
+                "context": {"cache_dir": str(cache_root)},
+                "message": "tz_timetable_cache manifest or index missing",
+            }
+        )
+        return False
+
+    ok = True
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_MANIFEST_INVALID",
+                "severity": "ERROR",
+                "context": {"path": str(manifest_path)},
+                "message": f"tz_timetable_cache manifest invalid JSON: {exc}",
+            }
+        )
+        return False
+
+    required = [
+        "manifest_fingerprint",
+        "tzdb_release_tag",
+        "tzdb_archive_sha256",
+        "tz_index_digest",
+        "rle_cache_bytes",
+        "created_utc",
+    ]
+    missing = [key for key in required if key not in manifest]
+    if missing:
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_MANIFEST_FIELDS_MISSING",
+                "severity": "ERROR",
+                "context": {"missing": missing},
+                "message": "tz_timetable_cache manifest missing required fields",
+            }
+        )
+        ok = False
+
+    manifest_fingerprint = manifest.get("manifest_fingerprint")
+    if manifest_fingerprint != inputs.manifest_fingerprint:
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_FINGERPRINT_MISMATCH",
+                "severity": "ERROR",
+                "context": {"observed": manifest_fingerprint},
+                "message": "tz_timetable_cache manifest fingerprint mismatch",
+            }
+        )
+        ok = False
+
+    try:
+        rle_cache_bytes = int(manifest.get("rle_cache_bytes"))
+    except (TypeError, ValueError):
+        rle_cache_bytes = 0
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_RLE_INVALID",
+                "severity": "ERROR",
+                "context": {"value": manifest.get("rle_cache_bytes")},
+                "message": "tz_timetable_cache rle_cache_bytes invalid",
+            }
+        )
+        ok = False
+    if rle_cache_bytes <= 0:
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_RLE_EMPTY",
+                "severity": "ERROR",
+                "context": {"value": rle_cache_bytes},
+                "message": "tz_timetable_cache rle_cache_bytes must be > 0",
+            }
+        )
+        ok = False
+
+    manifest_digest = manifest.get("tz_index_digest")
+    if manifest_digest:
+        index_digest = _sha256_path(index_path)
+        if manifest_digest != index_digest:
+            issues.append(
+                {
+                    "manifest_fingerprint": inputs.manifest_fingerprint,
+                    "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                    "scenario_id": None,
+                    "seed": inputs.seed,
+                    "issue_code": "S5_TZ_CACHE_DIGEST_MISMATCH",
+                    "severity": "ERROR",
+                    "context": {"expected": manifest_digest, "observed": index_digest},
+                    "message": "tz_index_digest mismatch for tz_timetable_cache",
+                }
+            )
+            ok = False
+
+    try:
+        tz_index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        issues.append(
+            {
+                "manifest_fingerprint": inputs.manifest_fingerprint,
+                "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                "scenario_id": None,
+                "seed": inputs.seed,
+                "issue_code": "S5_TZ_CACHE_INDEX_INVALID",
+                "severity": "ERROR",
+                "context": {"path": str(index_path)},
+                "message": f"tz_index.json invalid JSON: {exc}",
+            }
+        )
+        return False
+
+    tzids: set[str] = set()
+    for entry in tz_index_payload:
+        if isinstance(entry, list) and len(entry) == 2:
+            tzids.add(str(entry[0]))
+
+    if site_timezone_map:
+        missing_tzids = sorted({tz for tz in site_timezone_map.values() if tz} - tzids)
+        if missing_tzids:
+            issues.append(
+                {
+                    "manifest_fingerprint": inputs.manifest_fingerprint,
+                    "parameter_hash": _normalise_hex64(inputs.parameter_hash),
+                    "scenario_id": None,
+                    "seed": inputs.seed,
+                    "issue_code": "S5_TZ_CACHE_COVERAGE_MISSING",
+                    "severity": "ERROR",
+                    "context": {"missing_sample": missing_tzids[:10], "missing_count": len(missing_tzids)},
+                    "message": "tz_timetable_cache missing tzids used by site_timezones",
+                }
+            )
+            ok = False
+
+    return ok
 
 
 def _load_virtual_modes(
