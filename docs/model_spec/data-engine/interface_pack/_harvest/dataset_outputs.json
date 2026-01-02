@@ -1,0 +1,4695 @@
+[
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "ccy_country_weights_cache",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Deterministic cache of expanded currency\u2192country weights.",
+    "path": "data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/prep/ccy_country_weights_cache",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.expand_currency_to_country",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "merchant_currency",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Per-merchant settlement currency \u03ba\u2098 with provenance.",
+    "path": "data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/prep/merchant_currency",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.derive_merchant_currency",
+      "consumed_by": [
+        "1A.expand_currency_to_country",
+        "1A.select_gumbel_candidates"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "hurdle_design_matrix",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Predictor matrix for hurdle (single vs multi-site) decision.",
+    "path": "data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/model/hurdle_design_matrix",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.build_design_matrix",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "hurdle_pi_probs",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Per-merchant hurdle probabilities (\u03c0) after logistic model.",
+    "path": "data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/model/hurdle_pi_probs",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S0_7_build_hurdle_pi_probs",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "sparse_flag",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Per-currency sparsity flags emitted by currency\u2192country expansion.",
+    "path": "data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/prep/sparse_flag",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.expand_currency_to_country",
+      "consumed_by": [
+        "1A",
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "crossborder_eligibility_flags",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Flags enforcing cross-border eligibility rules prior to ZTP.",
+    "path": "data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/prep/crossborder_eligibility_flags",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.apply_eligibility_rules",
+      "consumed_by": [
+        "1A",
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "country_set",
+    "status": "deprecated",
+    "owner_subsegment": "1A",
+    "description": "Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country order.",
+    "path": "data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/alloc/country_set",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.select_foreign_countries",
+      "consumed_by": [
+        "1A",
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "s6_membership",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country order encoded.",
+    "path": "data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "country_iso"
+    ],
+    "schema_ref": "schemas.1A.yaml#/alloc/membership",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S6",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "s6_validation_receipt",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "PASS receipt for S6; gate for S7/S8 reads.",
+    "path": "data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/s6_receipt",
+    "primary_key": null,
+    "format": "folder",
+    "lineage": {
+      "produced_by": "1A.S6",
+      "consumed_by": [
+        "1A",
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "ranking_residual_cache_1A",
+    "status": "deprecated",
+    "owner_subsegment": "1A",
+    "description": "Legacy residual cache for RNG integerisation; superseded by S3 deterministic integerised counts (parameter-scoped).",
+    "path": "data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/alloc/ranking_residual_cache",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.integerise_allocations",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "outlet_catalogue",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Immutable outlet stubs per merchant \u00d7 legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9).",
+    "path": "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.1A.yaml#/egress/outlet_catalogue",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "s3_candidate_set",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Deterministic ordered candidate set per merchant; single authority for inter-country order (`candidate_rank`).",
+    "path": "data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "candidate_rank",
+      "country_iso"
+    ],
+    "schema_ref": "schemas.1A.yaml#/s3/candidate_set",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S3",
+      "consumed_by": [
+        "1A",
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "s3_base_weight_priors",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Deterministic base-weight priors (fixed-dp strings) per candidate; not probabilities.",
+    "path": "data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "country_iso"
+    ],
+    "schema_ref": "schemas.1A.yaml#/s3/base_weight_priors",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S3",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "s3_integerised_counts",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Deterministic per-country integer counts summing to N; includes residual_rank.",
+    "path": "data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "country_iso"
+    ],
+    "schema_ref": "schemas.1A.yaml#/s3/integerised_counts",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S3",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "s3_site_sequence",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Deterministic within-country site sequence (and optional 6-digit site_id).",
+    "path": "data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.1A.yaml#/s3/site_sequence",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S3",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "hurdle_stationarity_tests_2024Q4",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Diagnostics for hurdle model stability across vintages.",
+    "path": "data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/validation/hurdle_stationarity_tests",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.validation",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "crossborder_features",
+    "status": "planning",
+    "owner_subsegment": "1A",
+    "description": "Per-merchant deterministic features used by cross-border K (currently: openness scalar X_m in [0,1]).",
+    "path": "data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.1A.yaml#/model/crossborder_features",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1A.S0",
+      "consumed_by": [
+        "1A.S4"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "validation_bundle_1A",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Validator outputs for 1A (metrics, plots, diffs).",
+    "path": "data/layer1/1A/validation/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1A.yaml#/validation/validation_bundle",
+    "primary_key": null,
+    "format": "folder",
+    "lineage": {
+      "produced_by": "1A.validation",
+      "consumed_by": [
+        "release"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "validation_passed_flag_1A",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "HashGate PASS flag for the 1A validation bundle.",
+    "path": "data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/passed_flag",
+    "primary_key": null,
+    "format": "text",
+    "lineage": {
+      "produced_by": "1A.validation",
+      "consumed_by": [
+        "release"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_audit_log",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Run-scoped RNG audit log (master seed, counters, substream jumps).",
+    "path": "logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/core/rng_audit_log",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.rng_audit_emitter",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_trace_log",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each RNG event append (per S4 \u00a72A).",
+    "path": "logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/core/rng_trace_log",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.rng_trace_emitter",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_hurdle_bernoulli",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: hurdle Bernoulli draws per merchant (\u03c0).",
+    "path": "logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/hurdle_bernoulli",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.hurdle_sampler",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_gamma_component",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: gamma draws for NB/Dirichlet components.",
+    "path": "logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/gamma_component",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.nb_and_dirichlet_sampler",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_poisson_component",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: Poisson draws used in NB composition / ZTP.",
+    "path": "logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "attempt"
+    ],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/poisson_component",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.nb_poisson_component",
+      "allowed_producers": [
+        "1A.nb_poisson_component",
+        "1A.ztp_sampler"
+      ],
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_nb_final",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: final Negative Binomial draws for outlet counts.",
+    "path": "logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/nb_final",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.nb_sampler",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_ztp_rejection",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: ZTP rejection samples and acceptance traces.",
+    "path": "logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "attempt"
+    ],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/ztp_rejection",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.ztp_sampler",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_ztp_retry_exhausted",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: ZTP retry exhaustion (diagnostic hard events).",
+    "path": "logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "attempts"
+    ],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/ztp_retry_exhausted",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.ztp_sampler",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_ztp_final",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: S4 single acceptance record per resolved merchant (fixes K_target and run facts).",
+    "path": "logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/ztp_final",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.ztp_sampler",
+      "consumed_by": [
+        "validation",
+        "1A.S6"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_gumbel_key",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: Gumbel-top-k keys for foreign-country selection.",
+    "path": "logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/gumbel_key",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.foreign_country_selector",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_dirichlet_gamma_vector",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: Dirichlet gamma vectors for splitting outlets across countries.",
+    "path": "logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.dirichlet_allocator",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_stream_jump",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: explicit Philox stream/substream jump records.",
+    "path": "logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/stream_jump",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.rng_stream_manager",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_normal_box_muller",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: standard normal draws via Box\u2013Muller (Z only; sine mate discarded).",
+    "path": "logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/normal_box_muller",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "L0.event_normal_box_muller",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_sequence_finalize",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: final sequence allocation per (merchant,country) block.",
+    "path": "logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/sequence_finalize",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.site_id_allocator",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_residual_rank",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: deterministic ranks of largest-remainder residuals for per-country integerisation.",
+    "path": "logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/residual_rank",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.integerisation",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "rng_event_site_sequence_overflow",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Event stream: guardrail events when site sequence space is exhausted.",
+    "path": "logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+    "partitioning": [
+      "seed",
+      "parameter_hash",
+      "run_id"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/rng/events/site_sequence_overflow",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "1A.site_id_allocator",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s0_gate_receipt_1B",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Fingerprint-scoped receipt proving 1A PASS verification; enumerates sealed inputs for 1B.",
+    "path": "data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1B.yaml#/validation/s0_gate_receipt",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "1B.S0",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "tile_index",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Eligible raster cells per country after clip.",
+    "path": "data/layer1/1B/tile_index/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "tile_id"
+    ],
+    "schema_ref": "schemas.1B.yaml#/prep/tile_index",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S1",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "tile_weights",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Deterministic fixed-dp weights per tile.",
+    "path": "data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "tile_id"
+    ],
+    "schema_ref": "schemas.1B.yaml#/prep/tile_weights",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S2",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s3_requirements",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Deterministic site counts per (merchant_id, legal_country_iso) for this run.",
+    "path": "data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso"
+    ],
+    "schema_ref": "schemas.1B.yaml#/plan/s3_requirements",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S3",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s4_alloc_plan",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives only).",
+    "path": "data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tile_id"
+    ],
+    "schema_ref": "schemas.1B.yaml#/plan/s4_alloc_plan",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S4",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s5_site_tile_assignment",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Site\u2192tile assignment; one row per site; satisfies S4 per-tile quotas.",
+    "path": "data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.1B.yaml#/plan/s5_site_tile_assignment",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S5",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s6_site_jitter",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Per-site in-pixel jitter; effective deltas (projection into country); one row per site.",
+    "path": "data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.1B.yaml#/plan/s6_site_jitter",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S6",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "tile_bounds",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Rectangle bounds per eligible tile (S1 companion to tile_index).",
+    "path": "data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "tile_id"
+    ],
+    "schema_ref": "schemas.1B.yaml#/prep/tile_bounds",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S1",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s7_site_synthesis",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes; RNG-free; 1:1 with outlet_catalogue.",
+    "path": "data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.1B.yaml#/plan/s7_site_synthesis",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S7",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s7_run_summary",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Control-plane run summary for S7 site synthesis publish.",
+    "path": "data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s7_run_summary.json",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1B.yaml#/control/s7_run_summary",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "1B.S7",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "site_locations",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.",
+    "path": "data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.1B.yaml#/egress/site_locations",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "1B.S8",
+      "consumed_by": [
+        "1B",
+        "1A"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "s8_run_summary",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Control-plane summary for S8 site_locations publish.",
+    "path": "data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/s8_run_summary.json",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1B.yaml#/control/s8_run_summary",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "1B.S8",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "validation_bundle_1B",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Validation bundle for a 1B publish (one per manifest_fingerprint).",
+    "path": "data/layer1/1B/validation/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1B.yaml#/validation/validation_bundle_1B",
+    "primary_key": null,
+    "format": "files",
+    "lineage": {
+      "produced_by": "1B.S9",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "validation_passed_flag_1B",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "PASS gate flag; equals SHA-256 of the bundle per S9 hashing rule.",
+    "path": "data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.1B.yaml#/validation/passed_flag",
+    "primary_key": null,
+    "format": "text",
+    "lineage": {
+      "produced_by": "1B.S9",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "s0_gate_receipt_2A",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Fingerprint-scoped receipt proving 1B PASS and recording sealed inputs for 2A.",
+    "path": "data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.2A.yaml#/validation/s0_gate_receipt_v1",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "2A.S0",
+      "consumed_by": [
+        "2A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "sealed_inputs_v1",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Diagnostic inventory of sealed inputs for a 2A fingerprint.",
+    "path": "data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "asset_kind",
+      "basename"
+    ],
+    "schema_ref": "schemas.2A.yaml#/manifests/sealed_inputs_v1",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "2A.S0",
+      "consumed_by": [
+        "2A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "s1_tz_lookup",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Provisional tz lookup results per site (deterministic).",
+    "path": "data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.2A.yaml#/plan/s1_tz_lookup",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "2A.S1",
+      "consumed_by": [
+        "2A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "site_timezones",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Final per-site IANA tzid with provenance; order-free egress.",
+    "path": "data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "site_order"
+    ],
+    "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "2A.S2",
+      "consumed_by": [
+        "2A",
+        "2B"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "tz_timetable_cache",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Fingerprint-scoped cache manifest for tz transitions.",
+    "path": "data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.2A.yaml#/cache/tz_timetable_cache",
+    "primary_key": null,
+    "format": "files",
+    "lineage": {
+      "produced_by": "2A.S3",
+      "consumed_by": [
+        "2A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "s4_legality_report",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Legality/DST report per seed\u00d7fingerprint (JSON summary).",
+    "path": "data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.2A.yaml#/validation/s4_legality_report",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "2A.S4",
+      "consumed_by": [
+        "2A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "validation_bundle_2A",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "Validation bundle for 2A publish (one per fingerprint).",
+    "path": "data/layer1/2A/validation/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.2A.yaml#/validation/validation_bundle_2A",
+    "primary_key": null,
+    "format": "files",
+    "lineage": {
+      "produced_by": "2A.S5",
+      "consumed_by": [
+        "2B",
+        "3A",
+        "3B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "validation_passed_flag_2A",
+    "status": "approved",
+    "owner_subsegment": "2A",
+    "description": "PASS flag; equals SHA-256 of bundle per index+ASCII-lex law.",
+    "path": "data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.2A.yaml#/validation/passed_flag",
+    "primary_key": null,
+    "format": "text",
+    "lineage": {
+      "produced_by": "2A.S5",
+      "consumed_by": [
+        "2B",
+        "3A",
+        "3B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2B\\dataset_dictionary.layer1.2B.yaml",
+    "error": "while parsing a block collection\n  in \"docs/model_spec/data-engine\\layer-1/specs/contracts\\2B\\dataset_dictionary.layer1.2B.yaml\", line 20, column 3\nexpected <block end>, but found '?'\n  in \"docs/model_spec/data-engine\\layer-1/specs/contracts\\2B\\dataset_dictionary.layer1.2B.yaml\", line 66, column 3"
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s0_gate_receipt_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Gate descriptor proving upstream PASS status and sealed policy set.",
+    "path": "data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3A.yaml#/validation/s0_gate_receipt_3A",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3A.S0",
+      "consumed_by": [
+        "3A.S1",
+        "3A.S2",
+        "3A.S3",
+        "3A.S4",
+        "3A.S5",
+        "3A.S6",
+        "3A.S7"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "sealed_inputs_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Sealed inventory of artefacts authorised for Segment 3A.",
+    "path": "data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "owner_segment",
+      "artefact_kind",
+      "logical_id"
+    ],
+    "schema_ref": "schemas.3A.yaml#/validation/sealed_inputs_3A",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S0",
+      "consumed_by": [
+        "3A.S1",
+        "3A.S2",
+        "3A.S3",
+        "3A.S4",
+        "3A.S5",
+        "3A.S6",
+        "3A.S7"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s1_escalation_queue",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Per-merchant escalation decisions and totals.",
+    "path": "data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso"
+    ],
+    "schema_ref": "schemas.3A.yaml#/plan/s1_escalation_queue",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S1",
+      "consumed_by": [
+        "3A.S3",
+        "3A.S4",
+        "3A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s2_country_zone_priors",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Parameter-scoped Dirichlet \u03b1-vectors per country\u00d7tzid.",
+    "path": "data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/",
+    "partitioning": [
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "tzid"
+    ],
+    "schema_ref": "schemas.3A.yaml#/plan/s2_country_zone_priors",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S2",
+      "consumed_by": [
+        "3A.S3",
+        "3A.S4",
+        "3A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s3_zone_shares",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Dirichlet share draws per merchant\u00d7country\u00d7zone.",
+    "path": "data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid"
+    ],
+    "schema_ref": "schemas.3A.yaml#/plan/s3_zone_shares",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S3",
+      "consumed_by": [
+        "3A.S4",
+        "3A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s4_zone_counts",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Integer outlet counts per merchant\u00d7country\u00d7zone after floor/bump.",
+    "path": "data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid"
+    ],
+    "schema_ref": "schemas.3A.yaml#/plan/s4_zone_counts",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S4",
+      "consumed_by": [
+        "3A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "zone_alloc",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Cross-layer zone allocation egress for routing segment.",
+    "path": "data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid"
+    ],
+    "schema_ref": "schemas.3A.yaml#/egress/zone_alloc",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S5",
+      "consumed_by": [
+        "2B",
+        "validation",
+        "cross_segment_validation"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "zone_alloc_universe_hash",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Digest summary tying priors/policies to the published zone allocation.",
+    "path": "data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3A.yaml#/validation/zone_alloc_universe_hash",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3A.S5",
+      "consumed_by": [
+        "2B",
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s6_validation_report_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Structural validation report emitted by 3A.S6.",
+    "path": "data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3A.yaml#/validation/s6_validation_report_3A",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3A.S6",
+      "consumed_by": [
+        "3A.S7",
+        "cross_segment_validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s6_issue_table_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Per-issue findings emitted by 3A.S6.",
+    "path": "data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "severity",
+      "issue_code",
+      "merchant_id",
+      "legal_country_iso",
+      "tzid"
+    ],
+    "schema_ref": "schemas.3A.yaml#/validation/s6_issue_table_3A",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3A.S6",
+      "consumed_by": [
+        "3A.S7",
+        "ops_tooling"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "s6_receipt_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Compact validation receipt capturing S6 outcomes.",
+    "path": "data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3A.yaml#/validation/s6_receipt_3A",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3A.S6",
+      "consumed_by": [
+        "3A.S7"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "validation_bundle_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "Fingerprint-scoped validation bundle for Segment 3A.",
+    "path": "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/validation_bundle_index_3A",
+    "primary_key": null,
+    "format": "dir",
+    "lineage": {
+      "produced_by": "3A.S7",
+      "consumed_by": [
+        "orchestrator",
+        "cross_segment_validation"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "id": "validation_passed_flag_3A",
+    "status": "draft",
+    "owner_subsegment": "3A",
+    "description": "HashGate PASS flag accompanying the 3A validation bundle.",
+    "path": "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/passed_flag_3A",
+    "primary_key": null,
+    "format": "text",
+    "lineage": {
+      "produced_by": "3A.S7",
+      "consumed_by": [
+        "orchestrator",
+        "segment_readers"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "s0_gate_receipt_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Gate receipt capturing upstream PASS status, sealed policy set and authoritative digests.",
+    "path": "data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3B.yaml#/validation/s0_gate_receipt_3B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3B.S0",
+      "consumed_by": [
+        "3B.S1",
+        "3B.S2",
+        "3B.S3",
+        "3B.S4",
+        "3B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "sealed_inputs_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Inventory of every artefact authorised for the manifest.",
+    "path": "data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "owner_segment",
+      "artefact_kind",
+      "logical_id",
+      "path"
+    ],
+    "schema_ref": "schemas.3B.yaml#/validation/sealed_inputs_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S0",
+      "consumed_by": [
+        "3B.S1",
+        "3B.S2",
+        "3B.S3",
+        "3B.S4",
+        "3B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "virtual_classification_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Merchant-level classification surface with closed vocabulary reason codes.",
+    "path": "data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.3B.yaml#/plan/virtual_classification_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S1",
+      "consumed_by": [
+        "3B.S2",
+        "3B.S3",
+        "3B.S4",
+        "3B.S5",
+        "routing_virtual"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "virtual_settlement_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "One settlement node per virtual merchant with tzid semantics and evidence URLs.",
+    "path": "data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.3B.yaml#/plan/virtual_settlement_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S1",
+      "consumed_by": [
+        "3B.S2",
+        "3B.S4",
+        "routing_virtual"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "edge_catalogue_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Per-edge geometry, tz semantics and weights for all virtual merchants.",
+    "path": "data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "edge_id"
+    ],
+    "schema_ref": "schemas.3B.yaml#/plan/edge_catalogue_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S2",
+      "consumed_by": [
+        "3B.S3",
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "edge_catalogue_index_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Digest summary and per-merchant counts for the edge catalogue.",
+    "path": "data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "scope",
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.3B.yaml#/plan/edge_catalogue_index_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S2",
+      "consumed_by": [
+        "3B.S3",
+        "3B.S5",
+        "routing_virtual"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "edge_alias_blob_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Contiguous alias blob covering every virtual merchant edge distribution.",
+    "path": "data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3B.yaml#/binary/edge_alias_blob_header_3B",
+    "primary_key": null,
+    "format": "bin",
+    "lineage": {
+      "produced_by": "3B.S3",
+      "consumed_by": [
+        "3B.S4",
+        "2B.routing",
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "edge_alias_index_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Index and checksum metadata for locating merchant alias segments inside the blob.",
+    "path": "data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "scope",
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.3B.yaml#/plan/edge_alias_index_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S3",
+      "consumed_by": [
+        "3B.S4",
+        "2B.routing",
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "edge_universe_hash_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Fingerprint-scoped hash tying cdn weights, edge catalogue/index and alias outputs.",
+    "path": "data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3B.yaml#/validation/edge_universe_hash_3B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3B.S3",
+      "consumed_by": [
+        "3B.S4",
+        "3B.S5",
+        "2B.routing"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "gamma_draw_log_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Structured Philox audit for any gamma draws in the virtual pipeline.",
+    "path": "logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl",
+    "partitioning": [
+      "seed",
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "day_index"
+    ],
+    "schema_ref": "schemas.3B.yaml#/validation/gamma_draw_log_entry_3B",
+    "primary_key": null,
+    "format": "jsonl",
+    "lineage": {
+      "produced_by": "3B.S3",
+      "consumed_by": [
+        "validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "virtual_routing_policy_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Dual-TZ routing contract that tells 2B how to consume the virtual artefacts.",
+    "path": "data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3B.yaml#/egress/virtual_routing_policy_3B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3B.S4",
+      "consumed_by": [
+        "2B.routing",
+        "3B.validation"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "virtual_validation_contract_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Declarative suite of validation tests (IP mix, cut-offs, alias health) scoped to the manifest.",
+    "path": "data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "test_id"
+    ],
+    "schema_ref": "schemas.3B.yaml#/egress/virtual_validation_contract_3B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": "3B.S4",
+      "consumed_by": [
+        "3B.S5",
+        "4A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "s4_run_summary_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Optional S4 receipt capturing policy digests and status.",
+    "path": "data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3B.yaml#/validation/s4_run_summary_3B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3B.S4",
+      "consumed_by": [
+        "3B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "validation_bundle_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Directory artefact containing manifest, digests and structural or RNG evidence.",
+    "path": "data/layer1/3B/validation/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/validation_bundle_index_3B",
+    "primary_key": null,
+    "format": "folder",
+    "lineage": {
+      "produced_by": "3B.S5",
+      "consumed_by": [
+        "HashGate",
+        "downstream segments"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "validation_bundle_index_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "index.json enumerating evidence files plus their SHA-256 digests.",
+    "path": "data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/validation_bundle_index_3B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3B.S5",
+      "consumed_by": [
+        "HashGate",
+        "downstream segments"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "validation_passed_flag_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "ASCII _passed.flag storing the hash of the validation bundle.",
+    "path": "data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer1.yaml#/validation/passed_flag_3B",
+    "primary_key": null,
+    "format": "text",
+    "lineage": {
+      "produced_by": "3B.S5",
+      "consumed_by": [
+        "HashGate",
+        "downstream segments"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "id": "s5_manifest_3B",
+    "status": "draft",
+    "owner_subsegment": "3B",
+    "description": "Optional S5 manifest summarising identity, digests and validator outcomes; lives inside the bundle.",
+    "path": "data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.3B.yaml#/validation/s5_manifest_3B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "3B.S5",
+      "consumed_by": [
+        "HashGate",
+        "downstream segments"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "s0_gate_receipt_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Fingerprint-scoped S0 receipt confirming upstream gates and sealed inputs.",
+    "path": "data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.5A.yaml#/validation/s0_gate_receipt_5A",
+    "primary_key": [
+      "manifest_fingerprint"
+    ],
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5A.S0"
+      ],
+      "consumed_by": [
+        "5A.S1",
+        "5A.S2",
+        "5A.S3",
+        "5A.S4",
+        "5A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "sealed_inputs_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Inventory of sealed artefacts 5A is allowed to read for a fingerprint.",
+    "path": "data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.5A.yaml#/validation/sealed_inputs_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "owner_segment",
+      "artifact_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S0"
+      ],
+      "consumed_by": [
+        "5A.S1",
+        "5A.S2",
+        "5A.S3",
+        "5A.S4",
+        "5A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "scenario_manifest_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Scenario-level manifest projection derived from sealed inputs.",
+    "path": "data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.5A.yaml#/validation/scenario_manifest_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S0"
+      ],
+      "consumed_by": [
+        "5A.S1",
+        "5A.S2",
+        "5A.S3",
+        "5A.S4",
+        "5A.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_zone_profile_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Merchant\u00d7zone demand profile including class and scale for the local week.",
+    "path": "data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_zone_profile_5A",
+    "primary_key": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S1"
+      ],
+      "consumed_by": [
+        "5A.S2",
+        "5A.S3",
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_class_profile_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Merchant-level aggregate class profile derived deterministically from zone profiles.",
+    "path": "data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_class_profile_5A",
+    "primary_key": [
+      "merchant_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S1"
+      ],
+      "consumed_by": [
+        "5A.S2",
+        "5A.S3",
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "shape_grid_definition_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Local-week time grid definition for shapes under a parameter pack and scenario.",
+    "path": "data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet\n",
+    "partitioning": [
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/shape_grid_definition_5A",
+    "primary_key": [
+      "parameter_hash",
+      "scenario_id",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S2"
+      ],
+      "consumed_by": [
+        "5A.S3",
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "class_zone_shape_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Normalised weekly shape vectors per class\u00d7zone (and optional channel) for each scenario.",
+    "path": "data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet\n",
+    "partitioning": [
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "demand_class",
+      "legal_country_iso",
+      "tzid",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/class_zone_shape_5A",
+    "primary_key": [
+      "parameter_hash",
+      "scenario_id",
+      "demand_class",
+      "legal_country_iso",
+      "tzid",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S2"
+      ],
+      "consumed_by": [
+        "5A.S3",
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "class_shape_catalogue_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Optional base shape catalogue per class (and optional channel) for each scenario.",
+    "path": "data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet\n",
+    "partitioning": [
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "demand_class"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/class_shape_catalogue_5A",
+    "primary_key": [
+      "parameter_hash",
+      "scenario_id",
+      "demand_class"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S2"
+      ],
+      "consumed_by": [
+        "5A.S3",
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_zone_baseline_local_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Merchant\u00d7zone baseline local-week intensities per scenario.",
+    "path": "data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_zone_baseline_local_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S3"
+      ],
+      "consumed_by": [
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "class_zone_baseline_local_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Optional class\u00d7zone baseline local-week intensities per scenario.",
+    "path": "data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "demand_class",
+      "legal_country_iso",
+      "tzid",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/class_zone_baseline_local_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "demand_class",
+      "legal_country_iso",
+      "tzid",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S3"
+      ],
+      "consumed_by": [
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_zone_baseline_utc_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Optional merchant\u00d7zone baseline intensities expressed on a UTC grid.",
+    "path": "data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "utc_bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_zone_baseline_utc_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "utc_bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S3"
+      ],
+      "consumed_by": [
+        "5A.S4",
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_zone_scenario_local_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Scenario-adjusted local-week intensities per merchant\u00d7zone\u00d7horizon bucket.",
+    "path": "data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "local_horizon_bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_zone_scenario_local_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "local_horizon_bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S4"
+      ],
+      "consumed_by": [
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_zone_overlay_factors_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Optional multiplicative overlay factors per merchant\u00d7zone\u00d7horizon bucket.",
+    "path": "data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "local_horizon_bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "local_horizon_bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S4"
+      ],
+      "consumed_by": [
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "merchant_zone_scenario_utc_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Scenario-adjusted UTC intensities per merchant\u00d7zone\u00d7UTC horizon bucket.",
+    "path": "data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "utc_horizon_bucket_index"
+    ],
+    "schema_ref": "schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "legal_country_iso",
+      "tzid",
+      "utc_horizon_bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S4"
+      ],
+      "consumed_by": [
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "validation_bundle_index_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Index and manifest for the 5A validation bundle.",
+    "path": "data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/validation_bundle_index_5A",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5A.S5"
+      ],
+      "consumed_by": [
+        "5A.S5",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "validation_report_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Human/machine readable validation report for 5A.",
+    "path": "data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/validation_report_5A",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5A.S5"
+      ],
+      "consumed_by": [
+        "5A.validation_tools",
+        "5B",
+        "6A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "validation_issue_table_5A",
+    "status": "optional",
+    "owner_subsegment": "5A",
+    "description": "Optional structured list of validation issues for 5A.",
+    "path": "data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/validation_issue_table_5A",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5A.S5"
+      ],
+      "consumed_by": [
+        "5A.validation_tools"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "id": "validation_passed_flag_5A",
+    "status": "required",
+    "owner_subsegment": "5A",
+    "description": "Pass/fail flag for the 5A validation bundle.",
+    "path": "data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/passed_flag_5A",
+    "primary_key": null,
+    "format": "flag",
+    "lineage": {
+      "produced_by": [
+        "5A.S5"
+      ],
+      "consumed_by": [
+        "5B",
+        "6A",
+        "5A.validation_tools"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s0_gate_receipt_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Fingerprint-scoped receipt confirming upstream PASS gates and sealed inputs.",
+    "path": "data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.5B.yaml#/validation/s0_gate_receipt_5B",
+    "primary_key": [
+      "manifest_fingerprint"
+    ],
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5B.S0"
+      ],
+      "consumed_by": [
+        "5B.S1",
+        "5B.S2",
+        "5B.S3",
+        "5B.S4",
+        "5B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "sealed_inputs_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Inventory of artefacts 5B is allowed to read for a fingerprint.",
+    "path": "data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "owner_segment",
+      "artifact_id",
+      "role"
+    ],
+    "schema_ref": "schemas.5B.yaml#/validation/sealed_inputs_5B",
+    "primary_key": [
+      "manifest_fingerprint",
+      "owner_segment",
+      "artifact_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S0"
+      ],
+      "consumed_by": [
+        "5B.S1",
+        "5B.S2",
+        "5B.S3",
+        "5B.S4",
+        "5B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s1_time_grid_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Canonical scenario-level time grid for arrivals.",
+    "path": "data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5B.yaml#/model/s1_time_grid_5B",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S1"
+      ],
+      "consumed_by": [
+        "5B.S2",
+        "5B.S3",
+        "5B.S4",
+        "5B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s1_grouping_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Deterministic mapping from merchant\u00d7zone\u00d7channel to latent group IDs.",
+    "path": "data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet\n",
+    "partitioning": [
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group"
+    ],
+    "schema_ref": "schemas.5B.yaml#/model/s1_grouping_5B",
+    "primary_key": [
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S1"
+      ],
+      "consumed_by": [
+        "5B.S2",
+        "5B.S3",
+        "5B.S4",
+        "5B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s2_realised_intensity_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Realised intensities \u03bb_realised per entity\u00d7bucket\u00d7scenario\u00d7seed.",
+    "path": "data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet\n",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5B.yaml#/model/s2_realised_intensity_5B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S2"
+      ],
+      "consumed_by": [
+        "5B.S3",
+        "5B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s2_latent_field_5B",
+    "status": "optional",
+    "owner_subsegment": "5B",
+    "description": "Optional per-group latent field table for diagnostics.",
+    "path": "data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet\n",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "group_id",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5B.yaml#/model/s2_latent_field_5B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "group_id",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S2"
+      ],
+      "consumed_by": [
+        "5B.S5",
+        "5B.validation_tools"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s3_bucket_counts_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Integer counts per entity\u00d7bucket\u00d7scenario\u00d7seed.",
+    "path": "data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet\n",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5B.yaml#/model/s3_bucket_counts_5B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S3"
+      ],
+      "consumed_by": [
+        "5B.S4",
+        "5B.S5"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "arrival_events_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Canonical arrival skeleton stream per scenario\u00d7seed (final egress).",
+    "path": "data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet\n",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "merchant_id",
+      "ts_utc",
+      "arrival_seq"
+    ],
+    "schema_ref": "schemas.5B.yaml#/egress/s4_arrival_events_5B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "arrival_seq"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S4"
+      ],
+      "consumed_by": [
+        "5B.S5",
+        "6A",
+        "6B",
+        "enterprise_ingestion"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s4_arrival_summary_5B",
+    "status": "optional",
+    "owner_subsegment": "5B",
+    "description": "Optional per-entity/bucket arrival summaries for observability.",
+    "path": "data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet\n",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "bucket_index"
+    ],
+    "schema_ref": "schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "zone_representation",
+      "channel_group",
+      "bucket_index"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S4"
+      ],
+      "consumed_by": [
+        "5B.validation_tools",
+        "ops_dashboards"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "s4_arrival_anomalies_5B",
+    "status": "optional",
+    "owner_subsegment": "5B",
+    "description": "Optional anomaly log for arrival routing/time-placement diagnostics.",
+    "path": "data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet\n",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "scenario_id"
+    ],
+    "ordering": [
+      "scenario_id",
+      "anomaly_id"
+    ],
+    "schema_ref": "schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "anomaly_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S4"
+      ],
+      "consumed_by": [
+        "5B.validation_tools",
+        "ops_dashboards"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "validation_bundle_index_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Index/manifest for the 5B validation bundle (fingerprint scope).",
+    "path": "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/validation_bundle_index_5B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5B.S5"
+      ],
+      "consumed_by": [
+        "5B.S5",
+        "6A",
+        "6B"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "validation_report_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "Human/machine readable 5B validation report.",
+    "path": "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/validation_report_5B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5B.S5"
+      ],
+      "consumed_by": [
+        "5B.validation_tools",
+        "ops_dashboards"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "validation_issue_table_5B",
+    "status": "optional",
+    "owner_subsegment": "5B",
+    "description": "Optional structured issue table for 5B validation findings.",
+    "path": "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/validation_issue_table_5B",
+    "primary_key": null,
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "5B.S5"
+      ],
+      "consumed_by": [
+        "5B.validation_tools",
+        "ops_dashboards"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "id": "validation_passed_flag_5B",
+    "status": "required",
+    "owner_subsegment": "5B",
+    "description": "HashGate flag proving the validation bundle digest for a fingerprint.",
+    "path": "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer2.yaml#/validation/passed_flag_5B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "5B.S5"
+      ],
+      "consumed_by": [
+        "6A",
+        "6B",
+        "5B.validation_tools"
+      ],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s0_gate_receipt_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint, summarising upstream gates and the sealed input universe for 6A.\n",
+    "path": "data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S0"
+      ],
+      "consumed_by": [
+        "6A.S1",
+        "6A.S2",
+        "6A.S3",
+        "6A.S4",
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "sealed_inputs_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint, with roles, digests, and read scopes.\n",
+    "path": "data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "owner_layer",
+      "owner_segment",
+      "manifest_key"
+    ],
+    "schema_ref": "schemas.layer3.yaml#/gate/6A/sealed_inputs_6A",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S0"
+      ],
+      "consumed_by": [
+        "6A.S1",
+        "6A.S2",
+        "6A.S3",
+        "6A.S4",
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s1_party_base_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Base party/customer universe for Layer-3 / Segment 6A. One row per party per (manifest_fingerprint, seed), including type, home geography and static segment attributes.\n",
+    "path": "data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "segment_id",
+      "party_type",
+      "party_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s1/party_base",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S1"
+      ],
+      "consumed_by": [
+        "6A.S2",
+        "6A.S3",
+        "6A.S4",
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s1_party_summary_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Aggregate view of the 6A party base, providing party counts by geography, segment and type for diagnostics and downstream sizing.\n",
+    "path": "data/layer3/6A/s1_party_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_summary_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "segment_id",
+      "party_type"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s1/party_summary",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S1"
+      ],
+      "consumed_by": [
+        "6A.S1",
+        "6A.S2",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s2_account_base_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Account and product universe for Layer-3 / Segment 6A. One row per account per (manifest_fingerprint, seed), including owner references, account type, currency and static account attributes.\n",
+    "path": "data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "account_type",
+      "owner_party_id",
+      "account_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s2/account_base",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S2"
+      ],
+      "consumed_by": [
+        "6A.S3",
+        "6A.S4",
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s2_party_product_holdings_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Per-party product holdings for Layer-3 / Segment 6A, derived from s2_account_base_6A and s1_party_base_6A. One row per party and product grouping (e.g. account_type), with account counts.\n",
+    "path": "data/layer3/6A/s2_party_product_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_party_product_holdings_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "party_id",
+      "account_type"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s2/party_product_holdings",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S2"
+      ],
+      "consumed_by": [
+        "6A.S3",
+        "6A.S4",
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s2_merchant_account_base_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Merchant-centric view of accounts where a merchant is an owner (e.g. settlement or acquiring accounts). Pure subset of s2_account_base_6A.\n",
+    "path": "data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_merchant_account_base_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "owner_merchant_id",
+      "account_type",
+      "account_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s2/merchant_account_base",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S2"
+      ],
+      "consumed_by": [
+        "6A.S2",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s2_account_summary_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Aggregate view of the 6A account base, providing account counts by geography, segment and account type for diagnostics and sizing.\n",
+    "path": "data/layer3/6A/s2_account_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_summary_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "country_iso",
+      "segment_id",
+      "account_type"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s2/account_summary",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S2"
+      ],
+      "consumed_by": [
+        "6A.S2",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s3_instrument_base_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Instrument and payment-credential universe for Layer-3 / Segment 6A. One row per instrument per (manifest_fingerprint, seed), including owner account, owner party/merchant (if modelled), instrument type, scheme/network, masked identifier, expiry, and static flags.\n",
+    "path": "data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "account_id",
+      "instrument_type",
+      "scheme",
+      "instrument_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s3/instrument_base",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S3"
+      ],
+      "consumed_by": [
+        "6A.S4",
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s3_account_instrument_links_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived from s3_instrument_base_6A and s2_account_base_6A; provides either per-instrument or aggregated per-account, per-instrument-type views of instrument ownership.\n",
+    "path": "data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "account_id",
+      "instrument_type",
+      "scheme",
+      "instrument_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s3/account_instrument_links",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S3"
+      ],
+      "consumed_by": [
+        "6A.S4",
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s3_party_instrument_holdings_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Per-party instrument holdings for Layer-3 / Segment 6A, derived from s3_instrument_base_6A and s1_party_base_6A; one row per (party_id, instrument grouping) with instrument_count.\n",
+    "path": "data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_party_instrument_holdings_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "party_id",
+      "instrument_type",
+      "scheme"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s3/party_instrument_holdings",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S3"
+      ],
+      "consumed_by": [
+        "6A.S4",
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s3_instrument_summary_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Aggregate instrument diagnostics for Layer-3 / Segment 6A, providing instrument counts by geography, segment, account_type and instrument_type.\n",
+    "path": "data/layer3/6A/s3_instrument_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_summary_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "region_id",
+      "segment_id",
+      "account_type",
+      "instrument_type",
+      "scheme"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s3/instrument_summary",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S3"
+      ],
+      "consumed_by": [
+        "6A.S3",
+        "6A.S4",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s4_device_base_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint, seed), with device classification, primary owner context and static device risk/capability flags.\n",
+    "path": "data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "device_type",
+      "primary_party_id",
+      "primary_merchant_id",
+      "device_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s4/device_base",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S4"
+      ],
+      "consumed_by": [
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s4_ip_base_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "IP / network endpoint universe for Layer-3 / Segment 6A. One row per IP/endpoint per (manifest_fingerprint, seed), including masked representation, ip_type, asn_class, geo hints and static risk tags.\n",
+    "path": "data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "ip_type",
+      "asn_class",
+      "country_iso",
+      "ip_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s4/ip_base",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S4"
+      ],
+      "consumed_by": [
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s4_device_links_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id to one or more parties/accounts/instruments/merchants with a link_role describing the semantics.\n",
+    "path": "data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "device_id",
+      "party_id",
+      "account_id",
+      "instrument_id",
+      "merchant_id",
+      "link_role"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s4/device_links",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S4"
+      ],
+      "consumed_by": [
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s4_ip_links_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id to one or more devices/parties/merchants with a link_role describing the semantics.\n",
+    "path": "data/layer3/6A/s4_ip_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_links_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "ip_id",
+      "device_id",
+      "party_id",
+      "merchant_id",
+      "link_role"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s4/ip_links",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S4"
+      ],
+      "consumed_by": [
+        "6A.S5",
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s4_entity_neighbourhoods_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Per-entity graph neighbourhood metrics for Layer-3 / Segment 6A (devices per party, IPs per device, shared-device/shared-IP degrees, etc.), derived from S4 base and link datasets.\n",
+    "path": "data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_entity_neighbourhoods_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "entity_type",
+      "entity_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s4/entity_neighbourhoods",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S4"
+      ],
+      "consumed_by": [
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s4_network_summary_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Aggregate graph diagnostics for Layer-3 / Segment 6A: degree distributions and sharing summaries per region/segment/account_type and globally.\n",
+    "path": "data/layer3/6A/s4_network_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_network_summary_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "region_id",
+      "segment_id",
+      "account_type",
+      "metric_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s4/network_summary",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S4"
+      ],
+      "consumed_by": [
+        "6A.S4",
+        "6A.S5",
+        "6B.S0"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_party_fraud_roles_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Static fraud posture for parties in Layer-3 / Segment 6A. One row per party per (manifest_fingerprint, seed).\n",
+    "path": "data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "party_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s5/party_fraud_roles",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1",
+        "6B.S2"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_account_fraud_roles_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Static fraud posture for accounts in Layer-3 / Segment 6A. One row per account per (manifest_fingerprint, seed).\n",
+    "path": "data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "account_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s5/account_fraud_roles",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1",
+        "6B.S2"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_merchant_fraud_roles_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Static fraud posture for merchants in Layer-3 / Segment 6A. One row per merchant, keyed by merchant_id.\n",
+    "path": "data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "merchant_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s5/merchant_fraud_roles",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1",
+        "6B.S2"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_device_fraud_roles_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Static fraud posture for devices in Layer-3 / Segment 6A. One row per device per (manifest_fingerprint, seed).\n",
+    "path": "data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "device_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s5/device_fraud_roles",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_ip_fraud_roles_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One row per ip_id per (manifest_fingerprint, seed).\n",
+    "path": "data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash"
+    ],
+    "ordering": [
+      "ip_id"
+    ],
+    "schema_ref": "schemas.6A.yaml#/s5/ip_fraud_roles",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_validation_report_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Segment-level validation report for Layer-3 / Segment 6A, summarising the results of S5 checks across S1\u2013S4 and S5 fraud roles.\n",
+    "path": "data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/validation/6A/validation_report_6A",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "s5_issue_table_6A",
+    "status": "optional",
+    "owner_subsegment": "6A",
+    "description": "Row-level issue table for 6A validation, containing one row per failing/borderline check instance.\n",
+    "path": "data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "check_id",
+      "scope_type",
+      "issue_id"
+    ],
+    "schema_ref": "schemas.layer3.yaml#/validation/6A/validation_issue_table_6A",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "validation_bundle_index_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "Index for the Layer-3 / Segment 6A validation bundle, listing all evidence files and their SHA-256 digests.\n",
+    "path": "data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "id": "validation_passed_flag_6A",
+    "status": "required",
+    "owner_subsegment": "6A",
+    "description": "HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256 digest over the validation bundle for this manifest_fingerprint.\n",
+    "path": "data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/validation/6A/passed_flag_6A",
+    "primary_key": null,
+    "format": null,
+    "lineage": {
+      "produced_by": [
+        "6A.S5"
+      ],
+      "consumed_by": [
+        "6B.S0",
+        "6B.S1"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s0_gate_receipt_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.\n",
+    "path": "data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B",
+    "primary_key": [
+      "manifest_fingerprint"
+    ],
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "6B.S0"
+      ],
+      "consumed_by": [
+        "6B.S1",
+        "6B.S2",
+        "6B.S3",
+        "6B.S4",
+        "6B.S5",
+        "4A",
+        "4B"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "sealed_inputs_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Sealed list of all artefacts 6B is allowed to read for a given manifest_fingerprint, with roles, schema_refs and digests.\n",
+    "path": "data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "owner_layer",
+      "owner_segment",
+      "manifest_key"
+    ],
+    "schema_ref": "schemas.layer3.yaml#/gate/6B/sealed_inputs_6B",
+    "primary_key": [
+      "manifest_fingerprint",
+      "owner_layer",
+      "owner_segment",
+      "manifest_key"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S0"
+      ],
+      "consumed_by": [
+        "6B.S1",
+        "6B.S2",
+        "6B.S3",
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s1_arrival_entities_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Arrival events from 5B enriched with entity attachments and session identifiers for Layer-3 behaviour; one row per arrival.\n",
+    "path": "data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "arrival_seq"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s1/arrival_entities_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "merchant_id",
+      "arrival_seq"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S1"
+      ],
+      "consumed_by": [
+        "6B.S2",
+        "6B.S3",
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s1_session_index_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Session index for 6B arrivals; one row per session with party/device/IP relationships and anchor metadata.\n",
+    "path": "data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "session_id"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s1/session_index_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "session_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S1"
+      ],
+      "consumed_by": [
+        "6B.S2",
+        "6B.S3",
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s2_flow_anchor_baseline_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Baseline flow anchors (all-legit) for 6B. One row per flow_id per (seed, manifest_fingerprint, scenario_id).\n",
+    "path": "data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s2/flow_anchor_baseline_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S2"
+      ],
+      "consumed_by": [
+        "6B.S3",
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s2_event_stream_baseline_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Baseline event stream for each flow (auth/clearing/refund/etc.).\n",
+    "path": "data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id",
+      "event_seq"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s2/event_stream_baseline_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id",
+      "event_seq"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S2"
+      ],
+      "consumed_by": [
+        "6B.S3",
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s3_campaign_catalogue_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Catalogue of realised fraud/abuse campaigns with campaign_id, fraud_type, parameters and the flows affected.\n",
+    "path": "data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "campaign_id"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s3/campaign_catalogue_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "campaign_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S3"
+      ],
+      "consumed_by": [
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s3_flow_anchor_with_fraud_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Flow anchors after fraud overlays and campaign adjustments are applied.\n",
+    "path": "data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S3"
+      ],
+      "consumed_by": [
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s3_event_stream_with_fraud_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Event stream after fraud overlays. Contains synthetic fraud behaviours for training/labelling flows.\n",
+    "path": "data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id",
+      "event_seq"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s3/event_stream_with_fraud_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id",
+      "event_seq"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S3"
+      ],
+      "consumed_by": [
+        "6B.S4",
+        "6B.S5"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s4_flow_truth_labels_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Flow-level ground truth labels used by 4A/4B and model training.\n",
+    "path": "data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s4/flow_truth_labels_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S4"
+      ],
+      "consumed_by": [
+        "6B.S5",
+        "4A",
+        "4B",
+        "model_training"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s4_flow_bank_view_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Bank-view classification of each flow (what the institution sees / would act on).\n",
+    "path": "data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s4/flow_bank_view_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S4"
+      ],
+      "consumed_by": [
+        "6B.S5",
+        "4A",
+        "4B",
+        "model_training"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s4_event_labels_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Event-level truth and bank-view labels keyed to s3_event_stream_with_fraud_6B.\n",
+    "path": "data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id",
+      "event_seq"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s4/event_labels_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "flow_id",
+      "event_seq"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S4"
+      ],
+      "consumed_by": [
+        "6B.S5",
+        "4A",
+        "4B",
+        "model_training"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s4_case_timeline_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Case timeline events for flows promoted to manual review or automated cases.\n",
+    "path": "data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet",
+    "partitioning": [
+      "seed",
+      "fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "ordering": [
+      "case_id",
+      "case_event_seq"
+    ],
+    "schema_ref": "schemas.6B.yaml#/s4/case_timeline_6B",
+    "primary_key": [
+      "seed",
+      "manifest_fingerprint",
+      "scenario_id",
+      "case_id",
+      "case_event_seq"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S4"
+      ],
+      "consumed_by": [
+        "6B.S5",
+        "4A",
+        "4B",
+        "model_training"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s5_validation_report_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Segment 6B world-level validation report; one JSON document summarising the results of S5 checks across S1-S4 artefacts.\n",
+    "path": "data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/validation/6B/s5_validation_report",
+    "primary_key": [
+      "manifest_fingerprint"
+    ],
+    "format": "json",
+    "lineage": {
+      "produced_by": [
+        "6B.S5"
+      ],
+      "consumed_by": [
+        "6B.S5_bundle",
+        "4A",
+        "4B",
+        "ops_tooling"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "s5_issue_table_6B",
+    "status": "optional",
+    "owner_subsegment": "6B",
+    "description": "Structured list of validation issues for 6B (one row per failing/warning check).\n",
+    "path": "data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [
+      "manifest_fingerprint",
+      "check_id",
+      "issue_id"
+    ],
+    "schema_ref": "schemas.layer3.yaml#/validation/6B/s5_issue_table",
+    "primary_key": [
+      "manifest_fingerprint",
+      "check_id",
+      "issue_id"
+    ],
+    "format": "parquet",
+    "lineage": {
+      "produced_by": [
+        "6B.S5"
+      ],
+      "consumed_by": [
+        "6B.S5_bundle",
+        "ops_tooling"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "validation_bundle_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "World-level validation bundle for Segment 6B; directory of validation artefacts plus index.json and _passed.flag.\n",
+    "path": "data/layer3/6B/validation/fingerprint={manifest_fingerprint}/",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B",
+    "primary_key": [
+      "manifest_fingerprint"
+    ],
+    "format": "directory",
+    "lineage": {
+      "produced_by": [
+        "6B.S5"
+      ],
+      "consumed_by": [
+        "6B.S5",
+        "4A",
+        "4B",
+        "ops_tooling"
+      ]
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "id": "validation_passed_flag_6B",
+    "status": "required",
+    "owner_subsegment": "6B",
+    "description": "Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.\n",
+    "path": "data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "partitioning": [
+      "fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.layer3.yaml#/validation/6B/passed_flag_6B",
+    "primary_key": [
+      "manifest_fingerprint"
+    ],
+    "format": "text",
+    "lineage": {
+      "produced_by": [
+        "6B.S5"
+      ],
+      "consumed_by": [
+        "6B.S5",
+        "4A",
+        "4B",
+        "ops_tooling"
+      ]
+    }
+  }
+]

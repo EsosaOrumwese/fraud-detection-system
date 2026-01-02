@@ -1,0 +1,2296 @@
+version: "1.0"
+outputs:
+  - output_id: ccy_country_weights_cache
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/prep/ccy_country_weights_cache
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#ccy_country_weights_cache
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: country_set
+    class: surface
+    scope: scope_parameter_hash_seed
+    owner_segment: 1A
+    path_template: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'parameter_hash']
+    schema_ref: schemas.1A.yaml#/alloc/country_set
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#country_set
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: crossborder_eligibility_flags
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/prep/crossborder_eligibility_flags
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#crossborder_eligibility_flags
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: crossborder_features
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/model/crossborder_features
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#crossborder_features
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: hurdle_design_matrix
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/model/hurdle_design_matrix
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#hurdle_design_matrix
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: hurdle_pi_probs
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/model/hurdle_pi_probs
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#hurdle_pi_probs
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: hurdle_stationarity_tests_2024Q4
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/validation/hurdle_stationarity_tests
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#hurdle_stationarity_tests_2024Q4
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_currency
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/prep/merchant_currency
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#merchant_currency
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: outlet_catalogue
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 1A
+    path_template: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#outlet_catalogue
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: ranking_residual_cache_1A
+    class: surface
+    scope: scope_parameter_hash_seed
+    owner_segment: 1A
+    path_template: data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'parameter_hash']
+    schema_ref: schemas.1A.yaml#/alloc/ranking_residual_cache
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#ranking_residual_cache_1A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_audit_log
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_audit_log
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_dirichlet_gamma_vector
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_dirichlet_gamma_vector
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_gamma_component
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/gamma_component
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_gamma_component
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_gumbel_key
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/gumbel_key
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_gumbel_key
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_hurdle_bernoulli
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/hurdle_bernoulli
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_hurdle_bernoulli
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_nb_final
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/nb_final
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_nb_final
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_normal_box_muller
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/normal_box_muller
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_normal_box_muller
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_poisson_component
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/poisson_component
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_poisson_component
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_residual_rank
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/residual_rank
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_residual_rank
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_sequence_finalize
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/sequence_finalize
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_sequence_finalize
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_site_sequence_overflow
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/site_sequence_overflow
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_site_sequence_overflow
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_stream_jump
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/stream_jump
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_stream_jump
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_ztp_final
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/ztp_final
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_ztp_final
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_ztp_rejection
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/ztp_rejection
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_ztp_rejection
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_event_ztp_retry_exhausted
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_event_ztp_retry_exhausted
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: rng_trace_log
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 1A
+    path_template: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id']
+    schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#rng_trace_log
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_base_weight_priors
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/s3/base_weight_priors
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#s3_base_weight_priors
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_candidate_set
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/s3/candidate_set
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#s3_candidate_set
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_integerised_counts
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/s3/integerised_counts
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#s3_integerised_counts
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_site_sequence
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/s3/site_sequence
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#s3_site_sequence
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_membership
+    class: surface
+    scope: scope_parameter_hash_seed
+    owner_segment: 1A
+    path_template: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'parameter_hash']
+    schema_ref: schemas.1A.yaml#/alloc/membership
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#s6_membership
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_validation_receipt
+    class: surface
+    scope: scope_parameter_hash_seed
+    owner_segment: 1A
+    path_template: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'parameter_hash']
+    schema_ref: schemas.layer1.yaml#/validation/s6_receipt
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#s6_validation_receipt
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: sparse_flag
+    class: surface
+    scope: parameter
+    owner_segment: 1A
+    path_template: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1A.yaml#/prep/sparse_flag
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#sparse_flag
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_1A
+    class: surface
+    scope: fingerprint
+    owner_segment: 1A
+    path_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.1A.yaml#/validation/validation_bundle
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#validation_bundle_1A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_1A
+    class: surface
+    scope: fingerprint
+    owner_segment: 1A
+    path_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1A\dataset_dictionary.layer1.1A.yaml#validation_passed_flag_1A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_1B
+    class: surface
+    scope: fingerprint
+    owner_segment: 1B
+    path_template: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.1B.yaml#/validation/s0_gate_receipt
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s0_gate_receipt_1B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_requirements
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.1B.yaml#/plan/s3_requirements
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s3_requirements
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_alloc_plan
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.1B.yaml#/plan/s4_alloc_plan
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s4_alloc_plan
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_site_tile_assignment
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.1B.yaml#/plan/s5_site_tile_assignment
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s5_site_tile_assignment
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_site_jitter
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.1B.yaml#/plan/s6_site_jitter
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s6_site_jitter
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s7_run_summary
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s7_run_summary.json
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.1B.yaml#/control/s7_run_summary
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s7_run_summary
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s7_site_synthesis
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.1B.yaml#/plan/s7_site_synthesis
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s7_site_synthesis
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s8_run_summary
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/s8_run_summary.json
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.1B.yaml#/control/s8_run_summary
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#s8_run_summary
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: site_locations
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 1B
+    path_template: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.1B.yaml#/egress/site_locations
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#site_locations
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: tile_bounds
+    class: surface
+    scope: parameter
+    owner_segment: 1B
+    path_template: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1B.yaml#/prep/tile_bounds
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#tile_bounds
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: tile_index
+    class: surface
+    scope: parameter
+    owner_segment: 1B
+    path_template: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1B.yaml#/prep/tile_index
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#tile_index
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: tile_weights
+    class: surface
+    scope: parameter
+    owner_segment: 1B
+    path_template: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.1B.yaml#/prep/tile_weights
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#tile_weights
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.1B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_1B
+    class: surface
+    scope: fingerprint
+    owner_segment: 1B
+    path_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#validation_bundle_1B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_1B
+    class: surface
+    scope: fingerprint
+    owner_segment: 1B
+    path_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\1B\dataset_dictionary.layer1.1B.yaml#validation_passed_flag_1B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_2A
+    class: surface
+    scope: fingerprint
+    owner_segment: 2A
+    path_template: data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.2A.yaml#/validation/s0_gate_receipt_v1
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#s0_gate_receipt_2A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_tz_lookup
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 2A
+    path_template: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#s1_tz_lookup
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_legality_report
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 2A
+    path_template: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2A.yaml#/validation/s4_legality_report
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#s4_legality_report
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_2A_v1
+    class: surface
+    scope: fingerprint
+    owner_segment: 2A
+    path_template: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#sealed_inputs_v1
+    notes: "Dictionary id sealed_inputs_v1; namespaced here to enforce unique output_id."
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: site_timezones
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 2A
+    path_template: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2A.yaml#/egress/site_timezones
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#site_timezones
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: tz_timetable_cache
+    class: surface
+    scope: fingerprint
+    owner_segment: 2A
+    path_template: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#tz_timetable_cache
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_2A
+    class: surface
+    scope: fingerprint
+    owner_segment: 2A
+    path_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#validation_bundle_2A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_2A
+    class: surface
+    scope: fingerprint
+    owner_segment: 2A
+    path_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.2A.yaml#/validation/passed_flag
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2A\dataset_dictionary.layer1.2A.yaml#validation_passed_flag_2A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_2B
+    class: surface
+    scope: fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s0_gate_receipt_2B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_2B_v1
+    class: surface
+    scope: fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#sealed_inputs_v1
+    notes: "Dictionary id sealed_inputs_v1; namespaced here to enforce unique output_id."
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_site_weights
+    class: surface
+    scope: seed_fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2B.yaml#/plan/s1_site_weights
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s1_site_weights
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_alias_index
+    class: surface
+    scope: seed_fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2B.yaml#/plan/s2_alias_index
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s2_alias_index
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_alias_blob
+    class: surface
+    scope: seed_fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s2_alias_blob
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_day_effects
+    class: surface
+    scope: seed_fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2B.yaml#/plan/s3_day_effects
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s3_day_effects
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_group_weights
+    class: surface
+    scope: seed_fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2B.yaml#/plan/s4_group_weights
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s4_group_weights
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_selection_log
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 2B
+    path_template: data/layer1/2B/s5_selection_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/selection_log.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id', 'utc_day']
+    schema_ref: schemas.2B.yaml#/trace/s5_selection_log_row
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s5_selection_log
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_edge_log
+    class: stream
+    scope: scope_parameter_hash_seed_run_id
+    owner_segment: 2B
+    path_template: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
+    partitions: ['seed', 'parameter_hash', 'run_id', 'utc_day']
+    schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s6_edge_log
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.2B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s7_audit_report
+    class: surface
+    scope: seed_fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#s7_audit_report
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_2B
+    class: surface
+    scope: fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#validation_bundle_2B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_2B
+    class: surface
+    scope: fingerprint
+    owner_segment: 2B
+    path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\2B\dataset_dictionary.layer1.2B.yaml#validation_passed_flag_2B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3A.yaml#/validation/s0_gate_receipt_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s0_gate_receipt_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_escalation_queue
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3A
+    path_template: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s1_escalation_queue
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_country_zone_priors
+    class: surface
+    scope: parameter
+    owner_segment: 3A
+    path_template: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+    partitions: ['parameter_hash']
+    schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s2_country_zone_priors
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_zone_shares
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3A
+    path_template: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3A.yaml#/plan/s3_zone_shares
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s3_zone_shares
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_zone_counts
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3A
+    path_template: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s4_zone_counts
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_issue_table_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.3A.yaml#/validation/s6_issue_table_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s6_issue_table_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_receipt_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3A.yaml#/validation/s6_receipt_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s6_receipt_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s6_validation_report_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3A.yaml#/validation/s6_validation_report_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#s6_validation_report_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.3A.yaml#/validation/sealed_inputs_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#sealed_inputs_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#validation_bundle_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_3A
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#validation_passed_flag_3A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: zone_alloc
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3A
+    path_template: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3A.yaml#/egress/zone_alloc
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#zone_alloc
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: zone_alloc_universe_hash
+    class: surface
+    scope: fingerprint
+    owner_segment: 3A
+    path_template: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3A\dataset_dictionary.layer1.3A.yaml#zone_alloc_universe_hash
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: edge_alias_blob_3B
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#edge_alias_blob_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: edge_alias_index_3B
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#edge_alias_index_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: edge_catalogue_3B
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#edge_catalogue_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: edge_catalogue_index_3B
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#edge_catalogue_index_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: edge_universe_hash_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#edge_universe_hash_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: gamma_draw_log_3B
+    class: stream
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#gamma_draw_log_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/validation/s0_gate_receipt_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#s0_gate_receipt_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_run_summary_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#s4_run_summary_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_manifest_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#s5_manifest_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#sealed_inputs_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#validation_bundle_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_index_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#validation_bundle_index_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#validation_passed_flag_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: virtual_classification_3B
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#virtual_classification_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: virtual_routing_policy_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#virtual_routing_policy_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: virtual_settlement_3B
+    class: surface
+    scope: scope_manifest_fingerprint_seed
+    owner_segment: 3B
+    path_template: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitions: ['seed', 'fingerprint']
+    schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#virtual_settlement_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: virtual_validation_contract_3B
+    class: surface
+    scope: fingerprint
+    owner_segment: 3B
+    path_template: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B
+    dictionary_ref: docs/model_spec/data-engine\layer-1/specs/contracts\3B\dataset_dictionary.layer1.3B.yaml#virtual_validation_contract_3B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer1.3B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: class_shape_catalogue_5A
+    class: surface
+    scope: scope_parameter_hash_scenario_id
+    owner_segment: 5A
+    path_template: data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
+
+    partitions: ['parameter_hash', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/class_shape_catalogue_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#class_shape_catalogue_5A
+    primary_key: ['parameter_hash', 'scenario_id', 'demand_class']
+    join_keys: ['parameter_hash', 'scenario_id', 'demand_class']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: class_zone_baseline_local_5A
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5A
+    path_template: data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/class_zone_baseline_local_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#class_zone_baseline_local_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'demand_class', 'legal_country_iso', 'tzid', 'bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'demand_class', 'legal_country_iso', 'tzid', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: class_zone_shape_5A
+    class: surface
+    scope: scope_parameter_hash_scenario_id
+    owner_segment: 5A
+    path_template: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
+
+    partitions: ['parameter_hash', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/class_zone_shape_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#class_zone_shape_5A
+    primary_key: ['parameter_hash', 'scenario_id', 'demand_class', 'legal_country_iso', 'tzid', 'bucket_index']
+    join_keys: ['parameter_hash', 'scenario_id', 'demand_class', 'legal_country_iso', 'tzid', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_class_profile_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.5A.yaml#/model/merchant_class_profile_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_class_profile_5A
+    primary_key: ['merchant_id']
+    join_keys: ['merchant_id']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_zone_baseline_local_5A
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_zone_baseline_local_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_zone_baseline_utc_5A
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_baseline_utc_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_zone_baseline_utc_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'utc_bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'utc_bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_zone_overlay_factors_5A
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_zone_overlay_factors_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'local_horizon_bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'local_horizon_bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_zone_profile_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_zone_profile_5A
+    primary_key: ['merchant_id', 'legal_country_iso', 'tzid']
+    join_keys: ['merchant_id', 'legal_country_iso', 'tzid']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_zone_scenario_local_5A
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_zone_scenario_local_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'local_horizon_bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'local_horizon_bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: merchant_zone_scenario_utc_5A
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5A
+    path_template: data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#merchant_zone_scenario_utc_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'utc_horizon_bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'legal_country_iso', 'tzid', 'utc_horizon_bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.5A.yaml#/validation/s0_gate_receipt_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#s0_gate_receipt_5A
+    primary_key: ['manifest_fingerprint']
+    join_keys: ['manifest_fingerprint']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: scenario_manifest_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.5A.yaml#/validation/scenario_manifest_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#scenario_manifest_5A
+    primary_key: ['manifest_fingerprint', 'scenario_id']
+    join_keys: ['manifest_fingerprint', 'scenario_id']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#sealed_inputs_5A
+    primary_key: ['manifest_fingerprint', 'owner_segment', 'artifact_id']
+    join_keys: ['manifest_fingerprint', 'owner_segment', 'artifact_id']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: shape_grid_definition_5A
+    class: surface
+    scope: scope_parameter_hash_scenario_id
+    owner_segment: 5A
+    path_template: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
+
+    partitions: ['parameter_hash', 'scenario_id']
+    schema_ref: schemas.5A.yaml#/model/shape_grid_definition_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#shape_grid_definition_5A
+    primary_key: ['parameter_hash', 'scenario_id', 'bucket_index']
+    join_keys: ['parameter_hash', 'scenario_id', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_index_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#validation_bundle_index_5A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_issue_table_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/validation_issue_table_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#validation_issue_table_5A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#validation_passed_flag_5A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_report_5A
+    class: surface
+    scope: fingerprint
+    owner_segment: 5A
+    path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/validation_report_5A
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5A\dataset_dictionary.layer2.5A.yaml#validation_report_5A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: arrival_events_5B
+    class: stream
+    scope: scope_manifest_fingerprint_seed_scenario_id
+    owner_segment: 5B
+    path_template: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+
+    partitions: ['seed', 'fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/egress/s4_arrival_events_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#arrival_events_5B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'arrival_seq']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'arrival_seq']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_5B
+    class: surface
+    scope: fingerprint
+    owner_segment: 5B
+    path_template: data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.5B.yaml#/validation/s0_gate_receipt_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s0_gate_receipt_5B
+    primary_key: ['manifest_fingerprint']
+    join_keys: ['manifest_fingerprint']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_grouping_5B
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5B
+    path_template: data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/model/s1_grouping_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s1_grouping_5B
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_time_grid_5B
+    class: surface
+    scope: fingerprint_scenario
+    owner_segment: 5B
+    path_template: data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
+
+    partitions: ['fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/model/s1_time_grid_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s1_time_grid_5B
+    primary_key: ['manifest_fingerprint', 'scenario_id', 'bucket_index']
+    join_keys: ['manifest_fingerprint', 'scenario_id', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_latent_field_5B
+    class: surface
+    scope: scope_manifest_fingerprint_seed_scenario_id
+    owner_segment: 5B
+    path_template: data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+
+    partitions: ['seed', 'fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/model/s2_latent_field_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s2_latent_field_5B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'group_id', 'bucket_index']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'group_id', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_realised_intensity_5B
+    class: surface
+    scope: scope_manifest_fingerprint_seed_scenario_id
+    owner_segment: 5B
+    path_template: data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+
+    partitions: ['seed', 'fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/model/s2_realised_intensity_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s2_realised_intensity_5B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group', 'bucket_index']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_bucket_counts_5B
+    class: surface
+    scope: scope_manifest_fingerprint_seed_scenario_id
+    owner_segment: 5B
+    path_template: data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
+
+    partitions: ['seed', 'fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/model/s3_bucket_counts_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s3_bucket_counts_5B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group', 'bucket_index']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_arrival_anomalies_5B
+    class: surface
+    scope: scope_manifest_fingerprint_seed_scenario_id
+    owner_segment: 5B
+    path_template: data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
+
+    partitions: ['seed', 'fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s4_arrival_anomalies_5B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'anomaly_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'anomaly_id']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_arrival_summary_5B
+    class: surface
+    scope: scope_manifest_fingerprint_seed_scenario_id
+    owner_segment: 5B
+    path_template: data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
+
+    partitions: ['seed', 'fingerprint', 'scenario_id']
+    schema_ref: schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#s4_arrival_summary_5B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group', 'bucket_index']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'zone_representation', 'channel_group', 'bucket_index']
+    read_requires_gates: ['gate.layer2.5B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_5B
+    class: surface
+    scope: fingerprint
+    owner_segment: 5B
+    path_template: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.5B.yaml#/validation/sealed_inputs_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#sealed_inputs_5B
+    primary_key: ['manifest_fingerprint', 'owner_segment', 'artifact_id']
+    join_keys: ['manifest_fingerprint', 'owner_segment', 'artifact_id']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_index_5B
+    class: surface
+    scope: fingerprint
+    owner_segment: 5B
+    path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#validation_bundle_index_5B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_issue_table_5B
+    class: surface
+    scope: fingerprint
+    owner_segment: 5B
+    path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/validation_issue_table_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#validation_issue_table_5B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_5B
+    class: surface
+    scope: fingerprint
+    owner_segment: 5B
+    path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#validation_passed_flag_5B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_report_5B
+    class: surface
+    scope: fingerprint
+    owner_segment: 5B
+    path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer2.yaml#/validation/validation_report_5B
+    dictionary_ref: docs/model_spec/data-engine\layer-2/specs/contracts\5B\dataset_dictionary.layer2.5B.yaml#validation_report_5B
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_6A
+    class: surface
+    scope: fingerprint
+    owner_segment: 6A
+    path_template: data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s0_gate_receipt_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_party_base_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s1/party_base
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s1_party_base_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_party_summary_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s1_party_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_summary_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s1/party_summary
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s1_party_summary_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_account_base_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s2/account_base
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s2_account_base_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_account_summary_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s2_account_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_summary_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s2/account_summary
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s2_account_summary_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_merchant_account_base_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_merchant_account_base_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s2/merchant_account_base
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s2_merchant_account_base_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_party_product_holdings_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s2_party_product_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_party_product_holdings_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s2/party_product_holdings
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s2_party_product_holdings_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_account_instrument_links_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s3/account_instrument_links
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s3_account_instrument_links_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_instrument_base_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s3/instrument_base
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s3_instrument_base_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_instrument_summary_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s3_instrument_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_summary_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s3/instrument_summary
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s3_instrument_summary_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_party_instrument_holdings_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_party_instrument_holdings_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s3/party_instrument_holdings
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s3_party_instrument_holdings_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_device_base_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s4/device_base
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s4_device_base_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_device_links_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s4/device_links
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s4_device_links_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_entity_neighbourhoods_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_entity_neighbourhoods_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s4/entity_neighbourhoods
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s4_entity_neighbourhoods_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_ip_base_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s4/ip_base
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s4_ip_base_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_ip_links_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s4_ip_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_links_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s4/ip_links
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s4_ip_links_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_network_summary_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s4_network_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_network_summary_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s4/network_summary
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s4_network_summary_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_account_fraud_roles_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s5/account_fraud_roles
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_account_fraud_roles_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_device_fraud_roles_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s5/device_fraud_roles
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_device_fraud_roles_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_ip_fraud_roles_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s5/ip_fraud_roles
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_ip_fraud_roles_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_issue_table_6A
+    class: surface
+    scope: fingerprint
+    owner_segment: 6A
+    path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6A/validation_issue_table_6A
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_issue_table_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_merchant_fraud_roles_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_merchant_fraud_roles_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_party_fraud_roles_6A
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed
+    owner_segment: 6A
+    path_template: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash']
+    schema_ref: schemas.6A.yaml#/s5/party_fraud_roles
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_party_fraud_roles_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: ['gate.layer3.6A.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_validation_report_6A
+    class: surface
+    scope: fingerprint
+    owner_segment: 6A
+    path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6A/validation_report_6A
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#s5_validation_report_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_6A
+    class: surface
+    scope: fingerprint
+    owner_segment: 6A
+    path_template: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#sealed_inputs_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_index_6A
+    class: surface
+    scope: fingerprint
+    owner_segment: 6A
+    path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#validation_bundle_index_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_6A
+    class: surface
+    scope: fingerprint
+    owner_segment: 6A
+    path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6A\dataset_dictionary.layer3.6A.yaml#validation_passed_flag_6A
+    primary_key: []
+    join_keys: []
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s0_gate_receipt_6B
+    class: surface
+    scope: fingerprint
+    owner_segment: 6B
+    path_template: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s0_gate_receipt_6B
+    primary_key: ['manifest_fingerprint']
+    join_keys: ['manifest_fingerprint']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_arrival_entities_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s1/arrival_entities_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s1_arrival_entities_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'arrival_seq']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'merchant_id', 'arrival_seq']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s1_session_index_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s1/session_index_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s1_session_index_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'session_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'session_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_event_stream_baseline_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s2/event_stream_baseline_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s2_event_stream_baseline_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id', 'event_seq']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id', 'event_seq']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s2_flow_anchor_baseline_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s2/flow_anchor_baseline_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s2_flow_anchor_baseline_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_campaign_catalogue_6B
+    class: surface
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s3_campaign_catalogue_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'campaign_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'campaign_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_event_stream_with_fraud_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s3_event_stream_with_fraud_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id', 'event_seq']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id', 'event_seq']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s3_flow_anchor_with_fraud_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s3_flow_anchor_with_fraud_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_case_timeline_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s4_case_timeline_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'case_id', 'case_event_seq']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'case_id', 'case_event_seq']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_event_labels_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s4/event_labels_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s4_event_labels_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id', 'event_seq']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id', 'event_seq']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_flow_bank_view_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s4/flow_bank_view_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s4_flow_bank_view_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s4_flow_truth_labels_6B
+    class: stream
+    scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
+    owner_segment: 6B
+    path_template: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+    partitions: ['seed', 'fingerprint', 'parameter_hash', 'scenario_id']
+    schema_ref: schemas.6B.yaml#/s4/flow_truth_labels_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s4_flow_truth_labels_6B
+    primary_key: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    join_keys: ['seed', 'manifest_fingerprint', 'scenario_id', 'flow_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_issue_table_6B
+    class: surface
+    scope: fingerprint
+    owner_segment: 6B
+    path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s5_issue_table_6B
+    primary_key: ['manifest_fingerprint', 'check_id', 'issue_id']
+    join_keys: ['manifest_fingerprint', 'check_id', 'issue_id']
+    read_requires_gates: ['gate.layer3.6B.validation']
+    immutability:
+      immutable_once_written: true
+  - output_id: s5_validation_report_6B
+    class: surface
+    scope: fingerprint
+    owner_segment: 6B
+    path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6B/s5_validation_report
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#s5_validation_report_6B
+    primary_key: ['manifest_fingerprint']
+    join_keys: ['manifest_fingerprint']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: sealed_inputs_6B
+    class: surface
+    scope: fingerprint
+    owner_segment: 6B
+    path_template: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#sealed_inputs_6B
+    primary_key: ['manifest_fingerprint', 'owner_layer', 'owner_segment', 'manifest_key']
+    join_keys: ['manifest_fingerprint', 'owner_layer', 'owner_segment', 'manifest_key']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_bundle_6B
+    class: surface
+    scope: fingerprint
+    owner_segment: 6B
+    path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#validation_bundle_6B
+    primary_key: ['manifest_fingerprint']
+    join_keys: ['manifest_fingerprint']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true
+  - output_id: validation_passed_flag_6B
+    class: surface
+    scope: fingerprint
+    owner_segment: 6B
+    path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitions: ['fingerprint']
+    schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
+    dictionary_ref: docs/model_spec/data-engine\layer-3/specs/contracts\6B\dataset_dictionary.layer3.6B.yaml#validation_passed_flag_6B
+    primary_key: ['manifest_fingerprint']
+    join_keys: ['manifest_fingerprint']
+    read_requires_gates: []
+    immutability:
+      immutable_once_written: true

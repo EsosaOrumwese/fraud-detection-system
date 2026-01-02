@@ -1,0 +1,67 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "docs/model_spec/data-engine/interface_pack/contracts/engine_output_locator.schema.yaml"
+title: "Data Engine Output Locator"
+description: >
+  Canonical locator object used to pin engine outputs for discovery in run facts.
+  Consumers must resolve output_id via engine_outputs.catalogue.yaml.
+
+type: object
+additionalProperties: false
+
+required:
+  - schema_ref
+  - output_id
+  - manifest_fingerprint
+  - path
+  - output_schema_ref
+
+properties:
+  schema_ref:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
+    description: "Pinned reference to the authoritative schema governing this locator."
+
+  output_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+    description: "Output identifier from engine_outputs.catalogue.yaml."
+
+  manifest_fingerprint:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+    description: "World identity fingerprint for the located output."
+
+  path:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/long_ref"
+    description: "Resolved concrete path for the output instance."
+
+  output_schema_ref:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
+    description: "Pinned reference to the schema governing the output data."
+
+  partitions:
+    type: object
+    additionalProperties: false
+    properties:
+      parameter_hash:
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+      manifest_fingerprint:
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+      seed:
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+      scenario_id:
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
+      run_id:
+        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+    description: "Resolved partition keys for the output instance."
+
+  content_digest:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
+    description: "Optional content digest for the output instance."
+
+  produced_at:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+    description: "Optional UTC timestamp when the output was produced."
+
+  extensions:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
+    description: "Additive metadata map for non-breaking annotations."

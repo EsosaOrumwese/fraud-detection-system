@@ -1,0 +1,90 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml"
+title: "Data Engine Canonical Event Envelope"
+description: >
+  Minimal envelope applied to engine-emitted events intended for ingestion,
+  bus transport, and downstream consumption. Payload schemas should extend
+  this envelope via allOf.
+
+type: object
+additionalProperties: false
+
+required:
+  - schema_ref
+  - event_id
+  - event_type
+  - schema_version
+  - event_time
+  - emitted_at
+  - manifest_fingerprint
+
+properties:
+  schema_ref:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
+    description: "Pinned reference to the authoritative schema governing this event envelope."
+
+  event_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_id"
+    description: "Global event identity and dedupe key."
+
+  event_type:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_type"
+    description: "Namespaced semantic event type token."
+
+  schema_version:
+    type: string
+    minLength: 1
+    maxLength: 64
+    description: "Schema version for the payload (opaque to consumers)."
+
+  event_time:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+    description: "Domain time of the event occurrence (UTC)."
+
+  emitted_at:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+    description: "UTC timestamp when the engine emitted the event."
+
+  parameter_hash:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+    description: "Optional world identity hash for the event."
+
+  manifest_fingerprint:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+    description: "World identity fingerprint for the event."
+
+  seed:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+    description: "Optional RNG identity (required when stochastic provenance matters)."
+
+  scenario_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
+    description: "Optional scenario identity for correlation."
+
+  run_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+    description: "Optional run identity for correlation."
+
+  partition_key:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/partition_key"
+    description: "Optional bus/storage partition key."
+
+  correlation_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/correlation_id"
+    description: "Optional correlation identifier for cross-component tracing."
+
+  causation_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/causation_id"
+    description: "Optional causal predecessor event_id."
+
+  trace_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/trace_id"
+    description: "Optional distributed tracing trace identifier."
+
+  span_id:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/span_id"
+    description: "Optional distributed tracing span identifier."
+
+  extensions:
+    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
+    description: "Additive metadata map for non-breaking annotations."
