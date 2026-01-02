@@ -67,6 +67,7 @@ def _print_summary(result: Segment2BResult, *, emit: bool = True) -> dict[str, o
         payload["s4_resumed"] = result.s4_resumed
     if result.s5_run_id:
         payload["s5_run_id"] = result.s5_run_id
+        payload["s5_resumed"] = result.s5_resumed
         if result.s5_rng_event_group_path:
             payload["s5_rng_event_group_path"] = str(result.s5_rng_event_group_path)
         if result.s5_rng_event_site_path:
@@ -81,6 +82,7 @@ def _print_summary(result: Segment2BResult, *, emit: bool = True) -> dict[str, o
             payload["s5_run_report_path"] = str(result.s5_run_report_path)
     if result.s6_run_id:
         payload["s6_run_id"] = result.s6_run_id
+        payload["s6_resumed"] = result.s6_resumed
         if result.s6_rng_event_edge_path:
             payload["s6_rng_event_edge_path"] = str(result.s6_rng_event_edge_path)
         if result.s6_rng_trace_log_path:
@@ -252,6 +254,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Execute S5 router core after S4 completes.",
     )
     parser.add_argument(
+        "--s5-resume",
+        action="store_true",
+        help="Reuse existing S5 outputs and skip rerun when a run report is available.",
+    )
+    parser.add_argument(
+        "--s5-run-id",
+        type=str,
+        help="Explicit S5 run_id to resume (defaults to auto-detect if omitted).",
+    )
+    parser.add_argument(
         "--s5-selection-log",
         action="store_true",
         help="Emit the optional s5_selection_log dataset when routing.",
@@ -275,6 +287,16 @@ def main(argv: list[str] | None = None) -> int:
         "--run-s6",
         action="store_true",
         help="Execute S6 virtual-edge routing after S5 completes.",
+    )
+    parser.add_argument(
+        "--s6-resume",
+        action="store_true",
+        help="Reuse existing S6 outputs and skip rerun when a run report is available.",
+    )
+    parser.add_argument(
+        "--s6-run-id",
+        type=str,
+        help="Explicit S6 run_id to resume (defaults to auto-detect if omitted).",
     )
     parser.add_argument(
         "--s6-edge-log",
@@ -341,11 +363,15 @@ def main(argv: list[str] | None = None) -> int:
             s4_resume=args.s4_resume,
             s4_emit_run_report_stdout=not args.s4_quiet_run_report,
             run_s5=args.run_s5,
+            s5_resume=args.s5_resume,
+            s5_run_id=args.s5_run_id,
             s5_emit_selection_log=args.s5_selection_log,
             s5_arrivals_path=args.s5_arrivals_jsonl,
             s5_max_arrivals=args.s5_max_arrivals,
             s5_emit_run_report_stdout=not args.s5_quiet_run_report,
             run_s6=args.run_s6,
+            s6_resume=args.s6_resume,
+            s6_run_id=args.s6_run_id,
             s6_emit_edge_log=args.s6_edge_log,
             s6_emit_run_report_stdout=not args.s6_quiet_run_report,
             run_s7=args.run_s7,

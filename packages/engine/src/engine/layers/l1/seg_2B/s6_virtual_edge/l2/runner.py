@@ -90,6 +90,7 @@ class S6VirtualEdgeInputs:
     git_commit_hex: str
     dictionary_path: Optional[Path] = None
     run_id: Optional[str] = None
+    resume: bool = False
     arrivals: Sequence[RouterVirtualArrival] | None = None
     emit_edge_log: bool = False
     emit_run_report_stdout: bool = True
@@ -135,6 +136,7 @@ class S6VirtualEdgeResult:
     run_report_path: Path
     arrivals_processed: int
     virtual_arrivals: int
+    resumed: bool
 
 
 class S6VirtualEdgeRunner:
@@ -152,6 +154,30 @@ class S6VirtualEdgeRunner:
         seed_int = int(config.seed)
         manifest = config.manifest_fingerprint
         parameter_hash = config.parameter_hash
+        if config.resume:
+            resume_run_id, report_path, report = self._resolve_resume_report(
+                base_path=config.data_root,
+                seed=seed_int,
+                parameter_hash=parameter_hash,
+                manifest=manifest,
+                requested_run_id=config.run_id,
+            )
+            logger.info(
+                "Segment2B S6 resume detected (seed=%s, manifest=%s, run_id=%s); skipping run",
+                seed_int,
+                manifest,
+                resume_run_id,
+            )
+            return self._resume_from_report(
+                base_path=config.data_root,
+                dictionary=dictionary,
+                seed=seed_int,
+                manifest=manifest,
+                parameter_hash=parameter_hash,
+                run_id=resume_run_id,
+                report_path=report_path,
+                report=report,
+            )
 
         if config.arrivals is None:
             raise err("E_S6_ARRIVALS_MISSING", "S6 requires arrivals emitted by S5")
@@ -384,7 +410,195 @@ class S6VirtualEdgeRunner:
             run_report_path=run_report_path,
             arrivals_processed=len(config.arrivals),
             virtual_arrivals=total_virtual,
+            resumed=False,
         )
+
+    def _resume_from_report(
+        self,
+        *,
+        base_path: Path,
+        dictionary: Mapping[str, object],
+        seed: int,
+        manifest: str,
+        parameter_hash: str,
+        run_id: str,
+        report_path: Path,
+        report: Mapping[str, object],
+    ) -> S6VirtualEdgeResult:
+        report_manifest = str(report.get("fingerprint", "")).lower()
+        report_hash = str(report.get("parameter_hash", "")).lower()
+        if report_manifest != manifest:
+            raise err(
+                "E_S6_RESUME_MISMATCH",
+                "resume run_report fingerprint does not match requested manifest_fingerprint",
+            )
+        if report_hash and report_hash != parameter_hash:
+            raise err(
+                "E_S6_RESUME_MISMATCH",
+                "resume run_report parameter_hash does not match requested parameter_hash",
+            )
+        diagnostics = report.get("diagnostics") or {}
+        arrivals_processed = int(diagnostics.get("arrivals_total", 0) or 0)
+        virtual_arrivals = int(diagnostics.get("virtual_arrivals", 0) or 0)
+        edge_log_enabled = bool(diagnostics.get("edge_log_enabled", False))
+
+        rng_event_path = resolve_dataset_path(
+            self.EDGE_EVENT_ID,
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        rng_event_edge_path: Optional[Path]
+        if virtual_arrivals:
+            rng_event_edge_path = self._require_event_partition(
+                rng_event_path,
+                label=self.EDGE_EVENT_ID,
+            )
+        else:
+            rng_event_edge_path = rng_event_path if rng_event_path.exists() else None
+
+        trace_path = resolve_dataset_path(
+            "rng_trace_log",
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        rng_trace_log_path: Optional[Path] = trace_path if trace_path.exists() else None
+        if virtual_arrivals and rng_trace_log_path is None:
+            raise err("E_S6_RESUME_MISSING", f"rng_trace_log missing at '{trace_path}'")
+
+        audit_path = resolve_dataset_path(
+            "rng_audit_log",
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        if not audit_path.exists():
+            raise err("E_S6_RESUME_MISSING", f"rng_audit_log missing at '{audit_path}'")
+
+        edge_log_paths: List[Path] = []
+        if edge_log_enabled:
+            edge_log_paths = self._discover_edge_logs(
+                base_path=base_path,
+                dictionary=dictionary,
+                seed=seed,
+                parameter_hash=parameter_hash,
+                run_id=run_id,
+            )
+            if virtual_arrivals and not edge_log_paths:
+                raise err(
+                    "E_S6_RESUME_MISSING",
+                    "edge_log enabled but no edge_log partitions found",
+                )
+
+        return S6VirtualEdgeResult(
+            run_id=run_id,
+            rng_event_edge_path=rng_event_edge_path,
+            rng_trace_log_path=rng_trace_log_path,
+            rng_audit_log_path=audit_path,
+            edge_log_paths=tuple(edge_log_paths),
+            run_report_path=report_path,
+            arrivals_processed=arrivals_processed,
+            virtual_arrivals=virtual_arrivals,
+            resumed=True,
+        )
+
+    def _resolve_resume_report(
+        self,
+        *,
+        base_path: Path,
+        seed: int,
+        parameter_hash: str,
+        manifest: str,
+        requested_run_id: Optional[str],
+    ) -> Tuple[str, Path, Mapping[str, object]]:
+        reports_root = (
+            base_path
+            / RUN_REPORT_ROOT
+            / f"seed={seed}"
+            / f"parameter_hash={parameter_hash}"
+        )
+        if requested_run_id:
+            report_path = reports_root / f"run_id={requested_run_id.lower()}" / "run_report.json"
+            report = self._load_run_report(report_path)
+            return requested_run_id.lower(), report_path, report
+        candidates = sorted(reports_root.glob("run_id=*/run_report.json"))
+        matches: List[Tuple[str, Path, Mapping[str, object]]] = []
+        for path in candidates:
+            report = self._load_run_report(path)
+            if str(report.get("fingerprint", "")).lower() != manifest:
+                continue
+            run_id = str(report.get("run_id", "")).lower()
+            if len(run_id) != 32:
+                continue
+            matches.append((run_id, path, report))
+        if not matches:
+            raise err(
+                "E_S6_RESUME_MISSING",
+                f"no S6 run_report found under '{reports_root}' for fingerprint {manifest}",
+            )
+        if len(matches) > 1:
+            run_ids = ", ".join(item[0] for item in matches)
+            raise err(
+                "E_S6_RESUME_AMBIGUOUS",
+                f"multiple S6 run_id candidates found; pass --s6-run-id ({run_ids})",
+            )
+        return matches[0]
+
+    def _load_run_report(self, path: Path) -> Mapping[str, object]:
+        if not path.exists():
+            raise err("E_S6_RESUME_MISSING", f"run_report missing at '{path}'")
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise err(
+                "E_S6_RESUME_INVALID",
+                f"run_report at '{path}' is not valid JSON",
+            ) from exc
+
+    def _discover_edge_logs(
+        self,
+        *,
+        base_path: Path,
+        dictionary: Mapping[str, object],
+        seed: int,
+        parameter_hash: str,
+        run_id: str,
+    ) -> List[Path]:
+        pattern = render_dataset_path(
+            "s6_edge_log",
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+                "utc_day": "*",
+            },
+            dictionary=dictionary,
+        )
+        return sorted(path.resolve() for path in base_path.glob(pattern))
+
+    def _require_event_partition(self, path: Path, *, label: str) -> Path:
+        if not path.exists():
+            raise err("E_S6_RESUME_MISSING", f"{label} missing at '{path}'")
+        event_file = path / "part-00000.jsonl"
+        if not event_file.exists():
+            raise err(
+                "E_S6_RESUME_MISSING",
+                f"{label} missing event file at '{event_file}'",
+            )
+        return path
 
     def _prepare_edge_entries(
         self, payload: Mapping[str, object]

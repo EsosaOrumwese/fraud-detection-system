@@ -93,6 +93,7 @@ class S5RouterInputs:
     arrivals: Sequence[RouterArrival] | None = None
     dictionary_path: Optional[Path] = None
     run_id: Optional[str] = None
+    resume: bool = False
     max_arrivals: Optional[int] = None
     emit_selection_log: bool = False
     emit_run_report_stdout: bool = True
@@ -150,6 +151,7 @@ class S5RouterResult:
     run_report_path: Path
     selections_total: int
     arrivals_processed: int
+    resumed: bool
 
 
 @dataclass
@@ -213,6 +215,30 @@ class S5RouterRunner:
         manifest = config.manifest_fingerprint
         seg2a_manifest = config.seg2a_manifest_fingerprint
         parameter_hash = config.parameter_hash
+        if config.resume:
+            resume_run_id, report_path, report = self._resolve_resume_report(
+                base_path=config.data_root,
+                seed=seed_int,
+                parameter_hash=parameter_hash,
+                manifest=manifest,
+                requested_run_id=config.run_id,
+            )
+            logger.info(
+                "Segment2B S5 resume detected (seed=%s, manifest=%s, run_id=%s); skipping run",
+                seed_int,
+                manifest,
+                resume_run_id,
+            )
+            return self._resume_from_report(
+                base_path=config.data_root,
+                dictionary=dictionary,
+                seed=seed_int,
+                manifest=manifest,
+                parameter_hash=parameter_hash,
+                run_id=resume_run_id,
+                report_path=report_path,
+                report=report,
+            )
         receipt = load_gate_receipt(
             base_path=config.data_root,
             manifest_fingerprint=manifest,
@@ -711,7 +737,202 @@ class S5RouterRunner:
             run_report_path=run_report_path,
             selections_total=total_arrivals,
             arrivals_processed=selection_seq,
+            resumed=False,
         )
+
+    def _resume_from_report(
+        self,
+        *,
+        base_path: Path,
+        dictionary: Mapping[str, object],
+        seed: int,
+        manifest: str,
+        parameter_hash: str,
+        run_id: str,
+        report_path: Path,
+        report: Mapping[str, object],
+    ) -> S5RouterResult:
+        report_manifest = str(report.get("fingerprint", "")).lower()
+        report_hash = str(report.get("parameter_hash", "")).lower()
+        if report_manifest != manifest:
+            raise err(
+                "E_S5_RESUME_MISMATCH",
+                "resume run_report fingerprint does not match requested manifest_fingerprint",
+            )
+        if report_hash and report_hash != parameter_hash:
+            raise err(
+                "E_S5_RESUME_MISMATCH",
+                "resume run_report parameter_hash does not match requested parameter_hash",
+            )
+        group_path = self._require_event_partition(
+            resolve_dataset_path(
+                self.GROUP_EVENT_ID,
+                base_path=base_path,
+                template_args={
+                    "seed": seed,
+                    "parameter_hash": parameter_hash,
+                    "run_id": run_id,
+                },
+                dictionary=dictionary,
+            ),
+            label=self.GROUP_EVENT_ID,
+        )
+        site_path = self._require_event_partition(
+            resolve_dataset_path(
+                self.SITE_EVENT_ID,
+                base_path=base_path,
+                template_args={
+                    "seed": seed,
+                    "parameter_hash": parameter_hash,
+                    "run_id": run_id,
+                },
+                dictionary=dictionary,
+            ),
+            label=self.SITE_EVENT_ID,
+        )
+        trace_path = resolve_dataset_path(
+            "rng_trace_log",
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        if not trace_path.exists():
+            raise err("E_S5_RESUME_MISSING", f"rng_trace_log missing at '{trace_path}'")
+        audit_path = resolve_dataset_path(
+            "rng_audit_log",
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        if not audit_path.exists():
+            raise err("E_S5_RESUME_MISSING", f"rng_audit_log missing at '{audit_path}'")
+        logging_section = report.get("logging") or {}
+        selection_log_enabled = bool(logging_section.get("selection_log_enabled", False))
+        selection_log_paths: List[Path] = []
+        if selection_log_enabled:
+            selection_log_paths = self._discover_selection_logs(
+                base_path=base_path,
+                dictionary=dictionary,
+                seed=seed,
+                parameter_hash=parameter_hash,
+                run_id=run_id,
+            )
+            if not selection_log_paths:
+                raise err(
+                    "E_S5_RESUME_MISSING",
+                    "selection_log enabled but no selection_log partitions found",
+                )
+
+        routing_stats = report.get("routing_statistics") or {}
+        arrivals_processed = int(routing_stats.get("arrivals_processed", 0) or 0)
+        selections_total = int(routing_stats.get("arrivals_processed", arrivals_processed) or arrivals_processed)
+
+        return S5RouterResult(
+            run_id=run_id,
+            rng_event_group_path=group_path,
+            rng_event_site_path=site_path,
+            rng_trace_log_path=trace_path,
+            rng_audit_log_path=audit_path,
+            selection_log_paths=tuple(selection_log_paths),
+            virtual_arrivals=tuple(),
+            run_report_path=report_path,
+            selections_total=selections_total,
+            arrivals_processed=arrivals_processed,
+            resumed=True,
+        )
+
+    def _resolve_resume_report(
+        self,
+        *,
+        base_path: Path,
+        seed: int,
+        parameter_hash: str,
+        manifest: str,
+        requested_run_id: Optional[str],
+    ) -> Tuple[str, Path, Mapping[str, object]]:
+        reports_root = (
+            base_path
+            / RUN_REPORT_ROOT
+            / f"seed={seed}"
+            / f"parameter_hash={parameter_hash}"
+        )
+        if requested_run_id:
+            report_path = reports_root / f"run_id={requested_run_id.lower()}" / "run_report.json"
+            report = self._load_run_report(report_path)
+            return requested_run_id.lower(), report_path, report
+        candidates = sorted(reports_root.glob("run_id=*/run_report.json"))
+        matches: List[Tuple[str, Path, Mapping[str, object]]] = []
+        for path in candidates:
+            report = self._load_run_report(path)
+            if str(report.get("fingerprint", "")).lower() != manifest:
+                continue
+            run_id = str(report.get("run_id", "")).lower()
+            if len(run_id) != 32:
+                continue
+            matches.append((run_id, path, report))
+        if not matches:
+            raise err(
+                "E_S5_RESUME_MISSING",
+                f"no S5 run_report found under '{reports_root}' for fingerprint {manifest}",
+            )
+        if len(matches) > 1:
+            run_ids = ", ".join(item[0] for item in matches)
+            raise err(
+                "E_S5_RESUME_AMBIGUOUS",
+                f"multiple S5 run_id candidates found; pass --s5-run-id ({run_ids})",
+            )
+        return matches[0]
+
+    def _load_run_report(self, path: Path) -> Mapping[str, object]:
+        if not path.exists():
+            raise err("E_S5_RESUME_MISSING", f"run_report missing at '{path}'")
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise err(
+                "E_S5_RESUME_INVALID",
+                f"run_report at '{path}' is not valid JSON",
+            ) from exc
+
+    def _discover_selection_logs(
+        self,
+        *,
+        base_path: Path,
+        dictionary: Mapping[str, object],
+        seed: int,
+        parameter_hash: str,
+        run_id: str,
+    ) -> List[Path]:
+        pattern = render_dataset_path(
+            "s5_selection_log",
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+                "utc_day": "*",
+            },
+            dictionary=dictionary,
+        )
+        return sorted(path.resolve() for path in base_path.glob(pattern))
+
+    def _require_event_partition(self, path: Path, *, label: str) -> Path:
+        if not path.exists():
+            raise err("E_S5_RESUME_MISSING", f"{label} missing at '{path}'")
+        event_file = path / self.EVENT_FILENAME
+        if not event_file.exists():
+            raise err(
+                "E_S5_RESUME_MISSING",
+                f"{label} missing event file at '{event_file}'",
+            )
+        return path
 
     def _iter_group_arrivals(
         self,

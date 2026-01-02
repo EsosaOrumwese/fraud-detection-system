@@ -71,11 +71,15 @@ class Segment2BConfig:
     s4_resume: bool = False
     s4_emit_run_report_stdout: bool = True
     run_s5: bool = False
+    s5_resume: bool = False
+    s5_run_id: Optional[str] = None
     s5_emit_selection_log: bool = False
     s5_arrivals_path: Optional[Path] = None
     s5_max_arrivals: Optional[int] = None
     s5_emit_run_report_stdout: bool = True
     run_s6: bool = False
+    s6_resume: bool = False
+    s6_run_id: Optional[str] = None
     s6_emit_edge_log: bool = False
     s6_emit_run_report_stdout: bool = True
     run_s7: bool = False
@@ -117,12 +121,14 @@ class Segment2BResult:
     s5_rng_audit_log_path: Optional[Path] = None
     s5_selection_log_paths: Tuple[Path, ...] = ()
     s5_run_report_path: Optional[Path] = None
+    s5_resumed: bool = False
     s6_run_id: Optional[str] = None
     s6_rng_event_edge_path: Optional[Path] = None
     s6_rng_trace_log_path: Optional[Path] = None
     s6_rng_audit_log_path: Optional[Path] = None
     s6_edge_log_paths: Tuple[Path, ...] = ()
     s6_run_report_path: Optional[Path] = None
+    s6_resumed: bool = False
     s7_report_path: Optional[Path] = None
     s7_validators: Tuple[Mapping[str, object], ...] = ()
     s8_bundle_path: Optional[Path] = None
@@ -274,6 +280,8 @@ class Segment2BOrchestrator:
                 git_commit_hex=config.git_commit_hex,
                 arrivals=arrivals,
                 dictionary_path=config.dictionary_path,
+                run_id=config.s5_run_id,
+                resume=config.s5_resume,
                 max_arrivals=config.s5_max_arrivals,
                 emit_selection_log=config.s5_emit_selection_log,
                 emit_run_report_stdout=config.s5_emit_run_report_stdout,
@@ -281,19 +289,26 @@ class Segment2BOrchestrator:
             with state_heartbeat(logger, "Segment2B S5"):
                 s5_result = self._s5_runner.run(s5_inputs)
             logger.info(
-                "Segment2B S5 completed (run_id=%s, selections=%s)",
+                "Segment2B S5 %s (run_id=%s, selections=%s)",
+                "resumed" if s5_result.resumed else "completed",
                 s5_result.run_id,
                 s5_result.arrivals_processed,
             )
         s6_result: S6VirtualEdgeResult | None = None
         if config.run_s6:
-            if s5_result is None:
+            if s5_result is None and not config.s6_resume:
                 raise RuntimeError("Segment2B S6 requires S5 results in the same invocation")
+            if s5_result is not None and s5_result.resumed and not config.s6_resume:
+                raise RuntimeError(
+                    "Segment2B S6 requires fresh S5 arrivals; either rerun S5 (no resume) "
+                    "or resume S6 with a prior run_id"
+                )
             logger.info(
                 "Segment2B S6 starting (seed=%s, manifest=%s)",
                 config.seed,
                 gate_output.manifest_fingerprint,
             )
+            arrivals = None if config.s6_resume else s5_result.virtual_arrivals
             s6_inputs = S6VirtualEdgeInputs(
                 data_root=data_root,
                 seed=config.seed,
@@ -301,14 +316,17 @@ class Segment2BOrchestrator:
                 parameter_hash=gate_output.parameter_hash,
                 git_commit_hex=config.git_commit_hex,
                 dictionary_path=config.dictionary_path,
-                arrivals=s5_result.virtual_arrivals,
+                run_id=config.s6_run_id,
+                resume=config.s6_resume,
+                arrivals=arrivals,
                 emit_edge_log=config.s6_emit_edge_log,
                 emit_run_report_stdout=config.s6_emit_run_report_stdout,
             )
             with state_heartbeat(logger, "Segment2B S6"):
                 s6_result = self._s6_runner.run(s6_inputs)
             logger.info(
-                "Segment2B S6 completed (run_id=%s, virtual_arrivals=%s)",
+                "Segment2B S6 %s (run_id=%s, virtual_arrivals=%s)",
+                "resumed" if s6_result.resumed else "completed",
                 s6_result.run_id,
                 s6_result.virtual_arrivals,
             )
@@ -395,12 +413,14 @@ class Segment2BOrchestrator:
             s5_rng_audit_log_path=s5_result.rng_audit_log_path if s5_result else None,
             s5_selection_log_paths=s5_result.selection_log_paths if s5_result else (),
             s5_run_report_path=s5_result.run_report_path if s5_result else None,
+            s5_resumed=s5_result.resumed if s5_result else False,
             s6_run_id=s6_result.run_id if s6_result else None,
             s6_rng_event_edge_path=s6_result.rng_event_edge_path if s6_result else None,
             s6_rng_trace_log_path=s6_result.rng_trace_log_path if s6_result else None,
             s6_rng_audit_log_path=s6_result.rng_audit_log_path if s6_result else None,
             s6_edge_log_paths=s6_result.edge_log_paths if s6_result else (),
             s6_run_report_path=s6_result.run_report_path if s6_result else None,
+            s6_resumed=s6_result.resumed if s6_result else False,
             s7_report_path=s7_result.report_path if s7_result else None,
             s7_validators=s7_result.validators if s7_result else (),
             s8_bundle_path=s8_result.bundle_path if s8_result else None,

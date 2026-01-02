@@ -896,6 +896,7 @@ class S7AuditRunner:
             expected_module="2B.virtual_edge",
             expected_label="cdn_edge_pick",
             validate_schema=False,
+            allow_empty=(edge_rows == 0),
         )
         if edge_rows and edge_rows != len(edge_events):
             raise err(
@@ -1009,10 +1010,15 @@ class S7AuditRunner:
         expected_label: str,
         expected_draws: int = 1,
         validate_schema: bool = True,
+        allow_empty: bool = False,
     ) -> List[Mapping[str, object]]:
         if directory is None:
+            if allow_empty:
+                return []
             raise err("E_S7_RNG_PATH", "rng event directory not provided")
         if not directory.exists():
+            if allow_empty:
+                return []
             raise err("E_S7_RNG_PATH", f"rng event directory missing at '{directory}'")
         validator: Draft202012Validator | None = None
         if validate_schema:
@@ -1022,6 +1028,8 @@ class S7AuditRunner:
         events: List[Mapping[str, object]] = []
         files = sorted(directory.glob("*.jsonl"))
         if not files:
+            if allow_empty:
+                return []
             raise err("E_S7_RNG_PATH", f"rng event directory '{directory}' is empty")
         for file in files:
             with file.open("r", encoding="utf-8") as handle:
