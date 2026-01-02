@@ -6,12 +6,16 @@ import json
 import logging
 import os
 import shutil
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Dict, Iterable, Mapping, Optional, Sequence
 
 import polars as pl
+import pyarrow.compute as pc
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 
 from ...shared.dictionary import load_dictionary, render_dataset_path, repository_root
 from ...shared.receipt import (
@@ -125,79 +129,80 @@ class S4GroupWeightsRunner:
             base_shares.group_by("merchant_id")
             .agg(pl.col("tz_group_id").n_unique().alias("tz_groups_required"))
         )
-        day_effects = self._scan_day_effects(config=config, dictionary=dictionary)
-        rows_expected = self._count_rows(day_effects)
+        day_effects_path = self._resolve_dataset_path(
+            dataset_id="s3_day_effects", config=config, dictionary=dictionary
+        )
+        rows_expected = self._count_rows_path(day_effects_path)
         if rows_expected <= 0:
             raise err(
                 "2B-S4-050",
                 "s3_day_effects produced zero rows; ensure S3 emitted rows for this run",
             )
-
-        base_shares_lf = base_shares.lazy()
-        mass = day_effects.join(
-            base_shares_lf,
-            on=["merchant_id", "tz_group_id"],
-            how="inner",
-            maintain_order="left",
-        ).with_columns(
-            (pl.col("base_share") * pl.col("gamma")).alias("mass_raw").fill_nan(0.0)
-        )
-        denom = mass.group_by(["merchant_id", "utc_day"]).agg(
-            pl.col("mass_raw").sum().alias("denom_raw")
-        )
-        combined = mass.join(
-            denom,
-            on=["merchant_id", "utc_day"],
-            how="left",
-            maintain_order="left",
-        ).with_columns(
-            (pl.col("mass_raw") / pl.col("denom_raw")).alias("p_group_raw")
-        )
-        combined = combined.with_columns(
-            pl.when(pl.col("p_group_raw") < -self.NORMALISATION_EPS)
-            .then(None)
-            .when(pl.col("p_group_raw") < 0)
-            .then(0.0)
-            .otherwise(pl.col("p_group_raw"))
-            .alias("p_group")
-        )
-        p_totals = combined.group_by(["merchant_id", "utc_day"]).agg(
-            pl.col("p_group").sum().alias("p_total")
-        )
-        combined = combined.join(
-            p_totals,
-            on=["merchant_id", "utc_day"],
-            how="left",
-            maintain_order="left",
-        ).with_columns(
-            (pl.col("p_group") / pl.col("p_total")).alias("p_group")
-        ).drop(["p_total", "p_group_raw"])
-        combined = combined.with_columns(
-            pl.lit(receipt.verified_at_utc).alias("created_utc")
-        ).select(
-            [
-                "merchant_id",
-                "utc_day",
-                "tz_group_id",
-                "p_group",
-                "base_share",
-                "gamma",
-                "created_utc",
-                "mass_raw",
-                "denom_raw",
-            ]
-        )
+        utc_days = self._collect_unique_values_path(day_effects_path, "utc_day")
+        if not utc_days:
+            raise err("2B-S4-050", "s3_day_effects produced zero utc_day values")
+        total_days = len(utc_days)
+        logger.info("Segment2B S4: processing %d utc_day partitions", total_days)
 
         output_dir.parent.mkdir(parents=True, exist_ok=True)
         staging_dir = output_dir.parent / f".s4_group_weights_{uuid.uuid4().hex}"
         staging_dir.mkdir(parents=True, exist_ok=False)
         try:
-            self._validate_output_schema_lazy(rows=combined)
-            part_path = staging_dir / "part-00000.parquet"
-            combined.sink_parquet(part_path, compression="zstd")
-            output_scan = pl.scan_parquet(str(staging_dir / "part-*.parquet"))
-            self._validate_output_schema_scan(rows=output_scan)
-            rows_total = self._count_rows(output_scan)
+            part_index = 0
+            rows_total = 0
+            max_abs_p_delta = 0.0
+            start_time = time.monotonic()
+            last_log_time = start_time
+            log_every = max(1, total_days // 20)
+            for utc_day in utc_days:
+                day_effects = self._scan_day_effects(
+                    path=day_effects_path, utc_day=utc_day
+                )
+                combined = self._build_combined(
+                    day_effects=day_effects,
+                    base_shares=base_shares,
+                    receipt=receipt,
+                )
+                if part_index == 0:
+                    self._validate_output_schema_lazy(rows=combined)
+                part_path = staging_dir / f"part-{part_index:05d}.parquet"
+                combined.sink_parquet(part_path, compression="zstd")
+                output_scan = pl.scan_parquet(str(part_path))
+                self._validate_output_schema_scan(rows=output_scan)
+                part_rows = self._count_rows_lazy(output_scan)
+                if part_rows <= 0:
+                    raise err(
+                        "2B-S4-050",
+                        f"s4_group_weights produced zero rows for utc_day={utc_day}",
+                    )
+                rows_total += part_rows
+                self._validate_positive_metrics(output_scan)
+                max_abs_p_delta = max(
+                    max_abs_p_delta, self._max_abs_p_group_delta(output_scan)
+                )
+                part_index += 1
+                now = time.monotonic()
+                if (
+                    part_index == 1
+                    or part_index == total_days
+                    or part_index % log_every == 0
+                    or (now - last_log_time) >= 60.0
+                ):
+                    elapsed = now - start_time
+                    rate = part_index / elapsed if elapsed > 0 else 0.0
+                    remaining = (
+                        (total_days - part_index) / rate if rate > 0 else 0.0
+                    )
+                    logger.info(
+                        "Segment2B S4 progress: %d/%d utc_day (%.1f%%, %.1fs elapsed, %.2f days/s, %.1fs eta)",
+                        part_index,
+                        total_days,
+                        (part_index / total_days) * 100.0,
+                        elapsed,
+                        rate,
+                        remaining,
+                    )
+                    last_log_time = now
             if rows_total <= 0:
                 raise err("2B-S4-050", "s4_group_weights produced zero rows")
             if rows_expected != rows_total:
@@ -205,7 +210,7 @@ class S4GroupWeightsRunner:
                     "2B-S4-050",
                     f"rows written ({rows_total}) differ from expected coverage ({rows_expected})",
                 )
-            days_total = self._count_unique(output_scan, "utc_day")
+            days_total = len(utc_days)
             tz_groups_total = base_shares["tz_group_id"].n_unique()
             merchants_total = base_shares["merchant_id"].n_unique()
             rows_expected_by_base = int(
@@ -219,8 +224,6 @@ class S4GroupWeightsRunner:
                     "2B-S4-050",
                     f"coverage mismatch for base_shares (expected {rows_expected_by_base}, observed {rows_total})",
                 )
-            self._validate_positive_metrics(output_scan)
-            max_abs_p_delta = self._max_abs_p_group_delta(output_scan)
             bytes_written = sum(f.stat().st_size for f in staging_dir.glob("*.parquet"))
             os.replace(staging_dir, output_dir)
         except Exception:
@@ -364,15 +367,12 @@ class S4GroupWeightsRunner:
             )
         return tz_lookup
 
-    def _scan_day_effects(
-        self, *, config: S4GroupWeightsInputs, dictionary: Mapping[str, object]
-    ) -> pl.LazyFrame:
-        path = self._resolve_dataset_path(
-            dataset_id="s3_day_effects", config=config, dictionary=dictionary
-        )
+    def _scan_day_effects(self, *, path: Path, utc_day: str) -> pl.LazyFrame:
         try:
-            effects = pl.scan_parquet(path).select(
-                ["merchant_id", "utc_day", "tz_group_id", "gamma"]
+            effects = (
+                pl.scan_parquet(path)
+                .select(["merchant_id", "utc_day", "tz_group_id", "gamma"])
+                .filter(pl.col("utc_day") == utc_day)
             )
         except Exception as exc:  # pragma: no cover
             raise err("2B-S4-020", f"failed to scan s3_day_effects: {exc}") from exc
@@ -432,19 +432,67 @@ class S4GroupWeightsRunner:
         )
         return max_abs
 
-    def _combine_factors(
-        self, *, base_shares: pl.DataFrame, day_effects: pl.DataFrame
-    ) -> pl.DataFrame:
-        combined = day_effects.join(
-            base_shares,
+    def _build_combined(
+        self,
+        *,
+        day_effects: pl.LazyFrame,
+        base_shares: pl.DataFrame,
+        receipt: GateReceiptSummary,
+    ) -> pl.LazyFrame:
+        base_shares_lf = base_shares.lazy()
+        mass = day_effects.join(
+            base_shares_lf,
             on=["merchant_id", "tz_group_id"],
             how="inner",
+            maintain_order="left",
+        ).with_columns(
+            (pl.col("base_share") * pl.col("gamma")).alias("mass_raw").fill_nan(0.0)
         )
-        if combined.height != day_effects.height:
-            raise err(
-                "2B-S4-050",
-                "base_share missing for some gamma rows",
-            )
+        denom = mass.group_by(["merchant_id", "utc_day"]).agg(
+            pl.col("mass_raw").sum().alias("denom_raw")
+        )
+        combined = mass.join(
+            denom,
+            on=["merchant_id", "utc_day"],
+            how="left",
+            maintain_order="left",
+        ).with_columns(
+            (pl.col("mass_raw") / pl.col("denom_raw")).alias("p_group_raw")
+        )
+        combined = combined.with_columns(
+            pl.when(pl.col("p_group_raw") < -self.NORMALISATION_EPS)
+            .then(None)
+            .when(pl.col("p_group_raw") < 0)
+            .then(0.0)
+            .otherwise(pl.col("p_group_raw"))
+            .alias("p_group")
+        )
+        p_totals = combined.group_by(["merchant_id", "utc_day"]).agg(
+            pl.col("p_group").sum().alias("p_total")
+        )
+        combined = combined.join(
+            p_totals,
+            on=["merchant_id", "utc_day"],
+            how="left",
+            maintain_order="left",
+        ).with_columns(
+            (pl.col("p_group") / pl.col("p_total")).alias("p_group")
+        ).drop(["p_total", "p_group_raw"])
+        combined = combined.with_columns(
+            pl.lit(receipt.verified_at_utc).alias("created_utc")
+        ).select(
+            [
+                "merchant_id",
+                "utc_day",
+                "tz_group_id",
+                "p_group",
+                "base_share",
+                "gamma",
+                "created_utc",
+                "mass_raw",
+                "denom_raw",
+            ]
+        )
         return combined
 
     def _validate_coverage(
@@ -522,14 +570,12 @@ class S4GroupWeightsRunner:
         bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
         return bytes_written
 
-    def _count_rows(self, rows: pl.LazyFrame) -> int:
-        payload = rows.select(pl.len().alias("rows")).collect(engine="streaming")
+    def _count_rows_lazy(self, rows: pl.LazyFrame) -> int:
+        payload = rows.select(pl.len().alias("rows")).collect()
         return int(payload["rows"][0] or 0)
 
     def _count_unique(self, rows: pl.LazyFrame, column: str) -> int:
-        payload = rows.select(pl.col(column).n_unique().alias("unique")).collect(
-            engine="streaming"
-        )
+        payload = rows.select(pl.col(column).n_unique().alias("unique")).collect()
         return int(payload["unique"][0] or 0)
 
     def _validate_output_schema_lazy(self, *, rows: pl.LazyFrame) -> None:
@@ -546,7 +592,7 @@ class S4GroupWeightsRunner:
                 pl.col("p_group").min().alias("p_group_min"),
                 pl.col("p_group").is_null().any().alias("p_group_null"),
             ]
-        ).collect(engine="streaming")
+        ).collect()
         denom_min = payload["denom_min"][0]
         gamma_min = payload["gamma_min"][0]
         p_group_min = payload["p_group_min"][0]
@@ -566,7 +612,7 @@ class S4GroupWeightsRunner:
         )
         payload = totals.select(
             (pl.col("total_mass") - 1.0).abs().max().alias("max_delta")
-        ).collect(engine="streaming")
+        ).collect()
         max_delta = float(payload["max_delta"][0] or 0.0)
         if max_delta > self.NORMALISATION_EPS:
             raise err(
@@ -574,6 +620,29 @@ class S4GroupWeightsRunner:
                 f"normalised weights deviate from 1 beyond tolerance (max={max_delta})",
             )
         return max_delta
+
+    def _count_rows_path(self, path: Path) -> int:
+        if path.is_dir():
+            total = 0
+            for parquet_path in sorted(path.rglob("*.parquet")):
+                parquet_file = pq.ParquetFile(parquet_path)
+                total += parquet_file.metadata.num_rows
+            return total
+        parquet_file = pq.ParquetFile(path)
+        return int(parquet_file.metadata.num_rows)
+
+    def _collect_unique_values_path(self, path: Path, column: str) -> list[str]:
+        dataset = ds.dataset(path, format="parquet")
+        values: set[str] = set()
+        for batch in dataset.to_batches(columns=[column]):
+            if batch.num_rows == 0:
+                continue
+            uniques = pc.unique(batch.column(0)).to_pylist()
+            for item in uniques:
+                if item is None:
+                    continue
+                values.add(str(item))
+        return sorted(values)
 
     # ------------------------------------------------------------------ sealed asset helpers
 
