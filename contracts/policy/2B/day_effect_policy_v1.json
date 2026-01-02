@@ -1,8 +1,8 @@
 {
   "created_utc_policy_echo": true,
   "day_range": {
-    "end_day": "2025-12-31",
-    "start_day": "2024-01-01"
+    "end_day": "2025-03-30",
+    "start_day": "2025-01-01"
   },
   "draws_per_row": 1,
   "extensions": {},
@@ -37,7 +37,7 @@
   },
   "rng_engine": "philox2x64-10",
   "rng_stream_id": "2B.day_effects",
-  "sha256_hex": "79989766a4f6add6a0f42452c85134ff58e7b6b468ead2df767f15546088546a",
+  "sha256_hex": "52b5223357ca3645fb5fd55fc00795b4b182d6a2f97bc6147e921c7b445617af",
   "sigma_gamma": 0.32,
-  "version_tag": "v1.0.1"
+  "version_tag": "v1.0.2"
 }

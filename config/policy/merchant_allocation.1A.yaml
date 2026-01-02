@@ -4,8 +4,8 @@
 # allocations are derived from GDP weights with a heavy-tail exponent and
 # minimum floor enforced post-rounding.
 
-policy_version: "2025-10-07"
-total_merchants: 20000
+policy_version: "2026-01-02"
+total_merchants: 10000
 min_per_iso: 3
 max_per_iso: 800
 
@@ -24,4 +24,3 @@ regional_adjustments:
     multiplier: 1.10
 
 seed: "transaction_schema_merchant_ids.v2025-10-07"
-
