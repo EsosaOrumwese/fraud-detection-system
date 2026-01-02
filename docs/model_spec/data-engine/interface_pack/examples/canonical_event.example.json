@@ -1,0 +1,15 @@
+{
+  "schema_ref": "docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml",
+  "event_id": "event_000001",
+  "event_type": "arrival.emitted",
+  "schema_version": "v1",
+  "event_time": "2026-01-02T01:15:00Z",
+  "emitted_at": "2026-01-02T01:15:01Z",
+  "manifest_fingerprint": "manifest_fp_001",
+  "parameter_hash": "param_hash_001",
+  "seed": "seed_0001",
+  "scenario_id": "scenario_base",
+  "run_id": "run_0001",
+  "partition_key": "arrival_events_5B",
+  "correlation_id": "corr_0001"
+}

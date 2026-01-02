@@ -2,6 +2,7 @@
 
 ## 1. Purpose and scope
 This document defines the stable, black-box interface from the Data Engine to the rest of the platform. It specifies identity, determinism, discovery, join semantics, and HashGate rules. It does not describe internal segment/state algorithms.
+The output catalogue enumerates all outputs under `data/` and `logs/` declared in the binding dictionaries; consumers should filter to the outputs they require by class, scope, and gate requirements.
 
 ## 2. Definitions
 ### 2.1 Identity tuple

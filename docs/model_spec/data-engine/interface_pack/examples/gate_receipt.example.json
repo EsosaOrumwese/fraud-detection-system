@@ -1,0 +1,14 @@
+{
+  "schema_ref": "docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml",
+  "gate_id": "gate.layer2.5B.validation",
+  "status": "PASS",
+  "receipt_kind": "text_flag",
+  "produced_at": "2026-01-02T01:15:03Z",
+  "manifest_fingerprint": "manifest_fp_001",
+  "digests": {
+    "digest_algorithm": "sha256",
+    "digest_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "what_was_hashed": "validation bundle index over ASCII-lex ordered files"
+  },
+  "flag_text": "sha256_hex=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
