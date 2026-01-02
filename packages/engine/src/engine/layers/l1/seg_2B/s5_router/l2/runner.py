@@ -6,14 +6,15 @@ import hashlib
 import logging
 import json
 import math
+import os
 import platform
+import shutil
 import socket
 import time
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Dict, IO, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 from uuid import uuid4
 
 import polars as pl
@@ -32,7 +33,6 @@ from ...shared.receipt import (
     load_gate_receipt,
     load_sealed_inputs_inventory,
 )
-from ...shared.rng_trace import append_trace_records
 from ...shared.runtime import RouterVirtualArrival
 from ...shared.policies import load_policy_asset
 from ...shared.virtual import VirtualMerchantClassifier, VirtualRules
@@ -166,6 +166,29 @@ class AliasTable:
         return self.values[idx]
 
 
+@dataclass
+class _EventSink:
+    output_dir: Path
+    temp_dir: Path
+    file_path: Path
+    handle: IO[str]
+
+
+@dataclass
+class _TraceSink:
+    final_path: Path
+    temp_path: Path
+    handle: IO[str]
+
+
+@dataclass
+class _SelectionLogState:
+    current_day: Optional[str] = None
+    handle: Optional[IO[str]] = None
+    temp_path: Optional[Path] = None
+    final_path: Optional[Path] = None
+
+
 class S5RouterRunner:
     """High-level runner for state-5."""
 
@@ -173,6 +196,8 @@ class S5RouterRunner:
     GROUP_EVENT_ID = "rng_event_alias_pick_group"
     SITE_EVENT_ID = "rng_event_alias_pick_site"
     RNG_STREAM_ID = "router_core"
+    EVENT_FILENAME = "part-00000.jsonl"
+    SELECTION_LOG_FILENAME = "selection_log.jsonl"
 
     def run(self, config: S5RouterInputs) -> S5RouterResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -296,6 +321,7 @@ class S5RouterRunner:
             alias_policy_digest=alias_policy_file_digest,
         )
 
+        base_path = config.data_root
         engine = PhiloxEngine(seed=seed_int, manifest_fingerprint=manifest)
         group_substream = engine.derive_substream(
             "alias_pick_group",
@@ -322,54 +348,85 @@ class S5RouterRunner:
 
         group_cache: Dict[Tuple[int, str], AliasTable] = {}
         site_cache: Dict[Tuple[int, str, str], AliasTable] = {}
-        group_events: List[dict] = []
-        site_events: List[dict] = []
-        selection_logs: MutableMapping[str, List[dict]] = defaultdict(list)
+        group_events_count = 0
+        site_events_count = 0
+        selection_log_paths: List[Path] = []
+        selection_log_state = self._SelectionLogState()
+        trace_totals: Dict[Tuple[str, str], Dict[str, int]] = {}
         selection_samples: List[dict] = []
         selection_seq = 0
         virtual_arrivals: List[RouterVirtualArrival] = []
 
+        group_sink = self._open_event_sink(
+            dataset_id=self.GROUP_EVENT_ID,
+            base_path=base_path,
+            dictionary=dictionary,
+            seed=seed_int,
+            parameter_hash=parameter_hash,
+            run_id=run_id,
+        )
+        site_sink = self._open_event_sink(
+            dataset_id=self.SITE_EVENT_ID,
+            base_path=base_path,
+            dictionary=dictionary,
+            seed=seed_int,
+            parameter_hash=parameter_hash,
+            run_id=run_id,
+        )
+        trace_path = resolve_dataset_path(
+            "rng_trace_log",
+            base_path=base_path,
+            template_args={
+                "seed": seed_int,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        trace_sink = self._open_trace_log(trace_path)
+
         arrivals_sorted = sorted(arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id))
         progress_interval = max(1, total_arrivals // 10) if total_arrivals else 1
         router_start = time.perf_counter()
-        for arrival in arrivals_sorted:
-            merchant_id = int(arrival.merchant_id)
-            utc_ts = arrival.utc_timestamp.astimezone(timezone.utc)
-            utc_day = utc_ts.date().isoformat()
-            group_alias = self._ensure_group_alias(
-                cache=group_cache,
-                frame=group_frame,
-                merchant_id=merchant_id,
-                utc_day=utc_day,
-            )
-            tz_group_id, group_before, group_after = self._sample_alias(
-                alias_table=group_alias,
-                substream=group_substream,
-            )
-            tz_group_str = str(tz_group_id)
-            site_alias = self._ensure_site_alias(
-                cache=site_cache,
-                frame=site_lookup,
-                merchant_id=merchant_id,
-                utc_day=utc_day,
-                tz_group_id=tz_group_str,
-            )
-            site_choice, site_before, site_after = self._sample_alias(
-                alias_table=site_alias,
-                substream=site_substream,
-            )
-            site_id = int(site_choice)
-            tz_from_site = site_tz_map.get(site_id)
-            if tz_from_site != tz_group_str:
-                raise err(
-                    "E_S5_TZ_INCOHERENT",
-                    f"site_id {site_id} mapped to '{tz_from_site}' but group pick was '{tz_group_str}'",
+        success = False
+        try:
+            for arrival in arrivals_sorted:
+                merchant_id = int(arrival.merchant_id)
+                utc_ts = arrival.utc_timestamp.astimezone(timezone.utc)
+                utc_day = utc_ts.date().isoformat()
+                group_alias = self._ensure_group_alias(
+                    cache=group_cache,
+                    frame=group_frame,
+                    merchant_id=merchant_id,
+                    utc_day=utc_day,
                 )
+                tz_group_id, group_before, group_after = self._sample_alias(
+                    alias_table=group_alias,
+                    substream=group_substream,
+                )
+                tz_group_str = str(tz_group_id)
+                site_alias = self._ensure_site_alias(
+                    cache=site_cache,
+                    frame=site_lookup,
+                    merchant_id=merchant_id,
+                    utc_day=utc_day,
+                    tz_group_id=tz_group_str,
+                )
+                site_choice, site_before, site_after = self._sample_alias(
+                    alias_table=site_alias,
+                    substream=site_substream,
+                )
+                site_id = int(site_choice)
+                tz_from_site = site_tz_map.get(site_id)
+                if tz_from_site != tz_group_str:
+                    raise err(
+                        "E_S5_TZ_INCOHERENT",
+                        f"site_id {site_id} mapped to '{tz_from_site}' but group pick was '{tz_group_str}'",
+                    )
 
-            selection_seq += 1
-            p_group = group_alias.value_probabilities.get(tz_group_str, 0.0)
-            group_events.append(
-                self._build_event_payload(
+                selection_seq += 1
+                p_group = group_alias.value_probabilities.get(tz_group_str, 0.0)
+                group_event = self._build_event_payload(
                     ts_utc=utc_ts,
                     substream_label="alias_pick_group",
                     before=group_before,
@@ -385,9 +442,7 @@ class S5RouterRunner:
                         "p_group": p_group,
                     },
                 )
-            )
-            site_events.append(
-                self._build_event_payload(
+                site_event = self._build_event_payload(
                     ts_utc=utc_ts,
                     substream_label="alias_pick_site",
                     before=site_before,
@@ -403,92 +458,106 @@ class S5RouterRunner:
                         "site_id": site_id,
                     },
                 )
-            )
-            if config.emit_selection_log:
-                selection_logs[utc_day].append(
-                    {
-                        "utc_day": utc_day,
-                        "utc_timestamp": utc_ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                        "merchant_id": merchant_id,
-                        "tz_group_id": tz_group_str,
-                        "site_id": site_id,
-                        "rng_stream_id": policy_stream_id,
-                        "ctr_group_hi": int(group_before.counter_hi),
-                        "ctr_group_lo": int(group_before.counter_lo),
-                        "ctr_site_hi": int(site_before.counter_hi),
-                        "ctr_site_lo": int(site_before.counter_lo),
-                        "manifest_fingerprint": manifest,
-                        "created_utc": receipt.verified_at_utc,
-                    }
+                self._write_event_line(group_sink, group_event)
+                self._write_event_line(site_sink, site_event)
+                group_events_count += 1
+                site_events_count += 1
+                self._write_trace_line(
+                    trace_sink.handle,
+                    trace_totals,
+                    group_event,
+                    seed=seed_int,
+                    run_id=run_id,
                 )
-            if len(selection_samples) < 20:
-                selection_samples.append(
-                    {
-                        "merchant_id": merchant_id,
-                        "utc_day": utc_day,
-                        "tz_group_id": tz_group_str,
-                        "site_id": site_id,
-                    }
+                self._write_trace_line(
+                    trace_sink.handle,
+                    trace_totals,
+                    site_event,
+                    seed=seed_int,
+                    run_id=run_id,
                 )
-            if arrival.is_virtual:
-                virtual_arrivals.append(
-                    RouterVirtualArrival(
-                        merchant_id=merchant_id,
-                        utc_timestamp=utc_ts,
+
+                if config.emit_selection_log:
+                    selection_log_paths = self._write_selection_log_row(
+                        selection_log_state,
+                        base_path=base_path,
+                        dictionary=dictionary,
+                        seed=seed_int,
+                        parameter_hash=parameter_hash,
+                        run_id=run_id,
                         utc_day=utc_day,
-                        tz_group_id=tz_group_str,
-                        site_id=site_id,
-                        selection_seq=selection_seq,
-                        is_virtual=True,
+                        row={
+                            "utc_day": utc_day,
+                            "utc_timestamp": utc_ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                            "merchant_id": merchant_id,
+                            "tz_group_id": tz_group_str,
+                            "site_id": site_id,
+                            "rng_stream_id": policy_stream_id,
+                            "ctr_group_hi": int(group_before.counter_hi),
+                            "ctr_group_lo": int(group_before.counter_lo),
+                            "ctr_site_hi": int(site_before.counter_hi),
+                            "ctr_site_lo": int(site_before.counter_lo),
+                            "manifest_fingerprint": manifest,
+                            "created_utc": receipt.verified_at_utc,
+                        },
+                        paths=selection_log_paths,
                     )
-                )
-            if selection_seq % progress_interval == 0 or selection_seq == total_arrivals:
-                elapsed = time.perf_counter() - router_start
-                pct = (selection_seq / total_arrivals * 100.0) if total_arrivals else 100.0
-                logger.info(
-                    "S5 progress: %d/%d selections processed (%.1f%%, %.1fs elapsed)",
-                    selection_seq,
-                    total_arrivals,
-                    pct,
-                    elapsed,
-                )
-
-        base_path = config.data_root
-        rng_group_path = self._write_event_partition(
-            dataset_id=self.GROUP_EVENT_ID,
-            events=group_events,
-            base_path=base_path,
-            dictionary=dictionary,
-            seed=seed_int,
-            parameter_hash=parameter_hash,
-            run_id=run_id,
-        )
-        rng_site_path = self._write_event_partition(
-            dataset_id=self.SITE_EVENT_ID,
-            events=site_events,
-            base_path=base_path,
-            dictionary=dictionary,
-            seed=seed_int,
-            parameter_hash=parameter_hash,
-            run_id=run_id,
-        )
-
-        trace_path = resolve_dataset_path(
-            "rng_trace_log",
-            base_path=base_path,
-            template_args={
-                "seed": seed_int,
-                "parameter_hash": parameter_hash,
-                "run_id": run_id,
-            },
-            dictionary=dictionary,
-        )
-        append_trace_records(
-            trace_path=trace_path,
-            events=group_events + site_events,
-            seed=seed_int,
-            run_id=run_id,
-        )
+                if len(selection_samples) < 20:
+                    selection_samples.append(
+                        {
+                            "merchant_id": merchant_id,
+                            "utc_day": utc_day,
+                            "tz_group_id": tz_group_str,
+                            "site_id": site_id,
+                        }
+                    )
+                if arrival.is_virtual:
+                    virtual_arrivals.append(
+                        RouterVirtualArrival(
+                            merchant_id=merchant_id,
+                            utc_timestamp=utc_ts,
+                            utc_day=utc_day,
+                            tz_group_id=tz_group_str,
+                            site_id=site_id,
+                            selection_seq=selection_seq,
+                            is_virtual=True,
+                        )
+                    )
+                if selection_seq % progress_interval == 0 or selection_seq == total_arrivals:
+                    elapsed = time.perf_counter() - router_start
+                    pct = (selection_seq / total_arrivals * 100.0) if total_arrivals else 100.0
+                    logger.info(
+                        "S5 progress: %d/%d selections processed (%.1f%%, %.1fs elapsed)",
+                        selection_seq,
+                        total_arrivals,
+                        pct,
+                        elapsed,
+                    )
+            success = True
+        finally:
+            if success:
+                rng_group_path = self._finalize_event_sink(group_sink)
+                rng_site_path = self._finalize_event_sink(site_sink)
+                self._finalize_selection_log(selection_log_state, selection_log_paths)
+                trace_sink.handle.flush()
+                self._fsync_file(trace_sink.temp_path)
+                trace_sink.handle.close()
+                trace_sink.final_path.parent.mkdir(parents=True, exist_ok=True)
+                if trace_sink.final_path.exists():
+                    raise err(
+                        "E_S5_IMMUTABLE_LOG",
+                        f"rng trace log '{trace_sink.final_path}' already exists",
+                    )
+                os.replace(trace_sink.temp_path, trace_sink.final_path)
+            else:
+                self._abort_event_sink(group_sink)
+                self._abort_event_sink(site_sink)
+                self._abort_selection_log(selection_log_state)
+                trace_sink.handle.close()
+                if trace_sink.temp_path.exists():
+                    trace_sink.temp_path.unlink()
+                rng_group_path = None
+                rng_site_path = None
 
         audit_path = resolve_dataset_path(
             "rng_audit_log",
@@ -508,17 +577,6 @@ class S5RouterRunner:
             run_id=run_id,
             git_commit=config.git_commit_hex,
         )
-
-        selection_paths: List[Path] = []
-        if config.emit_selection_log:
-            selection_paths = self._write_selection_logs(
-                base_path=base_path,
-                dictionary=dictionary,
-                seed=seed_int,
-                parameter_hash=parameter_hash,
-                run_id=run_id,
-                rows_by_day=selection_logs,
-            )
 
         manifest_inputs = {
             "group_weights_path": render_dataset_path(
@@ -566,12 +624,12 @@ class S5RouterRunner:
             virtual_policy_digest=virtual_rules_digest,
             virtual_policy_path=virtual_rules_path,
             arrivals=len(arrivals_sorted),
-            group_events=len(group_events),
-            site_events=len(site_events),
+            group_events=group_events_count,
+            site_events=site_events_count,
             selection_log_enabled=config.emit_selection_log,
             selection_samples=selection_samples,
             manifest_inputs=manifest_inputs,
-            selection_log_paths=selection_paths,
+            selection_log_paths=selection_log_paths,
             merchant_mcc_map_path=str(merchant_mcc_map_path),
             virtual_merchants_total=virtual_classifier.virtual_merchants_total,
             virtual_arrivals_total=len(virtual_arrivals),
@@ -592,7 +650,7 @@ class S5RouterRunner:
             rng_event_site_path=rng_site_path,
             rng_trace_log_path=trace_path,
             rng_audit_log_path=audit_path,
-            selection_log_paths=tuple(selection_paths),
+            selection_log_paths=tuple(selection_log_paths),
             virtual_arrivals=tuple(virtual_arrivals),
             run_report_path=run_report_path,
             selections_total=len(arrivals_sorted),
@@ -765,6 +823,182 @@ class S5RouterRunner:
             **payload,
         }
 
+    def _open_event_sink(
+        self,
+        *,
+        dataset_id: str,
+        base_path: Path,
+        dictionary: Mapping[str, object],
+        seed: int,
+        parameter_hash: str,
+        run_id: str,
+    ) -> _EventSink:
+        output_dir = resolve_dataset_path(
+            dataset_id,
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+        if output_dir.exists():
+            raise err(
+                "E_S5_IMMUTABLE_LOG",
+                f"rng log partition '{output_dir}' already exists",
+            )
+        temp_dir = output_dir.parent / f".{dataset_id}_{uuid4().hex}"
+        temp_dir.mkdir(parents=True, exist_ok=False)
+        file_path = temp_dir / self.EVENT_FILENAME
+        handle = file_path.open("w", encoding="utf-8")
+        return _EventSink(
+            output_dir=output_dir,
+            temp_dir=temp_dir,
+            file_path=file_path,
+            handle=handle,
+        )
+
+    def _write_event_line(self, sink: _EventSink, payload: Mapping[str, object]) -> None:
+        sink.handle.write(json.dumps(payload, sort_keys=True))
+        sink.handle.write("\n")
+
+    def _finalize_event_sink(self, sink: _EventSink) -> Path:
+        sink.handle.flush()
+        self._fsync_file(sink.file_path)
+        sink.handle.close()
+        sink.output_dir.parent.mkdir(parents=True, exist_ok=True)
+        if sink.output_dir.exists():
+            raise err(
+                "E_S5_IMMUTABLE_LOG",
+                f"rng log partition '{sink.output_dir}' already exists",
+            )
+        os.replace(sink.temp_dir, sink.output_dir)
+        return sink.output_dir
+
+    def _abort_event_sink(self, sink: _EventSink) -> None:
+        try:
+            sink.handle.close()
+        except Exception:
+            pass
+        if sink.temp_dir.exists():
+            shutil.rmtree(sink.temp_dir, ignore_errors=True)
+
+    def _open_trace_log(self, trace_path: Path) -> _TraceSink:
+        trace_path = trace_path.resolve()
+        if trace_path.exists():
+            raise err("E_S5_IMMUTABLE_LOG", f"rng trace log '{trace_path}' already exists")
+        trace_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = trace_path.with_suffix(trace_path.suffix + ".tmp")
+        handle = temp_path.open("w", encoding="utf-8")
+        return _TraceSink(final_path=trace_path, temp_path=temp_path, handle=handle)
+
+    def _write_trace_line(
+        self,
+        handle: IO[str],
+        totals: Dict[Tuple[str, str], Dict[str, int]],
+        event: Mapping[str, object],
+        *,
+        seed: int,
+        run_id: str,
+    ) -> None:
+        module = str(event.get("module", ""))
+        substream_label = str(event.get("substream_label", ""))
+        key = (module, substream_label)
+        stats = totals.setdefault(key, {"events": 0, "blocks": 0, "draws": 0})
+        blocks = int(event.get("blocks", 0))
+        draws = int(event.get("draws", "0"))
+        stats["events"] += 1
+        stats["blocks"] += blocks
+        stats["draws"] += draws
+        payload = {
+            "ts_utc": event.get("ts_utc"),
+            "run_id": run_id,
+            "seed": seed,
+            "module": module,
+            "substream_label": substream_label,
+            "draws_total": stats["draws"],
+            "blocks_total": stats["blocks"],
+            "events_total": stats["events"],
+            "rng_counter_before_lo": int(event.get("rng_counter_before_lo", 0)),
+            "rng_counter_before_hi": int(event.get("rng_counter_before_hi", 0)),
+            "rng_counter_after_lo": int(event.get("rng_counter_after_lo", 0)),
+            "rng_counter_after_hi": int(event.get("rng_counter_after_hi", 0)),
+        }
+        handle.write(json.dumps(payload, sort_keys=True))
+        handle.write("\n")
+
+    def _write_selection_log_row(
+        self,
+        state: _SelectionLogState,
+        *,
+        base_path: Path,
+        dictionary: Mapping[str, object],
+        seed: int,
+        parameter_hash: str,
+        run_id: str,
+        utc_day: str,
+        row: Mapping[str, object],
+        paths: List[Path],
+    ) -> List[Path]:
+        if state.current_day != utc_day:
+            self._finalize_selection_log(state, paths)
+            state.current_day = utc_day
+            final_path = resolve_dataset_path(
+                "s5_selection_log",
+                base_path=base_path,
+                template_args={
+                    "seed": seed,
+                    "parameter_hash": parameter_hash,
+                    "run_id": run_id,
+                    "utc_day": utc_day,
+                },
+                dictionary=dictionary,
+            )
+            if final_path.exists():
+                raise err(
+                    "E_S5_SELECTION_LOG_IMMUTABLE",
+                    f"selection log '{final_path}' already exists",
+                )
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            temp_path = final_path.with_suffix(final_path.suffix + ".tmp")
+            state.temp_path = temp_path
+            state.final_path = final_path
+            state.handle = temp_path.open("w", encoding="utf-8")
+        if state.handle is None:
+            return paths
+        state.handle.write(json.dumps(row, sort_keys=True))
+        state.handle.write("\n")
+        return paths
+
+    def _finalize_selection_log(self, state: _SelectionLogState, paths: List[Path]) -> None:
+        if state.handle is None:
+            return
+        state.handle.flush()
+        if state.temp_path is not None:
+            self._fsync_file(state.temp_path)
+        state.handle.close()
+        if state.final_path and state.temp_path:
+            os.replace(state.temp_path, state.final_path)
+            paths.append(state.final_path)
+        state.current_day = None
+        state.handle = None
+        state.temp_path = None
+        state.final_path = None
+
+    def _abort_selection_log(self, state: _SelectionLogState) -> None:
+        try:
+            if state.handle is not None:
+                state.handle.close()
+        except Exception:
+            pass
+        if state.temp_path and state.temp_path.exists():
+            state.temp_path.unlink()
+        state.current_day = None
+        state.handle = None
+        state.temp_path = None
+        state.final_path = None
+
     def _write_event_partition(
         self,
         *,
@@ -835,6 +1069,13 @@ class S5RouterRunner:
                 )
         else:
             audit_path.write_text(payload, encoding="utf-8")
+
+    def _fsync_file(self, path: Path) -> None:
+        try:
+            with path.open("rb") as handle:
+                os.fsync(handle.fileno())
+        except (OSError, AttributeError):  # pragma: no cover - best effort on some platforms
+            logger.debug("fsync skipped for %s", path)
 
     def _write_selection_logs(
         self,

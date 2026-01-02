@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import platform
+import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -176,6 +178,12 @@ class S0GateRunner:
             manifest_digests,
             git_commit_raw=git_bytes,
             parameter_hash_bytes=bytes.fromhex(parameter_result.parameter_hash),
+        )
+        sealed_assets = self._rehome_merchant_mcc_map(
+            inputs=inputs,
+            dictionary=dictionary,
+            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            sealed_assets=sealed_assets,
         )
 
         receipt_path, verified_at = self._write_receipt(
@@ -793,6 +801,59 @@ class S0GateRunner:
             )
         candidate = versions[-1] / "transaction_schema_merchant_ids.csv"
         return candidate
+
+    def _rehome_merchant_mcc_map(
+        self,
+        *,
+        inputs: GateInputs,
+        dictionary: Mapping[str, object],
+        manifest_fingerprint: str,
+        sealed_assets: Sequence[SealedAsset],
+    ) -> list[SealedAsset]:
+        asset_index = next(
+            (idx for idx, asset in enumerate(sealed_assets) if asset.asset_id == "merchant_mcc_map"),
+            None,
+        )
+        if asset_index is None:
+            return list(sealed_assets)
+
+        asset = sealed_assets[asset_index]
+        template_args = {"seed": inputs.seed, "manifest_fingerprint": manifest_fingerprint}
+        catalog_path = render_dataset_path(
+            "merchant_mcc_map", template_args=template_args, dictionary=dictionary
+        )
+        resolved_path = (inputs.base_path / catalog_path).resolve()
+        ensure_within_base(resolved_path, base_path=inputs.base_path)
+
+        if not resolved_path.exists():
+            resolved_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                os.link(asset.resolved_path, resolved_path)
+            except OSError:
+                shutil.copy2(asset.resolved_path, resolved_path)
+
+        digests = hash_files([resolved_path], error_prefix="E_ASSET_MERCHANT_MCC_MAP")
+        if aggregate_sha256(digests) != aggregate_sha256(asset.digests):
+            raise err(
+                "E_MCC_MAP_MISMATCH",
+                f"merchant_mcc_map mismatch at '{resolved_path}'",
+            )
+
+        updated_asset = SealedAsset(
+            asset_id=asset.asset_id,
+            schema_ref=asset.schema_ref,
+            asset_kind=asset.asset_kind,
+            catalog_path=catalog_path,
+            resolved_path=resolved_path,
+            partition_keys=asset.partition_keys,
+            version_tag=asset.version_tag,
+            license_class=asset.license_class,
+            digests=tuple(digests),
+            notes=asset.notes,
+        )
+        updated_assets = list(sealed_assets)
+        updated_assets[asset_index] = updated_asset
+        return updated_assets
 
 
 __all__ = ["S0GateRunner", "GateInputs", "GateOutputs", "SealedAsset", "S0GateError"]

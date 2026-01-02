@@ -5,17 +5,18 @@ $schema: https://json-schema.org/draft/2020-12/schema
 title: Canonical Event Envelope
 description: >
   Minimal, black-box event header used at the platform boundary (Ingestion Gate / Event Bus).
-  Payload fields are intentionally unconstrained here; this schema validates only the envelope.
+  Payload fields are intentionally unconstrained here; this schema validates only the envelope
+  and isolates payload data under `payload` to prevent collisions with envelope fields.
 
 $defs:
   hex64:
-    $ref: "schemas.layer1.yaml#/$defs/hex64"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex64"
   hex32:
-    $ref: "schemas.layer1.yaml#/$defs/hex32"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex32"
   uint64:
-    $ref: "schemas.layer1.yaml#/$defs/uint64"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
   rfc3339_micros:
-    $ref: "schemas.layer1.yaml#/$defs/rfc3339_micros"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/rfc3339_micros"
 
   scenario_id:
     description: Scenario identifier (used where scenario overlays apply).
@@ -40,7 +41,7 @@ $defs:
         maxLength: 256
 
 type: object
-additionalProperties: true
+additionalProperties: false
 
 required:
   - event_id
@@ -118,3 +119,8 @@ properties:
     type: string
     minLength: 1
     maxLength: 128
+
+  payload:
+    description: Optional event-specific payload (shape is producer-defined).
+    type: object
+    additionalProperties: true

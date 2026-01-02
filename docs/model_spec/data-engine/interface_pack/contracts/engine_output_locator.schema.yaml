@@ -10,13 +10,13 @@ description: >
 
 $defs:
   hex64:
-    $ref: "schemas.layer1.yaml#/$defs/hex64"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex64"
   hex32:
-    $ref: "schemas.layer1.yaml#/$defs/hex32"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex32"
   uint64:
-    $ref: "schemas.layer1.yaml#/$defs/uint64"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
   rfc3339_micros:
-    $ref: "schemas.layer1.yaml#/$defs/rfc3339_micros"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/rfc3339_micros"
 
   scenario_id:
     anyOf:
@@ -44,8 +44,12 @@ type: object
 additionalProperties: false
 required:
   - output_id
-  - manifest_fingerprint
   - path
+anyOf:
+  - required: [manifest_fingerprint]
+  - required: [parameter_hash]
+  - required: [run_id]
+  - required: [scenario_id]
 properties:
   output_id:
     description: >
@@ -53,7 +57,7 @@ properties:
     type: string
     minLength: 1
     maxLength: 128
-    pattern: "^[a-z0-9_\\.\\-]+$"
+    pattern: "^[A-Za-z0-9_\\.\\-]+$"
 
   # ---- identity partitions (repeatable across outputs; optional when not applicable) ----
   manifest_fingerprint:

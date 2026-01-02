@@ -10,11 +10,11 @@ description: >
 
 $defs:
   hex64:
-    $ref: "schemas.layer1.yaml#/$defs/hex64"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex64"
   hex32:
-    $ref: "schemas.layer1.yaml#/$defs/hex32"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex32"
   uint64:
-    $ref: "schemas.layer1.yaml#/$defs/uint64"
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
 
   scenario_id:
     description: Scenario identifier (type intentionally permissive).
@@ -28,7 +28,8 @@ $defs:
   scenario_binding:
     description: >
       Scenario binding for scenario-aware segments (e.g., Layer-2/5B). Either bind a single
-      scenario_id or a finite explicit scenario_set.
+      scenario_id or a finite explicit scenario_set. Use `mode: none` for baseline runs
+      that do not apply scenario overlays.
     oneOf:
       - type: object
         additionalProperties: false
@@ -46,6 +47,13 @@ $defs:
             uniqueItems: true
             items:
               $ref: "#/$defs/scenario_id"
+      - type: object
+        additionalProperties: false
+        required: [mode]
+        properties:
+          mode:
+            type: string
+            enum: ["none"]
 
 type: object
 additionalProperties: false

@@ -680,7 +680,7 @@ class OverridesRunner:
                 "merchant_mcc_map",
                 template_args={
                     "seed": seed,
-                    "manifest_fingerprint": upstream_manifest_fingerprint,
+                    "manifest_fingerprint": manifest_fingerprint,
                 },
                 dictionary=dictionary,
             )
