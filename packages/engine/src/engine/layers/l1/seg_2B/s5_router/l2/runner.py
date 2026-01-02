@@ -386,8 +386,8 @@ class S5RouterRunner:
         trace_sink = self._open_trace_log(trace_path)
 
         arrivals_sorted = sorted(arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id))
-        progress_interval = max(1, total_arrivals // 10) if total_arrivals else 1
         router_start = time.perf_counter()
+        last_progress_log = router_start
         success = False
         try:
             for arrival in arrivals_sorted:
@@ -523,8 +523,13 @@ class S5RouterRunner:
                             is_virtual=True,
                         )
                     )
-                if selection_seq % progress_interval == 0 or selection_seq == total_arrivals:
-                    elapsed = time.perf_counter() - router_start
+                now = time.perf_counter()
+                if (
+                    selection_seq == 1
+                    or selection_seq == total_arrivals
+                    or (now - last_progress_log) >= 60.0
+                ):
+                    elapsed = now - router_start
                     pct = (selection_seq / total_arrivals * 100.0) if total_arrivals else 100.0
                     logger.info(
                         "S5 progress: %d/%d selections processed (%.1f%%, %.1fs elapsed)",
@@ -533,6 +538,7 @@ class S5RouterRunner:
                         pct,
                         elapsed,
                     )
+                    last_progress_log = now
             success = True
         finally:
             if success:
