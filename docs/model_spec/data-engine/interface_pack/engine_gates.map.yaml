@@ -1,410 +1,106 @@
-version: v1.0.0
-generated_from:
-- state.<SEG>.s0.expanded.txt (upstream gate deps)
-- state.<SEG>.s{last}.expanded.txt (hashing law + publish)
-- dataset_dictionary.* (paths + schema refs)
-- schemas.* (flag/index formats)
+version: "1.0"
 gates:
-- gate_id: gate_1A
-  layer: layer1
-  segment: 1A
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: null
-    bundle_index_path_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_1A
+  - gate_id: gate.layer1.1A.validation
+    segment: 1A
+    scope: fingerprint
     passed_flag_path_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer1.yaml#/validation/passed_flag
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by index.json path
-    input_set_authority: index.json
-    excludes:
-    - _passed.flag
-  passed_flag_format: string
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - outlet_catalogue
-  upstream_gate_dependencies: []
-  receipts_emitted: []
-- gate_id: gate_1B
-  layer: layer1
-  segment: 1B
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: null
-    bundle_index_path_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_1B
+    bundle_root_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['ccy_country_weights_cache', 'country_set', 'crossborder_eligibility_flags', 'crossborder_features', 'hurdle_design_matrix', 'hurdle_pi_probs', 'hurdle_stationarity_tests_2024Q4', 'merchant_currency', 'outlet_catalogue', 'ranking_residual_cache_1A', 'rng_audit_log_1A', 'rng_event_dirichlet_gamma_vector', 'rng_event_gamma_component', 'rng_event_gumbel_key', 'rng_event_hurdle_bernoulli', 'rng_event_nb_final', 'rng_event_normal_box_muller', 'rng_event_poisson_component', 'rng_event_residual_rank', 'rng_event_sequence_finalize', 'rng_event_site_sequence_overflow', 'rng_event_stream_jump', 'rng_event_ztp_final', 'rng_event_ztp_rejection', 'rng_event_ztp_retry_exhausted', 'rng_trace_log_1A', 's3_base_weight_priors', 's3_candidate_set', 's3_integerised_counts', 's3_site_sequence', 's6_membership', 'sparse_flag']
+    required_by_components: []
+  - gate_id: gate.layer1.1B.validation
+    segment: 1B
+    scope: fingerprint
     passed_flag_path_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.1B.yaml#/validation/passed_flag
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by index.json path
-    input_set_authority: index.json
-    excludes:
-    - _passed.flag
-  passed_flag_format: string
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - site_locations
-  upstream_gate_dependencies:
-  - gate_1A
-  receipts_emitted:
-  - s0_gate_receipt_1B
-- gate_id: gate_2A
-  layer: layer1
-  segment: 2A
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: null
-    bundle_index_path_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_2A
+    bundle_root_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.1B.yaml#/validation/passed_flag
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['rng_audit_log_1B', 'rng_event_in_cell_jitter', 'rng_event_site_tile_assign', 'rng_trace_log_1B', 's3_requirements', 's4_alloc_plan', 's5_site_tile_assignment', 's6_site_jitter', 's7_run_summary', 's7_site_synthesis', 's8_run_summary', 'site_locations', 'tile_bounds', 'tile_index', 'tile_weights']
+    required_by_components: []
+  - gate_id: gate.layer1.2A.validation
+    segment: 2A
+    scope: fingerprint
     passed_flag_path_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.2A.yaml#/validation/passed_flag
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by index.json path
-    input_set_authority: index.json
-    excludes:
-    - _passed.flag
-  passed_flag_format: string
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - site_timezones
-  upstream_gate_dependencies:
-  - gate_1B
-  receipts_emitted:
-  - s0_gate_receipt_2A
-- gate_id: gate_2B
-  layer: layer1
-  segment: 2B
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: null
-    bundle_index_path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_2B
+    bundle_root_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.2A.yaml#/validation/passed_flag
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['s1_tz_lookup', 's4_legality_report', 'site_timezones', 'tz_timetable_cache']
+    required_by_components: []
+  - gate_id: gate.layer1.2B.validation
+    segment: 2B
+    scope: fingerprint
     passed_flag_path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.1B.yaml#/validation/passed_flag
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by index.json path
-    input_set_authority: index.json
-    excludes:
-    - _passed.flag
-  passed_flag_format: string
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs: []
-  upstream_gate_dependencies:
-  - gate_1B
-  - gate_2A
-  receipts_emitted:
-  - s0_gate_receipt_2B
-- gate_id: gate_3A
-  layer: layer1
-  segment: 3A
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: null
-    bundle_index_path_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_3A
+    bundle_root_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.1B.yaml#/validation/passed_flag
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['s1_site_weights', 's2_alias_blob', 's2_alias_index', 's3_day_effects', 's4_group_weights', 's5_selection_log', 's6_edge_log', 's7_audit_report']
+    required_by_components: []
+  - gate_id: gate.layer1.3A.validation
+    segment: 3A
+    scope: fingerprint
     passed_flag_path_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by index.json path
-    input_set_authority: index.json
-    excludes:
-    - _passed.flag
-  passed_flag_format: object
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - s1_escalation_queue
-  - s3_zone_shares
-  - s4_zone_counts
-  - s6_issue_table_3A
-  - s6_receipt_3A
-  - s6_validation_report_3A
-  - sealed_inputs_3A
-  - zone_alloc
-  - zone_alloc_universe_hash
-  upstream_gate_dependencies:
-  - gate_1A
-  - gate_1B
-  - gate_2A
-  receipts_emitted:
-  - s0_gate_receipt_3A
-- gate_id: gate_3B
-  layer: layer1
-  segment: 3B
-  scope: fingerprint
-  artifacts:
     bundle_root_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: validation_bundle_index_3B
-    bundle_index_path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_3B
+    receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['s1_escalation_queue', 's2_country_zone_priors', 's3_zone_shares', 's4_zone_counts', 's6_issue_table_3A', 's6_receipt_3A', 'zone_alloc', 'zone_alloc_universe_hash']
+    required_by_components: []
+  - gate_id: gate.layer1.3B.validation
+    segment: 3B
+    scope: fingerprint
     passed_flag_path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by path
-    input_set_authority: validation_bundle_index_3B
-    excludes: []
-  passed_flag_format: object
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - edge_alias_blob_3B
-  - edge_alias_index_3B
-  - edge_catalogue_3B
-  - edge_catalogue_index_3B
-  - edge_universe_hash_3B
-  - gamma_draw_log_3B
-  - s4_run_summary_3B
-  - s5_manifest_3B
-  - sealed_inputs_3B
-  - virtual_classification_3B
-  - virtual_routing_policy_3B
-  - virtual_settlement_3B
-  - virtual_validation_contract_3B
-  upstream_gate_dependencies:
-  - gate_1A
-  - gate_1B
-  - gate_2A
-  - gate_2B
-  - gate_3A
-  receipts_emitted:
-  - s0_gate_receipt_3B
-- gate_id: gate_5A
-  layer: layer2
-  segment: 5A
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: validation_bundle_index_5A
-    bundle_index_path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
-    passed_flag_output_id: validation_passed_flag_5A
+    bundle_root_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['edge_alias_blob_3B', 'edge_alias_index_3B', 'edge_catalogue_3B', 'edge_catalogue_index_3B', 'edge_universe_hash_3B', 'gamma_draw_log_3B', 's4_run_summary_3B', 's5_manifest_3B', 'virtual_classification_3B', 'virtual_routing_policy_3B', 'virtual_settlement_3B']
+    required_by_components: []
+  - gate_id: gate.layer2.5A.validation
+    segment: 5A
+    scope: fingerprint
     passed_flag_path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by path
-    input_set_authority: validation_bundle_index_5A
-    excludes: []
-  passed_flag_format: object
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - class_zone_baseline_local_5A
-  - merchant_class_profile_5A
-  - merchant_zone_baseline_local_5A
-  - merchant_zone_baseline_utc_5A
-  - merchant_zone_overlay_factors_5A
-  - merchant_zone_profile_5A
-  - merchant_zone_scenario_local_5A
-  - merchant_zone_scenario_utc_5A
-  - scenario_manifest_5A
-  - sealed_inputs_5A
-  - validation_issue_table_5A
-  - validation_report_5A
-  upstream_gate_dependencies:
-  - gate_1A
-  - gate_1B
-  - gate_2A
-  - gate_2B
-  - gate_3A
-  - gate_3B
-  receipts_emitted:
-  - s0_gate_receipt_5A
-- gate_id: gate_5B
-  layer: layer2
-  segment: 5B
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: validation_bundle_index_5B
-    bundle_index_path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_5B
+    bundle_root_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['class_shape_catalogue_5A', 'class_zone_baseline_local_5A', 'class_zone_shape_5A', 'merchant_class_profile_5A', 'merchant_zone_baseline_local_5A', 'merchant_zone_baseline_utc_5A', 'merchant_zone_overlay_factors_5A', 'merchant_zone_profile_5A', 'merchant_zone_scenario_local_5A', 'merchant_zone_scenario_utc_5A', 'scenario_manifest_5A', 'shape_grid_definition_5A']
+    required_by_components: []
+  - gate_id: gate.layer2.5B.validation
+    segment: 5B
+    scope: fingerprint
     passed_flag_path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by path
-    input_set_authority: validation_bundle_index_5B
-    excludes: []
-  passed_flag_format: object
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - arrival_events_5B
-  - s1_grouping_5B
-  - s1_time_grid_5B
-  - s2_latent_field_5B
-  - s2_realised_intensity_5B
-  - s3_bucket_counts_5B
-  - s4_arrival_anomalies_5B
-  - s4_arrival_summary_5B
-  - sealed_inputs_5B
-  - validation_issue_table_5B
-  - validation_report_5B
-  upstream_gate_dependencies:
-  - gate_1A
-  - gate_1B
-  - gate_2A
-  - gate_2B
-  - gate_3A
-  - gate_3B
-  - gate_5A
-  receipts_emitted:
-  - s0_gate_receipt_5B
-- gate_id: gate_6A
-  layer: layer3
-  segment: 6A
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: validation_bundle_index_6A
-    bundle_index_path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
-    passed_flag_output_id: validation_passed_flag_6A
-    passed_flag_path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by path
-    input_set_authority: validation_bundle_index_6A
-    excludes: []
-  passed_flag_format: string
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - s1_party_base_6A
-  - s1_party_summary_6A
-  - s2_account_base_6A
-  - s2_account_summary_6A
-  - s2_merchant_account_base_6A
-  - s2_party_product_holdings_6A
-  - s3_account_instrument_links_6A
-  - s3_instrument_base_6A
-  - s3_instrument_summary_6A
-  - s3_party_instrument_holdings_6A
-  - s4_device_base_6A
-  - s4_device_links_6A
-  - s4_entity_neighbourhoods_6A
-  - s4_ip_base_6A
-  - s4_ip_links_6A
-  - s4_network_summary_6A
-  - s5_account_fraud_roles_6A
-  - s5_device_fraud_roles_6A
-  - s5_ip_fraud_roles_6A
-  - s5_issue_table_6A
-  - s5_merchant_fraud_roles_6A
-  - s5_party_fraud_roles_6A
-  - s5_validation_report_6A
-  - sealed_inputs_6A
-  upstream_gate_dependencies:
-  - gate_1A
-  - gate_1B
-  - gate_2A
-  - gate_2B
-  - gate_3A
-  - gate_3B
-  - gate_5A
-  - gate_5B
-  receipts_emitted:
-  - s0_gate_receipt_6A
-- gate_id: gate_6B
-  layer: layer3
-  segment: 6B
-  scope: fingerprint
-  artifacts:
-    bundle_root_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
-    bundle_index_output_id: null
-    bundle_index_path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
-    passed_flag_output_id: validation_passed_flag_6B
-    passed_flag_path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    passed_flag_schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
-  hashing_law:
-    digest_algo: sha256
-    ordered_by: ASCII-lex by index.json path
-    input_set_authority: index.json
-    excludes:
-    - _passed.flag
-  passed_flag_format: string
-  verification_steps:
-  - Resolve bundle root and index artifact for manifest_fingerprint.
-  - Ensure all index-referenced files exist (and are stable/fully written).
-  - Compute bundle digest per hashing_law (sha256; ordered_by).
-  - Parse passed-flag per its schema and extract the digest field/value.
-  - Compare recomputed digest to flag digest; PASS only on exact match; fail closed otherwise.
-  authorizes_outputs:
-  - s1_arrival_entities_6B
-  - s1_session_index_6B
-  - s2_event_stream_baseline_6B
-  - s2_flow_anchor_baseline_6B
-  - s3_campaign_catalogue_6B
-  - s3_event_stream_with_fraud_6B
-  - s3_flow_anchor_with_fraud_6B
-  - s4_case_timeline_6B
-  - s4_event_labels_6B
-  - s4_flow_bank_view_6B
-  - s4_flow_truth_labels_6B
-  - s5_issue_table_6B
-  - s5_validation_report_6B
-  - sealed_inputs_6B
-  upstream_gate_dependencies:
-  - gate_1A
-  - gate_1B
-  - gate_2A
-  - gate_2B
-  - gate_3A
-  - gate_3B
-  - gate_5A
-  - gate_5B
-  - gate_6A
-  receipts_emitted:
-  - s0_gate_receipt_6B
+    bundle_root_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+    receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
+    verification_method:
+      kind: sha256_bundle_digest
+      digest_field: sha256_hex
+      ordering: ascii_lex
+      exclude_filenames: [_passed.flag]
+    authorizes_outputs: ['arrival_events_5B', 's1_grouping_5B', 's1_time_grid_5B', 's2_latent_field_5B', 's2_realised_intensity_5B', 's3_bucket_counts_5B', 's4_arrival_anomalies_5B', 's4_arrival_summary_5B']
+    required_by_components: []
