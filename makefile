@@ -9,8 +9,10 @@ PYTHONUNBUFFERED ?= 1
 PY_ENGINE = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY)
 PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 
-# Paths and summaries
-RUN_ROOT ?= runs/local_layer1_regen4
+# ---------------------------------------------------------------------------
+# Run defaults
+# ---------------------------------------------------------------------------
+RUN_ROOT ?= runs/local_full_run-0
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -23,22 +25,48 @@ SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
 RUN_ID ?= run-0
-LOG ?= $(RUN_ROOT)/run_log_regen4.log
-SEED ?= 2025121401
+LOG ?= $(RUN_ROOT)/run_log_run-0.log
+SEED ?= 2026010201
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
-MERCHANT_VERSION ?= 2025-11-28
-MERCHANT_TABLE ?= reference/layer1/transaction_schema_merchant_ids/v$(MERCHANT_VERSION)/transaction_schema_merchant_ids.parquet
-MERCHANT_ISO_VERSION ?= 2025-10-08
-MERCHANT_GDP_VERSION ?= 2025-10-07
-MERCHANT_BUCKET_VERSION ?= 2025-10-07
-ISO_TABLE ?= reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet
-GDP_TABLE ?= reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet
-BUCKET_TABLE ?= reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet
-NUMERIC_POLICY ?= reference/governance/numeric_policy/2025-10-07/numeric_policy.json
-MATH_PROFILE ?= reference/governance/math_profile/2025-10-08/math_profile_manifest.json
-VALIDATION_POLICY ?= contracts/policies/l1/seg_1A/s2_validation_policy.yaml
+# ---------------------------------------------------------------------------
+# External versions (defaults; override as needed)
+# ---------------------------------------------------------------------------
+MERCHANT_VERSION ?= 2025-12-31
+MERCHANT_ISO_VERSION ?= 2025-10-09
+MERCHANT_GDP_VERSION ?= 2025-04-15
+MERCHANT_BUCKET_VERSION ?= 2024
+
+ISO_VERSION ?= 2024-12-31
+GDP_VERSION ?= 2025-04-15
+BUCKET_VERSION ?= 2024
+NUMERIC_POLICY_VERSION ?= 2025-12-31
+MATH_PROFILE_VERSION ?= openlibm-v0.8.7
+
+# ---------------------------------------------------------------------------
+# External paths (aligned to registries)
+# ---------------------------------------------------------------------------
+MERCHANT_TABLE ?= reference/layer1/transaction_schema_merchant_ids/$(MERCHANT_VERSION)/transaction_schema_merchant_ids.parquet
+ISO_TABLE ?= reference/iso/iso3166_canonical/$(ISO_VERSION)/iso3166.parquet
+GDP_TABLE ?= reference/economic/world_bank_gdp_per_capita/$(GDP_VERSION)/gdp.parquet
+BUCKET_TABLE ?= reference/economic/gdp_bucket_map/$(BUCKET_VERSION)/gdp_bucket_map.parquet
+NUMERIC_POLICY ?= reference/governance/numeric_policy/$(NUMERIC_POLICY_VERSION)/numeric_policy.json
+MATH_PROFILE ?= reference/governance/math_profile/$(MATH_PROFILE_VERSION)/math_profile_manifest.json
+VALIDATION_POLICY ?= config/policy/validation_policy.yaml
+
+S3_RULE_LADDER_POLICY ?= config/policy/s3.rule_ladder.yaml
+S3_BASE_WEIGHT_POLICY ?= config/policy/s3.base_weight.yaml
+S3_THRESHOLDS_POLICY ?= config/policy/s3.thresholds.yaml
+S3_BOUNDS_POLICY ?= contracts/policies/l1/seg_1A/policy.s3.bounds.yaml
+CROSSBORDER_HYPERPARAMS ?= config/policy/crossborder_hyperparams.yaml
+CCY_SMOOTHING_PARAMS ?= config/allocation/ccy_smoothing_params.yaml
+S6_SELECTION_POLICY ?= config/policy.s6.selection.yaml
+HURDLE_EXPORT_VERSION ?= 2025-12-31
+HURDLE_EXPORT_RUN ?= 20251231T134200Z
+HURDLE_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
+NB_DISPERSION_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/nb_dispersion_coefficients.yaml
+
 SEG1B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml
 
 # Segment 1A
@@ -50,13 +78,15 @@ SEG1A_ARGS = \
 	--iso-table $(ISO_TABLE) \
 	--gdp-table $(GDP_TABLE) \
 	--bucket-table $(BUCKET_TABLE) \
-	--param policy.s3.rule_ladder.yaml=contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml \
-	--param policy.s3.base_weight.yaml=contracts/policies/l1/seg_1A/policy.s3.base_weight.yaml \
-	--param policy.s3.thresholds.yaml=contracts/policies/l1/seg_1A/policy.s3.thresholds.yaml \
-	--param policy.s3.bounds.yaml=contracts/policies/l1/seg_1A/policy.s3.bounds.yaml \
-	--param crossborder_hyperparams.yaml=config/policy/crossborder_hyperparams.yaml \
-	--param hurdle_coefficients.yaml=config/models/hurdle/exports/version=2025-10-09/20251009T120000Z/hurdle_coefficients.yaml \
-	--param nb_dispersion_coefficients.yaml=config/models/hurdle/exports/version=2025-10-24/20251024T234923Z/nb_dispersion_coefficients.yaml \
+	--param policy.s3.rule_ladder.yaml=$(S3_RULE_LADDER_POLICY) \
+	--param policy.s3.base_weight.yaml=$(S3_BASE_WEIGHT_POLICY) \
+	--param policy.s3.thresholds.yaml=$(S3_THRESHOLDS_POLICY) \
+	--param policy.s3.bounds.yaml=$(S3_BOUNDS_POLICY) \
+	--param crossborder_hyperparams.yaml=$(CROSSBORDER_HYPERPARAMS) \
+	--param hurdle_coefficients.yaml=$(HURDLE_COEFFS) \
+	--param nb_dispersion_coefficients.yaml=$(NB_DISPERSION_COEFFS) \
+	--param ccy_smoothing_params.yaml=$(CCY_SMOOTHING_PARAMS) \
+	--param s6_selection_policy.yaml=$(S6_SELECTION_POLICY) \
 	--git-commit $(GIT_COMMIT) \
 	--seed $(SEED) \
 	--numeric-policy $(NUMERIC_POLICY) \
@@ -384,7 +414,8 @@ MERCHANT_BUILD_CMD = $(PY_ENGINE) scripts/build_transaction_schema_merchant_ids.
 	--version $(MERCHANT_VERSION) \
 	--iso-version $(MERCHANT_ISO_VERSION) \
 	--gdp-version $(MERCHANT_GDP_VERSION) \
-	--bucket-version $(MERCHANT_BUCKET_VERSION)
+	--bucket-version $(MERCHANT_BUCKET_VERSION) \
+	--numeric-policy $(NUMERIC_POLICY)
 
 HURDLE_EXPORT_CMD = $(PY_SCRIPT) scripts/build_hurdle_exports.py
 CURRENCY_REF_CMD = $(PY_SCRIPT) scripts/build_currency_reference_surfaces.py
@@ -396,7 +427,8 @@ MERCHANT_CLASS_POLICY_5A_CMD = $(PY_SCRIPT) scripts/build_merchant_class_policy_
 DEMAND_SCALE_POLICY_5A_CMD = $(PY_SCRIPT) scripts/build_demand_scale_policy_5a.py
 SHAPE_LIBRARY_5A_CMD = $(PY_SCRIPT) scripts/build_shape_library_5a.py --bucket-minutes 60
 SCENARIO_CAL_FINGERPRINT ?= e22b195ba9fa8ed582f4669a26009c67637760bfe3b51c9ac77af92b6aa572e9
-SCENARIO_CAL_ZONE_ALLOC ?= runs/local_layer1_regen4/data/layer1/3A/zone_alloc/seed=2025121401/fingerprint=$(SCENARIO_CAL_FINGERPRINT)/part-0.parquet
+SCENARIO_CAL_RUN_ROOT ?= runs/local_layer1_regen4
+SCENARIO_CAL_ZONE_ALLOC ?= $(SCENARIO_CAL_RUN_ROOT)/data/layer1/3A/zone_alloc/seed=2025121401/fingerprint=$(SCENARIO_CAL_FINGERPRINT)/part-0.parquet
 SCENARIO_CAL_CMD = $(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint $(SCENARIO_CAL_FINGERPRINT) --zone-alloc-path $(SCENARIO_CAL_ZONE_ALLOC)
 CDN_WEIGHTS_EXT_VINTAGE = WDI_ITU_internet_users_share_2024
 CDN_WEIGHTS_EXT_YEAR = 2024
