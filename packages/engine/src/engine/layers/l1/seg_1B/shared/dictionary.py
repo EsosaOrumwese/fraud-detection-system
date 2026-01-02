@@ -35,6 +35,12 @@ def default_dictionary_path() -> Path:
     )
 
 
+def get_repo_root() -> Path:
+    """Expose repo root resolution for callers that need absolute paths."""
+
+    return _discover_repo_root()
+
+
 def load_dictionary(path: Path | None = None) -> Mapping[str, object]:
     """Decode the dataset dictionary into a mapping."""
 
@@ -141,6 +147,7 @@ def _format_template(
 
 __all__ = [
     "default_dictionary_path",
+    "get_repo_root",
     "load_dictionary",
     "resolve_dataset_path",
     "render_dataset_path",
