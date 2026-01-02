@@ -45,7 +45,7 @@ The authoritative inventory of outputs (IDs, paths, schemas, join keys) is `engi
 
 - `class`: `surface`, `stream`, or `gate` (gate artifacts are not consumption surfaces).
 - `exposure`: `internal` or `external` (external means the schema anchor lives under `/egress/`).
-- `scope`: deterministic identity scope derived from partition tokens (examples: `parameter`, `fingerprint`, `scope_parameter_hash_seed_run_id`, `scope_parameter_hash_manifest_fingerprint_seed_scenario_id`).
+- `scope`: deterministic identity scope derived from partition tokens (examples: `scope_parameter_hash`, `scope_manifest_fingerprint`, `scope_parameter_hash_seed_run_id`, `scope_parameter_hash_manifest_fingerprint_seed_scenario_id`).
 - `availability`: `optional` means the engine may omit the output; absence implies required.
 
 ## Join semantics

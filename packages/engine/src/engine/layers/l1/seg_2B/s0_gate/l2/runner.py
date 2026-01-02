@@ -347,20 +347,20 @@ class S0GateRunner:
         ]
         add_asset(
             "validation_bundle_1B",
-            template_args={"manifest_fingerprint": manifest},
+            template_args={"manifest_fingerprint": manifest, "fingerprint": manifest},
             file_override=bundle_files,
             resolved_override=bundle_path,
         )
         flag_override = (bundle_path / "_passed.flag").resolve()
         add_asset(
             "validation_passed_flag_1B",
-            template_args={"manifest_fingerprint": manifest},
+            template_args={"manifest_fingerprint": manifest, "fingerprint": manifest},
             file_override=[flag_override],
             resolved_override=flag_override,
         )
         add_asset(
             "site_locations",
-            template_args={"seed": seed, "manifest_fingerprint": manifest},
+            template_args={"seed": seed, "manifest_fingerprint": manifest, "fingerprint": manifest},
         )
         for policy_id in inputs.policy_asset_ids:
             add_asset(policy_id, template_args={})
@@ -371,6 +371,7 @@ class S0GateRunner:
                 template_args={
                     "seed": seed,
                     "manifest_fingerprint": inputs.seg2a_manifest_fingerprint,
+                    "fingerprint": inputs.seg2a_manifest_fingerprint,
                 },
                 allow_missing=False,
             )
