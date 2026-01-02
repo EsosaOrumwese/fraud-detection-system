@@ -194,7 +194,7 @@ def compute_jitter(
                     iso_code=iso_code,
                     tile_ids=tile_ids_by_iso.get(iso_code, set()),
                     tile_bounds=tile_bounds,
-                    polygon_record=country_polygon_map.get(iso_code),
+                    polygon_record=country_polygons.get(iso_code),
                 )
 
         bounds = tile_bounds.get(key)
