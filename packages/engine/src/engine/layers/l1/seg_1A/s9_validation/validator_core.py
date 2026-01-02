@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Mapping, Sequence
@@ -13,7 +14,7 @@ import yaml
 from jsonschema import Draft202012Validator, ValidationError
 
 from ..shared.dictionary import get_repo_root, load_dictionary
-from ..s0_foundations.l0.artifacts import hash_artifact
+from ..s0_foundations.l0.artifacts import ArtifactDigest, hash_artifact
 from ..s0_foundations.l1.hashing import compute_manifest_fingerprint, compute_parameter_hash
 from ..s0_foundations.exceptions import ErrorContext, S0Error, err
 from . import constants as c
@@ -68,6 +69,8 @@ _SCHEMA_DOCS: Dict[str, Dict[str, Any]] = {}
 _SCHEMA_CACHE: Dict[tuple[str, str], Draft202012Validator] = {}
 _SCHEMA_VERSION_CACHE: Dict[tuple[str, str], str] = {}
 _ISO_CODES: set[str] | None = None
+
+_HEX64_RE = re.compile(r"^[a-f0-9]{64}$")
 
 _RNG_BUDGET_TABLE: Mapping[str, Mapping[str, object]] = {
     c.EVENT_FAMILY_ANCHOR: {"type": "non_consuming"},
@@ -374,7 +377,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
         outlet_valid = True
 
     safe_call(outlet_validation)
-    safe_call(lambda: _assert_iso_columns(sequence_df, ("legal_country_iso",), c.EVENT_FAMILY_SEQUENCE_FINALIZE))
+    safe_call(lambda: _assert_iso_columns(sequence_df, ("country_iso",), c.EVENT_FAMILY_SEQUENCE_FINALIZE))
 
     if outlet_valid and not nb_final_df.empty:
         safe_call(lambda: _check_nb_sum_law(nb_final_df, merchant_totals))
@@ -749,6 +752,38 @@ def _assert_iso_columns(frame: pd.DataFrame | None, columns: Sequence[str], data
                 )
 
 
+def _digest_from_record(
+    record: Mapping[str, Any],
+    *,
+    base_path: Path,
+    error_prefix: str,
+) -> ArtifactDigest:
+    raw_path = str(record.get("path") or "")
+    filename = record.get("filename")
+    if not isinstance(filename, str):
+        filename = ""
+    sha_hex = record.get("sha256_hex") or record.get("sha256")
+    basename = filename or (Path(raw_path).name if raw_path else "")
+
+    if isinstance(sha_hex, str) and _HEX64_RE.fullmatch(sha_hex):
+        path_value = Path(raw_path or basename)
+        size_bytes = int(record.get("size_bytes") or 0)
+        mtime_ns = int(record.get("mtime_ns") or 0)
+        return ArtifactDigest(
+            basename=basename or path_value.name,
+            path=path_value,
+            size_bytes=size_bytes,
+            mtime_ns=mtime_ns,
+            sha256_digest=bytes.fromhex(sha_hex),
+        )
+
+    if not raw_path:
+        raise err(f"{error_prefix}_IO", "artefact path missing in lineage record")
+
+    resolved = _resolve_artifact_path(raw_path, base_path)
+    return hash_artifact(resolved, error_prefix=error_prefix)
+
+
 def _recompute_lineage(context: S9DeterministicContext) -> None:
     mapping = context.lineage_paths
     required_keys = ("param_digest_log.jsonl", "fingerprint_artifacts.jsonl")
@@ -761,8 +796,9 @@ def _recompute_lineage(context: S9DeterministicContext) -> None:
         raise err("E_LINEAGE_RECOMPUTE_MISSING", "param_digest_log.jsonl is empty")
 
     parameter_digests = [
-        hash_artifact(
-            _resolve_artifact_path(record.get("path", ""), context.base_path),
+        _digest_from_record(
+            record,
+            base_path=context.base_path,
             error_prefix="E_LINEAGE_PARAM",
         )
         for record in param_records
@@ -779,8 +815,9 @@ def _recompute_lineage(context: S9DeterministicContext) -> None:
         raise err("E_LINEAGE_RECOMPUTE_MISSING", "fingerprint_artifacts.jsonl is empty")
 
     manifest_digests = [
-        hash_artifact(
-            _resolve_artifact_path(record.get("path", ""), context.base_path),
+        _digest_from_record(
+            record,
+            base_path=context.base_path,
             error_prefix="E_LINEAGE_MANIFEST",
         )
         for record in manifest_records
@@ -833,6 +870,9 @@ def _resolve_artifact_path(raw_path: str, base_path: Path) -> Path:
     candidate = Path(raw_path)
     if not candidate.is_absolute():
         candidate = (base_path / raw_path).resolve()
+        if not candidate.exists():
+            repo_root = get_repo_root()
+            candidate = (repo_root / raw_path).resolve()
     return candidate
 
 
@@ -1070,7 +1110,9 @@ def _validate_trace_identity(context: S9DeterministicContext, trace_df: pd.DataF
         ("manifest_fingerprint", context.manifest_fingerprint),
     ):
         if column in trace_df.columns:
-            _assert_column_equals(trace_df, column, value, c.TRACE_LOG_ID)
+            series = trace_df[column]
+            if series.notna().any():
+                _assert_column_equals(trace_df[series.notna()], column, value, c.TRACE_LOG_ID)
 
 
 def _validate_audit_identity(context: S9DeterministicContext, audit_df: pd.DataFrame) -> None:
@@ -1187,15 +1229,7 @@ def _account_for_family(
         if column not in df.columns:
             raise err("E_SCHEMA_INVALID", f"{dataset_id} missing column '{column}'")
 
-    module_values = df["module"].astype(str).unique()
-    if len(module_values) != 1:
-        raise err("E_RNG_BUDGET_VIOLATION", f"{dataset_id} module mismatch across rows")
-    module = module_values[0]
-
-    substream_values = df["substream_label"].astype(str).unique()
-    if len(substream_values) != 1:
-        raise err("E_RNG_BUDGET_VIOLATION", f"{dataset_id} substream label mismatch across rows")
-    substream_label = substream_values[0]
+    group_totals: Dict[tuple[str, str], Dict[str, int]] = {}
 
     events_total = int(len(df))
     blocks_total = 0
@@ -1203,6 +1237,16 @@ def _account_for_family(
     nonconsuming_events = 0
 
     for row in df.itertuples(index=False):
+        module = str(getattr(row, "module"))
+        substream_label = str(getattr(row, "substream_label"))
+        group_key = (module, substream_label)
+        if group_key not in group_totals:
+            group_totals[group_key] = {
+                "events_total": 0,
+                "blocks_total": 0,
+                "draws_total": 0,
+            }
+
         try:
             blocks = int(getattr(row, "blocks"))
         except (TypeError, ValueError) as exc:
@@ -1236,49 +1280,67 @@ def _account_for_family(
         draws_total += draws
         if blocks == 0:
             nonconsuming_events += 1
+        group_totals[group_key]["events_total"] += 1
+        group_totals[group_key]["blocks_total"] += blocks
+        group_totals[group_key]["draws_total"] += draws
 
     if "module" not in trace_df.columns or "substream_label" not in trace_df.columns:
         raise err("E_SCHEMA_INVALID", "rng_trace_log missing module or substream_label columns")
 
-    trace_subset = trace_df[
-        (trace_df["module"].astype(str) == module)
-        & (trace_df["substream_label"].astype(str) == substream_label)
-    ]
-    trace_rows_total = int(len(trace_subset))
+    trace_rows_total = 0
+    trace_events_total = 0
+    trace_blocks_total = 0
+    trace_draws_total = 0
+
+    for (module, substream_label), stats in group_totals.items():
+        trace_subset = trace_df[
+            (trace_df["module"].astype(str) == module)
+            & (trace_df["substream_label"].astype(str) == substream_label)
+        ]
+        group_trace_rows = int(len(trace_subset))
+        if stats["events_total"] > 0 and group_trace_rows != stats["events_total"]:
+            raise err(
+                "E_TRACE_COVERAGE_MISSING",
+                f"{dataset_id} trace rows {group_trace_rows} do not match events {stats['events_total']} for module '{module}' ({substream_label})",
+            )
+        final_trace_row = _select_trace_row(trace_subset)
+        if final_trace_row is None:
+            if stats["events_total"] > 0:
+                raise err(
+                    "E_TRACE_COVERAGE_MISSING",
+                    f"{dataset_id} events present but no trace coverage for module '{module}' ({substream_label})",
+                )
+            continue
+        group_trace_events_total = int(final_trace_row["events_total"])
+        group_trace_blocks_total = int(final_trace_row["blocks_total"])
+        group_trace_draws_total = _parse_u128(final_trace_row["draws_total"])
+        if (
+            group_trace_events_total != stats["events_total"]
+            or group_trace_blocks_total != stats["blocks_total"]
+            or group_trace_draws_total != stats["draws_total"]
+        ):
+            raise err(
+                "E_TRACE_TOTALS_MISMATCH",
+                f"{dataset_id} trace totals mismatch for module '{module}' ({substream_label}) "
+                f"(trace events={group_trace_events_total}, blocks={group_trace_blocks_total}, draws={group_trace_draws_total}; "
+                f"observed events={stats['events_total']}, blocks={stats['blocks_total']}, draws={stats['draws_total']})",
+            )
+        trace_rows_total += group_trace_rows
+        trace_events_total += group_trace_events_total
+        trace_blocks_total += group_trace_blocks_total
+        trace_draws_total += group_trace_draws_total
+
     if events_total > 0 and trace_rows_total != events_total:
         raise err(
             "E_TRACE_COVERAGE_MISSING",
             f"{dataset_id} trace rows {trace_rows_total} do not match events {events_total}",
         )
-    final_trace_row = _select_trace_row(trace_subset)
-
-    if final_trace_row is None:
-        coverage_ok = events_total == 0
-        trace_totals: Dict[str, object] = {}
-        if events_total > 0:
-            raise err(
-                "E_TRACE_COVERAGE_MISSING",
-                f"{dataset_id} events present but no trace coverage for module '{module}' ({substream_label})",
-            )
-    else:
-        trace_events_total = int(final_trace_row["events_total"])
-        trace_blocks_total = int(final_trace_row["blocks_total"])
-        trace_draws_total = _parse_u128(final_trace_row["draws_total"])
-        if (
-            trace_events_total != events_total
-            or trace_blocks_total != blocks_total
-            or trace_draws_total != draws_total
-        ):
-            raise err(
-                "E_TRACE_TOTALS_MISMATCH",
-                f"{dataset_id} trace totals mismatch (trace events={trace_events_total}, blocks={trace_blocks_total}, draws={trace_draws_total}; observed events={events_total}, blocks={blocks_total}, draws={draws_total})",
-            )
-        coverage_ok = True
-        trace_totals = {
-            "events_total": trace_events_total,
-            "draws_total_u128_dec": str(trace_draws_total),
-            "blocks_total_u64": trace_blocks_total,
-        }
+    coverage_ok = True if events_total > 0 else trace_df.empty
+    trace_totals: Dict[str, object] = {
+        "events_total": trace_events_total,
+        "draws_total_u128_dec": str(trace_draws_total),
+        "blocks_total_u64": trace_blocks_total,
+    }
 
     return {
         "events_total": events_total,

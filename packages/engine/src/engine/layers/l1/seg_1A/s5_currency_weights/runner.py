@@ -101,7 +101,7 @@ class S5CurrencyWeightsRunner:
             else self._load_iso_legal_tender(deterministic)
         )
 
-        self._preflight_surface_checks(
+        can_build_merchant_currency = self._preflight_surface_checks(
             settlement_shares=settlements,
             ccy_shares=ccy_shares,
             iso_lookup=iso_lookup,
@@ -116,7 +116,7 @@ class S5CurrencyWeightsRunner:
             has_share_vector = any(
                 bool(merchant.share_vector) for merchant in deterministic.merchants
             )
-            if legal_tender_map or has_share_vector:
+            if can_build_merchant_currency and (legal_tender_map or has_share_vector):
                 merchant_records = derive_merchant_currency(
                     deterministic.merchants,
                     legal_tender_map,
@@ -340,7 +340,7 @@ class S5CurrencyWeightsRunner:
         iso_lookup: Sequence[LegalTender],
         merchants: Sequence[MerchantCurrencyInput],
         tolerance: float = 1e-6,
-    ) -> None:
+    ) -> bool:
         iso_codes = {item.country_iso for item in iso_lookup} if iso_lookup else None
         self._validate_surface(
             settlement_shares,
@@ -353,18 +353,19 @@ class S5CurrencyWeightsRunner:
             iso_codes=iso_codes,
         )
         if not merchants:
-            return
+            return False
 
         iso_currency_map: dict[str, str] = {
             item.country_iso.upper(): item.primary_ccy.upper()
             for item in iso_lookup
             if item.country_iso and item.primary_ccy
         }
-        self._assert_currency_coverage(
+        return self._assert_currency_coverage(
             merchants=merchants,
             settlement_shares=settlement_shares,
             ccy_shares=ccy_shares,
             iso_currency_map=iso_currency_map,
+            allow_partial=True,
         )
 
     def _validate_surface(
@@ -416,7 +417,8 @@ class S5CurrencyWeightsRunner:
         settlement_shares: Sequence[ShareSurface],
         ccy_shares: Sequence[ShareSurface],
         iso_currency_map: Mapping[str, str],
-    ) -> None:
+        allow_partial: bool = False,
+    ) -> bool:
         required_currencies: set[str] = set()
         missing_iso_metadata: set[str] = set()
         for merchant in merchants:
@@ -434,12 +436,18 @@ class S5CurrencyWeightsRunner:
             else:
                 missing_iso_metadata.add(iso)
         if missing_iso_metadata:
+            if allow_partial:
+                logger.warning(
+                    "S5 merchant_currency skipped; legal tender mapping missing ISO codes: %s",
+                    sorted(missing_iso_metadata),
+                )
+                return False
             raise err(
                 "E_INPUT_CURRENCY_COVERAGE",
                 f"legal tender mapping missing entries for ISO codes {sorted(missing_iso_metadata)}",
             )
         if not required_currencies:
-            return
+            return True
         available_currencies = {
             row.currency.upper() for row in settlement_shares
         } | {
@@ -454,6 +462,7 @@ class S5CurrencyWeightsRunner:
                     f"in share surfaces: {missing_currencies}"
                 ),
             )
+        return True
 
     def _create_staging_dir(self, base_path: Path) -> Path:
         staging_root = base_path / "tmp" / f"s5_{uuid.uuid4().hex}"

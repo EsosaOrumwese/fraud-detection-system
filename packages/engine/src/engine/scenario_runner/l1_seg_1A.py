@@ -176,9 +176,9 @@ class Segment1AOrchestrator:
     def _resolve_s7_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
         """Resolve the governed S7 integerisation policy path."""
         candidate_keys = (
-            "s7_integerisation_policy.yaml",
-            "config.allocation.s7_integerisation_policy.yaml",
-            "config/allocation/s7_integerisation_policy.yaml",
+            "policy.s3.thresholds.yaml",
+            "config.policy.s3.thresholds.yaml",
+            "config/policy/s3.thresholds.yaml",
         )
         for key in candidate_keys:
             policy_path = param_mapping.get(key)
@@ -187,8 +187,8 @@ class Segment1AOrchestrator:
         default_path = (
             get_repo_root()
             / "config"
-            / "allocation"
-            / "s7_integerisation_policy.yaml"
+            / "policy"
+            / "s3.thresholds.yaml"
         )
         if not default_path.exists():
             raise err(

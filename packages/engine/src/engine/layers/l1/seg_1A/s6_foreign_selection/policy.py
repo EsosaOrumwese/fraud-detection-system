@@ -48,6 +48,14 @@ class SelectionPolicy:
     dp_score_print: int | None
     per_currency: Mapping[str, SelectionOverrides]
 
+    @property
+    def policy_semver(self) -> str:
+        return "unversioned"
+
+    @property
+    def policy_version(self) -> str:
+        return "unversioned"
+
     def resolve_for_currency(self, currency: str) -> SelectionOverrides:
         """Return the effective overrides for ``currency`` (ISO-4217)."""
 

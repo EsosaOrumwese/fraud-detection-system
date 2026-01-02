@@ -44,18 +44,22 @@ class NumericPolicy:
     def version(self) -> str:
         return str(self.raw.get("version", "1.0"))
 
+    def canonical(self) -> Mapping[str, Any]:
+        return _canonical_numeric_policy(self.raw)
+
     def validate(self) -> None:
+        canonical = self.canonical()
         for key, expected in _NUMERIC_POLICY_REQUIRED.items():
-            if key not in self.raw:
+            if key not in canonical:
                 raise err(
                     "E_NUMERIC_POLICY_MISSING", f"numeric_policy missing key '{key}'"
                 )
-            if self.raw[key] != expected:
+            if canonical[key] != expected:
                 raise err(
                     "E_NUMERIC_POLICY_VALUE",
-                    f"numeric_policy '{key}' expected {expected!r}, got {self.raw[key]!r}",
+                    f"numeric_policy '{key}' expected {expected!r}, got {canonical[key]!r}",
                 )
-        if self.raw.get("nan_inf_is_error", True) is not True:
+        if canonical.get("nan_inf_is_error", True) is not True:
             raise err(
                 "E_NUMERIC_POLICY_VALUE",
                 "numeric_policy requires nan_inf_is_error = true",
@@ -255,11 +259,11 @@ def build_numeric_policy_attestation(
         "math_profile_id": math_profile.profile_id,
         "platform": platform_data,
         "flags": {
-            "binary_format": policy.raw.get("binary_format"),
-            "rounding": policy.raw.get("rounding_mode"),
-            "fma_allowed": policy.raw.get("fma_allowed"),
-            "flush_to_zero": policy.raw.get("flush_to_zero"),
-            "denormals_are_zero": policy.raw.get("denormals_are_zero"),
+            "binary_format": policy.canonical().get("binary_format"),
+            "rounding": policy.canonical().get("rounding_mode"),
+            "fma_allowed": policy.canonical().get("fma_allowed"),
+            "flush_to_zero": policy.canonical().get("flush_to_zero"),
+            "denormals_are_zero": policy.canonical().get("denormals_are_zero"),
         },
         "self_tests": run_numeric_self_tests(),
         "digests": [
@@ -270,6 +274,86 @@ def build_numeric_policy_attestation(
     if policy.raw.get("build_contract"):
         attestation["build_contract"] = policy.raw["build_contract"]
     return NumericPolicyAttestation(content=attestation)
+
+
+def _canonical_numeric_policy(raw: Mapping[str, Any]) -> Mapping[str, Any]:
+    def _norm_str(value: Any) -> str:
+        return str(value).strip().lower()
+
+    def _parse_on_off(value: Any) -> bool | None:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return None
+        text = _norm_str(value)
+        if text in {"on", "true", "yes", "enabled"}:
+            return True
+        if text in {"off", "false", "no", "disabled"}:
+            return False
+        return None
+
+    canonical: dict[str, Any] = {}
+    if "binary_format" in raw:
+        canonical["binary_format"] = _norm_str(raw["binary_format"])
+
+    rounding = raw.get("rounding_mode", raw.get("rounding"))
+    if rounding is not None:
+        canonical["rounding_mode"] = _norm_str(rounding)
+
+    fma_allowed = raw.get("fma_allowed")
+    if fma_allowed is None:
+        fma_allowed = _parse_on_off(raw.get("fma"))
+    if fma_allowed is not None:
+        canonical["fma_allowed"] = bool(fma_allowed)
+
+    flush_to_zero = raw.get("flush_to_zero")
+    denormals_are_zero = raw.get("denormals_are_zero")
+    ftz_daz = raw.get("ftz_daz")
+    if ftz_daz is not None:
+        parsed = _parse_on_off(ftz_daz)
+        if parsed is not None:
+            flush_to_zero = parsed if flush_to_zero is None else flush_to_zero
+            denormals_are_zero = (
+                parsed if denormals_are_zero is None else denormals_are_zero
+            )
+
+    subnormals = raw.get("subnormals")
+    if denormals_are_zero is None and subnormals is not None:
+        text = _norm_str(subnormals)
+        if text in {"preserved", "keep"}:
+            denormals_are_zero = False
+        elif text in {"flushed", "zeroed", "zero"}:
+            denormals_are_zero = True
+
+    if flush_to_zero is not None:
+        canonical["flush_to_zero"] = bool(flush_to_zero)
+    if denormals_are_zero is not None:
+        canonical["denormals_are_zero"] = bool(denormals_are_zero)
+
+    sum_policy = raw.get("sum_policy")
+    parallel = raw.get("parallel_decision_kernels")
+    reductions = (
+        raw.get("reductions") if isinstance(raw.get("reductions"), Mapping) else {}
+    )
+    if sum_policy is None:
+        sum_policy = reductions.get("sum_policy")
+    if parallel is None:
+        parallel = reductions.get("parallel_decision_kernels")
+    if sum_policy is not None:
+        canonical["sum_policy"] = _norm_str(sum_policy)
+    if parallel is not None:
+        canonical["parallel_decision_kernels"] = _norm_str(parallel)
+
+    nan_inf = raw.get("nan_inf_is_error")
+    exceptions = (
+        raw.get("exceptions") if isinstance(raw.get("exceptions"), Mapping) else {}
+    )
+    if nan_inf is None:
+        nan_inf = exceptions.get("nan_inf_is_hard_error")
+    if nan_inf is not None:
+        canonical["nan_inf_is_error"] = bool(nan_inf)
+
+    return canonical
 
 
 __all__ = [

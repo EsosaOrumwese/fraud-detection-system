@@ -22,7 +22,7 @@ from ..l1.validators import validate_path_embeddings
 from .aggregate import AggregationResult, compute_requirements
 from .config import RunnerConfig
 from .materialise import S3RunResult, materialise_requirements
-from ..shared.dictionary import load_dictionary as _shared_load_dictionary, resolve_dataset_path
+from ...shared.dictionary import load_dictionary as _shared_load_dictionary, resolve_dataset_path
 
 
 @dataclass(frozen=True)

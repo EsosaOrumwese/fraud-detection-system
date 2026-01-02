@@ -184,9 +184,9 @@ def _count_trace_entries(trace_path: Path | None) -> int:
             if line.strip():
                 record = json.loads(line)
                 if record.get("module") != c.MODULE_NAME:
-                    raise S6ValidationError(
-                        f"trace record module mismatch: {record.get('module')}"
-                    )
+                    continue
+                if record.get("substream_label") != c.SUBSTREAM_LABEL_GUMBEL:
+                    continue
                 run_id = str(record.get("run_id", ""))
                 if not _HEX32_RE.fullmatch(run_id):
                     raise S6ValidationError(

@@ -14,6 +14,7 @@ import pandas as pd
 from .builder import CurrencyResult
 from .contexts import S5PolicyMetadata
 from .merchant_currency import MerchantCurrencyRecord
+from ..shared.passed_flag import format_passed_flag
 
 PARTITION_FILENAME = "part-00000.parquet"
 
@@ -329,6 +330,6 @@ def write_validation_receipt(
 
     digest = hashlib.sha256(receipt_text.encode("utf-8")).hexdigest()
     passed_flag = dest_dir / "_passed.flag"
-    passed_flag.write_text(f"sha256_hex={digest}\n", encoding="ascii")
+    passed_flag.write_text(format_passed_flag(digest), encoding="ascii")
 
     return receipt_path

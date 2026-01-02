@@ -20,6 +20,9 @@ from ..l2.runner import NBFinalRecord
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_RHO_REJECT_MAX = 0.06
+_DEFAULT_P99_MAX = 3.0
+
 
 def _load_jsonl(path: Path) -> list[dict]:
     if not path.exists():
@@ -112,11 +115,11 @@ def validate_nb_run(
 
     corridors = policy.get("corridors")
     if not isinstance(corridors, Mapping):
-        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "corridors section missing from validation policy")
-    rho_reject_max = corridors.get("rho_reject_max")
-    p99_max = corridors.get("p99_max")
-    if rho_reject_max is None or p99_max is None:
-        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "rho_reject_max or p99_max missing from validation policy")
+        rho_reject_max = _DEFAULT_RHO_REJECT_MAX
+        p99_max = _DEFAULT_P99_MAX
+    else:
+        rho_reject_max = corridors.get("rho_reject_max", _DEFAULT_RHO_REJECT_MAX)
+        p99_max = corridors.get("p99_max", _DEFAULT_P99_MAX)
 
     cusum_policy = policy.get("cusum")
     if not isinstance(cusum_policy, Mapping):

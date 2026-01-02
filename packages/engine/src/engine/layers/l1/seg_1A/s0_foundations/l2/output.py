@@ -25,7 +25,7 @@ from ..l1.context import RunContext
 from ..l1.design import DispersionCoefficients, HurdleCoefficients
 from ..l1.numeric import NumericPolicyAttestation
 from ..l1.rng import PhiloxEngine, PhiloxState
-from ...shared.dictionary import load_dictionary, resolve_dataset_path
+from ...shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
 from ...shared.passed_flag import format_passed_flag
 
 if TYPE_CHECKING:
@@ -66,6 +66,16 @@ def _write_jsonl(path: Path, rows: list[Mapping[str, object]]) -> None:
         for row in rows:
             handle.write(json.dumps(row, sort_keys=True))
             handle.write("\n")
+
+
+def _relative_or_absolute_path(path: Path) -> str:
+    """Return a repo-root relative path when possible, else an absolute path."""
+    resolved = path.resolve()
+    repo_root = get_repo_root()
+    try:
+        return resolved.relative_to(repo_root).as_posix()
+    except ValueError:
+        return str(resolved)
 
 
 def _utc_timestamp() -> str:
@@ -214,6 +224,7 @@ def _materialise_validation_bundle(
             [
                 {
                     "filename": digest.basename,
+                    "path": _relative_or_absolute_path(digest.path),
                     "size_bytes": digest.size_bytes,
                     "sha256_hex": digest.sha256_hex,
                     "mtime_ns": digest.mtime_ns,
@@ -226,7 +237,7 @@ def _materialise_validation_bundle(
             temp_dir / "fingerprint_artifacts.jsonl",
             [
                 {
-                    "path": str(digest.path),
+                    "path": _relative_or_absolute_path(digest.path),
                     "size_bytes": digest.size_bytes,
                     "sha256": digest.sha256_hex,
                 }

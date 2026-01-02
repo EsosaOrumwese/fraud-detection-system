@@ -207,6 +207,7 @@ class ZTPEventWriter:
         )
         payload = {
             "merchant_id": int(merchant_id),
+            "context": c.CONTEXT,
             "lambda_extra": float(lambda_extra),
             "k": 0,
             "attempt": int(attempt_index),
@@ -253,6 +254,7 @@ class ZTPEventWriter:
             )
         payload = {
             "merchant_id": int(merchant_id),
+            "context": c.CONTEXT,
             "lambda_extra": float(lambda_extra),
             "attempts": 64,
             "aborted": True,

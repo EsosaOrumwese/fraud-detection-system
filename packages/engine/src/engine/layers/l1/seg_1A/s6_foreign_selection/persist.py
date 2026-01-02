@@ -10,6 +10,7 @@ from typing import Iterable
 import pandas as pd
 
 from .types import CandidateSelection
+from ..shared.passed_flag import format_passed_flag
 
 __all__ = [
     "write_membership",
@@ -66,5 +67,5 @@ def write_receipt(
 
     digest = hashlib.sha256(receipt_text.encode("utf-8")).hexdigest()
     flag_path = destination / "_passed.flag"
-    flag_path.write_text(f"sha256_hex={digest}\n", encoding="ascii")
+    flag_path.write_text(format_passed_flag(digest), encoding="ascii")
     return receipt_path

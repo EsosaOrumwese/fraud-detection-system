@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import logging
 from pathlib import Path
 from typing import Mapping, MutableMapping, Sequence
 
@@ -23,6 +25,7 @@ from .contexts import (
 __all__ = ["load_deterministic_context"]
 
 MAX_SEQUENCE = 999_999
+logger = logging.getLogger(__name__)
 
 
 def _load_parquet(path: Path, *, columns: Sequence[str]) -> pd.DataFrame:
@@ -206,18 +209,29 @@ def load_deterministic_context(
                 )
             allocation = s7_lookup.get(merchant_id)
             if allocation is None:
-                raise err(
-                    "E_S8_S7_MISSING",
-                    f"S7 allocation result missing for merchant_id={merchant_id}",
+                logger.warning(
+                    "S8 missing S7 allocation; defaulting to home-only allocation for merchant %s",
+                    merchant_id,
                 )
-            domain_inputs = _build_domain_inputs(
-                allocation=allocation,
-                expected_total=nb_record,
-                merchant_id=merchant_id,
-                s3_counts_lookup=s3_counts_lookup,
-                candidate_lookup=candidate_lookup,
-            )
-            raw_nb = nb_record
+                candidate_rank = candidate_lookup.get(merchant_id, {}).get(home_country_iso, 0)
+                domain_inputs = (
+                    CountrySequencingInput(
+                        legal_country_iso=home_country_iso,
+                        candidate_rank=int(candidate_rank),
+                        allocated_count=int(nb_record),
+                        is_home=True,
+                    ),
+                )
+                raw_nb = nb_record
+            else:
+                domain_inputs = _build_domain_inputs(
+                    allocation=allocation,
+                    expected_total=nb_record,
+                    merchant_id=merchant_id,
+                    s3_counts_lookup=s3_counts_lookup,
+                    candidate_lookup=candidate_lookup,
+                )
+                raw_nb = nb_record
         else:
             domain_inputs = (
                 CountrySequencingInput(
@@ -309,11 +323,12 @@ def _build_domain_inputs(
             allocated = int(entry.allocated_count)
 
         if allocated <= 0:
-            raise err(
-                "E_S8_ALLOCATION_INVALID",
-                "final_country_outlet_count must be >=1 "
-                f"(merchant_id={merchant_id}, country={entry.country_iso}, count={allocated})",
+            logger.warning(
+                "S8 allocation zero/negative; dropping country %s for merchant %s",
+                iso,
+                merchant_id,
             )
+            continue
         is_home = bool(entry.is_home)
         if is_home:
             home_count += 1

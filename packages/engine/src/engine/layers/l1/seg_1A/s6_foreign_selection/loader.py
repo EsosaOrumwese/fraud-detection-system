@@ -11,7 +11,7 @@ import logging
 
 import pandas as pd
 
-from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
 from ..shared.passed_flag import parse_passed_flag
 from .contexts import S6DeterministicContext
 from .types import CandidateInput, MerchantSelectionInput
@@ -153,11 +153,12 @@ def _load_surfaces(
                 "kappa",
             ],
         )
-    except FileNotFoundError as exc:
-        raise S6LoaderError(
-            "merchant_currency cache is required for S6 but was not found "
-            f"at {merchant_currency_path}"
-        ) from exc
+    except FileNotFoundError:
+        merchant_currency_frame = _derive_merchant_currency_from_iso(
+            candidate_frame=candidate_frame,
+            base_path=base_path,
+            dictionary=dictionary,
+        )
 
     try:
         eligibility_frame = pd.read_parquet(
@@ -238,6 +239,9 @@ def _build_selection_inputs(
 
     merchants: list[MerchantSelectionInput] = []
     missing_k_targets: list[int] = []
+    missing_currency: list[int] = []
+    missing_weights: list[int] = []
+    skipped_candidates = 0
     grouped = surfaces.candidates.groupby("merchant_id", sort=False)
     for merchant_id, frame in grouped:
         merchant_id_int = int(merchant_id)
@@ -258,29 +262,22 @@ def _build_selection_inputs(
             continue
         currency = currency_by_merchant.get(merchant_id_int)
         if currency is None:
-            raise S6LoaderError(
-                f"settlement currency missing for merchant {merchant_id_int}"
-            )
+            missing_currency.append(merchant_id_int)
+            continue
         weight_map = weights_by_currency.get(currency)
         if weight_map is None:
-            raise S6LoaderError(
-                f"currency '{currency}' absent from S5 weights cache "
-                f"(merchant {merchant_id_int})"
-            )
+            missing_weights.append(merchant_id_int)
+            continue
 
         candidates: list[CandidateInput] = []
         for row in frame_effective.itertuples(index=False):
             country_iso = str(row.country_iso).upper()
             candidate_rank = int(row.candidate_rank)
             is_home = bool(row.is_home)
-            try:
-                weight_value = float(weight_map[country_iso])
-            except KeyError as exc:
-                raise S6LoaderError(
-                    "candidate country missing from S5 weights cache "
-                    f"(merchant={merchant_id_int}, currency={currency}, "
-                    f"country={country_iso})"
-                ) from exc
+            weight_value = weight_map.get(country_iso)
+            if weight_value is None:
+                skipped_candidates += 1
+                continue
             candidates.append(
                 CandidateInput(
                     merchant_id=merchant_id_int,
@@ -312,6 +309,32 @@ def _build_selection_inputs(
             sample,
             "..." if len(missing_k_targets) > 5 else "",
         )
+    if missing_currency:
+        sample = ", ".join(str(mid) for mid in missing_currency[:5])
+        logger.warning(
+            "S6 loader skipping %d merchants missing settlement currency "
+            "(parameter_hash=%s): %s%s",
+            len(missing_currency),
+            parameter_hash,
+            sample,
+            "..." if len(missing_currency) > 5 else "",
+        )
+    if missing_weights:
+        sample = ", ".join(str(mid) for mid in missing_weights[:5])
+        logger.warning(
+            "S6 loader skipping %d merchants with currencies absent from S5 weights "
+            "(parameter_hash=%s): %s%s",
+            len(missing_weights),
+            parameter_hash,
+            sample,
+            "..." if len(missing_weights) > 5 else "",
+        )
+    if skipped_candidates:
+        logger.warning(
+            "S6 loader dropped %d candidates missing weights (parameter_hash=%s)",
+            skipped_candidates,
+            parameter_hash,
+        )
 
     if not merchants:
         raise S6LoaderError(
@@ -334,7 +357,11 @@ def _currency_lookup(frame: pd.DataFrame) -> Mapping[int, str]:
     mapping: Dict[int, str] = {}
     for row in frame.itertuples(index=False):
         merchant_id = int(row.merchant_id)
+        if pd.isna(row.kappa):
+            continue
         kappa = str(row.kappa).upper()
+        if not kappa:
+            continue
         mapping[merchant_id] = kappa
     return mapping
 
@@ -345,3 +372,48 @@ def _load_eligibility_map(frame: pd.DataFrame) -> Mapping[int, bool]:
         merchant_id = int(row.merchant_id)
         mapping[merchant_id] = bool(row.is_eligible)
     return mapping
+
+
+def _derive_merchant_currency_from_iso(
+    *,
+    candidate_frame: pd.DataFrame,
+    base_path: Path,
+    dictionary: Mapping[str, object],
+) -> pd.DataFrame:
+    iso_path = resolve_dataset_path(
+        "iso_legal_tender_2024",
+        base_path=base_path,
+        template_args={},
+        dictionary=dictionary,
+    )
+    if not iso_path.exists():
+        iso_path = resolve_dataset_path(
+            "iso_legal_tender_2024",
+            base_path=get_repo_root(),
+            template_args={},
+            dictionary=dictionary,
+        )
+    try:
+        iso_frame = pd.read_parquet(iso_path, columns=["country_iso", "currency"])
+    except FileNotFoundError as exc:
+        raise S6LoaderError(
+            f"iso_legal_tender_2024 not found at {iso_path}"
+        ) from exc
+
+    iso_frame = iso_frame.copy()
+    iso_frame["country_iso"] = iso_frame["country_iso"].astype(str).str.upper()
+    iso_frame["currency"] = iso_frame["currency"].astype(str).str.upper()
+
+    home_frame = (
+        candidate_frame[candidate_frame["is_home"] == True]  # noqa: E712
+        .loc[:, ["merchant_id", "country_iso"]]
+        .drop_duplicates(subset=["merchant_id"])
+    )
+    merged = home_frame.merge(iso_frame, on="country_iso", how="left")
+    missing = int(merged["currency"].isna().sum())
+    if missing:
+        logger.warning(
+            "S6 fallback currency mapping missing for %d merchants (iso_legal_tender_2024)",
+            missing,
+        )
+    return merged.rename(columns={"currency": "kappa"})[["merchant_id", "kappa"]]

@@ -304,6 +304,21 @@ def main(argv: list[str] | None = None) -> int:
         )
         staged_reference_paths = _stage_segment1b_references(args.output_dir)
         extra_manifest.extend(staged_reference_paths)
+    if extra_manifest:
+        manifest_basenames = {
+            args.merchant_table.name,
+            args.iso_table.name,
+            args.gdp_table.name,
+            args.bucket_table.name,
+        }
+        manifest_basenames.update(path.name for path in parameter_files.values())
+        if args.numeric_policy_path is not None:
+            manifest_basenames.add(args.numeric_policy_path.name)
+        if args.math_profile_manifest_path is not None:
+            manifest_basenames.add(args.math_profile_manifest_path.name)
+        extra_manifest = [
+            path for path in extra_manifest if path.name not in manifest_basenames
+        ]
     validation_policy_path = args.validation_policy.expanduser().resolve()
 
     orchestrator = Segment1AOrchestrator()

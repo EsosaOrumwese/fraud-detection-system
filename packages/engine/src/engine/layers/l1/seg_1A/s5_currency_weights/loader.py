@@ -74,10 +74,18 @@ def load_iso_legal_tender(path: Path | None = None) -> list[LegalTender]:
     """Return the ISO2→legal tender lookup table."""
 
     file_path = path or DEFAULT_PATHS.iso_legal_tender
-    df = pd.read_parquet(file_path, columns=["country_iso", "primary_ccy"])
+    try:
+        df = pd.read_parquet(file_path, columns=["country_iso", "primary_ccy"])
+        currency_column = "primary_ccy"
+    except Exception:
+        df = pd.read_parquet(file_path, columns=["country_iso", "currency"])
+        currency_column = "currency"
     tenders: list[LegalTender] = [
-        LegalTender(country_iso=str(row.country_iso), primary_ccy=str(row.primary_ccy))
-        for row in df.itertuples(index=False)
+        LegalTender(
+            country_iso=str(row.country_iso),
+            primary_ccy=str(getattr(row, currency_column)),
+        )
+        for row in df.itertuples(index=False, name="IsoTenderRow")
     ]
     return tenders
 

@@ -51,57 +51,133 @@ def _load_hyperparams(path: Path) -> tuple[S4HyperParameters, float]:
             "ERR_S4_POLICY_INVALID",
             f"hyperparameter file '{path}' must decode to a mapping",
         )
-    link = data.get("ztp_link")
-    controls = data.get("ztp_controls")
-    if not isinstance(link, Mapping) or not isinstance(controls, Mapping):
-        raise err(
-            "ERR_S4_POLICY_INVALID",
-            "hyperparameter file missing 'ztp_link' or 'ztp_controls' sections",
-        )
-    try:
-        theta0 = float(link["theta0"])
-        theta1 = float(link["theta1"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise err(
-            "ERR_S4_POLICY_INVALID",
-            "ztp_link must define numeric theta0/theta1",
-        ) from exc
-    theta2 = link.get("theta2")
-    if theta2 is not None:
+    if "ztp" in data:
+        ztp = data.get("ztp")
+        if not isinstance(ztp, Mapping):
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp section must be a mapping",
+            )
+        theta = ztp.get("theta")
+        theta_order = ztp.get("theta_order")
+        if not isinstance(theta, Mapping) or not isinstance(theta_order, Sequence):
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp must define theta (mapping) and theta_order (sequence)",
+            )
+        required_order = ("theta0_intercept", "theta1_log_n_sites")
+        if any(name not in theta_order for name in required_order):
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp.theta_order must include theta0_intercept and theta1_log_n_sites",
+            )
+        if "theta2_openness" in theta and "theta2_openness" not in theta_order:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp.theta_order must include theta2_openness when provided",
+            )
         try:
-            theta2 = float(theta2)
+            theta0 = float(theta["theta0_intercept"])
+            theta1 = float(theta["theta1_log_n_sites"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp.theta must define numeric theta0_intercept/theta1_log_n_sites",
+            ) from exc
+        theta2 = theta.get("theta2_openness")
+        if theta2 is not None:
+            try:
+                theta2 = float(theta2)
+            except (TypeError, ValueError) as exc:
+                raise err(
+                    "ERR_S4_POLICY_INVALID",
+                    "ztp.theta2_openness must be numeric when provided",
+                ) from exc
+
+        max_attempts = ztp.get("MAX_ZTP_ZERO_ATTEMPTS", 64)
+        try:
+            max_attempts_int = int(max_attempts)
         except (TypeError, ValueError) as exc:
             raise err(
                 "ERR_S4_POLICY_INVALID",
-                "ztp_link.theta2 must be numeric when provided",
+                "ztp.MAX_ZTP_ZERO_ATTEMPTS must be an integer",
             ) from exc
+        if max_attempts_int <= 0:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "MAX_ZTP_ZERO_ATTEMPTS must be positive",
+            )
+        policy = ztp.get("ztp_exhaustion_policy", "abort")
+        if policy not in {"abort", "downgrade_domestic"}:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp_exhaustion_policy must be 'abort' or 'downgrade_domestic'",
+            )
 
-    max_attempts = controls.get("MAX_ZTP_ZERO_ATTEMPTS", 64)
-    try:
-        max_attempts_int = int(max_attempts)
-    except (TypeError, ValueError) as exc:
-        raise err(
-            "ERR_S4_POLICY_INVALID",
-            "ztp_controls.MAX_ZTP_ZERO_ATTEMPTS must be an integer",
-        ) from exc
-    if max_attempts_int <= 0:
-        raise err(
-            "ERR_S4_POLICY_INVALID",
-            "MAX_ZTP_ZERO_ATTEMPTS must be positive",
-        )
-    policy = controls.get("ztp_exhaustion_policy", "abort")
-    if policy not in {"abort", "downgrade_domestic"}:
-        raise err(
-            "ERR_S4_POLICY_INVALID",
-            "ztp_exhaustion_policy must be 'abort' or 'downgrade_domestic'",
-        )
+        feature_x = ztp.get("feature_x")
+        if not isinstance(feature_x, Mapping):
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp.feature_x must be a mapping",
+            )
+        feature_default = float(feature_x.get("x_default", 0.0))
+        if not 0.0 <= feature_default <= 1.0:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                f"x_default must lie in [0,1]; received {feature_default!r}",
+            )
+    else:
+        link = data.get("ztp_link")
+        controls = data.get("ztp_controls")
+        if not isinstance(link, Mapping) or not isinstance(controls, Mapping):
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "hyperparameter file missing 'ztp' or legacy 'ztp_link'/'ztp_controls' sections",
+            )
+        try:
+            theta0 = float(link["theta0"])
+            theta1 = float(link["theta1"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp_link must define numeric theta0/theta1",
+            ) from exc
+        theta2 = link.get("theta2")
+        if theta2 is not None:
+            try:
+                theta2 = float(theta2)
+            except (TypeError, ValueError) as exc:
+                raise err(
+                    "ERR_S4_POLICY_INVALID",
+                    "ztp_link.theta2 must be numeric when provided",
+                ) from exc
 
-    feature_default = float(data.get("X_default", 0.0))
-    if not 0.0 <= feature_default <= 1.0:
-        raise err(
-            "ERR_S4_POLICY_INVALID",
-            f"X_default must lie in [0,1]; received {feature_default!r}",
-        )
+        max_attempts = controls.get("MAX_ZTP_ZERO_ATTEMPTS", 64)
+        try:
+            max_attempts_int = int(max_attempts)
+        except (TypeError, ValueError) as exc:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp_controls.MAX_ZTP_ZERO_ATTEMPTS must be an integer",
+            ) from exc
+        if max_attempts_int <= 0:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "MAX_ZTP_ZERO_ATTEMPTS must be positive",
+            )
+        policy = controls.get("ztp_exhaustion_policy", "abort")
+        if policy not in {"abort", "downgrade_domestic"}:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "ztp_exhaustion_policy must be 'abort' or 'downgrade_domestic'",
+            )
+
+        feature_default = float(data.get("X_default", 0.0))
+        if not 0.0 <= feature_default <= 1.0:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                f"X_default must lie in [0,1]; received {feature_default!r}",
+            )
 
     semver = data.get("semver")
     if semver is not None and not isinstance(semver, str):

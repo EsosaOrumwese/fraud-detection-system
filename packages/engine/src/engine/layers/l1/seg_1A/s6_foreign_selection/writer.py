@@ -223,6 +223,8 @@ class GumbelEventWriter:
             "substream_label": c.SUBSTREAM_LABEL_GUMBEL,
             "seed": int(self.seed),
             "run_id": str(self.run_id),
+            "parameter_hash": str(self.parameter_hash),
+            "manifest_fingerprint": str(self.manifest_fingerprint),
             "rng_counter_before_hi": int(counter_before.counter_hi),
             "rng_counter_before_lo": int(counter_before.counter_lo),
             "rng_counter_after_hi": int(counter_after.counter_hi),

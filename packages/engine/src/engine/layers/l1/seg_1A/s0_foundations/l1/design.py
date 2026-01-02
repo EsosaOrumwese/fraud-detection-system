@@ -123,7 +123,7 @@ def _ensure_finite(sequence: Sequence[float], *, error_code: str) -> Tuple[float
 
 def load_hurdle_coefficients(data: Mapping[str, object]) -> HurdleCoefficients:
     """Load hurdle coefficients from a decoded YAML mapping."""
-    dicts = DesignDictionaries.from_mapping(data.get("dicts", {}))
+    dicts = DesignDictionaries.from_mapping(_extract_dicts(data))
     beta = data.get("beta")
     beta_mu = data.get("beta_mu")
     if not isinstance(beta, Sequence):
@@ -153,7 +153,7 @@ def load_dispersion_coefficients(
     data: Mapping[str, object], *, reference: DesignDictionaries
 ) -> DispersionCoefficients:
     """Load dispersion coefficients, enforcing dictionary alignment."""
-    dicts_data = data.get("dicts", {})
+    dicts_data = _extract_dicts(data)
     dicts = DesignDictionaries(
         mcc=tuple(int(x) for x in dicts_data.get("mcc", [])) or reference.mcc,
         channel=tuple(str(x) for x in dicts_data.get("channel", []))
@@ -187,6 +187,20 @@ def _one_hot(index: int, size: int) -> List[float]:
     vector = [0.0] * size
     vector[index] = 1.0
     return vector
+
+
+def _extract_dicts(data: Mapping[str, object]) -> Mapping[str, Sequence]:
+    dicts = data.get("dicts")
+    if isinstance(dicts, Mapping):
+        return dicts
+    fallback: dict[str, Sequence] = {}
+    if "dict_mcc" in data:
+        fallback["mcc"] = data["dict_mcc"]  # type: ignore[assignment]
+    if "dict_ch" in data:
+        fallback["channel"] = data["dict_ch"]  # type: ignore[assignment]
+    if "dict_dev5" in data:
+        fallback["gdp_bucket"] = data["dict_dev5"]  # type: ignore[assignment]
+    return fallback
 
 
 def iter_design_vectors(

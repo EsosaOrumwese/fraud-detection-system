@@ -207,8 +207,15 @@ class S0FoundationsRunner:
 
     def _expand_registry_dependencies(self, paths: Iterable[Path]) -> list[Path]:
         repo_root = get_repo_root()
-        resolved_paths = [Path(p).resolve() for p in paths]
-        seen_paths = {str(path) for path in resolved_paths}
+        resolved_paths: list[Path] = []
+        seen_paths: set[str] = set()
+        for raw in paths:
+            path = Path(raw).resolve()
+            key = str(path)
+            if key in seen_paths:
+                continue
+            resolved_paths.append(path)
+            seen_paths.add(key)
         resolved_names: set[str] = set()
 
         for path in resolved_paths:
@@ -280,12 +287,19 @@ class S0FoundationsRunner:
         parameter_hash = compute_parameter_hash(parameter_digests)
 
         manifest_paths = list(manifest_artifacts)
+        seen_manifest_paths = {str(path.resolve()) for path in manifest_paths}
         policy_obj, policy_digest = load_numeric_policy(numeric_policy_path)
         profile_obj, profile_digest = load_math_profile_manifest(
             math_profile_manifest_path
         )
-        manifest_paths.append(numeric_policy_path)
-        manifest_paths.append(math_profile_manifest_path)
+        numeric_path = Path(numeric_policy_path).resolve()
+        if str(numeric_path) not in seen_manifest_paths:
+            manifest_paths.append(numeric_path)
+            seen_manifest_paths.add(str(numeric_path))
+        profile_path = Path(math_profile_manifest_path).resolve()
+        if str(profile_path) not in seen_manifest_paths:
+            manifest_paths.append(profile_path)
+            seen_manifest_paths.add(str(profile_path))
         attestation = build_numeric_policy_attestation(
             policy=policy_obj,
             policy_digest=policy_digest,

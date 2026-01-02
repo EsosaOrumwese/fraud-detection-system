@@ -1423,19 +1423,20 @@ def _get_windows_rss_bytes() -> int:
         import ctypes.wintypes
     except Exception:
         return 0
+    size_t = getattr(ctypes.wintypes, "SIZE_T", ctypes.c_size_t)
 
     class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
         _fields_ = [
             ("cb", ctypes.wintypes.DWORD),
             ("PageFaultCount", ctypes.wintypes.DWORD),
-            ("PeakWorkingSetSize", ctypes.wintypes.SIZE_T),
-            ("WorkingSetSize", ctypes.wintypes.SIZE_T),
-            ("QuotaPeakPagedPoolUsage", ctypes.wintypes.SIZE_T),
-            ("QuotaPagedPoolUsage", ctypes.wintypes.SIZE_T),
-            ("QuotaPeakNonPagedPoolUsage", ctypes.wintypes.SIZE_T),
-            ("QuotaNonPagedPoolUsage", ctypes.wintypes.SIZE_T),
-            ("PagefileUsage", ctypes.wintypes.SIZE_T),
-            ("PeakPagefileUsage", ctypes.wintypes.SIZE_T),
+            ("PeakWorkingSetSize", size_t),
+            ("WorkingSetSize", size_t),
+            ("QuotaPeakPagedPoolUsage", size_t),
+            ("QuotaPagedPoolUsage", size_t),
+            ("QuotaPeakNonPagedPoolUsage", size_t),
+            ("QuotaNonPagedPoolUsage", size_t),
+            ("PagefileUsage", size_t),
+            ("PeakPagefileUsage", size_t),
         ]
 
     counters = PROCESS_MEMORY_COUNTERS()

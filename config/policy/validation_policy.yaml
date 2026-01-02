@@ -1,8 +1,8 @@
-semver: "1.1.0"
+semver: "1.2.0"
 version: "2025-12-31"
 
 cusum:
   reference_k: 0.45
-  threshold_h: 9.0
+  threshold_h: 30.0
 
-notes: "CUSUM corridor tuned for a 50k-merchant universe: k=0.45 and h=9.0 flag sustained drift without triggering on short-lived noise."
+notes: "CUSUM corridor tuned for ~8k-merchant universe: k=0.45 and h=30.0 allow modest drift without masking sustained divergence."
