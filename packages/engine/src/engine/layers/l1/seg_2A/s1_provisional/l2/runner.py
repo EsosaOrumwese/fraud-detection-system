@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -715,8 +716,11 @@ class TimeZoneIndex:
         nudged_count = 0
         if ambiguous:
             nudged_count = len(ambiguous)
+            nudged_coords = [
+                self._apply_nudge(lats[i], lons[i], epsilon) for i in ambiguous
+            ]
             nudged_pts = [
-                Point(lons[i] + epsilon, lats[i] + epsilon) for i in ambiguous
+                Point(lon, lat) for lat, lon in nudged_coords
             ]
             match_counts_nudged = [0] * len(ambiguous)
             tzids_nudged: list[Optional[str]] = [None] * len(ambiguous)
@@ -734,8 +738,8 @@ class TimeZoneIndex:
                 )
             for idx, original_idx in enumerate(ambiguous):
                 tzids[original_idx] = tzids_nudged[idx]
-                nudge_lat[original_idx] = lats[original_idx] + epsilon
-                nudge_lon[original_idx] = lons[original_idx] + epsilon
+                nudge_lat[original_idx] = nudged_coords[idx][0]
+                nudge_lon[original_idx] = nudged_coords[idx][1]
         # Ensure no unresolved entries remain
         if any(tzid is None for tzid in tzids):
             raise err(
@@ -743,6 +747,21 @@ class TimeZoneIndex:
                 "some site rows could not be matched to a zone even after nudge",
             )
         return tzids, nudge_lat, nudge_lon, nudged_count
+
+    @staticmethod
+    def _apply_nudge(lat: float, lon: float, epsilon: float) -> tuple[float, float]:
+        lat_n = lat + epsilon
+        lon_n = lon + epsilon
+        if lat_n > 90.0:
+            lat_n = 90.0
+        elif lat_n < -90.0:
+            lat_n = -90.0
+        x = lon_n + 180.0
+        r = x - 360.0 * math.floor(x / 360.0)
+        lon_wrapped = r - 180.0
+        if lon_wrapped == -180.0:
+            lon_wrapped = 180.0
+        return lat_n, lon_wrapped
 
     def _query_contains(self, points: list[Point]) -> list[tuple[int, int]]:
         idx_pts, idx_polys = self._tree.query(points)
