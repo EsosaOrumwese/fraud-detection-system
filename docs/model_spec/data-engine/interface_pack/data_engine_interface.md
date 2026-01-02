@@ -18,7 +18,7 @@ This document defines the **black-box interface** of the Data Engine: identity, 
 
 ### Determinism promise
 
-For any output whose partitioning includes `{seed, parameter_hash, manifest_fingerprint}` (and `scenario_id` where present), the engine promises **byte-stable outputs** for the same identity tuple. `run_id` is treated as **logs-only** (partitioning and traceability).
+**Determinism & immutability.** For every output, **identity is defined by its partition tokens** (as declared in `engine_outputs.catalogue.yaml`). For a fixed identity partition, the engine promises **byte-identical** materialisations across re-runs and enforces **write-once / immutable partitions**. `run_id` may partition logs/events, but **MUST NOT** change the bytes of any output whose identity does not include `run_id`.
 
 ## Discovery and addressing
 
@@ -52,6 +52,12 @@ The authoritative inventory of outputs (IDs, paths, schemas, join keys) is `engi
 
 Join keys are defined per surface in the catalogue (primary keys and stable linkage keys). Downstream components MUST NOT infer semantics from physical file row order; only declared keys and authority fields are binding.
 
+## Lineage invariants (binding)
+
+- **Path-embed equality.** Where lineage appears both in a path token and inside rows/fields, values **MUST byte-equal** (for example, `row.manifest_fingerprint == fingerprint`, `row.seed == seed`, `row.parameter_hash == parameter_hash`).
+- **File order is non-authoritative.** Consumers MUST treat **partition keys + PK/UK + declared fields** as truth; physical file order conveys no semantics.
+- **Atomic publish + immutability.** Outputs are staged and atomically moved into place; once published, an identity partition is immutable (re-publish must be byte-identical or fail).
+
 ## HashGates and readiness rulebook
 
 Every segment publishes a **segment-level HashGate**:
@@ -61,9 +67,13 @@ Every segment publishes a **segment-level HashGate**:
 
 **No PASS -> no read.** Any consumer (engine segments and platform components) MUST verify the relevant segment gate before treating gated outputs as authoritative.
 
+* **Do not assume a universal hashing method.** Gate verification is **gate-specific**; some segments hash concatenated raw bytes, others hash structured member digests. Consumers MUST follow `engine_gates.map.yaml` for the exact verification procedure.
+
 Operational verification details (paths, hashing law, and gate->output mapping) are defined in `engine_gates.map.yaml`.
 
 ## Segment boundary summaries
+
+In the summaries below, "Public (gated) surfaces" means **surfaces a consumer may read after verifying the segment gate**, regardless of whether the catalogue marks them `exposure: internal` or `external`. The catalogue is the source of truth for exposure classification.
 
 ### LAYER1 - 1A
 - S0: S0.1 - Universe, Symbols, Authority (normative, fixed)
@@ -90,7 +100,13 @@ Operational verification details (paths, hashing law, and gate->output mapping) 
 - S0: State 2B.S0 - Gate & Environment Seal
 - Gate: `gate.layer1.2B.validation` (see `engine_gates.map.yaml`)
 - Upstream gates required: `gate.layer1.1B.validation`, `gate.layer1.2A.validation`
-- Public (gated) surfaces: _(none declared by lineage flags in dictionary)_
+- Public (gated) surfaces:
+  - `s1_site_weights` -> `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  - `s2_alias_index` -> `data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json`
+  - `s2_alias_blob` -> `data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin`
+  - `s3_day_effects` -> `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`
+  - `s4_group_weights` -> `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  - *(plus receipts/policies/audit surfaces; see catalogue for full list)*
 
 ### LAYER1 - 3A
 - S0: State 3A-S0 - Gate & Sealed Inputs for Zone Allocation

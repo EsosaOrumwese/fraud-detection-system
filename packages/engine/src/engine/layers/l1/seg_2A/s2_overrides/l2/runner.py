@@ -50,6 +50,20 @@ _S1_COLUMNS = [
     "nudge_lon_deg",
 ]
 
+_SITE_TIMEZONES_SCHEMA = {
+    "seed": pl.UInt64,
+    "fingerprint": pl.Utf8,
+    "merchant_id": pl.Utf8,
+    "legal_country_iso": pl.Utf8,
+    "site_order": pl.UInt32,
+    "tzid": pl.Utf8,
+    "tzid_source": pl.Utf8,
+    "override_scope": pl.Utf8,
+    "nudge_lat_deg": pl.Float64,
+    "nudge_lon_deg": pl.Float64,
+    "created_utc": pl.Utf8,
+}
+
 
 @dataclass
 class OverridePolicyMetadata:
@@ -171,12 +185,18 @@ class OverridesRunner:
                         overrides_applied={"site": 0, "mcc": 0, "country": 0},
                         resumed=True,
                     )
-                raise err(
-                    "E_S2_OUTPUT_EXISTS",
-                    f"site_timezones already exists at '{output_dir}' "
-                    "— use resume to skip or delete the partition first",
+                if any(output_dir.iterdir()):
+                    raise err(
+                        "E_S2_OUTPUT_EXISTS",
+                        f"site_timezones already exists at '{output_dir}' "
+                        "- use resume to skip or delete the partition first",
+                    )
+                logger.info(
+                    "Segment2A S2 found empty output dir at '%s'; continuing with fresh write.",
+                    output_dir,
                 )
-            output_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                output_dir.mkdir(parents=True, exist_ok=True)
 
             self._emit_event(
                 "INPUTS",
@@ -868,7 +888,7 @@ class OverridesRunner:
                 last_key = key
                 stats.distinct_tzids.add(str(record["tzid"]))
                 result_rows.append(record)
-            result_df = pl.DataFrame(result_rows)
+            result_df = pl.DataFrame(result_rows, schema=_SITE_TIMEZONES_SCHEMA)
             part_path = output_dir / f"part-{part_counter:05d}.parquet"
             result_df.write_parquet(part_path)
             part_counter += 1

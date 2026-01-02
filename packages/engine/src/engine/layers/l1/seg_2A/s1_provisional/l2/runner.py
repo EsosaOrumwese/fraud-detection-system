@@ -151,7 +151,7 @@ class ProvisionalLookupRunner:
         output_dir.mkdir(parents=True, exist_ok=True)
         tz_index = self._build_tz_index(context.assets.tz_world)
         epsilon = self._load_nudge_policy(context.assets.tz_nudge)
-        total_rows, border_nudged, distinct_tzids = self._process_site_locations(
+        total_rows, border_nudged, distinct_tzids, fallback_resolved = self._process_site_locations(
             context=context,
             tz_index=tz_index,
             epsilon=epsilon,
@@ -167,6 +167,10 @@ class ProvisionalLookupRunner:
             "distinct_tzids": distinct_tzids,
         }
         warnings: list[str] = []
+        if fallback_resolved:
+            warnings.append(
+                f"{fallback_resolved} sites resolved via deterministic fallback after unresolved border ambiguity"
+            )
         run_report_payload = self._build_run_report(
             context=context,
             dictionary=dictionary,
@@ -422,7 +426,7 @@ class ProvisionalLookupRunner:
         epsilon: float,
         output_dir: Path,
         chunk_size: int,
-    ) -> tuple[int, int, int]:
+    ) -> tuple[int, int, int, int]:
         if chunk_size <= 0:
             raise err("E_S1_INVALID_CHUNK_SIZE", "chunk_size must be a positive integer")
         site_path = context.assets.site_locations
@@ -435,13 +439,14 @@ class ProvisionalLookupRunner:
 
         total_rows = 0
         border_nudged = 0
+        fallback_resolved = 0
         distinct_tzids: set[str] = set()
         part_idx = 0
 
         for file in files:
             file_rows = 0
             for batch in _iter_site_batches(file, chunk_size):
-                out_df, nudged, tzids = self._assign_batch(
+                out_df, nudged, tzids, fallback = self._assign_batch(
                     batch,
                     tz_index,
                     epsilon,
@@ -457,6 +462,7 @@ class ProvisionalLookupRunner:
                 total_rows += batch_rows
                 file_rows += batch_rows
                 border_nudged += nudged
+                fallback_resolved += fallback
                 distinct_tzids.update(tzids)
 
             if file_rows > 0:
@@ -471,7 +477,7 @@ class ProvisionalLookupRunner:
         if total_rows == 0:
             raise err("E_S1_INPUT_EMPTY", "site_locations partition contained zero rows")
 
-        return total_rows, border_nudged, len(distinct_tzids)
+        return total_rows, border_nudged, len(distinct_tzids), fallback_resolved
 
     def _build_run_report(
         self,
@@ -617,10 +623,10 @@ class ProvisionalLookupRunner:
         seed: int,
         manifest_fingerprint: str,
         created_utc: str,
-    ) -> tuple[pl.DataFrame, int, list[str]]:
+    ) -> tuple[pl.DataFrame, int, list[str], int]:
         lons = batch["lon_deg"].to_list()
         lats = batch["lat_deg"].to_list()
-        tz_ids, nudge_lat, nudge_lon, nudged_count = tz_index.assign(
+        tz_ids, nudge_lat, nudge_lon, nudged_count, fallback_resolved = tz_index.assign(
             lons=lons,
             lats=lats,
             epsilon=epsilon,
@@ -647,7 +653,7 @@ class ProvisionalLookupRunner:
                 "E_S1_NUDGE_PAIR_VIOLATION",
                 "nudge_lat_deg/nudge_lon_deg must both be null or both be non-null",
             )
-        return output, nudged_count, tz_ids
+        return output, nudged_count, tz_ids, fallback_resolved
 
 
 def _iter_site_batches(path: Path, batch_size: int) -> Iterable[pl.DataFrame]:
@@ -700,7 +706,7 @@ class TimeZoneIndex:
         lons: list[float],
         lats: list[float],
         epsilon: float,
-    ) -> tuple[list[str], list[Optional[float]], list[Optional[float]], int]:
+    ) -> tuple[list[str], list[Optional[float]], list[Optional[float]], int, int]:
         if len(lons) != len(lats):
             raise err("E_S1_ASSIGN_BOUNDS", "longitude/latitude array length mismatch")
         points = [Point(lon, lat) for lon, lat in zip(lons, lats)]
@@ -714,6 +720,7 @@ class TimeZoneIndex:
         nudge_lat: list[Optional[float]] = [None] * len(points)
         nudge_lon: list[Optional[float]] = [None] * len(points)
         nudged_count = 0
+        fallback_resolved = 0
         if ambiguous:
             nudged_count = len(ambiguous)
             nudged_coords = [
@@ -724,7 +731,9 @@ class TimeZoneIndex:
             ]
             match_counts_nudged = [0] * len(ambiguous)
             tzids_nudged: list[Optional[str]] = [None] * len(ambiguous)
+            candidates_nudged: dict[int, list[int]] = {}
             for pt_idx, poly_idx in self._query_contains(nudged_pts):
+                candidates_nudged.setdefault(pt_idx, []).append(poly_idx)
                 match_counts_nudged[pt_idx] += 1
                 if match_counts_nudged[pt_idx] == 1:
                     tzids_nudged[pt_idx] = self._tzids[poly_idx]
@@ -732,9 +741,18 @@ class TimeZoneIndex:
                 i for i, count in enumerate(match_counts_nudged) if count != 1
             ]
             if unresolved:
-                raise err(
-                    "E_S1_BORDER_AMBIGUITY",
-                    f"border ambiguity remained unresolved for {len(unresolved)} sites",
+                fallback_resolved = len(unresolved)
+                candidates_original: dict[int, list[int]] = {}
+                original_points = [points[i] for i in ambiguous]
+                for pt_idx, poly_idx in self._query_contains(original_points):
+                    candidates_original.setdefault(pt_idx, []).append(poly_idx)
+                for idx in unresolved:
+                    point = nudged_pts[idx]
+                    candidates = candidates_nudged.get(idx) or candidates_original.get(idx) or []
+                    tzids_nudged[idx] = self._choose_fallback_tzid(point, candidates)
+                logger.warning(
+                    "Segment2A S1: resolved %d ambiguous sites via deterministic fallback",
+                    fallback_resolved,
                 )
             for idx, original_idx in enumerate(ambiguous):
                 tzids[original_idx] = tzids_nudged[idx]
@@ -746,7 +764,29 @@ class TimeZoneIndex:
                 "E_S1_ASSIGN_FAILED",
                 "some site rows could not be matched to a zone even after nudge",
             )
-        return tzids, nudge_lat, nudge_lon, nudged_count
+        return tzids, nudge_lat, nudge_lon, nudged_count, fallback_resolved
+
+    def _choose_fallback_tzid(self, point: Point, candidates: list[int]) -> str:
+        if candidates:
+            tzids = sorted(self._tzids[idx] for idx in candidates)
+            return tzids[0]
+        best_idx = None
+        best_distance = None
+        best_tzid = None
+        for idx, geom in enumerate(self._geoms):
+            dist = geom.distance(point)
+            tzid = self._tzids[idx]
+            if best_distance is None or dist < best_distance:
+                best_distance = dist
+                best_idx = idx
+                best_tzid = tzid
+            elif dist == best_distance and tzid < (best_tzid or tzid):
+                best_distance = dist
+                best_idx = idx
+                best_tzid = tzid
+        if best_idx is None or best_tzid is None:
+            raise err("E_S1_ASSIGN_FAILED", "unable to resolve fallback tzid for ambiguous site")
+        return best_tzid
 
     @staticmethod
     def _apply_nudge(lat: float, lon: float, epsilon: float) -> tuple[float, float]:

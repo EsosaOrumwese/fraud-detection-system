@@ -439,6 +439,16 @@ class TimetableRunner:
             record=tzdb_record,
             code="2A-S3-010",
         )
+        verify_sealed_digest(
+            asset_id="tzdb_release",
+            path=tzdb_dir,
+            expected_hex=tzdb_record.sha256_hex,
+            code="2A-S3-010",
+        )
+        archive_sha256 = self._load_tzdb_metadata(
+            tzdb_dir=tzdb_dir,
+            release_tag=str(release_tag),
+        )
         tz_world_record = self._select_tz_world_record(sealed_assets=sealed_assets)
         tz_world_dataset_id = tz_world_record.asset_id
         tz_world_rel = render_dataset_path(
@@ -473,7 +483,7 @@ class TimetableRunner:
                 tz_world=tz_world_path,
                 sealed_inventory_path=inventory_path,
                 tzdb_release_tag=str(release_tag),
-                tzdb_archive_sha256=str(tzdb_record.sha256_hex),
+                tzdb_archive_sha256=archive_sha256,
                 tz_world_dataset_id=tz_world_dataset_id,
             ),
             determinism_receipt=determinism_receipt,
@@ -790,13 +800,39 @@ class TimetableRunner:
             f"tzdata archive for release '{release_tag}' not found under '{tzdb_dir}'",
         )
 
+    def _load_tzdb_metadata(self, *, tzdb_dir: Path, release_tag: str) -> str:
+        metadata_path = tzdb_dir / "tzdb_release.json"
+        if not metadata_path.exists():
+            raise err(
+                "2A-S3-010 TZDB_RESOLVE_FAILED",
+                f"tzdb_release metadata missing at '{metadata_path}'",
+            )
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise err(
+                "2A-S3-020 TZDB_PARSE_ERROR",
+                f"tzdb_release metadata at '{metadata_path}' is not valid JSON",
+            ) from exc
+        if not isinstance(payload, Mapping):
+            raise err(
+                "2A-S3-020 TZDB_PARSE_ERROR",
+                "tzdb_release metadata must decode to an object",
+            )
+        declared_tag = payload.get("release_tag")
+        archive_sha256 = payload.get("archive_sha256")
+        if not isinstance(declared_tag, str) or declared_tag != release_tag:
+            raise err(
+                "2A-S3-011 TZDB_TAG_INVALID",
+                "tzdb_release metadata release_tag did not match the sealed release tag",
+            )
+        if not isinstance(archive_sha256, str) or not _is_hex64(archive_sha256):
+            raise err(
+                "2A-S3-013 TZDB_DIGEST_INVALID",
+                "tzdb_release metadata archive_sha256 is not a valid hex64 digest",
+            )
+        return archive_sha256.lower()
 
-def _sha256_file(path: Path) -> str:
-    hasher = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
 
     def _extract_archive(self, *, archive_path: Path, target_dir: Path) -> None:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -970,3 +1006,21 @@ def _sha256_file(path: Path) -> str:
                 shutil.rmtree(temp_dir, ignore_errors=True)
         final_file = target_dir / "tz_offset_adjustments.json"
         return final_file, final_file.stat().st_size
+
+
+def _is_hex64(value: str) -> bool:
+    if len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _sha256_file(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
