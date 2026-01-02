@@ -1,63 +1,96 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/data-engine/interface_pack/contracts/engine_invocation.schema.yaml"
-title: "Data Engine Invocation"
+# contracts/engine_invocation.schema.yaml
+version: "0.1.0"
+$id: engine_invocation.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Data Engine Invocation Request
 description: >
-  Minimal, stable request envelope used by a Scenario Runner (or equivalent)
-  to start a Data Engine run. This contract pins the identity tuple and
-  idempotency metadata; it does not expose internal segment knobs.
+  Black-box invocation contract for starting an engine run. Defines only:
+  (a) world + parameter + seed identity and (b) scenario binding and correlation ids.
+  It intentionally does not expose segment/state internals.
+
+$defs:
+  hex64:
+    $ref: "schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "schemas.layer1.yaml#/$defs/uint64"
+
+  scenario_id:
+    description: Scenario identifier (type intentionally permissive).
+    anyOf:
+      - type: integer
+        minimum: 0
+      - type: string
+        minLength: 1
+        maxLength: 256
+
+  scenario_binding:
+    description: >
+      Scenario binding for scenario-aware segments (e.g., Layer-2/5B). Either bind a single
+      scenario_id or a finite explicit scenario_set.
+    oneOf:
+      - type: object
+        additionalProperties: false
+        required: [scenario_id]
+        properties:
+          scenario_id:
+            $ref: "#/$defs/scenario_id"
+      - type: object
+        additionalProperties: false
+        required: [scenario_set]
+        properties:
+          scenario_set:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              $ref: "#/$defs/scenario_id"
 
 type: object
 additionalProperties: false
-
 required:
-  - schema_ref
-  - parameter_hash
   - manifest_fingerprint
+  - parameter_hash
   - seed
-  - scenario_id
   - run_id
+  - scenario_binding
 
 properties:
-  schema_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
-    description: "Pinned reference to the authoritative schema governing this invocation."
+  manifest_fingerprint:
+    description: World identity (sealed world inputs).
+    $ref: "#/$defs/hex64"
 
   parameter_hash:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
-    description: "World identity: hash of the declared parameter set."
-
-  manifest_fingerprint:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
-    description: "World identity: manifest fingerprint for the sealed run inputs."
+    description: Governed parameter bundle identity.
+    $ref: "#/$defs/hex64"
 
   seed:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
-    description: "RNG identity for deterministic replay."
-
-  scenario_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
-    description: "Scenario identity for the requested run."
+    description: RNG seed for this run realisation.
+    $ref: "#/$defs/uint64"
 
   run_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
-    description: "Run identity for the concrete execution instance."
+    description: >
+      Run correlation identifier. May partition logs/events but MUST NOT change the bytes of
+      outputs whose identity does not include run_id.
+    $ref: "#/$defs/hex32"
+
+  scenario_binding:
+    $ref: "#/$defs/scenario_binding"
 
   request_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/correlation_id"
-    description: "Optional idempotency or tracing token for the invocation request."
+    description: Optional idempotency key at the invocation boundary (client-provided).
+    type: string
+    minLength: 1
+    maxLength: 128
 
-  scenario_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
-    description: "Optional deterministic reference to the scenario definition object."
+  invoker:
+    description: Optional caller identity (non-semantic).
+    type: string
+    minLength: 1
+    maxLength: 128
 
-  run_record_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
-    description: "Optional reference to the canonical Run Record surface."
-
-  created_at:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
-    description: "UTC timestamp when the invocation was created."
-
-  extensions:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
-    description: "Additive metadata map for run-specific annotations."
+  notes:
+    description: Optional human notes (non-semantic).
+    type: string
+    maxLength: 2048

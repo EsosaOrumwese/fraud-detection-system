@@ -1,90 +1,120 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml"
-title: "Data Engine Canonical Event Envelope"
+# contracts/canonical_event_envelope.schema.yaml
+version: "0.1.0"
+$id: canonical_event_envelope.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Canonical Event Envelope
 description: >
-  Minimal envelope applied to engine-emitted events intended for ingestion,
-  bus transport, and downstream consumption. Payload schemas should extend
-  this envelope via allOf.
+  Minimal, black-box event header used at the platform boundary (Ingestion Gate / Event Bus).
+  Payload fields are intentionally unconstrained here; this schema validates only the envelope.
+
+$defs:
+  hex64:
+    $ref: "schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "schemas.layer1.yaml#/$defs/uint64"
+  rfc3339_micros:
+    $ref: "schemas.layer1.yaml#/$defs/rfc3339_micros"
+
+  scenario_id:
+    description: Scenario identifier (used where scenario overlays apply).
+    anyOf:
+      - type: string
+        minLength: 1
+        maxLength: 256
+      - type: integer
+        minimum: 0
+
+  event_id:
+    description: >
+      Stable event identifier for idempotency/deduplication at ingest/bus boundaries.
+      May be a UUID, a hex digest, or another stable identifier produced/assigned by the platform.
+    anyOf:
+      - type: string
+        format: uuid
+      - $ref: "#/$defs/hex64"
+      - $ref: "#/$defs/hex32"
+      - type: string
+        minLength: 1
+        maxLength: 256
 
 type: object
-additionalProperties: false
+additionalProperties: true
 
 required:
-  - schema_ref
   - event_id
   - event_type
-  - schema_version
-  - event_time
-  - emitted_at
+  - ts_utc
   - manifest_fingerprint
 
 properties:
-  schema_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
-    description: "Pinned reference to the authoritative schema governing this event envelope."
+  # ---- core identity ----
+  manifest_fingerprint:
+    description: World identity for the event.
+    $ref: "#/$defs/hex64"
 
-  event_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_id"
-    description: "Global event identity and dedupe key."
+  parameter_hash:
+    description: Governed parameter bundle identity (present for most run-scoped events).
+    $ref: "#/$defs/hex64"
+
+  seed:
+    description: Run realisation seed (present for RNG-consuming / run-scoped events).
+    $ref: "#/$defs/uint64"
+
+  scenario_id:
+    description: Scenario binding for the event (used by scenario overlays).
+    $ref: "#/$defs/scenario_id"
+
+  run_id:
+    description: >
+      Correlation identifier for the execution run. May partition logs/events but is not required
+      for all event classes.
+    $ref: "#/$defs/hex32"
+
+  # ---- time + typing ----
+  ts_utc:
+    description: Event time in UTC (RFC-3339 with exactly 6 fractional digits).
+    $ref: "#/$defs/rfc3339_micros"
+
+  emitted_at_utc:
+    description: Optional emission timestamp in UTC (RFC-3339 micros), if distinct from ts_utc.
+    $ref: "#/$defs/rfc3339_micros"
 
   event_type:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/event_type"
-    description: "Namespaced semantic event type token."
+    description: Event type name (topic/routing key), e.g. "arrival", "rng_event", "label".
+    type: string
+    minLength: 1
+    maxLength: 256
 
   schema_version:
+    description: Schema version for the payload (if the event type is versioned).
     type: string
     minLength: 1
     maxLength: 64
-    description: "Schema version for the payload (opaque to consumers)."
 
-  event_time:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
-    description: "Domain time of the event occurrence (UTC)."
-
-  emitted_at:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
-    description: "UTC timestamp when the engine emitted the event."
-
-  parameter_hash:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
-    description: "Optional world identity hash for the event."
-
-  manifest_fingerprint:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
-    description: "World identity fingerprint for the event."
-
-  seed:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
-    description: "Optional RNG identity (required when stochastic provenance matters)."
-
-  scenario_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
-    description: "Optional scenario identity for correlation."
-
-  run_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
-    description: "Optional run identity for correlation."
-
-  partition_key:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/partition_key"
-    description: "Optional bus/storage partition key."
-
-  correlation_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/correlation_id"
-    description: "Optional correlation identifier for cross-component tracing."
-
-  causation_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/causation_id"
-    description: "Optional causal predecessor event_id."
+  # ---- idempotency + tracing ----
+  event_id:
+    $ref: "#/$defs/event_id"
 
   trace_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/trace_id"
-    description: "Optional distributed tracing trace identifier."
+    description: Optional distributed trace identifier.
+    type: string
+    minLength: 1
+    maxLength: 128
 
   span_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/span_id"
-    description: "Optional distributed tracing span identifier."
+    description: Optional distributed trace span identifier.
+    type: string
+    minLength: 1
+    maxLength: 128
 
-  extensions:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
-    description: "Additive metadata map for non-breaking annotations."
+  parent_event_id:
+    description: Optional causal parent event id.
+    $ref: "#/$defs/event_id"
+
+  producer:
+    description: Producer identifier (useful when multiple producers share the bus).
+    type: string
+    minLength: 1
+    maxLength: 128

@@ -1,67 +1,115 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/data-engine/interface_pack/contracts/engine_output_locator.schema.yaml"
-title: "Data Engine Output Locator"
+# contracts/engine_output_locator.schema.yaml
+version: "0.1.0"
+$id: engine_output_locator.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Engine Output Locator
 description: >
-  Canonical locator object used to pin engine outputs for discovery in run facts.
-  Consumers must resolve output_id via engine_outputs.catalogue.yaml.
+  Portable reference ("pin") to a specific engine output materialisation. Used by
+  Scenario Runner / Control plane to record run facts and by downstream components
+  to locate and verify immutable engine outputs.
+
+$defs:
+  hex64:
+    $ref: "schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "schemas.layer1.yaml#/$defs/uint64"
+  rfc3339_micros:
+    $ref: "schemas.layer1.yaml#/$defs/rfc3339_micros"
+
+  scenario_id:
+    anyOf:
+      - type: string
+        minLength: 1
+        maxLength: 256
+      - type: integer
+        minimum: 0
+
+  digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        description: Digest algorithm identifier.
+        type: string
+        enum: ["sha256"]
+      hex:
+        description: Lowercase hex digest.
+        type: string
+        pattern: "^[0-9a-f]{64}$"
 
 type: object
 additionalProperties: false
-
 required:
-  - schema_ref
   - output_id
   - manifest_fingerprint
   - path
-  - output_schema_ref
-
 properties:
-  schema_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
-    description: "Pinned reference to the authoritative schema governing this locator."
-
   output_id:
+    description: >
+      Stable output identifier. Must correspond to an entry in engine_outputs.catalogue.yaml.
     type: string
     minLength: 1
-    maxLength: 256
-    description: "Output identifier from engine_outputs.catalogue.yaml."
+    maxLength: 128
+    pattern: "^[a-z0-9_\\.\\-]+$"
 
+  # ---- identity partitions (repeatable across outputs; optional when not applicable) ----
   manifest_fingerprint:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
-    description: "World identity fingerprint for the located output."
+    description: World identity.
+    $ref: "#/$defs/hex64"
 
+  parameter_hash:
+    description: Parameter bundle identity (present for parameter-scoped outputs).
+    $ref: "#/$defs/hex64"
+
+  seed:
+    description: Run realisation seed (present for seed-scoped outputs).
+    $ref: "#/$defs/uint64"
+
+  scenario_id:
+    description: Scenario binding when outputs are scenario-scoped.
+    $ref: "#/$defs/scenario_id"
+
+  run_id:
+    description: Run correlation id when outputs are run-scoped (typically logs/events).
+    $ref: "#/$defs/hex32"
+
+  # ---- location + shape ----
   path:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/long_ref"
-    description: "Resolved concrete path for the output instance."
+    description: >
+      Fully-resolved path (or URI) to the output materialisation.
+      Must be consistent with the catalogue path_template for output_id.
+    type: string
+    minLength: 1
+    maxLength: 2048
 
-  output_schema_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
-    description: "Pinned reference to the schema governing the output data."
+  schema_ref:
+    description: >
+      Optional schema reference for the materialised output (file+anchor or schema id).
+      If provided, should match engine_outputs.catalogue.yaml for the same output_id.
+    type: string
+    minLength: 1
+    maxLength: 512
 
-  partitions:
-    type: object
-    additionalProperties: false
-    properties:
-      parameter_hash:
-        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
-      manifest_fingerprint:
-        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
-      seed:
-        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
-      scenario_id:
-        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
-      run_id:
-        $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
-    description: "Resolved partition keys for the output instance."
+  dictionary_ref:
+    description: Optional dataset dictionary reference (if applicable).
+    type: string
+    minLength: 1
+    maxLength: 512
+
+  produced_at_utc:
+    description: Optional timestamp when the output was produced/published.
+    $ref: "#/$defs/rfc3339_micros"
 
   content_digest:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
-    description: "Optional content digest for the output instance."
+    description: >
+      Optional content digest for immutability verification. If present, this should be
+      computed over the authoritative bytes as defined by the output/gate semantics.
+    $ref: "#/$defs/digest"
 
-  produced_at:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
-    description: "Optional UTC timestamp when the output was produced."
-
-  extensions:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
-    description: "Additive metadata map for non-breaking annotations."
+  notes:
+    description: Optional non-semantic notes.
+    type: string
+    maxLength: 2048

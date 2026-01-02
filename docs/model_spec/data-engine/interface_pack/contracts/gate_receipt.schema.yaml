@@ -1,122 +1,125 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml"
-title: "Data Engine Gate Receipt"
+# contracts/gate_receipt.schema.yaml
+version: "0.1.0"
+$id: gate_receipt.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Gate Receipt
 description: >
-  Portable receipt format for PASS/FAIL gate verification. This schema
-  supports text flags, JSON receipts, and bundle-index receipts without
-  exposing segment internals.
+  Portable, black-box representation of a gate outcome (PASS/FAIL) for use in run facts,
+  status events, and downstream verification workflows.
+  NOTE: On-disk `_passed.flag` / bundle artifacts may be text or JSON per segment; this schema
+  standardises the *portable receipt object*, not the raw file bytes.
 
-type: object
-additionalProperties: false
-
-required:
-  - schema_ref
-  - gate_id
-  - status
-  - receipt_kind
-  - produced_at
-
-properties:
-  schema_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
-    description: "Pinned reference to the authoritative schema governing this receipt."
-
-  gate_id:
-    type: string
-    minLength: 1
-    maxLength: 256
-    description: "Gate identifier as declared in engine_gates.map.yaml."
-
-  status:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/hashgate_outcome"
-    description: "Gate verification outcome."
-
-  receipt_kind:
-    type: string
-    enum: ["text_flag", "json_receipt", "bundle_flag"]
-    description: "Format family of the receipt payload."
-
-  receipt_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/receipt_id"
-    description: "Optional unique receipt identifier."
-
-  manifest_fingerprint:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
-
-  parameter_hash:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
-
-  seed:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+$defs:
+  hex64:
+    $ref: "schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "schemas.layer1.yaml#/$defs/uint64"
+  rfc3339_micros:
+    $ref: "schemas.layer1.yaml#/$defs/rfc3339_micros"
 
   scenario_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
+    anyOf:
+      - type: string
+        minLength: 1
+        maxLength: 256
+      - type: integer
+        minimum: 0
 
-  run_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
-
-  produced_at:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
-    description: "UTC timestamp when the receipt was produced."
-
-  issuer_id:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/issuer_id"
-    description: "Optional receipt issuer identity."
-
-  issuer_version:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/issuer_version"
-    description: "Optional issuer build/version identifier."
-
-  digests:
+  digest:
     type: object
     additionalProperties: false
-    required: [digest_algorithm, digest_hex]
+    required: [algo, hex]
     properties:
-      digest_algorithm:
+      algo:
         type: string
         enum: ["sha256"]
-        description: "Digest algorithm for the receipt payload."
-      digest_hex:
+      hex:
+        description: Lowercase hex digest.
         type: string
-        pattern: "^[a-f0-9]{64}$"
-        description: "Hex-encoded digest for the verified bundle/payload."
-      what_was_hashed:
+        pattern: "^[0-9a-f]{64}$"
+
+  gate_scope:
+    description: >
+      Identity scope the gate applies to. For segment HashGates this is typically fingerprint-scoped,
+      but optional fields allow expressing narrower scopes where applicable.
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        $ref: "#/$defs/scenario_id"
+      run_id:
+        $ref: "#/$defs/hex32"
+
+  gate_artifacts:
+    description: Optional pointers to the authoritative on-disk artifacts for this gate instance.
+    type: object
+    additionalProperties: false
+    properties:
+      validation_bundle_root:
         type: string
         minLength: 1
         maxLength: 2048
-        description: "Short description of the bytes that were hashed."
+      index_path:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      passed_flag_path:
+        type: string
+        minLength: 1
+        maxLength: 2048
 
-  flag_text:
+type: object
+additionalProperties: false
+required:
+  - gate_id
+  - status
+  - scope
+properties:
+  gate_id:
+    description: Stable gate identifier (must correspond to engine_gates.map.yaml).
     type: string
     minLength: 1
-    maxLength: 4096
-    description: "Raw text content of a _passed.flag style receipt."
+    maxLength: 128
+    pattern: "^[a-z0-9_\\.\\-]+$"
 
-  receipt_ref:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
-    description: "Reference to a JSON receipt or bundle index."
+  status:
+    description: Gate outcome. Consumers must fail closed on missing/unknown status.
+    type: string
+    enum: ["PASS", "FAIL"]
 
-  bundle_root:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
-    description: "Reference to the bundle root directory."
+  scope:
+    $ref: "#/$defs/gate_scope"
 
-  extensions:
-    $ref: "docs/model_spec/observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/extensions_object"
-    description: "Additive metadata map for non-breaking annotations."
+  produced_at_utc:
+    description: Optional UTC timestamp when the gate outcome was produced/published.
+    $ref: "#/$defs/rfc3339_micros"
 
-allOf:
-  - if:
-      properties:
-        receipt_kind: { const: "text_flag" }
-    then:
-      required: [flag_text]
-  - if:
-      properties:
-        receipt_kind: { const: "json_receipt" }
-    then:
-      required: [receipt_ref]
-  - if:
-      properties:
-        receipt_kind: { const: "bundle_flag" }
-    then:
-      required: [bundle_root]
+  receipt_kind:
+    description: Informative classification of the underlying gate artifact style.
+    type: string
+    enum: ["passed_flag", "json_receipt", "bundle_flag"]
+    default: "passed_flag"
+
+  digest:
+    description: >
+      Optional portable digest for the gate instance, when the gate definition yields a single
+      canonical digest value (e.g., bundle digest). Exact meaning is gate-specific and defined
+      in engine_gates.map.yaml.
+    $ref: "#/$defs/digest"
+
+  artifacts:
+    $ref: "#/$defs/gate_artifacts"
+
+  notes:
+    description: Optional non-semantic notes.
+    type: string
+    maxLength: 2048
