@@ -1,1 +1,65 @@
-{"extensions":{},"policy_id":"route_rng_policy_v1","rng_engine":"philox2x64-10","streams":{"routing_edge":{"basis":{"counter_start":{"hi":0,"lo":0},"counter_step_per_event":1,"counter_wrap_policy":"abort_on_wrap","key_basis":["seed","parameter_hash","run_id"]},"draws_per_unit":{"draws_per_virtual":1},"event_families":{"cdn_edge_pick":{"blocks":1,"draws":"1","substream_label":"cdn_edge_pick"}},"rng_stream_id":"2B.routing_edge"},"routing_selection":{"basis":{"counter_start":{"hi":0,"lo":0},"counter_step_per_event":1,"counter_wrap_policy":"abort_on_wrap","key_basis":["seed","parameter_hash","run_id"]},"draws_per_unit":{"draws_per_selection":2},"event_families":{"alias_pick_group":{"blocks":1,"draws":"1","substream_label":"alias_pick_group"},"alias_pick_site":{"blocks":1,"draws":"1","substream_label":"alias_pick_site"}},"rng_stream_id":"2B.routing"}},"version_tag":"v1.0.0"}
+{
+  "extensions": {},
+  "policy_id": "route_rng_policy_v1",
+  "rng_engine": "philox2x64-10",
+  "streams": {
+    "routing_edge": {
+      "basis": {
+        "counter_start": {
+          "hi": 0,
+          "lo": 0
+        },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap",
+        "key_basis": [
+          "seed",
+          "parameter_hash",
+          "run_id"
+        ]
+      },
+      "draws_per_unit": {
+        "draws_per_virtual": 1
+      },
+      "event_families": {
+        "cdn_edge_pick": {
+          "blocks": 1,
+          "draws": "1",
+          "substream_label": "cdn_edge_pick"
+        }
+      },
+      "rng_stream_id": "2B.routing_edge"
+    },
+    "routing_selection": {
+      "basis": {
+        "counter_start": {
+          "hi": 0,
+          "lo": 0
+        },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap",
+        "key_basis": [
+          "seed",
+          "parameter_hash",
+          "run_id"
+        ]
+      },
+      "draws_per_unit": {
+        "draws_per_selection": 2
+      },
+      "event_families": {
+        "alias_pick_group": {
+          "blocks": 1,
+          "draws": "1",
+          "substream_label": "alias_pick_group"
+        },
+        "alias_pick_site": {
+          "blocks": 1,
+          "draws": "1",
+          "substream_label": "alias_pick_site"
+        }
+      },
+      "rng_stream_id": "2B.routing"
+    }
+  },
+  "version_tag": "v1.0.1"
+}

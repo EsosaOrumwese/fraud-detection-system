@@ -8,6 +8,7 @@ import logging
 import math
 import os
 import shutil
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
@@ -310,6 +311,9 @@ class S3DayEffectsRunner:
         first_counter_lo = None
         last_counter_hi = None
         last_counter_lo = None
+        progress_step = max(1, rows_expected // 10)
+        next_progress = progress_step
+        progress_start = time.perf_counter()
 
         try:
             merchants_sorted = sorted(groups_by_merchant.keys())
@@ -392,6 +396,20 @@ class S3DayEffectsRunner:
                         last_counter_lo = rng_counter_lo
                         max_abs_log_gamma = max(max_abs_log_gamma, abs(log_gamma))
                         rows_written += 1
+                        if rows_written >= next_progress:
+                            elapsed = max(time.perf_counter() - progress_start, 1e-6)
+                            pct = (rows_written / rows_expected) * 100.0
+                            rate = rows_written / elapsed
+                            logger.info(
+                                "Segment2B S3 progress: %d/%d rows (%.1f%%, %.1fs elapsed, %.0f rows/s)",
+                                rows_written,
+                                rows_expected,
+                                pct,
+                                elapsed,
+                                rate,
+                            )
+                            while next_progress <= rows_written and next_progress < rows_expected:
+                                next_progress += progress_step
                         if len(chunk_rows) >= self.ROW_CHUNK_SIZE:
                             bytes_written += self._write_rows_chunk(
                                 rows_out=chunk_rows,
