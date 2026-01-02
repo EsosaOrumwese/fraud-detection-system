@@ -351,7 +351,7 @@ class S5RouterRunner:
         group_events_count = 0
         site_events_count = 0
         selection_log_paths: List[Path] = []
-        selection_log_state = self._SelectionLogState()
+        selection_log_state = _SelectionLogState()
         trace_totals: Dict[Tuple[str, str], Dict[str, int]] = {}
         selection_samples: List[dict] = []
         selection_seq = 0
