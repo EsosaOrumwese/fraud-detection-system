@@ -93,6 +93,7 @@ class S5RouterInputs:
     arrivals: Sequence[RouterArrival] | None = None
     dictionary_path: Optional[Path] = None
     run_id: Optional[str] = None
+    max_arrivals: Optional[int] = None
     emit_selection_log: bool = False
     emit_run_report_stdout: bool = True
 
@@ -120,6 +121,11 @@ class S5RouterInputs:
             object.__setattr__(self, "run_id", run_id.lower())
         arrivals = tuple(self.arrivals) if self.arrivals is not None else None
         object.__setattr__(self, "arrivals", arrivals)
+        max_arrivals = self.max_arrivals
+        if max_arrivals is not None:
+            if max_arrivals <= 0:
+                raise err("E_S5_MAX_ARRIVALS", "max_arrivals must be > 0")
+            object.__setattr__(self, "max_arrivals", int(max_arrivals))
 
     @staticmethod
     def _validate_hex(value: str, *, field: str) -> str:
@@ -306,13 +312,41 @@ class S5RouterRunner:
             arrivals_sorted = sorted(
                 arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id)
             )
-            arrivals_iter = iter((arrival, None) for arrival in arrivals_sorted)
+            if config.max_arrivals is not None and config.max_arrivals < len(arrivals_sorted):
+                logger.info(
+                    "S5 arrivals truncated to %d of %d (max_arrivals)",
+                    config.max_arrivals,
+                    len(arrivals_sorted),
+                )
+                arrivals_sorted = arrivals_sorted[: config.max_arrivals]
+            alias_map = self._build_group_alias_map_for_keys(
+                group_frame=group_frame,
+                arrivals=arrivals_sorted,
+            )
+            arrivals_iter = iter(
+                (
+                    arrival,
+                    alias_map.get(
+                        (
+                            int(arrival.merchant_id),
+                            arrival.utc_timestamp.astimezone(timezone.utc).date().isoformat(),
+                        )
+                    ),
+                )
+                for arrival in arrivals_sorted
+            )
             total_arrivals = len(arrivals_sorted)
         else:
             arrivals_iter, total_arrivals = self._iter_group_arrivals(
                 group_frame=group_frame,
                 classifier=virtual_classifier,
+                max_arrivals=config.max_arrivals,
             )
+            if config.max_arrivals is not None:
+                logger.info(
+                    "S5 arrivals truncated to %d (max_arrivals)",
+                    total_arrivals,
+                )
         if total_arrivals <= 0:
             raise err("E_S5_NO_ARRIVALS", "router received zero arrivals to process")
         logger.info(
@@ -403,6 +437,11 @@ class S5RouterRunner:
                 utc_ts = arrival.utc_timestamp.astimezone(timezone.utc)
                 utc_day = utc_ts.date().isoformat()
                 if group_alias is None:
+                    if config.arrivals is not None:
+                        raise err(
+                            "E_S5_GROUP_ALIAS_MISSING",
+                            f"no group alias prepared for merchant {merchant_id} day {utc_day}",
+                        )
                     group_alias = self._ensure_group_alias(
                         cache=group_cache,
                         frame=group_frame,
@@ -679,12 +718,13 @@ class S5RouterRunner:
         *,
         group_frame: pl.DataFrame,
         classifier: VirtualMerchantClassifier,
+        max_arrivals: Optional[int] = None,
     ) -> Tuple[Iterator[Tuple[RouterArrival, AliasTable]], int]:
-        ordered = group_frame.with_row_index("row_idx").sort(
-            ["utc_day", "merchant_id", "row_idx"]
-        )
+        ordered = group_frame.sort(["utc_day", "merchant_id", "tz_group_id"])
         total_arrivals = (
-            ordered.select(["merchant_id", "utc_day"]).unique().height
+            max_arrivals
+            if max_arrivals is not None
+            else ordered.select(["merchant_id", "utc_day"]).unique().height
         )
 
         def _emit(
@@ -706,6 +746,7 @@ class S5RouterRunner:
             current_key: Tuple[int, str] | None = None
             tzids: List[object] = []
             weights: List[float] = []
+            emitted = 0
             for row in ordered.iter_rows(named=True):
                 merchant_id = int(row["merchant_id"])
                 utc_day = str(row["utc_day"])
@@ -714,15 +755,69 @@ class S5RouterRunner:
                     current_key = key
                 if key != current_key:
                     yield _emit(current_key[0], current_key[1], tzids, weights)
+                    emitted += 1
+                    if max_arrivals is not None and emitted >= max_arrivals:
+                        return
                     tzids = []
                     weights = []
                     current_key = key
                 tzids.append(row["tz_group_id"])
                 weights.append(float(row["p_group"]))
-            if current_key is not None:
+            if current_key is not None and (
+                max_arrivals is None or emitted < max_arrivals
+            ):
                 yield _emit(current_key[0], current_key[1], tzids, weights)
 
         return _iter_rows(), total_arrivals
+
+    def _build_group_alias_map_for_keys(
+        self,
+        *,
+        group_frame: pl.DataFrame,
+        arrivals: Sequence[RouterArrival],
+    ) -> Dict[Tuple[int, str], AliasTable]:
+        if not arrivals:
+            raise err("E_S5_ALIAS_KEYS", "cannot build group alias map for empty arrivals")
+        keys: List[Tuple[int, str]] = []
+        seen: set[Tuple[int, str]] = set()
+        for arrival in arrivals:
+            utc_day = arrival.utc_timestamp.astimezone(timezone.utc).date().isoformat()
+            key = (int(arrival.merchant_id), utc_day)
+            if key not in seen:
+                seen.add(key)
+                keys.append(key)
+        if not keys:
+            raise err("E_S5_ALIAS_KEYS", "no unique arrivals to build group alias map")
+        key_frame = pl.DataFrame(
+            {
+                "merchant_id": [key[0] for key in keys],
+                "utc_day_key": [key[1] for key in keys],
+            }
+        )
+        subset = (
+            group_frame
+            .with_columns(pl.col("utc_day").cast(pl.Utf8).alias("utc_day_key"))
+            .join(key_frame, on=["merchant_id", "utc_day_key"], how="inner")
+            .sort(["merchant_id", "utc_day_key", "tz_group_id"])
+        )
+        if subset.height == 0:
+            raise err("E_S5_ALIAS_KEYS", "no group weights rows match arrivals keys")
+        grouped = subset.group_by(
+            ["merchant_id", "utc_day_key"], maintain_order=True
+        ).agg(
+            [
+                pl.col("tz_group_id").implode(),
+                pl.col("p_group").implode(),
+            ]
+        )
+        alias_map: Dict[Tuple[int, str], AliasTable] = {}
+        for row in grouped.iter_rows(named=True):
+            merchant_id = int(row["merchant_id"])
+            utc_day = str(row["utc_day_key"])
+            tzids = list(row["tz_group_id"] or [])
+            weights = list(row["p_group"] or [])
+            alias_map[(merchant_id, utc_day)] = self._build_alias_table(tzids, weights)
+        return alias_map
 
     def _build_site_alias_map(
         self,

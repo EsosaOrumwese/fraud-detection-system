@@ -262,6 +262,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to a JSONL file containing arrivals (merchant_id, utc_timestamp).",
     )
     parser.add_argument(
+        "--s5-max-arrivals",
+        type=int,
+        help="Limit the number of arrivals processed in S5 (applies after sorting).",
+    )
+    parser.add_argument(
         "--s5-quiet-run-report",
         action="store_true",
         help="Suppress printing the S5 run-report JSON to STDOUT (still writes to disk).",
@@ -338,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
             run_s5=args.run_s5,
             s5_emit_selection_log=args.s5_selection_log,
             s5_arrivals_path=args.s5_arrivals_jsonl,
+            s5_max_arrivals=args.s5_max_arrivals,
             s5_emit_run_report_stdout=not args.s5_quiet_run_report,
             run_s6=args.run_s6,
             s6_emit_edge_log=args.s6_edge_log,

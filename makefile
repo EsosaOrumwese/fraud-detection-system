@@ -179,6 +179,8 @@ SEG2B_S4_QUIET ?= 1
 SEG2B_RUN_S5 ?= 1
 SEG2B_S5_SELECTION_LOG ?= 0
 SEG2B_S5_ARRIVALS_JSONL ?=
+# Optional cap for profiling/debug runs (limits number of (merchant_id, utc_day) arrivals processed).
+SEG2B_S5_MAX_ARRIVALS ?=
 SEG2B_S5_QUIET ?= 1
 SEG2B_RUN_S6 ?= 1
 SEG2B_S6_EDGE_LOG ?= 0
@@ -236,6 +238,9 @@ SEG2B_EXTRA += --s5-selection-log
 endif
 ifneq ($(strip $(SEG2B_S5_ARRIVALS_JSONL)),)
 SEG2B_EXTRA += --s5-arrivals-jsonl "$(SEG2B_S5_ARRIVALS_JSONL)"
+endif
+ifneq ($(strip $(SEG2B_S5_MAX_ARRIVALS)),)
+SEG2B_EXTRA += --s5-max-arrivals $(SEG2B_S5_MAX_ARRIVALS)
 endif
 ifeq ($(strip $(SEG2B_S5_QUIET)),1)
 SEG2B_EXTRA += --s5-quiet-run-report

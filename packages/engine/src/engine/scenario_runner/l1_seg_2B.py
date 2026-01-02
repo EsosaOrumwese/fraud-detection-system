@@ -73,6 +73,7 @@ class Segment2BConfig:
     run_s5: bool = False
     s5_emit_selection_log: bool = False
     s5_arrivals_path: Optional[Path] = None
+    s5_max_arrivals: Optional[int] = None
     s5_emit_run_report_stdout: bool = True
     run_s6: bool = False
     s6_emit_edge_log: bool = False
@@ -273,6 +274,7 @@ class Segment2BOrchestrator:
                 git_commit_hex=config.git_commit_hex,
                 arrivals=arrivals,
                 dictionary_path=config.dictionary_path,
+                max_arrivals=config.s5_max_arrivals,
                 emit_selection_log=config.s5_emit_selection_log,
                 emit_run_report_stdout=config.s5_emit_run_report_stdout,
             )
