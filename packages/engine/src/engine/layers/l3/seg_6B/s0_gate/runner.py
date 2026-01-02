@@ -422,6 +422,18 @@ class S0GateRunner:
             spec = self._UPSTREAM_BUNDLE_SPECS.get(segment)
             if spec is None:
                 continue
+            if segment in {"5A", "5B"}:
+                results[segment] = self._verify_layer2_bundle(
+                    segment=segment,
+                    base_path=base_path,
+                    manifest_fingerprint=manifest_fingerprint,
+                    dictionary_path=repository_root() / spec["dictionary_rel_path"],
+                    bundle_id=spec.get("bundle_id"),
+                    index_id=spec.get("index_id"),
+                    override=getattr(self, spec["override_attr"], None),
+                    flag_id=spec["flag_id"],
+                )
+                continue
             dictionary_path = repository_root() / spec["dictionary_rel_path"]
             override_attr = spec["override_attr"]
             override = getattr(self, override_attr, None)
@@ -457,6 +469,70 @@ class S0GateRunner:
                 "flag_path": str(flag_path),
             }
         return results
+
+    def _verify_layer2_bundle(
+        self,
+        *,
+        segment: str,
+        base_path: Path,
+        manifest_fingerprint: str,
+        dictionary_path: Path,
+        bundle_id: str | None,
+        index_id: str | None,
+        override: Path | None,
+        flag_id: str,
+    ) -> Mapping[str, object]:
+        bundle_path, index_path = self._resolve_bundle_and_index(
+            base_path=base_path,
+            dictionary_path=dictionary_path,
+            manifest_fingerprint=manifest_fingerprint,
+            bundle_id=bundle_id,
+            index_id=index_id,
+            override=override,
+        )
+        if not bundle_path.exists() or not bundle_path.is_dir():
+            raise FileNotFoundError(f"validation bundle missing for {segment}: {bundle_path}")
+        if not index_path.exists():
+            raise FileNotFoundError(f"validation bundle index missing for {segment}: {index_path}")
+        index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+        entries = index_payload.get("entries") if isinstance(index_payload, dict) else None
+        if not isinstance(entries, list):
+            raise ValueError(f"{segment} validation index missing entries list: {index_path}")
+        bundle_digest = self._compute_layer2_digest(segment, entries, base_path)
+        flag_path = self._resolve_dataset_path(
+            base_path=base_path,
+            dictionary_path=dictionary_path,
+            dataset_id=flag_id,
+            manifest_fingerprint=manifest_fingerprint,
+        )
+        if not flag_path.exists():
+            raise FileNotFoundError(f"validation pass flag missing for {segment}: {flag_path}")
+        flag_payload = json.loads(flag_path.read_text(encoding="utf-8"))
+        flag_digest = str(flag_payload.get("bundle_digest_sha256") or "")
+        if flag_digest != bundle_digest:
+            raise RuntimeError(f"validation bundle digest mismatch for {segment}")
+        return {
+            "status": "PASS",
+            "bundle_path": str(bundle_path),
+            "bundle_sha256": bundle_digest,
+            "flag_path": str(flag_path),
+        }
+
+    @staticmethod
+    def _compute_layer2_digest(
+        segment: str, entries: Sequence[Mapping[str, object]], base_path: Path
+    ) -> str:
+        if segment == "5A":
+            concat = "".join(str(entry.get("sha256_hex") or "") for entry in entries)
+            return hashlib.sha256(concat.encode("ascii")).hexdigest()
+        buffer = bytearray()
+        for entry in entries:
+            raw_path = str(entry.get("path") or "")
+            target = Path(raw_path)
+            if not target.is_absolute():
+                target = base_path / raw_path
+            buffer.extend(target.read_bytes())
+        return hashlib.sha256(buffer).hexdigest()
 
     def _collect_sealed_assets(
         self,
