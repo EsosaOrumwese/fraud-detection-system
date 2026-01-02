@@ -125,34 +125,32 @@ class S4GroupWeightsRunner:
             base_shares.group_by("merchant_id")
             .agg(pl.col("tz_group_id").n_unique().alias("tz_groups_required"))
         )
-        day_effects = self._load_day_effects(config=config, dictionary=dictionary)
-        combined = self._combine_factors(base_shares=base_shares, day_effects=day_effects)
-        if combined.height == 0:
+        day_effects = self._scan_day_effects(config=config, dictionary=dictionary)
+        rows_expected = self._count_rows(day_effects)
+        if rows_expected <= 0:
             raise err(
                 "2B-S4-050",
-                "renormalisation produced zero rows; ensure S1 and S3 emitted rows for this run",
+                "s3_day_effects produced zero rows; ensure S3 emitted rows for this run",
             )
-        combined = combined.with_columns(
-            [
-                (pl.col("base_share") * pl.col("gamma"))
-                .alias("mass_raw")
-                .fill_nan(0.0),
-            ]
+
+        base_shares_lf = base_shares.lazy()
+        mass = day_effects.join(
+            base_shares_lf,
+            on=["merchant_id", "tz_group_id"],
+            how="inner",
+            maintain_order="left",
+        ).with_columns(
+            (pl.col("base_share") * pl.col("gamma")).alias("mass_raw").fill_nan(0.0)
         )
-        combined = combined.with_columns(
-            pl.col("mass_raw")
-            .sum()
-            .over(["merchant_id", "utc_day"])
-            .alias("denom_raw")
+        denom = mass.group_by(["merchant_id", "utc_day"]).agg(
+            pl.col("mass_raw").sum().alias("denom_raw")
         )
-        denom_invalid = combined.filter(pl.col("denom_raw") <= 0.0)
-        if denom_invalid.height:
-            sample = denom_invalid.select(["merchant_id", "utc_day", "denom_raw"]).head(5)
-            raise err(
-                "2B-S4-051",
-                f"renormalisation denominator <= 0 for merchant/day sample: {sample.to_dicts()}",
-            )
-        combined = combined.with_columns(
+        combined = mass.join(
+            denom,
+            on=["merchant_id", "utc_day"],
+            how="left",
+            maintain_order="left",
+        ).with_columns(
             (pl.col("mass_raw") / pl.col("denom_raw")).alias("p_group_raw")
         )
         combined = combined.with_columns(
@@ -163,49 +161,71 @@ class S4GroupWeightsRunner:
             .otherwise(pl.col("p_group_raw"))
             .alias("p_group")
         )
-        negative = combined.filter(pl.col("p_group").is_null())
-        if negative.height:
-            raise err(
-                "2B-S4-057",
-                f"normalised weights dropped below tolerance for sample rows: {negative.head(5).to_dicts()}",
-            )
-        combined = combined.with_columns(
-            pl.col("p_group")
-            .sum()
-            .over(["merchant_id", "utc_day"])
-            .alias("p_total")
+        p_totals = combined.group_by(["merchant_id", "utc_day"]).agg(
+            pl.col("p_group").sum().alias("p_total")
         )
-        zero_totals = combined.filter(pl.col("p_total") <= 0.0)
-        if zero_totals.height:
-            raise err(
-                "2B-S4-051",
-                f"normalisation total <= 0 for sample merchant/day keys: {zero_totals.head(5).to_dicts()}",
-            )
-        combined = combined.with_columns(
+        combined = combined.join(
+            p_totals,
+            on=["merchant_id", "utc_day"],
+            how="left",
+            maintain_order="left",
+        ).with_columns(
             (pl.col("p_group") / pl.col("p_total")).alias("p_group")
         ).drop(["p_total", "p_group_raw"])
         combined = combined.with_columns(
             pl.lit(receipt.verified_at_utc).alias("created_utc")
+        ).select(
+            [
+                "merchant_id",
+                "utc_day",
+                "tz_group_id",
+                "p_group",
+                "base_share",
+                "gamma",
+                "created_utc",
+                "mass_raw",
+                "denom_raw",
+            ]
         )
 
-        combined = combined.sort(["merchant_id", "utc_day", "tz_group_id"])
         output_dir.parent.mkdir(parents=True, exist_ok=True)
-        self._validate_output_schema(rows=combined)
-        bytes_written = self._publish_rows(rows=combined, output_dir=output_dir)
-
-        merchants_total = combined["merchant_id"].n_unique()
-        rows_expected, days_total = self._validate_coverage(
-            combined=combined, tz_counts=tz_counts
-        )
-        rows_total = combined.height
-        if rows_total != rows_expected:
-            raise err(
-                "2B-S4-050",
-                f"rows written ({rows_total}) differ from expected coverage ({rows_expected})",
-            )
-        tz_groups_total = combined["tz_group_id"].n_unique()
-        max_abs_p_delta = self._validate_p_group_totals(combined=combined)
-        rows_total = combined.height
+        staging_dir = output_dir.parent / f".s4_group_weights_{uuid.uuid4().hex}"
+        staging_dir.mkdir(parents=True, exist_ok=False)
+        try:
+            self._validate_output_schema_lazy(rows=combined)
+            part_path = staging_dir / "part-00000.parquet"
+            combined.sink_parquet(part_path, compression="zstd")
+            output_scan = pl.scan_parquet(str(staging_dir / "part-*.parquet"))
+            self._validate_output_schema_scan(rows=output_scan)
+            rows_total = self._count_rows(output_scan)
+            if rows_total <= 0:
+                raise err("2B-S4-050", "s4_group_weights produced zero rows")
+            if rows_expected != rows_total:
+                raise err(
+                    "2B-S4-050",
+                    f"rows written ({rows_total}) differ from expected coverage ({rows_expected})",
+                )
+            days_total = self._count_unique(output_scan, "utc_day")
+            tz_groups_total = base_shares["tz_group_id"].n_unique()
+            merchants_total = base_shares["merchant_id"].n_unique()
+            rows_expected_by_base = int(
+                tz_counts.select(pl.col("tz_groups_required").sum())
+                .to_series()
+                .to_list()[0]
+                or 0
+            ) * days_total
+            if rows_expected_by_base and rows_expected_by_base != rows_total:
+                raise err(
+                    "2B-S4-050",
+                    f"coverage mismatch for base_shares (expected {rows_expected_by_base}, observed {rows_total})",
+                )
+            self._validate_positive_metrics(output_scan)
+            max_abs_p_delta = self._max_abs_p_group_delta(output_scan)
+            bytes_written = sum(f.stat().st_size for f in staging_dir.glob("*.parquet"))
+            os.replace(staging_dir, output_dir)
+        except Exception:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            raise
         dictionary_resolution = self._catalogue_resolution(dictionary=dictionary)
         output_rel = render_dataset_path(
             "s4_group_weights",
@@ -344,20 +364,20 @@ class S4GroupWeightsRunner:
             )
         return tz_lookup
 
-    def _load_day_effects(
+    def _scan_day_effects(
         self, *, config: S4GroupWeightsInputs, dictionary: Mapping[str, object]
-    ) -> pl.DataFrame:
+    ) -> pl.LazyFrame:
         path = self._resolve_dataset_path(
             dataset_id="s3_day_effects", config=config, dictionary=dictionary
         )
         try:
-            effects = pl.read_parquet(
+            effects = pl.scan_parquet(
                 path,
                 columns=["merchant_id", "utc_day", "tz_group_id", "gamma"],
             )
         except Exception as exc:  # pragma: no cover
-            raise err("2B-S4-020", f"failed to read s3_day_effects: {exc}") from exc
-        effects = effects.with_columns(
+            raise err("2B-S4-020", f"failed to scan s3_day_effects: {exc}") from exc
+        return effects.with_columns(
             [
                 pl.col("merchant_id").cast(pl.UInt64, strict=False),
                 pl.col("utc_day").cast(pl.Utf8, strict=False),
@@ -365,24 +385,6 @@ class S4GroupWeightsRunner:
                 pl.col("gamma").cast(pl.Float64, strict=False),
             ]
         )
-        invalid = effects.filter(
-            pl.col("merchant_id").is_null()
-            | pl.col("utc_day").is_null()
-            | pl.col("tz_group_id").is_null()
-            | pl.col("gamma").is_null()
-        )
-        if invalid.height:
-            raise err(
-                "2B-S4-057",
-                f"s3_day_effects contains invalid rows: {invalid.head(5).to_dicts()}",
-            )
-        nonpositive = effects.filter(pl.col("gamma") <= 0.0)
-        if nonpositive.height:
-            raise err(
-                "2B-S4-057",
-                f"gamma <= 0 detected for sample rows: {nonpositive.head(5).to_dicts()}",
-            )
-        return effects
 
     # ------------------------------------------------------------------ transforms
 
@@ -520,6 +522,57 @@ class S4GroupWeightsRunner:
             raise
         bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
         return bytes_written
+
+    def _count_rows(self, rows: pl.LazyFrame) -> int:
+        payload = rows.select(pl.len().alias("rows")).collect(streaming=True)
+        return int(payload["rows"][0] or 0)
+
+    def _count_unique(self, rows: pl.LazyFrame, column: str) -> int:
+        payload = rows.select(pl.col(column).n_unique().alias("unique")).collect(streaming=True)
+        return int(payload["unique"][0] or 0)
+
+    def _validate_output_schema_lazy(self, *, rows: pl.LazyFrame) -> None:
+        self._validate_output_schema_mapping(rows.schema)
+
+    def _validate_output_schema_scan(self, *, rows: pl.LazyFrame) -> None:
+        self._validate_output_schema_mapping(rows.schema)
+
+    def _validate_positive_metrics(self, rows: pl.LazyFrame) -> None:
+        payload = rows.select(
+            [
+                pl.col("denom_raw").min().alias("denom_min"),
+                pl.col("gamma").min().alias("gamma_min"),
+                pl.col("p_group").min().alias("p_group_min"),
+                pl.col("p_group").is_null().any().alias("p_group_null"),
+            ]
+        ).collect(streaming=True)
+        denom_min = payload["denom_min"][0]
+        gamma_min = payload["gamma_min"][0]
+        p_group_min = payload["p_group_min"][0]
+        p_group_null = bool(payload["p_group_null"][0])
+        if denom_min is None or denom_min <= 0.0:
+            raise err("2B-S4-051", "renormalisation denominator <= 0 detected")
+        if gamma_min is None or gamma_min <= 0.0:
+            raise err("2B-S4-057", "gamma <= 0 detected in s3_day_effects")
+        if p_group_null:
+            raise err("2B-S4-057", "normalised weights dropped below tolerance")
+        if p_group_min is None or p_group_min < -self.NORMALISATION_EPS:
+            raise err("2B-S4-057", "normalised weights dropped below tolerance")
+
+    def _max_abs_p_group_delta(self, rows: pl.LazyFrame) -> float:
+        totals = rows.group_by(["merchant_id", "utc_day"]).agg(
+            pl.col("p_group").sum().alias("total_mass")
+        )
+        payload = totals.select(
+            (pl.col("total_mass") - 1.0).abs().max().alias("max_delta")
+        ).collect(streaming=True)
+        max_delta = float(payload["max_delta"][0] or 0.0)
+        if max_delta > self.NORMALISATION_EPS:
+            raise err(
+                "2B-S4-051",
+                f"normalised weights deviate from 1 beyond tolerance (max={max_delta})",
+            )
+        return max_delta
 
     # ------------------------------------------------------------------ sealed asset helpers
 
@@ -709,6 +762,9 @@ class S4GroupWeightsRunner:
             logger.debug("fsync skipped for %s", path)
 
     def _validate_output_schema(self, *, rows: pl.DataFrame) -> None:
+        self._validate_output_schema_mapping(rows.schema)
+
+    def _validate_output_schema_mapping(self, schema_map: Mapping[str, pl.DataType]) -> None:
         schema = load_schema("#/plan/s4_group_weights")
         required_cols = [
             "merchant_id",
@@ -738,7 +794,7 @@ class S4GroupWeightsRunner:
             "denom_raw": pl.Float64,
         }
         for name, dtype in expected_types.items():
-            actual = rows.schema.get(name)
+            actual = schema_map.get(name)
             if actual != dtype:
                 raise err(
                     "2B-S4-030",
