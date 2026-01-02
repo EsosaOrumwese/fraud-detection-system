@@ -27,6 +27,7 @@ from engine.layers.l1.seg_3B import (
     ValidationRunner,
 )
 from engine.layers.l1.seg_3B.shared.dictionary import load_dictionary
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,8 @@ class Segment3BOrchestrator:
             notes=config.notes,
         )
         logger.info("Segment3B S0 starting (upstream_manifest=%s)", config.upstream_manifest_fingerprint)
-        s0_outputs = self._s0_runner.run(s0_inputs)
+        with state_heartbeat(logger, "Segment3B S0"):
+            s0_outputs = self._s0_runner.run(s0_inputs)
         logger.info("Segment3B S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
 
         s1_output_path: Path | None = None
@@ -154,7 +156,8 @@ class Segment3BOrchestrator:
                 seed=int(config.seed),
                 dictionary_path=config.dictionary_path,
             )
-            s1_result: VirtualsResult = self._s1_runner.run(s1_inputs)
+            with state_heartbeat(logger, "Segment3B S1"):
+                s1_result = self._s1_runner.run(s1_inputs)
             logger.info("Segment3B S1 completed (classification=%s)", s1_result.classification_path)
             s1_output_path = s1_result.classification_path
             s1_run_report = s1_result.run_report_path
@@ -167,7 +170,8 @@ class Segment3BOrchestrator:
                 seed=int(config.seed),
                 dictionary_path=config.dictionary_path,
             )
-            s2_result: EdgesResult = self._s2_runner.run(s2_inputs)
+            with state_heartbeat(logger, "Segment3B S2"):
+                s2_result = self._s2_runner.run(s2_inputs)
             logger.info("Segment3B S2 completed (edges=%s)", s2_result.edge_catalogue_path)
             s2_output_path = s2_result.edge_catalogue_path
             s2_index_path = s2_result.edge_catalogue_index_path
@@ -181,7 +185,8 @@ class Segment3BOrchestrator:
                 seed=int(config.seed),
                 dictionary_path=config.dictionary_path,
             )
-            s3_result: AliasResult = self._s3_runner.run(s3_inputs)
+            with state_heartbeat(logger, "Segment3B S3"):
+                s3_result = self._s3_runner.run(s3_inputs)
             logger.info("Segment3B S3 completed (alias=%s)", s3_result.alias_index_path)
             s3_blob_path = s3_result.alias_blob_path
             s3_index_path = s3_result.alias_index_path
@@ -196,7 +201,8 @@ class Segment3BOrchestrator:
                 seed=int(config.seed),
                 dictionary_path=config.dictionary_path,
             )
-            s4_result = self._s4_runner.run(s4_inputs)
+            with state_heartbeat(logger, "Segment3B S4"):
+                s4_result = self._s4_runner.run(s4_inputs)
             logger.info("Segment3B S4 completed (routing_policy=%s)", s4_result.routing_policy_path)
             s4_routing_policy_path = s4_result.routing_policy_path
             s4_validation_contract_path = s4_result.validation_contract_path
@@ -212,7 +218,8 @@ class Segment3BOrchestrator:
                 seed=int(config.seed),
                 dictionary_path=config.dictionary_path,
             )
-            s5_result = self._s5_runner.run(s5_inputs)
+            with state_heartbeat(logger, "Segment3B S5"):
+                s5_result = self._s5_runner.run(s5_inputs)
             logger.info("Segment3B S5 completed (bundle=%s)", s5_result.bundle_path)
             s5_bundle_path = s5_result.bundle_path
             s5_passed_flag_path = s5_result.passed_flag_path

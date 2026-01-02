@@ -23,6 +23,7 @@ from engine.layers.l3.seg_6B import (
     ValidationRunner,
 )
 from engine.layers.l3.seg_6B.shared.dictionary import load_dictionary
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,8 @@ class Segment6BOrchestrator:
             validation_bundle_6a=config.validation_bundle_6a,
         )
         logger.info("Segment6B S0 starting (manifest=%s)", config.manifest_fingerprint)
-        s0_outputs: S0Outputs = self._s0_runner.run(s0_inputs)
+        with state_heartbeat(logger, "Segment6B S0"):
+            s0_outputs = self._s0_runner.run(s0_inputs)
         logger.info("Segment6B S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
 
         s1_arrival_entities_paths: dict[str, Path] = {}
@@ -126,7 +128,8 @@ class Segment6BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s1_result = ArrivalRunner().run(s1_inputs)
+            with state_heartbeat(logger, "Segment6B S1"):
+                s1_result = ArrivalRunner().run(s1_inputs)
             s1_arrival_entities_paths = s1_result.arrival_entities_paths
             s1_session_index_paths = s1_result.session_index_paths
 
@@ -142,7 +145,8 @@ class Segment6BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s2_result = BaselineRunner().run(s2_inputs)
+            with state_heartbeat(logger, "Segment6B S2"):
+                s2_result = BaselineRunner().run(s2_inputs)
             s2_flow_paths = s2_result.flow_paths
             s2_event_paths = s2_result.event_paths
 
@@ -159,7 +163,8 @@ class Segment6BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s3_result = FraudRunner().run(s3_inputs)
+            with state_heartbeat(logger, "Segment6B S3"):
+                s3_result = FraudRunner().run(s3_inputs)
             s3_campaign_paths = s3_result.campaign_paths
             s3_flow_paths = s3_result.flow_paths
             s3_event_paths = s3_result.event_paths
@@ -178,7 +183,8 @@ class Segment6BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s4_result = LabelRunner().run(s4_inputs)
+            with state_heartbeat(logger, "Segment6B S4"):
+                s4_result = LabelRunner().run(s4_inputs)
             s4_flow_truth_paths = s4_result.flow_truth_paths
             s4_flow_bank_paths = s4_result.flow_bank_paths
             s4_event_label_paths = s4_result.event_label_paths
@@ -198,7 +204,8 @@ class Segment6BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s5_result = ValidationRunner().run(s5_inputs)
+            with state_heartbeat(logger, "Segment6B S5"):
+                s5_result = ValidationRunner().run(s5_inputs)
             s5_report_path = s5_result.report_path
             s5_issue_table_path = s5_result.issue_table_path
             s5_bundle_index_path = s5_result.bundle_index_path

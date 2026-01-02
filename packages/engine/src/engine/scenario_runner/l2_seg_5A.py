@@ -9,6 +9,7 @@ from typing import Optional
 
 from engine.layers.l2.seg_5A import S0GateRunner, S0Inputs, S0Outputs
 from engine.layers.l2.seg_5A.shared.dictionary import load_dictionary
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,8 @@ class Segment5AOrchestrator:
             notes=config.notes,
         )
         logger.info("Segment5A S0 starting (upstream_manifest=%s)", config.upstream_manifest_fingerprint)
-        s0_outputs: S0Outputs = self._s0_runner.run(s0_inputs)
+        with state_heartbeat(logger, "Segment5A S0"):
+            s0_outputs = self._s0_runner.run(s0_inputs)
         logger.info("Segment5A S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
 
         s1_profile_path = None
@@ -133,7 +135,8 @@ class Segment5AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s1_result = ProfilesRunner().run(s1_inputs)
+            with state_heartbeat(logger, "Segment5A S1"):
+                s1_result = ProfilesRunner().run(s1_inputs)
             logger.info("Segment5A S1 completed (profiles=%s)", s1_result.profile_path)
             s1_profile_path = s1_result.profile_path
             s1_class_profile_path = s1_result.class_profile_path
@@ -151,7 +154,8 @@ class Segment5AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s2_result = ShapesRunner().run(s2_inputs)
+            with state_heartbeat(logger, "Segment5A S2"):
+                s2_result = ShapesRunner().run(s2_inputs)
             logger.info("Segment5A S2 completed (shapes=%s)", s2_result.shape_path)
             s2_grid_path = s2_result.grid_path
             s2_shape_path = s2_result.shape_path
@@ -175,7 +179,8 @@ class Segment5AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s3_result = BaselineRunner().run(s3_inputs)
+            with state_heartbeat(logger, "Segment5A S3"):
+                s3_result = BaselineRunner().run(s3_inputs)
             logger.info("Segment5A S3 completed (baseline=%s)", s3_result.baseline_path)
             s3_baseline_path = s3_result.baseline_path
             s3_class_baseline_path = s3_result.class_baseline_path
@@ -198,7 +203,8 @@ class Segment5AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s4_result = OverlaysRunner().run(s4_inputs)
+            with state_heartbeat(logger, "Segment5A S4"):
+                s4_result = OverlaysRunner().run(s4_inputs)
             logger.info("Segment5A S4 completed (scenario_local=%s)", s4_result.scenario_local_path)
             s4_scenario_local_path = s4_result.scenario_local_path
             s4_overlay_factors_path = s4_result.overlay_factors_path
@@ -227,7 +233,8 @@ class Segment5AOrchestrator:
                 dictionary_path=config.dictionary_path,
                 parameter_hash=s0_outputs.parameter_hash,
             )
-            s5_result = ValidationRunner().run(s5_inputs)
+            with state_heartbeat(logger, "Segment5A S5"):
+                s5_result = ValidationRunner().run(s5_inputs)
             logger.info("Segment5A S5 completed (status=%s)", s5_result.overall_status)
             s5_bundle_index_path = s5_result.bundle_index_path
             s5_report_path = s5_result.report_path

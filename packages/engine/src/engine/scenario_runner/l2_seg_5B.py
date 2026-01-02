@@ -23,6 +23,7 @@ from engine.layers.l2.seg_5B import (
     ValidationRunner,
 )
 from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,8 @@ class Segment5BOrchestrator:
             validation_bundle_5a=config.validation_bundle_5a,
         )
         logger.info("Segment5B S0 starting (manifest=%s)", config.upstream_manifest_fingerprint)
-        s0_outputs: S0Outputs = self._s0_runner.run(s0_inputs)
+        with state_heartbeat(logger, "Segment5B S0"):
+            s0_outputs = self._s0_runner.run(s0_inputs)
         logger.info("Segment5B S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
 
         s1_time_grid_paths: dict[str, Path] = {}
@@ -120,7 +122,8 @@ class Segment5BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s1_result = TimeGridRunner().run(s1_inputs)
+            with state_heartbeat(logger, "Segment5B S1"):
+                s1_result = TimeGridRunner().run(s1_inputs)
             s1_time_grid_paths = s1_result.time_grid_paths
             s1_grouping_paths = s1_result.grouping_paths
 
@@ -136,7 +139,8 @@ class Segment5BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s2_result = IntensityRunner().run(s2_inputs)
+            with state_heartbeat(logger, "Segment5B S2"):
+                s2_result = IntensityRunner().run(s2_inputs)
             s2_intensity_paths = s2_result.intensity_paths
             s2_latent_paths = s2_result.latent_field_paths
 
@@ -151,7 +155,8 @@ class Segment5BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s3_result = CountRunner().run(s3_inputs)
+            with state_heartbeat(logger, "Segment5B S3"):
+                s3_result = CountRunner().run(s3_inputs)
             s3_count_paths = s3_result.count_paths
 
         s4_arrival_paths: dict[str, Path] = {}
@@ -166,7 +171,8 @@ class Segment5BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s4_result = ArrivalRunner().run(s4_inputs)
+            with state_heartbeat(logger, "Segment5B S4"):
+                s4_result = ArrivalRunner().run(s4_inputs)
             s4_arrival_paths = s4_result.arrival_paths
             s4_summary_paths = s4_result.summary_paths
 
@@ -186,7 +192,8 @@ class Segment5BOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s5_result = ValidationRunner().run(s5_inputs)
+            with state_heartbeat(logger, "Segment5B S5"):
+                s5_result = ValidationRunner().run(s5_inputs)
             s5_bundle_index_path = s5_result.bundle_index_path
             s5_report_path = s5_result.report_path
             s5_issue_table_path = s5_result.issue_table_path

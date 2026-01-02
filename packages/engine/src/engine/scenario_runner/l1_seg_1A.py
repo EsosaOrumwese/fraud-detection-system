@@ -84,6 +84,7 @@ from engine.layers.l1.seg_1A.s8_outlet_catalogue.contexts import S8Deterministic
 from engine.layers.l1.seg_1A.s9_validation import S9RunOutputs, S9Runner
 from engine.layers.l1.seg_1A.s9_validation.contexts import S9DeterministicContext
 from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
+from engine.shared.heartbeat import state_heartbeat
 from engine.scenario_runner.l1_seg_1A_contexts import (
     HurdleStateContext,
     S2StateContext,
@@ -267,29 +268,30 @@ class Segment1AOrchestrator:
             git_commit_hex,
             base_path,
         )
-        s0_result = self._s0_runner.run_from_paths(
-            base_path=base_path,
-            merchant_table_path=merchant_table.expanduser().resolve(),
-            iso_table_path=iso_table.expanduser().resolve(),
-            gdp_table_path=gdp_table.expanduser().resolve(),
-            bucket_table_path=bucket_table.expanduser().resolve(),
-            parameter_files=param_mapping,
-            git_commit_hex=git_commit_hex,
-            seed=seed,
-            numeric_policy_path=(
-                numeric_policy_path.expanduser().resolve()
-                if numeric_policy_path is not None
-                else None
-            ),
-            math_profile_manifest_path=(
-                math_profile_manifest_path.expanduser().resolve()
-                if math_profile_manifest_path is not None
-                else None
-            ),
-            include_diagnostics=include_diagnostics,
-            validate=validate_s0,
-            extra_manifest_artifacts=extras,
-        )
+        with state_heartbeat(logger, "Segment1A S0"):
+            s0_result = self._s0_runner.run_from_paths(
+                base_path=base_path,
+                merchant_table_path=merchant_table.expanduser().resolve(),
+                iso_table_path=iso_table.expanduser().resolve(),
+                gdp_table_path=gdp_table.expanduser().resolve(),
+                bucket_table_path=bucket_table.expanduser().resolve(),
+                parameter_files=param_mapping,
+                git_commit_hex=git_commit_hex,
+                seed=seed,
+                numeric_policy_path=(
+                    numeric_policy_path.expanduser().resolve()
+                    if numeric_policy_path is not None
+                    else None
+                ),
+                math_profile_manifest_path=(
+                    math_profile_manifest_path.expanduser().resolve()
+                    if math_profile_manifest_path is not None
+                    else None
+                ),
+                include_diagnostics=include_diagnostics,
+                validate=validate_s0,
+                extra_manifest_artifacts=extras,
+            )
         logger.info(
             "Segment1A S0 completed (run_id=%s, parameter_hash=%s)",
             s0_result.run_id,
@@ -310,15 +312,16 @@ class Segment1AOrchestrator:
             )
             for vector in design_vectors
         )
-        s1_result = self._s1_runner.run(
-            base_path=base_path,
-            manifest_fingerprint=s0_result.sealed.manifest_fingerprint.manifest_fingerprint,
-            parameter_hash=s0_result.sealed.parameter_hash.parameter_hash,
-            beta=s0_result.outputs.hurdle_coefficients.beta,
-            design_rows=design_rows,
-            seed=seed,
-            run_id=s0_result.run_id,
-        )
+        with state_heartbeat(logger, "Segment1A S1"):
+            s1_result = self._s1_runner.run(
+                base_path=base_path,
+                manifest_fingerprint=s0_result.sealed.manifest_fingerprint.manifest_fingerprint,
+                parameter_hash=s0_result.sealed.parameter_hash.parameter_hash,
+                beta=s0_result.outputs.hurdle_coefficients.beta,
+                design_rows=design_rows,
+                seed=seed,
+                run_id=s0_result.run_id,
+            )
         logger.info(
             "Segment1A S1 completed (multi_merchants=%d)",
             len(s1_result.multi_merchant_ids),
@@ -350,10 +353,11 @@ class Segment1AOrchestrator:
             "Segment1A S2 deterministic context built (merchants=%d)",
             len(deterministic_context.rows),
         )
-        s2_result = self._s2_runner.run(
-            base_path=base_path,
-            deterministic=deterministic_context,
-        )
+        with state_heartbeat(logger, "Segment1A S2"):
+            s2_result = self._s2_runner.run(
+                base_path=base_path,
+                deterministic=deterministic_context,
+            )
         logger.info(
             "Segment1A S2 completed (accepted_merchants=%d)",
             len(s2_result.finals),
@@ -540,15 +544,16 @@ class Segment1AOrchestrator:
                 bounds_path,
                 iso_countries=s3_deterministic.iso_countries,
             )
-        s3_result = self._s3_runner.run(
-            base_path=base_path,
-            deterministic=s3_deterministic,
-            rule_ladder_path=rule_ladder_path,
-            toggles=s3_toggles,
-            base_weight_policy=base_weight_policy,
-            thresholds_policy=thresholds_policy,
-            bounds_policy=bounds_policy,
-        )
+        with state_heartbeat(logger, "Segment1A S3"):
+            s3_result = self._s3_runner.run(
+                base_path=base_path,
+                deterministic=s3_deterministic,
+                rule_ladder_path=rule_ladder_path,
+                toggles=s3_toggles,
+                base_weight_policy=base_weight_policy,
+                thresholds_policy=thresholds_policy,
+                bounds_policy=bounds_policy,
+            )
         logger.info(
             "Segment1A S3 completed (merchants=%d)",
             len(s3_deterministic.merchants),
@@ -627,10 +632,11 @@ class Segment1AOrchestrator:
             candidate_set_path=s3_result.candidate_set_path,
             feature_view_path=feature_path,
         )
-        s4_result = self._s4_runner.run(
-            base_path=base_path,
-            deterministic=s4_deterministic,
-        )
+        with state_heartbeat(logger, "Segment1A S4"):
+            s4_result = self._s4_runner.run(
+                base_path=base_path,
+                deterministic=s4_deterministic,
+            )
         s4_metrics: Dict[str, float] | None = None
         s4_validation_passed: bool | None = None
         s4_validation_artifacts_path: Path | None = None
@@ -687,25 +693,27 @@ class Segment1AOrchestrator:
                 S5_DEFAULT_PATHS.iso_legal_tender
             ),
         )
-        s5_result = self._s5_runner.run(
-            base_path=base_path,
-            deterministic=s5_deterministic,
-            emit_sparse_flag=True,
-        )
+        with state_heartbeat(logger, "Segment1A S5"):
+            s5_result = self._s5_runner.run(
+                base_path=base_path,
+                deterministic=s5_deterministic,
+                emit_sparse_flag=True,
+            )
         s5_context = build_s5_context(s5_result)
         logger.info(
             "Segment1A S5 completed (weights=%s, policy_digest=%s)",
             s5_result.weights_path,
             s5_context.policy_digest,
         )
-        s6_result = self._s6_runner.run(
-            base_path=base_path,
-            policy_path=s6_policy_path,
-            parameter_hash=s5_deterministic.parameter_hash,
-            seed=s5_deterministic.seed,
-            run_id=s5_deterministic.run_id,
-            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
-        )
+        with state_heartbeat(logger, "Segment1A S6"):
+            s6_result = self._s6_runner.run(
+                base_path=base_path,
+                policy_path=s6_policy_path,
+                parameter_hash=s5_deterministic.parameter_hash,
+                seed=s5_deterministic.seed,
+                run_id=s5_deterministic.run_id,
+                manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+            )
         s6_validation_payload: Mapping[str, object] | None = None
         s6_validation_passed: bool | None = None
         if validate_s6:
@@ -729,17 +737,18 @@ class Segment1AOrchestrator:
             s6_result.events_path,
             s6_result.membership_path,
         )
-        s7_result = self._s7_runner.run(
-            base_path=base_path,
-            policy_path=s7_policy_path,
-            parameter_hash=s5_deterministic.parameter_hash,
-            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
-            seed=s5_deterministic.seed,
-            run_id=s5_deterministic.run_id,
-            nb_finals=s2_result.finals,
-            s6_context=s6_result.deterministic,
-            s6_results=s6_result.results,
-        )
+        with state_heartbeat(logger, "Segment1A S7"):
+            s7_result = self._s7_runner.run(
+                base_path=base_path,
+                policy_path=s7_policy_path,
+                parameter_hash=s5_deterministic.parameter_hash,
+                manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+                seed=s5_deterministic.seed,
+                run_id=s5_deterministic.run_id,
+                nb_finals=s2_result.finals,
+                s6_context=s6_result.deterministic,
+                s6_results=s6_result.results,
+            )
         if validate_s7:
             validate_s7_outputs(s7_result.results)
         s7_context = build_s7_context(s7_result)
@@ -748,29 +757,31 @@ class Segment1AOrchestrator:
             s7_result.residual_events,
             s7_result.dirichlet_events,
         )
-        s8_result = self._s8_runner.run(
-            base_path=base_path,
-            parameter_hash=s5_deterministic.parameter_hash,
-            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
-            seed=s5_deterministic.seed,
-            run_id=s5_deterministic.run_id,
-            merchant_universe=s0_result.sealed.context.merchants,
-            hurdle_decisions=s1_result.decisions,
-            nb_finals=s2_result.finals,
-            s7_results=s7_result.results,
-        )
+        with state_heartbeat(logger, "Segment1A S8"):
+            s8_result = self._s8_runner.run(
+                base_path=base_path,
+                parameter_hash=s5_deterministic.parameter_hash,
+                manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+                seed=s5_deterministic.seed,
+                run_id=s5_deterministic.run_id,
+                merchant_universe=s0_result.sealed.context.merchants,
+                hurdle_decisions=s1_result.decisions,
+                nb_finals=s2_result.finals,
+                s7_results=s7_result.results,
+            )
         s8_context = build_s8_context(s8_result)
         logger.info(
             "Segment1A S8 completed (catalogue=%s)",
             s8_result.catalogue_path,
         )
-        s9_result = self._s9_runner.run(
-            base_path=base_path,
-            seed=s5_deterministic.seed,
-            parameter_hash=s5_deterministic.parameter_hash,
-            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
-            run_id=s5_deterministic.run_id,
-        )
+        with state_heartbeat(logger, "Segment1A S9"):
+            s9_result = self._s9_runner.run(
+                base_path=base_path,
+                seed=s5_deterministic.seed,
+                parameter_hash=s5_deterministic.parameter_hash,
+                manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+                run_id=s5_deterministic.run_id,
+            )
         s9_context = build_s9_context(s9_result)
         logger.info(
             "Segment1A S9 completed (bundle=%s)",

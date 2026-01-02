@@ -23,6 +23,7 @@ from engine.layers.l3.seg_6A import (
     S0Outputs,
 )
 from engine.layers.l3.seg_6A.shared.dictionary import load_dictionary
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,8 @@ class Segment6AOrchestrator:
             validation_bundle_5b=config.validation_bundle_5b,
         )
         logger.info("Segment6A S0 starting (manifest=%s)", config.manifest_fingerprint)
-        s0_outputs: S0Outputs = self._s0_runner.run(s0_inputs)
+        with state_heartbeat(logger, "Segment6A S0"):
+            s0_outputs = self._s0_runner.run(s0_inputs)
         logger.info("Segment6A S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
 
         s1_party_base_path = None
@@ -129,7 +131,8 @@ class Segment6AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s1_result = PartyRunner().run(s1_inputs)
+            with state_heartbeat(logger, "Segment6A S1"):
+                s1_result = PartyRunner().run(s1_inputs)
             s1_party_base_path = s1_result.party_base_path
             s1_party_summary_path = s1_result.party_summary_path
 
@@ -147,7 +150,8 @@ class Segment6AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s2_result = AccountRunner().run(s2_inputs)
+            with state_heartbeat(logger, "Segment6A S2"):
+                s2_result = AccountRunner().run(s2_inputs)
             s2_account_base_path = s2_result.account_base_path
             s2_holdings_path = s2_result.holdings_path
             s2_merchant_account_path = s2_result.merchant_account_path
@@ -167,7 +171,8 @@ class Segment6AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s3_result = InstrumentRunner().run(s3_inputs)
+            with state_heartbeat(logger, "Segment6A S3"):
+                s3_result = InstrumentRunner().run(s3_inputs)
             s3_instrument_base_path = s3_result.instrument_base_path
             s3_account_links_path = s3_result.account_links_path
             s3_party_holdings_path = s3_result.party_holdings_path
@@ -189,7 +194,8 @@ class Segment6AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s4_result = NetworkRunner().run(s4_inputs)
+            with state_heartbeat(logger, "Segment6A S4"):
+                s4_result = NetworkRunner().run(s4_inputs)
             s4_device_base_path = s4_result.device_base_path
             s4_ip_base_path = s4_result.ip_base_path
             s4_device_links_path = s4_result.device_links_path
@@ -211,7 +217,8 @@ class Segment6AOrchestrator:
                 run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            s5_result = PostureRunner().run(s5_inputs)
+            with state_heartbeat(logger, "Segment6A S5"):
+                s5_result = PostureRunner().run(s5_inputs)
             s5_report_path = s5_result.report_path
             s5_issue_table_path = s5_result.issue_table_path
             s5_bundle_index_path = s5_result.bundle_index_path

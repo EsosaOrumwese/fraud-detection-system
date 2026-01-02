@@ -39,6 +39,7 @@ from engine.layers.l1.seg_2B import (
     S8ValidationResult,
     S8ValidationRunner,
 )
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +159,8 @@ class Segment2BOrchestrator:
             notes=config.notes,
             pin_civil_time=config.pin_civil_time,
         )
-        gate_output: S0GateOutputs = self._s0_runner.run(gate_inputs)
+        with state_heartbeat(logger, "Segment2B S0"):
+            gate_output = self._s0_runner.run(gate_inputs)
         parameter_hash = gate_output.parameter_hash
         s1_result: S1WeightsResult | None = None
         if config.run_s1:
@@ -175,7 +177,8 @@ class Segment2BOrchestrator:
                 resume=config.s1_resume,
                 emit_run_report_stdout=config.s1_emit_run_report_stdout,
             )
-            s1_result = self._s1_runner.run(s1_inputs)
+            with state_heartbeat(logger, "Segment2B S1"):
+                s1_result = self._s1_runner.run(s1_inputs)
             logger.info(
                 "Segment2B S1 %s (output=%s, run_report=%s)",
                 "resumed" if s1_result.resumed else "completed",
@@ -197,7 +200,8 @@ class Segment2BOrchestrator:
                 resume=config.s2_resume,
                 emit_run_report_stdout=config.s2_emit_run_report_stdout,
             )
-            s2_result = self._s2_runner.run(s2_inputs)
+            with state_heartbeat(logger, "Segment2B S2"):
+                s2_result = self._s2_runner.run(s2_inputs)
             logger.info(
                 "Segment2B S2 %s (index=%s, blob=%s)",
                 "resumed" if s2_result.resumed else "completed",
@@ -220,7 +224,8 @@ class Segment2BOrchestrator:
                 resume=config.s3_resume,
                 emit_run_report_stdout=config.s3_emit_run_report_stdout,
             )
-            s3_result = self._s3_runner.run(s3_inputs)
+            with state_heartbeat(logger, "Segment2B S3"):
+                s3_result = self._s3_runner.run(s3_inputs)
             logger.info(
                 "Segment2B S3 %s (output=%s)",
                 "resumed" if s3_result.resumed else "completed",
@@ -242,7 +247,8 @@ class Segment2BOrchestrator:
                 resume=config.s4_resume,
                 emit_run_report_stdout=config.s4_emit_run_report_stdout,
             )
-            s4_result = self._s4_runner.run(s4_inputs)
+            with state_heartbeat(logger, "Segment2B S4"):
+                s4_result = self._s4_runner.run(s4_inputs)
             logger.info(
                 "Segment2B S4 %s (output=%s)",
                 "resumed" if s4_result.resumed else "completed",
@@ -270,7 +276,8 @@ class Segment2BOrchestrator:
                 emit_selection_log=config.s5_emit_selection_log,
                 emit_run_report_stdout=config.s5_emit_run_report_stdout,
             )
-            s5_result = self._s5_runner.run(s5_inputs)
+            with state_heartbeat(logger, "Segment2B S5"):
+                s5_result = self._s5_runner.run(s5_inputs)
             logger.info(
                 "Segment2B S5 completed (run_id=%s, selections=%s)",
                 s5_result.run_id,
@@ -296,7 +303,8 @@ class Segment2BOrchestrator:
                 emit_edge_log=config.s6_emit_edge_log,
                 emit_run_report_stdout=config.s6_emit_run_report_stdout,
             )
-            s6_result = self._s6_runner.run(s6_inputs)
+            with state_heartbeat(logger, "Segment2B S6"):
+                s6_result = self._s6_runner.run(s6_inputs)
             logger.info(
                 "Segment2B S6 completed (run_id=%s, virtual_arrivals=%s)",
                 s6_result.run_id,
@@ -322,7 +330,8 @@ class Segment2BOrchestrator:
                 s6_evidence=s6_evidence,
                 emit_run_report_stdout=config.s7_emit_run_report_stdout,
             )
-            s7_result = self._s7_runner.run(s7_inputs)
+            with state_heartbeat(logger, "Segment2B S7"):
+                s7_result = self._s7_runner.run(s7_inputs)
             logger.info(
                 "Segment2B S7 completed (report=%s, validators=%d)",
                 s7_result.report_path,
@@ -341,7 +350,8 @@ class Segment2BOrchestrator:
                 workspace_root=config.s8_workspace_root,
                 emit_summary_stdout=config.s8_emit_summary_stdout,
             )
-            s8_result = self._s8_runner.run(s8_inputs)
+            with state_heartbeat(logger, "Segment2B S8"):
+                s8_result = self._s8_runner.run(s8_inputs)
             logger.info(
                 "Segment2B S8 completed (bundle=%s)",
                 s8_result.bundle_path,

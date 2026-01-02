@@ -28,6 +28,7 @@ from engine.layers.l1.seg_2A import (
 )
 from engine.layers.l1.seg_2A.s0_gate.l2.runner import GateInputs
 from engine.layers.l1.seg_2A.shared.dictionary import load_dictionary, render_dataset_path
+from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,8 @@ class Segment2AOrchestrator:
                 notes=config.notes,
                 emit_run_report_stdout=False,
             )
-            gate_result = self._s0_runner.run(gate_inputs)
+            with state_heartbeat(logger, "Segment2A S0"):
+                gate_result = self._s0_runner.run(gate_inputs)
             gate_manifest = gate_result.manifest_fingerprint
             gate_receipt_path = gate_result.receipt_path
             gate_inventory_path = gate_result.inventory_path
@@ -205,18 +207,19 @@ class Segment2AOrchestrator:
                 config.seed,
                 gate_manifest,
             )
-            s1_result = self._s1_runner.run(
-                ProvisionalLookupInputs(
-                    data_root=data_root,
-                    seed=config.seed,
-                    manifest_fingerprint=gate_manifest,
-                    upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
-                    chunk_size=max(config.s1_chunk_size, 1),
-                    resume=config.s1_resume,
-                    dictionary=dictionary,
-                    emit_run_report_stdout=False,
+            with state_heartbeat(logger, "Segment2A S1"):
+                s1_result = self._s1_runner.run(
+                    ProvisionalLookupInputs(
+                        data_root=data_root,
+                        seed=config.seed,
+                        manifest_fingerprint=gate_manifest,
+                        upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
+                        chunk_size=max(config.s1_chunk_size, 1),
+                        resume=config.s1_resume,
+                        dictionary=dictionary,
+                        emit_run_report_stdout=False,
+                    )
                 )
-            )
             logger.info(
                 "Segment2A S1 completed (output=%s, resumed=%s)",
                 s1_result.output_path,
@@ -229,17 +232,18 @@ class Segment2AOrchestrator:
                 config.seed,
                 gate_manifest,
             )
-            s2_result = self._s2_runner.run(
-                OverridesInputs(
-                    data_root=data_root,
-                    seed=config.seed,
-                    manifest_fingerprint=gate_manifest,
-                    upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
-                    chunk_size=max(config.s2_chunk_size, 1),
-                    resume=config.s2_resume,
-                    dictionary=dictionary,
+            with state_heartbeat(logger, "Segment2A S2"):
+                s2_result = self._s2_runner.run(
+                    OverridesInputs(
+                        data_root=data_root,
+                        seed=config.seed,
+                        manifest_fingerprint=gate_manifest,
+                        upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
+                        chunk_size=max(config.s2_chunk_size, 1),
+                        resume=config.s2_resume,
+                        dictionary=dictionary,
+                    )
                 )
-            )
             logger.info(
                 "Segment2A S2 completed (output=%s, resumed=%s)",
                 s2_result.output_path,
@@ -251,14 +255,15 @@ class Segment2AOrchestrator:
                 "Segment2A S3 starting (manifest=%s)",
                 gate_manifest,
             )
-            s3_result = self._s3_runner.run(
-                TimetableInputs(
-                    data_root=data_root,
-                    manifest_fingerprint=gate_manifest,
-                    resume=config.s3_resume,
-                    dictionary=dictionary,
+            with state_heartbeat(logger, "Segment2A S3"):
+                s3_result = self._s3_runner.run(
+                    TimetableInputs(
+                        data_root=data_root,
+                        manifest_fingerprint=gate_manifest,
+                        resume=config.s3_resume,
+                        dictionary=dictionary,
+                    )
                 )
-            )
             logger.info(
                 "Segment2A S3 completed (output=%s, resumed=%s)",
                 s3_result.output_path,
@@ -271,15 +276,16 @@ class Segment2AOrchestrator:
                 config.seed,
                 gate_manifest,
             )
-            s4_result = self._s4_runner.run(
-                LegalityInputs(
-                    data_root=data_root,
-                    seed=config.seed,
-                    manifest_fingerprint=gate_manifest,
-                    resume=config.s4_resume,
-                    dictionary=dictionary,
+            with state_heartbeat(logger, "Segment2A S4"):
+                s4_result = self._s4_runner.run(
+                    LegalityInputs(
+                        data_root=data_root,
+                        seed=config.seed,
+                        manifest_fingerprint=gate_manifest,
+                        resume=config.s4_resume,
+                        dictionary=dictionary,
+                    )
                 )
-            )
             logger.info(
                 "Segment2A S4 completed (output=%s, resumed=%s)",
                 s4_result.output_path,
@@ -291,14 +297,15 @@ class Segment2AOrchestrator:
                 "Segment2A S5 starting (manifest=%s)",
                 gate_manifest,
             )
-            s5_result = self._s5_runner.run(
-                ValidationInputs(
-                    data_root=data_root,
-                    manifest_fingerprint=gate_manifest,
-                    resume=config.s5_resume,
-                    dictionary=dictionary,
+            with state_heartbeat(logger, "Segment2A S5"):
+                s5_result = self._s5_runner.run(
+                    ValidationInputs(
+                        data_root=data_root,
+                        manifest_fingerprint=gate_manifest,
+                        resume=config.s5_resume,
+                        dictionary=dictionary,
+                    )
                 )
-            )
             logger.info(
                 "Segment2A S5 completed (bundle=%s, resumed=%s)",
                 s5_result.bundle_path,
