@@ -1,0 +1,410 @@
+# contracts/run_facts_view.schema.yaml
+version: "0.1.0"
+$id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/run_facts_view.schema.yaml"
+$schema: "https://json-schema.org/draft/2020-12/schema"
+
+title: "Scenario Runner — Run Facts View"
+description: >
+  Downstream discovery surface (authority view) for active run(s). This surface enables
+  downstream components to discover the active run identity tuple and obtain pinned
+  references required for safe consumption of Data Engine outputs (output locators +
+  PASS/FAIL gate proofs). This is a control-plane view: it MUST NOT require heuristic
+  “latest scanning” to discover runs or outputs.
+
+type: object
+additionalProperties: false
+
+required:
+  - schema_ref
+  - produced_at_utc
+  - active_runs
+
+properties:
+  # ---------------------------
+  # Schema authority (self)
+  # ---------------------------
+  schema_ref:
+    $ref: "#/$defs/schema_ref"
+    description: "Pinned reference to this Run Facts View schema."
+
+  produced_at_utc:
+    $ref: "#/$defs/rfc3339_micros_z"
+    description: "UTC timestamp (Z) when this view instance was produced/published."
+
+  rails_version:
+    $ref: "#/$defs/version_token"
+    description: "Optional Platform Rails version this view asserts compatibility with (e.g., 'v1.1')."
+
+  engine_interface_version:
+    $ref: "#/$defs/version_token"
+    description: "Optional Data Engine Interface Pack version this view was produced against."
+
+  active_runs:
+    type: array
+    minItems: 0
+    maxItems: 1024
+    description: >
+      List of currently active runs (platform-defined). Each entry contains the canonical
+      identity tuple and pins (run_record ref, engine output locators, and gate proofs).
+    items:
+      $ref: "#/$defs/active_run_entry"
+
+  notes:
+    type: string
+    maxLength: 2048
+    description: "Optional non-semantic notes."
+
+  extensions:
+    type: object
+    description: "Additive metadata for future evolution (must not contradict canonical fields)."
+    additionalProperties: true
+
+$defs:
+  # ---------------------------
+  # Base primitives
+  # ---------------------------
+  schema_ref:
+    type: string
+    minLength: 1
+    maxLength: 2048
+    description: "Pinned schema reference (path/URI + fragment)."
+
+  version_token:
+    type: string
+    minLength: 1
+    maxLength: 128
+    description: "Opaque version token (semver-like or date-like)."
+
+  rfc3339_micros_z:
+    type: string
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    description: "RFC3339 UTC timestamp with 'Z' suffix; optional fractional seconds up to micros."
+
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+    description: "Lowercase 64-hex token."
+
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+    description: "Lowercase 32-hex token."
+
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: "Unsigned 64-bit integer."
+
+  digest:
+    type: string
+    minLength: 8
+    maxLength: 4096
+    pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,31}:[A-Za-z0-9+/=_-]{16,4096}$"
+    description: "Content digest in the form '<alg>:<value>' (e.g., 'sha256:...')."
+
+  reason_code:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[A-Z][A-Z0-9_.-]{0,127}$"
+    description: "Machine-readable reason code token (UPPERCASE recommended)."
+
+  reason_codes:
+    type: array
+    minItems: 0
+    maxItems: 256
+    uniqueItems: true
+    items:
+      $ref: "#/$defs/reason_code"
+    description: "List of machine-readable reason codes."
+
+  target_ref:
+    type: string
+    minLength: 1
+    maxLength: 2048
+    description: "Deterministic reference to a persisted artefact/surface (path/URI/etc.)."
+
+  # ---------------------------
+  # Identifiers aligned to Data Engine Interface Pack
+  # ---------------------------
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+  parameter_hash:
+    $ref: "#/$defs/hex64"
+  run_id:
+    $ref: "#/$defs/hex32"
+  seed:
+    $ref: "#/$defs/uint64"
+
+  scenario_id:
+    description: "Scenario identifier (engine-aligned, permissive)."
+    anyOf:
+      - type: integer
+        minimum: 0
+      - type: string
+        minLength: 1
+        maxLength: 256
+
+  output_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[A-Za-z0-9_\\.\\-]+$"
+    description: "Engine output identifier (must exist in engine_outputs.catalogue.yaml)."
+
+  gate_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[A-Za-z0-9_\\.\\-]+$"
+    description: "Engine gate identifier (must exist in engine_gates.map.yaml)."
+
+  # ---------------------------
+  # Embedded engine boundary pins (minimal-but-compatible shapes)
+  # ---------------------------
+  engine_output_locator:
+    description: >
+      Embedded engine output locator pin. Shape is intentionally aligned with the Data Engine
+      Interface Pack `engine_output_locator` contract. Downstream SHOULD validate against the
+      authoritative engine locator schema when available.
+    type: object
+    additionalProperties: false
+    required: [output_id, path]
+    anyOf:
+      - required: [manifest_fingerprint]
+      - required: [parameter_hash]
+      - required: [run_id]
+      - required: [scenario_id]
+    properties:
+      output_id:
+        $ref: "#/$defs/output_id"
+
+      manifest_fingerprint:
+        $ref: "#/$defs/manifest_fingerprint"
+      parameter_hash:
+        $ref: "#/$defs/parameter_hash"
+      seed:
+        $ref: "#/$defs/seed"
+      scenario_id:
+        $ref: "#/$defs/scenario_id"
+      run_id:
+        $ref: "#/$defs/run_id"
+
+      path:
+        $ref: "#/$defs/target_ref"
+        description: "Concrete resolved address of the output instance."
+
+      schema_ref:
+        $ref: "#/$defs/target_ref"
+        description: "Optional schema reference for the located output."
+      dictionary_ref:
+        $ref: "#/$defs/target_ref"
+        description: "Optional dataset dictionary reference for the located output."
+
+      produced_at_utc:
+        $ref: "#/$defs/rfc3339_micros_z"
+        description: "Optional UTC timestamp when the output was produced/published."
+
+      content_digest:
+        $ref: "#/$defs/digest"
+        description: "Optional digest for immutability verification."
+
+      notes:
+        type: string
+        maxLength: 2048
+        description: "Optional non-semantic notes."
+
+  gate_scope:
+    description: >
+      Identity scope the gate applies to (aligned to engine gate receipt contract). At minimum,
+      gates are world-scoped (manifest_fingerprint required). Optional fields express narrower scope.
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/manifest_fingerprint"
+      parameter_hash:
+        $ref: "#/$defs/parameter_hash"
+      seed:
+        $ref: "#/$defs/seed"
+      scenario_id:
+        $ref: "#/$defs/scenario_id"
+      run_id:
+        $ref: "#/$defs/run_id"
+
+  gate_receipt:
+    description: >
+      Embedded engine gate receipt (PASS/FAIL proof). Shape is intentionally aligned with the
+      Data Engine Interface Pack `gate_receipt` contract. Downstream SHOULD validate against the
+      authoritative engine gate receipt schema when available.
+    type: object
+    additionalProperties: false
+    required: [gate_id, status, scope]
+    properties:
+      gate_id:
+        $ref: "#/$defs/gate_id"
+
+      status:
+        type: string
+        enum: ["PASS", "FAIL"]
+        description: "Gate outcome."
+
+      scope:
+        $ref: "#/$defs/gate_scope"
+
+      produced_at_utc:
+        $ref: "#/$defs/rfc3339_micros_z"
+        description: "Optional UTC timestamp when the gate outcome was produced/published."
+
+      receipt_kind:
+        type: string
+        enum: ["passed_flag", "json_receipt", "bundle_flag"]
+        description: "Informative classification of the underlying gate artifact style."
+
+      digest:
+        $ref: "#/$defs/digest"
+        description: "Optional portable digest for the gate artifact (gate-specific meaning)."
+
+      artifacts:
+        type: object
+        description: "Optional gate artifacts locator object (gate-specific)."
+        additionalProperties: true
+
+      notes:
+        type: string
+        maxLength: 2048
+        description: "Optional non-semantic notes."
+
+  # ---------------------------
+  # Run entry model
+  # ---------------------------
+  active_run_entry:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      - run_id
+      - status
+      - run_record_ref
+    properties:
+      # Canonical identity tuple (control-plane)
+      manifest_fingerprint:
+        $ref: "#/$defs/manifest_fingerprint"
+      parameter_hash:
+        $ref: "#/$defs/parameter_hash"
+      scenario_id:
+        $ref: "#/$defs/scenario_id"
+      run_id:
+        $ref: "#/$defs/run_id"
+      seed:
+        $ref: "#/$defs/seed"
+        description: "Present when the run’s execution semantics rely on stochasticity."
+
+      # Lifecycle (mirrors Run Record)
+      status:
+        type: string
+        enum: ["PLANNED", "STARTED", "COMPLETED", "FAILED", "CANCELLED"]
+        description: "Current lifecycle state for discovery purposes."
+
+      status_at_utc:
+        $ref: "#/$defs/rfc3339_micros_z"
+        description: "Optional UTC timestamp when the run entered the current status."
+
+      failure_reason_codes:
+        $ref: "#/$defs/reason_codes"
+        description: "Optional reason codes when status is FAILED or CANCELLED."
+
+      # Run Record pointer (authoritative anchor)
+      run_record_ref:
+        $ref: "#/$defs/target_ref"
+        description: "Reference to the current Run Record revision (Rails `run_record`)."
+
+      run_record_digest:
+        $ref: "#/$defs/digest"
+        description: "Optional digest binding to the exact Run Record bytes."
+
+      # Engine correlation (optional)
+      engine_request_id:
+        type: string
+        minLength: 1
+        maxLength: 128
+        description: "Optional correlation/idempotency identifier used for engine invocation."
+
+      # Pinned engine outputs (consumable only when authorized)
+      output_locators:
+        type: array
+        minItems: 0
+        maxItems: 4096
+        description: >
+          Engine output locator pins for platform-consumable outputs. Scenario Runner MUST NOT
+          include an output here unless required gates are satisfied (PASS proofs are present).
+        items:
+          $ref: "#/$defs/engine_output_locator"
+
+      # Pinned gate proofs
+      gate_receipts:
+        type: array
+        minItems: 0
+        maxItems: 4096
+        description: >
+          Engine gate receipts (PASS/FAIL proofs) relevant to outputs pinned for this run.
+          Downstream components use these to enforce “no PASS → no read”.
+        items:
+          $ref: "#/$defs/gate_receipt"
+
+      # Pending / not-ready indicators (optional)
+      pending:
+        type: object
+        additionalProperties: false
+        description: >
+          Optional explicit “not ready” markers. If present, these prevent ambiguous discovery
+          when locators exist but required gates are not yet PASS.
+        properties:
+          pending_output_ids:
+            type: array
+            minItems: 0
+            maxItems: 2048
+            uniqueItems: true
+            items:
+              $ref: "#/$defs/output_id"
+            description: "Outputs expected for this run but not yet consumable."
+
+          missing_gate_ids:
+            type: array
+            minItems: 0
+            maxItems: 2048
+            uniqueItems: true
+            items:
+              $ref: "#/$defs/gate_id"
+            description: "Gate IDs required for readiness that are missing or not PASS."
+
+          notes:
+            type: string
+            maxLength: 2048
+            description: "Optional non-semantic notes about pending status."
+
+      notes:
+        type: string
+        maxLength: 2048
+        description: "Optional non-semantic notes for this run entry."
+
+      extensions:
+        type: object
+        description: "Additive metadata for this run entry."
+        additionalProperties: true
+
+    allOf:
+      # If FAILED or CANCELLED, encourage failure_reason_codes to be present (not strictly required).
+      # Hard enforcement of non-empty may be added later via a MAJOR bump if desired.
+      - if:
+          properties:
+            status:
+              enum: ["FAILED", "CANCELLED"]
+        then:
+          properties:
+            failure_reason_codes:
+              minItems: 1

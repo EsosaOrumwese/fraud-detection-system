@@ -1,0 +1,231 @@
+# contracts/scenario_run_request.schema.yaml
+version: "0.1.0"
+$id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/scenario_run_request.schema.yaml"
+$schema: "https://json-schema.org/draft/2020-12/schema"
+
+title: "Scenario Runner — Run Request"
+description: >
+  Tool-agnostic request to plan/create a run via Scenario Runner. This request MUST be
+  sufficient for Scenario Runner to (a) emit a Run Record (Rails `run_record`) and
+  (b) form a Data Engine invocation request that conforms to the Data Engine Interface
+  Pack `engine_invocation.schema.yaml`. This schema intentionally does not expose engine
+  segment/state internals.
+
+type: object
+additionalProperties: false
+
+required:
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_binding
+
+properties:
+  # ---------------------------
+  # World identity (required)
+  # ---------------------------
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+    description: "World identity: sealed world fingerprint (content-address)."
+
+  parameter_hash:
+    $ref: "#/$defs/hex64"
+    description: "World identity: governed parameter bundle identity."
+
+  # ---------------------------
+  # Scenario intent (required)
+  # ---------------------------
+  scenario_binding:
+    $ref: "#/$defs/scenario_binding"
+    description: >
+      Scenario intent to be mapped directly to the engine invocation's scenario_binding:
+      - {mode: none} baseline/no-overlay
+      - {scenario_id: ...} single scenario
+      - {scenario_set: [...]} multi-scenario set
+
+  # ---------------------------
+  # Run identity (optional: may be chosen by Scenario Runner)
+  # ---------------------------
+  run_id:
+    $ref: "#/$defs/hex32"
+    description: >
+      Optional caller-supplied run correlation identifier. If omitted, Scenario Runner
+      will assign a run_id and record it in the Run Record and Run Facts View.
+
+  scenario_id:
+    $ref: "#/$defs/scenario_id"
+    description: >
+      Optional caller-supplied scenario identifier for the run identity tuple. If omitted,
+      Scenario Runner will derive/assign a scenario_id (e.g., baseline sentinel for mode=none,
+      scenario_binding.scenario_id for single-scenario, or a stable derived id for scenario_set).
+
+  # ---------------------------
+  # Seed policy (explicit)
+  # ---------------------------
+  seed:
+    $ref: "#/$defs/uint64"
+    description: >
+      Optional caller-supplied RNG seed. If provided, Scenario Runner MUST use it unchanged
+      in the engine invocation and record it in the Run Record.
+
+  allow_runner_seed:
+    type: boolean
+    default: false
+    description: >
+      If true, explicitly permits Scenario Runner to choose the seed when `seed` is not provided.
+      If false (default), omission of `seed` is not permitted.
+
+  # ---------------------------
+  # Output selection (optional)
+  # ---------------------------
+  requested_output_ids:
+    type: array
+    minItems: 1
+    maxItems: 2048
+    uniqueItems: true
+    items:
+      $ref: "#/$defs/output_id"
+    description: >
+      Optional explicit list of engine output_ids the caller wants pinned into run discovery
+      (Run Facts View). Each output_id MUST exist in engine_outputs.catalogue.yaml or the request
+      MUST be refused.
+
+  required_output_ids_for_completion:
+    type: array
+    minItems: 1
+    maxItems: 2048
+    uniqueItems: true
+    items:
+      $ref: "#/$defs/output_id"
+    description: >
+      Optional list of output_ids that must become PASS-authorised before Scenario Runner may
+      mark the run COMPLETED (control-plane completion). Each output_id MUST exist in the
+      engine outputs catalogue or the request MUST be refused.
+
+  required_gate_ids:
+    type: array
+    minItems: 1
+    maxItems: 2048
+    uniqueItems: true
+    items:
+      $ref: "#/$defs/gate_id"
+    description: >
+      Optional additional gate_ids the caller requires to be PASS (in addition to any gates
+      implied by requested outputs). Each gate_id MUST exist in engine_gates.map.yaml or the
+      request MUST be refused.
+
+  # ---------------------------
+  # Correlation / provenance (optional)
+  # ---------------------------
+  request_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+    description: >
+      Optional idempotency/correlation key at the Scenario Runner boundary (caller-provided).
+      If a request with the same request_id is retried, Scenario Runner SHOULD treat it as
+      idempotent and return the same anchored run identity/pins.
+
+  invoker:
+    type: string
+    minLength: 1
+    maxLength: 128
+    description: "Optional caller identity (non-semantic provenance)."
+
+  notes:
+    type: string
+    maxLength: 2048
+    description: "Optional human notes (non-semantic)."
+
+allOf:
+  # Enforce explicit seed policy:
+  # - If seed is present: allow_runner_seed may be absent, but if present MUST be false.
+  # - If seed is absent: allow_runner_seed MUST be present and MUST be true.
+  - if:
+      required: ["seed"]
+    then:
+      properties:
+        allow_runner_seed:
+          const: false
+    else:
+      required: ["allow_runner_seed"]
+      properties:
+        allow_runner_seed:
+          const: true
+
+$defs:
+  # ---------------------------
+  # Base primitives (engine-aligned)
+  # ---------------------------
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+    description: "Lowercase 64-hex token."
+
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+    description: "Lowercase 32-hex token."
+
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: "Unsigned 64-bit integer (seed)."
+
+  # ---------------------------
+  # Scenario identifiers (engine-aligned, permissive)
+  # ---------------------------
+  scenario_id:
+    description: "Scenario identifier (type intentionally permissive)."
+    anyOf:
+      - type: integer
+        minimum: 0
+      - type: string
+        minLength: 1
+        maxLength: 256
+
+  scenario_binding:
+    description: >
+      Scenario binding model aligned to the Data Engine Interface Pack `engine_invocation` contract.
+      Exactly one of: single scenario_id, scenario_set, or baseline mode=none.
+    oneOf:
+      - type: object
+        additionalProperties: false
+        required: [scenario_id]
+        properties:
+          scenario_id:
+            $ref: "#/$defs/scenario_id"
+      - type: object
+        additionalProperties: false
+        required: [scenario_set]
+        properties:
+          scenario_set:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              $ref: "#/$defs/scenario_id"
+      - type: object
+        additionalProperties: false
+        required: [mode]
+        properties:
+          mode:
+            type: string
+            enum: ["none"]
+
+  # ---------------------------
+  # Catalogue / gate identifiers
+  # ---------------------------
+  output_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[A-Za-z0-9_\\.\\-]+$"
+    description: "Engine output identifier (must exist in engine_outputs.catalogue.yaml)."
+
+  gate_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[A-Za-z0-9_\\.\\-]+$"
+    description: "Engine gate identifier (must exist in engine_gates.map.yaml)."
