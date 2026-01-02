@@ -422,6 +422,45 @@ class S7AuditRunner:
     ) -> Mapping[str, object]:
         endian = policy_payload.get("endian_byteorder") or policy_payload.get("endianness", "little")
         byteorder = "little" if str(endian).lower().startswith("little") else "big"
+        record_layout = policy_payload.get("record_layout") or {}
+        if record_layout:
+            prob_qbits = int(record_layout.get("prob_qbits", 32))
+            alias_index_type = str(record_layout.get("alias_index_type", "u32")).lower()
+            alias_index_bytes = _alias_index_bytes(alias_index_type)
+            view = memoryview(blob)[offset : offset + length]
+            cursor = 0
+            if len(view) < 16:
+                raise err("E_S7_ALIAS_SLICE", "alias slice too short to decode header")
+            site_count = int.from_bytes(view[cursor : cursor + 4], byteorder=byteorder)
+            cursor += 4
+            prob_qbits_hdr = int.from_bytes(view[cursor : cursor + 4], byteorder=byteorder)
+            cursor += 4
+            cursor += 8  # reserved0/reserved1
+            if prob_qbits_hdr != prob_qbits:
+                raise err(
+                    "E_S7_ALIAS_SLICE",
+                    "alias slice prob_qbits header does not match policy",
+                )
+            prob_q: List[int] = []
+            for _ in range(site_count):
+                if cursor + 4 > len(view):
+                    raise err("E_S7_ALIAS_SLICE", "alias slice truncated before prob_q array")
+                prob_q.append(int.from_bytes(view[cursor : cursor + 4], byteorder=byteorder))
+                cursor += 4
+            alias_indices: List[int] = []
+            for _ in range(site_count):
+                if cursor + alias_index_bytes > len(view):
+                    raise err("E_S7_ALIAS_SLICE", "alias slice truncated before alias array")
+                alias_indices.append(
+                    int.from_bytes(view[cursor : cursor + alias_index_bytes], byteorder=byteorder)
+                )
+                cursor += alias_index_bytes
+            return {
+                "prob_q": prob_q,
+                "alias_indices": alias_indices,
+                "prob_qbits": prob_qbits,
+            }
+
         encode_spec = policy_payload.get("encode_spec") or {}
         site_order_bytes = int(encode_spec.get("site_order_bytes", 4))
         prob_mass_bytes = int(encode_spec.get("prob_mass_bytes", 4))
@@ -468,6 +507,31 @@ class S7AuditRunner:
         reference_rows: List[Mapping[str, object]],
         policy_payload: Mapping[str, object],
     ) -> tuple[float, float]:
+        if "prob_q" in decoded:
+            prob_q = decoded["prob_q"]
+            alias_indices = decoded["alias_indices"]
+            prob_qbits = int(decoded["prob_qbits"])
+            k = len(prob_q)
+            if len(alias_indices) != k:
+                raise err("E_S7_ALIAS_SLICE", "alias slice alias array length mismatch")
+            scale = 1 << prob_qbits
+            masses = [0.0] * k
+            for idx in range(k):
+                prob = prob_q[idx] / scale if scale else 0.0
+                if alias_indices[idx] < 0 or alias_indices[idx] >= k:
+                    raise err("E_S7_ALIAS_ALIAS_ORDER", "alias index out of range")
+                masses[idx] += prob / k
+                masses[alias_indices[idx]] += (1.0 - prob) / k
+            mass_sum = sum(masses)
+            mass_error = abs(mass_sum - 1.0)
+            ref_probs = [float(row["p_weight"]) for row in reference_rows]
+            if len(ref_probs) != k:
+                raise err("E_S7_ALIAS_ORDER", "site_order mismatch between alias slice and site weights")
+            max_delta = 0.0
+            for idx, ref_prob in enumerate(ref_probs):
+                max_delta = max(max_delta, abs(masses[idx] - ref_prob))
+            return max_delta, mass_error
+
         site_orders = decoded["site_orders"]
         prob_thresholds = decoded["prob_thresholds"]
         alias_orders = decoded["alias_orders"]
@@ -1164,6 +1228,28 @@ class S7AuditRunner:
         stream_id: str,
         min_uniforms: int,
     ) -> None:
+        streams = policy.get("streams")
+        if isinstance(streams, Mapping):
+            if stream_id == "router_core":
+                stream_key = "routing_selection"
+                draws_key = "draws_per_selection"
+            elif stream_id == "virtual_edge":
+                stream_key = "routing_edge"
+                draws_key = "draws_per_virtual"
+            else:
+                stream_key = stream_id
+                draws_key = "draws_per_selection"
+            stream = streams.get(stream_key)
+            if not isinstance(stream, Mapping):
+                raise err("E_S7_POLICY_STREAM", f"route_rng_policy_v1 missing stream '{stream_key}'")
+            draws_per_unit = stream.get("draws_per_unit") or {}
+            draws = int(draws_per_unit.get(draws_key, 0))
+            if draws < min_uniforms:
+                raise err(
+                    "E_S7_POLICY_STREAM",
+                    f"route_rng_policy_v1 stream '{stream_key}' insufficient draws_per_unit",
+                )
+            return
         substreams = policy.get("substreams") or []
         if not isinstance(substreams, Sequence):
             raise err("E_S7_POLICY_STREAM", "route_rng_policy_v1 malformed (substreams missing)")
@@ -1179,6 +1265,22 @@ class S7AuditRunner:
                     )
                 return
         raise err("E_S7_POLICY_STREAM", f"route_rng_policy_v1 missing stream '{stream_id}'")
+
+
+def _alias_index_bytes(alias_index_type: str) -> int:
+    mapping = {
+        "u8": 1,
+        "u16": 2,
+        "u32": 4,
+        "u64": 8,
+    }
+    try:
+        return mapping[alias_index_type]
+    except KeyError as exc:
+        raise err(
+            "E_S7_ALIAS_SLICE",
+            f"unsupported alias_index_type '{alias_index_type}'",
+        ) from exc
 
 
 __all__ = ["S7AuditRunner", "S7AuditInputs", "S7AuditResult", "RouterEvidence"]

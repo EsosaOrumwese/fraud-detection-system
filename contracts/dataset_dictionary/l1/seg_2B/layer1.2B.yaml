@@ -104,7 +104,7 @@ policies:
     description: "Philox stream/substream declarations for routing + virtual edge selection."
     version: "2025.11"
     format: json
-    path: contracts/policies/l1/seg_2B/route_rng_policy_v1.json
+    path: contracts/policy/2B/route_rng_policy_v1.json
     partitioning: []
     ordering: []
     schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
@@ -122,7 +122,7 @@ policies:
     description: "Binary layout guidance for alias table blobs."
     version: "2025.11"
     format: json
-    path: contracts/policies/l1/seg_2B/alias_layout_policy_v1.json
+    path: contracts/policy/2B/alias_layout_policy_v1.json
     partitioning: []
     ordering: []
     schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
@@ -140,7 +140,7 @@ policies:
     description: "Edge catalogue + weighting rules for virtual merchants."
     version: "2025.11"
     format: json
-    path: contracts/policies/l1/seg_2B/virtual_edge_policy_v1.json
+    path: contracts/policy/2B/virtual_edge_policy_v1.json
     partitioning: []
     ordering: []
     schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
@@ -176,7 +176,7 @@ policies:
     description: "Variance + RNG policy for corporate-day modulation draws."
     version: "2025.11"
     format: json
-    path: contracts/policies/l1/seg_2B/day_effect_policy_v1.json
+    path: contracts/policy/2B/day_effect_policy_v1.json
     partitioning: []
     ordering: []
     schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1

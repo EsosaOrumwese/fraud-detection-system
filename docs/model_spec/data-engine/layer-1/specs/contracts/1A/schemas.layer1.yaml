@@ -851,6 +851,28 @@ validation:
     description: 'PASS receipt for S6 (S6_VALIDATION.json); used with _passed.flag in same folder.'
     additionalProperties: true
 
+  validation_bundle:
+    index_schema:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required: [path, sha256_hex]
+        properties:
+          path:
+            type: string
+            pattern: "^(?!/)(?!.*\\\\)(?!.*\\.\\.).+"
+            description: Relative POSIX path under the bundle root (no leading '/', no '..').
+          sha256_hex:
+            $ref: '#/$defs/hex64'
+            description: SHA-256 digest over the raw bytes at `path`.
+      description: "Canonical bundle index schema (array of {path, sha256_hex}). Entries are ASCII-lex ordered by `path`."
+  passed_flag:
+    type: string
+    pattern: "^sha256_hex = [a-f0-9]{64}$"
+    description: "Single-line ASCII file declaring the bundle digest."
+
   validation_bundle_index_3A:
     type: object
     additionalProperties: false
@@ -879,11 +901,9 @@ validation:
         additionalProperties: true
 
   passed_flag_3A:
-    type: object
-    additionalProperties: false
-    required: [sha256_hex]
-    properties:
-      sha256_hex: { $ref: '#/$defs/hex64' }
+    type: string
+    pattern: "^sha256_hex = [a-f0-9]{64}$"
+    description: "Single-line ASCII file declaring the 3A bundle digest."
 
   validation_bundle_index_3B:
     type: object
@@ -913,8 +933,6 @@ validation:
         additionalProperties: true
 
   passed_flag_3B:
-    type: object
-    additionalProperties: false
-    required: [sha256_hex]
-    properties:
-      sha256_hex: { $ref: '#/$defs/hex64' }
+    type: string
+    pattern: "^sha256_hex = [a-f0-9]{64}$"
+    description: "Single-line ASCII file declaring the 3B bundle digest."

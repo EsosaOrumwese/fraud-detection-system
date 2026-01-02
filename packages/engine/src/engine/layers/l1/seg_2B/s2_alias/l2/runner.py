@@ -33,11 +33,17 @@ logger = logging.getLogger(__name__)
 class AliasEncodeSpec:
     """Structured encode instructions coming from alias_layout_policy_v1."""
 
-    site_order_bytes: int
-    prob_mass_bytes: int
-    alias_site_order_bytes: int
-    padding_value: int
+    mode: str
+    site_order_bytes: Optional[int]
+    prob_mass_bytes: Optional[int]
+    alias_site_order_bytes: Optional[int]
+    prob_qbits: Optional[int]
+    alias_index_bytes: Optional[int]
+    pad_byte: int
+    pad_included_in_length: bool
     checksum_algorithm: str
+    treat_within_epsilon_of_one_as_one: bool
+    prob_q_encoding: Optional[str]
 
 
 @dataclass
@@ -196,7 +202,7 @@ class S2AliasRunner:
             padding = (-len(blob_bytes)) % policy.alignment_bytes
             if padding:
                 blob_bytes.extend(
-                    bytes([policy.encode_spec.padding_value]) * padding
+                    bytes([policy.encode_spec.pad_byte]) * padding
                 )
             offset = len(blob_bytes)
             blob_bytes.extend(slice_bytes)
@@ -321,15 +327,75 @@ class S2AliasRunner:
                 f"alias_layout_policy_v1 violates schema: {exc.message}",
             ) from exc
 
-        encode_spec = payload["encode_spec"]
-        padding_value = int(encode_spec["padding_value"], 16)
-        spec = AliasEncodeSpec(
-            site_order_bytes=int(encode_spec["site_order_bytes"]),
-            prob_mass_bytes=int(encode_spec["prob_mass_bytes"]),
-            alias_site_order_bytes=int(encode_spec["alias_site_order_bytes"]),
-            padding_value=padding_value,
-            checksum_algorithm=encode_spec["checksum"]["algorithm"],
-        )
+        encode_spec = payload.get("encode_spec") or {}
+        record_layout = payload.get("record_layout") or {}
+        padding_rule = payload.get("padding_rule") or {}
+        checksum = payload.get("checksum") or encode_spec.get("checksum") or {}
+        mass_rounding = encode_spec.get("mass_rounding")
+        if mass_rounding and mass_rounding != "round_to_nearest_ties_to_even":
+            raise err("2B-S2-020", f"unsupported mass_rounding '{mass_rounding}'")
+        delta_adjust = encode_spec.get("delta_adjust")
+        if delta_adjust and delta_adjust != "residual_ranked_plus_minus_one":
+            raise err("2B-S2-020", f"unsupported delta_adjust '{delta_adjust}'")
+        worklist_order = encode_spec.get("worklist_order")
+        if worklist_order and worklist_order != "ascending_index":
+            raise err("2B-S2-020", f"unsupported worklist_order '{worklist_order}'")
+
+        if "site_order_bytes" in encode_spec:
+            padding_value = int(str(encode_spec.get("padding_value", "0x00")), 16)
+            spec = AliasEncodeSpec(
+                mode="legacy",
+                site_order_bytes=int(encode_spec["site_order_bytes"]),
+                prob_mass_bytes=int(encode_spec["prob_mass_bytes"]),
+                alias_site_order_bytes=int(encode_spec["alias_site_order_bytes"]),
+                prob_qbits=None,
+                alias_index_bytes=None,
+                pad_byte=padding_value,
+                pad_included_in_length=False,
+                checksum_algorithm=str(checksum.get("algorithm", "sha256")),
+                treat_within_epsilon_of_one_as_one=bool(
+                    encode_spec.get("treat_within_epsilon_of_one_as_one", False)
+                ),
+                prob_q_encoding=None,
+            )
+        else:
+            prob_qbits = int(record_layout.get("prob_qbits", 32))
+            alias_index_type = str(record_layout.get("alias_index_type", "u32")).lower()
+            alias_index_bytes = _alias_index_bytes(alias_index_type)
+            prob_q_encoding = record_layout.get("prob_q_encoding")
+            if prob_q_encoding and prob_q_encoding not in (
+                "Q0.32_floor_clamp_1_to_2^32-1",
+            ):
+                raise err(
+                    "2B-S2-020",
+                    f"unsupported prob_q_encoding '{prob_q_encoding}'",
+                )
+            slice_header = record_layout.get("slice_header")
+            if slice_header and slice_header != "u32_n_sites,u32_prob_qbits,u32_reserved0,u32_reserved1":
+                raise err(
+                    "2B-S2-020",
+                    f"unsupported slice_header '{slice_header}'",
+                )
+            pad_hex = str(padding_rule.get("pad_byte_hex", "00"))
+            pad_hex = pad_hex[2:] if pad_hex.lower().startswith("0x") else pad_hex
+            padding_value = int(pad_hex, 16)
+            spec = AliasEncodeSpec(
+                mode="v1",
+                site_order_bytes=None,
+                prob_mass_bytes=None,
+                alias_site_order_bytes=None,
+                prob_qbits=prob_qbits,
+                alias_index_bytes=alias_index_bytes,
+                pad_byte=padding_value,
+                pad_included_in_length=bool(
+                    padding_rule.get("pad_included_in_slice_length", False)
+                ),
+                checksum_algorithm=str(checksum.get("algorithm", "sha256")),
+                treat_within_epsilon_of_one_as_one=bool(
+                    encode_spec.get("treat_within_epsilon_of_one_as_one", False)
+                ),
+                prob_q_encoding=prob_q_encoding,
+            )
 
         policy = AliasLayoutPolicy(
             policy_path=sealed_record.catalog_path,
@@ -538,22 +604,67 @@ class S2AliasRunner:
         endian = policy.endian_byteorder
         encode = policy.encode_spec
         buffer = bytearray()
+        if encode.mode == "legacy":
+            if (
+                encode.site_order_bytes is None
+                or encode.prob_mass_bytes is None
+                or encode.alias_site_order_bytes is None
+            ):
+                raise err("E_S2_ENCODE_SPEC", "legacy alias encode spec missing byte widths")
+            buffer.extend(len(site_orders).to_bytes(4, byteorder=endian, signed=False))
+            for slot_idx, site_order in enumerate(site_orders):
+                buffer.extend(
+                    int(site_order).to_bytes(
+                        encode.site_order_bytes, byteorder=endian, signed=False
+                    )
+                )
+                buffer.extend(
+                    int(prob_thresholds[slot_idx]).to_bytes(
+                        encode.prob_mass_bytes, byteorder=endian, signed=False
+                    )
+                )
+                alias_site_order = site_orders[alias_indices[slot_idx]]
+                buffer.extend(
+                    int(alias_site_order).to_bytes(
+                        encode.alias_site_order_bytes, byteorder=endian, signed=False
+                    )
+                )
+            return bytes(buffer)
+
+        prob_qbits = encode.prob_qbits or 32
+        scale = 1 << prob_qbits
+        grid = 1 << policy.quantised_bits
         buffer.extend(len(site_orders).to_bytes(4, byteorder=endian, signed=False))
-        for slot_idx, site_order in enumerate(site_orders):
+        buffer.extend(int(prob_qbits).to_bytes(4, byteorder=endian, signed=False))
+        buffer.extend((0).to_bytes(4, byteorder=endian, signed=False))
+        buffer.extend((0).to_bytes(4, byteorder=endian, signed=False))
+
+        prob_qs = []
+        for threshold in prob_thresholds:
+            prob = threshold / grid if grid else 0.0
+            if (
+                encode.treat_within_epsilon_of_one_as_one
+                and abs(1.0 - prob) <= policy.weight_quantisation_epsilon
+            ):
+                prob = 1.0
+            q = int(math.floor(prob * scale))
+            if prob <= 0.0:
+                q = 0
+            else:
+                if q <= 0:
+                    q = 1
+                if q >= scale:
+                    q = scale - 1
+            prob_qs.append(q)
+
+        for q in prob_qs:
+            buffer.extend(int(q).to_bytes(4, byteorder=endian, signed=False))
+        if encode.alias_index_bytes is None:
+            raise err("E_S2_ENCODE_SPEC", "alias_index_bytes missing for alias encode")
+        for alias_idx in alias_indices:
             buffer.extend(
-                int(site_order).to_bytes(
-                    encode.site_order_bytes, byteorder=endian, signed=False
-                )
-            )
-            buffer.extend(
-                int(prob_thresholds[slot_idx]).to_bytes(
-                    encode.prob_mass_bytes, byteorder=endian, signed=False
-                )
-            )
-            alias_site_order = site_orders[alias_indices[slot_idx]]
-            buffer.extend(
-                int(alias_site_order).to_bytes(
-                    encode.alias_site_order_bytes, byteorder=endian, signed=False
+                int(alias_idx).to_bytes(
+                    encode.alias_index_bytes, byteorder=endian, signed=False
                 )
             )
         return bytes(buffer)
@@ -674,6 +785,22 @@ def round_half_even(value: float) -> int:
     if remainder < 0.5:
         return floor_value
     return floor_value + (floor_value % 2)
+
+
+def _alias_index_bytes(alias_index_type: str) -> int:
+    mapping = {
+        "u8": 1,
+        "u16": 2,
+        "u32": 4,
+        "u64": 8,
+    }
+    try:
+        return mapping[alias_index_type]
+    except KeyError as exc:
+        raise err(
+            "E_S2_ENCODE_SPEC",
+            f"unsupported alias_index_type '{alias_index_type}'",
+        ) from exc
 
 
 def _sha256_hex(path: Path) -> str:

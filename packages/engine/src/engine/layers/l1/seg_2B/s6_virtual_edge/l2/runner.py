@@ -178,7 +178,9 @@ class S6VirtualEdgeRunner:
             repo_root=repo_root,
             error_prefix="E_S6_POLICY",
         )
-        self._validate_virtual_stream(route_policy_payload)
+        route_policy_stream_id, route_policy_draws_per_virtual, route_policy_rng_engine = (
+            self._resolve_route_policy_stream(route_policy_payload, min_draws=1)
+        )
         edge_policy_payload, edge_policy_digest, edge_policy_file_digest, edge_policy_path = load_policy_asset(
             asset_id="virtual_edge_policy_v1",
             sealed_records=sealed_map,
@@ -269,7 +271,7 @@ class S6VirtualEdgeRunner:
                         "ip_country": edge_entry.ip_country,
                         "edge_lat": edge_entry.lat,
                         "edge_lon": edge_entry.lon,
-                        "rng_stream_id": self.RNG_STREAM_ID,
+                        "rng_stream_id": route_policy_stream_id,
                         "ctr_edge_hi": int(before.counter_hi),
                         "ctr_edge_lo": int(before.counter_lo),
                         "manifest_fingerprint": manifest,
@@ -348,6 +350,9 @@ class S6VirtualEdgeRunner:
             route_policy=route_policy_payload,
             route_policy_digest=route_policy_digest,
             route_policy_path=route_policy_path,
+            route_policy_stream_id=route_policy_stream_id,
+            route_policy_draws_per_virtual=route_policy_draws_per_virtual,
+            route_policy_rng_engine=route_policy_rng_engine,
             edge_policy=edge_policy_payload,
             edge_policy_digest=edge_policy_digest,
             edge_policy_file_digest=edge_policy_file_digest,
@@ -439,14 +444,35 @@ class S6VirtualEdgeRunner:
         entries.sort(key=lambda item: (item.ip_country, item.edge_id))
         return entries, {}
 
-    def _validate_virtual_stream(self, payload: Mapping[str, object]) -> None:
-        streams = payload.get("substreams") or []
-        if not isinstance(streams, Sequence):
-            raise err("E_S6_POLICY_STREAM", "route_rng_policy_v1 missing substreams definition")
+    def _resolve_route_policy_stream(
+        self,
+        payload: Mapping[str, object],
+        *,
+        min_draws: int,
+    ) -> tuple[str, int, str]:
+        rng_engine = str(payload.get("rng_engine") or payload.get("algorithm") or "philox2x64-10")
+        streams = payload.get("streams")
+        if isinstance(streams, Mapping):
+            stream_key = "routing_edge"
+            stream = streams.get(stream_key)
+            if not isinstance(stream, Mapping):
+                raise err("E_S6_POLICY_STREAM", f"route_rng_policy_v1 missing stream '{stream_key}'")
+            draws_per_unit = stream.get("draws_per_unit") or {}
+            draws = int(draws_per_unit.get("draws_per_virtual", 0))
+            if draws < min_draws:
+                raise err(
+                    "E_S6_POLICY_STREAM",
+                    f"route_rng_policy_v1 stream '{stream_key}' insufficient draws_per_virtual",
+                )
+            stream_id = str(stream.get("rng_stream_id") or stream_key)
+            return stream_id, draws, rng_engine
+        substreams = payload.get("substreams") or []
+        if not isinstance(substreams, Sequence):
+            raise err("E_S6_POLICY_STREAM", "route_rng_policy_v1 malformed (substreams missing)")
         entry = next(
             (
                 candidate
-                for candidate in streams
+                for candidate in substreams
                 if isinstance(candidate, Mapping) and candidate.get("id") == self.RNG_STREAM_ID
             ),
             None,
@@ -463,11 +489,12 @@ class S6VirtualEdgeRunner:
                 f"route_rng_policy_v1 stream '{self.RNG_STREAM_ID}' must use label '{self.SUBSTREAM_LABEL}'",
             )
         max_uniforms = int(entry.get("max_uniforms", 0))
-        if max_uniforms < 1:
+        if max_uniforms < min_draws:
             raise err(
                 "E_S6_POLICY_STREAM",
                 f"route_rng_policy_v1 stream '{self.RNG_STREAM_ID}' must allocate at least one uniform",
             )
+        return str(entry.get("id") or self.RNG_STREAM_ID), max_uniforms, rng_engine
 
     def _build_alias_table(self, entries: List[EdgeEntry]) -> AliasTable:
         if not entries:
@@ -696,6 +723,9 @@ class S6VirtualEdgeRunner:
         route_policy: Mapping[str, object],
         route_policy_digest: str,
         route_policy_path: Path,
+        route_policy_stream_id: str,
+        route_policy_draws_per_virtual: int,
+        route_policy_rng_engine: str,
         edge_policy: Mapping[str, object],
         edge_policy_digest: str,
         edge_policy_file_digest: str,
@@ -727,8 +757,9 @@ class S6VirtualEdgeRunner:
                     "id": "route_rng_policy_v1",
                     "version_tag": route_policy.get("version_tag", ""),
                     "sha256_hex": route_policy_digest,
-                    "rng_engine": route_policy.get("algorithm", "philox2x64-10"),
-                    "rng_stream_id": self.RNG_STREAM_ID,
+                    "rng_engine": route_policy_rng_engine,
+                    "rng_stream_id": route_policy_stream_id,
+                    "draws_per_virtual": route_policy_draws_per_virtual,
                     "path": str(route_policy_path),
                 },
                 "edge_policy": {

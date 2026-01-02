@@ -174,14 +174,8 @@ class S1WeightsRunner:
         idx = 0
         while idx < len(rows):
             start = idx
-            key = (
-                rows[idx]["merchant_id"],
-                rows[idx]["legal_country_iso"],
-            )
-            while idx < len(rows) and (
-                rows[idx]["merchant_id"],
-                rows[idx]["legal_country_iso"],
-            ) == key:
+            key = rows[idx]["merchant_id"]
+            while idx < len(rows) and rows[idx]["merchant_id"] == key:
                 idx += 1
             group_rows = rows[start:idx]
             self._process_group(
@@ -301,6 +295,14 @@ class S1WeightsRunner:
 
         weight_source = payload["weight_source"]
         floor_spec = payload["floor_spec"]
+        fallback_policy = payload.get("fallback") or {}
+        fallback_value = (
+            fallback_policy.get("on_all_zero_or_nonfinite")
+            or floor_spec.get("fallback")
+            or "uniform"
+        )
+        if fallback_value == "uniform_by_site":
+            fallback_value = "uniform"
         cap_spec = payload.get("cap_spec") or {"mode": "none"}
 
         policy_name = str(payload.get("policy_id", "alias_layout_policy_v1"))
@@ -314,7 +316,7 @@ class S1WeightsRunner:
             weight_column=weight_source.get("column"),
             floor_mode=floor_spec.get("mode", "none"),
             floor_value=float(floor_spec.get("value", 0.0)),
-            fallback=floor_spec.get("fallback", "uniform"),
+            fallback=str(fallback_value),
             cap_mode=cap_spec.get("mode", "none"),
             cap_value=float(cap_spec.get("value", 0.0)) if cap_spec.get("value") is not None else None,
             normalisation_epsilon=float(payload["normalisation_epsilon"]),

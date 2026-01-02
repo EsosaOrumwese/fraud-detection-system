@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
@@ -27,6 +28,7 @@ from ...shared.receipt import (
 from ...shared.schema import load_schema
 from ...shared.sealed_assets import verify_sealed_digest
 from ...s0_gate.exceptions import err
+from engine.layers.l1.seg_1A.s0_foundations.l1.rng import philox2x64_10
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,10 @@ PHILOX_M0 = 0xD2511F53
 PHILOX_M1 = 0xCD9E8D57
 PHILOX_W0 = 0x9E3779B9
 PHILOX_W1 = 0xBB67AE85
+MASK64 = (1 << 64) - 1
 MAX_COUNTER = (1 << 128) - 1
+DOUBLE_SCALE = float.fromhex("0x1.0000000000000p-64")
+OPEN_INTERVAL_MAX = float.fromhex("0x1.fffffffffffffp-1")
 NORMAL_DIST = NormalDist()
 
 
@@ -150,10 +155,61 @@ class PhiloxRNG:
         return c0, c1, c2, c3
 
 
+def _uer_bytes(value: str) -> bytes:
+    data = value.encode("utf-8")
+    return len(data).to_bytes(4, byteorder="little", signed=False) + data
+
+
+def _derive_rng_material(
+    *,
+    manifest_fingerprint: str,
+    seed_u64: int,
+    rng_stream_id: str,
+    rng_derivation: Mapping[str, object],
+) -> tuple[int, int, int]:
+    domain_master = str(rng_derivation.get("domain_master", ""))
+    domain_stream = str(rng_derivation.get("domain_stream", ""))
+    if not domain_master or not domain_stream:
+        raise err("2B-S3-060", "rng_derivation missing domain_master/domain_stream")
+    low64_rule = rng_derivation.get("low64_rule")
+    if low64_rule and low64_rule != "LE64_tail_bytes_24_31":
+        raise err("2B-S3-060", f"unsupported low64_rule '{low64_rule}'")
+    counter_split = rng_derivation.get("counter_split_rule")
+    if counter_split and counter_split != "BE64_bytes_16_23_and_24_31":
+        raise err("2B-S3-060", f"unsupported counter_split_rule '{counter_split}'")
+    expected_basis = ["manifest_fingerprint_bytes", "seed_u64", "rng_stream_id"]
+    key_basis = rng_derivation.get("key_basis") or []
+    if key_basis and list(key_basis) != expected_basis:
+        raise err("2B-S3-060", "rng_derivation key_basis mismatch")
+    base_basis = rng_derivation.get("base_counter_basis") or []
+    if base_basis and list(base_basis) != expected_basis:
+        raise err("2B-S3-060", "rng_derivation base_counter_basis mismatch")
+
+    mf_bytes = bytes.fromhex(manifest_fingerprint)
+    master_payload = _uer_bytes(domain_master) + mf_bytes + seed_u64.to_bytes(
+        8, byteorder="little", signed=False
+    )
+    master = hashlib.sha256(master_payload).digest()
+    msg = _uer_bytes(domain_stream) + _uer_bytes(rng_stream_id)
+    digest = hashlib.sha256(master + msg).digest()
+    key = int.from_bytes(digest[24:32], byteorder="little", signed=False)
+    counter_hi = int.from_bytes(digest[16:24], byteorder="big", signed=False)
+    counter_lo = int.from_bytes(digest[24:32], byteorder="big", signed=False)
+    return key, counter_hi, counter_lo
+
+
+def _open_interval(u64_word: int) -> float:
+    u = float((u64_word & MASK64) + 1) * DOUBLE_SCALE
+    if u == 1.0:
+        return OPEN_INTERVAL_MAX
+    return u
+
+
 class S3DayEffectsRunner:
     """Runs Segment 2B State 3."""
 
     RUN_REPORT_ROOT = Path("reports") / "l1" / "s3_day_effects"
+    ROW_CHUNK_SIZE = 100_000
     REQUIRED_RECORD_FIELDS = {
         "gamma",
         "log_gamma",
@@ -161,6 +217,7 @@ class S3DayEffectsRunner:
         "rng_stream_id",
         "rng_counter_lo",
         "rng_counter_hi",
+        "created_utc",
     }
 
     def run(self, config: S3DayEffectsInputs) -> S3DayEffectsResult:
@@ -188,7 +245,7 @@ class S3DayEffectsRunner:
             "site_timezones",
             template_args={
                 "seed": config.seed,
-                "manifest_fingerprint": config.manifest_fingerprint,
+                "manifest_fingerprint": config.seg2a_manifest_fingerprint,
             },
             dictionary=dictionary,
         )
@@ -235,10 +292,15 @@ class S3DayEffectsRunner:
                 "rng counter range exceeds 128-bit capacity for requested coverage",
             )
 
-        rng = PhiloxRNG(policy.rng_key_lo, policy.rng_key_hi)
+        use_legacy_rng = policy.rng_engine == "philox_4x32_10"
+        rng = PhiloxRNG(policy.rng_key_lo, policy.rng_key_hi) if use_legacy_rng else None
         mu = -0.5 * policy.sigma_gamma * policy.sigma_gamma
         sigma = policy.sigma_gamma
-        rows_out = []
+        staging_dir = output_dir.parent / f".s3_day_effects_{uuid.uuid4().hex}"
+        staging_dir.mkdir(parents=True, exist_ok=False)
+        chunk_rows: list[dict] = []
+        part_index = 0
+        bytes_written = 0
         row_samples = []
         rng_monotonic_samples = []
         max_abs_log_gamma = 0.0
@@ -249,94 +311,115 @@ class S3DayEffectsRunner:
         last_counter_hi = None
         last_counter_lo = None
 
-        merchants_sorted = sorted(groups_by_merchant.keys())
-        for merchant_id in merchants_sorted:
-            tzids = groups_by_merchant[merchant_id]
-            for utc_day in days:
-                for tzid in tzids:
-                    counter = base_counter + rows_written
-                    if prev_counter is not None and counter <= prev_counter:
-                        raise err(
-                            "2B-S3-063",
-                            "rng counters must be strictly increasing in writer order",
-                        )
-                    words = rng.generate(counter)
-                    u = self._uint64_to_uniform(words[0], words[1])
-                    z = NORMAL_DIST.inv_cdf(u)
-                    log_gamma = mu + sigma * z
-                    if not math.isfinite(log_gamma):
-                        raise err(
-                            "2B-S3-058",
-                            f"log_gamma not finite for merchant {merchant_id}, tz '{tzid}', day {utc_day}",
-                        )
-                    gamma = math.exp(log_gamma)
-                    if gamma <= 0.0:
-                        raise err(
-                            "2B-S3-057",
-                            f"gamma <= 0 detected for merchant {merchant_id}, tz '{tzid}', day {utc_day}",
-                        )
-                    rng_counter_lo = counter & ((1 << 64) - 1)
-                    rng_counter_hi = (counter >> 64) & ((1 << 64) - 1)
-                    rows_out.append(
-                        {
-                            "merchant_id": merchant_id,
-                            "utc_day": utc_day,
-                            "tz_group_id": tzid,
-                            "gamma": gamma,
-                            "log_gamma": log_gamma,
-                            "sigma_gamma": sigma,
-                            "rng_stream_id": policy.rng_stream_id,
-                            "rng_counter_hi": rng_counter_hi,
-                            "rng_counter_lo": rng_counter_lo,
-                            "created_utc": receipt.verified_at_utc,
-                        }
-                    )
-                    if len(row_samples) < 10:
-                        row_samples.append(
+        try:
+            merchants_sorted = sorted(groups_by_merchant.keys())
+            for merchant_id in merchants_sorted:
+                tzids = groups_by_merchant[merchant_id]
+                for utc_day in days:
+                    for tzid in tzids:
+                        counter = base_counter + rows_written
+                        if prev_counter is not None and counter <= prev_counter:
+                            raise err(
+                                "2B-S3-063",
+                                "rng counters must be strictly increasing in writer order",
+                            )
+                        if use_legacy_rng:
+                            words = rng.generate(counter)
+                            u = self._uint64_to_uniform(words[0], words[1])
+                        else:
+                            counter_hi = (counter >> 64) & MASK64
+                            counter_lo = counter & MASK64
+                            x0, _ = philox2x64_10(policy.rng_key_lo, (counter_hi, counter_lo))
+                            u = _open_interval(x0)
+                        z = NORMAL_DIST.inv_cdf(u)
+                        log_gamma = mu + sigma * z
+                        if not math.isfinite(log_gamma):
+                            raise err(
+                                "2B-S3-058",
+                                f"log_gamma not finite for merchant {merchant_id}, tz '{tzid}', day {utc_day}",
+                            )
+                        gamma = math.exp(log_gamma)
+                        if gamma <= 0.0:
+                            raise err(
+                                "2B-S3-057",
+                                f"gamma <= 0 detected for merchant {merchant_id}, tz '{tzid}', day {utc_day}",
+                            )
+                        rng_counter_lo = counter & ((1 << 64) - 1)
+                        rng_counter_hi = (counter >> 64) & ((1 << 64) - 1)
+                        chunk_rows.append(
                             {
                                 "merchant_id": merchant_id,
                                 "utc_day": utc_day,
                                 "tz_group_id": tzid,
                                 "gamma": gamma,
                                 "log_gamma": log_gamma,
+                                "sigma_gamma": sigma,
+                                "rng_stream_id": policy.rng_stream_id,
+                                "rng_counter_hi": rng_counter_hi,
+                                "rng_counter_lo": rng_counter_lo,
+                                "created_utc": receipt.verified_at_utc,
                             }
                         )
-                    if (
-                        prev_counter is not None
-                        and len(rng_monotonic_samples) < 10
-                    ):
-                        rng_monotonic_samples.append(
-                            {
-                                "row_index": rows_written,
-                                "prev": {
-                                    "hi": (prev_counter >> 64) & ((1 << 64) - 1),
-                                    "lo": prev_counter & ((1 << 64) - 1),
-                                },
-                                "curr": {
-                                    "hi": rng_counter_hi,
-                                    "lo": rng_counter_lo,
-                                },
-                            }
-                        )
-                    prev_counter = counter
-                    if first_counter_hi is None:
-                        first_counter_hi = rng_counter_hi
-                        first_counter_lo = rng_counter_lo
-                    last_counter_hi = rng_counter_hi
-                    last_counter_lo = rng_counter_lo
-                    max_abs_log_gamma = max(max_abs_log_gamma, abs(log_gamma))
-                    rows_written += 1
+                        if len(row_samples) < 10:
+                            row_samples.append(
+                                {
+                                    "merchant_id": merchant_id,
+                                    "utc_day": utc_day,
+                                    "tz_group_id": tzid,
+                                    "gamma": gamma,
+                                    "log_gamma": log_gamma,
+                                }
+                            )
+                        if prev_counter is not None and len(rng_monotonic_samples) < 10:
+                            rng_monotonic_samples.append(
+                                {
+                                    "row_index": rows_written,
+                                    "prev": {
+                                        "hi": (prev_counter >> 64) & ((1 << 64) - 1),
+                                        "lo": prev_counter & ((1 << 64) - 1),
+                                    },
+                                    "curr": {
+                                        "hi": rng_counter_hi,
+                                        "lo": rng_counter_lo,
+                                    },
+                                }
+                            )
+                        prev_counter = counter
+                        if first_counter_hi is None:
+                            first_counter_hi = rng_counter_hi
+                            first_counter_lo = rng_counter_lo
+                        last_counter_hi = rng_counter_hi
+                        last_counter_lo = rng_counter_lo
+                        max_abs_log_gamma = max(max_abs_log_gamma, abs(log_gamma))
+                        rows_written += 1
+                        if len(chunk_rows) >= self.ROW_CHUNK_SIZE:
+                            bytes_written += self._write_rows_chunk(
+                                rows_out=chunk_rows,
+                                output_dir=staging_dir,
+                                part_index=part_index,
+                            )
+                            part_index += 1
+                            chunk_rows = []
+            if chunk_rows:
+                bytes_written += self._write_rows_chunk(
+                    rows_out=chunk_rows,
+                    output_dir=staging_dir,
+                    part_index=part_index,
+                )
+                part_index += 1
+                chunk_rows = []
+            if part_index == 0:
+                raise err("2B-S3-050", "no rows emitted for s3_day_effects")
+            os.replace(staging_dir, output_dir)
+        except Exception:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            raise
 
         if rows_written != rows_expected:
             raise err(
                 "2B-S3-050",
                 f"rows produced ({rows_written}) != expected coverage ({rows_expected})",
             )
-
-        bytes_written = self._publish_rows(
-            rows_out=rows_out,
-            output_dir=output_dir,
-        )
 
         run_report_path = self._resolve_run_report_path(config=config)
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -437,10 +520,29 @@ class S3DayEffectsRunner:
                 f"policy missing required record_fields: {', '.join(sorted(missing))}",
             )
         rng_engine = str(payload["rng_engine"])
-        if rng_engine != "philox_4x32_10":
+        if rng_engine == "philox2x64-10":
+            try:
+                seed_u64 = int(config.seed)
+            except (TypeError, ValueError) as exc:
+                raise err("2B-S3-070", "seed must be an unsigned integer") from exc
+            rng_derivation = payload.get("rng_derivation") or {}
+            key, base_counter_hi, base_counter_lo = _derive_rng_material(
+                manifest_fingerprint=config.manifest_fingerprint,
+                seed_u64=seed_u64,
+                rng_stream_id=str(payload["rng_stream_id"]),
+                rng_derivation=rng_derivation,
+            )
+            rng_key_hi = 0
+            rng_key_lo = key
+        elif rng_engine == "philox_4x32_10":
+            rng_key_hi = int(payload["rng_key_hi"])
+            rng_key_lo = int(payload["rng_key_lo"])
+            base_counter_hi = int(payload["base_counter_hi"])
+            base_counter_lo = int(payload["base_counter_lo"])
+        else:
             raise err(
                 "2B-S3-060",
-                f"unsupported rng_engine '{rng_engine}' (expected philox_4x32_10)",
+                f"unsupported rng_engine '{rng_engine}'",
             )
 
         policy = DayEffectPolicy(
@@ -454,10 +556,10 @@ class S3DayEffectsRunner:
             draws_per_row=draws_per_row,
             record_fields=record_fields,
             created_utc_policy_echo=bool(payload["created_utc_policy_echo"]),
-            rng_key_hi=int(payload["rng_key_hi"]),
-            rng_key_lo=int(payload["rng_key_lo"]),
-            base_counter_hi=int(payload["base_counter_hi"]),
-            base_counter_lo=int(payload["base_counter_lo"]),
+            rng_key_hi=rng_key_hi,
+            rng_key_lo=rng_key_lo,
+            base_counter_hi=base_counter_hi,
+            base_counter_lo=base_counter_lo,
             sha256_hex=_sha256_hex(candidate),
         )
         return policy, candidate
@@ -665,36 +767,33 @@ class S3DayEffectsRunner:
             raise err("2B-S3-050", "no tz groups found for S3 factors")
         return sorted_groups, merchants_total, tz_groups_total
 
-    def _publish_rows(self, *, rows_out: Sequence[Mapping[str, object]], output_dir: Path) -> int:
-        output_dir.parent.mkdir(parents=True, exist_ok=True)
-        staging_dir = output_dir.parent / f".s3_day_effects_{uuid.uuid4().hex}"
-        staging_dir.mkdir(parents=True, exist_ok=False)
-        part_path = staging_dir / "part-00000.parquet"
-        try:
-            df = pl.DataFrame(
-                rows_out,
-                schema={
-                    "merchant_id": pl.UInt64,
-                    "utc_day": pl.Utf8,
-                    "tz_group_id": pl.Utf8,
-                    "gamma": pl.Float64,
-                    "log_gamma": pl.Float64,
-                    "sigma_gamma": pl.Float64,
-                    "rng_stream_id": pl.Utf8,
-                    "rng_counter_hi": pl.UInt64,
-                    "rng_counter_lo": pl.UInt64,
-                    "created_utc": pl.Utf8,
-                },
-            )
-            self._validate_output_schema(df=df)
-            df.write_parquet(part_path, compression="zstd")
-            self._fsync_file(part_path)
-            os.replace(staging_dir, output_dir)
-        except Exception:
-            shutil.rmtree(staging_dir, ignore_errors=True)
-            raise
-        bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
-        return bytes_written
+    def _write_rows_chunk(
+        self,
+        *,
+        rows_out: Sequence[Mapping[str, object]],
+        output_dir: Path,
+        part_index: int,
+    ) -> int:
+        part_path = output_dir / f"part-{part_index:05d}.parquet"
+        df = pl.DataFrame(
+            rows_out,
+            schema={
+                "merchant_id": pl.UInt64,
+                "utc_day": pl.Utf8,
+                "tz_group_id": pl.Utf8,
+                "gamma": pl.Float64,
+                "log_gamma": pl.Float64,
+                "sigma_gamma": pl.Float64,
+                "rng_stream_id": pl.Utf8,
+                "rng_counter_hi": pl.UInt64,
+                "rng_counter_lo": pl.UInt64,
+                "created_utc": pl.Utf8,
+            },
+        )
+        self._validate_output_schema(df=df)
+        df.write_parquet(part_path, compression="zstd")
+        self._fsync_file(part_path)
+        return part_path.stat().st_size
 
     def _resolve_dataset_path(
         self,

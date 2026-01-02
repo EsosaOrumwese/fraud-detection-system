@@ -200,6 +200,10 @@ class S5RouterRunner:
             repo_root=repo_root,
             error_prefix="E_S5_POLICY",
         )
+        policy_stream_id, policy_draws_per_selection, policy_rng_engine = self._resolve_route_policy_stream(
+            policy_payload,
+            min_draws=2,
+        )
         alias_policy_payload, alias_policy_digest, alias_policy_file_digest, _ = load_policy_asset(
             asset_id="alias_layout_policy_v1",
             sealed_records=sealed_map,
@@ -256,7 +260,11 @@ class S5RouterRunner:
             )
         site_lookup = site_lookup.sort(["merchant_id", "legal_country_iso", "site_order"])
         site_tz_map = {
-            self._site_id(int(row["merchant_id"]), int(row["site_order"])): str(row["tzid"])
+            self._site_id(
+                int(row["merchant_id"]),
+                str(row["legal_country_iso"]),
+                int(row["site_order"]),
+            ): str(row["tzid"])
             for row in site_lookup.iter_rows(named=True)
         }
         if config.arrivals is not None:
@@ -404,7 +412,7 @@ class S5RouterRunner:
                         "merchant_id": merchant_id,
                         "tz_group_id": tz_group_str,
                         "site_id": site_id,
-                        "rng_stream_id": self.RNG_STREAM_ID,
+                        "rng_stream_id": policy_stream_id,
                         "ctr_group_hi": int(group_before.counter_hi),
                         "ctr_group_lo": int(group_before.counter_lo),
                         "ctr_site_hi": int(site_before.counter_hi),
@@ -551,6 +559,9 @@ class S5RouterRunner:
             policy_payload=policy_payload,
             policy_digest=policy_digest,
             policy_path=policy_path,
+            policy_stream_id=policy_stream_id,
+            policy_draws_per_selection=policy_draws_per_selection,
+            policy_rng_engine=policy_rng_engine,
             virtual_policy_payload=virtual_rules_payload,
             virtual_policy_digest=virtual_rules_digest,
             virtual_policy_path=virtual_rules_path,
@@ -582,7 +593,7 @@ class S5RouterRunner:
             rng_trace_log_path=trace_path,
             rng_audit_log_path=audit_path,
             selection_log_paths=tuple(selection_paths),
-             virtual_arrivals=tuple(virtual_arrivals),
+            virtual_arrivals=tuple(virtual_arrivals),
             run_report_path=run_report_path,
             selections_total=len(arrivals_sorted),
             arrivals_processed=len(arrivals_sorted),
@@ -895,6 +906,9 @@ class S5RouterRunner:
         policy_payload: Mapping[str, object],
         policy_digest: str,
         policy_path: Path,
+        policy_stream_id: str,
+        policy_draws_per_selection: int,
+        policy_rng_engine: str,
         virtual_policy_payload: Mapping[str, object],
         virtual_policy_digest: str,
         virtual_policy_path: Path,
@@ -921,22 +935,6 @@ class S5RouterRunner:
         else:
             logging_section = {"selection_log_enabled": False}
         policy_version = policy_payload.get("version_tag", "")
-        policy_streams = policy_payload.get("substreams") or []
-        if not isinstance(policy_streams, Sequence):
-            policy_streams = []
-        stream_entry = next(
-            (
-                entry
-                for entry in policy_streams
-                if isinstance(entry, Mapping) and entry.get("id") == self.RNG_STREAM_ID
-            ),
-            None,
-        )
-        if stream_entry is None:
-            raise err(
-                "E_S5_POLICY_STREAM",
-                f"route_rng_policy_v1 missing stream '{self.RNG_STREAM_ID}'",
-            )
         rng_accounting = {
             "events_group": group_events,
             "events_site": site_events,
@@ -969,9 +967,9 @@ class S5RouterRunner:
                 "id": "route_rng_policy_v1",
                 "version_tag": policy_version,
                 "sha256_hex": policy_digest,
-                "rng_engine": policy_payload.get("algorithm", "philox2x64-10"),
-                "rng_stream_id": self.RNG_STREAM_ID,
-                "draws_per_selection": 2,
+                "rng_engine": policy_rng_engine,
+                "rng_stream_id": policy_stream_id,
+                "draws_per_selection": policy_draws_per_selection,
                 "path": str(policy_path),
             },
             "inputs_summary": manifest_inputs,
@@ -1028,6 +1026,52 @@ class S5RouterRunner:
             ("V-16", "PASS", ["2B-S5-040"]),
         ]
         return [{"id": vid, "status": status, "codes": codes} for vid, status, codes in validators]
+
+    def _resolve_route_policy_stream(
+        self,
+        payload: Mapping[str, object],
+        *,
+        min_draws: int,
+    ) -> tuple[str, int, str]:
+        rng_engine = str(payload.get("rng_engine") or payload.get("algorithm") or "philox2x64-10")
+        streams = payload.get("streams")
+        if isinstance(streams, Mapping):
+            stream_key = "routing_selection"
+            stream = streams.get(stream_key)
+            if not isinstance(stream, Mapping):
+                raise err("E_S5_POLICY_STREAM", f"route_rng_policy_v1 missing stream '{stream_key}'")
+            draws_per_unit = stream.get("draws_per_unit") or {}
+            draws = int(draws_per_unit.get("draws_per_selection", 0))
+            if draws < min_draws:
+                raise err(
+                    "E_S5_POLICY_STREAM",
+                    f"route_rng_policy_v1 stream '{stream_key}' insufficient draws_per_selection",
+                )
+            stream_id = str(stream.get("rng_stream_id") or stream_key)
+            return stream_id, draws, rng_engine
+        substreams = payload.get("substreams") or []
+        if not isinstance(substreams, Sequence):
+            raise err("E_S5_POLICY_STREAM", "route_rng_policy_v1 malformed (substreams missing)")
+        entry = next(
+            (
+                item
+                for item in substreams
+                if isinstance(item, Mapping) and item.get("id") == self.RNG_STREAM_ID
+            ),
+            None,
+        )
+        if entry is None:
+            raise err(
+                "E_S5_POLICY_STREAM",
+                f"route_rng_policy_v1 missing stream '{self.RNG_STREAM_ID}'",
+            )
+        max_uniforms = int(entry.get("max_uniforms", 0))
+        if max_uniforms < min_draws:
+            raise err(
+                "E_S5_POLICY_STREAM",
+                f"route_rng_policy_v1 stream '{self.RNG_STREAM_ID}' insufficient max_uniforms",
+            )
+        return str(entry.get("id") or self.RNG_STREAM_ID), max_uniforms, rng_engine
 
     @staticmethod
     def _resolve_dictionary_versions(
@@ -1128,7 +1172,11 @@ class S5RouterRunner:
                 f"no sites match tz_group_id '{tz_group_id}' for merchant {merchant_id}",
             )
         values = [
-            self._site_id(int(row["merchant_id"]), int(row["site_order"]))
+            self._site_id(
+                int(row["merchant_id"]),
+                str(row["legal_country_iso"]),
+                int(row["site_order"]),
+            )
             for row in subset.iter_rows(named=True)
         ]
         weights = subset["p_weight"].to_list()
@@ -1137,8 +1185,11 @@ class S5RouterRunner:
         return alias
 
     @staticmethod
-    def _site_id(merchant_id: int, site_order: int) -> int:
-        return (merchant_id << 32) | (site_order & 0xFFFFFFFF)
+    def _site_id(merchant_id: int, legal_country_iso: str, site_order: int) -> int:
+        payload = f"{merchant_id}:{legal_country_iso}:{site_order}".encode("ascii", errors="strict")
+        digest = hashlib.sha256(payload).digest()
+        value = int.from_bytes(digest[:8], byteorder="big", signed=False)
+        return value if value != 0 else 1
 
     @staticmethod
     def _sample_alias(
