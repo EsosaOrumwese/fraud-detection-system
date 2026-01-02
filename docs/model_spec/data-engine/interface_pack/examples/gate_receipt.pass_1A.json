@@ -1,0 +1,19 @@
+{
+  "gate_id": "gate.layer1.1A.validation",
+  "status": "PASS",
+  "scope": {
+    "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "produced_at_utc": "2026-01-02T10:19:59.000000Z",
+  "receipt_kind": "passed_flag",
+  "digest": {
+    "algo": "sha256",
+    "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "artifacts": {
+    "validation_bundle_root": "data/layer1/1A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+    "index_path": "data/layer1/1A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/index.json",
+    "passed_flag_path": "data/layer1/1A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/_passed.flag"
+  },
+  "notes": "Portable receipt object; exact verification procedure is defined in engine_gates.map.yaml."
+}

@@ -371,9 +371,8 @@ class S4GroupWeightsRunner:
             dataset_id="s3_day_effects", config=config, dictionary=dictionary
         )
         try:
-            effects = pl.scan_parquet(
-                path,
-                columns=["merchant_id", "utc_day", "tz_group_id", "gamma"],
+            effects = pl.scan_parquet(path).select(
+                ["merchant_id", "utc_day", "tz_group_id", "gamma"]
             )
         except Exception as exc:  # pragma: no cover
             raise err("2B-S4-020", f"failed to scan s3_day_effects: {exc}") from exc
@@ -524,18 +523,20 @@ class S4GroupWeightsRunner:
         return bytes_written
 
     def _count_rows(self, rows: pl.LazyFrame) -> int:
-        payload = rows.select(pl.len().alias("rows")).collect(streaming=True)
+        payload = rows.select(pl.len().alias("rows")).collect(engine="streaming")
         return int(payload["rows"][0] or 0)
 
     def _count_unique(self, rows: pl.LazyFrame, column: str) -> int:
-        payload = rows.select(pl.col(column).n_unique().alias("unique")).collect(streaming=True)
+        payload = rows.select(pl.col(column).n_unique().alias("unique")).collect(
+            engine="streaming"
+        )
         return int(payload["unique"][0] or 0)
 
     def _validate_output_schema_lazy(self, *, rows: pl.LazyFrame) -> None:
-        self._validate_output_schema_mapping(rows.schema)
+        self._validate_output_schema_mapping(rows.collect_schema())
 
     def _validate_output_schema_scan(self, *, rows: pl.LazyFrame) -> None:
-        self._validate_output_schema_mapping(rows.schema)
+        self._validate_output_schema_mapping(rows.collect_schema())
 
     def _validate_positive_metrics(self, rows: pl.LazyFrame) -> None:
         payload = rows.select(
@@ -545,7 +546,7 @@ class S4GroupWeightsRunner:
                 pl.col("p_group").min().alias("p_group_min"),
                 pl.col("p_group").is_null().any().alias("p_group_null"),
             ]
-        ).collect(streaming=True)
+        ).collect(engine="streaming")
         denom_min = payload["denom_min"][0]
         gamma_min = payload["gamma_min"][0]
         p_group_min = payload["p_group_min"][0]
@@ -565,7 +566,7 @@ class S4GroupWeightsRunner:
         )
         payload = totals.select(
             (pl.col("total_mass") - 1.0).abs().max().alias("max_delta")
-        ).collect(streaming=True)
+        ).collect(engine="streaming")
         max_delta = float(payload["max_delta"][0] or 0.0)
         if max_delta > self.NORMALISATION_EPS:
             raise err(
@@ -777,10 +778,10 @@ class S4GroupWeightsRunner:
             "mass_raw",
             "denom_raw",
         ]
-        if set(rows.columns) != set(required_cols):
+        if set(schema_map.keys()) != set(required_cols):
             raise err(
                 "2B-S4-030",
-                f"s4_group_weights columns {rows.columns} do not match schema {required_cols}",
+                f"s4_group_weights columns {sorted(schema_map.keys())} do not match schema {required_cols}",
             )
         expected_types = {
             "merchant_id": pl.UInt64,

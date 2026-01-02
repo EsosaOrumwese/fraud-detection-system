@@ -1,15 +1,21 @@
 {
-  "schema_ref": "docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml",
-  "event_id": "event_000001",
-  "event_type": "arrival.emitted",
-  "schema_version": "v1",
-  "event_time": "2026-01-02T01:15:00Z",
-  "emitted_at": "2026-01-02T01:15:01Z",
-  "manifest_fingerprint": "manifest_fp_001",
-  "parameter_hash": "param_hash_001",
-  "seed": "seed_0001",
-  "scenario_id": "scenario_base",
-  "run_id": "run_0001",
-  "partition_key": "arrival_events_5B",
-  "correlation_id": "corr_0001"
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event_type": "arrival_event",
+  "schema_version": "1",
+  "ts_utc": "2026-01-02T10:15:30.123456Z",
+  "emitted_at_utc": "2026-01-02T10:15:30.223456Z",
+  "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "seed": 123456789,
+  "scenario_id": 42,
+  "run_id": "89abcdef0123456789abcdef01234567",
+  "trace_id": "trace-0000000000000001",
+  "span_id": "span-00000001",
+  "producer": "data_engine",
+  "payload": {
+    "merchant_id": "m_00001234",
+    "site_id": 100001,
+    "amount_minor": 2599,
+    "currency": "GBP"
+  }
 }
