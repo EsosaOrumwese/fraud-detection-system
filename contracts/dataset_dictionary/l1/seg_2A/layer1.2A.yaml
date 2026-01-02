@@ -145,7 +145,7 @@ validation:
     description: "Segment 1B validation bundle proving PASS for a manifest fingerprint."
     version: "{manifest_fingerprint}"
     format: files
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
@@ -233,95 +233,95 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
-    - id: sealed_inputs_v1
-      status: approved
-      owner_subsegment: 2A
-      description: "Diagnostic inventory of sealed inputs for a 2A fingerprint."
-      version: "{manifest_fingerprint}"
-      format: parquet
-      path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
-      partitioning: [fingerprint]
-      ordering: [asset_kind, basename]
-      schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
-      lineage:
-        produced_by: 2A.S0
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: sealed_inputs_v1
+    status: approved
+    owner_subsegment: 2A
+    description: "Diagnostic inventory of sealed inputs for a 2A fingerprint."
+    version: "{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+    partitioning: [fingerprint]
+    ordering: [asset_kind, basename]
+    schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
+    lineage:
+      produced_by: 2A.S0
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s0_run_report_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Control-plane run report for 2A S0 gate."
-      version: "{manifest_fingerprint}"
-      format: json
-      path: control/s0_gate/fingerprint={manifest_fingerprint}/s0_run_report.json
-      partitioning: [fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S0
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s0_run_report_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Control-plane run report for 2A S0 gate."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: control/s0_gate/fingerprint={manifest_fingerprint}/s0_run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S0
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s0_determinism_receipt_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Determinism receipt hashing the S0 receipt + sealed_inputs inventory."
-      version: "{manifest_fingerprint}"
-      format: json
-      path: control/s0_gate/fingerprint={manifest_fingerprint}/determinism_receipt.json
-      partitioning: [fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S0
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s0_determinism_receipt_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Determinism receipt hashing the S0 receipt + sealed_inputs inventory."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: control/s0_gate/fingerprint={manifest_fingerprint}/determinism_receipt.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S0
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s1_tz_lookup
-      status: approved
-      owner_subsegment: 2A
-      description: "Provisional tz lookup results per site (deterministic)."
-      version: "{seed}.{manifest_fingerprint}"
-      format: parquet
-      path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
-      partitioning: [seed, fingerprint]
-      ordering: [merchant_id, legal_country_iso, site_order]
-      schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
-      lineage:
-        produced_by: 2A.S1
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s1_tz_lookup
+    status: approved
+    owner_subsegment: 2A
+    description: "Provisional tz lookup results per site (deterministic)."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
+    lineage:
+      produced_by: 2A.S1
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s1_run_report_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Control-plane run report for 2A S1 provisional lookup."
-      version: "{seed}.{manifest_fingerprint}"
-      format: json
-      path: control/s1_provisional/seed={seed}/fingerprint={manifest_fingerprint}/s1_run_report.json
-      partitioning: [seed, fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S1
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s1_run_report_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Control-plane run report for 2A S1 provisional lookup."
+    version: "{seed}.{manifest_fingerprint}"
+    format: json
+    path: control/s1_provisional/seed={seed}/fingerprint={manifest_fingerprint}/s1_run_report.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S1
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
   - id: merchant_mcc_map
     status: approved
@@ -341,131 +341,131 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
-    - id: site_timezones
-      status: approved
-      owner_subsegment: 2A
-      description: "Final per-site IANA tzid with provenance; order-free egress."
-      version: "{seed}.{manifest_fingerprint}"
-      format: parquet
-      path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-      partitioning: [seed, fingerprint]
-      ordering: [merchant_id, legal_country_iso, site_order]
-      schema_ref: schemas.2A.yaml#/egress/site_timezones
-      lineage:
-        produced_by: 2A.S2
-        consumed_by: [2A, 2B]
-        final_in_layer: true
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: site_timezones
+    status: approved
+    owner_subsegment: 2A
+    description: "Final per-site IANA tzid with provenance; order-free egress."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.2A.yaml#/egress/site_timezones
+    lineage:
+      produced_by: 2A.S2
+      consumed_by: [2A, 2B]
+      final_in_layer: true
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s2_run_report_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Control-plane run report for 2A S2 overrides."
-      version: "{seed}.{manifest_fingerprint}"
-      format: json
-      path: control/s2_overrides/seed={seed}/fingerprint={manifest_fingerprint}/s2_run_report.json
-      partitioning: [seed, fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S2
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s2_run_report_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Control-plane run report for 2A S2 overrides."
+    version: "{seed}.{manifest_fingerprint}"
+    format: json
+    path: control/s2_overrides/seed={seed}/fingerprint={manifest_fingerprint}/s2_run_report.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S2
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: tz_timetable_cache
-      status: approved
-      owner_subsegment: 2A
-      description: "Fingerprint-scoped cache manifest for tz transitions."
-      version: "{manifest_fingerprint}"
-      format: files
-      path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-      partitioning: [fingerprint]
-      ordering: []
-      schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
-      lineage:
-        produced_by: 2A.S3
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: tz_timetable_cache
+    status: approved
+    owner_subsegment: 2A
+    description: "Fingerprint-scoped cache manifest for tz transitions."
+    version: "{manifest_fingerprint}"
+    format: files
+    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+    lineage:
+      produced_by: 2A.S3
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s3_run_report_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Control-plane run report for 2A S3 timetable cache."
-      version: "{manifest_fingerprint}"
-      format: json
-      path: control/s3_timetable/fingerprint={manifest_fingerprint}/s3_run_report.json
-      partitioning: [fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S3
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s3_run_report_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Control-plane run report for 2A S3 timetable cache."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: control/s3_timetable/fingerprint={manifest_fingerprint}/s3_run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S3
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: tz_offset_adjustments
-      status: draft
-      owner_subsegment: 2A
-      description: "Per-tzid record of any rounding/clipping applied to tz offsets during S3 compilation."
-      version: "{manifest_fingerprint}"
-      format: json
-      path: data/layer1/2A/tz_offset_adjustments/fingerprint={manifest_fingerprint}/
-      partitioning: [fingerprint]
-      ordering: []
-      schema_ref: schemas.2A.yaml#/cache/tz_offset_adjustments
-      lineage:
-        produced_by: 2A.S3
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: tz_offset_adjustments
+    status: draft
+    owner_subsegment: 2A
+    description: "Per-tzid record of any rounding/clipping applied to tz offsets during S3 compilation."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2A/tz_offset_adjustments/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/cache/tz_offset_adjustments
+    lineage:
+      produced_by: 2A.S3
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s4_run_report_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Control-plane run report for 2A S4 legality checks."
-      version: "{seed}.{manifest_fingerprint}"
-      format: json
-      path: control/s4_legality/seed={seed}/fingerprint={manifest_fingerprint}/s4_run_report.json
-      partitioning: [seed, fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S4
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s4_run_report_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Control-plane run report for 2A S4 legality checks."
+    version: "{seed}.{manifest_fingerprint}"
+    format: json
+    path: control/s4_legality/seed={seed}/fingerprint={manifest_fingerprint}/s4_run_report.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S4
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
-    - id: s5_run_report_2A
-      status: draft
-      owner_subsegment: 2A
-      description: "Control-plane run report for 2A S5 validation."
-      version: "{manifest_fingerprint}"
-      format: json
-      path: control/s5_validation/fingerprint={manifest_fingerprint}/s5_run_report.json
-      partitioning: [fingerprint]
-      ordering: []
-      schema_ref: null
-      lineage:
-        produced_by: 2A.S5
-        consumed_by: [2A]
-        final_in_layer: false
-      retention_days: 365
-      pii: false
-      license: Proprietary-Internal
+  - id: s5_run_report_2A
+    status: draft
+    owner_subsegment: 2A
+    description: "Control-plane run report for 2A S5 validation."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: control/s5_validation/fingerprint={manifest_fingerprint}/s5_run_report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 2A.S5
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
 
   - id: s4_legality_report
     status: approved
@@ -478,9 +478,9 @@ datasets:
     ordering: []
     schema_ref: schemas.2A.yaml#/validation/s4_legality_report
     lineage:
-      produced_by: 2A.S4
-      consumed_by: [2A, 2B]
-      final_in_layer: false
+    produced_by: 2A.S4
+    consumed_by: [2A, 2B]
+    final_in_layer: false
     retention_days: 365
     pii: false
     license: Proprietary-Internal
