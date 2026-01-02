@@ -12,7 +12,7 @@ from typing import Dict, Iterable, Mapping, Tuple
 import numpy as np
 import polars as pl
 from shapely import vectorized
-from shapely.geometry import Point
+from shapely.geometry import Point, box
 from shapely.geometry.base import BaseGeometry
 from shapely.prepared import PreparedGeometry
 
@@ -134,6 +134,18 @@ def compute_jitter(
     country_site_targets: Dict[str, int] = Counter(iso_codes)
     total_countries = len(country_site_targets)
     completed_countries = 0
+    tile_ids_by_iso: Dict[str, set[int]] = {}
+    tile_full_cover: Dict[str, set[int]] = {}
+
+    tile_groups = (
+        frame.group_by("legal_country_iso")
+        .agg(pl.col("tile_id").unique())
+        .to_dicts()
+    )
+    for row in tile_groups:
+        iso = str(row["legal_country_iso"])
+        ids = {int(value) for value in row["tile_id"]}
+        tile_ids_by_iso[iso] = ids
 
     for merchant_id, iso_code, site_order, tile_id in zip(
         merchant_ids, iso_codes, site_orders, tile_ids, strict=True
@@ -177,6 +189,13 @@ def compute_jitter(
                 tile_bounds.prime_iso(iso_code)
             if hasattr(tile_centroids, "prime_iso"):
                 tile_centroids.prime_iso(iso_code)
+            if iso_code not in tile_full_cover:
+                tile_full_cover[iso_code] = _compute_full_cover_tiles(
+                    iso_code=iso_code,
+                    tile_ids=tile_ids_by_iso.get(iso_code, set()),
+                    tile_bounds=tile_bounds,
+                    polygon_record=country_polygon_map.get(iso_code),
+                )
 
         bounds = tile_bounds.get(key)
         centroid = tile_centroids.get(key)
@@ -223,7 +242,10 @@ def compute_jitter(
                 lon = _interpolate_lon(bounds.min_lon_deg, bounds.max_lon_deg, u_lon)
                 lat = bounds.min_lat_deg + u_lat * (bounds.max_lat_deg - bounds.min_lat_deg)
                 inside_pixel = _point_inside_pixel(lon, lat, bounds)
-                inside_country = _point_inside_country(lon, lat, polygon_record)
+                inside_country = (
+                    tile_id in tile_full_cover.get(iso_code, set())
+                    or _point_inside_country(lon, lat, polygon_record)
+                )
 
                 delta_lon = _normalise_delta(lon - centroid.lon)
                 delta_lat = lat - centroid.lat
@@ -310,7 +332,10 @@ def compute_jitter(
             lon_batch = _vector_interpolate_lon(bounds.min_lon_deg, bounds.max_lon_deg, u_lon_batch)
             lat_batch = bounds.min_lat_deg + u_lat_batch * (bounds.max_lat_deg - bounds.min_lat_deg)
             pixel_mask = _vector_inside_pixel(lon_batch, lat_batch, bounds)
-            country_mask = _vector_inside_country(lon_batch, lat_batch, polygon_record)
+            if tile_id in tile_full_cover.get(iso_code, set()):
+                country_mask = np.ones_like(lon_batch, dtype=bool)
+            else:
+                country_mask = _vector_inside_country(lon_batch, lat_batch, polygon_record)
             accepted_mask = pixel_mask & country_mask
 
             accepted_index: int | None = None
@@ -567,6 +592,44 @@ def _vector_inside_country(lon: np.ndarray, lat: np.ndarray, polygon: CountryPol
     result = np.zeros_like(lon, dtype=bool)
     result[mask] = np.logical_or(contains, touches)
     return result
+
+
+def _compute_full_cover_tiles(
+    *,
+    iso_code: str,
+    tile_ids: Iterable[int],
+    tile_bounds: Mapping[Tuple[str, int], TileBoundsRecord],
+    polygon_record: CountryPolygonRecord | None,
+) -> set[int]:
+    """Identify tiles fully covered by the country polygon to skip per-site checks."""
+
+    if polygon_record is None:
+        return set()
+    covered: set[int] = set()
+    geometry = polygon_record.geometry
+    for tile_id in tile_ids:
+        bounds = tile_bounds.get((iso_code, tile_id))
+        if bounds is None:
+            continue
+        if bounds.max_lon_deg < bounds.min_lon_deg:
+            # Dateline-crossing tiles are not safe to short-circuit.
+            continue
+        if (
+            bounds.min_lon_deg < polygon_record.min_lon - EPSILON
+            or bounds.max_lon_deg > polygon_record.max_lon + EPSILON
+            or bounds.min_lat_deg < polygon_record.min_lat - EPSILON
+            or bounds.max_lat_deg > polygon_record.max_lat + EPSILON
+        ):
+            continue
+        tile_box = box(
+            bounds.min_lon_deg,
+            bounds.min_lat_deg,
+            bounds.max_lon_deg,
+            bounds.max_lat_deg,
+        )
+        if geometry.covers(tile_box):
+            covered.add(int(tile_id))
+    return covered
 
 
 def _normalise_delta(delta: float) -> float:

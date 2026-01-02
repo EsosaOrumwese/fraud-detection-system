@@ -129,7 +129,7 @@ def build_assignments(
     for key, tiles in multiset.items():
         tiles_sorted = sorted(tiles)
         n_sites = len(tiles_sorted)
-        site_orders = list(range(1, n_sites + 1))
+        site_orders = np.arange(1, n_sites + 1, dtype=np.int64)
 
         substream = derive_site_tile_substream(
             engine,
@@ -138,10 +138,13 @@ def build_assignments(
             parameter_hash=parameter_hash,
         )
 
-        draws: List[Tuple[int, float, PhiloxState, PhiloxState]] = []
-        duplicates: Dict[float, int] = {}
+        u_values = np.empty(n_sites, dtype=np.float64)
+        before_hi = np.empty(n_sites, dtype=np.uint64)
+        before_lo = np.empty(n_sites, dtype=np.uint64)
+        after_hi = np.empty(n_sites, dtype=np.uint64)
+        after_lo = np.empty(n_sites, dtype=np.uint64)
 
-        for site_order in site_orders:
+        for idx, site_order in enumerate(site_orders, start=0):
             before_state = substream.snapshot()
             prior_blocks = substream.blocks
             prior_draws = substream.draws
@@ -154,21 +157,25 @@ def build_assignments(
                     "E507_RNG_EVENT_MISMATCH",
                     "assignment event must consume exactly one block and one draw",
                 )
-            draws.append((site_order, u, before_state, after_state))
-            duplicates[u] = duplicates.get(u, 0) + 1
+            u_values[idx] = u
+            before_hi[idx] = before_state.counter_hi
+            before_lo[idx] = before_state.counter_lo
+            after_hi[idx] = after_state.counter_hi
+            after_lo[idx] = after_state.counter_lo
 
-        ties_broken_total += sum(count - 1 for count in duplicates.values() if count > 1)
+        _, dup_counts = np.unique(u_values, return_counts=True)
+        ties_broken_total += int(np.sum(dup_counts[dup_counts > 1] - 1))
 
-        permutation = sorted(draws, key=lambda value: (value[1], value[0]))
-        if len(permutation) != len(tiles_sorted):
+        order_idx = np.lexsort((site_orders, u_values))
+        if order_idx.size != len(tiles_sorted):
             raise err(
                 "E504_SUM_TO_N_MISMATCH",
                 f"site count mismatch for merchant {key.merchant_id} country {key.legal_country_iso}",
             )
 
-        for tile_id, (site_order, u, before_state, after_state) in zip(
-            tiles_sorted, permutation, strict=True
-        ):
+        for tile_id, idx in zip(tiles_sorted, order_idx, strict=True):
+            site_order = int(site_orders[idx])
+            u = float(u_values[idx])
             assignments.append(
                 {
                     "merchant_id": key.merchant_id,
@@ -186,10 +193,10 @@ def build_assignments(
                     "run_id": run_id,
                     "parameter_hash": parameter_hash,
                     "manifest_fingerprint": manifest_fingerprint,
-                    "rng_counter_before_hi": int(before_state.counter_hi),
-                    "rng_counter_before_lo": int(before_state.counter_lo),
-                    "rng_counter_after_hi": int(after_state.counter_hi),
-                    "rng_counter_after_lo": int(after_state.counter_lo),
+                    "rng_counter_before_hi": int(before_hi[idx]),
+                    "rng_counter_before_lo": int(before_lo[idx]),
+                    "rng_counter_after_hi": int(after_hi[idx]),
+                    "rng_counter_after_lo": int(after_lo[idx]),
                     "blocks": 1,
                     "draws": "1",
                     "merchant_id": key.merchant_id,
