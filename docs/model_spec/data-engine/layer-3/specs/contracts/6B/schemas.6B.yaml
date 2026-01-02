@@ -1,11 +1,15 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: schemas.6B.yaml
-title: "Layer-3 / Segment 6B — business dataset schemas"
+title: "Layer-3 / Segment 6B - business dataset schemas"
 description: >-
-  Anchors for the Layer-3 / Segment 6B business datasets (S1–S4). Each anchor
+  Anchors for the Layer-3 / Segment 6B business datasets (S1-S4). Each anchor
   will be fleshed out with concrete properties as implementation proceeds.
 type: object
 additionalProperties: false
+
+$defs:
+  hex64:
+    $ref: "schemas.layer3.yaml#/$defs/hex64"
 
 policy:
   description: "6B policy/config inputs sealed at S0"
@@ -96,10 +100,58 @@ s1:
       $id: "#/s1/arrival_entities_6B"
       type: object
       description: "Row in s1_arrival_entities_6B (arrival enriched with session + entity attachments)."
+      additionalProperties: true
+      required:
+        - scenario_id
+        - arrival_seq
+        - merchant_id
+        - ts_utc
+        - party_id
+        - account_id
+        - instrument_id
+        - device_id
+        - ip_id
+        - session_id
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        scenario_id: { type: string }
+        arrival_seq: { type: integer }
+        merchant_id: { type: integer }
+        ts_utc: { type: string }
+        party_id: { type: integer }
+        account_id: { type: integer }
+        instrument_id: { type: integer }
+        device_id: { type: integer }
+        ip_id: { type: integer }
+        session_id: { type: integer }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     session_index_6B:
       $id: "#/s1/session_index_6B"
       type: object
       description: "Row in s1_session_index_6B (one session entry with participants and anchor metadata)."
+      additionalProperties: false
+      required:
+        - session_id
+        - arrival_count
+        - session_start_utc
+        - session_end_utc
+      properties:
+        session_id: { type: integer }
+        arrival_count: { type: integer }
+        session_start_utc: { type: string }
+        session_end_utc: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
+        party_id: { type: integer }
+        device_id: { type: integer }
+        account_id: { type: integer }
+        instrument_id: { type: integer }
+        merchant_id: { type: integer }
 
 s2:
   description: "State 6B.S2 outputs"
@@ -109,10 +161,62 @@ s2:
       $id: "#/s2/flow_anchor_baseline_6B"
       type: object
       description: "Baseline (all-legit) flow/transaction anchor row."
+      additionalProperties: false
+      required:
+        - flow_id
+        - arrival_seq
+        - merchant_id
+        - party_id
+        - account_id
+        - instrument_id
+        - device_id
+        - ip_id
+        - ts_utc
+        - amount
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+      properties:
+        flow_id: { type: integer }
+        arrival_seq: { type: integer }
+        merchant_id: { type: integer }
+        party_id: { type: integer }
+        account_id: { type: integer }
+        instrument_id: { type: integer }
+        device_id: { type: integer }
+        ip_id: { type: integer }
+        ts_utc: { type: string }
+        amount: { type: number }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
     event_stream_baseline_6B:
       $id: "#/s2/event_stream_baseline_6B"
       type: object
       description: "Baseline event stream row for authorisation/clearing/refund events."
+      additionalProperties: false
+      required:
+        - flow_id
+        - event_seq
+        - event_type
+        - ts_utc
+        - amount
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+      properties:
+        flow_id: { type: integer }
+        event_seq: { type: integer }
+        event_type: { type: string }
+        ts_utc: { type: string }
+        amount: { type: number }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
 
 s3:
   description: "State 6B.S3 outputs"
@@ -122,14 +226,91 @@ s3:
       $id: "#/s3/campaign_catalogue_6B"
       type: object
       description: "Fraud/abuse campaign catalogue row."
+      additionalProperties: false
+      required:
+        - campaign_id
+        - campaign_label
+        - fraud_rate
+        - scenario_id
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        campaign_id: { type: string }
+        campaign_label: { type: string }
+        fraud_rate: { type: number }
+        scenario_id: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     flow_anchor_with_fraud_6B:
       $id: "#/s3/flow_anchor_with_fraud_6B"
       type: object
       description: "Flow anchor row after fraud overlays have been applied."
+      additionalProperties: false
+      required:
+        - flow_id
+        - arrival_seq
+        - merchant_id
+        - party_id
+        - account_id
+        - instrument_id
+        - device_id
+        - ip_id
+        - ts_utc
+        - amount
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - fraud_flag
+        - campaign_id
+      properties:
+        flow_id: { type: integer }
+        arrival_seq: { type: integer }
+        merchant_id: { type: integer }
+        party_id: { type: integer }
+        account_id: { type: integer }
+        instrument_id: { type: integer }
+        device_id: { type: integer }
+        ip_id: { type: integer }
+        ts_utc: { type: string }
+        amount: { type: number }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
+        fraud_flag: { type: boolean }
+        campaign_id: { type: ["null", "string"] }
     event_stream_with_fraud_6B:
       $id: "#/s3/event_stream_with_fraud_6B"
       type: object
       description: "Event stream row with injected fraud behaviours."
+      additionalProperties: false
+      required:
+        - flow_id
+        - event_seq
+        - event_type
+        - ts_utc
+        - amount
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - fraud_flag
+        - campaign_id
+      properties:
+        flow_id: { type: integer }
+        event_seq: { type: integer }
+        event_type: { type: string }
+        ts_utc: { type: string }
+        amount: { type: number }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
+        fraud_flag: { type: boolean }
+        campaign_id: { type: ["null", "string"] }
 
 s4:
   description: "State 6B.S4 outputs"
@@ -139,15 +320,89 @@ s4:
       $id: "#/s4/flow_truth_labels_6B"
       type: object
       description: "Flow-level ground truth row."
+      additionalProperties: false
+      required:
+        - flow_id
+        - is_fraud_truth
+        - fraud_label
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+      properties:
+        flow_id: { type: integer }
+        is_fraud_truth: { type: boolean }
+        fraud_label: { type: ["null", "string"] }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
     flow_bank_view_6B:
       $id: "#/s4/flow_bank_view_6B"
       type: object
       description: "Flow view as seen by the bank/institution."
+      additionalProperties: false
+      required:
+        - flow_id
+        - is_fraud_bank_view
+        - bank_label
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+      properties:
+        flow_id: { type: integer }
+        is_fraud_bank_view: { type: boolean }
+        bank_label: { type: ["null", "string"] }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
     event_labels_6B:
       $id: "#/s4/event_labels_6B"
       type: object
       description: "Event-level truth/bank view labels."
+      additionalProperties: false
+      required:
+        - flow_id
+        - event_seq
+        - is_fraud_truth
+        - is_fraud_bank_view
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+      properties:
+        flow_id: { type: integer }
+        event_seq: { type: integer }
+        is_fraud_truth: { type: boolean }
+        is_fraud_bank_view: { type: boolean }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }
     case_timeline_6B:
       $id: "#/s4/case_timeline_6B"
       type: object
       description: "Timeline of case events produced during adjudication."
+      additionalProperties: false
+      required:
+        - case_id
+        - case_event_seq
+        - flow_id
+        - case_event_type
+        - ts_utc
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+      properties:
+        case_id: { type: integer }
+        case_event_seq: { type: integer }
+        flow_id: { type: integer }
+        case_event_type: { type: string }
+        ts_utc: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        scenario_id: { type: string }

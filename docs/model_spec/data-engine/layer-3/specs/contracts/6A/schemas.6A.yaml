@@ -8,6 +8,10 @@ description: >-
 type: object
 additionalProperties: false
 
+$defs:
+  hex64:
+    $ref: "schemas.layer3.yaml#/$defs/hex64"
+
 prior:
   description: "6A prior inputs sealed at S0"
   additionalProperties: false
@@ -119,10 +123,42 @@ s1:
       $id: "#/s1/party_base"
       type: object
       description: "Party/customer base row for 6A"
+      additionalProperties: false
+      required:
+        - party_id
+        - party_type
+        - segment_id
+        - region_id
+        - country_iso
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        party_id: { type: integer }
+        party_type: { type: string }
+        segment_id: { type: string }
+        region_id: { type: string }
+        country_iso: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     party_summary:
       $id: "#/s1/party_summary"
       type: object
       description: "Party-level diagnostic summary row (optional)"
+      additionalProperties: false
+      required:
+        - country_iso
+        - region_id
+        - party_type
+        - segment_id
+        - party_count
+      properties:
+        country_iso: { type: string }
+        region_id: { type: string }
+        party_type: { type: string }
+        segment_id: { type: string }
+        party_count: { type: integer }
 
 s2:
   description: "State 6A.S2 outputs"
@@ -132,18 +168,84 @@ s2:
       $id: "#/s2/account_base"
       type: object
       description: "Account/product base row"
+      additionalProperties: false
+      required:
+        - account_id
+        - owner_party_id
+        - account_type
+        - party_type
+        - segment_id
+        - region_id
+        - country_iso
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        account_id: { type: integer }
+        owner_party_id: { type: integer }
+        account_type: { type: string }
+        party_type: { type: string }
+        segment_id: { type: string }
+        region_id: { type: string }
+        country_iso: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     party_product_holdings:
       $id: "#/s2/party_product_holdings"
       type: object
       description: "Per-party holdings row"
+      additionalProperties: false
+      required:
+        - owner_party_id
+        - account_type
+        - account_count
+      properties:
+        owner_party_id: { type: integer }
+        account_type: { type: string }
+        account_count: { type: integer }
     merchant_account_base:
       $id: "#/s2/merchant_account_base"
       type: object
       description: "Merchant-account subset (optional)"
+      additionalProperties: false
+      required:
+        - account_id
+        - owner_party_id
+        - account_type
+        - party_type
+        - segment_id
+        - region_id
+        - country_iso
+      properties:
+        account_id: { type: integer }
+        owner_party_id: { type: integer }
+        account_type: { type: string }
+        party_type: { type: string }
+        segment_id: { type: string }
+        region_id: { type: string }
+        country_iso: { type: string }
+        merchant_id: { type: ["null", "integer"] }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     account_summary:
       $id: "#/s2/account_summary"
       type: object
       description: "Account summary / diagnostics (optional)"
+      additionalProperties: false
+      required:
+        - country_iso
+        - region_id
+        - party_type
+        - account_type
+        - account_count
+      properties:
+        country_iso: { type: string }
+        region_id: { type: string }
+        party_type: { type: string }
+        account_type: { type: string }
+        account_count: { type: integer }
 
 s3:
   description: "State 6A.S3 outputs"
@@ -153,18 +255,68 @@ s3:
       $id: "#/s3/instrument_base"
       type: object
       description: "Instrument/payment-credential base row"
+      additionalProperties: false
+      required:
+        - instrument_id
+        - account_id
+        - owner_party_id
+        - instrument_type
+        - scheme
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        instrument_id: { type: integer }
+        account_id: { type: integer }
+        owner_party_id: { type: integer }
+        instrument_type: { type: string }
+        scheme: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     account_instrument_links:
       $id: "#/s3/account_instrument_links"
       type: object
       description: "Per-account instrument linkage row"
+      additionalProperties: false
+      required:
+        - account_id
+        - instrument_id
+        - instrument_type
+        - scheme
+      properties:
+        account_id: { type: integer }
+        instrument_id: { type: integer }
+        instrument_type: { type: string }
+        scheme: { type: string }
     party_instrument_holdings:
       $id: "#/s3/party_instrument_holdings"
       type: object
       description: "Per-party instrument holdings row (optional)"
+      additionalProperties: false
+      required:
+        - owner_party_id
+        - instrument_type
+        - scheme
+        - instrument_count
+      properties:
+        owner_party_id: { type: integer }
+        instrument_type: { type: string }
+        scheme: { type: string }
+        instrument_count: { type: integer }
     instrument_summary:
       $id: "#/s3/instrument_summary"
       type: object
       description: "Instrument diagnostics row (optional)"
+      additionalProperties: false
+      required:
+        - instrument_type
+        - scheme
+        - instrument_count
+      properties:
+        instrument_type: { type: string }
+        scheme: { type: string }
+        instrument_count: { type: integer }
 
 s4:
   description: "State 6A.S4 outputs"
@@ -174,26 +326,117 @@ s4:
       $id: "#/s4/device_base"
       type: object
       description: "Device base row"
+      additionalProperties: false
+      required:
+        - device_id
+        - device_type
+        - os_family
+        - primary_party_id
+        - home_region_id
+        - home_country_iso
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        device_id: { type: integer }
+        device_type: { type: string }
+        os_family: { type: string }
+        primary_party_id: { type: integer }
+        home_region_id: { type: string }
+        home_country_iso: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
     ip_base:
       $id: "#/s4/ip_base"
       type: object
       description: "IP/endpoint base row"
+      additionalProperties: false
+      required:
+        - ip_id
+        - ip_type
+        - asn_class
+        - country_iso
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        ip_id: { type: integer }
+        ip_type: { type: string }
+        asn_class: { type: string }
+        country_iso: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
     device_links:
       $id: "#/s4/device_links"
       type: object
       description: "Device-to-entity edge row"
+      additionalProperties: false
+      required:
+        - device_id
+        - link_role
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        device_id: { type: integer }
+        party_id: { type: ["null", "integer"] }
+        account_id: { type: ["null", "integer"] }
+        instrument_id: { type: ["null", "integer"] }
+        link_role: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
     ip_links:
       $id: "#/s4/ip_links"
       type: object
       description: "IP-to-entity edge row"
+      additionalProperties: false
+      required:
+        - ip_id
+        - device_id
+        - party_id
+        - link_role
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        ip_id: { type: integer }
+        device_id: { type: integer }
+        party_id: { type: integer }
+        link_role: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
     entity_neighbourhoods:
       $id: "#/s4/entity_neighbourhoods"
       type: object
       description: "Per-entity graph neighbourhood row (optional)"
+      additionalProperties: false
+      required:
+        - party_id
+        - device_count
+        - ip_count
+      properties:
+        party_id: { type: integer }
+        device_count: { type: integer }
+        ip_count: { type: integer }
     network_summary:
       $id: "#/s4/network_summary"
       type: object
       description: "Graph diagnostics row (optional)"
+      additionalProperties: false
+      required:
+        - devices_total
+        - ips_total
+        - device_links_total
+        - ip_links_total
+      properties:
+        devices_total: { type: integer }
+        ips_total: { type: integer }
+        device_links_total: { type: integer }
+        ip_links_total: { type: integer }
 
 s5:
   description: "State 6A.S5 outputs"
@@ -203,19 +446,94 @@ s5:
       $id: "#/s5/party_fraud_roles"
       type: object
       description: "Fraud posture row for a party"
+      additionalProperties: false
+      required:
+        - party_id
+        - fraud_role_party
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        party_id: { type: integer }
+        fraud_role_party: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     account_fraud_roles:
       $id: "#/s5/account_fraud_roles"
       type: object
       description: "Fraud posture row for an account"
+      additionalProperties: false
+      required:
+        - account_id
+        - fraud_role_account
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        account_id: { type: integer }
+        fraud_role_account: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     merchant_fraud_roles:
       $id: "#/s5/merchant_fraud_roles"
       type: object
       description: "Fraud posture row for a merchant"
+      additionalProperties: false
+      required:
+        - merchant_id
+        - fraud_role_merchant
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        merchant_id: { type: integer }
+        fraud_role_merchant: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     device_fraud_roles:
       $id: "#/s5/device_fraud_roles"
       type: object
       description: "Fraud posture row for a device"
+      additionalProperties: false
+      required:
+        - device_id
+        - fraud_role_device
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        device_id: { type: integer }
+        fraud_role_device: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
     ip_fraud_roles:
       $id: "#/s5/ip_fraud_roles"
       type: object
       description: "Fraud posture row for an IP"
+      additionalProperties: false
+      required:
+        - ip_id
+        - fraud_role_ip
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        ip_id: { type: integer }
+        fraud_role_ip: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
