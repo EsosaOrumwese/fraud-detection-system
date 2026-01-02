@@ -10,11 +10,11 @@ from typing import Iterator
 
 
 def _resolve_interval_seconds() -> float:
-    raw = os.environ.get("ENGINE_STATE_HEARTBEAT_SECS", "60")
+    raw = os.environ.get("ENGINE_STATE_HEARTBEAT_SECS", "600")
     try:
         value = float(raw)
     except ValueError:
-        value = 60.0
+        value = 600.0
     return value
 
 

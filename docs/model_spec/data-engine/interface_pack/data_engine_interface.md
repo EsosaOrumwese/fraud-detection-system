@@ -41,6 +41,22 @@ The authoritative inventory of outputs (IDs, paths, schemas, join keys) is `engi
 - **Streams**: append-only event/log families (e.g., RNG event streams).
 - **Gate artifacts**: validation bundles, `_passed.flag` files, and gate receipts used to enforce readiness (class `gate` in the catalogue).
 
+### Roles for event-like outputs (binding)
+
+Not all event-like outputs are `class: stream` (some are parquet event tables, e.g. `arrival_events_5B`).
+Downstream components MUST distinguish business traffic from audit/telemetry:
+
+| Role | Meaning | How it is used | Examples (output_id) |
+|---|---|---|---|
+| `business_traffic` | Canonical synthetic production traffic. | Eligible for ingestion to Event Bus / feature plane. | `arrival_events_5B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B` |
+| `truth_products` | Canonical labels/case truth products. | Read for supervision/eval/case tooling; not treated as traffic. | `s4_event_labels_6B`, `s4_case_timeline_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B` |
+| `audit_evidence` | Replay/audit traces (often RNG evidence). | Observability/forensics only; MUST NOT be treated as traffic. | `rng_audit_log_*`, `rng_trace_log_*`, `rng_event_*`, `gamma_draw_log_3B`, `s5_selection_log`, `s6_edge_log` |
+| `ops_telemetry` | Operational run journals. | Monitoring/debugging only. | `segment_state_runs_*` |
+
+Rules:
+- Components MUST NOT treat `audit_evidence` or `ops_telemetry` as canonical business traffic.
+- Any output emitted onto a bus as `business_traffic` MUST conform to `contracts/canonical_event_envelope.schema.yaml` (natively, or via a lossless wrapper/mapping at ingestion).
+
 ## Catalogue fields (selected)
 
 - `class`: `surface`, `stream`, or `gate` (gate artifacts are not consumption surfaces).

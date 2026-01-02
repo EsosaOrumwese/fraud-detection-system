@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, IO, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Dict, IO, Iterable, Iterator, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 from uuid import uuid4
 
 import polars as pl
@@ -292,6 +292,8 @@ class S5RouterRunner:
             ): str(row["tzid"])
             for row in site_lookup.iter_rows(named=True)
         }
+        site_alias_map = self._build_site_alias_map(site_lookup)
+        arrivals_iter: Iterator[Tuple[RouterArrival, AliasTable | None]]
         if config.arrivals is not None:
             arrivals = [
                 RouterArrival(
@@ -301,10 +303,17 @@ class S5RouterRunner:
                 )
                 for arrival in config.arrivals
             ]
+            arrivals_sorted = sorted(
+                arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id)
+            )
+            arrivals_iter = iter((arrival, None) for arrival in arrivals_sorted)
+            total_arrivals = len(arrivals_sorted)
         else:
-            arrivals = self._derive_arrivals(group_frame, virtual_classifier)
-        total_arrivals = len(arrivals)
-        if not arrivals:
+            arrivals_iter, total_arrivals = self._iter_group_arrivals(
+                group_frame=group_frame,
+                classifier=virtual_classifier,
+            )
+        if total_arrivals <= 0:
             raise err("E_S5_NO_ARRIVALS", "router received zero arrivals to process")
         logger.info(
             "S5 router run starting (manifest=%s, seed=%s, selections=%s, run_id=%s)",
@@ -385,33 +394,35 @@ class S5RouterRunner:
         )
         trace_sink = self._open_trace_log(trace_path)
 
-        arrivals_sorted = sorted(arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id))
         router_start = time.perf_counter()
         last_progress_log = router_start
         success = False
         try:
-            for arrival in arrivals_sorted:
+            for arrival, group_alias in arrivals_iter:
                 merchant_id = int(arrival.merchant_id)
                 utc_ts = arrival.utc_timestamp.astimezone(timezone.utc)
                 utc_day = utc_ts.date().isoformat()
-                group_alias = self._ensure_group_alias(
-                    cache=group_cache,
-                    frame=group_frame,
-                    merchant_id=merchant_id,
-                    utc_day=utc_day,
-                )
+                if group_alias is None:
+                    group_alias = self._ensure_group_alias(
+                        cache=group_cache,
+                        frame=group_frame,
+                        merchant_id=merchant_id,
+                        utc_day=utc_day,
+                    )
                 tz_group_id, group_before, group_after = self._sample_alias(
                     alias_table=group_alias,
                     substream=group_substream,
                 )
                 tz_group_str = str(tz_group_id)
-                site_alias = self._ensure_site_alias(
-                    cache=site_cache,
-                    frame=site_lookup,
-                    merchant_id=merchant_id,
-                    utc_day=utc_day,
-                    tz_group_id=tz_group_str,
-                )
+                site_alias = site_alias_map.get((merchant_id, tz_group_str))
+                if site_alias is None:
+                    site_alias = self._ensure_site_alias(
+                        cache=site_cache,
+                        frame=site_lookup,
+                        merchant_id=merchant_id,
+                        utc_day=utc_day,
+                        tz_group_id=tz_group_str,
+                    )
                 site_choice, site_before, site_after = self._sample_alias(
                     alias_table=site_alias,
                     substream=site_substream,
@@ -629,7 +640,7 @@ class S5RouterRunner:
             virtual_policy_payload=virtual_rules_payload,
             virtual_policy_digest=virtual_rules_digest,
             virtual_policy_path=virtual_rules_path,
-            arrivals=len(arrivals_sorted),
+            arrivals=total_arrivals,
             group_events=group_events_count,
             site_events=site_events_count,
             selection_log_enabled=config.emit_selection_log,
@@ -659,33 +670,91 @@ class S5RouterRunner:
             selection_log_paths=tuple(selection_log_paths),
             virtual_arrivals=tuple(virtual_arrivals),
             run_report_path=run_report_path,
-            selections_total=len(arrivals_sorted),
-            arrivals_processed=len(arrivals_sorted),
+            selections_total=total_arrivals,
+            arrivals_processed=selection_seq,
         )
 
-    def _derive_arrivals(
+    def _iter_group_arrivals(
         self,
+        *,
         group_frame: pl.DataFrame,
         classifier: VirtualMerchantClassifier,
-    ) -> List[RouterArrival]:
-        unique = (
-            group_frame.select(["merchant_id", "utc_day"])
-            .unique()
-            .sort(["utc_day", "merchant_id"])
+    ) -> Tuple[Iterator[Tuple[RouterArrival, AliasTable]], int]:
+        ordered = group_frame.with_row_index("row_idx").sort(
+            ["utc_day", "merchant_id", "row_idx"]
         )
-        arrivals: List[RouterArrival] = []
-        for row in unique.iter_rows(named=True):
-            utc_day = str(row["utc_day"])
+        total_arrivals = (
+            ordered.select(["merchant_id", "utc_day"]).unique().height
+        )
+
+        def _emit(
+            merchant_id: int,
+            utc_day: str,
+            tzids: List[object],
+            weights: List[float],
+        ) -> Tuple[RouterArrival, AliasTable]:
+            alias = self._build_alias_table(tzids, weights)
             timestamp = datetime.fromisoformat(f"{utc_day}T00:00:00+00:00")
-            merchant = int(row["merchant_id"])
-            arrivals.append(
-                RouterArrival(
-                    merchant_id=merchant,
-                    utc_timestamp=timestamp,
-                    is_virtual=classifier.is_virtual(merchant),
+            arrival = RouterArrival(
+                merchant_id=merchant_id,
+                utc_timestamp=timestamp,
+                is_virtual=classifier.is_virtual(merchant_id),
+            )
+            return arrival, alias
+
+        def _iter_rows() -> Iterator[Tuple[RouterArrival, AliasTable]]:
+            current_key: Tuple[int, str] | None = None
+            tzids: List[object] = []
+            weights: List[float] = []
+            for row in ordered.iter_rows(named=True):
+                merchant_id = int(row["merchant_id"])
+                utc_day = str(row["utc_day"])
+                key = (merchant_id, utc_day)
+                if current_key is None:
+                    current_key = key
+                if key != current_key:
+                    yield _emit(current_key[0], current_key[1], tzids, weights)
+                    tzids = []
+                    weights = []
+                    current_key = key
+                tzids.append(row["tz_group_id"])
+                weights.append(float(row["p_group"]))
+            if current_key is not None:
+                yield _emit(current_key[0], current_key[1], tzids, weights)
+
+        return _iter_rows(), total_arrivals
+
+    def _build_site_alias_map(
+        self,
+        site_lookup: pl.DataFrame,
+    ) -> Dict[Tuple[int, str], AliasTable]:
+        ordered = site_lookup.sort(["merchant_id", "tzid", "legal_country_iso", "site_order"])
+        alias_map: Dict[Tuple[int, str], AliasTable] = {}
+        current_key: Tuple[int, str] | None = None
+        values: List[int] = []
+        weights: List[float] = []
+        for row in ordered.iter_rows(named=True):
+            merchant_id = int(row["merchant_id"])
+            tzid = str(row["tzid"])
+            key = (merchant_id, tzid)
+            if current_key is None:
+                current_key = key
+            if key != current_key:
+                alias_map[current_key] = self._build_alias_table(values, weights)
+                values = []
+                weights = []
+                current_key = key
+            values.append(
+                self._site_id(
+                    merchant_id,
+                    str(row["legal_country_iso"]),
+                    int(row["site_order"]),
                 )
             )
-        return arrivals
+            weights.append(float(row["p_weight"]))
+        if current_key is not None:
+            alias_map[current_key] = self._build_alias_table(values, weights)
+        return alias_map
 
     def _build_virtual_classifier(
         self,
