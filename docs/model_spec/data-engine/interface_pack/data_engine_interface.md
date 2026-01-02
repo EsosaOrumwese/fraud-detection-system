@@ -36,9 +36,39 @@ Path templates that are fingerprint-scoped must use the exact token `fingerprint
 ## 6. Join semantics
 Join keys are declared per output in `engine_outputs.catalogue.yaml`. Consumers must use only those declared keys and must not infer additional join columns.
 
-Examples of common join keys (non-exhaustive):
-- Physical site surfaces (e.g., outlet catalogue, site locations, site timezones) share `(merchant_id, legal_country_iso, site_order)`.
-- Run-scoped streams include scenario/run identity fields (e.g., `seed`, `scenario_id`, `run_id`) as join anchors.
+Outputs marked `exposure: external` are intended for platform consumption; internal outputs remain in the catalogue for completeness.
+
+### 6.1 Segment join key tables (external outputs)
+Segment 1A
+| Output | Join keys | Notes |
+| --- | --- | --- |
+| `outlet_catalogue` | `merchant_id, legal_country_iso, site_order` | Inter-country order is not encoded; join `s3_candidate_set.candidate_rank` for ordering. |
+
+Segment 1B
+| Output | Join keys | Notes |
+| --- | --- | --- |
+| `site_locations` | `merchant_id, legal_country_iso, site_order` | 1:1 with `outlet_catalogue` for the same `seed` + `fingerprint`. |
+
+Segment 2A
+| Output | Join keys | Notes |
+| --- | --- | --- |
+| `site_timezones` | `merchant_id, legal_country_iso, site_order` | Sole time-zone authority after 2A PASS. |
+
+Segment 3A
+| Output | Join keys | Notes |
+| --- | --- | --- |
+| `zone_alloc` | `merchant_id, legal_country_iso, tzid` | Zone-level counts per merchant and country. |
+
+Segment 3B
+| Output | Join keys | Notes |
+| --- | --- | --- |
+| `virtual_routing_policy_3B` | `manifest_fingerprint, parameter_hash` | Object-level policy (not row-joinable). |
+| `virtual_validation_contract_3B` | `fingerprint, test_id` | Validation tests keyed by `test_id` within a fingerprint. |
+
+Segment 5B
+| Output | Join keys | Notes |
+| --- | --- | --- |
+| `arrival_events_5B` | `seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq` | Skeleton arrival stream for downstream flows. |
 
 ## 7. Gate rulebook
 - No PASS, no read. A consumer must verify all gates listed in `read_requires_gates` before reading an output.

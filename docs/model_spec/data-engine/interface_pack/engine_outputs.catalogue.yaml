@@ -2,6 +2,7 @@ version: "1.0"
 outputs:
   - output_id: ccy_country_weights_cache
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
@@ -15,6 +16,7 @@ outputs:
       immutable_once_written: true
   - output_id: country_set
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_seed
     owner_segment: 1A
     path_template: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
@@ -28,6 +30,7 @@ outputs:
       immutable_once_written: true
   - output_id: crossborder_eligibility_flags
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
@@ -41,6 +44,7 @@ outputs:
       immutable_once_written: true
   - output_id: crossborder_features
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
@@ -54,6 +58,7 @@ outputs:
       immutable_once_written: true
   - output_id: hurdle_design_matrix
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/
@@ -67,6 +72,7 @@ outputs:
       immutable_once_written: true
   - output_id: hurdle_pi_probs
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/
@@ -80,6 +86,7 @@ outputs:
       immutable_once_written: true
   - output_id: hurdle_stationarity_tests_2024Q4
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/
@@ -93,6 +100,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_currency
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
@@ -106,6 +114,7 @@ outputs:
       immutable_once_written: true
   - output_id: outlet_catalogue
     class: surface
+    exposure: external
     scope: scope_manifest_fingerprint_seed
     owner_segment: 1A
     path_template: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -119,6 +128,7 @@ outputs:
       immutable_once_written: true
   - output_id: ranking_residual_cache_1A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_seed
     owner_segment: 1A
     path_template: data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/
@@ -132,6 +142,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_audit_log
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
@@ -145,6 +156,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_dirichlet_gamma_vector
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -158,6 +170,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_gamma_component
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -171,6 +184,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_gumbel_key
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -184,6 +198,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_hurdle_bernoulli
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -197,6 +212,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_nb_final
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -210,6 +226,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_normal_box_muller
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -223,6 +240,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_poisson_component
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -236,6 +254,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_residual_rank
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -249,6 +268,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_sequence_finalize
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -262,6 +282,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_site_sequence_overflow
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -275,6 +296,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_stream_jump
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -288,6 +310,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_ztp_final
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -301,6 +324,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_ztp_rejection
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -314,6 +338,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_event_ztp_retry_exhausted
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -327,6 +352,7 @@ outputs:
       immutable_once_written: true
   - output_id: rng_trace_log
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 1A
     path_template: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
@@ -340,6 +366,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_base_weight_priors
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
@@ -353,6 +380,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_candidate_set
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
@@ -366,6 +394,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_integerised_counts
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
@@ -379,6 +408,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_site_sequence
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
@@ -392,6 +422,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_membership
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_seed
     owner_segment: 1A
     path_template: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
@@ -405,6 +436,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_validation_receipt
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_seed
     owner_segment: 1A
     path_template: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
@@ -418,6 +450,7 @@ outputs:
       immutable_once_written: true
   - output_id: sparse_flag
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1A
     path_template: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/
@@ -431,6 +464,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_1A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 1A
     path_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
@@ -444,6 +478,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_1A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 1A
     path_template: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -457,6 +492,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_1B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 1B
     path_template: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
@@ -470,6 +506,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_requirements
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
@@ -483,6 +520,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_alloc_plan
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
@@ -496,6 +534,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_site_tile_assignment
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
@@ -509,6 +548,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_site_jitter
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
@@ -522,6 +562,7 @@ outputs:
       immutable_once_written: true
   - output_id: s7_run_summary
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s7_run_summary.json
@@ -535,6 +576,7 @@ outputs:
       immutable_once_written: true
   - output_id: s7_site_synthesis
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
@@ -548,6 +590,7 @@ outputs:
       immutable_once_written: true
   - output_id: s8_run_summary
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/s8_run_summary.json
@@ -561,6 +604,7 @@ outputs:
       immutable_once_written: true
   - output_id: site_locations
     class: surface
+    exposure: external
     scope: scope_manifest_fingerprint_seed
     owner_segment: 1B
     path_template: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -574,6 +618,7 @@ outputs:
       immutable_once_written: true
   - output_id: tile_bounds
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1B
     path_template: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
@@ -587,6 +632,7 @@ outputs:
       immutable_once_written: true
   - output_id: tile_index
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1B
     path_template: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
@@ -600,6 +646,7 @@ outputs:
       immutable_once_written: true
   - output_id: tile_weights
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 1B
     path_template: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
@@ -613,6 +660,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_1B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 1B
     path_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
@@ -626,6 +674,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_1B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 1B
     path_template: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -639,6 +688,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_2A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2A
     path_template: data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
@@ -652,6 +702,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_tz_lookup
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 2A
     path_template: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -665,6 +716,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_legality_report
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 2A
     path_template: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
@@ -678,6 +730,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_2A_v1
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2A
     path_template: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
@@ -692,6 +745,7 @@ outputs:
       immutable_once_written: true
   - output_id: site_timezones
     class: surface
+    exposure: external
     scope: scope_manifest_fingerprint_seed
     owner_segment: 2A
     path_template: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -705,6 +759,7 @@ outputs:
       immutable_once_written: true
   - output_id: tz_timetable_cache
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2A
     path_template: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
@@ -718,6 +773,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_2A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2A
     path_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
@@ -731,6 +787,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_2A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2A
     path_template: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -744,6 +801,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_2B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
@@ -757,6 +815,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_2B_v1
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
@@ -771,6 +830,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_site_weights
     class: surface
+    exposure: internal
     scope: seed_fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -784,6 +844,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_alias_index
     class: surface
+    exposure: internal
     scope: seed_fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
@@ -797,6 +858,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_alias_blob
     class: surface
+    exposure: internal
     scope: seed_fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
@@ -810,6 +872,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_day_effects
     class: surface
+    exposure: internal
     scope: seed_fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -823,6 +886,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_group_weights
     class: surface
+    exposure: internal
     scope: seed_fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -836,6 +900,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_selection_log
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 2B
     path_template: data/layer1/2B/s5_selection_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/selection_log.jsonl
@@ -849,6 +914,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_edge_log
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_seed_run_id
     owner_segment: 2B
     path_template: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
@@ -862,6 +928,7 @@ outputs:
       immutable_once_written: true
   - output_id: s7_audit_report
     class: surface
+    exposure: internal
     scope: seed_fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
@@ -875,6 +942,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_2B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
@@ -888,6 +956,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_2B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 2B
     path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -901,6 +970,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
@@ -914,6 +984,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_escalation_queue
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3A
     path_template: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -927,6 +998,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_country_zone_priors
     class: surface
+    exposure: internal
     scope: parameter
     owner_segment: 3A
     path_template: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
@@ -940,6 +1012,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_zone_shares
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3A
     path_template: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -953,6 +1026,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_zone_counts
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3A
     path_template: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -966,6 +1040,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_issue_table_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
@@ -979,6 +1054,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_receipt_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
@@ -992,6 +1068,7 @@ outputs:
       immutable_once_written: true
   - output_id: s6_validation_report_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
@@ -1005,6 +1082,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
@@ -1018,6 +1096,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
@@ -1031,6 +1110,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_3A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -1044,6 +1124,7 @@ outputs:
       immutable_once_written: true
   - output_id: zone_alloc
     class: surface
+    exposure: external
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3A
     path_template: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -1057,6 +1138,7 @@ outputs:
       immutable_once_written: true
   - output_id: zone_alloc_universe_hash
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3A
     path_template: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
@@ -1070,6 +1152,7 @@ outputs:
       immutable_once_written: true
   - output_id: edge_alias_blob_3B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
@@ -1083,6 +1166,7 @@ outputs:
       immutable_once_written: true
   - output_id: edge_alias_index_3B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
@@ -1096,6 +1180,7 @@ outputs:
       immutable_once_written: true
   - output_id: edge_catalogue_3B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -1109,6 +1194,7 @@ outputs:
       immutable_once_written: true
   - output_id: edge_catalogue_index_3B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
@@ -1122,6 +1208,7 @@ outputs:
       immutable_once_written: true
   - output_id: edge_universe_hash_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
@@ -1135,6 +1222,7 @@ outputs:
       immutable_once_written: true
   - output_id: gamma_draw_log_3B
     class: stream
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
@@ -1148,6 +1236,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
@@ -1161,6 +1250,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_run_summary_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
@@ -1174,6 +1264,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_manifest_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json
@@ -1187,6 +1278,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
@@ -1200,6 +1292,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
@@ -1213,6 +1306,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_index_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
@@ -1226,6 +1320,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_3B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -1239,6 +1334,7 @@ outputs:
       immutable_once_written: true
   - output_id: virtual_classification_3B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -1252,6 +1348,7 @@ outputs:
       immutable_once_written: true
   - output_id: virtual_routing_policy_3B
     class: surface
+    exposure: external
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
@@ -1265,6 +1362,7 @@ outputs:
       immutable_once_written: true
   - output_id: virtual_settlement_3B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed
     owner_segment: 3B
     path_template: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -1278,6 +1376,7 @@ outputs:
       immutable_once_written: true
   - output_id: virtual_validation_contract_3B
     class: surface
+    exposure: external
     scope: fingerprint
     owner_segment: 3B
     path_template: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
@@ -1291,6 +1390,7 @@ outputs:
       immutable_once_written: true
   - output_id: class_shape_catalogue_5A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_scenario_id
     owner_segment: 5A
     path_template: data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
@@ -1305,6 +1405,7 @@ outputs:
       immutable_once_written: true
   - output_id: class_zone_baseline_local_5A
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5A
     path_template: data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
@@ -1319,6 +1420,7 @@ outputs:
       immutable_once_written: true
   - output_id: class_zone_shape_5A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_scenario_id
     owner_segment: 5A
     path_template: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
@@ -1333,6 +1435,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_class_profile_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
@@ -1346,6 +1449,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_zone_baseline_local_5A
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
@@ -1360,6 +1464,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_zone_baseline_utc_5A
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
@@ -1374,6 +1479,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_zone_overlay_factors_5A
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
@@ -1388,6 +1494,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_zone_profile_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
@@ -1401,6 +1508,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_zone_scenario_local_5A
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
@@ -1415,6 +1523,7 @@ outputs:
       immutable_once_written: true
   - output_id: merchant_zone_scenario_utc_5A
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5A
     path_template: data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
@@ -1429,6 +1538,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
@@ -1442,6 +1552,7 @@ outputs:
       immutable_once_written: true
   - output_id: scenario_manifest_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
@@ -1455,6 +1566,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
@@ -1468,6 +1580,7 @@ outputs:
       immutable_once_written: true
   - output_id: shape_grid_definition_5A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_scenario_id
     owner_segment: 5A
     path_template: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
@@ -1482,6 +1595,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_index_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
@@ -1495,6 +1609,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_issue_table_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
@@ -1508,6 +1623,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -1521,6 +1637,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_report_5A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5A
     path_template: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
@@ -1534,6 +1651,7 @@ outputs:
       immutable_once_written: true
   - output_id: arrival_events_5B
     class: stream
+    exposure: external
     scope: scope_manifest_fingerprint_seed_scenario_id
     owner_segment: 5B
     path_template: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
@@ -1548,6 +1666,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_5B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5B
     path_template: data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
@@ -1561,6 +1680,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_grouping_5B
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5B
     path_template: data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
@@ -1575,6 +1695,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_time_grid_5B
     class: surface
+    exposure: internal
     scope: fingerprint_scenario
     owner_segment: 5B
     path_template: data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
@@ -1589,6 +1710,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_latent_field_5B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed_scenario_id
     owner_segment: 5B
     path_template: data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
@@ -1603,6 +1725,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_realised_intensity_5B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed_scenario_id
     owner_segment: 5B
     path_template: data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
@@ -1617,6 +1740,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_bucket_counts_5B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed_scenario_id
     owner_segment: 5B
     path_template: data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
@@ -1631,6 +1755,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_arrival_anomalies_5B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed_scenario_id
     owner_segment: 5B
     path_template: data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
@@ -1645,6 +1770,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_arrival_summary_5B
     class: surface
+    exposure: internal
     scope: scope_manifest_fingerprint_seed_scenario_id
     owner_segment: 5B
     path_template: data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
@@ -1659,6 +1785,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_5B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5B
     path_template: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
@@ -1672,6 +1799,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_index_5B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5B
     path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json
@@ -1685,6 +1813,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_issue_table_5B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5B
     path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
@@ -1698,6 +1827,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_5B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5B
     path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -1711,6 +1841,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_report_5B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 5B
     path_template: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json
@@ -1724,6 +1855,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_6A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6A
     path_template: data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
@@ -1737,6 +1869,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_party_base_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet
@@ -1750,6 +1883,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_party_summary_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s1_party_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_summary_6A.parquet
@@ -1763,6 +1897,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_account_base_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet
@@ -1776,6 +1911,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_account_summary_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s2_account_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_summary_6A.parquet
@@ -1789,6 +1925,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_merchant_account_base_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_merchant_account_base_6A.parquet
@@ -1802,6 +1939,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_party_product_holdings_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s2_party_product_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_party_product_holdings_6A.parquet
@@ -1815,6 +1953,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_account_instrument_links_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet
@@ -1828,6 +1967,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_instrument_base_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet
@@ -1841,6 +1981,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_instrument_summary_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s3_instrument_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_summary_6A.parquet
@@ -1854,6 +1995,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_party_instrument_holdings_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_party_instrument_holdings_6A.parquet
@@ -1867,6 +2009,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_device_base_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet
@@ -1880,6 +2023,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_device_links_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet
@@ -1893,6 +2037,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_entity_neighbourhoods_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_entity_neighbourhoods_6A.parquet
@@ -1906,6 +2051,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_ip_base_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet
@@ -1919,6 +2065,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_ip_links_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s4_ip_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_links_6A.parquet
@@ -1932,6 +2079,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_network_summary_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s4_network_summary_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_network_summary_6A.parquet
@@ -1945,6 +2093,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_account_fraud_roles_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet
@@ -1958,6 +2107,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_device_fraud_roles_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet
@@ -1971,6 +2121,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_ip_fraud_roles_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet
@@ -1984,6 +2135,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_issue_table_6A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6A
     path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet
@@ -1997,6 +2149,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_merchant_fraud_roles_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet
@@ -2010,6 +2163,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_party_fraud_roles_6A
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed
     owner_segment: 6A
     path_template: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet
@@ -2023,6 +2177,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_validation_report_6A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6A
     path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6A.json
@@ -2036,6 +2191,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_6A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6A
     path_template: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
@@ -2049,6 +2205,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_index_6A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6A
     path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
@@ -2062,6 +2219,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_6A
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6A
     path_template: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -2075,6 +2233,7 @@ outputs:
       immutable_once_written: true
   - output_id: s0_gate_receipt_6B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6B
     path_template: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
@@ -2088,6 +2247,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_arrival_entities_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2101,6 +2261,7 @@ outputs:
       immutable_once_written: true
   - output_id: s1_session_index_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2114,6 +2275,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_event_stream_baseline_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2127,6 +2289,7 @@ outputs:
       immutable_once_written: true
   - output_id: s2_flow_anchor_baseline_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2140,6 +2303,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_campaign_catalogue_6B
     class: surface
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
@@ -2153,6 +2317,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_event_stream_with_fraud_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2166,6 +2331,7 @@ outputs:
       immutable_once_written: true
   - output_id: s3_flow_anchor_with_fraud_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2179,6 +2345,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_case_timeline_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2192,6 +2359,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_event_labels_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2205,6 +2373,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_flow_bank_view_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2218,6 +2387,7 @@ outputs:
       immutable_once_written: true
   - output_id: s4_flow_truth_labels_6B
     class: stream
+    exposure: internal
     scope: scope_parameter_hash_manifest_fingerprint_seed_scenario_id
     owner_segment: 6B
     path_template: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
@@ -2231,6 +2401,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_issue_table_6B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6B
     path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
@@ -2244,6 +2415,7 @@ outputs:
       immutable_once_written: true
   - output_id: s5_validation_report_6B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6B
     path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
@@ -2257,6 +2429,7 @@ outputs:
       immutable_once_written: true
   - output_id: sealed_inputs_6B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6B
     path_template: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
@@ -2270,6 +2443,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_bundle_6B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6B
     path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
@@ -2283,6 +2457,7 @@ outputs:
       immutable_once_written: true
   - output_id: validation_passed_flag_6B
     class: surface
+    exposure: internal
     scope: fingerprint
     owner_segment: 6B
     path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
