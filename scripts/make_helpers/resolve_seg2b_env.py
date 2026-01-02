@@ -98,7 +98,6 @@ def _resolve_context(*, run_root: Path, seed: str, seg1a_path: Path, seg2a_path:
         / "1B"
         / "validation"
         / f"fingerprint={manifest_fingerprint}"
-        / "bundle"
     )
     if not validation_bundle.is_dir():
         raise ContextError(

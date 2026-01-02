@@ -27,6 +27,16 @@ SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
 RUN_ID ?= run-0
 LOG ?= $(RUN_ROOT)/run_log_run-0.log
 SEED ?= 2026010201
+SKIP_SEG1A ?= 0
+SKIP_SEG1B ?= 0
+SKIP_SEG2A ?= 0
+SKIP_SEG2B ?= 0
+SKIP_SEG3A ?= 0
+SKIP_SEG3B ?= 0
+SKIP_SEG5A ?= 0
+SKIP_SEG5B ?= 0
+SKIP_SEG6A ?= 0
+SKIP_SEG6B ?= 0
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
@@ -446,6 +456,7 @@ VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b
 
 
 .PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.ONESHELL: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
@@ -530,6 +541,14 @@ virtual_settlement_coords:
 
 segment1a:
 	@echo "Running Segment 1A (S0-S9)"
+	@if [ "$(SKIP_SEG1A)" = "1" ]; then \
+		if [ ! -f "$(RESULT_JSON)" ]; then \
+			echo "SKIP_SEG1A=1 but summary '$(RESULT_JSON)' is missing. Run 'make segment1a' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 1A (SKIP_SEG1A=1)"; \
+		exit 0; \
+	fi
 	@mkdir -p "$(RUN_ROOT)"
 	@mkdir -p "$(SUMMARY_DIR)"
 ifeq ($(strip $(LOG)),)
@@ -541,6 +560,18 @@ endif
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"
+	@if [ "$(SKIP_SEG1B)" = "1" ]; then \
+		if [ ! -f "$(SEG1B_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG1B=1 but summary '$(SEG1B_RESULT_JSON)' is missing. Run 'make segment1b' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer1/1B" ]; then \
+			echo "SKIP_SEG1B=1 but outputs missing under '$(RUN_ROOT)/data/layer1/1B'. Run 'make segment1b' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 1B (SKIP_SEG1B=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -f "$(RESULT_JSON)" ]; then \
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
@@ -556,6 +587,18 @@ segment1b:
 
 segment2a:
 	@echo "Running Segment 2A (S0-S5)"
+	@if [ "$(SKIP_SEG2A)" = "1" ]; then \
+		if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG2A=1 but summary '$(SEG2A_RESULT_JSON)' is missing. Run 'make segment2a' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
+			echo "SKIP_SEG2A=1 but outputs missing under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 2A (SKIP_SEG2A=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -f "$(RESULT_JSON)" ]; then \
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
@@ -567,7 +610,7 @@ segment2a:
 	fi
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
+	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
 		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
 		exit 1; \
@@ -594,6 +637,18 @@ segment2a:
 
 segment2b:
 	@echo "Running Segment 2B (S0-S8)"
+	@if [ "$(SKIP_SEG2B)" = "1" ]; then \
+		if [ ! -f "$(SEG2B_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG2B=1 but summary '$(SEG2B_RESULT_JSON)' is missing. Run 'make segment2b' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer1/2B" ]; then \
+			echo "SKIP_SEG2B=1 but outputs missing under '$(RUN_ROOT)/data/layer1/2B'. Run 'make segment2b' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 2B (SKIP_SEG2B=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
 		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
 		exit 1; \
@@ -625,6 +680,18 @@ segment2b:
 
 segment3a:
 	@echo "Running Segment 3A (S0-S7)"
+	@if [ "$(SKIP_SEG3A)" = "1" ]; then \
+		if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG3A=1 but summary '$(SEG3A_RESULT_JSON)' is missing. Run 'make segment3a' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer1/3A" ]; then \
+			echo "SKIP_SEG3A=1 but outputs missing under '$(RUN_ROOT)/data/layer1/3A'. Run 'make segment3a' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 3A (SKIP_SEG3A=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
 		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
 		exit 1; \
@@ -653,6 +720,18 @@ segment3a:
 
 segment3b:
 	@echo "Running Segment 3B (S0-S5)"
+	@if [ "$(SKIP_SEG3B)" = "1" ]; then \
+		if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG3B=1 but summary '$(SEG3B_RESULT_JSON)' is missing. Run 'make segment3b' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer1/3B" ]; then \
+			echo "SKIP_SEG3B=1 but outputs missing under '$(RUN_ROOT)/data/layer1/3B'. Run 'make segment3b' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 3B (SKIP_SEG3B=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/3A" ]; then \
 		echo "Segment 3A outputs not found under '$(RUN_ROOT)/data/layer1/3A'. Run 'make segment3a' first." >&2; \
 		exit 1; \
@@ -683,6 +762,18 @@ segment3b:
 
 segment5a:
 	@echo "Running Segment 5A (S0-S5)"
+	@if [ "$(SKIP_SEG5A)" = "1" ]; then \
+		if [ ! -f "$(SEG5A_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG5A=1 but summary '$(SEG5A_RESULT_JSON)' is missing. Run 'make segment5a' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer2/5A" ]; then \
+			echo "SKIP_SEG5A=1 but outputs missing under '$(RUN_ROOT)/data/layer2/5A'. Run 'make segment5a' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 5A (SKIP_SEG5A=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
 		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
 		exit 1; \
@@ -704,6 +795,18 @@ segment5a:
 
 segment5b:
 	@echo "Running Segment 5B (S0-S5)"
+	@if [ "$(SKIP_SEG5B)" = "1" ]; then \
+		if [ ! -f "$(SEG5B_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG5B=1 but summary '$(SEG5B_RESULT_JSON)' is missing. Run 'make segment5b' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer2/5B" ]; then \
+			echo "SKIP_SEG5B=1 but outputs missing under '$(RUN_ROOT)/data/layer2/5B'. Run 'make segment5b' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 5B (SKIP_SEG5B=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -f "$(SEG5A_RESULT_JSON)" ]; then \
 		echo "Segment 5A summary '$(SEG5A_RESULT_JSON)' not found. Run 'make segment5a' first." >&2; \
 		exit 1; \
@@ -726,6 +829,18 @@ segment5b:
 
 segment6a:
 	@echo "Running Segment 6A (S0-S5)"
+	@if [ "$(SKIP_SEG6A)" = "1" ]; then \
+		if [ ! -f "$(SEG6A_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG6A=1 but summary '$(SEG6A_RESULT_JSON)' is missing. Run 'make segment6a' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer3/6A" ]; then \
+			echo "SKIP_SEG6A=1 but outputs missing under '$(RUN_ROOT)/data/layer3/6A'. Run 'make segment6a' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 6A (SKIP_SEG6A=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -f "$(SEG5B_RESULT_JSON)" ]; then \
 		echo "Segment 5B summary '$(SEG5B_RESULT_JSON)' not found. Run 'make segment5b' first." >&2; \
 		exit 1; \
@@ -749,6 +864,18 @@ segment6a:
 
 segment6b:
 	@echo "Running Segment 6B (S0-S5)"
+	@if [ "$(SKIP_SEG6B)" = "1" ]; then \
+		if [ ! -f "$(SEG6B_RESULT_JSON)" ]; then \
+			echo "SKIP_SEG6B=1 but summary '$(SEG6B_RESULT_JSON)' is missing. Run 'make segment6b' first." >&2; \
+			exit 1; \
+		fi; \
+		if [ ! -d "$(RUN_ROOT)/data/layer3/6B" ]; then \
+			echo "SKIP_SEG6B=1 but outputs missing under '$(RUN_ROOT)/data/layer3/6B'. Run 'make segment6b' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Skipping Segment 6B (SKIP_SEG6B=1)"; \
+		exit 0; \
+	fi
 	@if [ ! -f "$(SEG6A_RESULT_JSON)" ]; then \
 		echo "Segment 6A summary '$(SEG6A_RESULT_JSON)' not found. Run 'make segment6a' first." >&2; \
 		exit 1; \
