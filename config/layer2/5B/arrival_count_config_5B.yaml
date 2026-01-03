@@ -1,5 +1,5 @@
 policy_id: arrival_count_config_5B
-version: v1.0.1
+version: v1.0.2
 count_law_id: nb2
 lambda_zero_eps: 0.000000001
 max_count_per_bucket: 50000
@@ -16,6 +16,7 @@ nb2:
     class_multipliers:
       office_hours: 1.10
       consumer_daytime: 1.00
+      retail_daytime: 1.00
       evening_weekend: 0.90
       always_on_local: 1.05
       online_24h: 0.85
