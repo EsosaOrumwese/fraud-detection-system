@@ -39,9 +39,7 @@ from ..l1.sealed_inputs import SealedAsset, ensure_unique_assets
 from ..l1.validation import validate_receipt_payload
 from ....seg_1A.s0_foundations.l1.hashing import (
     ParameterHashResult,
-    compute_manifest_fingerprint,
     compute_parameter_hash,
-    normalise_git_commit,
 )
 
 
@@ -172,24 +170,18 @@ class S0GateRunner:
             parameter_digests.extend(asset.digests)
         parameter_result = compute_parameter_hash(parameter_digests)
 
-        manifest_digests = self._collect_manifest_digests(sealed_assets)
-        git_bytes = normalise_git_commit(bytes.fromhex(inputs.git_commit_hex))
-        manifest_result = compute_manifest_fingerprint(
-            manifest_digests,
-            git_commit_raw=git_bytes,
-            parameter_hash_bytes=bytes.fromhex(parameter_result.parameter_hash),
-        )
+        manifest_fingerprint = inputs.upstream_manifest_fingerprint
         sealed_assets = self._rehome_merchant_mcc_map(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             sealed_assets=sealed_assets,
         )
 
         receipt_path, verified_at = self._write_receipt(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             parameter_result=parameter_result,
             flag_sha256_hex=declared_flag,
             sealed_assets=sealed_assets,
@@ -198,7 +190,7 @@ class S0GateRunner:
         inventory_path = self._write_inventory(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             sealed_assets=sealed_assets,
             created_utc=verified_at.isoformat(timespec="microseconds").replace("+00:00", "Z"),
         )
@@ -206,7 +198,7 @@ class S0GateRunner:
         determinism_receipt = self._write_determinism_receipt(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             files=[receipt_path, inventory_path],
         )
         run_finished_at = datetime.now(timezone.utc)
@@ -216,7 +208,7 @@ class S0GateRunner:
             dictionary=dictionary,
             bundle_index=bundle_index,
             sealed_assets=sealed_assets,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             parameter_hash=parameter_result.parameter_hash,
             bundle_path=bundle_path,
             bundle_digest=computed_flag,
@@ -236,14 +228,14 @@ class S0GateRunner:
         run_report_path = self._write_run_report(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             payload=run_report,
         )
         if inputs.emit_run_report_stdout:
             print(json.dumps(run_report, indent=2))  # pragma: no cover
 
         return GateOutputs(
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             parameter_hash=parameter_result.parameter_hash,
             flag_sha256_hex=declared_flag,
             receipt_path=receipt_path,
