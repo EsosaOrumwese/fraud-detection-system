@@ -79,6 +79,7 @@ class LabelRunner:
         flow_paths = inventory.resolve_files(manifest_key=flow_manifest_key)
         event_paths = inventory.resolve_files(manifest_key=event_manifest_key)
         scenarios = self._group_by_scenario(flow_paths)
+        event_scenarios = self._group_by_scenario(event_paths)
 
         flow_truth_paths: dict[str, Path] = {}
         flow_bank_paths: dict[str, Path] = {}
@@ -86,50 +87,114 @@ class LabelRunner:
         case_paths: dict[str, Path] = {}
 
         for scenario_id, paths in scenarios.items():
-            flows_df = pl.scan_parquet([path.as_posix() for path in paths]).collect()
-            events_df = self._load_events_for_scenario(event_paths, scenario_id)
+            flow_part_index = 0
+            first_truth_path: Path | None = None
+            first_bank_path: Path | None = None
+            first_event_path: Path | None = None
+            first_case_path: Path | None = None
 
-            flow_truth_rows = []
-            flow_bank_rows = []
-            case_rows = []
-            truth_map: dict[int, dict[str, object]] = {}
-            for row in flows_df.to_dicts():
-                flow_id = int(row.get("flow_id"))
-                is_fraud = bool(row.get("fraud_flag"))
-                bank_hit = is_fraud and stable_uniform(flow_id, "bank_view") < detection_rate
-                truth_row = {
-                    "flow_id": flow_id,
-                    "is_fraud_truth": is_fraud,
-                    "fraud_label": row.get("campaign_id") if is_fraud else None,
-                    "seed": inputs.seed,
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "parameter_hash": inputs.parameter_hash,
-                    "scenario_id": scenario_id,
-                }
-                bank_row = {
-                    "flow_id": flow_id,
-                    "is_fraud_bank_view": bank_hit,
-                    "bank_label": row.get("campaign_id") if bank_hit else None,
-                    "seed": inputs.seed,
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "parameter_hash": inputs.parameter_hash,
-                    "scenario_id": scenario_id,
-                }
-                flow_truth_rows.append(truth_row)
-                flow_bank_rows.append(bank_row)
-                truth_map[flow_id] = {
-                    "is_fraud_truth": is_fraud,
-                    "is_fraud_bank_view": bank_hit,
-                }
-                if bank_hit:
-                    case_id = stable_int_hash(flow_id, "case")
-                    case_rows.append(
+            for path in sorted(paths):
+                flows_df = pl.read_parquet(path)
+                if flows_df.is_empty():
+                    continue
+                flow_truth_rows = []
+                flow_bank_rows = []
+                case_rows = []
+                for row in flows_df.iter_rows(named=True):
+                    flow_id = int(row.get("flow_id"))
+                    is_fraud = bool(row.get("fraud_flag"))
+                    bank_hit = is_fraud and stable_uniform(flow_id, "bank_view") < detection_rate
+                    flow_truth_rows.append(
                         {
-                            "case_id": case_id,
-                            "case_event_seq": 1,
                             "flow_id": flow_id,
-                            "case_event_type": "CASE_OPEN",
-                            "ts_utc": row.get("ts_utc"),
+                            "is_fraud_truth": is_fraud,
+                            "fraud_label": row.get("campaign_id") if is_fraud else None,
+                            "seed": inputs.seed,
+                            "manifest_fingerprint": inputs.manifest_fingerprint,
+                            "parameter_hash": inputs.parameter_hash,
+                            "scenario_id": scenario_id,
+                        }
+                    )
+                    flow_bank_rows.append(
+                        {
+                            "flow_id": flow_id,
+                            "is_fraud_bank_view": bank_hit,
+                            "bank_label": row.get("campaign_id") if bank_hit else None,
+                            "seed": inputs.seed,
+                            "manifest_fingerprint": inputs.manifest_fingerprint,
+                            "parameter_hash": inputs.parameter_hash,
+                            "scenario_id": scenario_id,
+                        }
+                    )
+                    if bank_hit:
+                        case_id = stable_int_hash(flow_id, "case")
+                        case_rows.append(
+                            {
+                                "case_id": case_id,
+                                "case_event_seq": 1,
+                                "flow_id": flow_id,
+                                "case_event_type": "CASE_OPEN",
+                                "ts_utc": row.get("ts_utc"),
+                                "seed": inputs.seed,
+                                "manifest_fingerprint": inputs.manifest_fingerprint,
+                                "parameter_hash": inputs.parameter_hash,
+                                "scenario_id": scenario_id,
+                            }
+                        )
+
+                if flow_truth_rows:
+                    flow_truth_path = self._resolve_output_path(
+                        inputs,
+                        dictionary,
+                        "s4_flow_truth_labels_6B",
+                        scenario_id=scenario_id,
+                        part_index=flow_part_index,
+                    )
+                    pl.DataFrame(flow_truth_rows).write_parquet(flow_truth_path)
+                    if first_truth_path is None:
+                        first_truth_path = flow_truth_path
+                if flow_bank_rows:
+                    flow_bank_path = self._resolve_output_path(
+                        inputs,
+                        dictionary,
+                        "s4_flow_bank_view_6B",
+                        scenario_id=scenario_id,
+                        part_index=flow_part_index,
+                    )
+                    pl.DataFrame(flow_bank_rows).write_parquet(flow_bank_path)
+                    if first_bank_path is None:
+                        first_bank_path = flow_bank_path
+                if case_rows:
+                    case_path = self._resolve_output_path(
+                        inputs,
+                        dictionary,
+                        "s4_case_timeline_6B",
+                        scenario_id=scenario_id,
+                        part_index=flow_part_index,
+                    )
+                    pl.DataFrame(case_rows).write_parquet(case_path)
+                    if first_case_path is None:
+                        first_case_path = case_path
+
+                if flow_truth_rows or flow_bank_rows or case_rows:
+                    flow_part_index += 1
+
+            event_part_index = 0
+            for path in sorted(event_scenarios.get(scenario_id, [])):
+                events_df = pl.read_parquet(path)
+                if events_df.is_empty():
+                    continue
+                event_rows = []
+                for row in events_df.iter_rows(named=True):
+                    flow_id = int(row.get("flow_id"))
+                    is_fraud = bool(row.get("fraud_flag", False))
+                    bank_hit = is_fraud and stable_uniform(flow_id, "bank_view") < detection_rate
+                    event_rows.append(
+                        {
+                            "flow_id": flow_id,
+                            "event_seq": row.get("event_seq"),
+                            "is_fraud_truth": is_fraud,
+                            "is_fraud_bank_view": bank_hit,
                             "seed": inputs.seed,
                             "manifest_fingerprint": inputs.manifest_fingerprint,
                             "parameter_hash": inputs.parameter_hash,
@@ -137,56 +202,28 @@ class LabelRunner:
                         }
                     )
 
-            event_rows = []
-            for row in events_df.to_dicts():
-                flow_id = int(row.get("flow_id"))
-                labels = truth_map.get(flow_id, {})
-                event_rows.append(
-                    {
-                        "flow_id": flow_id,
-                        "event_seq": row.get("event_seq"),
-                        "is_fraud_truth": labels.get("is_fraud_truth", False),
-                        "is_fraud_bank_view": labels.get("is_fraud_bank_view", False),
-                        "seed": inputs.seed,
-                        "manifest_fingerprint": inputs.manifest_fingerprint,
-                        "parameter_hash": inputs.parameter_hash,
-                        "scenario_id": scenario_id,
-                    }
+                if not event_rows:
+                    continue
+                event_path = self._resolve_output_path(
+                    inputs,
+                    dictionary,
+                    "s4_event_labels_6B",
+                    scenario_id=scenario_id,
+                    part_index=event_part_index,
                 )
+                pl.DataFrame(event_rows).write_parquet(event_path)
+                if first_event_path is None:
+                    first_event_path = event_path
+                event_part_index += 1
 
-            flow_truth_df = pl.DataFrame(flow_truth_rows)
-            flow_bank_df = pl.DataFrame(flow_bank_rows)
-            event_label_df = pl.DataFrame(event_rows)
-            case_df = pl.DataFrame(case_rows)
-
-            flow_truth_paths[scenario_id] = self._write_dataset(
-                flow_truth_df,
-                inputs,
-                dictionary,
-                "s4_flow_truth_labels_6B",
-                scenario_id=scenario_id,
-            )
-            flow_bank_paths[scenario_id] = self._write_dataset(
-                flow_bank_df,
-                inputs,
-                dictionary,
-                "s4_flow_bank_view_6B",
-                scenario_id=scenario_id,
-            )
-            event_label_paths[scenario_id] = self._write_dataset(
-                event_label_df,
-                inputs,
-                dictionary,
-                "s4_event_labels_6B",
-                scenario_id=scenario_id,
-            )
-            case_paths[scenario_id] = self._write_dataset(
-                case_df,
-                inputs,
-                dictionary,
-                "s4_case_timeline_6B",
-                scenario_id=scenario_id,
-            )
+            if first_truth_path is not None:
+                flow_truth_paths[scenario_id] = first_truth_path
+            if first_bank_path is not None:
+                flow_bank_paths[scenario_id] = first_bank_path
+            if first_event_path is not None:
+                event_label_paths[scenario_id] = first_event_path
+            if first_case_path is not None:
+                case_paths[scenario_id] = first_case_path
 
         return LabelOutputs(
             flow_truth_paths=flow_truth_paths,
@@ -244,22 +281,16 @@ class LabelRunner:
             scenarios.setdefault(scenario_id, []).append(path)
         return scenarios
 
-    def _load_events_for_scenario(self, paths: Sequence[Path], scenario_id: str) -> pl.DataFrame:
-        filtered = [path for path in paths if f"scenario_id={scenario_id}" in path.as_posix()]
-        if not filtered:
-            return pl.DataFrame([])
-        return pl.scan_parquet([path.as_posix() for path in filtered]).collect()
-
     @staticmethod
-    def _write_dataset(
-        df: pl.DataFrame,
+    def _resolve_output_path(
         inputs: LabelInputs,
         dictionary: Mapping[str, object] | Sequence[object],
         dataset_id: str,
         *,
         scenario_id: str,
+        part_index: int = 0,
     ) -> Path:
-        path = inputs.data_root / render_dataset_path(
+        raw_path = render_dataset_path(
             dataset_id=dataset_id,
             template_args={
                 "seed": inputs.seed,
@@ -269,9 +300,13 @@ class LabelRunner:
             },
             dictionary=dictionary,
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        df.write_parquet(path)
-        return path
+        template_path = Path(raw_path)
+        filename = template_path.name
+        if "*" in filename:
+            filename = filename.replace("*", f"{part_index:05d}")
+        resolved = inputs.data_root / template_path.parent / filename
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        return resolved
 
 
 __all__ = ["LabelInputs", "LabelOutputs", "LabelRunner"]

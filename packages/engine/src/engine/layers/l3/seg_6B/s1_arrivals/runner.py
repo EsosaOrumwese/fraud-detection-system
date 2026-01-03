@@ -86,96 +86,106 @@ class ArrivalRunner:
         session_index_paths: dict[str, Path] = {}
 
         for scenario_id, paths in scenarios.items():
-            arrivals_df = pl.scan_parquet([path.as_posix() for path in paths]).collect()
-            attached_rows = []
-            for row in arrivals_df.to_dicts():
-                merchant_id = row.get("merchant_id")
-                arrival_seq = row.get("arrival_seq", row.get("arrival_id", 0))
-                party_id = self._pick_id(
-                    party_ids,
-                    inputs,
-                    scenario_id,
-                    merchant_id,
-                    arrival_seq,
-                    label="party_id",
-                )
-                account_id = self._pick_linked_id(
-                    account_map.get(party_id, []),
-                    inputs,
-                    scenario_id,
-                    party_id,
-                    arrival_seq,
-                    label="account_id",
-                )
-                instrument_id = self._pick_linked_id(
-                    instrument_map.get(account_id, []),
-                    inputs,
-                    scenario_id,
-                    account_id,
-                    arrival_seq,
-                    label="instrument_id",
-                )
-                device_id = self._pick_linked_id(
-                    device_map.get(party_id, []),
-                    inputs,
-                    scenario_id,
-                    party_id,
-                    arrival_seq,
-                    label="device_id",
-                    fallback=device_ids,
-                )
-                ip_id = self._pick_linked_id(
-                    ip_map.get(device_id, []),
-                    inputs,
-                    scenario_id,
-                    device_id,
-                    arrival_seq,
-                    label="ip_id",
-                    fallback=ip_ids,
-                )
-                session_id = stable_int_hash(
-                    inputs.manifest_fingerprint,
-                    inputs.parameter_hash,
-                    scenario_id,
-                    party_id,
-                    device_id,
-                    merchant_id,
-                    int(arrival_seq) // 10,
-                )
+            part_index = 0
+            part_paths: list[Path] = []
+            for path in sorted(paths):
+                arrivals_df = pl.read_parquet(path)
+                if arrivals_df.is_empty():
+                    continue
+                attached_rows = []
+                for row in arrivals_df.iter_rows(named=True):
+                    merchant_id = row.get("merchant_id")
+                    arrival_seq = row.get("arrival_seq", row.get("arrival_id", 0))
+                    party_id = self._pick_id(
+                        party_ids,
+                        inputs,
+                        scenario_id,
+                        merchant_id,
+                        arrival_seq,
+                        label="party_id",
+                    )
+                    account_id = self._pick_linked_id(
+                        account_map.get(party_id, []),
+                        inputs,
+                        scenario_id,
+                        party_id,
+                        arrival_seq,
+                        label="account_id",
+                    )
+                    instrument_id = self._pick_linked_id(
+                        instrument_map.get(account_id, []),
+                        inputs,
+                        scenario_id,
+                        account_id,
+                        arrival_seq,
+                        label="instrument_id",
+                    )
+                    device_id = self._pick_linked_id(
+                        device_map.get(party_id, []),
+                        inputs,
+                        scenario_id,
+                        party_id,
+                        arrival_seq,
+                        label="device_id",
+                        fallback=device_ids,
+                    )
+                    ip_id = self._pick_linked_id(
+                        ip_map.get(device_id, []),
+                        inputs,
+                        scenario_id,
+                        device_id,
+                        arrival_seq,
+                        label="ip_id",
+                        fallback=ip_ids,
+                    )
+                    session_id = stable_int_hash(
+                        inputs.manifest_fingerprint,
+                        inputs.parameter_hash,
+                        scenario_id,
+                        party_id,
+                        device_id,
+                        merchant_id,
+                        int(arrival_seq) // 10,
+                    )
 
-                enriched = dict(row)
-                enriched.update(
-                    {
-                        "party_id": party_id,
-                        "account_id": account_id,
-                        "instrument_id": instrument_id,
-                        "device_id": device_id,
-                        "ip_id": ip_id,
-                        "session_id": session_id,
-                        "parameter_hash": inputs.parameter_hash,
-                    }
-                )
-                attached_rows.append(enriched)
+                    enriched = dict(row)
+                    enriched.update(
+                        {
+                            "party_id": party_id,
+                            "account_id": account_id,
+                            "instrument_id": instrument_id,
+                            "device_id": device_id,
+                            "ip_id": ip_id,
+                            "session_id": session_id,
+                            "parameter_hash": inputs.parameter_hash,
+                        }
+                    )
+                    attached_rows.append(enriched)
 
-            arrival_entities_df = pl.DataFrame(attached_rows)
-            arrival_entities_path = self._write_dataset(
-                arrival_entities_df,
+                if not attached_rows:
+                    continue
+                part_path = self._resolve_output_path(
+                    inputs,
+                    dictionary,
+                    "s1_arrival_entities_6B",
+                    scenario_id=scenario_id,
+                    part_index=part_index,
+                )
+                pl.DataFrame(attached_rows).write_parquet(part_path)
+                part_paths.append(part_path)
+                part_index += 1
+
+            if not part_paths:
+                logger.warning("6B.S1 no arrival rows for scenario=%s", scenario_id)
+                continue
+
+            arrival_entities_paths[scenario_id] = part_paths[0]
+            session_index_path = self._write_session_index(
+                part_paths,
                 inputs,
                 dictionary,
-                "s1_arrival_entities_6B",
                 scenario_id=scenario_id,
             )
-
-            session_index_df = self._build_session_index(arrival_entities_df)
-            session_index_path = self._write_dataset(
-                session_index_df,
-                inputs,
-                dictionary,
-                "s1_session_index_6B",
-                scenario_id=scenario_id,
-            )
-
-            arrival_entities_paths[scenario_id] = arrival_entities_path
             session_index_paths[scenario_id] = session_index_path
 
         return ArrivalOutputs(
@@ -280,7 +290,17 @@ class ArrivalRunner:
             return pl.DataFrame([])
         cols = [
             col
-            for col in ["seed", "manifest_fingerprint", "scenario_id", "session_id", "party_id", "device_id", "account_id", "instrument_id", "merchant_id"]
+            for col in [
+                "seed",
+                "manifest_fingerprint",
+                "scenario_id",
+                "session_id",
+                "party_id",
+                "device_id",
+                "account_id",
+                "instrument_id",
+                "merchant_id",
+            ]
             if col in arrival_entities.columns
         ]
         grouped = arrival_entities.group_by(["session_id"]).agg(
@@ -292,15 +312,15 @@ class ArrivalRunner:
         return grouped.join(firsts, on="session_id", how="left")
 
     @staticmethod
-    def _write_dataset(
-        df: pl.DataFrame,
+    def _resolve_output_path(
         inputs: ArrivalInputs,
         dictionary: Mapping[str, object] | Sequence[object],
         dataset_id: str,
         *,
         scenario_id: str,
+        part_index: int = 0,
     ) -> Path:
-        path = inputs.data_root / render_dataset_path(
+        raw_path = render_dataset_path(
             dataset_id=dataset_id,
             template_args={
                 "seed": inputs.seed,
@@ -310,8 +330,54 @@ class ArrivalRunner:
             },
             dictionary=dictionary,
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        df.write_parquet(path)
+        template_path = Path(raw_path)
+        filename = template_path.name
+        if "*" in filename:
+            filename = filename.replace("*", f"{part_index:05d}")
+        resolved = inputs.data_root / template_path.parent / filename
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        return resolved
+
+    @staticmethod
+    def _write_session_index(
+        part_paths: Sequence[Path],
+        inputs: ArrivalInputs,
+        dictionary: Mapping[str, object] | Sequence[object],
+        *,
+        scenario_id: str,
+    ) -> Path:
+        scan = pl.scan_parquet([path.as_posix() for path in part_paths])
+        schema_cols = scan.collect_schema().names()
+        cols = [
+            col
+            for col in [
+                "seed",
+                "manifest_fingerprint",
+                "scenario_id",
+                "session_id",
+                "party_id",
+                "device_id",
+                "account_id",
+                "instrument_id",
+                "merchant_id",
+            ]
+            if col in schema_cols
+        ]
+        grouped = scan.group_by("session_id").agg(
+            pl.count().alias("arrival_count"),
+            pl.col("ts_utc").min().alias("session_start_utc"),
+            pl.col("ts_utc").max().alias("session_end_utc"),
+        )
+        firsts = scan.select(cols).group_by("session_id").first()
+        session_index = grouped.join(firsts, on="session_id", how="left")
+        path = ArrivalRunner._resolve_output_path(
+            inputs,
+            dictionary,
+            "s1_session_index_6B",
+            scenario_id=scenario_id,
+            part_index=0,
+        )
+        session_index.sink_parquet(path)
         return path
 
     @staticmethod

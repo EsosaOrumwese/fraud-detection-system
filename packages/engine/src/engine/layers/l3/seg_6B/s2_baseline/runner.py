@@ -74,72 +74,89 @@ class BaselineRunner:
         event_paths: dict[str, Path] = {}
 
         for scenario_id, paths in scenarios.items():
-            arrivals_df = pl.scan_parquet([path.as_posix() for path in paths]).collect()
-            flow_rows = []
-            event_rows = []
-            for row in arrivals_df.to_dicts():
-                merchant_id = row.get("merchant_id")
-                arrival_seq = row.get("arrival_seq", row.get("arrival_id", 0))
-                flow_id = stable_int_hash(
-                    inputs.manifest_fingerprint,
-                    inputs.parameter_hash,
-                    scenario_id,
-                    merchant_id,
-                    arrival_seq,
-                    "flow",
-                )
-                u = stable_uniform(flow_id, "amount")
-                amount = round(amount_min + u * (amount_max - amount_min), 2)
-                flow_rows.append(
-                    {
-                        "flow_id": flow_id,
-                        "arrival_seq": arrival_seq,
-                        "merchant_id": merchant_id,
-                        "party_id": row.get("party_id"),
-                        "account_id": row.get("account_id"),
-                        "instrument_id": row.get("instrument_id"),
-                        "device_id": row.get("device_id"),
-                        "ip_id": row.get("ip_id"),
-                        "ts_utc": row.get("ts_utc"),
-                        "amount": amount,
-                        "seed": inputs.seed,
-                        "manifest_fingerprint": inputs.manifest_fingerprint,
-                        "parameter_hash": inputs.parameter_hash,
-                        "scenario_id": scenario_id,
-                    }
-                )
-                event_rows.append(
-                    {
-                        "flow_id": flow_id,
-                        "event_seq": 1,
-                        "event_type": "AUTH",
-                        "ts_utc": row.get("ts_utc"),
-                        "amount": amount,
-                        "seed": inputs.seed,
-                        "manifest_fingerprint": inputs.manifest_fingerprint,
-                        "parameter_hash": inputs.parameter_hash,
-                        "scenario_id": scenario_id,
-                    }
-                )
+            part_index = 0
+            first_flow_path: Path | None = None
+            first_event_path: Path | None = None
+            for path in sorted(paths):
+                arrivals_df = pl.read_parquet(path)
+                if arrivals_df.is_empty():
+                    continue
+                flow_rows = []
+                event_rows = []
+                for row in arrivals_df.iter_rows(named=True):
+                    merchant_id = row.get("merchant_id")
+                    arrival_seq = row.get("arrival_seq", row.get("arrival_id", 0))
+                    flow_id = stable_int_hash(
+                        inputs.manifest_fingerprint,
+                        inputs.parameter_hash,
+                        scenario_id,
+                        merchant_id,
+                        arrival_seq,
+                        "flow",
+                    )
+                    u = stable_uniform(flow_id, "amount")
+                    amount = round(amount_min + u * (amount_max - amount_min), 2)
+                    flow_rows.append(
+                        {
+                            "flow_id": flow_id,
+                            "arrival_seq": arrival_seq,
+                            "merchant_id": merchant_id,
+                            "party_id": row.get("party_id"),
+                            "account_id": row.get("account_id"),
+                            "instrument_id": row.get("instrument_id"),
+                            "device_id": row.get("device_id"),
+                            "ip_id": row.get("ip_id"),
+                            "ts_utc": row.get("ts_utc"),
+                            "amount": amount,
+                            "seed": inputs.seed,
+                            "manifest_fingerprint": inputs.manifest_fingerprint,
+                            "parameter_hash": inputs.parameter_hash,
+                            "scenario_id": scenario_id,
+                        }
+                    )
+                    event_rows.append(
+                        {
+                            "flow_id": flow_id,
+                            "event_seq": 1,
+                            "event_type": "AUTH",
+                            "ts_utc": row.get("ts_utc"),
+                            "amount": amount,
+                            "seed": inputs.seed,
+                            "manifest_fingerprint": inputs.manifest_fingerprint,
+                            "parameter_hash": inputs.parameter_hash,
+                            "scenario_id": scenario_id,
+                        }
+                    )
 
-            flow_df = pl.DataFrame(flow_rows)
-            event_df = pl.DataFrame(event_rows)
-            flow_path = self._write_dataset(
-                flow_df,
-                inputs,
-                dictionary,
-                "s2_flow_anchor_baseline_6B",
-                scenario_id=scenario_id,
-            )
-            event_path = self._write_dataset(
-                event_df,
-                inputs,
-                dictionary,
-                "s2_event_stream_baseline_6B",
-                scenario_id=scenario_id,
-            )
-            flow_paths[scenario_id] = flow_path
-            event_paths[scenario_id] = event_path
+                if flow_rows:
+                    flow_path = self._resolve_output_path(
+                        inputs,
+                        dictionary,
+                        "s2_flow_anchor_baseline_6B",
+                        scenario_id=scenario_id,
+                        part_index=part_index,
+                    )
+                    pl.DataFrame(flow_rows).write_parquet(flow_path)
+                    if first_flow_path is None:
+                        first_flow_path = flow_path
+                if event_rows:
+                    event_path = self._resolve_output_path(
+                        inputs,
+                        dictionary,
+                        "s2_event_stream_baseline_6B",
+                        scenario_id=scenario_id,
+                        part_index=part_index,
+                    )
+                    pl.DataFrame(event_rows).write_parquet(event_path)
+                    if first_event_path is None:
+                        first_event_path = event_path
+                if flow_rows or event_rows:
+                    part_index += 1
+
+            if first_flow_path is not None:
+                flow_paths[scenario_id] = first_flow_path
+            if first_event_path is not None:
+                event_paths[scenario_id] = first_event_path
 
         return BaselineOutputs(flow_paths=flow_paths, event_paths=event_paths)
 
@@ -191,15 +208,15 @@ class BaselineRunner:
         return scenarios
 
     @staticmethod
-    def _write_dataset(
-        df: pl.DataFrame,
+    def _resolve_output_path(
         inputs: BaselineInputs,
         dictionary: Mapping[str, object] | Sequence[object],
         dataset_id: str,
         *,
         scenario_id: str,
+        part_index: int = 0,
     ) -> Path:
-        path = inputs.data_root / render_dataset_path(
+        raw_path = render_dataset_path(
             dataset_id=dataset_id,
             template_args={
                 "seed": inputs.seed,
@@ -209,9 +226,13 @@ class BaselineRunner:
             },
             dictionary=dictionary,
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        df.write_parquet(path)
-        return path
+        template_path = Path(raw_path)
+        filename = template_path.name
+        if "*" in filename:
+            filename = filename.replace("*", f"{part_index:05d}")
+        resolved = inputs.data_root / template_path.parent / filename
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        return resolved
 
 
 __all__ = ["BaselineInputs", "BaselineOutputs", "BaselineRunner"]

@@ -79,60 +79,83 @@ class FraudRunner:
         flow_paths = inventory.resolve_files(manifest_key=flow_manifest_key)
         event_paths = inventory.resolve_files(manifest_key=event_manifest_key)
         scenarios = self._group_by_scenario(flow_paths)
+        event_scenarios = self._group_by_scenario(event_paths)
 
         campaign_paths: dict[str, Path] = {}
         out_flow_paths: dict[str, Path] = {}
         out_event_paths: dict[str, Path] = {}
 
         for scenario_id, paths in scenarios.items():
-            flows_df = pl.scan_parquet([path.as_posix() for path in paths]).collect()
-            events_df = self._load_events_for_scenario(event_paths, scenario_id)
-
-            flow_rows = []
             fraud_flow_ids: set[int] = set()
-            for row in flows_df.to_dicts():
-                flow_id = int(row.get("flow_id"))
-                is_fraud = stable_uniform(flow_id, scenario_id, "fraud") < fraud_rate
-                if is_fraud:
-                    fraud_flow_ids.add(flow_id)
-                enriched = dict(row)
-                enriched.update(
-                    {
-                        "fraud_flag": bool(is_fraud),
-                        "campaign_id": campaign_id if is_fraud else None,
-                    }
-                )
-                flow_rows.append(enriched)
+            flow_part_index = 0
+            first_flow_path: Path | None = None
+            first_event_path: Path | None = None
 
-            event_rows = []
-            for row in events_df.to_dicts():
-                flow_id = int(row.get("flow_id"))
-                is_fraud = flow_id in fraud_flow_ids
-                enriched = dict(row)
-                enriched.update(
-                    {
-                        "fraud_flag": bool(is_fraud),
-                        "campaign_id": campaign_id if is_fraud else None,
-                    }
-                )
-                event_rows.append(enriched)
+            for path in sorted(paths):
+                flows_df = pl.read_parquet(path)
+                if flows_df.is_empty():
+                    continue
+                flow_rows = []
+                for row in flows_df.iter_rows(named=True):
+                    flow_id = int(row.get("flow_id"))
+                    is_fraud = stable_uniform(flow_id, scenario_id, "fraud") < fraud_rate
+                    if is_fraud:
+                        fraud_flow_ids.add(flow_id)
+                    enriched = dict(row)
+                    enriched.update(
+                        {
+                            "fraud_flag": bool(is_fraud),
+                            "campaign_id": campaign_id if is_fraud else None,
+                        }
+                    )
+                    flow_rows.append(enriched)
 
-            flow_out = pl.DataFrame(flow_rows)
-            event_out = pl.DataFrame(event_rows)
-            flow_path = self._write_dataset(
-                flow_out,
-                inputs,
-                dictionary,
-                "s3_flow_anchor_with_fraud_6B",
-                scenario_id=scenario_id,
-            )
-            event_path = self._write_dataset(
-                event_out,
-                inputs,
-                dictionary,
-                "s3_event_stream_with_fraud_6B",
-                scenario_id=scenario_id,
-            )
+                if not flow_rows:
+                    continue
+                flow_path = self._resolve_output_path(
+                    inputs,
+                    dictionary,
+                    "s3_flow_anchor_with_fraud_6B",
+                    scenario_id=scenario_id,
+                    part_index=flow_part_index,
+                )
+                pl.DataFrame(flow_rows).write_parquet(flow_path)
+                if first_flow_path is None:
+                    first_flow_path = flow_path
+                flow_part_index += 1
+
+            event_part_index = 0
+            for path in sorted(event_scenarios.get(scenario_id, [])):
+                events_df = pl.read_parquet(path)
+                if events_df.is_empty():
+                    continue
+                event_rows = []
+                for row in events_df.iter_rows(named=True):
+                    flow_id = int(row.get("flow_id"))
+                    is_fraud = flow_id in fraud_flow_ids
+                    enriched = dict(row)
+                    enriched.update(
+                        {
+                            "fraud_flag": bool(is_fraud),
+                            "campaign_id": campaign_id if is_fraud else None,
+                        }
+                    )
+                    event_rows.append(enriched)
+
+                if not event_rows:
+                    continue
+                event_path = self._resolve_output_path(
+                    inputs,
+                    dictionary,
+                    "s3_event_stream_with_fraud_6B",
+                    scenario_id=scenario_id,
+                    part_index=event_part_index,
+                )
+                pl.DataFrame(event_rows).write_parquet(event_path)
+                if first_event_path is None:
+                    first_event_path = event_path
+                event_part_index += 1
+
             campaign_df = pl.DataFrame(
                 [
                     {
@@ -146,18 +169,20 @@ class FraudRunner:
                     }
                 ]
             )
-            campaign_path = self._write_dataset(
-                campaign_df,
+            campaign_path = self._resolve_output_path(
                 inputs,
                 dictionary,
                 "s3_campaign_catalogue_6B",
                 scenario_id=scenario_id,
-                single_file=True,
+                part_index=0,
             )
+            campaign_df.write_parquet(campaign_path)
 
+            if first_flow_path is not None:
+                out_flow_paths[scenario_id] = first_flow_path
+            if first_event_path is not None:
+                out_event_paths[scenario_id] = first_event_path
             campaign_paths[scenario_id] = campaign_path
-            out_flow_paths[scenario_id] = flow_path
-            out_event_paths[scenario_id] = event_path
 
         return FraudOutputs(
             campaign_paths=campaign_paths,
@@ -225,23 +250,16 @@ class FraudRunner:
             scenarios.setdefault(scenario_id, []).append(path)
         return scenarios
 
-    def _load_events_for_scenario(self, paths: Sequence[Path], scenario_id: str) -> pl.DataFrame:
-        filtered = [path for path in paths if f"scenario_id={scenario_id}" in path.as_posix()]
-        if not filtered:
-            return pl.DataFrame([])
-        return pl.scan_parquet([path.as_posix() for path in filtered]).collect()
-
     @staticmethod
-    def _write_dataset(
-        df: pl.DataFrame,
+    def _resolve_output_path(
         inputs: FraudInputs,
         dictionary: Mapping[str, object] | Sequence[object],
         dataset_id: str,
         *,
         scenario_id: str,
-        single_file: bool = False,
+        part_index: int = 0,
     ) -> Path:
-        path = inputs.data_root / render_dataset_path(
+        raw_path = render_dataset_path(
             dataset_id=dataset_id,
             template_args={
                 "seed": inputs.seed,
@@ -251,12 +269,13 @@ class FraudRunner:
             },
             dictionary=dictionary,
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if single_file:
-            df.write_parquet(path)
-            return path
-        df.write_parquet(path)
-        return path
+        template_path = Path(raw_path)
+        filename = template_path.name
+        if "*" in filename:
+            filename = filename.replace("*", f"{part_index:05d}")
+        resolved = inputs.data_root / template_path.parent / filename
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        return resolved
 
 
 __all__ = ["FraudInputs", "FraudOutputs", "FraudRunner"]
