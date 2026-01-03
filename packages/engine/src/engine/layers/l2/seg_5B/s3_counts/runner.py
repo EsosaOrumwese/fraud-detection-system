@@ -38,6 +38,18 @@ class CountResult:
     run_report_path: Path
 
 
+@dataclass(frozen=True)
+class _CountLawContext:
+    count_law: str
+    lambda_zero_eps: float
+    poisson_exact_lambda_max: float
+    poisson_n_cap_exact: int
+    max_count_per_bucket: int
+    base_by_band: Mapping[str, float]
+    class_multipliers: Mapping[str, float]
+    kappa_bounds: tuple[float, float]
+
+
 class CountRunner:
     """Convert realised intensities into bucket counts."""
 
@@ -61,8 +73,9 @@ class CountRunner:
             },
         )
         count_policy = _load_yaml(inventory, "arrival_count_config_5B")
-        count_law = str(count_policy.get("count_law_id", "poisson"))
-        lambda_zero_eps = float(count_policy.get("lambda_zero_eps", 1e-6))
+        ctx = _build_count_context(count_policy)
+        count_law = ctx.count_law
+        lambda_zero_eps = ctx.lambda_zero_eps
         rng_logger = RNGLogWriter(
             base_path=data_root,
             seed=inputs.seed,
@@ -176,7 +189,11 @@ class CountRunner:
                     class_values = {value for value in demand_class_map.values() if value}
                     if class_values:
                         class_df = pl.DataFrame({"demand_class": sorted(class_values)})
-                        missing_classes = _missing_classes(class_df, count_policy)
+                        missing_classes = _missing_classes(
+                            class_df,
+                            count_law=ctx.count_law,
+                            class_multipliers=ctx.class_multipliers,
+                        )
                         if missing_classes:
                             raise ValueError(
                                 f"arrival_count_config_5B missing class multipliers for {missing_classes}"
@@ -283,7 +300,7 @@ class CountRunner:
                             count = 0
                         else:
                             count = _draw_count(
-                                count_policy,
+                                ctx,
                                 rng_logger=rng_logger,
                                 manifest_fingerprint=mf,
                                 parameter_hash=ph,
@@ -363,17 +380,17 @@ def _load_yaml(inventory: SealedInventory, artifact_id: str) -> Mapping[str, obj
     return yaml.safe_load(files[0].read_text(encoding="utf-8")) or {}
 
 
-def _missing_classes(df: pl.DataFrame, cfg: Mapping[str, object]) -> list[str]:
-    count_law = str(cfg.get("count_law_id", "poisson"))
+def _missing_classes(
+    df: pl.DataFrame, *, count_law: str, class_multipliers: Mapping[str, float]
+) -> list[str]:
     if count_law != "nb2":
         return []
-    class_mult = cfg.get("nb2", {}).get("kappa_law", {}).get("class_multipliers", {}) or {}
     classes = {str(value) for value in df.get_column("demand_class").unique().to_list()}
-    return sorted([value for value in classes if value not in class_mult])
+    return sorted([value for value in classes if value not in class_multipliers])
 
 
 def _draw_count(
-    cfg: Mapping[str, object],
+    ctx: _CountLawContext,
     *,
     rng_logger: RNGLogWriter,
     manifest_fingerprint: str,
@@ -387,10 +404,9 @@ def _draw_count(
     scenario_band: str,
     demand_class: str,
 ) -> int:
-    lambda_zero_eps = float(cfg.get("lambda_zero_eps", 1e-6))
-    if lambda_value <= lambda_zero_eps:
+    if lambda_value <= ctx.lambda_zero_eps:
         return 0
-    count_law = str(cfg.get("count_law_id", "poisson"))
+    count_law = ctx.count_law
     domain_key = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index={bucket_index}"
     if count_law == "poisson":
         event = derive_event(
@@ -417,22 +433,19 @@ def _draw_count(
             },
         )
         u = event.uniforms()[0]
-        sampler = cfg.get("poisson_sampler", {}) or {}
         return poisson_one_u(
             u=u,
             lam=lambda_value,
-            lam_exact_max=float(sampler.get("poisson_exact_lambda_max", 50.0)),
-            n_cap_exact=int(sampler.get("poisson_n_cap_exact", 200000)),
-            max_count=int(cfg.get("max_count_per_bucket", 200000)),
+            lam_exact_max=ctx.poisson_exact_lambda_max,
+            n_cap_exact=ctx.poisson_n_cap_exact,
+            max_count=ctx.max_count_per_bucket,
         )
     if count_law != "nb2":
         raise ValueError("unsupported count_law_id")
 
-    nb2_cfg = cfg.get("nb2", {}) or {}
-    kappa_cfg = nb2_cfg.get("kappa_law", {}) or {}
-    base_by_band = kappa_cfg.get("base_by_scenario_band", {}) or {}
-    class_mult = kappa_cfg.get("class_multipliers", {}) or {}
-    bounds = kappa_cfg.get("kappa_bounds", [2.0, 200.0])
+    base_by_band = ctx.base_by_band
+    class_mult = ctx.class_multipliers
+    bounds = ctx.kappa_bounds
     kappa = float(base_by_band.get(scenario_band, base_by_band.get("baseline", 30.0)))
     kappa *= float(class_mult.get(demand_class, 1.0))
     kappa = max(float(bounds[0]), min(float(bounds[1]), kappa))
@@ -462,13 +475,33 @@ def _draw_count(
     )
     u1, u2 = event.uniforms()
     lambda_gamma = gamma_one_u_approx(lambda_value, kappa, u1)
-    sampler = cfg.get("poisson_sampler", {}) or {}
     return poisson_one_u(
         u=u2,
         lam=lambda_gamma,
-        lam_exact_max=float(sampler.get("poisson_exact_lambda_max", 50.0)),
-        n_cap_exact=int(sampler.get("poisson_n_cap_exact", 200000)),
-        max_count=int(cfg.get("max_count_per_bucket", 200000)),
+        lam_exact_max=ctx.poisson_exact_lambda_max,
+        n_cap_exact=ctx.poisson_n_cap_exact,
+        max_count=ctx.max_count_per_bucket,
+    )
+
+
+def _build_count_context(cfg: Mapping[str, object]) -> _CountLawContext:
+    count_law = str(cfg.get("count_law_id", "poisson"))
+    lambda_zero_eps = float(cfg.get("lambda_zero_eps", 1e-6))
+    sampler = cfg.get("poisson_sampler", {}) or {}
+    nb2_cfg = cfg.get("nb2", {}) or {}
+    kappa_cfg = nb2_cfg.get("kappa_law", {}) or {}
+    base_by_band = kappa_cfg.get("base_by_scenario_band", {}) or {}
+    class_mult = kappa_cfg.get("class_multipliers", {}) or {}
+    bounds = kappa_cfg.get("kappa_bounds", [2.0, 200.0])
+    return _CountLawContext(
+        count_law=count_law,
+        lambda_zero_eps=lambda_zero_eps,
+        poisson_exact_lambda_max=float(sampler.get("poisson_exact_lambda_max", 50.0)),
+        poisson_n_cap_exact=int(sampler.get("poisson_n_cap_exact", 200000)),
+        max_count_per_bucket=int(cfg.get("max_count_per_bucket", 200000)),
+        base_by_band={str(k): float(v) for k, v in base_by_band.items()},
+        class_multipliers={str(k): float(v) for k, v in class_mult.items()},
+        kappa_bounds=(float(bounds[0]), float(bounds[1])),
     )
 
 
