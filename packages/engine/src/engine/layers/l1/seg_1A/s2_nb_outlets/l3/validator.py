@@ -126,8 +126,13 @@ def validate_nb_run(
         raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "cusum section missing from validation policy")
     reference_k = cusum_policy.get("reference_k")
     threshold_h = cusum_policy.get("threshold_h")
+    alpha_cap = cusum_policy.get("alpha_cap")
     if reference_k is None or threshold_h is None:
         raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "cusum.reference_k/threshold_h missing from validation policy")
+    if alpha_cap is not None:
+        alpha_cap = float(alpha_cap)
+        if not (0.0 < alpha_cap <= 1.0):
+            raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "cusum.alpha_cap must be in (0,1]")
 
     root = base_path.expanduser().resolve()
     gamma_path = _partition_path(
@@ -547,8 +552,12 @@ def validate_nb_run(
     Ms = sorted(inclusion_rows, key=lambda row: row["merchant_id"])
     S = 0.0
     Smax = 0.0
+    cusum_alpha_capped = 0
     for row in Ms:
         alpha_prob = row["alpha"]
+        if alpha_cap is not None and alpha_prob > alpha_cap:
+            alpha_prob = alpha_cap
+            cusum_alpha_capped += 1
         r_value = row["rejections"]
         expected_r = (1.0 - alpha_prob) / alpha_prob
         variance_r = (1.0 - alpha_prob) / (alpha_prob * alpha_prob)
@@ -586,6 +595,8 @@ def validate_nb_run(
         "rho_reject": float(rho_reject),
         "p99_rejections": float(p99_rejections),
         "cusum_max": float(Smax),
+        "cusum_alpha_cap": float(alpha_cap) if alpha_cap is not None else None,
+        "cusum_alpha_capped_count": float(cusum_alpha_capped),
         "merchant_count": float(len(inclusion_rows)),
         "total_rejections": float(R),
         "total_attempts": float(A),
