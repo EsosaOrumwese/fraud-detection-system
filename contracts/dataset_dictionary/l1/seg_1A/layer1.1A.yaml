@@ -12,11 +12,11 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
-  iso_canonical:
-    description: Canonical ISO-3166 reference with UN region metadata.
+  iso3166_canonical_2024:
+    description: Canonical ISO-3166-1 alpha-2 reference (FK authority).
     format: parquet
-    path: reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet
-    schema_ref: l1/seg_1A/iso_canonical.schema.json
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    schema_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
     partitioning: []
     owner: reference
     retention_days: 365

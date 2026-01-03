@@ -28,7 +28,7 @@ class _ReferenceSurfaceSpec:
 _SEGMENT1B_REFERENCE_SURFACES: Sequence[_ReferenceSurfaceSpec] = (
     _ReferenceSurfaceSpec(
         dataset_id="iso3166_canonical_2024",
-        source=Path("reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet"),
+        source=Path("reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"),
         relative_destination=Path("reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"),
     ),
     _ReferenceSurfaceSpec(

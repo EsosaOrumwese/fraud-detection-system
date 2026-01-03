@@ -1074,7 +1074,7 @@ def _load_iso_codes() -> set[str] | None:
     if _ISO_CODES is not None:
         return _ISO_CODES
     try:
-        entry = _dictionary_entry("iso_canonical")
+        entry = _dictionary_entry("iso3166_canonical_2024")
     except Exception:
         _ISO_CODES = None
         return _ISO_CODES

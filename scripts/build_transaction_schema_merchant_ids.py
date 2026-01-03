@@ -30,7 +30,7 @@ ARTEFACT_BASE = ROOT / "artefacts" / "data-intake" / "1A" / DATASET_ID
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", default="2025-10-07", help="Version tag for output partition")
-    parser.add_argument("--iso-version", default="2025-10-08", help="ISO canonical version")
+    parser.add_argument("--iso-version", default="2024-12-31", help="ISO canonical version")
     parser.add_argument("--gdp-version", default="2025-10-07", help="GDP reference version")
     parser.add_argument("--bucket-version", default="2025-10-07", help="GDP bucket map version")
     parser.add_argument("--mcc-version", default="2025-12-31", help="MCC canonical vintage")
@@ -84,7 +84,7 @@ def load_bucket_map(version: str) -> Dict[str, int]:
 
 
 def load_iso_set(version: str) -> set[str]:
-    path = ROOT / "reference" / "layer1" / "iso_canonical" / f'v{version}' / 'iso_canonical.parquet'
+    path = ROOT / "reference" / "iso" / "iso3166_canonical" / version / "iso3166.parquet"
     if not path.exists():
         raise FileNotFoundError(f"ISO canonical parquet not found: {path}")
     df = pl.read_parquet(path).select("country_iso")
@@ -403,8 +403,8 @@ def build_dataset(args: argparse.Namespace) -> None:
         f"reference/economic/gdp_bucket_map/{args.bucket_version}/gdp_bucket_map.parquet": sha256sum(
             ROOT / "reference" / "economic" / "gdp_bucket_map" / args.bucket_version / "gdp_bucket_map.parquet"
         ),
-        f"reference/layer1/iso_canonical/{args.iso_version}/iso_canonical.parquet": sha256sum(
-            ROOT / "reference" / "layer1" / "iso_canonical" / f"v{args.iso_version}" / "iso_canonical.parquet"
+        f"reference/iso/iso3166_canonical/{args.iso_version}/iso3166.parquet": sha256sum(
+            ROOT / "reference" / "iso" / "iso3166_canonical" / args.iso_version / "iso3166.parquet"
         ),
         f"reference/industry/mcc_canonical/{args.mcc_version}/mcc_canonical.parquet": sha256sum(
             ROOT / "reference" / "industry" / "mcc_canonical" / args.mcc_version / "mcc_canonical.parquet"

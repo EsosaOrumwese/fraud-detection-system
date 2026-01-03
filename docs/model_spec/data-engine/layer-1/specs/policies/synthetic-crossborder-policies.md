@@ -12,7 +12,7 @@ These synthetic policy artefacts unblock S0 and S3 in the absence of production 
   - Deny CNP travel ranges (`3000-3999`, `4722`).
   - Whitelist CP merchants across the synthetic EEA subset.
   - Catch-all default allow.
-- **Dependencies**: Requires `iso_canonical` v2025-10-09 so all synthetic ISO codes resolve.
+- **Dependencies**: Requires `iso3166_canonical_2024` (`reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet`) for ISO2 validation.
 
 ## S3 – `config/policy/s3.rule_ladder.yaml`
 - **Semver**: 0.1.0 (synthetic)

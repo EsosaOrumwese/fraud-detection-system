@@ -21,7 +21,7 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
 4. **Artefact locations**
    - Identify the governed inputs for Segment 1A:
      - Merchant ingress parquet: `reference/layer1/transaction_schema_merchant_ids/v2025-10-09/transaction_schema_merchant_ids.parquet` (prior snapshots available in the same directory if you need to align with older manifests).
-     - ISO canonical table: `reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet`.
+    - ISO canonical table: `reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet`.
      - GDP tables: `reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet`.
      - GDP bucket map: `reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet`.
      - Policy YAMLs: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml`, `contracts/policies/l1/seg_1A/policy.s3.base_weight.yaml`, `contracts/policies/l1/seg_1A/policy.s3.thresholds.yaml`.

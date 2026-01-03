@@ -44,7 +44,7 @@ GIT_COMMIT ?= $(shell git rev-parse HEAD)
 # External versions (defaults; override as needed)
 # ---------------------------------------------------------------------------
 MERCHANT_VERSION ?= 2026-01-03
-MERCHANT_ISO_VERSION ?= 2025-10-09
+MERCHANT_ISO_VERSION ?= 2024-12-31
 MERCHANT_GDP_VERSION ?= 2025-04-15
 MERCHANT_BUCKET_VERSION ?= 2024
 MERCHANT_MCC_VERSION ?= 2025-12-31

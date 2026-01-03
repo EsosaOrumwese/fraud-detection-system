@@ -60,13 +60,13 @@ def discover_paths(
     merchant_path = merchant_dir / "transaction_schema_merchant_ids.parquet"
 
     # ISO canonical
-    iso_root = ROOT / "reference" / "layer1" / "iso_canonical"
+    iso_root = ROOT / "reference" / "iso" / "iso3166_canonical"
     iso_dir = (
         iso_root / iso_version
         if iso_version
         else _latest_subdir(iso_root)
     )
-    iso_path = iso_dir / "iso_canonical.parquet"
+    iso_path = iso_dir / "iso3166.parquet"
 
     # GDP
     gdp_root = ROOT / "reference" / "economic" / "world_bank_gdp_per_capita"

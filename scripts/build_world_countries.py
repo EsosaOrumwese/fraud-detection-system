@@ -118,8 +118,8 @@ def build_world_countries(
         "generator_script": "scripts/build_world_countries.py",
         "source_geojson": str(src_geojson.relative_to(ROOT)),
         "source_geojson_sha256": sha256sum(src_geojson),
-        "iso_canonical": str(iso_canonical_path.relative_to(ROOT)),
-        "iso_canonical_sha256": sha256sum(iso_canonical_path),
+        "iso3166_canonical": str(iso_canonical_path.relative_to(ROOT)),
+        "iso3166_canonical_sha256": sha256sum(iso_canonical_path),
         "output_parquet": str(parquet_path.relative_to(ROOT)),
         "output_parquet_sha256": sha256sum(parquet_path),
         "row_count": int(len(gdf)),
@@ -140,7 +140,7 @@ def build_world_countries(
     sha_path = output_dir / "SHA256SUMS"
     lines = [
         f"{manifest['source_geojson_sha256']}  {manifest['source_geojson']}",
-        f"{manifest['iso_canonical_sha256']}  {manifest['iso_canonical']}",
+        f"{manifest['iso3166_canonical_sha256']}  {manifest['iso3166_canonical']}",
         f"{manifest['output_parquet_sha256']}  {manifest['output_parquet']}",
         f"{sha256sum(qa_path)}  reference/spatial/world_countries/{version}/world_countries.qa.json",
     ]
@@ -151,7 +151,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", default="2025-10-08")
     parser.add_argument("--source", default=str(RAW_DIR / "countries.geojson"))
-    parser.add_argument("--iso-table", default=str(ROOT / "reference/layer1/iso_canonical/v2025-10-08/iso_canonical.parquet"))
+    parser.add_argument(
+        "--iso-table",
+        default=str(
+            ROOT / "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"
+        ),
+    )
     args = parser.parse_args()
 
     build_world_countries(Path(args.source), Path(args.iso_table), args.version)
