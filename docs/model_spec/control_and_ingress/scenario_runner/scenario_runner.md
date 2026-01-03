@@ -585,6 +585,10 @@ Scenario Runner MUST reference (not redefine) the following authoritative contra
 * `engine_outputs.catalogue.yaml` (authoritative list of `output_id`s + addressing + required gates)
 * `engine_gates.map.yaml` (authoritative list of `gate_id`s + verification semantics)
 
+Scenario Runner contracts MAY impose stricter lexical constraints (e.g., hex token patterns)
+on top of Rails opaque IDs when required to remain compatible with the Data Engine Interface Pack.
+This does not redefine Rails semantics.
+
 If a Scenario Runner-owned schema conflicts with any referenced authoritative contract, the Scenario Runner schema MUST be corrected.
 
 ---

@@ -1,9 +1,9 @@
 # contracts/scenario_run_request.schema.yaml
-version: "0.1.0"
+version: "0.1.1"
 $id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/scenario_run_request.schema.yaml"
 $schema: "https://json-schema.org/draft/2020-12/schema"
 
-title: "Scenario Runner — Run Request"
+title: "Scenario Runner - Run Request"
 description: >
   Tool-agnostic request to plan/create a run via Scenario Runner. This request MUST be
   sufficient for Scenario Runner to (a) emit a Run Record (Rails `run_record`) and
@@ -24,11 +24,15 @@ properties:
   # World identity (required)
   # ---------------------------
   manifest_fingerprint:
-    $ref: "#/$defs/hex64"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+      - $ref: "#/$defs/hex64"
     description: "World identity: sealed world fingerprint (content-address)."
 
   parameter_hash:
-    $ref: "#/$defs/hex64"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+      - $ref: "#/$defs/hex64"
     description: "World identity: governed parameter bundle identity."
 
   # ---------------------------
@@ -46,7 +50,9 @@ properties:
   # Run identity (optional: may be chosen by Scenario Runner)
   # ---------------------------
   run_id:
-    $ref: "#/$defs/hex32"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+      - $ref: "#/$defs/hex32"
     description: >
       Optional caller-supplied run correlation identifier. If omitted, Scenario Runner
       will assign a run_id and record it in the Run Record and Run Facts View.
@@ -62,7 +68,9 @@ properties:
   # Seed policy (explicit)
   # ---------------------------
   seed:
-    $ref: "#/$defs/uint64"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+      - $ref: "#/$defs/uint64"
     description: >
       Optional caller-supplied RNG seed. If provided, Scenario Runner MUST use it unchanged
       in the engine invocation and record it in the Run Record.
@@ -176,13 +184,11 @@ $defs:
   # Scenario identifiers (engine-aligned, permissive)
   # ---------------------------
   scenario_id:
-    description: "Scenario identifier (type intentionally permissive)."
+    description: "Scenario identifier (Rails string or non-negative int)."
     anyOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
       - type: integer
         minimum: 0
-      - type: string
-        minLength: 1
-        maxLength: 256
 
   scenario_binding:
     description: >

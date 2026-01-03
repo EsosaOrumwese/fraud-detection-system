@@ -51,6 +51,12 @@ $defs:
     maximum: 9223372036854775807
     description: "Non-negative 64-bit integer."
 
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: "Unsigned 64-bit integer."
+
   pos_int64:
     type: integer
     minimum: 1
@@ -103,8 +109,8 @@ $defs:
 
   seed:
     allOf:
-      - $ref: "#/$defs/opaque_id"
-    description: "RNG identity: declared seed (or seed material) attributable to stochastic outcomes."
+      - $ref: "#/$defs/uint64"
+    description: "RNG identity: declared uint64 seed attributable to stochastic outcomes."
 
   event_id:
     allOf:

@@ -1,9 +1,9 @@
 # contracts/run_status_event.payload.schema.yaml
-version: "0.1.0"
+version: "0.1.1"
 $id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/run_status_event.payload.schema.yaml"
 $schema: "https://json-schema.org/draft/2020-12/schema"
 
-title: "Scenario Runner — Run Status Event (Payload Only)"
+title: "Scenario Runner - Run Status Event (Payload Only)"
 description: >
   Payload schema for Scenario Runner run lifecycle status-change events.
   This schema defines PAYLOAD ONLY. The event envelope is Platform Rails-owned and MUST use
@@ -89,35 +89,17 @@ $defs:
     enum: ["PLANNED", "STARTED", "COMPLETED", "FAILED", "CANCELLED"]
 
   rfc3339_micros_z:
-    type: string
-    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+      - type: string
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
     description: "RFC3339 UTC timestamp with 'Z' suffix; optional fractional seconds up to micros."
 
   target_ref:
-    type: string
-    minLength: 1
-    maxLength: 2048
-    description: "Deterministic reference to a persisted artefact/surface (path/URI/etc.)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
 
   digest:
-    type: string
-    minLength: 8
-    maxLength: 4096
-    pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,31}:[A-Za-z0-9+/=_-]{16,4096}$"
-    description: "Content digest in the form '<alg>:<value>' (e.g., 'sha256:...')."
-
-  reason_code:
-    type: string
-    minLength: 1
-    maxLength: 128
-    pattern: "^[A-Z][A-Z0-9_.-]{0,127}$"
-    description: "Machine-readable reason code token (UPPERCASE recommended)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
 
   reason_codes:
-    type: array
-    minItems: 0
-    maxItems: 256
-    uniqueItems: true
-    items:
-      $ref: "#/$defs/reason_code"
-    description: "List of machine-readable reason codes."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"

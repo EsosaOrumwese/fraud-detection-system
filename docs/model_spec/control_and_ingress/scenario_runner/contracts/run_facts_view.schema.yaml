@@ -1,15 +1,15 @@
 # contracts/run_facts_view.schema.yaml
-version: "0.1.0"
+version: "0.1.1"
 $id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/run_facts_view.schema.yaml"
 $schema: "https://json-schema.org/draft/2020-12/schema"
 
-title: "Scenario Runner — Run Facts View"
+title: "Scenario Runner - Run Facts View"
 description: >
   Downstream discovery surface (authority view) for active run(s). This surface enables
   downstream components to discover the active run identity tuple and obtain pinned
   references required for safe consumption of Data Engine outputs (output locators +
   PASS/FAIL gate proofs). This is a control-plane view: it MUST NOT require heuristic
-  “latest scanning” to discover runs or outputs.
+  "latest scanning" to discover runs or outputs.
 
 type: object
 additionalProperties: false
@@ -64,10 +64,7 @@ $defs:
   # Base primitives
   # ---------------------------
   schema_ref:
-    type: string
-    minLength: 1
-    maxLength: 2048
-    description: "Pinned schema reference (path/URI + fragment)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
 
   version_token:
     type: string
@@ -76,8 +73,10 @@ $defs:
     description: "Opaque version token (semver-like or date-like)."
 
   rfc3339_micros_z:
-    type: string
-    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+      - type: string
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
     description: "RFC3339 UTC timestamp with 'Z' suffix; optional fractional seconds up to micros."
 
   hex64:
@@ -97,54 +96,55 @@ $defs:
     description: "Unsigned 64-bit integer."
 
   digest:
-    type: string
-    minLength: 8
-    maxLength: 4096
-    pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,31}:[A-Za-z0-9+/=_-]{16,4096}$"
-    description: "Content digest in the form '<alg>:<value>' (e.g., 'sha256:...')."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
 
-  reason_code:
-    type: string
-    minLength: 1
-    maxLength: 128
-    pattern: "^[A-Z][A-Z0-9_.-]{0,127}$"
-    description: "Machine-readable reason code token (UPPERCASE recommended)."
+  engine_digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        description: Digest algorithm identifier.
+        type: string
+        enum: ["sha256"]
+      hex:
+        description: Lowercase hex digest.
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+    description: "Engine Interface Pack digest object {algo, hex}."
 
   reason_codes:
-    type: array
-    minItems: 0
-    maxItems: 256
-    uniqueItems: true
-    items:
-      $ref: "#/$defs/reason_code"
-    description: "List of machine-readable reason codes."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/reason_codes"
 
   target_ref:
-    type: string
-    minLength: 1
-    maxLength: 2048
-    description: "Deterministic reference to a persisted artefact/surface (path/URI/etc.)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
 
   # ---------------------------
   # Identifiers aligned to Data Engine Interface Pack
   # ---------------------------
   manifest_fingerprint:
-    $ref: "#/$defs/hex64"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/manifest_fingerprint"
+      - $ref: "#/$defs/hex64"
   parameter_hash:
-    $ref: "#/$defs/hex64"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/parameter_hash"
+      - $ref: "#/$defs/hex64"
   run_id:
-    $ref: "#/$defs/hex32"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/run_id"
+      - $ref: "#/$defs/hex32"
   seed:
-    $ref: "#/$defs/uint64"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/seed"
+      - $ref: "#/$defs/uint64"
 
   scenario_id:
-    description: "Scenario identifier (engine-aligned, permissive)."
+    description: "Scenario identifier (Rails string or non-negative int)."
     anyOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
       - type: integer
         minimum: 0
-      - type: string
-        minLength: 1
-        maxLength: 256
 
   output_id:
     type: string
@@ -207,8 +207,8 @@ $defs:
         description: "Optional UTC timestamp when the output was produced/published."
 
       content_digest:
-        $ref: "#/$defs/digest"
-        description: "Optional digest for immutability verification."
+        $ref: "#/$defs/engine_digest"
+        description: "Optional engine digest object for immutability verification."
 
       notes:
         type: string
@@ -264,8 +264,8 @@ $defs:
         description: "Informative classification of the underlying gate artifact style."
 
       digest:
-        $ref: "#/$defs/digest"
-        description: "Optional portable digest for the gate artifact (gate-specific meaning)."
+        $ref: "#/$defs/engine_digest"
+        description: "Optional engine digest object for the gate artifact (gate-specific meaning)."
 
       artifacts:
         type: object
@@ -302,7 +302,7 @@ $defs:
         $ref: "#/$defs/run_id"
       seed:
         $ref: "#/$defs/seed"
-        description: "Present when the run’s execution semantics rely on stochasticity."
+        description: "Present when the run's execution semantics rely on stochasticity."
 
       # Lifecycle (mirrors Run Record)
       status:
@@ -352,7 +352,7 @@ $defs:
         maxItems: 4096
         description: >
           Engine gate receipts (PASS/FAIL proofs) relevant to outputs pinned for this run.
-          Downstream components use these to enforce “no PASS → no read”.
+          Downstream components use these to enforce "no PASS -> no read".
         items:
           $ref: "#/$defs/gate_receipt"
 
@@ -361,7 +361,7 @@ $defs:
         type: object
         additionalProperties: false
         description: >
-          Optional explicit “not ready” markers. If present, these prevent ambiguous discovery
+          Optional explicit "not ready" markers. If present, these prevent ambiguous discovery
           when locators exist but required gates are not yet PASS.
         properties:
           pending_output_ids:

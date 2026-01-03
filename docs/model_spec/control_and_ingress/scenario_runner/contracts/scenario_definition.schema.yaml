@@ -1,9 +1,9 @@
 # contracts/scenario_definition.schema.yaml
-version: "0.1.0"
+version: "0.1.1"
 $id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/scenario_definition.schema.yaml"
 $schema: "https://json-schema.org/draft/2020-12/schema"
 
-title: "Scenario Runner — Scenario Definition"
+title: "Scenario Runner - Scenario Definition"
 description: >
   Read-only scenario catalogue item (authority surface) describing a scenario overlay that may be
   referenced by Scenario Runner run requests and mapped to the Data Engine invocation `scenario_binding`.
@@ -136,14 +136,13 @@ $defs:
     maxLength: 256
 
   schema_ref:
-    type: string
-    minLength: 1
-    maxLength: 2048
-    description: "Pinned schema reference (path/URI + fragment)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/schema_ref"
 
   utc_timestamp_z:
-    type: string
-    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    allOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/utc_timestamp"
+      - type: string
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
     description: "UTC timestamp with 'Z' suffix (RFC3339 subset)."
 
   version_token:
@@ -157,13 +156,11 @@ $defs:
   # Scenario ID (aligned to engine invocation schema: int or string)
   # ---------------------------
   scenario_id:
-    description: "Scenario identifier (engine-aligned, permissive)."
+    description: "Scenario identifier (Rails string or non-negative int)."
     anyOf:
+      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
       - type: integer
         minimum: 0
-      - type: string
-        minLength: 1
-        maxLength: 256
 
   # ---------------------------
   # Knob values (generic JSON-compatible values)
@@ -193,21 +190,15 @@ $defs:
     required: ["ref"]
     properties:
       ref:
-        type: string
-        minLength: 1
-        maxLength: 2048
+        $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
         description: "Deterministic reference to an authority surface / bundle / contract."
 
       digest:
-        type: string
-        minLength: 8
-        maxLength: 4096
-        description: >
-          Optional content digest binding this pin to an exact content instance (e.g., 'sha256:...').
+        $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/digest"
+        description: "Optional content digest binding this pin to an exact content instance."
 
       classification:
-        type: string
-        enum: ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+        $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/classification"
         description: "Optional sensitivity classification of the pinned surface."
 
       purpose:
@@ -217,8 +208,5 @@ $defs:
         description: "Optional human-readable purpose for this pin (e.g., 'overlay_config')."
 
       required_pass_ref:
-        type: string
-        minLength: 1
-        maxLength: 2048
-        description: >
-          Optional reference to a PASS/verification receipt that must be valid before consuming this pin.
+        $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+        description: "Optional reference to a PASS/verification receipt that must be valid before consuming this pin."
