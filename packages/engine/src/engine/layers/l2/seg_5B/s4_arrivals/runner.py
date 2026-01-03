@@ -114,70 +114,71 @@ class ArrivalRunner:
         group_alias_cache: dict[tuple[str, str], AliasTable] = {}
         site_alias_cache: dict[tuple[str, str], AliasTable] = {}
         logger.info("5B.S4 arrivals start scenarios=%s", len(scenarios))
-        for scenario in scenarios:
-            logger.info("5B.S4 scenario start scenario_id=%s", scenario.scenario_id)
-            scenario_timer = time.perf_counter()
-            count_path = data_root / render_dataset_path(
-                dataset_id="s3_bucket_counts_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                    "seed": inputs.seed,
-                },
-                dictionary=dictionary,
-            )
-            time_grid_path = data_root / render_dataset_path(
-                dataset_id="s1_time_grid_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                },
-                dictionary=dictionary,
-            )
-            intensity_path = data_root / render_dataset_path(
-                dataset_id="s2_realised_intensity_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                    "seed": inputs.seed,
-                },
-                dictionary=dictionary,
-            )
-            if not count_path.exists():
-                raise FileNotFoundError(f"s3_bucket_counts_5B missing at {count_path}")
-            if not time_grid_path.exists():
-                raise FileNotFoundError(f"s1_time_grid_5B missing at {time_grid_path}")
-            if not intensity_path.exists():
-                raise FileNotFoundError(f"s2_realised_intensity_5B missing at {intensity_path}")
+        try:
+            for scenario in scenarios:
+                logger.info("5B.S4 scenario start scenario_id=%s", scenario.scenario_id)
+                scenario_timer = time.perf_counter()
+                count_path = data_root / render_dataset_path(
+                    dataset_id="s3_bucket_counts_5B",
+                    template_args={
+                        "manifest_fingerprint": inputs.manifest_fingerprint,
+                        "scenario_id": scenario.scenario_id,
+                        "seed": inputs.seed,
+                    },
+                    dictionary=dictionary,
+                )
+                time_grid_path = data_root / render_dataset_path(
+                    dataset_id="s1_time_grid_5B",
+                    template_args={
+                        "manifest_fingerprint": inputs.manifest_fingerprint,
+                        "scenario_id": scenario.scenario_id,
+                    },
+                    dictionary=dictionary,
+                )
+                intensity_path = data_root / render_dataset_path(
+                    dataset_id="s2_realised_intensity_5B",
+                    template_args={
+                        "manifest_fingerprint": inputs.manifest_fingerprint,
+                        "scenario_id": scenario.scenario_id,
+                        "seed": inputs.seed,
+                    },
+                    dictionary=dictionary,
+                )
+                if not count_path.exists():
+                    raise FileNotFoundError(f"s3_bucket_counts_5B missing at {count_path}")
+                if not time_grid_path.exists():
+                    raise FileNotFoundError(f"s1_time_grid_5B missing at {time_grid_path}")
+                if not intensity_path.exists():
+                    raise FileNotFoundError(f"s2_realised_intensity_5B missing at {intensity_path}")
 
-            count_df = pl.read_parquet(
-                count_path,
-                columns=["merchant_id", "zone_representation", "channel_group", "bucket_index", "count_N"],
-            )
-            time_grid_df = pl.read_parquet(
-                time_grid_path,
-                columns=["bucket_index", "bucket_start_utc", "bucket_end_utc"],
-            )
-            intensity_df = pl.read_parquet(
-                intensity_path,
-                columns=[
-                    "merchant_id",
-                    "zone_representation",
-                    "channel_group",
-                    "bucket_index",
-                    "lambda_realised",
-                ],
-            )
-            intensity_df = intensity_df.select(
-                [
-                    "merchant_id",
-                    "zone_representation",
-                    "channel_group",
-                    "bucket_index",
-                    "lambda_realised",
-                ]
-            )
-            count_df = count_df.join(
+                count_df = pl.read_parquet(
+                    count_path,
+                    columns=["merchant_id", "zone_representation", "channel_group", "bucket_index", "count_N"],
+                )
+                time_grid_df = pl.read_parquet(
+                    time_grid_path,
+                    columns=["bucket_index", "bucket_start_utc", "bucket_end_utc"],
+                )
+                intensity_df = pl.read_parquet(
+                    intensity_path,
+                    columns=[
+                        "merchant_id",
+                        "zone_representation",
+                        "channel_group",
+                        "bucket_index",
+                        "lambda_realised",
+                    ],
+                )
+                intensity_df = intensity_df.select(
+                    [
+                        "merchant_id",
+                        "zone_representation",
+                        "channel_group",
+                        "bucket_index",
+                        "lambda_realised",
+                    ]
+                )
+                count_df = count_df.join(
                 intensity_df,
                 on=["merchant_id", "zone_representation", "channel_group", "bucket_index"],
                 how="left",
@@ -552,6 +553,8 @@ class ArrivalRunner:
                 scenario_elapsed,
                 rate,
             )
+        finally:
+            rng_logger.close()
 
         run_report_path = _write_run_report(inputs, data_root, dictionary)
         return ArrivalResult(arrival_paths=arrival_paths, summary_paths=summary_paths, run_report_path=run_report_path)

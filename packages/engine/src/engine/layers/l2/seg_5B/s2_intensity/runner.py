@@ -76,67 +76,68 @@ class IntensityRunner:
         latent_paths: dict[str, Path] = {}
 
         logger.info("5B.S2 realised intensity start scenarios=%s", len(scenarios))
-        for scenario in scenarios:
-            logger.info("5B.S2 scenario start scenario_id=%s", scenario.scenario_id)
-            scenario_timer = time.perf_counter()
-            grouping_path = data_root / render_dataset_path(
-                dataset_id="s1_grouping_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                },
-                dictionary=dictionary,
-            )
-            time_grid_path = data_root / render_dataset_path(
-                dataset_id="s1_time_grid_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                },
-                dictionary=dictionary,
-            )
-            if not grouping_path.exists():
-                raise FileNotFoundError(f"s1_grouping_5B missing at {grouping_path}")
-            if not time_grid_path.exists():
-                raise FileNotFoundError(f"s1_time_grid_5B missing at {time_grid_path}")
-
-            grouping_df = pl.read_parquet(grouping_path)
-            time_grid_df = pl.read_parquet(time_grid_path)
-            bucket_count = time_grid_df.height
-
-            files = inventory.resolve_files(
-                "merchant_zone_scenario_local_5A", template_overrides={"scenario_id": scenario.scenario_id}
-            )
-            if not files:
-                raise FileNotFoundError(f"merchant_zone_scenario_local_5A missing for {scenario.scenario_id}")
-            source_parquet = pq.ParquetFile(files[0])
-            intensity_rows = source_parquet.metadata.num_rows
-
-            grouping_map: dict[tuple[str, str, str], dict[str, str]] = {}
-            for row in grouping_df.select(
-                [
-                    pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
-                    pl.col("zone_representation").cast(pl.Utf8).alias("zone_representation"),
-                    pl.col("channel_group").cast(pl.Utf8).alias("channel_group"),
-                    pl.col("group_id").cast(pl.Utf8).alias("group_id"),
-                    pl.col("scenario_band").cast(pl.Utf8).alias("scenario_band"),
-                    pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
-                    pl.col("virtual_band").cast(pl.Utf8).alias("virtual_band"),
-                    pl.col("zone_group_id").cast(pl.Utf8).alias("zone_group_id"),
-                ]
-            ).iter_rows(named=True):
-                key = (
-                    str(row["merchant_id"]),
-                    str(row["zone_representation"]),
-                    str(row["channel_group"]),
+        try:
+            for scenario in scenarios:
+                logger.info("5B.S2 scenario start scenario_id=%s", scenario.scenario_id)
+                scenario_timer = time.perf_counter()
+                grouping_path = data_root / render_dataset_path(
+                    dataset_id="s1_grouping_5B",
+                    template_args={
+                        "manifest_fingerprint": inputs.manifest_fingerprint,
+                        "scenario_id": scenario.scenario_id,
+                    },
+                    dictionary=dictionary,
                 )
-                grouping_map[key] = {
-                    "group_id": str(row["group_id"]),
-                    "scenario_band": str(row["scenario_band"]),
-                    "demand_class": str(row["demand_class"]),
-                    "virtual_band": str(row["virtual_band"]),
-                    "zone_group_id": str(row["zone_group_id"]),
-                }
+                time_grid_path = data_root / render_dataset_path(
+                    dataset_id="s1_time_grid_5B",
+                    template_args={
+                        "manifest_fingerprint": inputs.manifest_fingerprint,
+                        "scenario_id": scenario.scenario_id,
+                    },
+                    dictionary=dictionary,
+                )
+                if not grouping_path.exists():
+                    raise FileNotFoundError(f"s1_grouping_5B missing at {grouping_path}")
+                if not time_grid_path.exists():
+                    raise FileNotFoundError(f"s1_time_grid_5B missing at {time_grid_path}")
+
+                grouping_df = pl.read_parquet(grouping_path)
+                time_grid_df = pl.read_parquet(time_grid_path)
+                bucket_count = time_grid_df.height
+
+                files = inventory.resolve_files(
+                    "merchant_zone_scenario_local_5A", template_overrides={"scenario_id": scenario.scenario_id}
+                )
+                if not files:
+                    raise FileNotFoundError(f"merchant_zone_scenario_local_5A missing for {scenario.scenario_id}")
+                source_parquet = pq.ParquetFile(files[0])
+                intensity_rows = source_parquet.metadata.num_rows
+
+                grouping_map: dict[tuple[str, str, str], dict[str, str]] = {}
+                for row in grouping_df.select(
+                    [
+                        pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
+                        pl.col("zone_representation").cast(pl.Utf8).alias("zone_representation"),
+                        pl.col("channel_group").cast(pl.Utf8).alias("channel_group"),
+                        pl.col("group_id").cast(pl.Utf8).alias("group_id"),
+                        pl.col("scenario_band").cast(pl.Utf8).alias("scenario_band"),
+                        pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
+                        pl.col("virtual_band").cast(pl.Utf8).alias("virtual_band"),
+                        pl.col("zone_group_id").cast(pl.Utf8).alias("zone_group_id"),
+                    ]
+                ).iter_rows(named=True):
+                    key = (
+                        str(row["merchant_id"]),
+                        str(row["zone_representation"]),
+                        str(row["channel_group"]),
+                    )
+                    grouping_map[key] = {
+                        "group_id": str(row["group_id"]),
+                        "scenario_band": str(row["scenario_band"]),
+                        "demand_class": str(row["demand_class"]),
+                        "virtual_band": str(row["virtual_band"]),
+                        "zone_group_id": str(row["zone_group_id"]),
+                    }
 
             logger.info(
                 "5B.S2 scenario inputs scenario_id=%s intensity_rows=%s buckets=%s",
@@ -420,6 +421,8 @@ class IntensityRunner:
                 bucket_count,
                 scenario_elapsed,
             )
+        finally:
+            rng_logger.close()
 
         run_report_path = _write_run_report(inputs, data_root, dictionary)
         return IntensityResult(

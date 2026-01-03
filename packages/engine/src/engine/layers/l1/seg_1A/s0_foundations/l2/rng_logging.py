@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterator, Mapping, MutableMapping, Optional
+from typing import Dict, IO, Iterator, Mapping, MutableMapping, Optional
 
 from ..exceptions import err
 from ..l1.rng import PhiloxState, PhiloxSubstream
@@ -40,6 +40,8 @@ class RNGLogWriter:
     parameter_hash: str
     manifest_fingerprint: str
     run_id: str
+    summary_flush_every: int = 10000
+    io_flush_every: int = 10000
 
     def __post_init__(self) -> None:  # pragma: no cover - simple validation
         rng_root = (self.base_path / "logs" / "rng").resolve()
@@ -51,6 +53,10 @@ class RNGLogWriter:
         self._summary_path = (
             self._trace_root / self._seed_path / "rng_totals.json"
         ).resolve()
+        self._event_handles: MutableMapping[Path, IO[str]] = {}
+        self._trace_handle: Optional[IO[str]] = None
+        self._events_since_summary = 0
+        self._events_since_flush = 0
         self._events_total = 0
         self._draws_total = 0
         self._blocks_total = 0
@@ -99,7 +105,7 @@ class RNGLogWriter:
             "run_id": self.run_id,
         }
         record.update(payload or {})
-        self._append_jsonl(event_file, record)
+        self._append_jsonl_handle(self._open_event_handle(event_file), record)
         self._events_total = min(self._events_total + 1, 2**64 - 1)
         self._draws_total = min(self._draws_total + max(0, int(draws)), 2**64 - 1)
         self._blocks_total = min(self._blocks_total + max(0, int(blocks)), 2**64 - 1)
@@ -128,8 +134,15 @@ class RNGLogWriter:
             "run_id": self.run_id,
             "seed": self.seed,
         }
-        self._append_jsonl(trace_file, trace_record)
-        self._write_summary()
+        self._append_jsonl_handle(self._open_trace_handle(trace_file), trace_record)
+        self._events_since_summary += 1
+        self._events_since_flush += 1
+        if self._events_since_summary >= self.summary_flush_every:
+            self._write_summary()
+            self._events_since_summary = 0
+        if self._events_since_flush >= self.io_flush_every:
+            self._flush_handles()
+            self._events_since_flush = 0
 
     @property
     def _seed_path(self) -> Path:
@@ -144,10 +157,29 @@ class RNGLogWriter:
         path.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def _append_jsonl(path: Path, record: Mapping[str, object]) -> None:
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, sort_keys=True))
-            handle.write("\n")
+    def _append_jsonl_handle(handle: IO[str], record: Mapping[str, object]) -> None:
+        handle.write(json.dumps(record, sort_keys=True))
+        handle.write("\n")
+
+    def _open_event_handle(self, path: Path) -> IO[str]:
+        handle = self._event_handles.get(path)
+        if handle is None:
+            self._ensure_dir(path.parent)
+            handle = path.open("a", encoding="utf-8")
+            self._event_handles[path] = handle
+        return handle
+
+    def _open_trace_handle(self, path: Path) -> IO[str]:
+        if self._trace_handle is None:
+            self._ensure_dir(path.parent)
+            self._trace_handle = path.open("a", encoding="utf-8")
+        return self._trace_handle
+
+    def _flush_handles(self) -> None:
+        for handle in self._event_handles.values():
+            handle.flush()
+        if self._trace_handle is not None:
+            self._trace_handle.flush()
 
     def _write_summary(self) -> None:
         self._ensure_dir(self._summary_path.parent)
@@ -162,6 +194,16 @@ class RNGLogWriter:
         }
         with self._summary_path.open("w", encoding="utf-8") as handle:
             json.dump(summary, handle, sort_keys=True)
+
+    def close(self) -> None:
+        self._write_summary()
+        self._flush_handles()
+        for handle in self._event_handles.values():
+            handle.close()
+        self._event_handles.clear()
+        if self._trace_handle is not None:
+            self._trace_handle.close()
+            self._trace_handle = None
 
 
 @contextmanager
