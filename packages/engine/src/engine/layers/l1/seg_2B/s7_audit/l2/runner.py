@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -123,6 +124,13 @@ class S7AuditRunner:
     REPORT_DATASET_ID = "s7_audit_report"
 
     def run(self, config: S7AuditInputs) -> S7AuditResult:
+        started = time.perf_counter()
+        logger.info(
+            "Segment2B S7 audit starting (seed=%s, manifest=%s)",
+            config.seed,
+            config.manifest_fingerprint,
+        )
+        t_load = time.perf_counter()
         dictionary = load_dictionary(config.dictionary_path)
         seed_int = int(config.seed)
         receipt = load_gate_receipt(
@@ -135,7 +143,13 @@ class S7AuditRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        logger.info(
+            "Segment2B S7: loaded gate receipt + sealed inputs (assets=%d) in %.2fs",
+            len(sealed_inputs),
+            time.perf_counter() - t_load,
+        )
         sealed_records = {record.asset_id: record for record in sealed_inputs}
+        t_policy = time.perf_counter()
         alias_policy_payload, alias_policy_digest, _, alias_policy_path = load_policy_asset(
             asset_id="alias_layout_policy_v1",
             sealed_records=sealed_records,
@@ -161,6 +175,13 @@ class S7AuditRunner:
                 repo_root=None,
                 error_prefix="E_S7_POLICY",
             )
+        logger.info(
+            "Segment2B S7: loaded policy assets (alias=%s, route=%s, edge=%s) in %.2fs",
+            alias_policy_path,
+            bool(route_policy_payload),
+            bool(virtual_edge_policy_payload),
+            time.perf_counter() - t_policy,
+        )
 
         alias_index_path = self._resolve_dataset_path(
             dataset_id="s2_alias_index",
@@ -213,23 +234,34 @@ class S7AuditRunner:
         ]
         metrics: Dict[str, object] = {}
 
+        t_alias = time.perf_counter()
         alias_metrics, alias_validators = self._validate_alias_mechanics(
             alias_index_path=alias_index_path,
             alias_blob_path=alias_blob_path,
             policy_payload=alias_policy_payload,
             s1_site_weights_path=s1_site_weights_path,
         )
+        logger.info(
+            "Segment2B S7: alias mechanics validation complete in %.2fs",
+            time.perf_counter() - t_alias,
+        )
         validators.extend(alias_validators)
         metrics.update(alias_metrics)
 
+        t_day = time.perf_counter()
         day_metrics, day_validators = self._validate_day_surfaces(
             s3_path=s3_path,
             s4_path=s4_path,
+        )
+        logger.info(
+            "Segment2B S7: day surfaces validation complete in %.2fs",
+            time.perf_counter() - t_day,
         )
         validators.extend(day_validators)
         metrics.update(day_metrics)
 
         if config.s5_evidence or config.s6_evidence:
+            t_router = time.perf_counter()
             router_validators, router_metrics = self._validate_router_evidence(
                 seed=seed_int,
                 manifest=config.manifest_fingerprint,
@@ -239,6 +271,10 @@ class S7AuditRunner:
                 virtual_edge_policy=virtual_edge_policy_payload,
                 s5=config.s5_evidence,
                 s6=config.s6_evidence,
+            )
+            logger.info(
+                "Segment2B S7: router evidence validation complete in %.2fs",
+                time.perf_counter() - t_router,
             )
             validators.extend(router_validators)
             metrics.update(router_metrics)
@@ -261,12 +297,21 @@ class S7AuditRunner:
                 "fail_count": fail_count,
             },
         }
+        t_report = time.perf_counter()
         report_path = self._write_report(
             base_path=config.data_root,
             dictionary=dictionary,
             seed=config.seed,
             manifest=config.manifest_fingerprint,
             report=report,
+        )
+        logger.info(
+            "Segment2B S7: report written to %s in %.2fs (validators=%d, warn=%d, fail=%d)",
+            report_path,
+            time.perf_counter() - t_report,
+            len(validators),
+            warn_count,
+            fail_count,
         )
         if config.emit_run_report_stdout:
             total_validators = len(validators)
@@ -275,6 +320,7 @@ class S7AuditRunner:
                 f"Segment2B S7 audit report → {report_path} "
                 f"(validators={passed}/{total_validators})"
             )
+        logger.info("Segment2B S7 audit completed in %.2fs", time.perf_counter() - started)
         return S7AuditResult(
             manifest_fingerprint=config.manifest_fingerprint,
             report_path=report_path,
