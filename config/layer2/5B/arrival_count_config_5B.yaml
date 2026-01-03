@@ -1,8 +1,8 @@
 policy_id: arrival_count_config_5B
-version: v1.0.0
+version: v1.0.1
 count_law_id: nb2
 lambda_zero_eps: 0.000000001
-max_count_per_bucket: 200000
+max_count_per_bucket: 50000
 poisson_sampler:
   kind: cdf_inversion_one_u_bounded_v1
   p0_law: exp_minus_lambda
@@ -32,6 +32,6 @@ nb2:
   poisson_on_gamma:
     kind: cdf_inversion_reuse_u2_v1
 realism_floors:
-  max_count_per_bucket_min: 5000
+  max_count_per_bucket_min: 2000
   lambda_zero_eps_max: 0.000001
   require_kappa_distinct_values_min: 3

@@ -1,3 +1,24 @@
 # List guides in dependency order after reading expanded specs and contracts.
 # One guide per line.
 
+taxonomy.party_authoring-guide.md
+taxonomy.account_types_authoring-guide.md
+taxonomy.instrument_types_authoring-guide.md
+taxonomy.devices_authoring-guides.md
+taxonomy.ips_authoring-guide.md
+prior.population_authoring-guide.md
+prior.segmentation_authoring-guide.md
+prior.product_mix_authoring-guide.md
+prior.account_per_party_authoring-guide.md
+prior.instrument_mix_authoring-guide.md
+prior.instrument_per_account_authoring-guide.md
+prior.device_counts_authoring-guide.md
+prior.ip_counts_authoring-guide.md
+prior.party_roles_authoring-guide.md
+prior.account_roles_authoring-guide.md
+prior.merchant_roles_authoring-guide.md
+prior.device_roles_authoring-guide.md
+prior.ip_roles_authoring-guide.md
+graph_linkage_rules_6A_authoring-guide.md
+device_linkage_rules_6A_authoring-guide.md
+

@@ -1,5 +1,5 @@
 policy_id: arrival_time_placement_policy_5B
-version: v1.0.0
+version: v1.0.1
 placement_kind: uniform_within_bucket_v1
 interval_semantics: "[start,end)"
 timestamp_precision: microsecond
@@ -15,5 +15,5 @@ ordering:
   sort_by: [timestamp_utc, arrival_seq]
   stable: true
 guardrails:
-  max_arrivals_per_bucket: 200000
+  max_arrivals_per_bucket: 50000
   max_bucket_duration_seconds: 86400

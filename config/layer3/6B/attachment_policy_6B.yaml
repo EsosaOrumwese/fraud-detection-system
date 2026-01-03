@@ -1,0 +1,110 @@
+schema_version: 1
+policy_id: attachment_policy_6B
+policy_version: v1
+
+dependencies:
+  rng_profile_layer3: { policy_id: rng_profile_layer3, required: true }
+  rng_policy_6B: { policy_id: rng_policy_6B, required: true }
+  sessionisation_policy_6B: { policy_id: sessionisation_policy_6B, required: true }
+  behaviour_config_6B: { policy_id: behaviour_config_6B, required: false }
+
+attachment_steps_order: [PARTY, ACCOUNT, INSTRUMENT, DEVICE, IP]
+
+channel_model:
+  channel_field: channel_group
+  default_channel_group: ECOM
+  known_channel_groups: [ECOM, POS, ATM, BANK_RAIL, HYBRID]
+
+requiredness:
+  PARTY: { by_channel: { ECOM: REQUIRED, POS: REQUIRED, ATM: REQUIRED, BANK_RAIL: REQUIRED, HYBRID: REQUIRED } }
+  ACCOUNT: { by_channel: { ECOM: REQUIRED, POS: REQUIRED, ATM: REQUIRED, BANK_RAIL: REQUIRED, HYBRID: REQUIRED } }
+  INSTRUMENT: { by_channel: { ECOM: REQUIRED, POS: REQUIRED, ATM: REQUIRED, BANK_RAIL: OPTIONAL, HYBRID: REQUIRED } }
+  DEVICE: { by_channel: { ECOM: REQUIRED, POS: REQUIRED, ATM: REQUIRED, BANK_RAIL: REQUIRED, HYBRID: REQUIRED } }
+  IP: { by_channel: { ECOM: REQUIRED, POS: REQUIRED, ATM: REQUIRED, BANK_RAIL: REQUIRED, HYBRID: REQUIRED } }
+
+party_policy:
+  candidate_sources:
+    - source_id: PARTY_HOME_COUNTRY
+      definition: "party.country_iso == arrival.legal_country_iso"
+    - source_id: PARTY_GLOBAL
+      definition: "all parties"
+  mixture:
+    p_primary_source_by_channel: { ECOM: 0.95, POS: 0.98, ATM: 0.99, BANK_RAIL: 0.96, HYBRID: 0.96 }
+  scoring:
+    mode: linear_positive_v1
+    components:
+      - { name: base, value: 1.0 }
+      - { name: holdings_log1p, weight: 0.25 }
+      - { name: posture_multiplier, weight: 0.05 }
+    min_weight_eps: 1.0e-12
+
+account_policy:
+  candidates: "accounts where owner_party_id == party_id"
+  group_preferences_by_channel:
+    ECOM: [DEPOSIT, CREDIT]
+    POS: [DEPOSIT, CREDIT]
+    ATM: [DEPOSIT]
+    BANK_RAIL: [DEPOSIT]
+    HYBRID: [DEPOSIT, CREDIT]
+  scoring:
+    mode: group_then_weighted_v1
+    min_weight_eps: 1.0e-12
+  fallback:
+    if_no_candidates: FAIL
+
+instrument_policy:
+  candidates: "instruments linked to chosen account"
+  allowed_instrument_types_by_channel:
+    ECOM: [CARD_LIKE]
+    POS: [CARD_LIKE]
+    ATM: [CARD_LIKE]
+    BANK_RAIL: [ANY]
+    HYBRID: [CARD_LIKE]
+  scoring:
+    mode: uniform_if_multiple_v1
+  fallback:
+    if_required_and_empty: RESELECT_ACCOUNT_THEN_FAIL
+
+device_policy:
+  mode_by_channel:
+    ECOM: CUSTOMER_DEVICE
+    POS: MERCHANT_TERMINAL_DEVICE
+    ATM: MERCHANT_TERMINAL_DEVICE
+    BANK_RAIL: CUSTOMER_DEVICE
+    HYBRID: CUSTOMER_DEVICE
+  customer_device_candidates: "devices linked to party via 6A device_links"
+  terminal_device_candidates: "devices linked to merchant via 6A device_links"
+  scoring:
+    mode: prefer_primary_owner_v1
+    min_weight_eps: 1.0e-12
+  fallback:
+    if_required_and_empty: FAIL
+
+ip_policy:
+  candidates_by_device: "IPs linked to chosen device via 6A ip_links"
+  candidates_by_merchant: "IPs linked to merchant via 6A ip_links (if present)"
+  mode_by_channel:
+    ECOM: FROM_DEVICE
+    POS: FROM_DEVICE
+    ATM: FROM_DEVICE
+    BANK_RAIL: FROM_DEVICE
+    HYBRID: FROM_DEVICE
+  scoring:
+    mode: prefer_typical_ip_v1
+    allow_proxy_share_max: 0.10
+  fallback:
+    if_required_and_empty: FAIL
+
+provenance:
+  attach_rule_id_enabled: true
+  attach_score_enabled: true
+  attach_rng_family_field: attach_rng_family
+  attach_rule_id_vocab:
+    - PARTY_HOME_PRIMARY
+    - PARTY_GLOBAL_FALLBACK
+    - ACCOUNT_OWNER
+    - INSTRUMENT_LINKED
+    - DEVICE_CUSTOMER
+    - DEVICE_TERMINAL
+    - IP_DEVICE
+    - IP_MERCHANT

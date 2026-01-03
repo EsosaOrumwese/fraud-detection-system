@@ -1,0 +1,120 @@
+schema_version: 1
+prior_id: product_mix_priors_6A
+prior_version: v1
+
+bindings:
+  party_taxonomy_ref: taxonomy_party_6A
+  account_taxonomy_ref: taxonomy_account_types_6A
+  cell_definition:
+    base_cell: [region_id, party_type, segment_id]
+    account_cell: [region_id, party_type, segment_id, account_type]
+
+party_account_domain:
+  mode: explicit_by_party_type
+  required_account_types_by_party_type:
+    RETAIL: [RETAIL_CURRENT_BASIC]
+    BUSINESS: [BUSINESS_CURRENT]
+    OTHER: [OTHER_CURRENT_BASIC]
+  allowed_account_types_by_party_type:
+    RETAIL:
+      - RETAIL_CURRENT_BASIC
+      - RETAIL_CURRENT_PREMIUM
+      - RETAIL_SAVINGS_INSTANT
+      - RETAIL_SAVINGS_FIXED
+      - RETAIL_CREDIT_CARD_STANDARD
+      - RETAIL_CREDIT_CARD_PREMIUM
+      - RETAIL_PERSONAL_LOAN_UNSECURED
+    BUSINESS:
+      - BUSINESS_CURRENT
+      - BUSINESS_SAVINGS
+      - BUSINESS_CREDIT_CARD
+      - BUSINESS_TERM_LOAN
+    OTHER:
+      - OTHER_CURRENT_BASIC
+      - OTHER_SAVINGS
+
+party_lambda_model:
+  lambda_units: accounts_per_party
+  mode: base_plus_segment_tilt_v1
+  base_lambda_by_party_type:
+    RETAIL:
+      RETAIL_CURRENT_BASIC: 1.00
+      RETAIL_CURRENT_PREMIUM: 0.25
+      RETAIL_SAVINGS_INSTANT: 0.45
+      RETAIL_SAVINGS_FIXED: 0.20
+      RETAIL_CREDIT_CARD_STANDARD: 0.50
+      RETAIL_CREDIT_CARD_PREMIUM: 0.15
+      RETAIL_PERSONAL_LOAN_UNSECURED: 0.12
+    BUSINESS:
+      BUSINESS_CURRENT: 1.00
+      BUSINESS_SAVINGS: 0.50
+      BUSINESS_CREDIT_CARD: 0.40
+      BUSINESS_TERM_LOAN: 0.20
+    OTHER:
+      OTHER_CURRENT_BASIC: 1.00
+      OTHER_SAVINGS: 0.35
+
+  segment_tilt:
+    segment_profile_source: prior_segmentation_6A
+    feature_center: 0.5
+    features: [cash_affinity, credit_appetite, digital_affinity, cross_border_propensity, stability_score]
+    clip_log_multiplier: 0.80
+    weights_by_feature:
+      cash_affinity:
+        RETAIL_CREDIT_CARD_STANDARD: -0.25
+        RETAIL_CREDIT_CARD_PREMIUM: -0.30
+        RETAIL_CURRENT_PREMIUM: -0.10
+      credit_appetite:
+        RETAIL_CREDIT_CARD_STANDARD: 0.70
+        RETAIL_CREDIT_CARD_PREMIUM: 0.80
+        RETAIL_PERSONAL_LOAN_UNSECURED: 0.60
+        BUSINESS_CREDIT_CARD: 0.50
+        BUSINESS_TERM_LOAN: 0.55
+      digital_affinity:
+        RETAIL_CREDIT_CARD_STANDARD: 0.35
+        RETAIL_CREDIT_CARD_PREMIUM: 0.40
+        RETAIL_CURRENT_PREMIUM: 0.20
+        BUSINESS_CREDIT_CARD: 0.30
+      cross_border_propensity:
+        RETAIL_CREDIT_CARD_PREMIUM: 0.30
+        BUSINESS_CREDIT_CARD: 0.25
+        BUSINESS_CURRENT: 0.10
+      stability_score:
+        RETAIL_SAVINGS_INSTANT: 0.50
+        RETAIL_SAVINGS_FIXED: 0.70
+        BUSINESS_SAVINGS: 0.50
+        OTHER_SAVINGS: 0.40
+
+constraints:
+  max_total_lambda_per_party_by_party_type: { RETAIL: 5.0, BUSINESS: 6.0, OTHER: 3.0 }
+  min_nonzero_account_types_in_domain: { RETAIL: 4, BUSINESS: 3, OTHER: 2 }
+  disallow_zero_domain_cells: true
+  enforce_required_types: true
+
+realism_targets:
+  lambda_total_range_by_party_type:
+    RETAIL: { min: 1.4, max: 4.8 }
+    BUSINESS: { min: 1.6, max: 5.8 }
+    OTHER: { min: 1.1, max: 2.8 }
+  deposit_penetration_proxy_range:
+    RETAIL: { min: 0.93, max: 0.999 }
+    BUSINESS: { min: 0.97, max: 0.999 }
+    OTHER: { min: 0.90, max: 0.999 }
+  credit_card_penetration_proxy_range:
+    RETAIL: { min: 0.25, max: 0.85 }
+    BUSINESS: { min: 0.12, max: 0.70 }
+    OTHER: { min: 0.00, max: 0.20 }
+  max_single_account_type_share_proxy:
+    RETAIL: 0.80
+    BUSINESS: 0.85
+    OTHER: 0.95
+  region_variation_required_if_n_regions_ge: 3
+  region_variation_min_delta_lambda: 0.05
+
+merchant_mode:
+  enabled: false
+  reason: "Merchant-owned accounts not modelled in v1 (party accounts only)."
+
+notes: >
+  Account domains follow taxonomy eligibility, with segment-based tilts for credit
+  appetite and digital affinity to keep non-toy variation without random inputs.

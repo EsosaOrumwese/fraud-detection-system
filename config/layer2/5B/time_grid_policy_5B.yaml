@@ -1,5 +1,5 @@
 policy_id: time_grid_policy_5B
-version: v1.0.0
+version: v1.0.1
 bucket_duration_seconds: 3600
 alignment_mode: require_aligned_v1
 bucket_index_base: 0
@@ -17,5 +17,5 @@ local_annotations:
   weekend_days: [6, 7]
 guardrails:
   min_horizon_days: 28
-  max_horizon_days: 370
-  max_buckets_per_scenario: 200000
+  max_horizon_days: 120
+  max_buckets_per_scenario: 5000

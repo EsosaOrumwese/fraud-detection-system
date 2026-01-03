@@ -1,4 +1,4 @@
-version: v1.0.0
+version: v1.0.1
 scenarios:
   - scenario_id: baseline_v1
     scenario_version: v1.0.0
@@ -6,16 +6,6 @@ scenarios:
     is_stress: false
     labels: ["baseline", "steady_state"]
     horizon_start_utc: "2026-01-01T00:00:00.000000Z"
-    horizon_end_utc: "2026-04-01T00:00:00.000000Z"
-    bucket_duration_minutes: 60
-    emit_utc_intensities: false
-
-  - scenario_id: stress_peak_online_v1
-    scenario_version: v1.0.0
-    is_baseline: false
-    is_stress: true
-    labels: ["stress", "peak_online", "campaign"]
-    horizon_start_utc: "2026-02-01T00:00:00.000000Z"
     horizon_end_utc: "2026-04-01T00:00:00.000000Z"
     bucket_duration_minutes: 60
     emit_utc_intensities: false

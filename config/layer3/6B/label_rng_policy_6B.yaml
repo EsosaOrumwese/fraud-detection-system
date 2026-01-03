@@ -1,0 +1,82 @@
+schema_version: 1
+policy_id: label_rng_policy_6B
+policy_version: v1
+
+rng_profile_ref:
+  policy_id: rng_profile_layer3
+  required: true
+
+families:
+  - family_id: rng_event_truth_label_ambiguity
+    decisions:
+      - decision_id: truth
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+
+  - family_id: rng_event_detection_delay
+    decisions:
+      - decision_id: auth_decision
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: detect_flag
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: detect_at_auth_flag
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: detect_delay
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+
+  - family_id: rng_event_dispute_delay
+    decisions:
+      - decision_id: dispute_flag
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: dispute_delay
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+
+  - family_id: rng_event_chargeback_delay
+    decisions:
+      - decision_id: chargeback_flag
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: chargeback_type
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: chargeback_outcome
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+      - decision_id: chargeback_delay
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, decision_id]
+
+  - family_id: rng_event_case_timeline
+    decisions:
+      - decision_id: case_split
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, case_key_string, flow_id, decision_id]
+      - decision_id: case_close_delay
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, case_id, decision_id]
+
+keying:
+  forbid_run_id_in_key: true
+  indices_are_zero_based: true
+  decision_id_field: decision_id
+
+sampling_primitives:
+  discrete_choice_draws: "1"
+  delay_draws_per_sample: "1"
+  forbid_rejection_sampling: true
+  forbid_variable_draws_per_locus: true
+
+emission_rules:
+  require_non_consuming_envelopes_when_deterministic: true
+  forbid_unknown_families: true
+  forbid_data_dependent_budget_variation: true
+
+guardrails:
+  max_rng_events_per_flow: 32
+  max_rng_events_per_case: 16

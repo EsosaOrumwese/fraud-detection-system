@@ -1,0 +1,256 @@
+schema_version: 1
+config_id: fraud_campaign_catalogue_config_6B
+config_version: v1
+
+vocabulary:
+  campaign_type_vocab: [CARD_TESTING, ATO, REFUND_ABUSE, MERCHANT_COLLUSION, BONUS_ABUSE, PROMO_FRAUD]
+  fraud_family_vocab: [CARD_TESTING, ATO, REFUND_ABUSE, MERCHANT_COLLUSION, ABUSE_OTHER]
+  target_kind_vocab: [ENTITY, FLOW, EVENT]
+  target_entity_kind_vocab: [PARTY, ACCOUNT, INSTRUMENT, DEVICE, IP, MERCHANT]
+  channel_group_vocab: [ECOM, POS, ATM, BANK_RAIL, HYBRID]
+
+templates:
+  - template_id: T_CARD_TESTING_BURST
+    campaign_type: CARD_TESTING
+    fraud_family: CARD_TESTING
+    description: "Short burst of small auth attempts across many instruments."
+    target_kind: ENTITY
+    target_entity_kind: INSTRUMENT
+    activation_model_id: ACT_POISSON_LOW
+    schedule_model_id: SCH_FIXED_2D
+    quota_model_id: QUOTA_RATE_BURSTY
+    filters_id: F_ECOM_CARDLIKE
+    channel_groups_allowed: [ECOM]
+    requires_instrument: true
+    requires_device: true
+    requires_ip: true
+    max_instances_per_seed: 5
+    min_targets_per_instance: 50
+    max_targets_per_instance: 2000
+    on_no_candidates: SKIP_INSTANCE
+
+  - template_id: T_ATO_ACCOUNT_SWEEP
+    campaign_type: ATO
+    fraud_family: ATO
+    description: "Account takeover sweep targeting active accounts with elevated digital activity."
+    target_kind: ENTITY
+    target_entity_kind: ACCOUNT
+    activation_model_id: ACT_CATEGORICAL_SMALL
+    schedule_model_id: SCH_FULL
+    quota_model_id: QUOTA_FRACTION_SMALL
+    filters_id: F_ACCOUNT_DIGITAL
+    channel_groups_allowed: [ECOM, HYBRID]
+    requires_instrument: true
+    requires_device: true
+    requires_ip: true
+    max_instances_per_seed: 3
+    min_targets_per_instance: 100
+    max_targets_per_instance: 5000
+    on_no_candidates: SKIP_INSTANCE
+
+  - template_id: T_REFUND_ABUSE
+    campaign_type: REFUND_ABUSE
+    fraud_family: REFUND_ABUSE
+    description: "Refund abuse concentrated on cleared purchase flows."
+    target_kind: FLOW
+    target_flow_scope: { flow_type_ids: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR] }
+    activation_model_id: ACT_POISSON_LOW
+    schedule_model_id: SCH_FIXED_7D
+    quota_model_id: QUOTA_FIXED_SMALL
+    filters_id: F_CARDLIKE_ANY
+    channel_groups_allowed: [ECOM, POS, HYBRID]
+    requires_instrument: true
+    requires_device: false
+    requires_ip: false
+    max_instances_per_seed: 4
+    min_targets_per_instance: 100
+    max_targets_per_instance: 4000
+    on_no_candidates: SKIP_INSTANCE
+
+  - template_id: T_MERCHANT_COLLUSION
+    campaign_type: MERCHANT_COLLUSION
+    fraud_family: MERCHANT_COLLUSION
+    description: "Collusive merchant activity with repeated suspicious flows."
+    target_kind: ENTITY
+    target_entity_kind: MERCHANT
+    activation_model_id: ACT_DETERMINISTIC_ONE
+    schedule_model_id: SCH_MULTI_WEEKLY
+    quota_model_id: QUOTA_FRACTION_SMALL
+    filters_id: F_MERCHANT_RISK
+    channel_groups_allowed: [ECOM, POS, HYBRID]
+    requires_instrument: false
+    requires_device: false
+    requires_ip: false
+    max_instances_per_seed: 2
+    min_targets_per_instance: 20
+    max_targets_per_instance: 1000
+    on_no_candidates: SKIP_INSTANCE
+
+  - template_id: T_PROMO_FRAUD_EVENTS
+    campaign_type: PROMO_FRAUD
+    fraud_family: ABUSE_OTHER
+    description: "Promotion abuse targeting specific event templates."
+    target_kind: EVENT
+    target_flow_scope: { flow_type_ids: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR] }
+    activation_model_id: ACT_CATEGORICAL_SMALL
+    schedule_model_id: SCH_FIXED_7D
+    quota_model_id: QUOTA_FIXED_SMALL
+    filters_id: F_CARDLIKE_ANY
+    channel_groups_allowed: [ECOM, POS]
+    requires_instrument: true
+    requires_device: false
+    requires_ip: true
+    max_instances_per_seed: 3
+    min_targets_per_instance: 200
+    max_targets_per_instance: 6000
+    on_no_candidates: SKIP_INSTANCE
+
+  - template_id: T_BONUS_ABUSE_FLOW
+    campaign_type: BONUS_ABUSE
+    fraud_family: ABUSE_OTHER
+    description: "Bonus abuse focused on rapid repeat flows."
+    target_kind: FLOW
+    target_flow_scope: { flow_type_ids: [CARD_AUTH_CLEAR] }
+    activation_model_id: ACT_POISSON_LOW
+    schedule_model_id: SCH_FIXED_2D
+    quota_model_id: QUOTA_RATE_BURSTY
+    filters_id: F_CARDLIKE_ANY
+    channel_groups_allowed: [ECOM, HYBRID]
+    requires_instrument: true
+    requires_device: true
+    requires_ip: true
+    max_instances_per_seed: 4
+    min_targets_per_instance: 100
+    max_targets_per_instance: 3000
+    on_no_candidates: SKIP_INSTANCE
+
+activation_models:
+  ACT_DETERMINISTIC_ONE:
+    mode: DETERMINISTIC
+    n_instances: 1
+
+  ACT_POISSON_LOW:
+    mode: POISSON_V1
+    lambda: 1.0
+    rng_family: rng_event_campaign_activation
+    key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, template_id]
+
+  ACT_CATEGORICAL_SMALL:
+    mode: CATEGORICAL_V1
+    support: [0, 1, 2]
+    prob: [0.40, 0.40, 0.20]
+    rng_family: rng_event_campaign_activation
+    key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, template_id]
+
+schedule_models:
+  SCH_FULL:
+    mode: FULL_SCENARIO
+    time_basis: UTC
+
+  SCH_FIXED_2D:
+    mode: FIXED_WINDOW_V1
+    time_basis: UTC
+    start_offset_seconds: 0
+    duration_seconds: 172800
+
+  SCH_FIXED_7D:
+    mode: FIXED_WINDOW_V1
+    time_basis: UTC
+    start_offset_seconds: 0
+    duration_seconds: 604800
+
+  SCH_MULTI_WEEKLY:
+    mode: MULTI_WINDOW_V1
+    time_basis: UTC
+    start_offset_seconds: 0
+    duration_seconds: 86400
+    repeat_every_seconds: 604800
+    repeat_count: 8
+
+quota_models:
+  QUOTA_RATE_BURSTY:
+    mode: RATE_PER_DAY_V1
+    targets_per_day: 1200
+    burstiness: 0.60
+    rng_family: rng_event_campaign_targeting
+    key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
+
+  QUOTA_FRACTION_SMALL:
+    mode: FRACTION_OF_DOMAIN_V1
+    fraction: 0.002
+    min_targets: 50
+    max_targets: 5000
+    rng_family: rng_event_campaign_targeting
+    key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
+
+  QUOTA_FIXED_SMALL:
+    mode: FIXED_V1
+    n_targets: 200
+
+targeting_filters:
+  F_ECOM_CARDLIKE:
+    entity_filters:
+      allowed_party_types: [RETAIL, BUSINESS]
+      allowed_static_party_roles: [CLEAN, SYNTHETIC_ID, MULE]
+    flow_filters: {}
+    device_ip_filters:
+      allowed_ip_groups: [RESIDENTIAL, MOBILE_CARRIER, PUBLIC_SHARED, ANONYMIZER_PROXY]
+    weighting:
+      mode: UNIFORM
+
+  F_ACCOUNT_DIGITAL:
+    entity_filters:
+      allowed_party_types: [RETAIL, BUSINESS]
+      allowed_static_party_roles: [CLEAN, SYNTHETIC_ID, MULE]
+    flow_filters: {}
+    device_ip_filters:
+      allowed_ip_groups: [RESIDENTIAL, MOBILE_CARRIER, PUBLIC_SHARED, ANONYMIZER_PROXY]
+    weighting:
+      mode: LINEAR_SCORE_V1
+      features:
+        - { name: party_risk_tier, weight: 0.30 }
+        - { name: device_high_risk_flag, weight: 0.20 }
+      clamp: { min: 0.10, max: 5.0 }
+
+  F_CARDLIKE_ANY:
+    entity_filters:
+      allowed_party_types: [RETAIL, BUSINESS, OTHER]
+      allowed_static_party_roles: [CLEAN, SYNTHETIC_ID, MULE]
+    flow_filters:
+      allowed_channel_groups: [ECOM, POS, HYBRID]
+      allowed_flow_type_ids: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR]
+    device_ip_filters:
+      allowed_ip_groups: [RESIDENTIAL, MOBILE_CARRIER, PUBLIC_SHARED, ANONYMIZER_PROXY]
+    weighting:
+      mode: UNIFORM
+
+  F_MERCHANT_RISK:
+    entity_filters:
+      allowed_static_merchant_roles: [NORMAL, HIGH_RISK_MCC, COLLUSIVE]
+    flow_filters: {}
+    device_ip_filters: {}
+    weighting:
+      mode: LINEAR_SCORE_V1
+      features:
+        - { name: merchant_risk_tier, weight: 0.40 }
+        - { name: cross_border_intensity, weight: 0.20 }
+      clamp: { min: 0.10, max: 5.0 }
+
+guardrails:
+  max_total_campaign_instances_per_seed_scenario: 50
+  max_total_targets_per_seed_scenario: 200000
+  max_targets_per_campaign_instance: 100000
+  max_windows_per_campaign_instance: 20
+
+realism_targets:
+  min_templates_total: 6
+  min_fraud_family_coverage: 3
+  targeting_diversity_min: 3
+  proxy_usage_presence: true
+  collusion_cluster_presence: true
+  campaign_prevalence_ranges:
+    CARD_TESTING: { min: 0.0005, max: 0.03 }
+    ATO: { min: 0.0001, max: 0.01 }
+    REFUND_ABUSE: { min: 0.0001, max: 0.02 }
+    MERCHANT_COLLUSION: { min: 0.00001, max: 0.002 }
+notes: "Campaign templates balance entity- and flow-level targeting within the dev-scale scenario."

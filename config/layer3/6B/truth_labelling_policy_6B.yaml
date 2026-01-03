@@ -1,0 +1,139 @@
+schema_version: 1
+policy_id: truth_labelling_policy_6B
+policy_version: v1
+
+vocabulary:
+  truth_label_vocab: [LEGIT, FRAUD, ABUSE]
+  truth_subtype_vocab:
+    - NONE
+    - CARD_TESTING
+    - ATO
+    - REFUND_ABUSE
+    - MERCHANT_COLLUSION
+    - BONUS_ABUSE
+    - PROMO_FRAUD
+    - FRIENDLY_FRAUD
+    - MULE_ACTIVITY
+  pattern_source_vocab: [CAMPAIGN, COLLATERAL, HEURISTIC_ONLY]
+  truth_event_role_vocab: [PRIMARY_FRAUD_ACTION, SUPPORTING_EVENT, LEGIT_CONTEXT, NONE]
+
+precedence:
+  - DIRECT_CAMPAIGN
+  - OVERLAY_FLAGS
+  - COLLATERAL_RULES
+  - POSTURE_OVERRIDES
+  - AMBIGUITY_MODELS
+  - DEFAULT_LEGIT
+
+direct_pattern_map:
+  - rule_id: RULE_NONE_NO_OVERLAY
+    match: { fraud_pattern_type: NONE, overlay_anomaly_any: false }
+    truth_label: LEGIT
+    truth_subtype: NONE
+    pattern_source: HEURISTIC_ONLY
+    requires_campaign_id: false
+
+  - rule_id: RULE_OVERLAY_ANOMALY_NO_CAMPAIGN
+    match: { fraud_pattern_type: NONE, overlay_anomaly_any: true }
+    truth_label: ABUSE
+    truth_subtype: FRIENDLY_FRAUD
+    pattern_source: HEURISTIC_ONLY
+    requires_campaign_id: false
+
+  - rule_id: RULE_CARD_TESTING
+    match: { fraud_pattern_type: CARD_TESTING }
+    truth_label: FRAUD
+    truth_subtype: CARD_TESTING
+    pattern_source: CAMPAIGN
+    requires_campaign_id: true
+
+  - rule_id: RULE_ATO
+    match: { fraud_pattern_type: ATO }
+    truth_label: FRAUD
+    truth_subtype: ATO
+    pattern_source: CAMPAIGN
+    requires_campaign_id: true
+
+  - rule_id: RULE_REFUND_ABUSE
+    match: { fraud_pattern_type: REFUND_ABUSE }
+    truth_label: ABUSE
+    truth_subtype: REFUND_ABUSE
+    pattern_source: CAMPAIGN
+    requires_campaign_id: true
+
+  - rule_id: RULE_MERCHANT_COLLUSION
+    match: { fraud_pattern_type: MERCHANT_COLLUSION }
+    truth_label: FRAUD
+    truth_subtype: MERCHANT_COLLUSION
+    pattern_source: CAMPAIGN
+    requires_campaign_id: true
+
+  - rule_id: RULE_BONUS_ABUSE
+    match: { fraud_pattern_type: BONUS_ABUSE }
+    truth_label: ABUSE
+    truth_subtype: BONUS_ABUSE
+    pattern_source: CAMPAIGN
+    requires_campaign_id: true
+
+  - rule_id: RULE_PROMO_FRAUD
+    match: { fraud_pattern_type: PROMO_FRAUD }
+    truth_label: ABUSE
+    truth_subtype: PROMO_FRAUD
+    pattern_source: CAMPAIGN
+    requires_campaign_id: true
+
+collateral_rules:
+  - rule_id: COLLATERAL_SAME_ACCOUNT_WINDOW
+    anchor_condition: { truth_subtype_in: [CARD_TESTING, ATO], pattern_source: CAMPAIGN }
+    scope_entity: same_account
+    time_window_seconds: 14400
+    action:
+      mode: AMBIGUOUS
+      candidates_model_id: AMBIG_COLLATERAL_ACCOUNT
+    pattern_source: COLLATERAL
+
+posture_overrides:
+  - rule_id: POSTURE_MULE_OVERRIDE
+    when: { party_role_in: [MULE, ASSOCIATE, ORGANISER] }
+    truth_label: ABUSE
+    truth_subtype: MULE_ACTIVITY
+    pattern_source: COLLATERAL
+
+ambiguity_models:
+  - model_id: AMBIG_COLLATERAL_ACCOUNT
+    when: { collateral_from_rule: COLLATERAL_SAME_ACCOUNT_WINDOW }
+    candidates:
+      - { truth_label: FRAUD, truth_subtype: ATO, prob: 0.20 }
+      - { truth_label: LEGIT, truth_subtype: NONE, prob: 0.80 }
+    rng_family: rng_event_truth_label_ambiguity
+    decision_id: "truth"
+    draws_required: "1"
+    pattern_source: COLLATERAL
+
+event_truth_roles:
+  mode: overlay_flags_then_flow_truth_v1
+  rules:
+    - when_flow_truth_label: LEGIT
+      default: { is_fraud_event_truth: false, truth_event_role: LEGIT_CONTEXT }
+    - when_flow_truth_label_in: [FRAUD, ABUSE]
+      primary_event_when: { s3_overlay_primary_flag: true }
+      primary: { is_fraud_event_truth: true, truth_event_role: PRIMARY_FRAUD_ACTION }
+      supporting: { is_fraud_event_truth: true, truth_event_role: SUPPORTING_EVENT }
+      default: { is_fraud_event_truth: false, truth_event_role: LEGIT_CONTEXT }
+
+provenance:
+  label_policy_id_field: label_policy_id
+  include_campaign_id: true
+  include_pattern_source: true
+
+constraints:
+  fail_on_unknown_fraud_pattern_type: true
+  fail_on_unknown_truth_subtype: true
+  require_campaign_consistency: true
+  require_full_flow_coverage: true
+  require_full_event_coverage: true
+
+realism_targets:
+  fraud_fraction_range: { min: 0.0005, max: 0.10 }
+  abuse_fraction_range: { min: 0.0002, max: 0.08 }
+notes: "Truth labels follow campaign mapping first, with collateral ambiguity resolved via rng_event_truth_label_ambiguity."

@@ -1,0 +1,262 @@
+schema_version: 1
+policy_id: ip_role_priors_6A
+policy_version: v1
+
+role_vocabulary:
+  - role_id: CORPORATE_NAT_IP
+    label: Corporate NAT
+    description: Corporate or enterprise NAT endpoint posture.
+    severity_rank: 1
+  - role_id: DATACENTRE_IP
+    label: Datacentre
+    description: Hosting or datacentre endpoint posture.
+    severity_rank: 2
+  - role_id: HIGH_RISK_IP
+    label: High risk
+    description: Elevated endpoint posture based on sharing or risk flags.
+    severity_rank: 3
+  - role_id: MOBILE_CARRIER_IP
+    label: Mobile carrier
+    description: Mobile carrier NAT/shared endpoint posture.
+    severity_rank: 1
+  - role_id: NORMAL_IP
+    label: Normal
+    description: Baseline endpoint posture.
+    severity_rank: 0
+  - role_id: PROXY_IP
+    label: Proxy
+    description: Proxy or anonymizer endpoint posture.
+    severity_rank: 2
+  - role_id: PUBLIC_SHARED_IP
+    label: Public shared
+    description: Shared public or travel access endpoint posture.
+    severity_rank: 1
+
+risk_tier_vocabulary:
+  - { tier_id: ELEVATED, label: Elevated, description: Elevated static posture, severity_rank: 2 }
+  - { tier_id: HIGH, label: High, description: High static posture, severity_rank: 3 }
+  - { tier_id: LOW, label: Low, description: Low static posture, severity_rank: 0 }
+  - { tier_id: STANDARD, label: Standard, description: Typical baseline posture, severity_rank: 1 }
+
+ip_groups:
+  groups:
+    - group_id: ANONYMIZER
+      group_priority: 10
+      ip_types: [VPN_PROXY]
+      asn_classes: [HOSTING_PROVIDER]
+      semantics: "VPN or proxy endpoints."
+    - group_id: HOSTING
+      group_priority: 20
+      ip_types: [DATACENTRE]
+      asn_classes: [HOSTING_PROVIDER, CDN_EDGE]
+      semantics: "Hosting and datacentre infrastructure."
+    - group_id: MOBILE
+      group_priority: 30
+      ip_types: [MOBILE]
+      asn_classes: [MNO]
+      semantics: "Mobile carrier NAT/shared access."
+    - group_id: PUBLIC_SHARED
+      group_priority: 40
+      ip_types: [PUBLIC_WIFI, HOTEL_TRAVEL, EDUCATION]
+      asn_classes: [CONSUMER_ISP, PUBLIC_SECTOR, ENTERPRISE]
+      semantics: "Shared public or campus access."
+    - group_id: CORPORATE
+      group_priority: 50
+      ip_types: [CORPORATE]
+      asn_classes: [ENTERPRISE]
+      semantics: "Enterprise or corporate NAT."
+    - group_id: RESIDENTIAL
+      group_priority: 60
+      ip_types: [RESIDENTIAL]
+      asn_classes: [CONSUMER_ISP]
+      semantics: "Residential broadband access."
+
+feature_whitelist:
+  required_sources: [s4_ip_base_6A, s4_ip_links_6A]
+  allowed_features:
+    - asn_class
+    - churn_bucket
+    - deg_device_bucket
+    - deg_party_bucket
+    - has_anonymizer_type
+    - has_risk_flag_any
+    - ip_group_id
+    - ip_type
+  required_features: [ip_group_id, deg_device_bucket]
+
+derived_feature_buckets:
+  deg_device_bucket:
+    edges: [0, 1, 2, 5, 10, 50, 200, 1000]
+    values: [0.00, 0.08, 0.15, 0.25, 0.38, 0.55, 0.75, 0.90, 0.98]
+  deg_party_bucket:
+    edges: [0, 1, 2, 4, 8, 16]
+    values: [0.00, 0.10, 0.18, 0.35, 0.55, 0.75, 0.90]
+  churn_bucket:
+    edges: [0, 1, 2]
+    values: [0.10, 0.50, 0.85, 0.95]
+
+risk_score_model:
+  base_by_group:
+    RESIDENTIAL: 0.35
+    CORPORATE: 0.45
+    PUBLIC_SHARED: 0.55
+    MOBILE: 0.60
+    HOSTING: 0.70
+    ANONYMIZER: 0.78
+  features:
+    - { name: churn_bucket, source: IP_ATTR, ref: 0.50, weight: 0.10 }
+    - { name: deg_device_bucket, source: GRAPH_DERIVED, ref: 0.15, weight: 0.22 }
+    - { name: deg_party_bucket, source: GRAPH_DERIVED, ref: 0.10, weight: 0.10 }
+    - { name: has_anonymizer_type, source: IP_ATTR, ref: 0.00, weight: 0.10 }
+    - { name: has_risk_flag_any, source: IP_ATTR, ref: 0.00, weight: 0.15 }
+
+risk_tier_thresholds:
+  tiers_in_order: [LOW, STANDARD, ELEVATED, HIGH]
+  thresholds:
+    LOW_max: 0.25
+    STANDARD_max: 0.65
+    ELEVATED_max: 0.85
+    HIGH_max: 1.00
+
+role_probability_model:
+  mode: by_group_and_risk_tier_v1
+  pi_role_by_group_and_tier:
+    ANONYMIZER:
+      LOW:
+        - { role_id: HIGH_RISK_IP, prob: 0.0500 }
+        - { role_id: PROXY_IP, prob: 0.9500 }
+      STANDARD:
+        - { role_id: HIGH_RISK_IP, prob: 0.1000 }
+        - { role_id: PROXY_IP, prob: 0.9000 }
+      ELEVATED:
+        - { role_id: HIGH_RISK_IP, prob: 0.1800 }
+        - { role_id: PROXY_IP, prob: 0.8200 }
+      HIGH:
+        - { role_id: HIGH_RISK_IP, prob: 0.3000 }
+        - { role_id: PROXY_IP, prob: 0.7000 }
+
+    CORPORATE:
+      LOW:
+        - { role_id: CORPORATE_NAT_IP, prob: 0.9800 }
+        - { role_id: HIGH_RISK_IP, prob: 0.0150 }
+        - { role_id: NORMAL_IP, prob: 0.0050 }
+      STANDARD:
+        - { role_id: CORPORATE_NAT_IP, prob: 0.9300 }
+        - { role_id: HIGH_RISK_IP, prob: 0.0500 }
+        - { role_id: NORMAL_IP, prob: 0.0200 }
+      ELEVATED:
+        - { role_id: CORPORATE_NAT_IP, prob: 0.8500 }
+        - { role_id: HIGH_RISK_IP, prob: 0.1200 }
+        - { role_id: NORMAL_IP, prob: 0.0300 }
+      HIGH:
+        - { role_id: CORPORATE_NAT_IP, prob: 0.7500 }
+        - { role_id: HIGH_RISK_IP, prob: 0.2200 }
+        - { role_id: NORMAL_IP, prob: 0.0300 }
+
+    HOSTING:
+      LOW:
+        - { role_id: DATACENTRE_IP, prob: 0.9800 }
+        - { role_id: HIGH_RISK_IP, prob: 0.0200 }
+      STANDARD:
+        - { role_id: DATACENTRE_IP, prob: 0.9300 }
+        - { role_id: HIGH_RISK_IP, prob: 0.0700 }
+      ELEVATED:
+        - { role_id: DATACENTRE_IP, prob: 0.8500 }
+        - { role_id: HIGH_RISK_IP, prob: 0.1500 }
+      HIGH:
+        - { role_id: DATACENTRE_IP, prob: 0.7000 }
+        - { role_id: HIGH_RISK_IP, prob: 0.3000 }
+
+    MOBILE:
+      LOW:
+        - { role_id: HIGH_RISK_IP, prob: 0.0400 }
+        - { role_id: MOBILE_CARRIER_IP, prob: 0.9500 }
+        - { role_id: NORMAL_IP, prob: 0.0100 }
+      STANDARD:
+        - { role_id: HIGH_RISK_IP, prob: 0.0800 }
+        - { role_id: MOBILE_CARRIER_IP, prob: 0.9000 }
+        - { role_id: NORMAL_IP, prob: 0.0200 }
+      ELEVATED:
+        - { role_id: HIGH_RISK_IP, prob: 0.1800 }
+        - { role_id: MOBILE_CARRIER_IP, prob: 0.7800 }
+        - { role_id: NORMAL_IP, prob: 0.0400 }
+      HIGH:
+        - { role_id: HIGH_RISK_IP, prob: 0.3000 }
+        - { role_id: MOBILE_CARRIER_IP, prob: 0.6200 }
+        - { role_id: NORMAL_IP, prob: 0.0800 }
+
+    PUBLIC_SHARED:
+      LOW:
+        - { role_id: HIGH_RISK_IP, prob: 0.0500 }
+        - { role_id: NORMAL_IP, prob: 0.0100 }
+        - { role_id: PUBLIC_SHARED_IP, prob: 0.9400 }
+      STANDARD:
+        - { role_id: HIGH_RISK_IP, prob: 0.1000 }
+        - { role_id: NORMAL_IP, prob: 0.0200 }
+        - { role_id: PUBLIC_SHARED_IP, prob: 0.8800 }
+      ELEVATED:
+        - { role_id: HIGH_RISK_IP, prob: 0.2000 }
+        - { role_id: NORMAL_IP, prob: 0.0400 }
+        - { role_id: PUBLIC_SHARED_IP, prob: 0.7600 }
+      HIGH:
+        - { role_id: HIGH_RISK_IP, prob: 0.3400 }
+        - { role_id: NORMAL_IP, prob: 0.0600 }
+        - { role_id: PUBLIC_SHARED_IP, prob: 0.6000 }
+
+    RESIDENTIAL:
+      LOW:
+        - { role_id: HIGH_RISK_IP, prob: 0.0010 }
+        - { role_id: NORMAL_IP, prob: 0.9990 }
+      STANDARD:
+        - { role_id: HIGH_RISK_IP, prob: 0.0050 }
+        - { role_id: NORMAL_IP, prob: 0.9950 }
+      ELEVATED:
+        - { role_id: HIGH_RISK_IP, prob: 0.0300 }
+        - { role_id: NORMAL_IP, prob: 0.9700 }
+      HIGH:
+        - { role_id: HIGH_RISK_IP, prob: 0.0800 }
+        - { role_id: NORMAL_IP, prob: 0.9200 }
+  nudges:
+    - if_feature: "deg_device_bucket >= 0.75"
+      multiply_roles: { HIGH_RISK_IP: 1.50, NORMAL_IP: 0.90 }
+      clip_multiplier: { min: 0.70, max: 2.00 }
+    - if_feature: "ip_group_id == ANONYMIZER"
+      multiply_roles: { PROXY_IP: 1.25, HIGH_RISK_IP: 1.05 }
+      clip_multiplier: { min: 0.80, max: 1.50 }
+    - if_feature: "ip_group_id == HOSTING"
+      multiply_roles: { DATACENTRE_IP: 1.20, HIGH_RISK_IP: 1.10 }
+      clip_multiplier: { min: 0.80, max: 1.50 }
+
+optional_cluster_model:
+  enabled: true
+  cluster_key: [ip_group_id]
+  cluster_role: PROXY_IP
+  cluster_size_distribution: { model_id: zipf_capK_v1, min_k: 2, max_k: 500, alpha: 1.20 }
+
+constraints:
+  fail_on_missing_rule: true
+  prob_dp: 12
+  max_role_share_caps_world:
+    CORPORATE_NAT_IP: 0.20
+    DATACENTRE_IP: 0.12
+    HIGH_RISK_IP: 0.30
+    MOBILE_CARRIER_IP: 0.25
+    PROXY_IP: 0.10
+    PUBLIC_SHARED_IP: 0.15
+  min_non_normal_presence:
+    HIGH_RISK_IP: 0.01
+
+realism_targets:
+  proxy_fraction_world_range: { min: 0.002, max: 0.08 }
+  datacentre_fraction_world_range: { min: 0.002, max: 0.10 }
+  high_risk_fraction_world_range: { min: 0.01, max: 0.25 }
+  proxy_enrichment_in_anonymizer_min_ratio: 5.0
+  datacentre_enrichment_in_hosting_min_ratio: 4.0
+  high_risk_enrichment_in_high_degree_min_ratio: 3.0
+  region_variation:
+    required_if_n_regions_ge: 3
+    min_delta_in_proxy_fraction: 0.002
+
+notes: >
+  IP role priors emphasize shared-network contexts with controlled proxy and
+  datacentre prevalence to keep the IP universe realistic.

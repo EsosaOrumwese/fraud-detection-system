@@ -1,0 +1,48 @@
+schema_version: 1
+policy_id: sessionisation_policy_6B
+policy_version: v1
+
+session_key:
+  fields: [party_id, device_id, merchant_id, channel_group, scenario_id]
+  normalisation:
+    channel_group: UPPERCASE_ASCII
+  encoding:
+    mode: uer_concat_v1
+    null_token: "__NULL__"
+
+boundary_rules:
+  hard_timeout_seconds: 1200
+  hard_break_seconds: 10800
+  break_on_day_boundary: false
+
+stochastic_boundary:
+  enabled: true
+  ambiguity_band: (hard_timeout_seconds, hard_break_seconds)
+  decision_law:
+    mode: linear_ramp_pbreak_v1
+    pbreak_formula: "clamp((gap - hard_timeout)/(hard_break - hard_timeout), 0, 1)"
+    rng_family: rng_event_session_boundary
+    draws_per_ambiguous_boundary: 1
+  keying:
+    forbid_run_id: true
+    ids: [manifest_fingerprint, seed, scenario_id, session_key_base, arrival_seq_left, arrival_seq_right]
+
+session_id:
+  mode: anchored_hash64_v1
+  domain_tag: "mlr:6B.session_id.v1"
+  anchor: first_arrival_in_session
+  hash: sha256
+  output_format: id64_hex_le
+
+session_summary:
+  required_fields: [session_start_utc, session_end_utc, arrival_count]
+  primary_fields:
+    - { name: primary_party_id, mode: dominant_by_arrival_count, tie_break: id_asc }
+    - { name: primary_device_id, mode: dominant_by_arrival_count, tie_break: id_asc }
+    - { name: primary_ip_id, mode: dominant_by_arrival_count, tie_break: id_asc }
+    - { name: primary_merchant_id, mode: dominant_by_arrival_count, tie_break: id_asc }
+
+guardrails:
+  max_arrivals_per_session: 800
+  max_session_duration_seconds: 43200
+  max_sessions_per_session_key: 50000

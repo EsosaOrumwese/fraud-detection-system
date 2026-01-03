@@ -1,0 +1,58 @@
+schema_version: 1
+policy_id: flow_rng_policy_6B
+policy_version: v1
+
+rng_profile_ref:
+  policy_id: rng_profile_layer3
+  required: true
+
+families:
+  - family_id: rng_event_flow_shape
+    decisions:
+      - decision_id: FLOWS_PER_SESSION
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, session_id]
+      - decision_id: FLOW_TYPE
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id]
+      - decision_id: BRANCH_DECISION
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, branch_id, branch_slot_index]
+      - decision_id: ARRIVAL_FLOW_ASSIGNMENT
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, session_id, arrival_seq]
+
+  - family_id: rng_event_event_timing
+    per_event_slot:
+      budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+      key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, event_index]
+      event_index_base: 0
+      emit_event_every_event_slot: true
+
+  - family_id: rng_event_amount_draw
+    per_event_slot:
+      budgets: { consuming: { draws: "2", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+      key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, event_index]
+      event_index_base: 0
+      emit_event_every_event_slot: true
+      max_consuming_events_per_flow_event_slot: 1
+
+keying:
+  forbid_run_id_in_key: true
+  decision_id_field: decision_id
+  event_index_field: event_index
+
+sampling_primitives:
+  discrete_choice_draws: "1"
+  timing_offset_draws_per_event_slot: "1"
+  amount_draws_per_amount_bearing_event_slot: "2"
+  forbid_rejection_sampling: true
+
+emission_rules:
+  require_non_consuming_envelopes_when_deterministic: true
+  forbid_data_dependent_family_selection: true
+  forbid_data_dependent_budget_variation: true
+
+guardrails:
+  forbid_unknown_families: true
+  forbid_variable_budgets: true

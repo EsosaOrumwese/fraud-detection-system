@@ -1,5 +1,5 @@
 policy_id: arrival_lgcp_config_5B
-version: v1.0.0
+version: v1.0.1
 
 latent_model_id: log_gaussian_ou_v1
 normal_method: box_muller_u2
@@ -57,7 +57,7 @@ clipping:
   min_factor: 0.20
   max_factor: 5.00
   lambda_max_enabled: true
-  lambda_max: 1000000000.0
+  lambda_max: 200000.0
 
 diagnostics:
   emit_latent_field_diagnostic: false

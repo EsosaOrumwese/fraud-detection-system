@@ -1,5 +1,5 @@
 policy_id: scenario_overlay_policy_5A
-version: v1.0.0
+version: v1.0.1
 
 event_types:
   HOLIDAY:
@@ -65,5 +65,5 @@ calendar_validation:
   require_time_within_horizon: true
   disallow_empty_scope: true
   disallow_unknown_fields: true
-  max_events_per_scenario: 50000
-  max_overlap_events_per_row_bucket: 20
+  max_events_per_scenario: 5000
+  max_overlap_events_per_row_bucket: 10

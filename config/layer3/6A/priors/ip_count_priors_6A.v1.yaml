@@ -1,0 +1,340 @@
+schema_version: 1
+prior_id: ip_count_priors_6A
+prior_version: v1
+
+bindings:
+  party_taxonomy_ref: taxonomy_party_6A
+  device_taxonomy_ref: taxonomy_devices_6A
+  ip_taxonomy_ref: taxonomy_ips_6A
+  device_counts_ref: prior_device_counts_6A
+
+cell_definition:
+  ip_cell: [region_id, ip_type, asn_class]
+
+device_groups:
+  groups:
+    - group_id: CONSUMER_COMPUTER
+      device_types: [DESKTOP, TABLET]
+      semantics: "Consumer desktop or tablet devices."
+    - group_id: CONSUMER_MOBILE
+      device_types: [MOBILE_PHONE, WEARABLE]
+      semantics: "Consumer mobile devices."
+    - group_id: COMPUTER_PORTABLE
+      device_types: [LAPTOP]
+      semantics: "Portable computers."
+    - group_id: IOT_OTHER
+      device_types: [IOT_DEVICE]
+      semantics: "Embedded connected devices."
+    - group_id: MERCHANT_TERMINAL
+      device_types: [ATM, KIOSK, POS_TERMINAL]
+      semantics: "Merchant terminal devices."
+    - group_id: SERVER_BACKEND
+      device_types: [SERVER]
+      semantics: "Backend or server devices."
+
+ip_edge_demand_model:
+  mode: lambda_ip_per_device_v1
+  lambda_ip_per_device_by_group:
+    CONSUMER_COMPUTER: 2.4
+    CONSUMER_MOBILE: 4.8
+    COMPUTER_PORTABLE: 2.2
+    IOT_OTHER: 1.3
+    MERCHANT_TERMINAL: 1.4
+    SERVER_BACKEND: 1.8
+  region_multiplier:
+    enabled: false
+
+ip_type_mix_model:
+  mode: by_region_v1
+  pi_ip_type_by_region:
+    - region_id: REGION_AFRICA
+      pi_ip_type:
+        - { ip_type: RESIDENTIAL, share: 0.42 }
+        - { ip_type: MOBILE, share: 0.30 }
+        - { ip_type: CORPORATE, share: 0.08 }
+        - { ip_type: PUBLIC_WIFI, share: 0.08 }
+        - { ip_type: HOTEL_TRAVEL, share: 0.04 }
+        - { ip_type: EDUCATION, share: 0.03 }
+        - { ip_type: DATACENTRE, share: 0.03 }
+        - { ip_type: VPN_PROXY, share: 0.02 }
+    - region_id: REGION_AMER
+      pi_ip_type:
+        - { ip_type: RESIDENTIAL, share: 0.38 }
+        - { ip_type: MOBILE, share: 0.28 }
+        - { ip_type: CORPORATE, share: 0.12 }
+        - { ip_type: PUBLIC_WIFI, share: 0.08 }
+        - { ip_type: HOTEL_TRAVEL, share: 0.04 }
+        - { ip_type: EDUCATION, share: 0.03 }
+        - { ip_type: DATACENTRE, share: 0.05 }
+        - { ip_type: VPN_PROXY, share: 0.02 }
+    - region_id: REGION_APAC
+      pi_ip_type:
+        - { ip_type: RESIDENTIAL, share: 0.36 }
+        - { ip_type: MOBILE, share: 0.32 }
+        - { ip_type: CORPORATE, share: 0.10 }
+        - { ip_type: PUBLIC_WIFI, share: 0.08 }
+        - { ip_type: HOTEL_TRAVEL, share: 0.05 }
+        - { ip_type: EDUCATION, share: 0.03 }
+        - { ip_type: DATACENTRE, share: 0.04 }
+        - { ip_type: VPN_PROXY, share: 0.02 }
+    - region_id: REGION_EMEA
+      pi_ip_type:
+        - { ip_type: RESIDENTIAL, share: 0.34 }
+        - { ip_type: MOBILE, share: 0.28 }
+        - { ip_type: CORPORATE, share: 0.12 }
+        - { ip_type: PUBLIC_WIFI, share: 0.09 }
+        - { ip_type: HOTEL_TRAVEL, share: 0.05 }
+        - { ip_type: EDUCATION, share: 0.04 }
+        - { ip_type: DATACENTRE, share: 0.06 }
+        - { ip_type: VPN_PROXY, share: 0.02 }
+    - region_id: REGION_LATAM
+      pi_ip_type:
+        - { ip_type: RESIDENTIAL, share: 0.40 }
+        - { ip_type: MOBILE, share: 0.30 }
+        - { ip_type: CORPORATE, share: 0.09 }
+        - { ip_type: PUBLIC_WIFI, share: 0.08 }
+        - { ip_type: HOTEL_TRAVEL, share: 0.04 }
+        - { ip_type: EDUCATION, share: 0.03 }
+        - { ip_type: DATACENTRE, share: 0.04 }
+        - { ip_type: VPN_PROXY, share: 0.02 }
+
+asn_mix_model:
+  mode: by_ip_type_v1
+  pi_asn_class_by_ip_type:
+    - ip_type: CORPORATE
+      pi_asn:
+        - { asn_class: ENTERPRISE, share: 0.85 }
+        - { asn_class: PUBLIC_SECTOR, share: 0.15 }
+    - ip_type: DATACENTRE
+      pi_asn:
+        - { asn_class: HOSTING_PROVIDER, share: 0.85 }
+        - { asn_class: CDN_EDGE, share: 0.15 }
+    - ip_type: EDUCATION
+      pi_asn:
+        - { asn_class: PUBLIC_SECTOR, share: 0.70 }
+        - { asn_class: ENTERPRISE, share: 0.30 }
+    - ip_type: HOTEL_TRAVEL
+      pi_asn:
+        - { asn_class: CONSUMER_ISP, share: 0.60 }
+        - { asn_class: ENTERPRISE, share: 0.40 }
+    - ip_type: MOBILE
+      pi_asn:
+        - { asn_class: MNO, share: 1.00 }
+    - ip_type: PUBLIC_WIFI
+      pi_asn:
+        - { asn_class: CONSUMER_ISP, share: 0.55 }
+        - { asn_class: PUBLIC_SECTOR, share: 0.25 }
+        - { asn_class: ENTERPRISE, share: 0.20 }
+    - ip_type: RESIDENTIAL
+      pi_asn:
+        - { asn_class: CONSUMER_ISP, share: 1.00 }
+    - ip_type: VPN_PROXY
+      pi_asn:
+        - { asn_class: HOSTING_PROVIDER, share: 1.00 }
+
+sharing_model:
+  mode: dev_per_ip_and_party_per_ip_v1
+  mu_dev_per_ip:
+    - { ip_type: CORPORATE, asn_class: ENTERPRISE, mean: 30.0 }
+    - { ip_type: CORPORATE, asn_class: PUBLIC_SECTOR, mean: 40.0 }
+    - { ip_type: DATACENTRE, asn_class: CDN_EDGE, mean: 12000.0 }
+    - { ip_type: DATACENTRE, asn_class: HOSTING_PROVIDER, mean: 6000.0 }
+    - { ip_type: EDUCATION, asn_class: ENTERPRISE, mean: 80.0 }
+    - { ip_type: EDUCATION, asn_class: PUBLIC_SECTOR, mean: 120.0 }
+    - { ip_type: HOTEL_TRAVEL, asn_class: CONSUMER_ISP, mean: 120.0 }
+    - { ip_type: HOTEL_TRAVEL, asn_class: ENTERPRISE, mean: 80.0 }
+    - { ip_type: MOBILE, asn_class: MNO, mean: 180.0 }
+    - { ip_type: PUBLIC_WIFI, asn_class: CONSUMER_ISP, mean: 200.0 }
+    - { ip_type: PUBLIC_WIFI, asn_class: ENTERPRISE, mean: 120.0 }
+    - { ip_type: PUBLIC_WIFI, asn_class: PUBLIC_SECTOR, mean: 150.0 }
+    - { ip_type: RESIDENTIAL, asn_class: CONSUMER_ISP, mean: 2.4 }
+    - { ip_type: VPN_PROXY, asn_class: HOSTING_PROVIDER, mean: 3500.0 }
+  deg_dev_per_ip_distribution:
+    - ip_type: CORPORATE
+      asn_class: ENTERPRISE
+      model_id: geometric_capK_v1
+      min_k: 5
+      max_k: 500
+      p: 0.45
+    - ip_type: CORPORATE
+      asn_class: PUBLIC_SECTOR
+      model_id: geometric_capK_v1
+      min_k: 5
+      max_k: 500
+      p: 0.40
+    - ip_type: DATACENTRE
+      asn_class: CDN_EDGE
+      model_id: zipf_capK_v1
+      min_k: 50
+      max_k: 200000
+      alpha: 1.05
+    - ip_type: DATACENTRE
+      asn_class: HOSTING_PROVIDER
+      model_id: zipf_capK_v1
+      min_k: 20
+      max_k: 100000
+      alpha: 1.10
+    - ip_type: EDUCATION
+      asn_class: ENTERPRISE
+      model_id: geometric_capK_v1
+      min_k: 8
+      max_k: 1500
+      p: 0.45
+    - ip_type: EDUCATION
+      asn_class: PUBLIC_SECTOR
+      model_id: zipf_capK_v1
+      min_k: 10
+      max_k: 2000
+      alpha: 1.25
+    - ip_type: HOTEL_TRAVEL
+      asn_class: CONSUMER_ISP
+      model_id: geometric_capK_v1
+      min_k: 8
+      max_k: 1200
+      p: 0.45
+    - ip_type: HOTEL_TRAVEL
+      asn_class: ENTERPRISE
+      model_id: geometric_capK_v1
+      min_k: 6
+      max_k: 800
+      p: 0.50
+    - ip_type: MOBILE
+      asn_class: MNO
+      model_id: zipf_capK_v1
+      min_k: 10
+      max_k: 6000
+      alpha: 1.20
+    - ip_type: PUBLIC_WIFI
+      asn_class: CONSUMER_ISP
+      model_id: zipf_capK_v1
+      min_k: 10
+      max_k: 5000
+      alpha: 1.25
+    - ip_type: PUBLIC_WIFI
+      asn_class: ENTERPRISE
+      model_id: geometric_capK_v1
+      min_k: 10
+      max_k: 3500
+      p: 0.45
+    - ip_type: PUBLIC_WIFI
+      asn_class: PUBLIC_SECTOR
+      model_id: geometric_capK_v1
+      min_k: 10
+      max_k: 4000
+      p: 0.45
+    - ip_type: RESIDENTIAL
+      asn_class: CONSUMER_ISP
+      model_id: geometric_capK_v1
+      min_k: 1
+      max_k: 12
+      p: 0.55
+    - ip_type: VPN_PROXY
+      asn_class: HOSTING_PROVIDER
+      model_id: zipf_capK_v1
+      min_k: 20
+      max_k: 50000
+      alpha: 1.15
+  direct_party_links:
+    enabled: false
+
+attribute_models:
+  ip_version_model:
+    enabled: true
+    mode: by_ip_type_v1
+    defaults:
+      CORPORATE: { ipv6_share: 0.35 }
+      DATACENTRE: { ipv6_share: 0.50 }
+      EDUCATION: { ipv6_share: 0.40 }
+      HOTEL_TRAVEL: { ipv6_share: 0.45 }
+      MOBILE: { ipv6_share: 0.55 }
+      PUBLIC_WIFI: { ipv6_share: 0.45 }
+      RESIDENTIAL: { ipv6_share: 0.25 }
+      VPN_PROXY: { ipv6_share: 0.40 }
+    overrides: []
+  churn_model:
+    enabled: true
+    mode: by_ip_type_asn_class_v1
+    defaults:
+      CORPORATE: { churn_class: STABLE }
+      DATACENTRE: { churn_class: STABLE }
+      EDUCATION: { churn_class: HIGH_CHURN }
+      HOTEL_TRAVEL: { churn_class: HIGH_CHURN }
+      MOBILE: { churn_class: HIGH_CHURN }
+      PUBLIC_WIFI: { churn_class: HIGH_CHURN }
+      RESIDENTIAL: { churn_class: STABLE }
+      VPN_PROXY: { churn_class: HIGH_CHURN }
+    overrides: []
+  risk_tier_model:
+    enabled: true
+    mode: deterministic_by_ip_type_v1
+    defaults:
+      CORPORATE: { risk_tier: STANDARD }
+      DATACENTRE: { risk_tier: HIGH }
+      EDUCATION: { risk_tier: STANDARD }
+      HOTEL_TRAVEL: { risk_tier: STANDARD }
+      MOBILE: { risk_tier: STANDARD }
+      PUBLIC_WIFI: { risk_tier: STANDARD }
+      RESIDENTIAL: { risk_tier: LOW }
+      VPN_PROXY: { risk_tier: HIGH }
+    overrides: []
+  risk_flags_model:
+    enabled: false
+    mode: none
+    defaults: {}
+    overrides: []
+
+address_policy:
+  mode: documentation_ranges_v1
+  ipv4_pools: ["192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24"]
+  ipv6_pool: "2001:db8::/32"
+  assignment:
+    mode: hash_from_ip_id_v1
+    salt_label: "ip_address_masked"
+    open_interval_mapping: "numeric_policy.open_interval_u64"
+  formatting:
+    ipv4_style: dotted_decimal
+    ipv6_style: compressed_lower
+
+constraints:
+  fail_on_missing_rule: true
+  max_total_ips_world: 300000000
+  max_total_ip_edges_world: 900000000
+  max_ips_per_device: 40
+  max_devices_per_ip: 150000
+  max_parties_per_ip: 150000
+  eps_min_mu_dev_per_ip: 1.0e-9
+
+realism_targets:
+  lambda_ip_per_device_range_by_group:
+    CONSUMER_COMPUTER: { min: 1.0, max: 6.0 }
+    CONSUMER_MOBILE: { min: 2.0, max: 10.0 }
+    COMPUTER_PORTABLE: { min: 1.0, max: 6.0 }
+    IOT_OTHER: { min: 0.5, max: 4.0 }
+    MERCHANT_TERMINAL: { min: 0.5, max: 4.0 }
+    SERVER_BACKEND: { min: 1.0, max: 5.0 }
+  mu_dev_per_ip_range_by_ip_type:
+    CORPORATE: { min: 5.0, max: 200.0 }
+    DATACENTRE: { min: 50.0, max: 200000.0 }
+    EDUCATION: { min: 10.0, max: 3000.0 }
+    HOTEL_TRAVEL: { min: 10.0, max: 2000.0 }
+    MOBILE: { min: 20.0, max: 3000.0 }
+    PUBLIC_WIFI: { min: 10.0, max: 5000.0 }
+    RESIDENTIAL: { min: 1.0, max: 8.0 }
+    VPN_PROXY: { min: 50.0, max: 50000.0 }
+  datacentre_fraction_range: { min: 0.01, max: 0.20 }
+  vpn_proxy_fraction_range: { min: 0.005, max: 0.10 }
+  ipv6_share_range_by_ip_type:
+    CORPORATE: { min: 0.10, max: 0.70 }
+    DATACENTRE: { min: 0.10, max: 0.80 }
+    EDUCATION: { min: 0.10, max: 0.70 }
+    HOTEL_TRAVEL: { min: 0.10, max: 0.80 }
+    MOBILE: { min: 0.20, max: 0.85 }
+    PUBLIC_WIFI: { min: 0.10, max: 0.80 }
+    RESIDENTIAL: { min: 0.05, max: 0.60 }
+    VPN_PROXY: { min: 0.10, max: 0.80 }
+  shared_network_presence_min: 0.20
+  region_variation_required_if_n_regions_ge: 2
+  region_variation_min_delta: 0.03
+
+notes: >
+  IP priors balance shared infrastructure with realistic residential/mobile presence across regions.

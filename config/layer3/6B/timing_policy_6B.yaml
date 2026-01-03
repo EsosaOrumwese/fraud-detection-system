@@ -1,0 +1,122 @@
+schema_version: 1
+policy_id: timing_policy_6B
+policy_version: v1
+
+bindings:
+  channel_groups: [ECOM, POS, ATM, BANK_RAIL, HYBRID]
+  event_type_vocab:
+    - AUTH_REQUEST
+    - AUTH_RESPONSE
+    - STEP_UP_CHALLENGE
+    - STEP_UP_COMPLETE
+    - CLEARING
+    - REFUND
+    - REVERSAL
+  rng_family_for_timing_draw: rng_event_event_timing
+  no_run_id_in_key: true
+
+time_units:
+  timestamp_resolution: microsecond
+  offset_unit: seconds
+  min_positive_offset_seconds: 0.001
+
+anchor_rules:
+  AUTH_REQUEST: { anchor: ARRIVAL_TS_UTC, allow_jitter: false }
+  AUTH_RESPONSE: { anchor: PREV_EVENT, prev: AUTH_REQUEST, offset: delta_auth_response_seconds }
+  STEP_UP_CHALLENGE: { anchor: PREV_EVENT, prev: AUTH_REQUEST, offset: delta_step_up_start_seconds }
+  STEP_UP_COMPLETE: { anchor: PREV_EVENT, prev: STEP_UP_CHALLENGE, offset: delta_step_up_complete_seconds }
+  CLEARING: { anchor: EVENT, event: AUTH_REQUEST, offset: delta_auth_to_clear_seconds }
+  REFUND: { anchor: EVENT, event: CLEARING, offset: delta_clear_to_refund_seconds }
+  REVERSAL: { anchor: EVENT, event: AUTH_REQUEST, offset: delta_auth_to_reversal_seconds }
+
+offset_models:
+  delta_auth_response_seconds:
+    dist_id: LOGNORMAL_V1
+    mu_log: -0.35
+    sigma_log: 0.50
+    min_seconds: 0.02
+    cap_seconds: 10.0
+    rng_family: rng_event_event_timing
+
+  delta_step_up_start_seconds:
+    dist_id: LOGNORMAL_V1
+    mu_log: 0.05
+    sigma_log: 0.55
+    min_seconds: 0.10
+    cap_seconds: 60.0
+    rng_family: rng_event_event_timing
+
+  delta_step_up_complete_seconds:
+    dist_id: LOGNORMAL_V1
+    mu_log: 1.30
+    sigma_log: 0.55
+    min_seconds: 1.0
+    cap_seconds: 300.0
+    rng_family: rng_event_event_timing
+
+  delta_auth_to_clear_seconds:
+    dist_id: GAMMA_V1
+    shape_k: 2.0
+    scale_theta: 1500.0
+    min_seconds: 60.0
+    cap_seconds: 21600.0
+    rng_family: rng_event_event_timing
+    by_channel_group:
+      ATM:
+        shape_k: 1.5
+        scale_theta: 600.0
+        min_seconds: 30.0
+        cap_seconds: 7200.0
+
+  delta_clear_to_refund_seconds:
+    dist_id: GAMMA_V1
+    shape_k: 1.1
+    scale_theta: 7200.0
+    min_seconds: 300.0
+    cap_seconds: 28800.0
+    rng_family: rng_event_event_timing
+
+  delta_auth_to_reversal_seconds:
+    dist_id: EXPONENTIAL_V1
+    rate_lambda: 0.002
+    min_seconds: 10.0
+    cap_seconds: 21600.0
+    rng_family: rng_event_event_timing
+
+  delta_auth_retry_gap_seconds:
+    dist_id: DISCRETE_POINTS_V1
+    points_seconds: [2.0, 5.0, 10.0]
+    probs: [0.50, 0.35, 0.15]
+    min_seconds: 2.0
+    cap_seconds: 15.0
+    rng_family: rng_event_event_timing
+
+composition_rules:
+  monotone_mode: strictly_increasing
+  strict_increase_epsilon_seconds: 0.001
+  if_violation: FAIL
+  arrival_jitter:
+    enabled: false
+
+guardrails:
+  max_flow_duration_seconds: 21600
+  max_session_span_seconds: 43200
+  max_inter_event_gap_seconds: 21600
+  max_clear_delay_seconds: 21600
+  max_refund_delay_seconds: 28800
+
+realism_targets:
+  auth_response_p50_seconds_range:
+    ECOM: { min: 0.05, max: 2.0 }
+    POS: { min: 0.05, max: 1.5 }
+    ATM: { min: 0.05, max: 2.0 }
+  auth_to_clear_p50_seconds_range:
+    ECOM: { min: 900.0, max: 14400.0 }
+    POS: { min: 900.0, max: 14400.0 }
+    ATM: { min: 60.0, max: 3600.0 }
+  refund_delay_p50_seconds_range:
+    ECOM: { min: 1800.0, max: 21600.0 }
+    POS: { min: 1800.0, max: 21600.0 }
+  fraction_same_second_auth_and_response_max: 0.35
+  fraction_clearing_same_day_min: 0.70
+notes: "Offsets are bounded to stay within session duration guardrails."

@@ -1,0 +1,198 @@
+schema_version: 1
+taxonomy_id: taxonomy.party.v1
+notes: >
+  Party type and segment catalog for 6A. Segment ids are stable API tokens.
+
+party_types:
+  - id: BUSINESS
+    is_business: true
+    label: Business customer
+    description: Registered businesses and sole traders acting primarily for commercial use.
+  - id: OTHER
+    is_business: false
+    label: Other institution
+    description: Public bodies, charities, and other non-standard institutional customers.
+  - id: RETAIL
+    is_business: false
+    label: Retail consumer
+    description: Individuals acting primarily for personal use.
+
+segment_families:
+  - id: BUSINESS
+    party_type: BUSINESS
+    label: Business segmentation
+    description: Business segments by size, complexity, and operating mode.
+  - id: OTHER
+    party_type: OTHER
+    label: Institutional segmentation
+    description: Non-consumer institutions.
+  - id: RETAIL
+    party_type: RETAIL
+    label: Retail segmentation
+    description: Retail segments by lifecycle and affluence or constraint.
+
+segment_groups:
+  - id: BUSINESS_OPERATING_MODE
+    family_id: BUSINESS
+    dimension: BUSINESS_OPERATING_MODE
+    label: Operating mode
+    description: Online and omnichannel intensity.
+  - id: BUSINESS_SIZE
+    family_id: BUSINESS
+    dimension: BUSINESS_SIZE
+    label: Business size
+    description: Segments defined by size and complexity.
+  - id: OTHER_INSTITUTION
+    family_id: OTHER
+    dimension: INSTITUTION_TYPE
+    label: Institution type
+    description: Institutional segments.
+  - id: RETAIL_AFFLUENCE
+    family_id: RETAIL
+    dimension: AFFLUENCE
+    label: Retail affluence or constraint
+    description: Segments defined by affluence and financial constraint.
+  - id: RETAIL_LIFESTAGE
+    family_id: RETAIL
+    dimension: LIFESTAGE
+    label: Retail lifecycle stage
+    description: Segments defined by lifecycle stage.
+
+tag_vocabulary:
+  - CASH_HEAVY
+  - CREDIT_AVOIDER
+  - CREDIT_SEEKER
+  - CROSS_BORDER_HEAVY
+  - DIGITAL_HEAVY
+  - ECOM_FOCUSED
+  - INCOME_VOLATILE
+  - INTERNATIONAL_CLIENTS
+  - LONG_TENURE
+  - NEW_TO_BANK
+  - POS_FOCUSED
+  - SAVINGS_ORIENTED
+  - SEASONAL
+  - TRAVEL_HEAVY
+
+segments:
+  - id: BUSINESS_CORPORATE
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_SIZE
+    label: Corporate
+    description: Large enterprises with multi-product usage and complex operations.
+    tags: [INTERNATIONAL_CLIENTS, CROSS_BORDER_HEAVY]
+  - id: BUSINESS_ECOM_NATIVE
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_OPERATING_MODE
+    label: E-commerce native
+    description: Businesses with predominantly online sales and high digital channel use.
+    tags: [ECOM_FOCUSED, DIGITAL_HEAVY, INTERNATIONAL_CLIENTS]
+  - id: BUSINESS_LOCAL_SERVICE
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_SIZE
+    label: Local service
+    description: Local services with steady but moderate transaction volumes.
+    tags: [POS_FOCUSED]
+  - id: BUSINESS_MID_MARKET
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_SIZE
+    label: Mid-market
+    description: Established businesses with moderate complexity and multi-product usage.
+    tags: [POS_FOCUSED]
+  - id: BUSINESS_MICRO
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_SIZE
+    label: Micro business
+    description: Very small businesses with limited product usage and variable cashflow.
+    tags: [INCOME_VOLATILE]
+  - id: BUSINESS_SME
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_SIZE
+    label: SME
+    description: Small and medium businesses with standard banking needs.
+    tags: [POS_FOCUSED]
+  - id: BUSINESS_SOLE_TRADER
+    party_type: BUSINESS
+    family_id: BUSINESS
+    group_id: BUSINESS_SIZE
+    label: Sole trader
+    description: Self-employed individuals operating a small business.
+    tags: [DIGITAL_HEAVY]
+
+  - id: OTHER_NONPROFIT
+    party_type: OTHER
+    family_id: OTHER
+    group_id: OTHER_INSTITUTION
+    label: Non-profit
+    description: Charities and non-profits with donation and expense patterns.
+    tags: [SEASONAL]
+  - id: OTHER_PUBLIC_SECTOR
+    party_type: OTHER
+    family_id: OTHER
+    group_id: OTHER_INSTITUTION
+    label: Public sector
+    description: Public bodies and agencies with stable funding and payment flows.
+    tags: [LONG_TENURE]
+
+  - id: RETAIL_AFFLUENT
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_AFFLUENCE
+    label: Affluent
+    description: Higher disposable income customers with travel and cross-border propensity.
+    tags: [TRAVEL_HEAVY, CROSS_BORDER_HEAVY]
+  - id: RETAIL_EARLY_CAREER
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_LIFESTAGE
+    label: Early career
+    description: Recently employed customers with growing income and product eligibility.
+    tags: [DIGITAL_HEAVY, CREDIT_SEEKER]
+  - id: RETAIL_FAMILY
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_LIFESTAGE
+    label: Family household
+    description: Customers with dependants and recurring expenses.
+    tags: [POS_FOCUSED]
+  - id: RETAIL_MASS_MARKET
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_AFFLUENCE
+    label: Mass market
+    description: Mainstream customers with balanced channel use.
+    tags: [POS_FOCUSED]
+  - id: RETAIL_MATURE
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_LIFESTAGE
+    label: Mature working
+    description: Established customers with stable income and longer tenure.
+    tags: [LONG_TENURE, SAVINGS_ORIENTED]
+  - id: RETAIL_RETIRED
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_LIFESTAGE
+    label: Retired
+    description: Post-employment customers with stable income sources.
+    tags: [CREDIT_AVOIDER, LONG_TENURE]
+  - id: RETAIL_STUDENT
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_LIFESTAGE
+    label: Student
+    description: Education-linked customers with lower income and high digital usage.
+    tags: [DIGITAL_HEAVY, NEW_TO_BANK]
+  - id: RETAIL_VALUE
+    party_type: RETAIL
+    family_id: RETAIL
+    group_id: RETAIL_AFFLUENCE
+    label: Value
+    description: Lower disposable income customers with stronger budget constraints.
+    tags: [CASH_HEAVY, CREDIT_AVOIDER]

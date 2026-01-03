@@ -1,0 +1,311 @@
+schema_version: 1
+prior_id: instrument_mix_priors_6A
+prior_version: v1
+
+bindings:
+  party_taxonomy_ref: taxonomy_party_6A
+  account_taxonomy_ref: taxonomy_account_types_6A
+  instrument_taxonomy_ref: taxonomy_instrument_types_6A
+
+cell_definition:
+  account_cell: [region_id, party_type, segment_id, account_type]
+  instrument_cell_base: [region_id, party_type, segment_id, account_type, instrument_type]
+
+scheme_mode: ATTRIBUTE_ONLY
+
+instrument_domain_model:
+  mode: by_party_type_account_type
+  allowed_instrument_types:
+    - party_type: BUSINESS
+      account_type: BUSINESS_CREDIT_CARD
+      instrument_types: [BUSINESS_CREDIT_CARD_PHYSICAL, WALLET_DEVICE_TOKEN, WALLET_NETWORK_TOKEN]
+    - party_type: BUSINESS
+      account_type: BUSINESS_CURRENT
+      instrument_types: [BUSINESS_DEBIT_CARD_PHYSICAL, PARTY_BANK_ACCOUNT_DOMESTIC, PARTY_BANK_ACCOUNT_INTERNATIONAL, WALLET_DEVICE_TOKEN]
+    - party_type: BUSINESS
+      account_type: BUSINESS_SAVINGS
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC, PARTY_BANK_ACCOUNT_INTERNATIONAL]
+    - party_type: BUSINESS
+      account_type: BUSINESS_TERM_LOAN
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC]
+    - party_type: OTHER
+      account_type: OTHER_CURRENT_BASIC
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC, PARTY_BANK_ACCOUNT_INTERNATIONAL]
+    - party_type: OTHER
+      account_type: OTHER_SAVINGS
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC]
+    - party_type: RETAIL
+      account_type: RETAIL_CREDIT_CARD_PREMIUM
+      instrument_types: [RETAIL_CREDIT_CARD_PHYSICAL, RETAIL_CREDIT_CARD_VIRTUAL, WALLET_DEVICE_TOKEN, WALLET_NETWORK_TOKEN]
+    - party_type: RETAIL
+      account_type: RETAIL_CREDIT_CARD_STANDARD
+      instrument_types: [RETAIL_CREDIT_CARD_PHYSICAL, RETAIL_CREDIT_CARD_VIRTUAL, WALLET_DEVICE_TOKEN]
+    - party_type: RETAIL
+      account_type: RETAIL_CURRENT_BASIC
+      instrument_types: [RETAIL_DEBIT_CARD_PHYSICAL, RETAIL_DEBIT_CARD_VIRTUAL, PARTY_BANK_ACCOUNT_DOMESTIC]
+    - party_type: RETAIL
+      account_type: RETAIL_CURRENT_PREMIUM
+      instrument_types: [RETAIL_DEBIT_CARD_PHYSICAL, RETAIL_DEBIT_CARD_VIRTUAL, PARTY_BANK_ACCOUNT_DOMESTIC, WALLET_DEVICE_TOKEN]
+    - party_type: RETAIL
+      account_type: RETAIL_PERSONAL_LOAN_UNSECURED
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC]
+    - party_type: RETAIL
+      account_type: RETAIL_SAVINGS_FIXED
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC]
+    - party_type: RETAIL
+      account_type: RETAIL_SAVINGS_INSTANT
+      instrument_types: [PARTY_BANK_ACCOUNT_DOMESTIC]
+
+lambda_model:
+  mode: lambda_total_times_mix_v1
+  lambda_total_by_party_type_account_type:
+    - { party_type: BUSINESS, account_type: BUSINESS_CREDIT_CARD, lambda_total: 1.50 }
+    - { party_type: BUSINESS, account_type: BUSINESS_CURRENT, lambda_total: 1.90 }
+    - { party_type: BUSINESS, account_type: BUSINESS_SAVINGS, lambda_total: 0.60 }
+    - { party_type: BUSINESS, account_type: BUSINESS_TERM_LOAN, lambda_total: 0.20 }
+    - { party_type: OTHER, account_type: OTHER_CURRENT_BASIC, lambda_total: 0.80 }
+    - { party_type: OTHER, account_type: OTHER_SAVINGS, lambda_total: 0.40 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_PREMIUM, lambda_total: 1.60 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_STANDARD, lambda_total: 1.40 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_BASIC, lambda_total: 1.60 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_PREMIUM, lambda_total: 1.90 }
+    - { party_type: RETAIL, account_type: RETAIL_PERSONAL_LOAN_UNSECURED, lambda_total: 0.20 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_FIXED, lambda_total: 0.25 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_INSTANT, lambda_total: 0.45 }
+
+  mix_by_party_type_account_type:
+    - party_type: BUSINESS
+      account_type: BUSINESS_CREDIT_CARD
+      pi_instr:
+        - { instrument_type: BUSINESS_CREDIT_CARD_PHYSICAL, share: 0.70 }
+        - { instrument_type: WALLET_DEVICE_TOKEN, share: 0.18 }
+        - { instrument_type: WALLET_NETWORK_TOKEN, share: 0.12 }
+    - party_type: BUSINESS
+      account_type: BUSINESS_CURRENT
+      pi_instr:
+        - { instrument_type: BUSINESS_DEBIT_CARD_PHYSICAL, share: 0.55 }
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 0.25 }
+        - { instrument_type: PARTY_BANK_ACCOUNT_INTERNATIONAL, share: 0.10 }
+        - { instrument_type: WALLET_DEVICE_TOKEN, share: 0.10 }
+    - party_type: BUSINESS
+      account_type: BUSINESS_SAVINGS
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 0.70 }
+        - { instrument_type: PARTY_BANK_ACCOUNT_INTERNATIONAL, share: 0.30 }
+    - party_type: BUSINESS
+      account_type: BUSINESS_TERM_LOAN
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 1.00 }
+    - party_type: OTHER
+      account_type: OTHER_CURRENT_BASIC
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 0.70 }
+        - { instrument_type: PARTY_BANK_ACCOUNT_INTERNATIONAL, share: 0.30 }
+    - party_type: OTHER
+      account_type: OTHER_SAVINGS
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 1.00 }
+    - party_type: RETAIL
+      account_type: RETAIL_CREDIT_CARD_PREMIUM
+      pi_instr:
+        - { instrument_type: RETAIL_CREDIT_CARD_PHYSICAL, share: 0.60 }
+        - { instrument_type: RETAIL_CREDIT_CARD_VIRTUAL, share: 0.20 }
+        - { instrument_type: WALLET_DEVICE_TOKEN, share: 0.12 }
+        - { instrument_type: WALLET_NETWORK_TOKEN, share: 0.08 }
+    - party_type: RETAIL
+      account_type: RETAIL_CREDIT_CARD_STANDARD
+      pi_instr:
+        - { instrument_type: RETAIL_CREDIT_CARD_PHYSICAL, share: 0.65 }
+        - { instrument_type: RETAIL_CREDIT_CARD_VIRTUAL, share: 0.20 }
+        - { instrument_type: WALLET_DEVICE_TOKEN, share: 0.15 }
+    - party_type: RETAIL
+      account_type: RETAIL_CURRENT_BASIC
+      pi_instr:
+        - { instrument_type: RETAIL_DEBIT_CARD_PHYSICAL, share: 0.55 }
+        - { instrument_type: RETAIL_DEBIT_CARD_VIRTUAL, share: 0.20 }
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 0.25 }
+    - party_type: RETAIL
+      account_type: RETAIL_CURRENT_PREMIUM
+      pi_instr:
+        - { instrument_type: RETAIL_DEBIT_CARD_PHYSICAL, share: 0.50 }
+        - { instrument_type: RETAIL_DEBIT_CARD_VIRTUAL, share: 0.20 }
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 0.20 }
+        - { instrument_type: WALLET_DEVICE_TOKEN, share: 0.10 }
+    - party_type: RETAIL
+      account_type: RETAIL_PERSONAL_LOAN_UNSECURED
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 1.00 }
+    - party_type: RETAIL
+      account_type: RETAIL_SAVINGS_FIXED
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 1.00 }
+    - party_type: RETAIL
+      account_type: RETAIL_SAVINGS_INSTANT
+      pi_instr:
+        - { instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC, share: 1.00 }
+
+  segment_tilt:
+    segment_profile_source: prior_segmentation_6A
+    features: [digital_affinity, credit_appetite, cash_affinity, cross_border_propensity]
+    clip_log_multiplier: 0.80
+    weights_by_feature:
+      cash_affinity:
+        RETAIL_DEBIT_CARD_VIRTUAL: -0.35
+        RETAIL_CREDIT_CARD_VIRTUAL: -0.25
+        WALLET_DEVICE_TOKEN: -0.30
+        WALLET_NETWORK_TOKEN: -0.25
+      credit_appetite:
+        RETAIL_CREDIT_CARD_PHYSICAL: 0.30
+        RETAIL_CREDIT_CARD_VIRTUAL: 0.30
+        BUSINESS_CREDIT_CARD_PHYSICAL: 0.35
+      cross_border_propensity:
+        PARTY_BANK_ACCOUNT_INTERNATIONAL: 0.35
+      digital_affinity:
+        RETAIL_DEBIT_CARD_VIRTUAL: 0.35
+        RETAIL_CREDIT_CARD_VIRTUAL: 0.40
+        WALLET_DEVICE_TOKEN: 0.45
+        WALLET_NETWORK_TOKEN: 0.30
+
+  region_tilt:
+    region_profiles:
+      - { region_id: REGION_AFRICA, card_penetration_score: 0.45, digital_score: 0.40, cross_border_score: 0.20 }
+      - { region_id: REGION_AMER, card_penetration_score: 0.70, digital_score: 0.75, cross_border_score: 0.45 }
+      - { region_id: REGION_APAC, card_penetration_score: 0.65, digital_score: 0.70, cross_border_score: 0.40 }
+      - { region_id: REGION_EMEA, card_penetration_score: 0.60, digital_score: 0.60, cross_border_score: 0.35 }
+      - { region_id: REGION_LATAM, card_penetration_score: 0.55, digital_score: 0.50, cross_border_score: 0.30 }
+
+attribute_models:
+  scheme_model:
+    enabled: true
+    mode: by_region_and_scheme_kind_v1
+    defaults:
+      BANK_RAIL:
+        - { scheme: ACH, share: 0.40 }
+        - { scheme: SEPA_CREDIT, share: 0.35 }
+        - { scheme: FPS, share: 0.15 }
+        - { scheme: SWIFT, share: 0.10 }
+      CARD_NETWORK:
+        - { scheme: VISA, share: 0.52 }
+        - { scheme: MASTERCARD, share: 0.40 }
+        - { scheme: AMEX, share: 0.05 }
+        - { scheme: DISCOVER, share: 0.03 }
+      WALLET_NETWORK:
+        - { scheme: APPLE_PAY, share: 0.55 }
+        - { scheme: GOOGLE_PAY, share: 0.45 }
+    overrides: []
+
+  brand_tier_model:
+    enabled: true
+    mode: by_party_type_with_segment_tilt_v1
+    defaults:
+      BUSINESS:
+        - { brand_tier: BUSINESS, share: 0.80 }
+        - { brand_tier: CORPORATE, share: 0.20 }
+      OTHER:
+        - { brand_tier: BASIC, share: 0.90 }
+        - { brand_tier: PREMIUM, share: 0.10 }
+      RETAIL:
+        - { brand_tier: BASIC, share: 0.78 }
+        - { brand_tier: PREMIUM, share: 0.22 }
+    overrides: []
+
+  token_type_model:
+    enabled: true
+    mode: by_party_type_with_digital_tilt_v1
+    defaults:
+      BUSINESS:
+        - { token_type: NONE, share: 0.75 }
+        - { token_type: NETWORK_TOKEN, share: 0.18 }
+        - { token_type: DEVICE_TOKEN, share: 0.07 }
+      OTHER:
+        - { token_type: NONE, share: 0.90 }
+        - { token_type: NETWORK_TOKEN, share: 0.08 }
+        - { token_type: DEVICE_TOKEN, share: 0.02 }
+      RETAIL:
+        - { token_type: NONE, share: 0.68 }
+        - { token_type: NETWORK_TOKEN, share: 0.22 }
+        - { token_type: DEVICE_TOKEN, share: 0.10 }
+    overrides: []
+
+  expiry_model:
+    enabled: true
+    mode: fixed_horizon_offsets_v1
+    defaults:
+      card_expiry_years: [2, 3, 4, 5]
+      month_uniform: true
+    overrides: []
+
+  flags_model:
+    enabled: true
+    mode: by_instrument_type_v1
+    defaults:
+      contactless_enabled_prob: 0.90
+      card_present_capable_prob: 0.85
+      card_not_present_capable_prob: 0.98
+    overrides: []
+
+constraints:
+  fail_on_missing_rule: true
+  max_lambda_total_per_account_type:
+    - { party_type: BUSINESS, account_type: BUSINESS_CREDIT_CARD, max_lambda_total: 3.0 }
+    - { party_type: BUSINESS, account_type: BUSINESS_CURRENT, max_lambda_total: 3.5 }
+    - { party_type: BUSINESS, account_type: BUSINESS_SAVINGS, max_lambda_total: 1.5 }
+    - { party_type: BUSINESS, account_type: BUSINESS_TERM_LOAN, max_lambda_total: 1.0 }
+    - { party_type: OTHER, account_type: OTHER_CURRENT_BASIC, max_lambda_total: 2.0 }
+    - { party_type: OTHER, account_type: OTHER_SAVINGS, max_lambda_total: 1.5 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_PREMIUM, max_lambda_total: 3.0 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_STANDARD, max_lambda_total: 2.8 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_BASIC, max_lambda_total: 3.0 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_PREMIUM, max_lambda_total: 3.5 }
+    - { party_type: RETAIL, account_type: RETAIL_PERSONAL_LOAN_UNSECURED, max_lambda_total: 1.0 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_FIXED, max_lambda_total: 1.5 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_INSTANT, max_lambda_total: 1.5 }
+  min_nonzero_instrument_types_per_domain:
+    - { party_type: BUSINESS, account_type: BUSINESS_CREDIT_CARD, min_k: 1 }
+    - { party_type: BUSINESS, account_type: BUSINESS_CURRENT, min_k: 1 }
+    - { party_type: BUSINESS, account_type: BUSINESS_SAVINGS, min_k: 1 }
+    - { party_type: BUSINESS, account_type: BUSINESS_TERM_LOAN, min_k: 1 }
+    - { party_type: OTHER, account_type: OTHER_CURRENT_BASIC, min_k: 1 }
+    - { party_type: OTHER, account_type: OTHER_SAVINGS, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_PREMIUM, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_STANDARD, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_BASIC, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_PREMIUM, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_PERSONAL_LOAN_UNSECURED, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_FIXED, min_k: 1 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_INSTANT, min_k: 1 }
+  max_single_instrument_type_share_cap:
+    - { party_type: BUSINESS, account_type: BUSINESS_CREDIT_CARD, cap: 0.90 }
+    - { party_type: BUSINESS, account_type: BUSINESS_CURRENT, cap: 0.85 }
+    - { party_type: BUSINESS, account_type: BUSINESS_SAVINGS, cap: 0.90 }
+    - { party_type: BUSINESS, account_type: BUSINESS_TERM_LOAN, cap: 1.00 }
+    - { party_type: OTHER, account_type: OTHER_CURRENT_BASIC, cap: 0.85 }
+    - { party_type: OTHER, account_type: OTHER_SAVINGS, cap: 1.00 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_PREMIUM, cap: 0.85 }
+    - { party_type: RETAIL, account_type: RETAIL_CREDIT_CARD_STANDARD, cap: 0.88 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_BASIC, cap: 0.85 }
+    - { party_type: RETAIL, account_type: RETAIL_CURRENT_PREMIUM, cap: 0.80 }
+    - { party_type: RETAIL, account_type: RETAIL_PERSONAL_LOAN_UNSECURED, cap: 1.00 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_FIXED, cap: 1.00 }
+    - { party_type: RETAIL, account_type: RETAIL_SAVINGS_INSTANT, cap: 1.00 }
+
+realism_targets:
+  lambda_total_range_by_account_group:
+    BUSINESS_CREDIT: { min: 1.0, max: 2.8 }
+    BUSINESS_DEPOSIT: { min: 1.0, max: 2.8 }
+    CREDIT_CARD: { min: 1.0, max: 2.6 }
+    DEPOSIT_PRIMARY: { min: 1.0, max: 2.6 }
+    LOAN: { min: 0.0, max: 0.5 }
+    OTHER_DEPOSIT: { min: 0.5, max: 1.5 }
+    SAVINGS: { min: 0.0, max: 0.8 }
+  card_penetration_proxy_range_by_party_type:
+    BUSINESS: { min: 0.55, max: 0.95 }
+    OTHER: { min: 0.15, max: 0.85 }
+    RETAIL: { min: 0.70, max: 0.98 }
+  virtual_share_range_for_card_like: { min: 0.05, max: 0.45 }
+  tokenization_share_range_for_card_like: { min: 0.05, max: 0.55 }
+  region_variation_required_if_n_regions_ge: 3
+  region_variation_min_delta: 0.03
+
+notes: >
+  Instrument mixes follow account type intent with segment and regional tilts.

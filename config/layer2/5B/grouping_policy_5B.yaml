@@ -1,8 +1,8 @@
 policy_id: grouping_policy_5B
-version: v1.0.0
+version: v1.0.1
 mode: stratified_bucket_hash_v1
-zone_group_buckets: 16
-in_stratum_buckets: 32
+zone_group_buckets: 8
+in_stratum_buckets: 16
 scenario_band_law: baseline_if_is_baseline_else_stress
 virtual_band_law: virtual_if_virtual_mode_not_NON_VIRTUAL_else_physical
 stratum_fields:
@@ -14,6 +14,6 @@ stratum_fields:
 group_id_format: "g|{scenario_band}|{demand_class}|{channel_group}|{virtual_band}|{zone_group_id}|b{b:02d}"
 realism_targets:
   min_groups_per_scenario: 200
-  max_groups_per_scenario: 50000
+  max_groups_per_scenario: 20000
   min_group_members_median: 10
   max_single_group_share: 0.02

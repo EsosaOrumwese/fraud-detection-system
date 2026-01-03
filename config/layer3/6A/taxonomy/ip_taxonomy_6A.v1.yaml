@@ -1,0 +1,120 @@
+schema_version: 1
+taxonomy_id: taxonomy.ips.v1
+notes: >
+  IP and endpoint classification taxonomy for 6A.S4. Ids are stable API tokens.
+
+ip_types:
+  - id: CORPORATE
+    label: Corporate or office
+    description: Enterprise networks and managed office gateways.
+  - id: DATACENTRE
+    label: Datacentre
+    description: Hosting and datacentre infrastructure.
+    is_shared_infrastructure: true
+  - id: EDUCATION
+    label: Education or campus
+    description: University or campus networks with shared access patterns.
+    is_shared_infrastructure: true
+  - id: HOTEL_TRAVEL
+    label: Hotel or travel Wi-Fi
+    description: Hospitality or travel access networks with shared usage.
+    is_shared_infrastructure: true
+  - id: MOBILE
+    label: Mobile carrier
+    description: Mobile network access via carrier gateways.
+    is_shared_infrastructure: true
+  - id: PUBLIC_WIFI
+    label: Public Wi-Fi
+    description: Public or shared Wi-Fi access points.
+    is_shared_infrastructure: true
+  - id: RESIDENTIAL
+    label: Residential broadband
+    description: Home broadband access networks.
+  - id: VPN_PROXY
+    label: VPN or proxy
+    description: VPN endpoints and proxy infrastructure used to mask origin.
+    is_anonymizing: true
+    is_shared_infrastructure: true
+
+asn_classes:
+  - id: CDN_EDGE
+    kind: CDN_EDGE
+    label: CDN edge
+    description: Content delivery edge providers and edge infrastructure.
+  - id: CONSUMER_ISP
+    kind: CONSUMER_ACCESS
+    label: Consumer ISP
+    description: Consumer broadband and access ISPs.
+  - id: ENTERPRISE
+    kind: ENTERPRISE
+    label: Enterprise
+    description: Enterprise or corporate providers.
+  - id: HOSTING_PROVIDER
+    kind: HOSTING
+    label: Hosting provider
+    description: Datacentres and hosting or cloud providers.
+  - id: MNO
+    kind: MOBILE_ACCESS
+    label: Mobile network operator
+    description: Mobile carrier network providers.
+  - id: PUBLIC_SECTOR
+    kind: PUBLIC_SECTOR
+    label: Public sector
+    description: Government or public-sector networks.
+
+risk_tiers:
+  - id: HIGH
+    label: High risk
+    description: Higher static risk posture (shared or anonymizing plausible).
+  - id: LOW
+    label: Low risk
+    description: Lower static risk posture (stable, managed, low churn).
+  - id: STANDARD
+    label: Standard risk
+    description: Typical baseline posture.
+
+risk_flags:
+  - id: HIGH_CHURN_RANGE
+    label: High churn range
+    description: Ranges with high observed turnover or dynamic allocation.
+  - id: KNOWN_PROXY_PROVIDER
+    label: Known proxy provider
+    description: Range known to be operated by a proxy or anonymizer provider.
+  - id: NEWLY_SEEN_RANGE
+    label: Newly seen
+    description: Range newly introduced in the observed IP universe.
+  - id: PUBLIC_SHARED_ACCESS
+    label: Public shared access
+    description: Shared-access network context (public Wi-Fi, hotel, campus).
+  - id: TOR_EXIT_RANGE
+    label: Tor exit range
+    description: Range associated with Tor exit nodes.
+  - id: VPN_ENDPOINT_RANGE
+    label: VPN endpoint range
+    description: Range associated with VPN endpoints.
+
+compatibility_rules:
+  - id: RULE_ANONYMIZER
+    ip_type: VPN_PROXY
+    allowed_asn_classes: [HOSTING_PROVIDER]
+  - id: RULE_CORPORATE
+    ip_type: CORPORATE
+    allowed_asn_classes: [ENTERPRISE]
+  - id: RULE_DATACENTRE
+    ip_type: DATACENTRE
+    allowed_asn_classes: [HOSTING_PROVIDER, CDN_EDGE]
+  - id: RULE_EDUCATION
+    ip_type: EDUCATION
+    allowed_asn_classes: [PUBLIC_SECTOR, ENTERPRISE]
+  - id: RULE_HOTEL_TRAVEL
+    ip_type: HOTEL_TRAVEL
+    allowed_asn_classes: [CONSUMER_ISP, ENTERPRISE]
+  - id: RULE_MOBILE
+    ip_type: MOBILE
+    allowed_asn_classes: [MNO]
+  - id: RULE_PUBLIC_SHARED
+    ip_type: PUBLIC_WIFI
+    allowed_asn_classes: [CONSUMER_ISP, PUBLIC_SECTOR, ENTERPRISE]
+  - id: RULE_RESIDENTIAL
+    ip_type: RESIDENTIAL
+    allowed_asn_classes: [CONSUMER_ISP]

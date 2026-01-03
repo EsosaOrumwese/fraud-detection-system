@@ -1,0 +1,110 @@
+schema_version: 1
+policy_id: delay_models_6B
+policy_version: v1
+
+time_units:
+  timestamp_resolution: microsecond
+  delay_unit: seconds
+  min_positive_delay_seconds: 0.001
+
+model_vocab:
+  dist_ids:
+    - EXPONENTIAL_QF_V1
+    - LOGNORMAL_QF_V1
+    - GAMMA_QF_V1
+    - DISCRETE_POINTS_V1
+    - POINT_MASS_PLUS_TAIL_V1
+    - MIXTURE_QF_V1
+
+delay_models:
+  - delay_model_id: DETECTION_DELAY_V1
+    applies_to: POST_AUTH_DETECTION
+    anchor_kind: AUTH_TS
+    rng_family: rng_event_detection_delay
+    decision_id: detect_delay
+    min_seconds: 1.0
+    max_seconds: 1209600.0
+    dist:
+      dist_id: POINT_MASS_PLUS_TAIL_V1
+      point_mass:
+        seconds: 300.0
+        prob: 0.30
+      tail:
+        dist_id: LOGNORMAL_QF_V1
+        mu_log: 10.1
+        sigma_log: 1.05
+
+  - delay_model_id: DISPUTE_DELAY_V1
+    applies_to: DISPUTE
+    anchor_kind: CLEARING_TS
+    rng_family: rng_event_dispute_delay
+    decision_id: dispute_delay
+    min_seconds: 3600.0
+    max_seconds: 3888000.0
+    dist:
+      dist_id: LOGNORMAL_QF_V1
+      mu_log: 11.7
+      sigma_log: 1.00
+
+  - delay_model_id: CHARGEBACK_DELAY_V1
+    applies_to: CHARGEBACK
+    anchor_kind: DISPUTE_TS
+    rng_family: rng_event_chargeback_delay
+    decision_id: chargeback_delay
+    min_seconds: 86400.0
+    max_seconds: 7776000.0
+    dist:
+      dist_id: MIXTURE_QF_V1
+      components:
+        - weight: 0.70
+          dist: { dist_id: GAMMA_QF_V1, shape_k: 2.0, scale_theta: 604800.0 }
+        - weight: 0.30
+          dist: { dist_id: LOGNORMAL_QF_V1, mu_log: 13.0, sigma_log: 0.9 }
+
+  - delay_model_id: CASE_CLOSE_DELAY_V1
+    applies_to: CASE_CLOSE
+    anchor_kind: CASE_OPEN_TS
+    rng_family: rng_event_case_timeline
+    decision_id: case_close_delay
+    min_seconds: 3600.0
+    max_seconds: 3888000.0
+    dist:
+      dist_id: GAMMA_QF_V1
+      shape_k: 1.6
+      scale_theta: 172800.0
+
+sampling_contract:
+  draws_per_delay_sample: "1"
+  forbid_rejection_sampling: true
+  mixture_sampling: deterministic_split_remap_v1
+  quantile_inputs_open_interval_only: true
+
+guardrails:
+  max_detection_delay_seconds: 1209600.0
+  max_dispute_delay_seconds: 3888000.0
+  max_chargeback_delay_seconds: 7776000.0
+  max_case_close_delay_seconds: 3888000.0
+  min_detection_delay_seconds: 1.0
+  min_dispute_delay_seconds: 3600.0
+  min_chargeback_delay_seconds: 86400.0
+
+realism_targets:
+  p50_seconds_range:
+    DETECTION_DELAY_V1: { min: 60.0, max: 43200.0 }
+    DISPUTE_DELAY_V1: { min: 86400.0, max: 1728000.0 }
+    CHARGEBACK_DELAY_V1: { min: 604800.0, max: 5184000.0 }
+    CASE_CLOSE_DELAY_V1: { min: 3600.0, max: 1209600.0 }
+  p95_seconds_range:
+    DETECTION_DELAY_V1: { min: 3600.0, max: 1209600.0 }
+    DISPUTE_DELAY_V1: { min: 604800.0, max: 3888000.0 }
+    CHARGEBACK_DELAY_V1: { min: 2592000.0, max: 7776000.0 }
+    CASE_CLOSE_DELAY_V1: { min: 86400.0, max: 3888000.0 }
+  heavy_tail_ratio_range:
+    DETECTION_DELAY_V1: { min: 3.0, max: 150.0 }
+    DISPUTE_DELAY_V1: { min: 2.0, max: 80.0 }
+    CHARGEBACK_DELAY_V1: { min: 1.5, max: 40.0 }
+    CASE_CLOSE_DELAY_V1: { min: 2.0, max: 60.0 }
+  presence_requirements:
+    detection_delay_not_instant: true
+    chargeback_delays_reach_weeks: true
+notes: "Delay models are one-uniform samplable and bounded for dev-scale scenarios."

@@ -1,5 +1,5 @@
 policy_id: validation_policy_5B
-version: v1.0.0
+version: v1.0.1
 
 require_upstream_pass:
   layer1_required: [1A, 1B, 2A, 3A, 3B]
@@ -11,16 +11,16 @@ structural_checks:
     require_bucket_index_contiguous: true
     require_half_open_intervals: true
     require_duration_seconds_matches_policy: true
-    max_buckets_per_scenario: 200000
+    max_buckets_per_scenario: 5000
   s2_realised_intensity:
     require_nonnegative_lambda: true
     require_finite_lambda: true
     require_lambda_zero_implies_count_zero: true
-    max_lambda_realised: 1000000000.0
+    max_lambda_realised: 200000.0
   s3_bucket_counts:
     require_integer_counts: true
     require_counts_nonnegative: true
-    max_count_per_bucket: 200000
+    max_count_per_bucket: 50000
     require_no_rng_event_when_lambda_zero: true
   s4_arrival_events:
     require_event_time_in_bucket: true

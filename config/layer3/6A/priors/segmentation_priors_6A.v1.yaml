@@ -1,0 +1,325 @@
+schema_version: 1
+prior_id: segmentation_priors_6A
+prior_version: v1
+
+taxonomy_binding:
+  expected_party_taxonomy_id: taxonomy.party.v1
+  required_party_types: [BUSINESS, OTHER, RETAIL]
+  segment_scope: ALL_SEGMENTS_IN_TAXONOMY
+
+region_party_type_mix:
+  - region_id: REGION_AFRICA
+    pi_type: { RETAIL: 0.975, BUSINESS: 0.020, OTHER: 0.005 }
+  - region_id: REGION_AMER
+    pi_type: { RETAIL: 0.955, BUSINESS: 0.040, OTHER: 0.005 }
+  - region_id: REGION_APAC
+    pi_type: { RETAIL: 0.968, BUSINESS: 0.028, OTHER: 0.004 }
+  - region_id: REGION_EMEA
+    pi_type: { RETAIL: 0.962, BUSINESS: 0.033, OTHER: 0.005 }
+  - region_id: REGION_LATAM
+    pi_type: { RETAIL: 0.970, BUSINESS: 0.025, OTHER: 0.005 }
+
+region_type_segment_mix:
+  - region_id: REGION_AFRICA
+    party_type: BUSINESS
+    pi_segment:
+      - { segment_id: BUSINESS_CORPORATE, share: 0.03 }
+      - { segment_id: BUSINESS_ECOM_NATIVE, share: 0.04 }
+      - { segment_id: BUSINESS_LOCAL_SERVICE, share: 0.12 }
+      - { segment_id: BUSINESS_MID_MARKET, share: 0.10 }
+      - { segment_id: BUSINESS_MICRO, share: 0.22 }
+      - { segment_id: BUSINESS_SME, share: 0.19 }
+      - { segment_id: BUSINESS_SOLE_TRADER, share: 0.30 }
+  - region_id: REGION_AFRICA
+    party_type: OTHER
+    pi_segment:
+      - { segment_id: OTHER_NONPROFIT, share: 0.72 }
+      - { segment_id: OTHER_PUBLIC_SECTOR, share: 0.28 }
+  - region_id: REGION_AFRICA
+    party_type: RETAIL
+    pi_segment:
+      - { segment_id: RETAIL_AFFLUENT, share: 0.02 }
+      - { segment_id: RETAIL_EARLY_CAREER, share: 0.18 }
+      - { segment_id: RETAIL_FAMILY, share: 0.22 }
+      - { segment_id: RETAIL_MASS_MARKET, share: 0.08 }
+      - { segment_id: RETAIL_MATURE, share: 0.15 }
+      - { segment_id: RETAIL_RETIRED, share: 0.08 }
+      - { segment_id: RETAIL_STUDENT, share: 0.14 }
+      - { segment_id: RETAIL_VALUE, share: 0.13 }
+
+  - region_id: REGION_AMER
+    party_type: BUSINESS
+    pi_segment:
+      - { segment_id: BUSINESS_CORPORATE, share: 0.05 }
+      - { segment_id: BUSINESS_ECOM_NATIVE, share: 0.08 }
+      - { segment_id: BUSINESS_LOCAL_SERVICE, share: 0.09 }
+      - { segment_id: BUSINESS_MID_MARKET, share: 0.15 }
+      - { segment_id: BUSINESS_MICRO, share: 0.19 }
+      - { segment_id: BUSINESS_SME, share: 0.22 }
+      - { segment_id: BUSINESS_SOLE_TRADER, share: 0.22 }
+  - region_id: REGION_AMER
+    party_type: OTHER
+    pi_segment:
+      - { segment_id: OTHER_NONPROFIT, share: 0.60 }
+      - { segment_id: OTHER_PUBLIC_SECTOR, share: 0.40 }
+  - region_id: REGION_AMER
+    party_type: RETAIL
+    pi_segment:
+      - { segment_id: RETAIL_AFFLUENT, share: 0.06 }
+      - { segment_id: RETAIL_EARLY_CAREER, share: 0.16 }
+      - { segment_id: RETAIL_FAMILY, share: 0.22 }
+      - { segment_id: RETAIL_MASS_MARKET, share: 0.08 }
+      - { segment_id: RETAIL_MATURE, share: 0.19 }
+      - { segment_id: RETAIL_RETIRED, share: 0.14 }
+      - { segment_id: RETAIL_STUDENT, share: 0.08 }
+      - { segment_id: RETAIL_VALUE, share: 0.07 }
+
+  - region_id: REGION_APAC
+    party_type: BUSINESS
+    pi_segment:
+      - { segment_id: BUSINESS_CORPORATE, share: 0.04 }
+      - { segment_id: BUSINESS_ECOM_NATIVE, share: 0.10 }
+      - { segment_id: BUSINESS_LOCAL_SERVICE, share: 0.08 }
+      - { segment_id: BUSINESS_MID_MARKET, share: 0.12 }
+      - { segment_id: BUSINESS_MICRO, share: 0.22 }
+      - { segment_id: BUSINESS_SME, share: 0.20 }
+      - { segment_id: BUSINESS_SOLE_TRADER, share: 0.24 }
+  - region_id: REGION_APAC
+    party_type: OTHER
+    pi_segment:
+      - { segment_id: OTHER_NONPROFIT, share: 0.65 }
+      - { segment_id: OTHER_PUBLIC_SECTOR, share: 0.35 }
+  - region_id: REGION_APAC
+    party_type: RETAIL
+    pi_segment:
+      - { segment_id: RETAIL_AFFLUENT, share: 0.04 }
+      - { segment_id: RETAIL_EARLY_CAREER, share: 0.18 }
+      - { segment_id: RETAIL_FAMILY, share: 0.21 }
+      - { segment_id: RETAIL_MASS_MARKET, share: 0.08 }
+      - { segment_id: RETAIL_MATURE, share: 0.17 }
+      - { segment_id: RETAIL_RETIRED, share: 0.10 }
+      - { segment_id: RETAIL_STUDENT, share: 0.12 }
+      - { segment_id: RETAIL_VALUE, share: 0.10 }
+
+  - region_id: REGION_EMEA
+    party_type: BUSINESS
+    pi_segment:
+      - { segment_id: BUSINESS_CORPORATE, share: 0.03 }
+      - { segment_id: BUSINESS_ECOM_NATIVE, share: 0.05 }
+      - { segment_id: BUSINESS_LOCAL_SERVICE, share: 0.11 }
+      - { segment_id: BUSINESS_MID_MARKET, share: 0.14 }
+      - { segment_id: BUSINESS_MICRO, share: 0.20 }
+      - { segment_id: BUSINESS_SME, share: 0.24 }
+      - { segment_id: BUSINESS_SOLE_TRADER, share: 0.23 }
+  - region_id: REGION_EMEA
+    party_type: OTHER
+    pi_segment:
+      - { segment_id: OTHER_NONPROFIT, share: 0.50 }
+      - { segment_id: OTHER_PUBLIC_SECTOR, share: 0.50 }
+  - region_id: REGION_EMEA
+    party_type: RETAIL
+    pi_segment:
+      - { segment_id: RETAIL_AFFLUENT, share: 0.05 }
+      - { segment_id: RETAIL_EARLY_CAREER, share: 0.15 }
+      - { segment_id: RETAIL_FAMILY, share: 0.21 }
+      - { segment_id: RETAIL_MASS_MARKET, share: 0.08 }
+      - { segment_id: RETAIL_MATURE, share: 0.20 }
+      - { segment_id: RETAIL_RETIRED, share: 0.16 }
+      - { segment_id: RETAIL_STUDENT, share: 0.07 }
+      - { segment_id: RETAIL_VALUE, share: 0.08 }
+
+  - region_id: REGION_LATAM
+    party_type: BUSINESS
+    pi_segment:
+      - { segment_id: BUSINESS_CORPORATE, share: 0.02 }
+      - { segment_id: BUSINESS_ECOM_NATIVE, share: 0.05 }
+      - { segment_id: BUSINESS_LOCAL_SERVICE, share: 0.10 }
+      - { segment_id: BUSINESS_MID_MARKET, share: 0.12 }
+      - { segment_id: BUSINESS_MICRO, share: 0.23 }
+      - { segment_id: BUSINESS_SME, share: 0.20 }
+      - { segment_id: BUSINESS_SOLE_TRADER, share: 0.28 }
+  - region_id: REGION_LATAM
+    party_type: OTHER
+    pi_segment:
+      - { segment_id: OTHER_NONPROFIT, share: 0.70 }
+      - { segment_id: OTHER_PUBLIC_SECTOR, share: 0.30 }
+  - region_id: REGION_LATAM
+    party_type: RETAIL
+    pi_segment:
+      - { segment_id: RETAIL_AFFLUENT, share: 0.02 }
+      - { segment_id: RETAIL_EARLY_CAREER, share: 0.17 }
+      - { segment_id: RETAIL_FAMILY, share: 0.23 }
+      - { segment_id: RETAIL_MASS_MARKET, share: 0.09 }
+      - { segment_id: RETAIL_MATURE, share: 0.17 }
+      - { segment_id: RETAIL_RETIRED, share: 0.10 }
+      - { segment_id: RETAIL_STUDENT, share: 0.11 }
+      - { segment_id: RETAIL_VALUE, share: 0.11 }
+
+segment_profiles:
+  - segment_id: BUSINESS_CORPORATE
+    party_type: BUSINESS
+    income_score: 0.85
+    digital_affinity: 0.70
+    cash_affinity: 0.15
+    cross_border_propensity: 0.70
+    credit_appetite: 0.65
+    stability_score: 0.80
+    business_size_score: 0.90
+  - segment_id: BUSINESS_ECOM_NATIVE
+    party_type: BUSINESS
+    income_score: 0.60
+    digital_affinity: 0.85
+    cash_affinity: 0.15
+    cross_border_propensity: 0.50
+    credit_appetite: 0.60
+    stability_score: 0.50
+    business_size_score: 0.45
+  - segment_id: BUSINESS_LOCAL_SERVICE
+    party_type: BUSINESS
+    income_score: 0.45
+    digital_affinity: 0.40
+    cash_affinity: 0.50
+    cross_border_propensity: 0.10
+    credit_appetite: 0.40
+    stability_score: 0.55
+    business_size_score: 0.35
+  - segment_id: BUSINESS_MID_MARKET
+    party_type: BUSINESS
+    income_score: 0.70
+    digital_affinity: 0.55
+    cash_affinity: 0.25
+    cross_border_propensity: 0.35
+    credit_appetite: 0.60
+    stability_score: 0.70
+    business_size_score: 0.70
+  - segment_id: BUSINESS_MICRO
+    party_type: BUSINESS
+    income_score: 0.40
+    digital_affinity: 0.60
+    cash_affinity: 0.40
+    cross_border_propensity: 0.15
+    credit_appetite: 0.50
+    stability_score: 0.45
+    business_size_score: 0.30
+  - segment_id: BUSINESS_SME
+    party_type: BUSINESS
+    income_score: 0.55
+    digital_affinity: 0.55
+    cash_affinity: 0.30
+    cross_border_propensity: 0.25
+    credit_appetite: 0.55
+    stability_score: 0.60
+    business_size_score: 0.50
+  - segment_id: BUSINESS_SOLE_TRADER
+    party_type: BUSINESS
+    income_score: 0.35
+    digital_affinity: 0.65
+    cash_affinity: 0.45
+    cross_border_propensity: 0.15
+    credit_appetite: 0.45
+    stability_score: 0.40
+    business_size_score: 0.20
+  - segment_id: OTHER_NONPROFIT
+    party_type: OTHER
+    income_score: 0.35
+    digital_affinity: 0.45
+    cash_affinity: 0.35
+    cross_border_propensity: 0.10
+    credit_appetite: 0.15
+    stability_score: 0.70
+  - segment_id: OTHER_PUBLIC_SECTOR
+    party_type: OTHER
+    income_score: 0.50
+    digital_affinity: 0.40
+    cash_affinity: 0.30
+    cross_border_propensity: 0.10
+    credit_appetite: 0.10
+    stability_score: 0.85
+  - segment_id: RETAIL_AFFLUENT
+    party_type: RETAIL
+    income_score: 0.90
+    digital_affinity: 0.65
+    cash_affinity: 0.15
+    cross_border_propensity: 0.70
+    credit_appetite: 0.65
+    stability_score: 0.80
+  - segment_id: RETAIL_EARLY_CAREER
+    party_type: RETAIL
+    income_score: 0.45
+    digital_affinity: 0.80
+    cash_affinity: 0.35
+    cross_border_propensity: 0.25
+    credit_appetite: 0.55
+    stability_score: 0.45
+  - segment_id: RETAIL_FAMILY
+    party_type: RETAIL
+    income_score: 0.55
+    digital_affinity: 0.60
+    cash_affinity: 0.35
+    cross_border_propensity: 0.20
+    credit_appetite: 0.45
+    stability_score: 0.60
+  - segment_id: RETAIL_MASS_MARKET
+    party_type: RETAIL
+    income_score: 0.45
+    digital_affinity: 0.55
+    cash_affinity: 0.40
+    cross_border_propensity: 0.20
+    credit_appetite: 0.35
+    stability_score: 0.55
+  - segment_id: RETAIL_MATURE
+    party_type: RETAIL
+    income_score: 0.60
+    digital_affinity: 0.55
+    cash_affinity: 0.25
+    cross_border_propensity: 0.25
+    credit_appetite: 0.40
+    stability_score: 0.75
+  - segment_id: RETAIL_RETIRED
+    party_type: RETAIL
+    income_score: 0.45
+    digital_affinity: 0.35
+    cash_affinity: 0.55
+    cross_border_propensity: 0.15
+    credit_appetite: 0.20
+    stability_score: 0.80
+  - segment_id: RETAIL_STUDENT
+    party_type: RETAIL
+    income_score: 0.20
+    digital_affinity: 0.85
+    cash_affinity: 0.45
+    cross_border_propensity: 0.15
+    credit_appetite: 0.25
+    stability_score: 0.35
+  - segment_id: RETAIL_VALUE
+    party_type: RETAIL
+    income_score: 0.20
+    digital_affinity: 0.40
+    cash_affinity: 0.70
+    cross_border_propensity: 0.10
+    credit_appetite: 0.15
+    stability_score: 0.40
+
+constraints:
+  min_share_per_segment: 0.002
+  max_share_per_segment: 0.45
+  effective_share_threshold: 0.01
+  min_effective_segments_per_region_type:
+    RETAIL: 6
+    BUSINESS: 4
+    OTHER: 2
+
+realism_targets:
+  region_diversity_entropy_min:
+    RETAIL: 1.35
+    BUSINESS: 1.10
+    OTHER: 0.50
+  region_max_share_cap:
+    RETAIL: 0.34
+    BUSINESS: 0.45
+    OTHER: 0.85
+  cross_region_variation_min_delta: 0.02
+  cross_region_variation_required_if_n_regions_ge: 3
+
+notes: >
+  Regional mixes tilt affluence and business size while keeping non-toy diversity.
