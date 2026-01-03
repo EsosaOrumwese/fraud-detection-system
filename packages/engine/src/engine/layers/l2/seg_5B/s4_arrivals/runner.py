@@ -116,6 +116,7 @@ class ArrivalRunner:
         logger.info("5B.S4 arrivals start scenarios=%s", len(scenarios))
         for scenario in scenarios:
             logger.info("5B.S4 scenario start scenario_id=%s", scenario.scenario_id)
+            scenario_timer = time.perf_counter()
             count_path = data_root / render_dataset_path(
                 dataset_id="s3_bucket_counts_5B",
                 template_args={
@@ -541,6 +542,16 @@ class ArrivalRunner:
             else:
                 summary_writer.close()
             summary_paths[scenario.scenario_id] = summary_path
+            scenario_elapsed = time.perf_counter() - scenario_timer
+            rate = processed_rows / scenario_elapsed if scenario_elapsed > 0 else 0.0
+            logger.info(
+                "5B.S4 scenario complete scenario_id=%s rows=%d arrivals=%d elapsed=%.2fs rate=%.1f rows/s",
+                scenario.scenario_id,
+                processed_rows,
+                processed_arrivals,
+                scenario_elapsed,
+                rate,
+            )
 
         run_report_path = _write_run_report(inputs, data_root, dictionary)
         return ArrivalResult(arrival_paths=arrival_paths, summary_paths=summary_paths, run_report_path=run_report_path)

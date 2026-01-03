@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -107,14 +108,21 @@ class Segment5BOrchestrator:
             validation_bundle_5a=config.validation_bundle_5a,
         )
         logger.info("Segment5B S0 starting (manifest=%s)", config.upstream_manifest_fingerprint)
+        s0_start = time.perf_counter()
         with state_heartbeat(logger, "Segment5B S0"):
             s0_outputs = self._s0_runner.run(s0_inputs)
-        logger.info("Segment5B S0 completed (manifest=%s)", s0_outputs.manifest_fingerprint)
+        s0_elapsed = time.perf_counter() - s0_start
+        logger.info(
+            "Segment5B S0 completed (manifest=%s, elapsed=%.2fs)",
+            s0_outputs.manifest_fingerprint,
+            s0_elapsed,
+        )
 
         s1_time_grid_paths: dict[str, Path] = {}
         s1_grouping_paths: dict[str, Path] = {}
         if config.run_s1:
             logger.info("Segment5B S1 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s1_start = time.perf_counter()
             s1_inputs = TimeGridInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -126,11 +134,18 @@ class Segment5BOrchestrator:
                 s1_result = TimeGridRunner().run(s1_inputs)
             s1_time_grid_paths = s1_result.time_grid_paths
             s1_grouping_paths = s1_result.grouping_paths
+            s1_elapsed = time.perf_counter() - s1_start
+            logger.info(
+                "Segment5B S1 completed (scenarios=%d, elapsed=%.2fs)",
+                len(s1_time_grid_paths),
+                s1_elapsed,
+            )
 
         s2_intensity_paths: dict[str, Path] = {}
         s2_latent_paths: dict[str, Path] = {}
         if config.run_s2 and config.run_s1:
             logger.info("Segment5B S2 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s2_start = time.perf_counter()
             s2_inputs = IntensityInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -143,10 +158,17 @@ class Segment5BOrchestrator:
                 s2_result = IntensityRunner().run(s2_inputs)
             s2_intensity_paths = s2_result.intensity_paths
             s2_latent_paths = s2_result.latent_field_paths
+            s2_elapsed = time.perf_counter() - s2_start
+            logger.info(
+                "Segment5B S2 completed (scenarios=%d, elapsed=%.2fs)",
+                len(s2_intensity_paths),
+                s2_elapsed,
+            )
 
         s3_count_paths: dict[str, Path] = {}
         if config.run_s3 and config.run_s2:
             logger.info("Segment5B S3 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s3_start = time.perf_counter()
             s3_inputs = CountInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -158,11 +180,18 @@ class Segment5BOrchestrator:
             with state_heartbeat(logger, "Segment5B S3"):
                 s3_result = CountRunner().run(s3_inputs)
             s3_count_paths = s3_result.count_paths
+            s3_elapsed = time.perf_counter() - s3_start
+            logger.info(
+                "Segment5B S3 completed (scenarios=%d, elapsed=%.2fs)",
+                len(s3_count_paths),
+                s3_elapsed,
+            )
 
         s4_arrival_paths: dict[str, Path] = {}
         s4_summary_paths: dict[str, Path] = {}
         if config.run_s4 and config.run_s3:
             logger.info("Segment5B S4 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s4_start = time.perf_counter()
             s4_inputs = ArrivalInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -175,6 +204,12 @@ class Segment5BOrchestrator:
                 s4_result = ArrivalRunner().run(s4_inputs)
             s4_arrival_paths = s4_result.arrival_paths
             s4_summary_paths = s4_result.summary_paths
+            s4_elapsed = time.perf_counter() - s4_start
+            logger.info(
+                "Segment5B S4 completed (scenarios=%d, elapsed=%.2fs)",
+                len(s4_arrival_paths),
+                s4_elapsed,
+            )
 
         s5_bundle_index_path = None
         s5_report_path = None
@@ -184,6 +219,7 @@ class Segment5BOrchestrator:
         s5_overall_status = None
         if config.run_s5 and config.run_s4:
             logger.info("Segment5B S5 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s5_start = time.perf_counter()
             s5_inputs = ValidationInputs(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
@@ -200,6 +236,12 @@ class Segment5BOrchestrator:
             s5_passed_flag_path = s5_result.passed_flag_path
             s5_run_report_path = s5_result.run_report_path
             s5_overall_status = s5_result.overall_status
+            s5_elapsed = time.perf_counter() - s5_start
+            logger.info(
+                "Segment5B S5 completed (status=%s, elapsed=%.2fs)",
+                s5_overall_status,
+                s5_elapsed,
+            )
 
         return Segment5BResult(
             manifest_fingerprint=s0_outputs.manifest_fingerprint,

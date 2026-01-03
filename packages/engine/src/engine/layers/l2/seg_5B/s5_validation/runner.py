@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +24,7 @@ from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary, render_da
 from engine.layers.l2.seg_5B.shared.dictionary import repository_root
 from engine.layers.l2.seg_5B.shared.run_report import SegmentStateKey, write_segment_state_run_report
 
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ValidationInputs:
@@ -51,6 +54,7 @@ class ValidationRunner:
     def run(self, inputs: ValidationInputs) -> ValidationResult:
         dictionary = load_dictionary(inputs.dictionary_path)
         data_root = inputs.data_root.expanduser().absolute()
+        validation_start = time.perf_counter()
 
         receipt, sealed_df, scenarios = load_control_plane(
             data_root=data_root,
@@ -76,6 +80,7 @@ class ValidationRunner:
         scenario_ids = [binding.scenario_id for binding in scenarios]
         if not scenario_ids:
             scenario_ids = ["baseline"]
+        logger.info("5B.S5 validation start scenarios=%d", len(scenario_ids))
 
         counts_ok = True
         time_ok = True
@@ -570,6 +575,15 @@ class ValidationRunner:
             passed_flag_path = None
 
         run_report_path = self._write_run_report(inputs, data_root, dictionary, overall_status)
+        elapsed = time.perf_counter() - validation_start
+        logger.info(
+            "5B.S5 validation complete status=%s issues=%d arrivals=%d buckets=%d elapsed=%.2fs",
+            overall_status,
+            len(issues),
+            arrivals_total,
+            buckets_total,
+            elapsed,
+        )
 
         return ValidationResult(
             bundle_index_path=bundle_index_path,

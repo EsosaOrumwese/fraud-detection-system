@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from string import Formatter
@@ -10,7 +11,7 @@ from typing import Mapping, MutableMapping, Sequence
 
 import polars as pl
 
-from .dictionary import load_dictionary, render_dataset_path
+from .dictionary import load_dictionary, render_dataset_path, repository_root
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,10 @@ def load_control_plane(
     scenario_bindings = _load_scenario_bindings(
         data_root=data_root,
         manifest_fingerprint=manifest_fingerprint,
+        parameter_hash=parameter_hash,
         dictionary=dictionary,
+        sealed_df=sealed_df,
+        receipt=receipt,
     )
 
     return receipt, sealed_df, scenario_bindings
@@ -105,24 +109,30 @@ def _load_scenario_bindings(
     *,
     data_root: Path,
     manifest_fingerprint: str,
+    parameter_hash: str,
     dictionary: Mapping[str, object],
+    sealed_df: pl.DataFrame,
+    receipt: Mapping[str, object],
 ) -> list[ScenarioBinding]:
-    manifest_path = data_root / render_dataset_path(
-        dataset_id="scenario_manifest_5A",
-        template_args={"manifest_fingerprint": manifest_fingerprint},
-        dictionary=dictionary,
+    inventory = SealedInventory(
+        dataframe=sealed_df,
+        base_path=data_root,
+        repo_root=repository_root(),
+        template_args={
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+        },
     )
-    if not manifest_path.exists():
-        fallback = str(manifest_path)
-        token = f"fingerprint={manifest_fingerprint}"
-        if token in fallback:
-            fallback = fallback.replace(token, "fingerprint=baseline", 1)
-        fallback_path = Path(fallback)
-        if fallback_path.exists():
-            manifest_path = fallback_path
+    manifest_paths = inventory.resolve_files("scenario_manifest_5A")
+    if not manifest_paths and manifest_fingerprint != "baseline":
+        manifest_paths = inventory.resolve_files(
+            "scenario_manifest_5A",
+            template_overrides={"manifest_fingerprint": "baseline", "fingerprint": "baseline"},
+        )
+    manifest_path = manifest_paths[0] if manifest_paths else None
 
     bindings: list[ScenarioBinding] = []
-    if manifest_path.exists():
+    if manifest_path and manifest_path.exists():
         manifest_df = pl.read_parquet(manifest_path)
         for row in manifest_df.to_dicts():
             bindings.append(
@@ -135,7 +145,14 @@ def _load_scenario_bindings(
                     labels=tuple(row.get("labels") or ()),
                 )
             )
-    return bindings
+    if bindings:
+        return bindings
+    scenario_set = receipt.get("scenario_set")
+    if isinstance(scenario_set, list) and scenario_set:
+        for scenario_id in scenario_set:
+            bindings.append(ScenarioBinding(scenario_id=str(scenario_id)))
+        return bindings
+    raise FileNotFoundError("scenario_manifest_5A missing from sealed inputs")
 
 
 class SealedInventory:
@@ -173,6 +190,10 @@ class SealedInventory:
         merged_args = dict(self._template_args)
         if template_overrides:
             merged_args.update(template_overrides)
+        source_manifest = self._extract_manifest_override(row.get("notes"))
+        if source_manifest:
+            merged_args["manifest_fingerprint"] = source_manifest
+            merged_args["fingerprint"] = source_manifest
         base_dir = self._select_base_dir(template)
         glob_path = self._render_template(template, merged_args)
         if not glob_path:
@@ -191,6 +212,15 @@ class SealedInventory:
             if field not in args:
                 raise ValueError(f"missing template arg '{field}' for sealed input")
         return template.format(**args)
+
+    @staticmethod
+    def _extract_manifest_override(notes: object) -> str | None:
+        if not isinstance(notes, str) or not notes:
+            return None
+        match = re.search(r"(?:source_manifest|manifest_fingerprint)=([0-9a-f]{64})", notes)
+        if match:
+            return match.group(1)
+        return None
 
 def parse_partition_keys(path_template: str) -> tuple[str, ...]:
     """Infer partition keys from a path template."""

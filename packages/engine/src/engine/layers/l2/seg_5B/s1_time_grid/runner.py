@@ -50,6 +50,9 @@ class TimeGridRunner:
             parameter_hash=inputs.parameter_hash,
             dictionary_path=inputs.dictionary_path,
         )
+        seed_value = receipt.get("seed")
+        if seed_value is None:
+            raise ValueError("s0_gate_receipt_5B missing seed for 5B.S1")
         inventory = SealedInventory(
             dataframe=sealed_df,
             base_path=data_root,
@@ -57,6 +60,7 @@ class TimeGridRunner:
             template_args={
                 "manifest_fingerprint": inputs.manifest_fingerprint,
                 "parameter_hash": inputs.parameter_hash,
+                "seed": str(seed_value),
             },
         )
         time_policy = _load_yaml(inventory, "time_grid_policy_5B")
@@ -66,6 +70,7 @@ class TimeGridRunner:
         grouping_paths: dict[str, Path] = {}
         for scenario in scenarios:
             logger.info("5B.S1 scenario=%s building time grid + grouping", scenario.scenario_id)
+            scenario_timer = time.perf_counter()
             grid_df = _build_time_grid(scenario, time_policy, inputs.manifest_fingerprint, inputs.parameter_hash)
             path = _write_dataset(
                 data_root,
@@ -97,6 +102,15 @@ class TimeGridRunner:
                 df=grouping_df,
             )
             grouping_paths[scenario.scenario_id] = group_path
+            elapsed = time.perf_counter() - scenario_timer
+            logger.info(
+                "5B.S1 scenario=%s complete buckets=%d groups=%d rows=%d elapsed=%.2fs",
+                scenario.scenario_id,
+                grid_df.height,
+                grouping_df.get_column("group_id").n_unique(),
+                grouping_df.height,
+                elapsed,
+            )
 
         run_report_path = _write_run_report(inputs, data_root)
         return TimeGridResult(time_grid_paths=time_grid_paths, grouping_paths=grouping_paths, run_report_path=run_report_path)
@@ -168,6 +182,7 @@ def _build_time_grid(
     weekend_days = policy.get("local_annotations", {}).get("weekend_days", [6, 7])
 
     logger.info("5B.S1 time grid: scenario=%s buckets=%d", scenario.scenario_id, bucket_count)
+    start_time = time.perf_counter()
     rows = []
     log_every = 10000
     log_interval_s = 120.0
@@ -202,6 +217,15 @@ def _build_time_grid(
             row["local_minutes_since_midnight"] = local.hour * 60 + local.minute
             row["is_weekend"] = (local.weekday() + 1) in weekend_days
         rows.append(row)
+    elapsed = time.perf_counter() - start_time
+    rate = bucket_count / elapsed if elapsed > 0 else 0.0
+    logger.info(
+        "5B.S1 time grid: scenario=%s done buckets=%d elapsed=%.2fs rate=%.1f buckets/s",
+        scenario.scenario_id,
+        bucket_count,
+        elapsed,
+        rate,
+    )
     return pl.DataFrame(rows)
 
 
@@ -222,17 +246,21 @@ def _build_grouping(
     else:
         channel = pl.lit("unknown")
     virtual_modes = _load_virtual_modes(inventory)
-    base = source.select(
-        [
-            pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
-            zone_rep,
-            channel.alias("channel_group"),
-            pl.lit(scenario.scenario_id).alias("scenario_id"),
-            pl.lit(bool(scenario.is_baseline)).alias("scenario_is_baseline"),
-            pl.lit(bool(scenario.is_stress)).alias("scenario_is_stress"),
-            pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
-        ]
-    ).unique()
+    select_exprs = [
+        pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
+        pl.col("legal_country_iso").cast(pl.Utf8).alias("legal_country_iso"),
+        pl.col("tzid").cast(pl.Utf8).alias("tzid"),
+        zone_rep,
+        channel.alias("channel_group"),
+        pl.lit(scenario.scenario_id).alias("scenario_id"),
+        pl.lit(bool(scenario.is_baseline)).alias("scenario_is_baseline"),
+        pl.lit(bool(scenario.is_stress)).alias("scenario_is_stress"),
+    ]
+    has_demand_class = "demand_class" in source.columns
+    if has_demand_class:
+        select_exprs.append(pl.col("demand_class").cast(pl.Utf8).alias("demand_class"))
+    base = source.select(select_exprs).unique()
+    base = _ensure_demand_class(base, inventory, has_demand_class)
 
     zone_group_buckets = int(policy.get("zone_group_buckets", 16))
     in_stratum_buckets = int(policy.get("in_stratum_buckets", 32))
@@ -245,6 +273,7 @@ def _build_grouping(
 
     zone_group_cache: dict[str, str] = {}
     virtual_band_cache: dict[str, str] = {}
+    missing_virtual = 0
     is_baseline = bool(scenario.is_baseline)
     is_stress = bool(scenario.is_stress)
     if is_baseline == is_stress:
@@ -262,12 +291,14 @@ def _build_grouping(
         return value
 
     def virtual_band(merchant_id: str) -> str:
+        nonlocal missing_virtual
         cached = virtual_band_cache.get(merchant_id)
         if cached is not None:
             return cached
         mode = virtual_modes.get(merchant_id)
         if mode is None:
-            raise ValueError(f"virtual_classification_3B missing merchant_id={merchant_id}")
+            missing_virtual += 1
+            mode = "NON_VIRTUAL"
         value = "virtual" if mode != "NON_VIRTUAL" else "physical"
         virtual_band_cache[merchant_id] = value
         return value
@@ -290,6 +321,7 @@ def _build_grouping(
         )
 
     logger.info("5B.S1 grouping: scenario=%s rows=%d", scenario.scenario_id, base.height)
+    grouping_start = time.perf_counter()
     output_rows = []
     log_every = 25000
     log_interval_s = 120.0
@@ -343,7 +375,80 @@ def _build_grouping(
 
     output_df = pl.DataFrame(output_rows)
     _apply_grouping_realism(output_df, policy)
+    elapsed = time.perf_counter() - grouping_start
+    group_count = output_df.get_column("group_id").n_unique()
+    rate = output_df.height / elapsed if elapsed > 0 else 0.0
+    if missing_virtual:
+        logger.warning(
+            "5B.S1 grouping: scenario=%s missing virtual_classification_3B for %d merchants; defaulted to NON_VIRTUAL",
+            scenario.scenario_id,
+            missing_virtual,
+        )
+    logger.info(
+        "5B.S1 grouping: scenario=%s done rows=%d groups=%d elapsed=%.2fs rate=%.1f rows/s",
+        scenario.scenario_id,
+        output_df.height,
+        group_count,
+        elapsed,
+        rate,
+    )
     return output_df.sort(["merchant_id", "zone_representation", "channel_group"])
+
+
+def _ensure_demand_class(
+    base: pl.DataFrame, inventory: SealedInventory, has_demand_class: bool
+) -> pl.DataFrame:
+    default_class = "default"
+    if has_demand_class:
+        missing = base.filter(
+            pl.col("demand_class").is_null() | (pl.col("demand_class").cast(pl.Utf8).str.strip_chars() == "")
+        ).height
+        if missing:
+            logger.warning(
+                "5B.S1 grouping: %d rows missing demand_class in scenario_local_5A; defaulting to '%s'",
+                missing,
+                default_class,
+            )
+        return base.with_columns(
+            pl.when(
+                pl.col("demand_class").is_null()
+                | (pl.col("demand_class").cast(pl.Utf8).str.strip_chars() == "")
+            )
+            .then(pl.lit(default_class))
+            .otherwise(pl.col("demand_class").cast(pl.Utf8))
+            .alias("demand_class")
+        )
+
+    profile_files = inventory.resolve_files("merchant_zone_profile_5A")
+    if not profile_files:
+        logger.warning(
+            "5B.S1 grouping: merchant_zone_profile_5A missing; defaulting demand_class='%s' for %d rows",
+            default_class,
+            base.height,
+        )
+        return base.with_columns(pl.lit(default_class).alias("demand_class"))
+
+    profiles = (
+        pl.read_parquet(profile_files[0])
+        .select(
+            [
+                pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
+                pl.col("legal_country_iso").cast(pl.Utf8).alias("legal_country_iso"),
+                pl.col("tzid").cast(pl.Utf8).alias("tzid"),
+                pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
+            ]
+        )
+        .unique()
+    )
+    joined = base.join(profiles, on=["merchant_id", "legal_country_iso", "tzid"], how="left")
+    missing = joined.filter(pl.col("demand_class").is_null()).height
+    if missing:
+        logger.warning(
+            "5B.S1 grouping: %d rows missing demand_class after profile join; defaulting to '%s'",
+            missing,
+            default_class,
+        )
+    return joined.with_columns(pl.col("demand_class").fill_null(default_class))
 
 
 def _apply_grouping_realism(df: pl.DataFrame, policy: Mapping[str, object]) -> None:

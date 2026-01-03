@@ -311,6 +311,14 @@ class S0GateRunner:
         {
             "owner_layer": "layer2",
             "owner_segment": "5A",
+            "dataset_id": "merchant_zone_profile_5A",
+            "dictionary_rel_path": "contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+            "role": "upstream_egress",
+            "read_scope": "ROW_LEVEL",
+        },
+        {
+            "owner_layer": "layer2",
+            "owner_segment": "5A",
             "dataset_id": "merchant_zone_scenario_local_5A",
             "dictionary_rel_path": "contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
             "role": "upstream_egress",
@@ -338,7 +346,9 @@ class S0GateRunner:
         dictionary = load_dictionary(inputs.dictionary_path)
         repo_root = repository_root()
         run_started_at = datetime.now(timezone.utc)
+        run_start = time.perf_counter()
         gate_timer = time.perf_counter()
+        logger.info("5B.S0 gate start upstream_manifest=%s", inputs.upstream_manifest_fingerprint)
 
         self._validation_bundle_1a = inputs.validation_bundle_1a
         self._validation_bundle_1b = inputs.validation_bundle_1b
@@ -411,6 +421,14 @@ class S0GateRunner:
             receipt_path=receipt_path,
             gate_verify_ms=gate_verify_ms,
             sealed_inputs_digest=sealed_inputs_digest,
+        )
+        run_elapsed = time.perf_counter() - run_start
+        logger.info(
+            "5B.S0 gate complete manifest=%s sealed_inputs=%d scenarios=%d elapsed=%.2fs",
+            inputs.upstream_manifest_fingerprint,
+            len(sealed_rows),
+            len(scenario_ids),
+            run_elapsed,
         )
 
         return S0Outputs(
@@ -605,15 +623,31 @@ class S0GateRunner:
             "parameter_hash": inputs.parameter_hash,
             "seed": str(inputs.seed),
         }
+        bundle_fingerprints: dict[str, str] = {}
+        for segment, info in upstream_bundles.items():
+            bundle_path = str(info.get("bundle_path", ""))
+            match = re.search(r"fingerprint=([a-f0-9]{64})", bundle_path)
+            if match:
+                bundle_fingerprints[segment] = match.group(1)
         for spec in self._SEALED_UPSTREAM_DATASETS:
-            rows.extend(
-                self._seal_dataset(
-                    base_path=inputs.base_path,
-                    repo_root=repo_root,
-                    spec=spec,
-                    template_args=template_args,
-                )
+            segment = spec.get("owner_segment", "")
+            segment_fingerprint = bundle_fingerprints.get(segment)
+            spec_args = (
+                {**template_args, "manifest_fingerprint": segment_fingerprint}
+                if segment_fingerprint
+                else template_args
             )
+            sealed_rows = self._seal_dataset(
+                base_path=inputs.base_path,
+                repo_root=repo_root,
+                spec=spec,
+                template_args=spec_args,
+                notes=f"source_manifest={segment_fingerprint}" if segment_fingerprint else None,
+            )
+            if segment_fingerprint:
+                for row in sealed_rows:
+                    row["manifest_fingerprint"] = inputs.upstream_manifest_fingerprint
+            rows.extend(sealed_rows)
 
         for spec in self._SEALED_LAYER2_DATASETS:
             if spec["dataset_id"] == "merchant_zone_scenario_local_5A":

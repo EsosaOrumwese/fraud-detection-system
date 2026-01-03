@@ -1,5 +1,5 @@
 policy_id: arrival_lgcp_config_5B
-version: v1.0.1
+version: v1.0.2
 
 latent_model_id: log_gaussian_ou_v1
 normal_method: box_muller_u2
@@ -22,6 +22,7 @@ hyperparam_law:
     class_multipliers:
       office_hours: 0.85
       consumer_daytime: 1.00
+      retail_daytime: 1.00
       evening_weekend: 1.05
       always_on_local: 0.95
       online_24h: 1.10
@@ -39,6 +40,7 @@ hyperparam_law:
     class_multipliers:
       office_hours: 1.20
       consumer_daytime: 1.00
+      retail_daytime: 1.00
       evening_weekend: 0.95
       always_on_local: 1.10
       online_24h: 0.90

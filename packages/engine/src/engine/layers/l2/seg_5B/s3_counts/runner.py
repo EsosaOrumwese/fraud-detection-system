@@ -72,6 +72,7 @@ class CountRunner:
         logger.info("5B.S3 bucket counts start scenarios=%s", len(scenarios))
         for scenario in scenarios:
             logger.info("5B.S3 scenario start scenario_id=%s", scenario.scenario_id)
+            scenario_timer = time.perf_counter()
             intensity_path = data_root / render_dataset_path(
                 dataset_id="s2_realised_intensity_5B",
                 template_args={
@@ -94,29 +95,52 @@ class CountRunner:
             if not grouping_path.exists():
                 raise FileNotFoundError(f"s1_grouping_5B missing at {grouping_path}")
 
-            intensity_df = pl.read_parquet(intensity_path)
-            grouping_df = pl.read_parquet(grouping_path)
-            intensity_df = intensity_df.join(
-                grouping_df.select(
-                    [
-                        "merchant_id",
-                        "zone_representation",
-                        "channel_group",
-                        "group_id",
-                        "scenario_band",
-                        "demand_class",
-                        "virtual_band",
-                    ]
-                ),
-                on=["merchant_id", "zone_representation", "channel_group"],
-                how="left",
+            grouping_df = pl.read_parquet(grouping_path).select(
+                [
+                    pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
+                    pl.col("zone_representation").cast(pl.Utf8).alias("zone_representation"),
+                    pl.col("channel_group").cast(pl.Utf8).alias("channel_group"),
+                    pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
+                    pl.col("scenario_band").cast(pl.Utf8).alias("scenario_band"),
+                ]
             )
-            if intensity_df["group_id"].null_count() > 0:
-                raise ValueError("group_id missing for some intensity rows")
+            grouping_map: dict[tuple[str, str, str], dict[str, str]] = {}
+            for row in grouping_df.iter_rows(named=True):
+                key = (
+                    str(row.get("merchant_id")),
+                    str(row.get("zone_representation")),
+                    str(row.get("channel_group")),
+                )
+                grouping_map[key] = {
+                    "demand_class": str(row.get("demand_class")),
+                    "scenario_band": str(row.get("scenario_band")),
+                }
+            class_values = {value["demand_class"] for value in grouping_map.values()}
+            if class_values:
+                class_df = pl.DataFrame({"demand_class": sorted(class_values)})
+                missing_classes = _missing_classes(class_df, count_policy)
+                if missing_classes:
+                    raise ValueError(
+                        f"arrival_count_config_5B missing class multipliers for {missing_classes}"
+                    )
 
-            missing_classes = _missing_classes(intensity_df, count_policy)
-            if missing_classes:
-                raise ValueError(f"arrival_count_config_5B missing class multipliers for {missing_classes}")
+            intensity_parquet = pq.ParquetFile(intensity_path)
+            required_columns = [
+                "merchant_id",
+                "zone_representation",
+                "channel_group",
+                "bucket_index",
+                "lambda_realised",
+            ]
+            optional_columns = ["demand_class", "scenario_band"]
+            available = set(intensity_parquet.schema.names)
+            missing_required = [col for col in required_columns if col not in available]
+            if missing_required:
+                raise ValueError(f"s2_realised_intensity_5B missing columns: {missing_required}")
+            read_columns = required_columns + [col for col in optional_columns if col in available]
+            has_demand_class = "demand_class" in read_columns
+            has_scenario_band = "scenario_band" in read_columns
+            total_rows = intensity_parquet.metadata.num_rows
 
             rows = []
             writer: pq.ParquetWriter | None = None
@@ -130,63 +154,90 @@ class CountRunner:
                 dictionary=dictionary,
             )
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            sorted_df = intensity_df.sort(["merchant_id", "zone_representation", "bucket_index"])
-            total_rows = sorted_df.height
             log_every = 50000
             log_interval = 120.0
             start_time = time.monotonic()
             last_log = start_time
             row_index = 0
-            for row in sorted_df.iter_rows(named=True):
-                row_index += 1
-                lam = float(row.get("lambda_realised") or 0.0)
-                count = _draw_count(
-                    count_policy,
-                    rng_logger=rng_logger,
-                    manifest_fingerprint=inputs.manifest_fingerprint,
-                    parameter_hash=inputs.parameter_hash,
-                    seed=inputs.seed,
-                    scenario_id=scenario.scenario_id,
-                    merchant_id=str(row.get("merchant_id")),
-                    zone_rep=str(row.get("zone_representation")),
-                    bucket_index=int(row.get("bucket_index")),
-                    lambda_value=lam,
-                    scenario_band=str(row.get("scenario_band")),
-                    demand_class=str(row.get("demand_class")),
-                )
-                rows.append(
-                    {
-                        "manifest_fingerprint": inputs.manifest_fingerprint,
-                        "parameter_hash": inputs.parameter_hash,
-                        "seed": inputs.seed,
-                        "scenario_id": scenario.scenario_id,
-                        "merchant_id": row.get("merchant_id"),
-                        "zone_representation": row.get("zone_representation"),
-                        "channel_group": row.get("channel_group"),
-                        "bucket_index": row.get("bucket_index"),
-                        "count_N": int(count),
-                        "s3_spec_version": "1.0.0",
-                    }
-                )
-                if len(rows) >= 100000:
-                    writer = _write_parquet_batch(output_path, rows, writer)
-                    rows.clear()
-                now = time.monotonic()
-                if row_index % log_every == 0 or (now - last_log) >= log_interval:
-                    elapsed = max(now - start_time, 0.0)
-                    rate = row_index / elapsed if elapsed > 0 else 0.0
-                    remaining = total_rows - row_index
-                    eta = remaining / rate if rate > 0 else 0.0
-                    logger.info(
-                        "5B.S3 progress %s/%s rows (scenario_id=%s, elapsed=%.1fs, rate=%.2f/s, eta=%.1fs)",
-                        row_index,
-                        total_rows,
-                        scenario.scenario_id,
-                        elapsed,
-                        rate,
-                        eta,
+            flush_every = 100000
+            scenario_band_value = "baseline" if scenario.is_baseline else "stress"
+            for batch in intensity_parquet.iter_batches(batch_size=100000, columns=read_columns):
+                batch_df = pl.from_arrow(batch)
+                for row in batch_df.iter_rows(named=True):
+                    row_index += 1
+                    merchant_id = str(row.get("merchant_id"))
+                    zone_rep = str(row.get("zone_representation"))
+                    channel_group = row.get("channel_group")
+                    channel_group = (
+                        "unknown"
+                        if channel_group is None or str(channel_group).strip() == ""
+                        else str(channel_group)
                     )
-                    last_log = now
+                    bucket_index = int(row.get("bucket_index"))
+                    lam = float(row.get("lambda_realised") or 0.0)
+                    demand_class = str(row.get("demand_class") or "") if has_demand_class else ""
+                    scenario_band = str(row.get("scenario_band") or "") if has_scenario_band else ""
+                    if not demand_class or not scenario_band:
+                        meta = grouping_map.get((merchant_id, zone_rep, channel_group))
+                        if meta:
+                            if not demand_class:
+                                demand_class = meta["demand_class"]
+                            if not scenario_band:
+                                scenario_band = meta["scenario_band"]
+                    if not demand_class:
+                        raise ValueError(
+                            "demand_class missing for intensity row "
+                            f"(merchant_id={merchant_id}, zone_representation={zone_rep}, channel_group={channel_group})"
+                        )
+                    if not scenario_band:
+                        scenario_band = scenario_band_value
+                    count = _draw_count(
+                        count_policy,
+                        rng_logger=rng_logger,
+                        manifest_fingerprint=inputs.manifest_fingerprint,
+                        parameter_hash=inputs.parameter_hash,
+                        seed=inputs.seed,
+                        scenario_id=scenario.scenario_id,
+                        merchant_id=merchant_id,
+                        zone_rep=zone_rep,
+                        bucket_index=bucket_index,
+                        lambda_value=lam,
+                        scenario_band=scenario_band,
+                        demand_class=demand_class,
+                    )
+                    rows.append(
+                        {
+                            "manifest_fingerprint": inputs.manifest_fingerprint,
+                            "parameter_hash": inputs.parameter_hash,
+                            "seed": inputs.seed,
+                            "scenario_id": scenario.scenario_id,
+                            "merchant_id": merchant_id,
+                            "zone_representation": zone_rep,
+                            "channel_group": channel_group,
+                            "bucket_index": bucket_index,
+                            "count_N": int(count),
+                            "s3_spec_version": "1.0.0",
+                        }
+                    )
+                    if len(rows) >= flush_every:
+                        writer = _write_parquet_batch(output_path, rows, writer)
+                        rows.clear()
+                    now = time.monotonic()
+                    if row_index % log_every == 0 or (now - last_log) >= log_interval:
+                        elapsed = max(now - start_time, 0.0)
+                        rate = row_index / elapsed if elapsed > 0 else 0.0
+                        remaining = total_rows - row_index
+                        eta = remaining / rate if rate > 0 else 0.0
+                        logger.info(
+                            "5B.S3 progress %s/%s rows (scenario_id=%s, elapsed=%.1fs, rate=%.2f/s, eta=%.1fs)",
+                            row_index,
+                            total_rows,
+                            scenario.scenario_id,
+                            elapsed,
+                            rate,
+                            eta,
+                        )
+                        last_log = now
 
             if rows:
                 writer = _write_parquet_batch(output_path, rows, writer)
@@ -211,6 +262,15 @@ class CountRunner:
                 writer.close()
             count_path = output_path
             count_paths[scenario.scenario_id] = count_path
+            scenario_elapsed = time.perf_counter() - scenario_timer
+            rate = total_rows / scenario_elapsed if scenario_elapsed > 0 else 0.0
+            logger.info(
+                "5B.S3 scenario complete scenario_id=%s rows=%d elapsed=%.2fs rate=%.1f rows/s",
+                scenario.scenario_id,
+                total_rows,
+                scenario_elapsed,
+                rate,
+            )
 
         run_report_path = _write_run_report(inputs, data_root, dictionary)
         return CountResult(count_paths=count_paths, run_report_path=run_report_path)
