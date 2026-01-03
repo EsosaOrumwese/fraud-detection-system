@@ -1,5 +1,5 @@
 # contracts/engine_output_locator.schema.yaml
-version: "0.1.0"
+version: "0.2.0"
 $id: engine_output_locator.schema.yaml
 $schema: https://json-schema.org/draft/2020-12/schema
 title: Engine Output Locator
@@ -19,12 +19,9 @@ $defs:
     $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/rfc3339_micros"
 
   scenario_id:
-    anyOf:
-      - type: string
-        minLength: 1
-        maxLength: 256
-      - type: integer
-        minimum: 0
+    type: string
+    minLength: 1
+    maxLength: 512
 
   digest:
     type: object

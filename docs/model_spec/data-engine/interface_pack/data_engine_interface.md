@@ -87,6 +87,8 @@ Every segment publishes a **segment-level HashGate**:
 
 Operational verification details (paths, hashing law, and gate->output mapping) are defined in `engine_gates.map.yaml`.
 
+**Instance-scoped outputs require instance proof.** Segment gates are world/structural prerequisites. For any output whose scope includes `seed`, `scenario_id`, `parameter_hash`, or `run_id`, consumers MUST ALSO require a Rails HashGate PASS receipt bound to the exact output instance. The receipt MUST bind to an `engine_output_locator` (target_ref) and digest (target_digest). Multi-file outputs MAY use a bundle manifest digest with `bundle_manifest_ref`. For these outputs, `engine_output_locator.content_digest` MUST be present so the instance proof can be bound deterministically.
+
 ## Segment boundary summaries
 
 In the summaries below, "Public (gated) surfaces" means **surfaces a consumer may read after verifying the segment gate**, regardless of whether the catalogue marks them `exposure: internal` or `external`. The catalogue is the source of truth for exposure classification.

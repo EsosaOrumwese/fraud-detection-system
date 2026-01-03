@@ -1,5 +1,5 @@
 # contracts/run_facts_view.schema.yaml
-version: "0.2.0"
+version: "0.2.1"
 $id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/run_facts_view.schema.yaml"
 $schema: "https://json-schema.org/draft/2020-12/schema"
 
@@ -274,6 +274,16 @@ $defs:
         maxLength: 2048
         description: "Optional non-semantic notes."
 
+  hashgate_receipt:
+    description: >
+      Embedded Rails HashGate receipt for output-instance verification. This is separate from
+      engine segment gate receipts and binds to a specific output locator + digest.
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/hashgate_receipt.schema.yaml"
+
+  hashgate_receipt_ref:
+    description: "Reference to a Rails HashGate receipt (by ref/path)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/target_ref"
+
   # ---------------------------
   # Run entry model
   # ---------------------------
@@ -352,6 +362,25 @@ $defs:
           Downstream components use these to enforce "no PASS -> no read".
         items:
           $ref: "#/$defs/gate_receipt"
+
+      instance_hashgate_receipts:
+        type: array
+        minItems: 0
+        maxItems: 4096
+        description: >
+          Rails HashGate receipts that bind to specific output instances (required when outputs
+          are scoped by seed/scenario_id/parameter_hash/run_id). These do not replace segment gates.
+        items:
+          $ref: "#/$defs/hashgate_receipt"
+
+      instance_hashgate_receipt_refs:
+        type: array
+        minItems: 0
+        maxItems: 4096
+        description: >
+          References to Rails HashGate receipts for output-instance verification.
+        items:
+          $ref: "#/$defs/hashgate_receipt_ref"
 
       # Pending / not-ready indicators (optional)
       pending:

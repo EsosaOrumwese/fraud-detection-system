@@ -12,7 +12,7 @@ PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 # ---------------------------------------------------------------------------
 # Run defaults
 # ---------------------------------------------------------------------------
-RUN_ROOT ?= runs/local_full_run-2
+RUN_ROOT ?= runs/local_full_run-3
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -24,8 +24,8 @@ SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
-RUN_ID ?= 00000000000000000000000000000002
-LOG ?= $(RUN_ROOT)/run_log_run-2.log
+RUN_ID ?= 00000000000000000000000000000003
+LOG ?= $(RUN_ROOT)/run_log_run-3.log
 SEED ?= 2026010201
 SKIP_SEG1A ?= 0
 SKIP_SEG1B ?= 0
@@ -73,8 +73,8 @@ S3_BOUNDS_POLICY ?= contracts/policies/l1/seg_1A/policy.s3.bounds.yaml
 CROSSBORDER_HYPERPARAMS ?= config/policy/crossborder_hyperparams.yaml
 CCY_SMOOTHING_PARAMS ?= config/allocation/ccy_smoothing_params.yaml
 S6_SELECTION_POLICY ?= config/policy.s6.selection.yaml
-HURDLE_EXPORT_VERSION ?= 2025-12-31
-HURDLE_EXPORT_RUN ?= 20251231T134200Z
+HURDLE_EXPORT_VERSION ?= 2026-01-03
+HURDLE_EXPORT_RUN ?= 20260103T175111Z
 HURDLE_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
 NB_DISPERSION_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/nb_dispersion_coefficients.yaml
 

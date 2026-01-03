@@ -947,6 +947,7 @@ Scenario Runner MUST publish PASS proofs for required gates in a form downstream
 
 * Gate proofs MUST conform to the engine interface pack's **gate receipt** shape (`gate_receipt.schema.yaml`) or be references to such receipts (if your run facts view chooses a reference model).
 * For each output presented as consumable, Scenario Runner MUST publish (or reference) PASS receipts for **all** gates required by that output.
+* For any output whose scope includes `seed`, `scenario_id`, `parameter_hash`, or `run_id`, Scenario Runner MUST ALSO publish (or reference) a Rails **HashGate receipt** bound to the exact output instance via an `engine_output_locator` + digest. This is the instance proof layer and does not replace segment gates.
 
 #### 9.3.4 Presenting "ready" vs "not ready" (hard)
 
