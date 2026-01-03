@@ -43,10 +43,11 @@ GIT_COMMIT ?= $(shell git rev-parse HEAD)
 # ---------------------------------------------------------------------------
 # External versions (defaults; override as needed)
 # ---------------------------------------------------------------------------
-MERCHANT_VERSION ?= 2025-12-31
+MERCHANT_VERSION ?= 2026-01-03
 MERCHANT_ISO_VERSION ?= 2025-10-09
 MERCHANT_GDP_VERSION ?= 2025-04-15
 MERCHANT_BUCKET_VERSION ?= 2024
+MERCHANT_MCC_VERSION ?= 2025-12-31
 
 ISO_VERSION ?= 2024-12-31
 GDP_VERSION ?= 2025-04-15
@@ -447,6 +448,7 @@ MERCHANT_BUILD_CMD = $(PY_ENGINE) scripts/build_transaction_schema_merchant_ids.
 	--iso-version $(MERCHANT_ISO_VERSION) \
 	--gdp-version $(MERCHANT_GDP_VERSION) \
 	--bucket-version $(MERCHANT_BUCKET_VERSION) \
+	--mcc-version $(MERCHANT_MCC_VERSION) \
 	--numeric-policy $(NUMERIC_POLICY)
 
 HURDLE_EXPORT_CMD = $(PY_SCRIPT) scripts/build_hurdle_exports.py
@@ -458,10 +460,8 @@ CROSSBORDER_FEATURES_CMD = $(PY_SCRIPT) scripts/build_crossborder_features_1a.py
 MERCHANT_CLASS_POLICY_5A_CMD = $(PY_SCRIPT) scripts/build_merchant_class_policy_5a.py
 DEMAND_SCALE_POLICY_5A_CMD = $(PY_SCRIPT) scripts/build_demand_scale_policy_5a.py
 SHAPE_LIBRARY_5A_CMD = $(PY_SCRIPT) scripts/build_shape_library_5a.py --bucket-minutes 60
-SCENARIO_CAL_FINGERPRINT ?= e22b195ba9fa8ed582f4669a26009c67637760bfe3b51c9ac77af92b6aa572e9
-SCENARIO_CAL_RUN_ROOT ?= runs/local_layer1_regen4
-SCENARIO_CAL_ZONE_ALLOC ?= $(SCENARIO_CAL_RUN_ROOT)/data/layer1/3A/zone_alloc/seed=2025121401/fingerprint=$(SCENARIO_CAL_FINGERPRINT)/part-0.parquet
-SCENARIO_CAL_CMD = $(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint $(SCENARIO_CAL_FINGERPRINT) --zone-alloc-path $(SCENARIO_CAL_ZONE_ALLOC)
+SCENARIO_CAL_FINGERPRINT ?=
+SCENARIO_CAL_RUN_ROOT ?= $(RUN_ROOT)
 CDN_WEIGHTS_EXT_VINTAGE = WDI_ITU_internet_users_share_2024
 CDN_WEIGHTS_EXT_YEAR = 2024
 CDN_WEIGHTS_EXT_CMD = $(PY_SCRIPT) scripts/build_cdn_weights_ext_yaml.py --vintage $(CDN_WEIGHTS_EXT_VINTAGE) --vintage-year $(CDN_WEIGHTS_EXT_YEAR)
@@ -477,7 +477,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
@@ -489,6 +489,9 @@ merchant_ids:
 hurdle_exports:
 	@echo "Building hurdle + dispersion export bundles"
 	$(HURDLE_EXPORT_CMD)
+
+refresh_merchant_deps: merchant_ids hurdle_exports crossborder_features mcc_channel_rules virtual_settlement_coords merchant_class_policy_5a demand_scale_policy_5a
+	@echo "Refreshed merchant-dependent externals"
 
 currency_refs:
 	@echo "Building ISO legal tender + currency share references (2024Q4)"
@@ -523,8 +526,23 @@ shape_library_5a:
 	$(SHAPE_LIBRARY_5A_CMD)
 
 scenario_calendar_5a:
-	@echo "Building 5A scenario_calendar_5A (fingerprint $(SCENARIO_CAL_FINGERPRINT))"
-	$(SCENARIO_CAL_CMD)
+	@run_root="$${SCENARIO_CAL_RUN_ROOT:-$(RUN_ROOT)}"; \
+	manifest="$${SCENARIO_CAL_FINGERPRINT:-}"; \
+	if [ -z "$$manifest" ]; then \
+		if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
+			echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found. Set SCENARIO_CAL_FINGERPRINT or run segment3a first." >&2; \
+			exit 1; \
+		fi; \
+		manifest=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
+	fi; \
+	zone_alloc_dir="$$run_root/data/layer1/3A/zone_alloc/seed=$(SEED)/fingerprint=$$manifest"; \
+	zone_alloc_path=$$(ls "$$zone_alloc_dir"/part-*.parquet 2>/dev/null | head -n 1); \
+	if [ -z "$$zone_alloc_path" ]; then \
+		echo "zone_alloc parquet not found under $$zone_alloc_dir" >&2; \
+		exit 1; \
+	fi; \
+	echo "Building 5A scenario_calendar_5A (fingerprint $$manifest)"; \
+	$(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint "$$manifest" --zone-alloc-path "$$zone_alloc_path"
 
 policies_5a: merchant_class_policy_5a demand_scale_policy_5a shape_library_5a
 	@echo "5A policy scripts complete (manual configs: baseline_intensity, scenario_horizon, scenario_overlay)"

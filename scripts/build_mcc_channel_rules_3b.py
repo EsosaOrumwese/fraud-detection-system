@@ -15,7 +15,7 @@ DEFAULT_MCC_PATH = (
     "reference/industry/mcc_canonical/2025-12-31/mcc_canonical.parquet"
 )
 DEFAULT_MERCHANT_PATH = (
-    "reference/layer1/transaction_schema_merchant_ids/2025-12-31/"
+    "reference/layer1/transaction_schema_merchant_ids/2026-01-03/"
     "transaction_schema_merchant_ids.parquet"
 )
 DEFAULT_OUT_PATH = "config/virtual/mcc_channel_rules.yaml"
@@ -190,3 +190,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -9,7 +9,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MERCHANT_PATH = ROOT / "reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.parquet"
+MERCHANT_PATH = ROOT / "reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet"
 GDP_BUCKET_PATH = ROOT / "reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet"
 OUT_ROOT = ROOT / "data/layer1/1A/crossborder_features"
 
@@ -151,3 +151,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

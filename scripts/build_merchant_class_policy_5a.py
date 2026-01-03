@@ -301,7 +301,7 @@ def main() -> None:
     parser.add_argument(
         "--merchant-path",
         type=Path,
-        default=Path("reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.parquet"),
+        default=Path("reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet"),
     )
     parser.add_argument(
         "--mcc-path",
@@ -327,3 +327,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

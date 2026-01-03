@@ -1,5 +1,5 @@
 # contracts/scenario_definition.schema.yaml
-version: "0.1.1"
+version: "0.2.0"
 $id: "docs/model_spec/control_and_ingress/scenario_runner/contracts/scenario_definition.schema.yaml"
 $schema: "https://json-schema.org/draft/2020-12/schema"
 
@@ -153,14 +153,11 @@ $defs:
       Version token (semver-like or date-like). Treated as opaque by consumers.
 
   # ---------------------------
-  # Scenario ID (aligned to engine invocation schema: int or string)
+  # Scenario ID (aligned to engine invocation schema: string only)
   # ---------------------------
   scenario_id:
-    description: "Scenario identifier (Rails string or non-negative int)."
-    anyOf:
-      - $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
-      - type: integer
-        minimum: 0
+    description: "Scenario identifier (opaque string token)."
+    $ref: "../../../observability_and_governance/cross_cutting_rails/contracts/id_types.schema.yaml#/$defs/scenario_id"
 
   # ---------------------------
   # Knob values (generic JSON-compatible values)

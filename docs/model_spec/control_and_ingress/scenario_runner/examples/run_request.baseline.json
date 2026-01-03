@@ -5,7 +5,7 @@
   "seed": 123456789,
   "allow_runner_seed": false,
   "scenario_binding": {
-    "mode": "none"
+    "scenario_id": "baseline"
   },
   "requested_output_ids": [
     "outlet_catalogue",

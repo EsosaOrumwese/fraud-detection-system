@@ -255,7 +255,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--merchant-path",
-        default="reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.parquet",
+        default="reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet",
     )
     parser.add_argument(
         "--gdp-path",
@@ -944,3 +944,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

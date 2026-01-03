@@ -1,13 +1,13 @@
-semver: "1.0.0"
-version: "2024-12-31"
+semver: "1.0.1"
+version: "2026-01-03"
 
 rng:
   algorithm: "philox2x64-10"
   # seed = uint64_le(first_8_bytes(sha256("transaction_schema_merchant_ids:" + version)))
-  seed: 9993812854061348570
+  seed: 2204869419113566000
 
 scale:
-  n_merchants: 50000
+  n_merchants: 10000
   merchant_id_start: 1
 
 home_country:

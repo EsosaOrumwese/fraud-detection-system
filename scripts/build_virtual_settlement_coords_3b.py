@@ -16,7 +16,7 @@ import polars as pl
 
 ROOT = Path(__file__).resolve().parents[1]
 MERCHANT_PATH = (
-    "reference/layer1/transaction_schema_merchant_ids/2025-12-31/"
+    "reference/layer1/transaction_schema_merchant_ids/2026-01-03/"
     "transaction_schema_merchant_ids.parquet"
 )
 PELIA_PATH = "artefacts/geocode/pelias_cached.sqlite"
@@ -268,3 +268,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

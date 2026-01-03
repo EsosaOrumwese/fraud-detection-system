@@ -127,9 +127,9 @@ reference_data:
   status: approved
   owner_subsegment: ingress
   description: Merchant classification universe with MCC, channel, and home country anchors.
-  version: v2025-11-28
+  version: 2026-01-03
   format: parquet
-  path: reference/layer1/transaction_schema_merchant_ids/v2025-11-28/transaction_schema_merchant_ids.parquet
+  path: reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet
   partitioning: []
   ordering: [merchant_id]
   schema_ref: schemas.ingress.layer1.yaml#/merchant_ids

@@ -7,7 +7,7 @@
   "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   "seed": 123456789,
-  "scenario_id": 42,
+  "scenario_id": "scenario_42",
   "run_id": "89abcdef0123456789abcdef01234567",
   "trace_id": "trace-0000000000000001",
   "span_id": "span-00000001",

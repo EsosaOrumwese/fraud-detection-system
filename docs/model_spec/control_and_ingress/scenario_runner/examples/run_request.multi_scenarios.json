@@ -6,8 +6,8 @@
   "allow_runner_seed": false,
   "scenario_binding": {
     "scenario_set": [
-      101,
-      102
+      "scenario_101",
+      "scenario_102"
     ]
   },
   "requested_output_ids": [
@@ -24,5 +24,5 @@
   ],
   "request_id": "req_20260103T091800Z_multi_0001",
   "invoker": "scenario_runner",
-  "notes": "Multi-scenario overlay run: scenario_set=[101,102]."
+  "notes": "Multi-scenario overlay run: scenario_set=[\"scenario_101\",\"scenario_102\"]."
 }

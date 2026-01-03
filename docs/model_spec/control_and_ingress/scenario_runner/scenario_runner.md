@@ -286,7 +286,7 @@ Scenario Runner MUST provide the following capabilities as a control-plane compo
    * Construct Data Engine invocation requests using the **engine invocation contract** only (no segment/state internals).
    * Translate Scenario Runner scenario intent into the engine's `scenario_binding`:
 
-     * baseline/no-overlay runs -> `scenario_binding.mode = "none"`
+     * baseline/no-overlay runs -> `scenario_binding.scenario_id` (baseline scenario definition with no overlays)
      * single-scenario runs -> `scenario_binding.scenario_id`
      * multi-scenario runs -> `scenario_binding.scenario_set`
    * Provide correlation/idempotency metadata when available (e.g., `request_id`, `invoker`, notes).
@@ -611,7 +611,7 @@ These identifiers MUST be treated as immutable once recorded in a run artefact.
 
 Scenario Runner MUST represent scenario intent in a form that can be mapped to the Data Engine's `scenario_binding` model:
 
-* baseline/no-overlay runs (engine mode `none`)
+* baseline/no-overlay runs (baseline scenario_id with no overlays)
 * single-scenario overlay
 * multi-scenario overlay set
 
@@ -858,7 +858,7 @@ Scenario Runner MUST ensure the invocation identity matches the Run Record ident
 
 Scenario Runner MUST express scenario intent for the engine using the engine's `scenario_binding` model as defined by the engine invocation contract:
 
-* Baseline / no-overlay runs MUST map to the engine's "no scenario overlay" mode.
+* Baseline / no-overlay runs MUST map to a scenario_id whose scenario definition contains no overlays.
 * Single-scenario runs MUST map to the engine's single-scenario mode using the scenario identifier defined in Scenario Runner's scenario definition surface.
 * Multi-scenario runs MUST map to the engine's scenario-set mode using the scenario identifiers defined in Scenario Runner's scenario definition surfaces.
 
@@ -1754,7 +1754,7 @@ A run currently designated as discoverable for downstream processing via `run_fa
 A persisted artefact/bundle treated as read-only truth by downstream components (pinnable, immutable, auditable). Run Records and Run Facts Views are authority surfaces.
 
 **Baseline run**
-A run with no scenario overlays applied. For engine invocation this maps to `scenario_binding.mode = "none"` (per engine interface pack).
+A run with no scenario overlays applied. For engine invocation this maps to a normal scenario_id whose scenario definition contains no overlays.
 
 **Black box (Data Engine)**
 Integration posture where the platform depends only on the engine's published interface artefacts (invocation contract, output catalogue, gate map, locator + receipt shapes) and not on engine segment/state internals.
