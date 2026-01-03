@@ -114,15 +114,17 @@ class OverlaysRunner:
             if horizon_df.is_empty():
                 raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty after build")
 
-            scenario_lazy, bucket_minutes, horizon_len = self._compose_scenario_lazy(
-                baseline=baseline_lazy,
-                horizon=horizon_df,
-                grid=grid_df,
-                manifest_fingerprint=inputs.manifest_fingerprint,
-                parameter_hash=inputs.parameter_hash,
-                scenario_id=scenario_id,
-                overlay_policy=overlay_policy,
-                calendar=calendar_df,
+            bucket_minutes = int(horizon_df["bucket_minutes"][0]) if "bucket_minutes" in horizon_df.columns else 60
+            horizon_len = int(horizon_df.height)
+            overlay_factor = float(
+                overlay_policy.get("overlays", {}).get(scenario_id, {}).get("factors", {}).get("default", 1.0)
+            )
+            factors_by_bucket = self._resolve_calendar_factors(
+                calendar_df,
+                overlay_policy,
+                scenario_id,
+                overlay_factor,
+                horizon_len=horizon_len,
             )
             scenario_local_path = data_root / render_dataset_path(
                 dataset_id="merchant_zone_scenario_local_5A",
@@ -131,7 +133,18 @@ class OverlaysRunner:
             )
             scenario_local_path.parent.mkdir(parents=True, exist_ok=True)
             resumed = resumed and scenario_local_path.exists()
-            self._write_parquet_lazy(scenario_local_path, scenario_lazy)
+            if not scenario_local_path.exists():
+                self._write_scenario_local_chunked(
+                    scenario_local_path=scenario_local_path,
+                    baseline=baseline_lazy,
+                    horizon=horizon_df,
+                    grid=grid_df,
+                    manifest_fingerprint=inputs.manifest_fingerprint,
+                    parameter_hash=inputs.parameter_hash,
+                    scenario_id=scenario_id,
+                    overlay_factor=overlay_factor,
+                    factors_by_bucket=factors_by_bucket,
+                )
             scenario_scan = pl.scan_parquet(scenario_local_path)
 
             factors_lazy = self._build_overlay_factors_lazy(scenario_scan)
@@ -403,9 +416,9 @@ class OverlaysRunner:
         manifest_fingerprint: str,
         parameter_hash: str,
         scenario_id: str,
-        overlay_policy: Mapping[str, object],
-        calendar: pl.DataFrame,
-    ) -> tuple[pl.LazyFrame, int, int]:
+        overlay_factor: float,
+        factors_by_bucket: dict[tuple[str, int], float],
+    ) -> pl.LazyFrame:
         if horizon.is_empty():
             raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty")
         if grid.is_empty():
@@ -430,14 +443,6 @@ class OverlaysRunner:
         if self._is_lazy_empty(joined):
             raise RuntimeError("S4_BASELINE_JOIN_EMPTY: no overlap between baseline buckets and horizon")
 
-        overlay_factor = float(
-            overlay_policy.get("overlays", {}).get(scenario_id, {}).get("factors", {}).get("default", 1.0)
-        )
-        bucket_minutes = int(horizon["bucket_minutes"][0]) if "bucket_minutes" in horizon.columns else 60
-        horizon_len = int(horizon.height)
-        factors_by_bucket = self._resolve_calendar_factors(
-            calendar, overlay_policy, scenario_id, overlay_factor, horizon_len=horizon_len
-        )
         if factors_by_bucket:
             factors_rows = [
                 {
@@ -463,7 +468,7 @@ class OverlaysRunner:
         else:
             overlay_expr = pl.lit(overlay_factor)
 
-        scenario_df = (
+        return (
             joined.with_columns(
                 [
                     pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
@@ -494,7 +499,49 @@ class OverlaysRunner:
                 ]
             )
         )
-        return scenario_df, bucket_minutes, horizon_len
+
+    def _write_scenario_local_chunked(
+        self,
+        *,
+        scenario_local_path: Path,
+        baseline: pl.LazyFrame,
+        horizon: pl.DataFrame,
+        grid: pl.DataFrame,
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        scenario_id: str,
+        overlay_factor: float,
+        factors_by_bucket: dict[tuple[str, int], float],
+    ) -> None:
+        tzids = baseline.select("tzid").unique().collect()
+        if tzids.is_empty():
+            raise RuntimeError("S4_REQUIRED_INPUT_MISSING: baseline has no tzid values")
+        tzid_values = sorted(str(tzid) for tzid in tzids["tzid"].to_list())
+        parts_dir = scenario_local_path.parent / f".{scenario_local_path.stem}_parts"
+        if parts_dir.exists():
+            for part in parts_dir.glob("part-*.parquet"):
+                part.unlink(missing_ok=True)
+        parts_dir.mkdir(parents=True, exist_ok=True)
+        part_paths: list[Path] = []
+        for idx, tzid in enumerate(tzid_values):
+            baseline_chunk = baseline.filter(pl.col("tzid") == tzid)
+            scenario_lazy = self._compose_scenario_lazy(
+                baseline=baseline_chunk,
+                horizon=horizon,
+                grid=grid,
+                manifest_fingerprint=manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                scenario_id=scenario_id,
+                overlay_factor=overlay_factor,
+                factors_by_bucket=factors_by_bucket,
+            )
+            part_path = parts_dir / f"part-{idx:05d}.parquet"
+            scenario_lazy.sink_parquet(part_path)
+            part_paths.append(part_path)
+        pl.scan_parquet(part_paths).sink_parquet(scenario_local_path)
+        for part in part_paths:
+            part.unlink(missing_ok=True)
+        parts_dir.rmdir()
 
     @staticmethod
     def _is_lazy_empty(frame: pl.LazyFrame) -> bool:
