@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -96,7 +97,13 @@ class InstrumentRunner:
         instrument_rows = []
         link_rows = []
         instrument_id = 1
-        for account in account_df.to_dicts():
+        total_accounts = account_df.height
+        log_every = 50000
+        log_interval = 120.0
+        last_log = time.monotonic()
+        account_index = 0
+        for account in account_df.iter_rows(named=True):
+            account_index += 1
             account_type = str(account.get("account_type"))
             if not requires.get(account_type, False):
                 continue
@@ -123,6 +130,15 @@ class InstrumentRunner:
                 }
             )
             instrument_id += 1
+            now = time.monotonic()
+            if account_index % log_every == 0 or (now - last_log) >= log_interval:
+                logger.info(
+                    "6A.S3 instrument build progress %s/%s accounts instruments=%s",
+                    account_index,
+                    total_accounts,
+                    instrument_id - 1,
+                )
+                last_log = now
 
         instrument_df = pl.DataFrame(instrument_rows)
         instrument_base_path = inputs.data_root / render_dataset_path(

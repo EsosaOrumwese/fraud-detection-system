@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -103,6 +104,11 @@ class PartyRunner:
 
         party_rows = []
         party_id = 1
+        total_cells = len(cell_counts)
+        log_every = 100000
+        log_interval = 120.0
+        last_log = time.monotonic()
+        emitted = 0
         for (country_iso, party_type, segment_id, region_id), count in cell_counts.items():
             for _ in range(count):
                 party_rows.append(
@@ -118,6 +124,15 @@ class PartyRunner:
                     }
                 )
                 party_id += 1
+                emitted += 1
+                now = time.monotonic()
+                if emitted % log_every == 0 or (now - last_log) >= log_interval:
+                    logger.info(
+                        "6A.S1 party build progress rows=%s cells=%s",
+                        emitted,
+                        total_cells,
+                    )
+                    last_log = now
 
         party_df = pl.DataFrame(party_rows)
         party_base_path = inputs.data_root / render_dataset_path(
@@ -191,8 +206,14 @@ class PartyRunner:
         df = pl.scan_parquet([file.as_posix() for file in files]).collect()
         for col in ("legal_country_iso", "country_iso", "home_country_iso"):
             if col in df.columns:
-                counts = df.group_by(col).len().rename({"len": "count"}).to_dicts()
-                return {row[col]: float(row["count"]) for row in counts}
+                counts = df.group_by(col).len().rename({"len": "count"})
+                mapping = {}
+                for row in counts.iter_rows(named=True):
+                    key = row.get(col)
+                    if key is None:
+                        continue
+                    mapping[str(key)] = float(row.get("count"))
+                return mapping
         return {}
 
     def _compute_world_target(

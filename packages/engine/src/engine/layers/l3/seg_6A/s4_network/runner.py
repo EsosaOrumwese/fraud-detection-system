@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -142,7 +143,13 @@ class NetworkRunner:
 
         device_id = 1
         ip_id = 1
-        for party in party_df.to_dicts():
+        total_parties = party_df.height
+        log_every = 5000
+        log_interval = 120.0
+        last_log = time.monotonic()
+        party_index = 0
+        for party in party_df.iter_rows(named=True):
+            party_index += 1
             party_id = int(party.get("party_id"))
             party_type = str(party.get("party_type"))
             segment_id = str(party.get("segment_id"))
@@ -272,6 +279,16 @@ class NetworkRunner:
                     ip_id += 1
 
                 device_id += 1
+            now = time.monotonic()
+            if party_index % log_every == 0 or (now - last_log) >= log_interval:
+                logger.info(
+                    "6A.S4 network build progress %s/%s parties devices=%s ips=%s",
+                    party_index,
+                    total_parties,
+                    device_id - 1,
+                    ip_id - 1,
+                )
+                last_log = now
 
         device_df = pl.DataFrame(device_rows)
         ip_df = pl.DataFrame(ip_rows)
@@ -472,7 +489,7 @@ class NetworkRunner:
     @staticmethod
     def _group_ids(df: pl.DataFrame, key_col: str, id_col: str) -> dict[int, list[int]]:
         groups: dict[int, list[int]] = {}
-        for row in df.select([key_col, id_col]).to_dicts():
+        for row in df.select([key_col, id_col]).iter_rows(named=True):
             key = row.get(key_col)
             value = row.get(id_col)
             if key is None or value is None:

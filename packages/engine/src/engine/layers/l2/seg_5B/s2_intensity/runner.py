@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -15,6 +17,8 @@ from engine.layers.l2.seg_5B.shared.control_plane import SealedInventory, load_c
 from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary, render_dataset_path, repository_root
 from engine.layers.l2.seg_5B.shared.rng import box_muller_from_pair, derive_event
 from engine.layers.l2.seg_5B.shared.run_report import SegmentStateKey, write_segment_state_run_report
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -70,7 +74,9 @@ class IntensityRunner:
         intensity_paths: dict[str, Path] = {}
         latent_paths: dict[str, Path] = {}
 
+        logger.info("5B.S2 realised intensity start scenarios=%s", len(scenarios))
         for scenario in scenarios:
+            logger.info("5B.S2 scenario start scenario_id=%s", scenario.scenario_id)
             grouping_path = data_root / render_dataset_path(
                 dataset_id="s1_grouping_5B",
                 template_args={
@@ -139,6 +145,12 @@ class IntensityRunner:
             if intensity_df["group_id"].null_count() > 0:
                 raise ValueError("group_id missing for some intensity rows")
 
+            logger.info(
+                "5B.S2 scenario inputs scenario_id=%s intensity_rows=%s buckets=%s",
+                scenario.scenario_id,
+                intensity_df.height,
+                bucket_count,
+            )
             latent_field = _generate_latent_field(
                 intensity_df,
                 lgcp_policy,
@@ -319,7 +331,13 @@ def _generate_latent_field(
         raise ValueError(f"arrival_lgcp_config_5B missing class multipliers for {missing_classes}")
 
     rows = []
-    for row in groups.to_dicts():
+    total_groups = groups.height
+    log_every = 50
+    log_interval = 120.0
+    last_log = time.monotonic()
+    group_index = 0
+    for row in groups.iter_rows(named=True):
+        group_index += 1
         scenario_band = str(row.get("scenario_band"))
         demand_class = str(row.get("demand_class"))
         channel_group = str(row.get("channel_group"))
@@ -393,6 +411,16 @@ def _generate_latent_field(
                     "factor": float(factor[bucket_index]),
                 }
             )
+        now = time.monotonic()
+        if group_index % log_every == 0 or (now - last_log) >= log_interval:
+            logger.info(
+                "5B.S2 latent field progress %s/%s groups (scenario_id=%s, buckets=%s)",
+                group_index,
+                total_groups,
+                scenario_id,
+                bucket_count,
+            )
+            last_log = now
 
     return pl.DataFrame(rows)
 

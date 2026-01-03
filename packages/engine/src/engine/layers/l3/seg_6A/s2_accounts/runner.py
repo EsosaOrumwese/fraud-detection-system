@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -126,13 +127,18 @@ class AccountRunner:
 
         account_rows = []
         account_id = 1
-        party_groups = (
+        party_groups_df = (
             party_df.group_by(["region_id", "party_type", "segment_id"])
             .agg(pl.col("party_id").alias("party_ids"), pl.col("country_iso").first())
-            .to_dicts()
         )
+        total_groups = party_groups_df.height
+        log_every = 25
+        log_interval = 120.0
+        last_log = time.monotonic()
+        group_index = 0
 
-        for group in party_groups:
+        for group in party_groups_df.iter_rows(named=True):
+            group_index += 1
             party_type = str(group.get("party_type"))
             segment_id = str(group.get("segment_id"))
             allowed_types = self._resolve_allowed_types(domain, party_type, segment_id, account_types_by_party)
@@ -189,6 +195,15 @@ class AccountRunner:
                             }
                         )
                         account_id += 1
+            now = time.monotonic()
+            if group_index % log_every == 0 or (now - last_log) >= log_interval:
+                logger.info(
+                    "6A.S2 account build progress groups=%s/%s accounts=%s",
+                    group_index,
+                    total_groups,
+                    account_id - 1,
+                )
+                last_log = now
 
         account_df = pl.DataFrame(account_rows)
         account_base_path = inputs.data_root / render_dataset_path(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -14,6 +16,8 @@ from engine.layers.l2.seg_5B.shared.control_plane import SealedInventory, load_c
 from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary, render_dataset_path, repository_root
 from engine.layers.l2.seg_5B.shared.rng import derive_event, gamma_one_u_approx, poisson_one_u
 from engine.layers.l2.seg_5B.shared.run_report import SegmentStateKey, write_segment_state_run_report
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -64,7 +68,9 @@ class CountRunner:
         )
 
         count_paths: dict[str, Path] = {}
+        logger.info("5B.S3 bucket counts start scenarios=%s", len(scenarios))
         for scenario in scenarios:
+            logger.info("5B.S3 scenario start scenario_id=%s", scenario.scenario_id)
             intensity_path = data_root / render_dataset_path(
                 dataset_id="s2_realised_intensity_5B",
                 template_args={
@@ -112,9 +118,14 @@ class CountRunner:
                 raise ValueError(f"arrival_count_config_5B missing class multipliers for {missing_classes}")
 
             rows = []
-            for row in (
-                intensity_df.sort(["merchant_id", "zone_representation", "bucket_index"]).to_dicts()
-            ):
+            sorted_df = intensity_df.sort(["merchant_id", "zone_representation", "bucket_index"])
+            total_rows = sorted_df.height
+            log_every = 50000
+            log_interval = 120.0
+            last_log = time.monotonic()
+            row_index = 0
+            for row in sorted_df.iter_rows(named=True):
+                row_index += 1
                 lam = float(row.get("lambda_realised") or 0.0)
                 count = _draw_count(
                     count_policy,
@@ -144,6 +155,15 @@ class CountRunner:
                         "s3_spec_version": "1.0.0",
                     }
                 )
+                now = time.monotonic()
+                if row_index % log_every == 0 or (now - last_log) >= log_interval:
+                    logger.info(
+                        "5B.S3 progress %s/%s rows (scenario_id=%s)",
+                        row_index,
+                        total_rows,
+                        scenario.scenario_id,
+                    )
+                    last_log = now
 
             count_df = pl.DataFrame(rows)
             count_path = _write_dataset(

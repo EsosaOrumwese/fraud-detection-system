@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,6 +18,8 @@ import yaml
 from engine.layers.l2.seg_5B.shared.control_plane import ScenarioBinding, SealedInventory, load_control_plane
 from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary, render_dataset_path, repository_root
 from engine.layers.l2.seg_5B.shared.run_report import SegmentStateKey, write_segment_state_run_report
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,7 @@ class TimeGridRunner:
         time_grid_paths: dict[str, Path] = {}
         grouping_paths: dict[str, Path] = {}
         for scenario in scenarios:
+            logger.info("5B.S1 scenario=%s building time grid + grouping", scenario.scenario_id)
             grid_df = _build_time_grid(scenario, time_policy, inputs.manifest_fingerprint, inputs.parameter_hash)
             path = _write_dataset(
                 data_root,
@@ -156,8 +161,21 @@ def _build_time_grid(
     emit_local = bool(policy.get("local_annotations", {}).get("emit", False))
     weekend_days = policy.get("local_annotations", {}).get("weekend_days", [6, 7])
 
+    logger.info("5B.S1 time grid: scenario=%s buckets=%d", scenario.scenario_id, bucket_count)
     rows = []
+    log_every = 10000
+    log_interval_s = 120.0
+    last_log = time.monotonic()
     for idx in range(bucket_count):
+        now = time.monotonic()
+        if idx == 0 or (idx + 1) % log_every == 0 or now - last_log >= log_interval_s:
+            logger.info(
+                "5B.S1 time grid: scenario=%s bucket %d/%d",
+                scenario.scenario_id,
+                idx + 1,
+                bucket_count,
+            )
+            last_log = now
         bucket_start = start + timedelta(seconds=bucket_seconds * idx)
         bucket_end = bucket_start + timedelta(seconds=bucket_seconds)
         row = {
@@ -219,23 +237,34 @@ def _build_grouping(
         )
     )
 
+    zone_group_cache: dict[str, str] = {}
+    virtual_band_cache: dict[str, str] = {}
+    is_baseline = bool(scenario.is_baseline)
+    is_stress = bool(scenario.is_stress)
+    if is_baseline == is_stress:
+        raise ValueError("scenario flags must set exactly one of baseline/stress")
+    scenario_band_value = "baseline" if is_baseline else "stress"
+
     def zone_group_id(tzid: str) -> str:
+        cached = zone_group_cache.get(tzid)
+        if cached is not None:
+            return cached
         digest = hashlib.sha256(f"5B.zone_group|{tzid}".encode("utf-8")).digest()
         bucket = digest[0] % zone_group_buckets
-        return f"zg{bucket:02d}"
-
-    def scenario_band(row: dict[str, object]) -> str:
-        is_baseline = bool(row["scenario_is_baseline"])
-        is_stress = bool(row["scenario_is_stress"])
-        if is_baseline == is_stress:
-            raise ValueError("scenario flags must set exactly one of baseline/stress")
-        return "baseline" if is_baseline else "stress"
+        value = f"zg{bucket:02d}"
+        zone_group_cache[tzid] = value
+        return value
 
     def virtual_band(merchant_id: str) -> str:
+        cached = virtual_band_cache.get(merchant_id)
+        if cached is not None:
+            return cached
         mode = virtual_modes.get(merchant_id)
         if mode is None:
             raise ValueError(f"virtual_classification_3B missing merchant_id={merchant_id}")
-        return "virtual" if mode != "NON_VIRTUAL" else "physical"
+        value = "virtual" if mode != "NON_VIRTUAL" else "physical"
+        virtual_band_cache[merchant_id] = value
+        return value
 
     def group_id_for(row: dict[str, object], zone_group: str, vband: str) -> str:
         msg = (
@@ -254,35 +283,54 @@ def _build_grouping(
             b=bucket,
         )
 
-    rows = []
-    for row in base.to_dicts():
-        tzid = str(row["zone_representation"]).split(":", 1)[-1]
-        row["zone_group_id"] = zone_group_id(tzid)
-        row["scenario_band"] = scenario_band(row)
-        row["virtual_band"] = virtual_band(str(row["merchant_id"]))
-        row["grouping_key"] = (
-            f"{row['scenario_band']}|{row['demand_class']}|{row['channel_group']}|"
-            f"{row['virtual_band']}|{row['zone_group_id']}"
-        )
-        row["group_id"] = group_id_for(row, row["zone_group_id"], row["virtual_band"])
-        rows.append(row)
-
+    logger.info("5B.S1 grouping: scenario=%s rows=%d", scenario.scenario_id, base.height)
     output_rows = []
-    for row in rows:
+    log_every = 25000
+    log_interval_s = 120.0
+    last_log = time.monotonic()
+    for idx, row in enumerate(base.iter_rows(named=True), start=1):
+        now = time.monotonic()
+        if idx == 1 or idx % log_every == 0 or now - last_log >= log_interval_s:
+            logger.info(
+                "5B.S1 grouping: scenario=%s row %d/%d",
+                scenario.scenario_id,
+                idx,
+                base.height,
+            )
+            last_log = now
+        zone_rep = str(row["zone_representation"])
+        tzid = zone_rep.split(":", 1)[-1]
+        zone_group = zone_group_id(tzid)
+        vband = virtual_band(str(row["merchant_id"]))
+        grouping_key = (
+            f"{scenario_band_value}|{row['demand_class']}|{row['channel_group']}|"
+            f"{vband}|{zone_group}"
+        )
+        group_id = group_id_for(
+            {
+                "scenario_id": row["scenario_id"],
+                "scenario_band": scenario_band_value,
+                "demand_class": row["demand_class"],
+                "channel_group": row["channel_group"],
+                "merchant_id": row["merchant_id"],
+            },
+            zone_group,
+            vband,
+        )
         output_rows.append(
             {
                 "manifest_fingerprint": manifest_fingerprint,
                 "parameter_hash": parameter_hash,
                 "scenario_id": row["scenario_id"],
                 "merchant_id": row["merchant_id"],
-                "zone_representation": row["zone_representation"],
+                "zone_representation": zone_rep,
                 "channel_group": row["channel_group"],
-                "group_id": row["group_id"],
-                "grouping_key": row["grouping_key"],
-                "scenario_band": row["scenario_band"],
+                "group_id": group_id,
+                "grouping_key": grouping_key,
+                "scenario_band": scenario_band_value,
                 "demand_class": row["demand_class"],
-                "virtual_band": row["virtual_band"],
-                "zone_group_id": row["zone_group_id"],
+                "virtual_band": vband,
+                "zone_group_id": zone_group,
                 "s1_spec_version": "1.0.0",
             }
         )

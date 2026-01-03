@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -19,6 +21,7 @@ from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary, render_da
 from engine.layers.l2.seg_5B.shared.rng import derive_event
 from engine.layers.l2.seg_5B.shared.run_report import SegmentStateKey, write_segment_state_run_report
 
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ArrivalInputs:
@@ -109,7 +112,9 @@ class ArrivalRunner:
         summary_paths: dict[str, Path] = {}
         group_alias_cache: dict[tuple[str, str], AliasTable] = {}
         site_alias_cache: dict[tuple[str, str], AliasTable] = {}
+        logger.info("5B.S4 arrivals start scenarios=%s", len(scenarios))
         for scenario in scenarios:
+            logger.info("5B.S4 scenario start scenario_id=%s", scenario.scenario_id)
             count_path = data_root / render_dataset_path(
                 dataset_id="s3_bucket_counts_5B",
                 template_args={
@@ -160,22 +165,37 @@ class ArrivalRunner:
                 on=["merchant_id", "zone_representation", "channel_group", "bucket_index"],
                 how="left",
             )
-            bucket_map = {
-                int(row["bucket_index"]): (
+            bucket_map: dict[int, tuple[datetime, datetime]] = {}
+            for row in time_grid_df.iter_rows(named=True):
+                bucket_map[int(row["bucket_index"])] = (
                     _parse_rfc3339(str(row["bucket_start_utc"])),
                     _parse_rfc3339(str(row["bucket_end_utc"])),
                 )
-                for row in time_grid_df.to_dicts()
-            }
+
+            logger.info(
+                "5B.S4 scenario inputs scenario_id=%s buckets=%s count_rows=%s",
+                scenario.scenario_id,
+                time_grid_df.height,
+                count_df.height,
+            )
 
             events = []
             summary_rows = []
-            for row in count_df.sort(["merchant_id", "zone_representation", "bucket_index"]).to_dicts():
+            sorted_counts = count_df.sort(["merchant_id", "zone_representation", "bucket_index"])
+            total_rows = sorted_counts.height
+            processed_rows = 0
+            processed_arrivals = 0
+            log_every = 5000
+            log_interval = 120.0
+            last_log = time.monotonic()
+            for row in sorted_counts.iter_rows(named=True):
+                processed_rows += 1
                 count_n = int(row.get("count_N", 0))
                 if count_n <= 0:
                     continue
                 if count_n > max_arrivals:
                     raise ValueError("count_N exceeds max_arrivals_per_bucket guardrail")
+                processed_arrivals += count_n
                 bucket_index = int(row["bucket_index"])
                 bucket_start, bucket_end = bucket_map[bucket_index]
                 duration_seconds = (bucket_end - bucket_start).total_seconds()
@@ -389,6 +409,16 @@ class ArrivalRunner:
                         "s4_spec_version": "1.0.0",
                     }
                 )
+                now = time.monotonic()
+                if processed_rows % log_every == 0 or (now - last_log) >= log_interval:
+                    logger.info(
+                        "5B.S4 progress %s/%s rows, arrivals=%s (scenario_id=%s)",
+                        processed_rows,
+                        total_rows,
+                        processed_arrivals,
+                        scenario.scenario_id,
+                    )
+                    last_log = now
 
             events_df = pl.DataFrame(events)
             arrival_path = _write_dataset(
@@ -435,7 +465,7 @@ def _load_virtual_modes(inventory: SealedInventory) -> dict[str, str]:
         raise FileNotFoundError("virtual_classification_3B missing from sealed inputs")
     df = pl.read_parquet(files[0])
     modes: dict[str, str] = {}
-    for row in df.to_dicts():
+    for row in df.iter_rows(named=True):
         merchant_id = str(row.get("merchant_id"))
         if not merchant_id:
             continue
@@ -453,7 +483,7 @@ def _load_virtual_settlement_tz(inventory: SealedInventory) -> dict[str, str]:
         return {}
     df = pl.read_parquet(files[0])
     mapping = {}
-    for row in df.to_dicts():
+    for row in df.iter_rows(named=True):
         merchant_id = str(row.get("merchant_id"))
         tzid = row.get("tzid_settlement")
         if merchant_id and tzid:
@@ -467,7 +497,7 @@ def _load_edge_alias_index(inventory: SealedInventory) -> dict[str, tuple[int, i
         raise FileNotFoundError("edge_alias_index_3B missing from sealed inputs")
     df = pl.read_parquet(files[0])
     mapping: dict[str, tuple[int, int]] = {}
-    for row in df.to_dicts():
+    for row in df.iter_rows(named=True):
         if str(row.get("scope")) != "MERCHANT":
             continue
         merchant_id = str(row.get("merchant_id"))
@@ -494,7 +524,7 @@ def _load_edge_tz(inventory: SealedInventory) -> dict[str, str]:
         return {}
     df = pl.read_parquet(files[0])
     mapping = {}
-    for row in df.to_dicts():
+    for row in df.iter_rows(named=True):
         edge_id = str(row.get("edge_id"))
         tzid = row.get("tzid_operational")
         if edge_id and tzid:
@@ -522,14 +552,20 @@ def _load_group_weights(inventory: SealedInventory) -> dict[tuple[str, str], tup
     files = inventory.resolve_files("s4_group_weights")
     if not files:
         raise FileNotFoundError("s4_group_weights missing from sealed inputs")
-    df = pl.read_parquet(files[0]).select(["merchant_id", "utc_day", "tz_group_id", "p_group"])
+    df = (
+        pl.read_parquet(files[0])
+        .select(["merchant_id", "utc_day", "tz_group_id", "p_group"])
+        .sort(["merchant_id", "utc_day", "tz_group_id"])
+    )
     mapping: dict[tuple[str, str], tuple[list[str], list[float]]] = {}
-    for merchant_id, utc_day in df.select(["merchant_id", "utc_day"]).unique().iter_rows():
-        subset = df.filter((pl.col("merchant_id") == merchant_id) & (pl.col("utc_day") == utc_day))
-        subset = subset.sort("tz_group_id")
-        tz_groups = [str(value) for value in subset.get_column("tz_group_id").to_list()]
-        weights = [float(value) for value in subset.get_column("p_group").to_list()]
-        mapping[(str(merchant_id), str(utc_day))] = (tz_groups, weights)
+    for row in df.iter_rows(named=True):
+        key = (str(row.get("merchant_id")), str(row.get("utc_day")))
+        entry = mapping.get(key)
+        if entry is None:
+            mapping[key] = ([str(row.get("tz_group_id"))], [float(row.get("p_group"))])
+        else:
+            entry[0].append(str(row.get("tz_group_id")))
+            entry[1].append(float(row.get("p_group")))
     return mapping
 
 
@@ -552,7 +588,7 @@ def _load_site_lookup(inventory: SealedInventory) -> tuple[dict[tuple[str, str],
     lookup = lookup.sort(["merchant_id", "tzid", "site_order"])
     site_map: dict[tuple[str, str], tuple[list[int], list[float]]] = {}
     tz_map: dict[int, str] = {}
-    for row in lookup.to_dicts():
+    for row in lookup.iter_rows(named=True):
         merchant_id = str(row.get("merchant_id"))
         tzid = str(row.get("tzid"))
         site_order = int(row.get("site_order"))
