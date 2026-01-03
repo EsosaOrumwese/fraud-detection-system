@@ -53,9 +53,15 @@ class OverlaysRunner:
             dictionary_path=inputs.dictionary_path,
         )
         self._assert_upstream_pass(receipt)
+        sealed_outputs_df = self._load_sealed_outputs(
+            data_root=data_root,
+            dictionary=dictionary,
+            manifest_fingerprint=inputs.manifest_fingerprint,
+        )
+        merged_df = self._merge_inventories(sealed_df, sealed_outputs_df)
 
         inventory = SealedInventory(
-            dataframe=sealed_df,
+            dataframe=merged_df,
             base_path=data_root,
             repo_root=Path.cwd(),
             template_args={
@@ -81,7 +87,13 @@ class OverlaysRunner:
             scenario_id = binding.scenario_id
             logger.info("S4 overlays: scenario_id=%s", scenario_id)
 
-            baseline_df = self._load_baseline(inventory=inventory, scenario_id=scenario_id)
+            baseline_df = self._load_baseline(
+                inventory=inventory,
+                scenario_id=scenario_id,
+                data_root=data_root,
+                dictionary=dictionary,
+                manifest_fingerprint=inputs.manifest_fingerprint,
+            )
             if baseline_df.is_empty():
                 raise RuntimeError(f"S4_REQUIRED_INPUT_MISSING: baseline empty for scenario_id={scenario_id}")
             grid_df = self._load_shape_grid(inventory=inventory, scenario_id=scenario_id)
@@ -91,7 +103,13 @@ class OverlaysRunner:
 
             horizon_cfg = self._load_horizon_config(inventory=inventory, scenario_id=scenario_id)
             overlay_policy = self._load_overlay_policy(inventory=inventory)
-            calendar_df = self._load_calendar(inventory=inventory, scenario_id=scenario_id)
+            calendar_df = self._load_calendar(
+                inventory=inventory,
+                scenario_id=scenario_id,
+                data_root=data_root,
+                dictionary=dictionary,
+                manifest_fingerprint=inputs.manifest_fingerprint,
+            )
             horizon_df = self._build_horizon(horizon_cfg)
             if horizon_df.is_empty():
                 raise RuntimeError("S4_HORIZON_INVALID: horizon grid is empty after build")
@@ -204,8 +222,68 @@ class OverlaysRunner:
         if failing:
             raise RuntimeError(f"S4_UPSTREAM_NOT_PASS: upstream segments not PASS: {failing}")
 
-    def _load_baseline(self, *, inventory: SealedInventory, scenario_id: str) -> pl.DataFrame:
-        files = inventory.resolve_files("merchant_zone_baseline_local_5A", template_overrides={"scenario_id": scenario_id})
+    def _load_sealed_outputs(
+        self,
+        *,
+        data_root: Path,
+        dictionary: Mapping[str, object],
+        manifest_fingerprint: str,
+    ) -> pl.DataFrame | None:
+        """Load optional sealed_outputs_5A snapshot if present."""
+
+        path = data_root / render_dataset_path(
+            dataset_id="sealed_outputs_5A",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        if not path.exists():
+            return None
+        try:
+            return pl.read_parquet(path)
+        except Exception as exc:  # pragma: no cover - defensive read
+            logger.warning("sealed_outputs_5A present but unreadable: %s", exc)
+            return None
+
+    def _merge_inventories(self, sealed_inputs: pl.DataFrame, sealed_outputs: pl.DataFrame | None) -> pl.DataFrame:
+        """Prefer sealed_outputs rows when overlaying onto sealed_inputs."""
+
+        if sealed_outputs is None or sealed_outputs.is_empty():
+            return sealed_inputs
+        merged: dict[str, dict[str, object]] = {}
+        for row in sealed_inputs.to_dicts():
+            artifact_id = str(row.get("artifact_id"))
+            merged[artifact_id] = row
+        for row in sealed_outputs.to_dicts():
+            artifact_id = str(row.get("artifact_id"))
+            merged[artifact_id] = row
+        rows = list(merged.values())
+        rows.sort(key=lambda row: (row.get("owner_layer", ""), row.get("owner_segment", ""), row.get("artifact_id", "")))
+        return pl.DataFrame(rows)
+
+    def _load_baseline(
+        self,
+        *,
+        inventory: SealedInventory,
+        scenario_id: str,
+        data_root: Path,
+        dictionary: Mapping[str, object],
+        manifest_fingerprint: str,
+    ) -> pl.DataFrame:
+        try:
+            files = inventory.resolve_files(
+                "merchant_zone_baseline_local_5A",
+                template_overrides={"scenario_id": scenario_id},
+            )
+        except FileNotFoundError:
+            baseline_path = data_root / render_dataset_path(
+                dataset_id="merchant_zone_baseline_local_5A",
+                template_args={
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "scenario_id": scenario_id,
+                },
+                dictionary=dictionary,
+            )
+            files = [baseline_path]
         df = pl.read_parquet(files)
         return df.with_columns(
             [
@@ -258,8 +336,37 @@ class OverlaysRunner:
         files = inventory.resolve_files("scenario_overlay_policy_5A")
         return yaml.safe_load(Path(files[0]).read_text(encoding="utf-8")) or {}
 
-    def _load_calendar(self, *, inventory: SealedInventory, scenario_id: str) -> pl.DataFrame:
-        files = inventory.resolve_files("scenario_calendar_5A", template_overrides={"scenario_id": scenario_id})
+    def _load_calendar(
+        self,
+        *,
+        inventory: SealedInventory,
+        scenario_id: str,
+        data_root: Path,
+        dictionary: Mapping[str, object],
+        manifest_fingerprint: str,
+    ) -> pl.DataFrame:
+        scenario_artifact_id = f"scenario_calendar_5A::{scenario_id}"
+        try:
+            files = inventory.resolve_files(
+                scenario_artifact_id,
+                template_overrides={"scenario_id": scenario_id},
+            )
+        except FileNotFoundError:
+            try:
+                files = inventory.resolve_files(
+                    "scenario_calendar_5A",
+                    template_overrides={"scenario_id": scenario_id},
+                )
+            except FileNotFoundError:
+                calendar_path = data_root / render_dataset_path(
+                    dataset_id="scenario_calendar_5A",
+                    template_args={
+                        "manifest_fingerprint": manifest_fingerprint,
+                        "scenario_id": scenario_id,
+                    },
+                    dictionary=dictionary,
+                )
+                files = [calendar_path]
         df = pl.read_parquet(files)
         # Expect flexible columns; normalize some likely names.
         if "local_horizon_bucket_index" in df.columns:
@@ -330,6 +437,31 @@ class OverlaysRunner:
         factors_by_bucket = self._resolve_calendar_factors(
             calendar, overlay_policy, scenario_id, overlay_factor, horizon_len=horizon_len
         )
+        if factors_by_bucket:
+            factors_rows = [
+                {
+                    "tzid": tzid,
+                    "local_horizon_bucket_index": idx,
+                    "overlay_factor_total": factor,
+                }
+                for (tzid, idx), factor in factors_by_bucket.items()
+            ]
+            factors_frame = pl.DataFrame(factors_rows).with_columns(
+                [
+                    pl.col("tzid").cast(pl.Utf8),
+                    pl.col("local_horizon_bucket_index").cast(pl.Int32),
+                    pl.col("overlay_factor_total").cast(pl.Float64),
+                ]
+            )
+            joined = joined.join(
+                factors_frame,
+                on=["tzid", "local_horizon_bucket_index"],
+                how="left",
+            )
+            overlay_expr = pl.coalesce([pl.col("overlay_factor_total"), pl.lit(overlay_factor)])
+        else:
+            overlay_expr = pl.lit(overlay_factor)
+
         scenario_df = (
             joined.with_columns(
                 [
@@ -338,22 +470,9 @@ class OverlaysRunner:
                     pl.lit(scenario_id).alias("scenario_id"),
                     (pl.col("legal_country_iso") + pl.lit("::") + pl.col("tzid")).alias("zone_id"),
                     pl.col("local_horizon_bucket_index").cast(pl.Int32),
-                    (
-                        pl.col("lambda_local_base")
-                        * pl.struct(["tzid", "local_horizon_bucket_index"]).map_elements(
-                            lambda s: factors_by_bucket.get(
-                                (str(s["tzid"]), int(s["local_horizon_bucket_index"])),
-                                overlay_factor,
-                            )
-                        )
-                    ).alias("lambda_local_scenario"),
+                    overlay_expr.alias("overlay_factor_total"),
+                    (pl.col("lambda_local_base") * overlay_expr).alias("lambda_local_scenario"),
                     pl.lit(self._S4_SPEC_VERSION).alias("s4_spec_version"),
-                    pl.struct(["tzid", "local_horizon_bucket_index"]).map_elements(
-                        lambda s: factors_by_bucket.get(
-                            (str(s["tzid"]), int(s["local_horizon_bucket_index"])),
-                            overlay_factor,
-                        )
-                    ).alias("overlay_factor_total"),
                 ]
             )
             .select(

@@ -220,8 +220,10 @@ class BundleRunner:
             schema_ref = entry.get("schema_ref")
             if not isinstance(schema_ref, str):
                 raise err("E_DICTIONARY_RESOLUTION_FAILED", f"schema_ref missing for {dataset_id}")
-            digest = aggregate_sha256(hash_files(expand_files(path), error_prefix=dataset_id))
-            size_bytes = total_size_bytes(expand_files(path))
+            files = expand_files(path)
+            digests = hash_files(files, error_prefix=dataset_id)
+            digest = aggregate_sha256(digests)
+            size_bytes = total_size_bytes(digests)
             components.append(
                 {
                     "logical_id": dataset_id,

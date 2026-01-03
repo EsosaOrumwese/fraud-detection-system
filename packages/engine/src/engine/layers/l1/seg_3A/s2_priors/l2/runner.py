@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 import polars as pl
+import pyarrow.parquet as pq
 import yaml
 from jsonschema import Draft202012Validator, ValidationError
 
@@ -87,7 +88,7 @@ class PriorsRunner:
 
         priors_map = self._normalise_priors(prior_payload)
         floor_map = self._normalise_floors(floor_payload)
-        tz_df = pl.read_parquet(tz_world_path)
+        tz_df = self._load_tz_world(tz_world_path)
         country_col = self._detect_country_column(tz_df)
         zone_universe = self._build_zone_universe(tz_df, country_col)
         missing_countries = sorted(set(priors_map.keys()) - set(zone_universe.keys()))
@@ -257,6 +258,21 @@ class PriorsRunner:
             if candidate in df.columns:
                 return candidate
         raise err("E_TZ_UNIVERSE", "unable to find country column in tz reference dataset")
+
+    def _select_country_column(self, columns: Sequence[str]) -> str:
+        for candidate in ("country_iso", "legal_country_iso", "iso"):
+            if candidate in columns:
+                return candidate
+        raise err("E_TZ_UNIVERSE", "unable to find country column in tz_world schema")
+
+    def _load_tz_world(self, path: Path) -> pl.DataFrame:
+        schema = pq.read_schema(path)
+        columns = list(schema.names)
+        country_col = self._select_country_column(columns)
+        if "tzid" not in columns:
+            raise err("E_TZ_UNIVERSE", "tz_world missing tzid column")
+        table = pq.read_table(path, columns=[country_col, "tzid"])
+        return pl.from_arrow(table)
 
     def _build_zone_universe(self, tz_df: pl.DataFrame, country_col: str) -> dict[str, list[str]]:
         universe: dict[str, list[str]] = {}

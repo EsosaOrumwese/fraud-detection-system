@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
 
 import polars as pl
+import pyarrow.parquet as pq
 import yaml
 from jsonschema import Draft202012Validator, ValidationError
 
@@ -96,7 +97,7 @@ class EscalationRunner:
 
         policy = self._load_policy(asset_paths["zone_mixture_policy"])
         outlet_df = pl.read_parquet(asset_paths["outlet_catalogue"])
-        zone_df = pl.read_parquet(asset_paths["tz_world_2025a"])
+        zone_df = self._load_tz_world(asset_paths["tz_world_2025a"])
         iso_df = pl.read_parquet(asset_paths["iso3166_canonical_2024"])
 
         classification = self._classify_pairs(
@@ -407,6 +408,21 @@ class EscalationRunner:
             if candidate in df.columns:
                 return candidate
         raise err("E_TZ_UNIVERSE", "unable to find country column in reference dataset")
+
+    def _select_country_column(self, columns: Sequence[str]) -> str:
+        for candidate in ("country_iso", "legal_country_iso", "iso"):
+            if candidate in columns:
+                return candidate
+        raise err("E_TZ_UNIVERSE", "unable to find country column in tz_world schema")
+
+    def _load_tz_world(self, path: Path) -> pl.DataFrame:
+        schema = pq.read_schema(path)
+        columns = list(schema.names)
+        country_col = self._select_country_column(columns)
+        if "tzid" not in columns:
+            raise err("E_TZ_UNIVERSE", "tz_world missing tzid column")
+        table = pq.read_table(path, columns=[country_col, "tzid"])
+        return pl.from_arrow(table)
 
     def _resolve_share_bucket(self, share: float, rules: Sequence[PolicyRule]) -> Optional[str]:
         if not rules:

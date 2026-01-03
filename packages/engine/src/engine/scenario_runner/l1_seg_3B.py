@@ -44,6 +44,7 @@ class Segment3BConfig:
     validation_bundle_1a: Optional[Path] = None
     validation_bundle_1b: Optional[Path] = None
     validation_bundle_2a: Optional[Path] = None
+    validation_bundle_2b: Optional[Path] = None
     validation_bundle_3a: Optional[Path] = None
     notes: Optional[str] = None
     resume: bool = False
@@ -118,6 +119,7 @@ class Segment3BOrchestrator:
             validation_bundle_1a=config.validation_bundle_1a,
             validation_bundle_1b=config.validation_bundle_1b,
             validation_bundle_2a=config.validation_bundle_2a,
+            validation_bundle_2b=config.validation_bundle_2b,
             validation_bundle_3a=config.validation_bundle_3a,
             notes=config.notes,
         )

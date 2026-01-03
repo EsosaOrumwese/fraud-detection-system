@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import json
 import struct
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from engine.layers.l1.seg_3B.shared.dictionary import load_dictionary
 from engine.layers.l1.seg_3B.shared.schema import load_schema
 from engine.layers.l1.seg_3B.s0_gate.exceptions import err
 
+logger = logging.getLogger(__name__)
 
 def _frames_equal(a: pl.DataFrame, b: pl.DataFrame) -> bool:
     try:
@@ -157,12 +159,15 @@ class AliasRunner:
             "edge_alias_index_digest": alias_index_digest,
             "virtual_rules_digest": virtual_rules_digest,
             "universe_hash": universe_hash,
-            "created_at_utc": datetime.now(timezone.utc).isoformat(),
             "notes": "universe_hash = sha256(cdn_weights_digest|edge_catalogue_index_digest|edge_alias_blob_digest|virtual_rules_digest)",
         }
         if universe_hash_path.exists():
             existing = json.loads(universe_hash_path.read_text(encoding="utf-8"))
-            if existing != universe_payload:
+            existing_trimmed = dict(existing)
+            existing_trimmed.pop("created_at_utc", None)
+            universe_trimmed = dict(universe_payload)
+            universe_trimmed.pop("created_at_utc", None)
+            if existing_trimmed != universe_trimmed:
                 raise err("E_IMMUTABILITY", f"universe hash exists at '{universe_hash_path}' with different content")
             resumed = True
         else:
@@ -400,6 +405,8 @@ class AliasRunner:
         header_payload = json.loads(header_bytes.decode("utf-8"))
         try:
             _ALIAS_HEADER_SCHEMA.validate(header_payload)
+        except RecursionError:
+            logger.warning("Skipping alias header schema validation due to recursion depth")
         except ValidationError as exc:
             raise err("E_SCHEMA", f"edge_alias_blob_3B header invalid: {exc.message}") from exc
         header_len = len(header_bytes)

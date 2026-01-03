@@ -320,15 +320,8 @@ class S0GateRunner:
         run_started_at = datetime.now(timezone.utc)
         gate_timer = time.perf_counter()
 
-        # Allow overrides for upstream bundles when manifest fingerprints differ
-        self._validation_bundle_1a = inputs.validation_bundle_1a
-        self._validation_bundle_1b = inputs.validation_bundle_1b
-        self._validation_bundle_2a = inputs.validation_bundle_2a
-        self._validation_bundle_2b = inputs.validation_bundle_2b
-        self._validation_bundle_3a = inputs.validation_bundle_3a
-        self._validation_bundle_3b = inputs.validation_bundle_3b
-
         upstream_bundles = self._verify_upstream_bundles(
+            inputs=inputs,
             base_path=inputs.base_path, manifest_fingerprint=inputs.upstream_manifest_fingerprint
         )
         gate_verify_ms = int(round((time.perf_counter() - gate_timer) * 1000))
@@ -411,14 +404,14 @@ class S0GateRunner:
 
     # -------------------- helpers --------------------
     def _verify_upstream_bundles(
-        self, *, base_path: Path, manifest_fingerprint: str
+        self, *, inputs: S0Inputs, base_path: Path, manifest_fingerprint: str
     ) -> dict[str, Mapping[str, object]]:
         results: dict[str, Mapping[str, object]] = {}
         for segment in self._UPSTREAM_SEGMENTS:
             spec = self._UPSTREAM_BUNDLE_SPECS.get(segment)
             if spec is None:
                 continue
-            override_path = getattr(self, spec["override_attr"], None)
+            override_path = getattr(inputs, spec["override_attr"], None)
 
             bundle_entry = self._dictionary_entry(
                 spec["dictionary_rel_path"], spec["bundle_id"]
@@ -545,6 +538,24 @@ class S0GateRunner:
 
     def _compute_digest_for_segment(self, segment: str, bundle_path: Path, index: BundleIndex) -> str:
         """Honor per-segment hashing laws when known."""
+
+        if segment == "2B":
+            index_path = bundle_path / "index.json"
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, list):
+                return compute_index_digest(bundle_path, index)
+            digest = hashlib.sha256()
+            for entry in sorted(payload, key=lambda item: str(item.get("path", ""))):
+                if not isinstance(entry, dict):
+                    continue
+                path_value = entry.get("path")
+                if not isinstance(path_value, str) or not path_value:
+                    continue
+                target = bundle_path / path_value
+                if not target.exists() or not target.is_file():
+                    continue
+                digest.update(target.read_bytes())
+            return digest.hexdigest()
 
         if segment == "3B":
             index_path = bundle_path / "index.json"
@@ -1004,16 +1015,16 @@ class S0GateRunner:
         for item in scenarios_raw:
             if not isinstance(item, Mapping):
                 continue
-            scenario_id = item.get("id")
+            scenario_id = item.get("scenario_id") or item.get("id")
             if not isinstance(scenario_id, str) or not scenario_id.strip():
                 continue
             labels = tuple(
                 sorted({str(label).strip() for label in item.get("labels") or [] if isinstance(label, (str, int))})
             )
             horizon_days = item.get("horizon_days")
-            bucket_minutes = item.get("bucket_minutes")
+            bucket_minutes = item.get("bucket_duration_minutes") or item.get("bucket_minutes")
             timezone_value = item.get("timezone")
-            scenario_version = str(item.get("version") or version)
+            scenario_version = str(item.get("scenario_version") or item.get("version") or version)
             definitions.append(
                 ScenarioDefinition(
                     scenario_id=scenario_id,

@@ -1893,7 +1893,7 @@ countries:
         alpha: 0.091305
       - tzid: Europe/Brussels
         alpha: 0.057948
-  NO:
+  "NO":
     tzid_alphas:
       - tzid: Arctic/Longyearbyen
         alpha: 0.009097

@@ -9,6 +9,16 @@ from typing import Mapping, Sequence
 
 from ..s0_gate.exceptions import err
 
+_VOLATILE_FIELDS = {
+    "run_started_at_utc",
+    "verified_at_utc",
+    "elapsed_ms",
+    "started_at_utc",
+    "finished_at_utc",
+    "completed_at_utc",
+    "resumed",
+}
+
 
 @dataclass(frozen=True)
 class SegmentStateKey:
@@ -47,6 +57,13 @@ def _keys_match(existing: Mapping[str, object], key: SegmentStateKey) -> bool:
     return all(existing.get(field) == value for field, value in key.as_dict().items())
 
 
+def _strip_volatile_fields(payload: Mapping[str, object]) -> dict[str, object]:
+    cleaned = dict(payload)
+    for field in _VOLATILE_FIELDS:
+        cleaned.pop(field, None)
+    return cleaned
+
+
 def write_segment_state_run_report(
     *,
     path: Path,
@@ -64,10 +81,11 @@ def write_segment_state_run_report(
     for row in rows:
         if _keys_match(row, key):
             if row != payload:
-                raise err(
-                    "E_RUN_REPORT_IMMUTABLE",
-                    f"segment-state run-report row for {key.state} already exists with different content at '{path}'",
-                )
+                if _strip_volatile_fields(row) != _strip_volatile_fields(payload):
+                    raise err(
+                        "E_RUN_REPORT_IMMUTABLE",
+                        f"segment-state run-report row for {key.state} already exists with different content at '{path}'",
+                    )
             return path
 
     with path.open("a", encoding="utf-8") as handle:

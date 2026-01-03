@@ -778,3 +778,184 @@ reports:
   retention_days: 365
   pii: false
   licence: Proprietary-Internal
+
+validation:
+- id: validation_bundle_1A
+  status: approved
+  owner_subsegment: 1A
+  description: Segment 1A validation bundle proving PASS for a manifest fingerprint.
+  version: '{manifest_fingerprint}'
+  format: directory
+  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1A
+  status: approved
+  owner_subsegment: 1A
+  description: PASS flag for the Segment 1A validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_1B
+  status: approved
+  owner_subsegment: 1B
+  description: Segment 1B validation bundle proving PASS for a manifest fingerprint.
+  version: '{manifest_fingerprint}'
+  format: directory
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1B
+  status: approved
+  owner_subsegment: 1B
+  description: PASS flag for the Segment 1B validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_2A
+  status: approved
+  owner_subsegment: 2A
+  description: Segment 2A validation bundle proving PASS for a manifest fingerprint.
+  version: '{manifest_fingerprint}'
+  format: directory
+  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_2A
+  status: approved
+  owner_subsegment: 2A
+  description: PASS flag for the Segment 2A validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_2B
+  status: draft
+  owner_subsegment: 2B
+  description: Segment 2B validation bundle proving PASS for a manifest fingerprint.
+  version: '{manifest_fingerprint}'
+  format: directory
+  path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+  lineage:
+    produced_by: 2B.S8
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_2B
+  status: draft
+  owner_subsegment: 2B
+  description: PASS flag for the Segment 2B validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 2B.S8
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Fingerprint-scoped validation bundle for Segment 3A.
+  version: '{manifest_fingerprint}'
+  format: dir
+  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [3B]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_3A
+  status: draft
+  owner_subsegment: 3A
+  description: HashGate PASS flag accompanying the 3A validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [3B]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal

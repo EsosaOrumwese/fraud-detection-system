@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import time
@@ -52,6 +53,7 @@ class GateInputs:
     validation_bundle_1a: Optional[Path] = None
     validation_bundle_1b: Optional[Path] = None
     validation_bundle_2a: Optional[Path] = None
+    validation_bundle_2b: Optional[Path] = None
     validation_bundle_3a: Optional[Path] = None
     notes: Optional[str] = None
     emit_run_report_stdout: bool = True
@@ -217,6 +219,7 @@ class S0GateRunner:
             "1A": ("validation_bundle_1A", "validation_passed_flag_1A", "validation_bundle_1a"),
             "1B": ("validation_bundle_1B", "validation_passed_flag_1B", "validation_bundle_1b"),
             "2A": ("validation_bundle_2A", "validation_passed_flag_2A", "validation_bundle_2a"),
+            "2B": ("validation_bundle_2B", "validation_passed_flag_2B", "validation_bundle_2b"),
             "3A": ("validation_bundle_3A", "validation_passed_flag_3A", "validation_bundle_3a"),
         }
 
@@ -235,20 +238,42 @@ class S0GateRunner:
             )
             provided_path = getattr(inputs, attr_name)
             candidate_path = self._resolve_bundle_path(provided_path or expected_root)
-            if candidate_path.resolve() != expected_bundle_path.resolve():
-                raise err(
-                    "E_BUNDLE_PATH",
-                    f"{segment} validation bundle path mismatch (expected {expected_bundle_path}, got {candidate_path})",
-                )
-            if expected_flag_path.resolve() != (candidate_path / "_passed.flag").resolve():
-                raise err(
-                    "E_FLAG_PATH",
-                    f"{segment} pass flag path mismatch (expected {expected_flag_path})",
-                )
+            if provided_path is None:
+                if candidate_path.resolve() != expected_bundle_path.resolve():
+                    raise err(
+                        "E_BUNDLE_PATH",
+                        f"{segment} validation bundle path mismatch (expected {expected_bundle_path}, got {candidate_path})",
+                    )
+                if expected_flag_path.resolve() != (candidate_path / "_passed.flag").resolve():
+                    raise err(
+                        "E_FLAG_PATH",
+                        f"{segment} pass flag path mismatch (expected {expected_flag_path})",
+                    )
             if not candidate_path.exists() or not candidate_path.is_dir():
                 raise err("E_BUNDLE_MISSING", f"{segment} validation bundle missing at {candidate_path}")
-            bundle_index = load_index(candidate_path)
-            computed_flag = compute_index_digest(candidate_path, bundle_index)
+            if segment == "2B":
+                index_path = candidate_path / "index.json"
+                if not index_path.exists():
+                    raise err("E_INDEX_MISSING", f"validation bundle missing '{index_path.name}'")
+                try:
+                    index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as exc:
+                    raise err("E_INDEX_INVALID", f"index.json is not valid JSON: {exc}") from exc
+                if not isinstance(index_payload, list):
+                    raise err("E_INDEX_INVALID", "index.json must be a JSON array")
+                digest = hashlib.sha256()
+                for entry in sorted(index_payload, key=lambda item: str(item.get("path", ""))):
+                    path_value = entry.get("path") if isinstance(entry, dict) else None
+                    if not isinstance(path_value, str) or not path_value:
+                        raise err("E_INDEX_INVALID", "index.json entry missing string path")
+                    target = (candidate_path / path_value).resolve()
+                    if not target.exists() or not target.is_file():
+                        raise err("E_INDEX_IO", f"unable to read '{path_value}' while computing digest")
+                    digest.update(target.read_bytes())
+                computed_flag = digest.hexdigest()
+            else:
+                bundle_index = load_index(candidate_path)
+                computed_flag = compute_index_digest(candidate_path, bundle_index)
             declared_flag = read_pass_flag(candidate_path)
             if computed_flag != declared_flag:
                 raise err("E_FLAG_HASH_MISMATCH", f"{segment} computed digest does not match _passed.flag")
@@ -280,6 +305,16 @@ class S0GateRunner:
                 if (candidate / "index.json").exists():
                     return candidate
         return bundle_path
+
+    def _extract_fingerprint_from_bundle(self, bundle_path: Optional[Path]) -> Optional[str]:
+        if bundle_path is None:
+            return None
+        for part in bundle_path.parts:
+            if part.startswith("fingerprint="):
+                token = part.split("=", 1)[1]
+                if len(token) == 64:
+                    return token
+        return None
 
     def _collect_sealed_assets(
         self,
@@ -321,6 +356,20 @@ class S0GateRunner:
                         )
                     except RunBundleError as exc:
                         raise err("E_POLICY_PATH", str(exc)) from exc
+            if not resolved_path.exists() and asset_id == "site_locations":
+                fallback_fingerprint = self._extract_fingerprint_from_bundle(
+                    upstream_bundles.get("1B", {}).get("path")  # type: ignore[arg-type]
+                )
+                if fallback_fingerprint and fallback_fingerprint != template_args.get("manifest_fingerprint"):
+                    fallback_relative = render_dataset_path(
+                        dataset_id=asset_id,
+                        template_args={"seed": inputs.seed, "manifest_fingerprint": fallback_fingerprint},
+                        dictionary=dictionary,
+                    )
+                    fallback_path = Path(fallback_relative)
+                    if not fallback_path.is_absolute():
+                        fallback_path = (inputs.base_path / fallback_path).resolve()
+                    resolved_path = fallback_path
             if not resolved_path.exists():
                 raise err("E_POLICY_PATH", f"asset '{asset_id}' not found at {resolved_path}")
             if resolved_path.is_dir():

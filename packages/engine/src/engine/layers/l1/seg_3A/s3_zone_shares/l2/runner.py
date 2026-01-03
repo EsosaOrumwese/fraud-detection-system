@@ -126,6 +126,7 @@ class _DirichletEventWriter:
         if self._delta(counter_before, counter_after) != blocks_used:
             raise err("E_RNG_COUNTER", "Philox block delta mismatch for Dirichlet event")
 
+        stream_id = f"{substream_label}|{merchant_id}|{country_iso}"
         record = {
             "ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "module": module,

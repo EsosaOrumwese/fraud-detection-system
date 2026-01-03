@@ -746,15 +746,10 @@ class ValidationRunner:
                 }
             )
             return issues
-        trace_entries.sort(
-            key=lambda e: (
-                int(e.get("rng_counter_after_hi", 0)),
-                int(e.get("rng_counter_after_lo", 0)),
-                str(e.get("ts_utc", "")),
-            )
-        )
-        trace = trace_entries[-1]
-        if int(trace.get("draws_total", -1)) != draws_total:
+        trace_draws = max(int(entry.get("draws_total", -1)) for entry in trace_entries)
+        trace_blocks = max(int(entry.get("blocks_total", -1)) for entry in trace_entries)
+        trace_events = max(int(entry.get("events_total", -1)) for entry in trace_entries)
+        if trace_draws != draws_total:
             issues.append(
                 {
                     "issue_code": "RNG_TRACE_DRAWS",
@@ -766,7 +761,7 @@ class ValidationRunner:
                     "tzid": None,
                 }
             )
-        if int(trace.get("blocks_total", -1)) != blocks_total:
+        if trace_blocks != blocks_total:
             issues.append(
                 {
                     "issue_code": "RNG_TRACE_BLOCKS",
@@ -778,7 +773,7 @@ class ValidationRunner:
                     "tzid": None,
                 }
             )
-        if int(trace.get("events_total", -1)) != event_count:
+        if trace_events != event_count:
             issues.append(
                 {
                     "issue_code": "RNG_TRACE_EVENTS",
@@ -869,6 +864,7 @@ class ValidationRunner:
                 "tzid": issue.get("tzid"),
                 "details": issue.get("details"),
             }
+            payload = {key: value for key, value in payload.items() if value is not None}
             try:
                 _S6_ISSUE_SCHEMA.validate(payload)
             except ValidationError as exc:

@@ -425,17 +425,6 @@ class S0GateRunner:
             seed_value = int(inputs.seed)
         except (TypeError, ValueError) as exc:
             raise err("2B-S0-020", "seed must be an unsigned integer") from exc
-        receipt_payload = {
-            "manifest_fingerprint": inputs.manifest_fingerprint,
-            "seed": seed_value,
-            "parameter_hash": inputs.parameter_hash,
-            "verified_at_utc": _now_utc(),
-            "sealed_inputs": sealed_entries,
-            "catalogue_resolution": catalogue_resolution,
-            "determinism_receipt": determinism_receipt,
-        }
-        validate_receipt_payload(receipt_payload)
-
         receipt_rel = render_dataset_path(
             "s0_gate_receipt_2B",
             template_args={"manifest_fingerprint": inputs.manifest_fingerprint},
@@ -445,17 +434,50 @@ class S0GateRunner:
         ensure_within_base(receipt_path, base_path=inputs.data_root)
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
 
-        publish_start = time.perf_counter()
-        temp_receipt = receipt_path.parent / f".tmp.{uuid.uuid4().hex}.json"
-        try:
-            temp_receipt.write_text(
-                json.dumps(receipt_payload, indent=2), encoding="utf-8"
-            )
-            temp_receipt.replace(receipt_path)
-        finally:
-            if temp_receipt.exists():
-                temp_receipt.unlink(missing_ok=True)
-        publish_ms = int(round((time.perf_counter() - publish_start) * 1000))
+        existing_payload: Optional[dict[str, object]] = None
+        if receipt_path.exists():
+            try:
+                existing_payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise err("E_S0_RECEIPT_INVALID", f"invalid JSON in {receipt_path}") from exc
+            try:
+                validate_receipt_payload(existing_payload)
+            except S0GateError as exc:
+                raise err("E_S0_RECEIPT_INVALID", exc.detail) from exc
+            verified_at_utc = str(existing_payload.get("verified_at_utc", _now_utc()))
+        else:
+            verified_at_utc = _now_utc()
+
+        receipt_payload = {
+            "manifest_fingerprint": inputs.manifest_fingerprint,
+            "seed": seed_value,
+            "parameter_hash": inputs.parameter_hash,
+            "verified_at_utc": verified_at_utc,
+            "sealed_inputs": sealed_entries,
+            "catalogue_resolution": catalogue_resolution,
+            "determinism_receipt": determinism_receipt,
+        }
+        validate_receipt_payload(receipt_payload)
+
+        publish_ms = 0
+        if existing_payload is not None:
+            if existing_payload != receipt_payload:
+                raise err(
+                    "E_S0_RECEIPT_MISMATCH",
+                    f"s0 gate receipt already exists with different content at {receipt_path}",
+                )
+        else:
+            publish_start = time.perf_counter()
+            temp_receipt = receipt_path.parent / f".tmp.{uuid.uuid4().hex}.json"
+            try:
+                temp_receipt.write_text(
+                    json.dumps(receipt_payload, indent=2), encoding="utf-8"
+                )
+                temp_receipt.replace(receipt_path)
+            finally:
+                if temp_receipt.exists():
+                    temp_receipt.unlink(missing_ok=True)
+            publish_ms = int(round((time.perf_counter() - publish_start) * 1000))
 
         verified_at = datetime.strptime(
             receipt_payload["verified_at_utc"], "%Y-%m-%dT%H:%M:%S.%fZ"

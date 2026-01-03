@@ -425,8 +425,9 @@ class ValidationRunner:
         self, logical_id: str, role: str, path: Path, dictionary: Mapping[str, object]
     ) -> Mapping[str, Any]:
         schema_ref = self._schema_ref_for(logical_id, dictionary)
-        digest = aggregate_sha256(hash_files(expand_files(path), error_prefix=logical_id))
-        size_bytes = total_size_bytes(expand_files(path))
+        digests = tuple(hash_files(expand_files(path), error_prefix=logical_id))
+        digest = aggregate_sha256(digests)
+        size_bytes = total_size_bytes(digests)
         return {
             "logical_id": logical_id,
             "role": role,

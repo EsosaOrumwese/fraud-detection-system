@@ -147,7 +147,7 @@ class BaselineRunner:
             )
             baseline_policy = self._load_baseline_policy(inventory=inventory)
 
-            baseline_df = self._compose_baseline(
+            baseline_lazy = self._compose_baseline_lazy(
                 profiles=profile_df,
                 shapes=shapes_df,
                 grid=grid_df,
@@ -156,27 +156,37 @@ class BaselineRunner:
                 parameter_hash=inputs.parameter_hash,
                 scenario_id=scenario_id,
             )
-            class_df = self._aggregate_class(baseline_df)
-            utc_df = self._project_utc(baseline_df)
+            self._assert_weekly_sums_lazy(baseline_lazy, baseline_policy)
 
+            baseline_resumed = baseline_path.exists()
+            if not baseline_resumed:
+                self._write_parquet_lazy(baseline_path, baseline_lazy)
             resumed = resumed and baseline_path.exists()
-            self._write_parquet(baseline_path, baseline_df)
-            if class_df is not None:
+
+            baseline_scan = pl.scan_parquet(baseline_path)
+            class_lazy = self._aggregate_class_lazy(baseline_scan)
+            if class_lazy is not None:
                 class_baseline_path = data_root / render_dataset_path(
                     dataset_id="class_zone_baseline_local_5A",
                     template_args={"manifest_fingerprint": inputs.manifest_fingerprint, "scenario_id": scenario_id},
                     dictionary=dictionary,
                 )
                 class_baseline_path.parent.mkdir(parents=True, exist_ok=True)
-                self._write_parquet(class_baseline_path, class_df)
-            if utc_df is not None:
+                if not class_baseline_path.exists():
+                    self._write_parquet_lazy(class_baseline_path, class_lazy)
+                resumed = resumed and class_baseline_path.exists()
+
+            utc_lazy = self._project_utc_lazy(baseline_scan)
+            if utc_lazy is not None:
                 utc_baseline_path = data_root / render_dataset_path(
                     dataset_id="merchant_zone_baseline_utc_5A",
                     template_args={"manifest_fingerprint": inputs.manifest_fingerprint, "scenario_id": scenario_id},
                     dictionary=dictionary,
                 )
                 utc_baseline_path.parent.mkdir(parents=True, exist_ok=True)
-                self._write_parquet(utc_baseline_path, utc_df)
+                if not utc_baseline_path.exists():
+                    self._write_parquet_lazy(utc_baseline_path, utc_lazy)
+                resumed = resumed and utc_baseline_path.exists()
 
         run_report_path = data_root / render_dataset_path(
             dataset_id="s3_run_report_5A",
@@ -352,7 +362,7 @@ class BaselineRunner:
             raise RuntimeError("S3_REQUIRED_INPUT_MISSING: shape_grid_definition_5A is empty")
         return df
 
-    def _compose_baseline(
+    def _compose_baseline_lazy(
         self,
         *,
         profiles: pl.DataFrame,
@@ -362,35 +372,39 @@ class BaselineRunner:
         manifest_fingerprint: str,
         parameter_hash: str,
         scenario_id: str,
-    ) -> pl.DataFrame:
+    ) -> pl.LazyFrame:
         if profiles.is_empty():
-            return pl.DataFrame(schema=self._BASELINE_SCHEMA)
+            return pl.DataFrame(schema=self._BASELINE_SCHEMA).lazy()
 
         max_bucket = grid["bucket_index"].max()
         bucket_span = int(max_bucket) + 1
         if grid["bucket_index"].n_unique() != bucket_span:
             raise RuntimeError("S3_REQUIRED_INPUT_MISSING: shape_grid_definition_5A has non-contiguous bucket_index")
-        joined = profiles.join(
-            shapes,
+
+        joined = profiles.lazy().join(
+            shapes.lazy(),
             on=["demand_class", "legal_country_iso", "tzid"],
             how="inner",
         )
-        if joined.is_empty():
+        joined_count = joined.select(pl.len()).collect(streaming=True).item()
+        if joined_count == 0:
             raise RuntimeError("S3_SHAPE_JOIN_FAILED: no overlap between profiles and shapes")
 
-        if joined.filter(pl.col("shape_value").is_null()).height > 0:
+        null_shapes = (
+            joined.select(pl.col("shape_value").is_null().sum()).collect(streaming=True).item()
+        )
+        if null_shapes > 0:
             raise RuntimeError("S3_SHAPE_JOIN_FAILED: null shape_value after join")
+
         expected = profiles.height * bucket_span
-        if joined.height != expected:
+        if joined_count != expected:
             raise RuntimeError(
-                f"S3_DOMAIN_ALIGNMENT_FAILED: expected {expected} rows (domain x buckets) but got {joined.height}"
+                f"S3_DOMAIN_ALIGNMENT_FAILED: expected {expected} rows (domain x buckets) but got {joined_count}"
             )
 
         scale_field = str(policy.get("scale_source") or "weekly_volume_expected")
         if scale_field not in {"weekly_volume_expected", "scale_factor"}:
             scale_field = "weekly_volume_expected"
-        clip_min = policy.get("clip_min")
-        clip_max = policy.get("clip_max")
 
         base = (
             joined.with_columns(
@@ -410,7 +424,6 @@ class BaselineRunner:
             .select(list(self._BASELINE_SCHEMA.keys()))
         )
 
-        self._assert_weekly_sums(base, policy)
         return base
 
     def _load_baseline_policy(self, *, inventory: SealedInventory) -> Mapping[str, object]:
@@ -418,7 +431,7 @@ class BaselineRunner:
         path = files[0]
         return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
-    def _assert_weekly_sums(self, baseline: pl.DataFrame, policy: Mapping[str, object]) -> None:
+    def _assert_weekly_sums_lazy(self, baseline: pl.LazyFrame, policy: Mapping[str, object]) -> None:
         tol_conf = policy.get("weekly_sum_tolerance") if isinstance(policy, Mapping) else {}
         tol_rel = float(tol_conf.get("rel", 1e-8)) if isinstance(tol_conf, Mapping) else 1e-8
         tol_abs = float(tol_conf.get("abs", 1e-6)) if isinstance(tol_conf, Mapping) else 1e-6
@@ -430,21 +443,18 @@ class BaselineRunner:
                     pl.first("weekly_volume_expected").alias("weekly_volume_expected"),
                 ]
             )
-            .with_columns(
-                [
-                    (pl.col("weekly_sum") - pl.col("weekly_volume_expected")).alias("delta"),
-                ]
-            )
+            .with_columns((pl.col("weekly_sum") - pl.col("weekly_volume_expected")).alias("delta"))
+        ).collect(streaming=True)
+        violations = grouped.filter(
+            pl.col("delta").abs() > (pl.col("weekly_volume_expected").abs() * tol_rel + tol_abs)
         )
-        violations = grouped.filter(pl.col("delta").abs() > (pl.col("weekly_volume_expected").abs() * tol_rel + tol_abs))
         if violations.height > 0:
             sample = violations.head(5).to_dicts()
             raise RuntimeError(f"S3_INTENSITY_NUMERIC_INVALID: weekly sum mismatch for {violations.height} rows; sample={sample}")
 
-    def _aggregate_class(self, baseline: pl.DataFrame) -> pl.DataFrame | None:
-        if baseline.is_empty():
-            return pl.DataFrame(schema=self._CLASS_BASELINE_SCHEMA)
-        if "demand_class" not in baseline.columns:
+    def _aggregate_class_lazy(self, baseline: pl.LazyFrame) -> pl.LazyFrame | None:
+        schema_names = baseline.collect_schema().names()
+        if "demand_class" not in schema_names:
             return None
         return (
             baseline.group_by(
@@ -466,27 +476,35 @@ class BaselineRunner:
             .select(list(self._CLASS_BASELINE_SCHEMA.keys()))
         )
 
-    def _project_utc(self, baseline: pl.DataFrame) -> pl.DataFrame | None:
-        if baseline.is_empty():
+    def _project_utc_lazy(self, baseline: pl.LazyFrame) -> pl.LazyFrame | None:
+        schema_names = baseline.collect_schema().names()
+        if "bucket_index" not in schema_names:
             return None
-        if "bucket_index" not in baseline.columns:
-            return None
-        utc_df = baseline.select(
-            [
-                pl.col("manifest_fingerprint"),
-                pl.col("parameter_hash"),
-                pl.col("scenario_id"),
-                pl.col("merchant_id"),
-                pl.col("legal_country_iso"),
-                pl.col("tzid"),
-                pl.col("zone_id"),
-                pl.col("channel"),
-                pl.col("channel_group"),
-                pl.col("bucket_index").alias("utc_bucket_index"),
-                pl.col("lambda_local_base").alias("lambda_utc_base"),
-            ]
-        ).with_columns(pl.lit(self._S3_SPEC_VERSION).alias("s3_spec_version"))
-        return utc_df.select(list(self._UTC_BASELINE_SCHEMA.keys()))
+        utc_df = (
+            baseline.select(
+                [
+                    pl.col("manifest_fingerprint"),
+                    pl.col("parameter_hash"),
+                    pl.col("scenario_id"),
+                    pl.col("merchant_id"),
+                    pl.col("legal_country_iso"),
+                    pl.col("tzid"),
+                    pl.col("zone_id"),
+                    pl.col("channel"),
+                    pl.col("channel_group"),
+                    pl.col("bucket_index").alias("utc_bucket_index"),
+                    pl.col("lambda_local_base").alias("lambda_utc_base"),
+                ]
+            )
+            .with_columns(pl.lit(self._S3_SPEC_VERSION).alias("s3_spec_version"))
+            .select(list(self._UTC_BASELINE_SCHEMA.keys()))
+        )
+        return utc_df
+
+    def _write_parquet_lazy(self, path: Path, frame: pl.LazyFrame) -> None:
+        if path.exists():
+            return
+        frame.sink_parquet(path)
 
     def _write_parquet(self, path: Path, df: pl.DataFrame) -> None:
         if path.exists():

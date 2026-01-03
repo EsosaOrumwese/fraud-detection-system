@@ -131,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--validation-bundle-1a", type=Path, required=False, help="Override 1A validation bundle path.")
     parser.add_argument("--validation-bundle-1b", type=Path, required=False, help="Override 1B validation bundle path.")
     parser.add_argument("--validation-bundle-2a", type=Path, required=False, help="Override 2A validation bundle path.")
+    parser.add_argument("--validation-bundle-2b", type=Path, required=False, help="Override 2B validation bundle path.")
     parser.add_argument("--validation-bundle-3a", type=Path, required=False, help="Override 3A validation bundle path.")
     parser.add_argument("--notes", type=str, required=False, help="Optional run notes for receipts.")
     parser.add_argument("--result-json", type=Path, required=False, help="Path to write a JSON summary.")
@@ -172,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         validation_bundle_1a=args.validation_bundle_1a,
         validation_bundle_1b=args.validation_bundle_1b,
         validation_bundle_2a=args.validation_bundle_2a,
+        validation_bundle_2b=args.validation_bundle_2b,
         validation_bundle_3a=args.validation_bundle_3a,
         notes=args.notes,
         run_s1=not args.skip_s1,

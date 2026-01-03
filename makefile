@@ -24,7 +24,7 @@ SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
-RUN_ID ?= run-2
+RUN_ID ?= 00000000000000000000000000000002
 LOG ?= $(RUN_ROOT)/run_log_run-2.log
 SEED ?= 2026010201
 SKIP_SEG1A ?= 0
@@ -359,6 +359,7 @@ SEG3B_ARGS = \
 	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
 	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
 	--validation-bundle-2a "$$VALIDATION_BUNDLE_2A" \
+	--validation-bundle-2b "$$VALIDATION_BUNDLE_2B" \
 	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
 	--result-json "$(SEG3B_RESULT_JSON)" \
 	$(SEG3B_EXTRA)
@@ -765,13 +766,19 @@ segment3b:
 		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
 		exit 1; \
 	fi
+	@if [ ! -f "$(SEG2B_RESULT_JSON)" ]; then \
+		echo "Segment 2B summary '$(SEG2B_RESULT_JSON)' not found. Run 'make segment2b' first." >&2; \
+		exit 1; \
+	fi
 	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG2A_RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG2B_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 UPSTREAM_MANIFEST_FINGERPRINT=$$SEG3A_MANIFEST_FINGERPRINT; \
 	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
