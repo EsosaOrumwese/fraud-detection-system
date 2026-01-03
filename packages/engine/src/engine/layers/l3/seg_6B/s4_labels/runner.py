@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -87,13 +88,26 @@ class LabelRunner:
         case_paths: dict[str, Path] = {}
 
         for scenario_id, paths in scenarios.items():
+            logger.info(
+                "6B.S4 scenario=%s flow_shards=%d event_shards=%d",
+                scenario_id,
+                len(paths),
+                len(event_scenarios.get(scenario_id, [])),
+            )
             flow_part_index = 0
             first_truth_path: Path | None = None
             first_bank_path: Path | None = None
             first_event_path: Path | None = None
             first_case_path: Path | None = None
 
-            for path in sorted(paths):
+            log_every = 10
+            log_interval_s = 120.0
+            last_log = time.monotonic()
+            for shard_idx, path in enumerate(sorted(paths), start=1):
+                now = time.monotonic()
+                if shard_idx == 1 or shard_idx % log_every == 0 or now - last_log >= log_interval_s:
+                    logger.info("6B.S4 scenario=%s flow_shard %d/%d", scenario_id, shard_idx, len(paths))
+                    last_log = now
                 flows_df = pl.read_parquet(path)
                 if flows_df.is_empty():
                     continue
@@ -180,7 +194,18 @@ class LabelRunner:
                     flow_part_index += 1
 
             event_part_index = 0
-            for path in sorted(event_scenarios.get(scenario_id, [])):
+            event_paths_for_scenario = sorted(event_scenarios.get(scenario_id, []))
+            last_event_log = time.monotonic()
+            for shard_idx, path in enumerate(event_paths_for_scenario, start=1):
+                now = time.monotonic()
+                if shard_idx == 1 or shard_idx % log_every == 0 or now - last_event_log >= log_interval_s:
+                    logger.info(
+                        "6B.S4 scenario=%s event_shard %d/%d",
+                        scenario_id,
+                        shard_idx,
+                        len(event_paths_for_scenario),
+                    )
+                    last_event_log = now
                 events_df = pl.read_parquet(path)
                 if events_df.is_empty():
                     continue

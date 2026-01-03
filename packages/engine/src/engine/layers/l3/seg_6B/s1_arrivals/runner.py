@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -86,9 +87,17 @@ class ArrivalRunner:
         session_index_paths: dict[str, Path] = {}
 
         for scenario_id, paths in scenarios.items():
+            logger.info("6B.S1 scenario=%s shards=%d", scenario_id, len(paths))
             part_index = 0
             part_paths: list[Path] = []
-            for path in sorted(paths):
+            log_every = 10
+            log_interval_s = 120.0
+            last_log = time.monotonic()
+            for shard_idx, path in enumerate(sorted(paths), start=1):
+                now = time.monotonic()
+                if shard_idx == 1 or shard_idx % log_every == 0 or now - last_log >= log_interval_s:
+                    logger.info("6B.S1 scenario=%s shard %d/%d", scenario_id, shard_idx, len(paths))
+                    last_log = now
                 arrivals_df = pl.read_parquet(path)
                 if arrivals_df.is_empty():
                     continue

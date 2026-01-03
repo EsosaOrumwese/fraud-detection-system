@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -517,13 +518,26 @@ class OverlaysRunner:
         if tzids.is_empty():
             raise RuntimeError("S4_REQUIRED_INPUT_MISSING: baseline has no tzid values")
         tzid_values = sorted(str(tzid) for tzid in tzids["tzid"].to_list())
+        logger.info("S4 overlays: chunking %d tzids for scenario_id=%s", len(tzid_values), scenario_id)
         parts_dir = scenario_local_path.parent / f".{scenario_local_path.stem}_parts"
         if parts_dir.exists():
             for part in parts_dir.glob("part-*.parquet"):
                 part.unlink(missing_ok=True)
         parts_dir.mkdir(parents=True, exist_ok=True)
         part_paths: list[Path] = []
+        log_every = 25
+        log_interval_s = 120.0
+        last_log = time.monotonic()
         for idx, tzid in enumerate(tzid_values):
+            now = time.monotonic()
+            if idx == 0 or (idx + 1) % log_every == 0 or now - last_log >= log_interval_s:
+                logger.info(
+                    "S4 overlays: scenario_id=%s tzid %d/%d",
+                    scenario_id,
+                    idx + 1,
+                    len(tzid_values),
+                )
+                last_log = now
             baseline_chunk = baseline.filter(pl.col("tzid") == tzid)
             scenario_lazy = self._compose_scenario_lazy(
                 baseline=baseline_chunk,
