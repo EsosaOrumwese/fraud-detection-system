@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -372,6 +373,20 @@ class S0GateRunner:
             dictionary=dictionary,
             scenario_ids=scenario_ids,
         )
+        sort_cols = [
+            "owner_layer",
+            "owner_segment",
+            "artifact_id",
+            "manifest_key",
+            "role",
+            "schema_ref",
+            "path_template",
+            "sha256_hex",
+            "status",
+            "read_scope",
+        ]
+        sealed_df = pl.DataFrame(sealed_rows).sort(sort_cols)
+        sealed_rows = sealed_df.to_dicts()
         sealed_inputs_digest = compute_sealed_inputs_digest(sealed_rows)
         sealed_inputs_path = self._write_sealed_inputs(
             inputs=inputs,
@@ -590,14 +605,32 @@ class S0GateRunner:
             "parameter_hash": inputs.parameter_hash,
             "seed": str(inputs.seed),
         }
+        bundle_fingerprints: dict[str, str] = {}
+        for segment, info in upstream_bundles.items():
+            bundle_path = str(info.get("bundle_path", ""))
+            match = re.search(r"fingerprint=([a-f0-9]{64})", bundle_path)
+            if match:
+                bundle_fingerprints[segment] = match.group(1)
 
         for spec in self._SEALED_UPSTREAM_DATASETS:
+            segment = spec.get("owner_segment", "")
+            segment_fingerprint = bundle_fingerprints.get(segment)
+            spec_args = (
+                {**template_args, "manifest_fingerprint": segment_fingerprint}
+                if segment_fingerprint
+                else template_args
+            )
             rows.extend(
                 self._seal_dataset(
                     base_path=inputs.base_path,
                     repo_root=repo_root,
                     spec=spec,
-                    template_args=template_args,
+                    template_args=spec_args,
+                    notes=(
+                        f"manifest_fingerprint={segment_fingerprint}"
+                        if segment_fingerprint
+                        else None
+                    ),
                 )
             )
 
@@ -745,8 +778,21 @@ class S0GateRunner:
         output_path = inputs.output_base_path / path_template
         output_path.parent.mkdir(parents=True, exist_ok=True)
         df = pl.DataFrame(rows)
+        sort_cols = [
+            "owner_layer",
+            "owner_segment",
+            "artifact_id",
+            "manifest_key",
+            "role",
+            "schema_ref",
+            "path_template",
+            "sha256_hex",
+            "status",
+            "read_scope",
+        ]
+        df = df.sort(sort_cols)
         df.write_parquet(output_path)
-        digest = compute_sealed_inputs_digest(df.sort(["owner_layer", "owner_segment", "artifact_id"]).to_dicts())
+        digest = compute_sealed_inputs_digest(df.to_dicts())
         if digest != expected_digest:
             raise RuntimeError("sealed_inputs_5B digest mismatch after write")
         return output_path
@@ -856,7 +902,20 @@ class S0GateRunner:
     def _get_dataset_entry(
         self, dictionary: Mapping[str, object], dataset_id: str
     ) -> Mapping[str, object]:
-        for section_key in ("datasets", "reference_data", "policies", "artefacts", "validation", "reference"):
+        for section_key in (
+            "datasets",
+            "reference_data",
+            "policies",
+            "artefacts",
+            "validation",
+            "reference",
+            "egress",
+            "parameters",
+            "ingress",
+            "model",
+            "logs",
+            "reports",
+        ):
             section = dictionary.get(section_key)
             if isinstance(section, Mapping):
                 entry = section.get(dataset_id)
@@ -871,8 +930,13 @@ class S0GateRunner:
     def _hash_paths(self, paths: Iterable[Path]) -> str:
         items = []
         for path in paths:
-            digest = self._hash_file(path)
-            items.append((path.as_posix(), digest))
+            if path.is_dir():
+                for file_path in sorted(p for p in path.rglob("*") if p.is_file()):
+                    digest = self._hash_file(file_path)
+                    items.append((file_path.as_posix(), digest))
+            else:
+                digest = self._hash_file(path)
+                items.append((path.as_posix(), digest))
         items.sort()
         sha = hashlib.sha256()
         for path_str, digest in items:
@@ -887,6 +951,21 @@ class S0GateRunner:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 sha.update(chunk)
         return sha.hexdigest()
+
+
+def _sealed_inputs_sort_key(row: Mapping[str, object]) -> tuple[str, ...]:
+    return (
+        str(row.get("owner_layer") or ""),
+        str(row.get("owner_segment") or ""),
+        str(row.get("artifact_id") or ""),
+        str(row.get("manifest_key") or ""),
+        str(row.get("role") or ""),
+        str(row.get("schema_ref") or ""),
+        str(row.get("path_template") or ""),
+        str(row.get("sha256_hex") or ""),
+        str(row.get("status") or ""),
+        str(row.get("read_scope") or ""),
+    )
 
 
 __all__ = ["S0GateRunner", "S0Inputs", "S0Outputs"]

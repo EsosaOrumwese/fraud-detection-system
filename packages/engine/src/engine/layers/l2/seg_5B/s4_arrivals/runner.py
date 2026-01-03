@@ -13,6 +13,7 @@ from typing import Mapping
 from zoneinfo import ZoneInfo
 
 import polars as pl
+import pyarrow.parquet as pq
 import yaml
 
 from engine.layers.l1.seg_1A.s0_foundations.l2.rng_logging import RNGLogWriter
@@ -148,9 +149,24 @@ class ArrivalRunner:
             if not intensity_path.exists():
                 raise FileNotFoundError(f"s2_realised_intensity_5B missing at {intensity_path}")
 
-            count_df = pl.read_parquet(count_path)
-            time_grid_df = pl.read_parquet(time_grid_path)
-            intensity_df = pl.read_parquet(intensity_path)
+            count_df = pl.read_parquet(
+                count_path,
+                columns=["merchant_id", "zone_representation", "channel_group", "bucket_index", "count_N"],
+            )
+            time_grid_df = pl.read_parquet(
+                time_grid_path,
+                columns=["bucket_index", "bucket_start_utc", "bucket_end_utc"],
+            )
+            intensity_df = pl.read_parquet(
+                intensity_path,
+                columns=[
+                    "merchant_id",
+                    "zone_representation",
+                    "channel_group",
+                    "bucket_index",
+                    "lambda_realised",
+                ],
+            )
             intensity_df = intensity_df.select(
                 [
                     "merchant_id",
@@ -179,8 +195,72 @@ class ArrivalRunner:
                 count_df.height,
             )
 
-            events = []
-            summary_rows = []
+            arrival_template = render_dataset_path(
+                dataset_id="arrival_events_5B",
+                template_args={
+                    "manifest_fingerprint": inputs.manifest_fingerprint,
+                    "scenario_id": scenario.scenario_id,
+                    "seed": inputs.seed,
+                },
+                dictionary=dictionary,
+            )
+            arrival_path = _resolve_output_path(data_root / arrival_template)
+            arrival_path.parent.mkdir(parents=True, exist_ok=True)
+            summary_path = data_root / render_dataset_path(
+                dataset_id="s4_arrival_summary_5B",
+                template_args={
+                    "manifest_fingerprint": inputs.manifest_fingerprint,
+                    "scenario_id": scenario.scenario_id,
+                    "seed": inputs.seed,
+                },
+                dictionary=dictionary,
+            )
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
+            event_schema = {
+                "manifest_fingerprint": pl.Utf8,
+                "parameter_hash": pl.Utf8,
+                "seed": pl.UInt64,
+                "scenario_id": pl.Utf8,
+                "merchant_id": pl.Utf8,
+                "zone_representation": pl.Utf8,
+                "channel_group": pl.Utf8,
+                "bucket_index": pl.Int64,
+                "arrival_seq": pl.Int64,
+                "ts_utc": pl.Utf8,
+                "tzid_primary": pl.Utf8,
+                "ts_local_primary": pl.Utf8,
+                "tzid_settlement": pl.Utf8,
+                "ts_local_settlement": pl.Utf8,
+                "tzid_operational": pl.Utf8,
+                "ts_local_operational": pl.Utf8,
+                "tz_group_id": pl.Utf8,
+                "site_id": pl.Utf8,
+                "edge_id": pl.Utf8,
+                "routing_universe_hash": pl.Utf8,
+                "lambda_realised": pl.Float64,
+                "is_virtual": pl.Boolean,
+                "s4_spec_version": pl.Utf8,
+            }
+            summary_schema = {
+                "manifest_fingerprint": pl.Utf8,
+                "parameter_hash": pl.Utf8,
+                "seed": pl.UInt64,
+                "scenario_id": pl.Utf8,
+                "merchant_id": pl.Utf8,
+                "zone_representation": pl.Utf8,
+                "channel_group": pl.Utf8,
+                "bucket_index": pl.Int64,
+                "count_N": pl.Int64,
+                "count_physical": pl.Int64,
+                "count_virtual": pl.Int64,
+                "s4_spec_version": pl.Utf8,
+            }
+            event_rows: list[Mapping[str, object]] = []
+            summary_rows: list[Mapping[str, object]] = []
+            event_writer: pq.ParquetWriter | None = None
+            summary_writer: pq.ParquetWriter | None = None
+            event_flush = 100000
+            summary_flush = 50000
             sorted_counts = count_df.sort(["merchant_id", "zone_representation", "bucket_index"])
             total_rows = sorted_counts.height
             processed_rows = 0
@@ -392,7 +472,12 @@ class ArrivalRunner:
                     )
 
                 bucket_events.sort(key=lambda item: (item["ts_utc"], item["arrival_seq"]))
-                events.extend(bucket_events)
+                event_rows.extend(bucket_events)
+                if len(event_rows) >= event_flush:
+                    event_writer = _write_parquet_batch(
+                        arrival_path, event_rows, event_writer, schema=event_schema
+                    )
+                    event_rows.clear()
 
                 summary_rows.append(
                     {
@@ -410,6 +495,11 @@ class ArrivalRunner:
                         "s4_spec_version": "1.0.0",
                     }
                 )
+                if len(summary_rows) >= summary_flush:
+                    summary_writer = _write_parquet_batch(
+                        summary_path, summary_rows, summary_writer, schema=summary_schema
+                    )
+                    summary_rows.clear()
                 now = time.monotonic()
                 if processed_rows % log_every == 0 or (now - last_log) >= log_interval:
                     elapsed = max(now - start_time, 0.0)
@@ -428,32 +518,28 @@ class ArrivalRunner:
                     )
                     last_log = now
 
-            events_df = pl.DataFrame(events)
-            arrival_path = _write_dataset(
-                data_root,
-                dictionary,
-                dataset_id="arrival_events_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                    "seed": inputs.seed,
-                },
-                df=events_df.sort(["merchant_id", "bucket_index", "ts_utc", "arrival_seq"]),
-            )
+            if event_rows:
+                event_writer = _write_parquet_batch(
+                    arrival_path, event_rows, event_writer, schema=event_schema
+                )
+                event_rows.clear()
+            if event_writer is None:
+                empty_events = pl.DataFrame(schema=event_schema)
+                empty_events.write_parquet(arrival_path)
+            else:
+                event_writer.close()
             arrival_paths[scenario.scenario_id] = arrival_path
 
-            summary_df = pl.DataFrame(summary_rows)
-            summary_path = _write_dataset(
-                data_root,
-                dictionary,
-                dataset_id="s4_arrival_summary_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                    "seed": inputs.seed,
-                },
-                df=summary_df.sort(["merchant_id", "zone_representation", "bucket_index"]),
-            )
+            if summary_rows:
+                summary_writer = _write_parquet_batch(
+                    summary_path, summary_rows, summary_writer, schema=summary_schema
+                )
+                summary_rows.clear()
+            if summary_writer is None:
+                empty_summary = pl.DataFrame(schema=summary_schema)
+                empty_summary.write_parquet(summary_path)
+            else:
+                summary_writer.close()
             summary_paths[scenario.scenario_id] = summary_path
 
         run_report_path = _write_run_report(inputs, data_root, dictionary)
@@ -471,7 +557,7 @@ def _load_virtual_modes(inventory: SealedInventory) -> dict[str, str]:
     files = inventory.resolve_files("virtual_classification_3B")
     if not files:
         raise FileNotFoundError("virtual_classification_3B missing from sealed inputs")
-    df = pl.read_parquet(files[0])
+    df = pl.read_parquet(files[0], columns=["merchant_id", "virtual_mode", "is_virtual"])
     modes: dict[str, str] = {}
     for row in df.iter_rows(named=True):
         merchant_id = str(row.get("merchant_id"))
@@ -489,7 +575,7 @@ def _load_virtual_settlement_tz(inventory: SealedInventory) -> dict[str, str]:
     files = inventory.resolve_files("virtual_settlement_3B")
     if not files:
         return {}
-    df = pl.read_parquet(files[0])
+    df = pl.read_parquet(files[0], columns=["merchant_id", "tzid_settlement"])
     mapping = {}
     for row in df.iter_rows(named=True):
         merchant_id = str(row.get("merchant_id"))
@@ -503,7 +589,10 @@ def _load_edge_alias_index(inventory: SealedInventory) -> dict[str, tuple[int, i
     files = inventory.resolve_files("edge_alias_index_3B")
     if not files:
         raise FileNotFoundError("edge_alias_index_3B missing from sealed inputs")
-    df = pl.read_parquet(files[0])
+    df = pl.read_parquet(
+        files[0],
+        columns=["scope", "merchant_id", "blob_offset_bytes", "blob_length_bytes"],
+    )
     mapping: dict[str, tuple[int, int]] = {}
     for row in df.iter_rows(named=True):
         if str(row.get("scope")) != "MERCHANT":
@@ -530,7 +619,7 @@ def _load_edge_tz(inventory: SealedInventory) -> dict[str, str]:
     files = inventory.resolve_files("edge_catalogue_3B")
     if not files:
         return {}
-    df = pl.read_parquet(files[0])
+    df = pl.read_parquet(files[0], columns=["edge_id", "tzid_operational"])
     mapping = {}
     for row in df.iter_rows(named=True):
         edge_id = str(row.get("edge_id"))
@@ -813,6 +902,27 @@ def _safe_zone(tzid: str) -> ZoneInfo:
         return ZoneInfo(tzid)
     except Exception:
         return ZoneInfo("Etc/UTC")
+
+
+def _resolve_output_path(path: Path) -> Path:
+    if "*" in path.name:
+        return path.with_name(path.name.replace("*", "00000"))
+    return path
+
+
+def _write_parquet_batch(
+    output_path: Path,
+    rows: list[Mapping[str, object]],
+    writer: pq.ParquetWriter | None,
+    *,
+    schema: Mapping[str, pl.DataType] | None = None,
+) -> pq.ParquetWriter:
+    df = pl.DataFrame(rows, schema=schema)
+    table = df.to_arrow()
+    if writer is None:
+        writer = pq.ParquetWriter(output_path, table.schema)
+    writer.write_table(table)
+    return writer
 
 
 def _write_dataset(

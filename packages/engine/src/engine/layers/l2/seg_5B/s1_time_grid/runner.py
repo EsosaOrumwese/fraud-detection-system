@@ -132,6 +132,12 @@ def _build_time_grid(
     bucket_seconds = int(policy.get("bucket_duration_seconds", 3600))
     if bucket_seconds not in (900, 1800, 3600):
         raise ValueError("bucket_duration_seconds must be 900, 1800, or 3600")
+    bucket_index_base = int(policy.get("bucket_index_base", 0))
+    if bucket_index_base != 0:
+        raise ValueError("bucket_index_base must be 0")
+    bucket_index_origin = str(policy.get("bucket_index_origin", "horizon_start_utc"))
+    if bucket_index_origin != "horizon_start_utc":
+        raise ValueError("bucket_index_origin must be horizon_start_utc")
     alignment = str(policy.get("alignment_mode"))
     if alignment != "require_aligned_v1":
         raise ValueError("alignment_mode must be require_aligned_v1")
@@ -182,7 +188,7 @@ def _build_time_grid(
             "manifest_fingerprint": manifest_fingerprint,
             "parameter_hash": parameter_hash,
             "scenario_id": scenario.scenario_id,
-            "bucket_index": idx,
+            "bucket_index": bucket_index_base + idx,
             "bucket_start_utc": _format_rfc3339(bucket_start),
             "bucket_end_utc": _format_rfc3339(bucket_end),
             "bucket_duration_seconds": bucket_seconds,

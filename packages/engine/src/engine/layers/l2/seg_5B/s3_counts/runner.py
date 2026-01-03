@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Mapping
 
 import polars as pl
+import pyarrow.parquet as pq
 import yaml
 
 from engine.layers.l1.seg_1A.s0_foundations.l2.rng_logging import RNGLogWriter
@@ -118,6 +119,17 @@ class CountRunner:
                 raise ValueError(f"arrival_count_config_5B missing class multipliers for {missing_classes}")
 
             rows = []
+            writer: pq.ParquetWriter | None = None
+            output_path = data_root / render_dataset_path(
+                dataset_id="s3_bucket_counts_5B",
+                template_args={
+                    "manifest_fingerprint": inputs.manifest_fingerprint,
+                    "scenario_id": scenario.scenario_id,
+                    "seed": inputs.seed,
+                },
+                dictionary=dictionary,
+            )
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             sorted_df = intensity_df.sort(["merchant_id", "zone_representation", "bucket_index"])
             total_rows = sorted_df.height
             log_every = 50000
@@ -156,6 +168,9 @@ class CountRunner:
                         "s3_spec_version": "1.0.0",
                     }
                 )
+                if len(rows) >= 100000:
+                    writer = _write_parquet_batch(output_path, rows, writer)
+                    rows.clear()
                 now = time.monotonic()
                 if row_index % log_every == 0 or (now - last_log) >= log_interval:
                     elapsed = max(now - start_time, 0.0)
@@ -173,18 +188,28 @@ class CountRunner:
                     )
                     last_log = now
 
-            count_df = pl.DataFrame(rows)
-            count_path = _write_dataset(
-                data_root,
-                dictionary,
-                dataset_id="s3_bucket_counts_5B",
-                template_args={
-                    "manifest_fingerprint": inputs.manifest_fingerprint,
-                    "scenario_id": scenario.scenario_id,
-                    "seed": inputs.seed,
-                },
-                df=count_df.sort(["merchant_id", "zone_representation", "bucket_index"]),
-            )
+            if rows:
+                writer = _write_parquet_batch(output_path, rows, writer)
+                rows.clear()
+            if writer is None:
+                empty_df = pl.DataFrame(
+                    schema={
+                        "manifest_fingerprint": pl.Utf8,
+                        "parameter_hash": pl.Utf8,
+                        "seed": pl.UInt64,
+                        "scenario_id": pl.Utf8,
+                        "merchant_id": pl.Utf8,
+                        "zone_representation": pl.Utf8,
+                        "channel_group": pl.Utf8,
+                        "bucket_index": pl.Int64,
+                        "count_N": pl.Int64,
+                        "s3_spec_version": pl.Utf8,
+                    }
+                )
+                empty_df.write_parquet(output_path)
+            else:
+                writer.close()
+            count_path = output_path
             count_paths[scenario.scenario_id] = count_path
 
         run_report_path = _write_run_report(inputs, data_root, dictionary)
@@ -320,6 +345,17 @@ def _write_dataset(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(output_path)
     return output_path
+
+
+def _write_parquet_batch(
+    output_path: Path, rows: list[Mapping[str, object]], writer: pq.ParquetWriter | None
+) -> pq.ParquetWriter:
+    df = pl.DataFrame(rows)
+    table = df.to_arrow()
+    if writer is None:
+        writer = pq.ParquetWriter(output_path, table.schema)
+    writer.write_table(table)
+    return writer
 
 
 def _write_run_report(

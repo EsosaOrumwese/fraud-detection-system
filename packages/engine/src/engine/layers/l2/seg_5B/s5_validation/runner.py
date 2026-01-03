@@ -184,7 +184,7 @@ class ValidationRunner:
                 )
             )
 
-            if not (grid_path.exists() and counts_path.exists() and arrivals_path.exists()):
+            if not (grid_path.exists() and counts_path.exists() and _path_exists(arrivals_path)):
                 continue
 
             grid_df = pl.read_parquet(grid_path).select(
@@ -784,7 +784,7 @@ class ValidationRunner:
         scenario_id: str,
         issue_code: str,
     ) -> list[Mapping[str, object]]:
-        if path.exists():
+        if _path_exists(path):
             return []
         return [
             self._issue(
@@ -1613,6 +1613,12 @@ def _load_rng_events(
                 continue
             events.append(json.loads(line))
     return events
+
+
+def _path_exists(path: Path) -> bool:
+    if any(char in path.name for char in ("*", "?", "[")):
+        return any(path.parent.glob(path.name))
+    return path.exists()
 
 
 def _load_rng_trace(

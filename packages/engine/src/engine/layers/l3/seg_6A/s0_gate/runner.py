@@ -746,6 +746,9 @@ class S0GateRunner:
                 "artefacts",
                 "validation",
                 "reference",
+                "egress",
+                "parameters",
+                "ingress",
                 "model",
                 "logs",
                 "reports",
@@ -820,8 +823,13 @@ class S0GateRunner:
     def _hash_paths(self, paths: Iterable[Path]) -> str:
         items = []
         for path in paths:
-            digest = self._hash_file(path)
-            items.append((path.as_posix(), digest))
+            if path.is_dir():
+                for file_path in sorted(p for p in path.rglob("*") if p.is_file()):
+                    digest = self._hash_file(file_path)
+                    items.append((file_path.as_posix(), digest))
+            else:
+                digest = self._hash_file(path)
+                items.append((path.as_posix(), digest))
         items.sort()
         sha = hashlib.sha256()
         for path_str, digest in items:
