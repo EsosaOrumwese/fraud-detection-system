@@ -802,6 +802,26 @@ segment5a:
 		echo "Skipping Segment 5A (SKIP_SEG5A=1)"; \
 		exit 0; \
 	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG1B_RESULT_JSON)" ]; then \
+		echo "Segment 1B summary '$(SEG1B_RESULT_JSON)' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2B_RESULT_JSON)" ]; then \
+		echo "Segment 2B summary '$(SEG2B_RESULT_JSON)' not found. Run 'make segment2b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
+		echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found. Run 'make segment3a' first." >&2; \
+		exit 1; \
+	fi
 	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
 		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
 		exit 1; \
@@ -809,12 +829,18 @@ segment5a:
 	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['parameter_hash'])"); \
 	 UPSTREAM_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG5A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -835,6 +861,30 @@ segment5b:
 		echo "Skipping Segment 5B (SKIP_SEG5B=1)"; \
 		exit 0; \
 	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG1B_RESULT_JSON)" ]; then \
+		echo "Segment 1B summary '$(SEG1B_RESULT_JSON)' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2B_RESULT_JSON)" ]; then \
+		echo "Segment 2B summary '$(SEG2B_RESULT_JSON)' not found. Run 'make segment2b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
+		echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found. Run 'make segment3a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
+		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
+		exit 1; \
+	fi
 	@if [ ! -f "$(SEG5A_RESULT_JSON)" ]; then \
 		echo "Segment 5A summary '$(SEG5A_RESULT_JSON)' not found. Run 'make segment5a' first." >&2; \
 		exit 1; \
@@ -842,13 +892,20 @@ segment5b:
 	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_5A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG5A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG5B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -869,6 +926,34 @@ segment6a:
 		echo "Skipping Segment 6A (SKIP_SEG6A=1)"; \
 		exit 0; \
 	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG1B_RESULT_JSON)" ]; then \
+		echo "Segment 1B summary '$(SEG1B_RESULT_JSON)' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2B_RESULT_JSON)" ]; then \
+		echo "Segment 2B summary '$(SEG2B_RESULT_JSON)' not found. Run 'make segment2b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
+		echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found. Run 'make segment3a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
+		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG5A_RESULT_JSON)" ]; then \
+		echo "Segment 5A summary '$(SEG5A_RESULT_JSON)' not found. Run 'make segment5a' first." >&2; \
+		exit 1; \
+	fi
 	@if [ ! -f "$(SEG5B_RESULT_JSON)" ]; then \
 		echo "Segment 5B summary '$(SEG5B_RESULT_JSON)' not found. Run 'make segment5b' first." >&2; \
 		exit 1; \
@@ -876,14 +961,22 @@ segment6a:
 	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_5A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_5B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG5A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG5B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_5B="$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=$$SEG5B_MANIFEST_FINGERPRINT"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG6A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -904,6 +997,38 @@ segment6b:
 		echo "Skipping Segment 6B (SKIP_SEG6B=1)"; \
 		exit 0; \
 	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG1B_RESULT_JSON)" ]; then \
+		echo "Segment 1B summary '$(SEG1B_RESULT_JSON)' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2B_RESULT_JSON)" ]; then \
+		echo "Segment 2B summary '$(SEG2B_RESULT_JSON)' not found. Run 'make segment2b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
+		echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found. Run 'make segment3a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG3B_RESULT_JSON)" ]; then \
+		echo "Segment 3B summary '$(SEG3B_RESULT_JSON)' not found. Run 'make segment3b' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG5A_RESULT_JSON)" ]; then \
+		echo "Segment 5A summary '$(SEG5A_RESULT_JSON)' not found. Run 'make segment5a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG5B_RESULT_JSON)" ]; then \
+		echo "Segment 5B summary '$(SEG5B_RESULT_JSON)' not found. Run 'make segment5b' first." >&2; \
+		exit 1; \
+	fi
 	@if [ ! -f "$(SEG6A_RESULT_JSON)" ]; then \
 		echo "Segment 6A summary '$(SEG6A_RESULT_JSON)' not found. Run 'make segment6a' first." >&2; \
 		exit 1; \
@@ -911,15 +1036,24 @@ segment6b:
 	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE_1A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_1B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_2B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_3B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_5A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_5B=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
-	 VALIDATION_BUNDLE_6A=$$($(PY) -c "import glob; paths=glob.glob('$(RUN_ROOT)/data/layer3/6A/validation/fingerprint=*'); print(paths[0] if paths else '')"); \
+	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG5A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG5B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG6A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG6A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_5B="$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=$$SEG5B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_6A="$(RUN_ROOT)/data/layer3/6A/validation/fingerprint=$$SEG6A_MANIFEST_FINGERPRINT"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG6B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \

@@ -164,7 +164,7 @@ class BaselineRunner:
             resumed = resumed and baseline_path.exists()
 
             baseline_scan = pl.scan_parquet(baseline_path)
-            class_lazy = self._aggregate_class_lazy(baseline_scan)
+            class_lazy = self._aggregate_class_lazy(baseline_scan, profiles=profile_df)
             if class_lazy is not None:
                 class_baseline_path = data_root / render_dataset_path(
                     dataset_id="class_zone_baseline_local_5A",
@@ -452,12 +452,21 @@ class BaselineRunner:
             sample = violations.head(5).to_dicts()
             raise RuntimeError(f"S3_INTENSITY_NUMERIC_INVALID: weekly sum mismatch for {violations.height} rows; sample={sample}")
 
-    def _aggregate_class_lazy(self, baseline: pl.LazyFrame) -> pl.LazyFrame | None:
+    def _aggregate_class_lazy(self, baseline: pl.LazyFrame, *, profiles: pl.DataFrame) -> pl.LazyFrame | None:
         schema_names = baseline.collect_schema().names()
-        if "demand_class" not in schema_names:
-            return None
+        if "demand_class" in schema_names:
+            enriched = baseline
+        else:
+            join_keys = ["merchant_id", "legal_country_iso", "tzid", "channel"]
+            profile_lazy = profiles.select(join_keys + ["demand_class"]).lazy()
+            enriched = baseline.join(profile_lazy, on=join_keys, how="left")
+            missing = enriched.select(pl.col("demand_class").is_null().sum()).collect(streaming=True).item()
+            if missing > 0:
+                raise RuntimeError(
+                    f"S3_CLASS_BASELINE_MISSING_CLASS: {missing} baseline rows missing demand_class"
+                )
         return (
-            baseline.group_by(
+            enriched.group_by(
                 [
                     "manifest_fingerprint",
                     "parameter_hash",
