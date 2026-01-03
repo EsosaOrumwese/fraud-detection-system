@@ -1,4 +1,13 @@
-## SR1 — Charter & Boundaries: Section Header Plan
+# Scenario Runner - SR1..SR5 Section Header Plans
+#
+# Authoring workflow notes (informative)
+# - Designer/spec authoring model: GPT-5.2 Thinking
+# - Implementer (coding agent): GPT-5.2-Codex
+# - No separate "contracts plan" doc: SR2 Appendix C (Contract Map v1) + SR5 Appendix C (Ledger Contract Map v1) serve as the plan.
+# - Recommended authoring order (fast): SR1 -> SR2 + SR5 -> SR3 + SR4 -> generate `contracts/*.schema.json`.
+# - Once SR2+SR5 Contract Maps are stable, formalize schemas immediately to avoid prose->schema drift.
+
+## SR1 - Charter & Boundaries: Section Header Plan
 
 ### 0) Document metadata (Informative)
 
@@ -214,10 +223,14 @@ B.1 “Submit → Plan → Execute → READY” (happy path)
 B.2 “Duplicate submit” (idempotency behavior)
 B.3 “Invalid request” vs “dependency failure” distinction
 
-### Appendix C) Contract linkage (Informative)
+### Appendix C) Contract Map (v1) (Informative)
 
-C.1 Mapping from SR2 prose objects → `$defs` names in `sr_public_contracts_v1.schema.json`
-C.2 What SR2 intentionally defers to SR3/SR4/SR5
+C.1 Object inventory (v1): `RunRequest`, `RunReadySignal`, `FailureTaxonomy`, `ArtifactRef/Locator`, etc.
+C.2 Required fields only per object (no optional narrative)
+C.3 Enums referenced + where they are defined (SR3/SR4/SR5 vs local)
+C.4 Compatibility / extension rules (e.g., `extensions{}` posture; additional properties posture)
+C.5 Mapping from SR2 objects -> `$defs` names in `sr_public_contracts_v1.schema.json`
+C.6 What SR2 intentionally defers to SR3/SR4/SR5 (normative meaning)
 
 ---
 
@@ -679,8 +692,16 @@ A.4 Example readiness signal
 B.1 Example path templates showing `fingerprint={manifest_fingerprint}` + `run_id`
 B.2 Example refs for engine outputs vs SR ledger outputs
 
-### Appendix C) Reviewer checklist (Informative)
+### Appendix C) Ledger Contract Map (v1) (Informative)
 
-C.1 “If any of these are missing, SR is not shippable” quick list
+C.1 Artifact inventory (v1): `run_plan`, `run_record`, `run_facts_view`, `run_status` (+ persisted signals if applicable)
+C.2 Minimum fields per artifact (required only; no optional narrative)
+C.3 Immutability / update rules per artifact (append-only vs monotonic vs snapshot)
+C.4 Addressing + ref conventions (by-ref fields; ArtifactRef/Locator reuse)
+C.5 Mapping from ledger artifacts -> `$defs` names in `sr_public_contracts_v1.schema.json`
+
+### Appendix D) Reviewer checklist (Informative)
+
+D.1 "If any of these are missing, SR is not shippable" quick list
 
 ---
