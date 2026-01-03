@@ -830,7 +830,8 @@ segment5a:
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['parameter_hash'])"); \
 	 UPSTREAM_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
+receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
@@ -893,7 +894,8 @@ segment5b:
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
+receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
@@ -962,7 +964,8 @@ segment6a:
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
+receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
@@ -1037,7 +1040,8 @@ segment6b:
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG1B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
+	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
+receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \

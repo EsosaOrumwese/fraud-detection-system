@@ -346,6 +346,14 @@ class S0GateRunner:
         self._validation_bundle_3a = inputs.validation_bundle_3a
         self._validation_bundle_3b = inputs.validation_bundle_3b
         self._validation_bundle_5a = inputs.validation_bundle_5a
+        # Mirror override bundles to the names expected by _UPSTREAM_BUNDLE_SPECS.
+        self.validation_bundle_1a = inputs.validation_bundle_1a
+        self.validation_bundle_1b = inputs.validation_bundle_1b
+        self.validation_bundle_2a = inputs.validation_bundle_2a
+        self.validation_bundle_2b = inputs.validation_bundle_2b
+        self.validation_bundle_3a = inputs.validation_bundle_3a
+        self.validation_bundle_3b = inputs.validation_bundle_3b
+        self.validation_bundle_5a = inputs.validation_bundle_5a
 
         upstream_bundles = self._verify_upstream_bundles(
             base_path=inputs.base_path,
@@ -412,6 +420,8 @@ class S0GateRunner:
             flag_id = spec["flag_id"]
             override_attr = spec["override_attr"]
             bundle_override = getattr(self, override_attr, None)
+            if bundle_override is None:
+                bundle_override = getattr(self, f"_{override_attr}", None)
             bundle_path = self._resolve_bundle_path(
                 base_path=base_path,
                 dictionary_path=dictionary_path,
@@ -419,20 +429,88 @@ class S0GateRunner:
                 manifest_fingerprint=manifest_fingerprint,
                 override=bundle_override,
             )
+            if segment == "5A":
+                index_path = bundle_path
+                if index_path.is_dir():
+                    index_path = index_path / "validation_bundle_index_5A.json"
+                if not index_path.exists():
+                    raise FileNotFoundError(
+                        f"validation bundle index missing for {segment}: {index_path}"
+                    )
+                bundle_digest = self._compute_5a_bundle_digest(index_path)
+                if bundle_override is not None:
+                    flag_path = index_path.parent / "_passed.flag"
+                else:
+                    flag_path = self._resolve_dataset_path(
+                        base_path=base_path,
+                        dictionary_path=dictionary_path,
+                        dataset_id=flag_id,
+                        manifest_fingerprint=manifest_fingerprint,
+                    )
+                if not flag_path.exists():
+                    raise FileNotFoundError(
+                        f"validation pass flag missing for {segment}: {flag_path}"
+                    )
+                flag_digest = self._read_5a_pass_flag(flag_path)
+                if flag_digest != bundle_digest:
+                    raise RuntimeError(f"validation bundle digest mismatch for {segment}")
+                results[segment] = {
+                    "status": "PASS",
+                    "bundle_path": str(index_path.parent),
+                    "flag_path": str(flag_path),
+                    "bundle_digest": bundle_digest,
+                    "flag_digest": flag_digest,
+                }
+                continue
+
             index_path = bundle_path / "index.json"
             if not index_path.exists():
                 raise FileNotFoundError(f"validation bundle index missing for {segment}: {index_path}")
-            index = load_index(index_path)
-            bundle_digest = compute_index_digest(index)
-            flag_path = self._resolve_dataset_path(
-                base_path=base_path,
-                dictionary_path=dictionary_path,
-                dataset_id=flag_id,
-                manifest_fingerprint=manifest_fingerprint,
-            )
+            if segment == "2B":
+                index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+                if not isinstance(index_payload, list):
+                    raise RuntimeError("2B validation bundle index must be a JSON array")
+                digest = hashlib.sha256()
+                for entry in sorted(index_payload, key=lambda item: str(item.get("path", ""))):
+                    path_value = entry.get("path") if isinstance(entry, Mapping) else None
+                    if not isinstance(path_value, str) or not path_value:
+                        raise RuntimeError("2B validation bundle index entry missing path")
+                    target = (bundle_path / path_value).resolve()
+                    if not target.exists() or not target.is_file():
+                        raise RuntimeError(
+                            f"2B validation bundle missing file while computing digest: {path_value}"
+                        )
+                    digest.update(target.read_bytes())
+                bundle_digest = digest.hexdigest()
+            elif segment == "3B":
+                index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+                if not isinstance(index_payload, Mapping):
+                    raise RuntimeError("3B validation bundle index must be a JSON object")
+                members = index_payload.get("members")
+                if not isinstance(members, list):
+                    raise RuntimeError("3B validation bundle index missing members list")
+                concat = "".join(
+                    str(entry["sha256_hex"])
+                    for entry in sorted(members, key=lambda item: item.get("path", ""))
+                )
+                bundle_digest = hashlib.sha256(concat.encode("ascii")).hexdigest()
+            else:
+                index = load_index(bundle_path)
+                bundle_digest = compute_index_digest(bundle_path, index)
+            if bundle_override is not None:
+                flag_path = bundle_path / "_passed.flag"
+                flag_dir = bundle_path
+            else:
+                flag_path = self._resolve_dataset_path(
+                    base_path=base_path,
+                    dictionary_path=dictionary_path,
+                    dataset_id=flag_id,
+                    manifest_fingerprint=manifest_fingerprint,
+                )
+                flag_dir = flag_path.parent
             if not flag_path.exists():
                 raise FileNotFoundError(f"validation pass flag missing for {segment}: {flag_path}")
-            flag_digest = read_pass_flag(flag_path)
+            flag_digest = read_pass_flag(flag_dir)
             if flag_digest != bundle_digest:
                 raise RuntimeError(f"validation bundle digest mismatch for {segment}")
             results[segment] = {
@@ -443,6 +521,37 @@ class S0GateRunner:
                 "flag_digest": flag_digest,
             }
         return results
+
+    def _compute_5a_bundle_digest(self, index_path: Path) -> str:
+        payload = json.loads(index_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, Mapping):
+            raise RuntimeError("5A validation bundle index must be a JSON object")
+        entries = payload.get("entries")
+        if not isinstance(entries, list):
+            raise RuntimeError("5A validation bundle index missing entries list")
+        items: list[tuple[str, str]] = []
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                raise RuntimeError("5A validation bundle index entry must be an object")
+            path = entry.get("path")
+            sha = entry.get("sha256_hex")
+            if not isinstance(path, str) or not path:
+                raise RuntimeError("5A validation bundle index entry missing path")
+            if not isinstance(sha, str) or len(sha) != 64:
+                raise RuntimeError("5A validation bundle index entry missing sha256_hex")
+            items.append((path, sha.lower()))
+        items.sort(key=lambda item: item[0])
+        concat = "".join(sha for _, sha in items)
+        return hashlib.sha256(concat.encode("ascii")).hexdigest()
+
+    def _read_5a_pass_flag(self, flag_path: Path) -> str:
+        payload = json.loads(flag_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, Mapping):
+            raise RuntimeError("5A passed flag must be a JSON object")
+        digest = payload.get("bundle_digest_sha256")
+        if not isinstance(digest, str) or len(digest) != 64:
+            raise RuntimeError("5A passed flag missing bundle_digest_sha256")
+        return digest.lower()
 
     def _load_scenario_ids(self, *, base_path: Path, manifest_fingerprint: str) -> list[str]:
         dictionary_path = repository_root() / "contracts/dataset_dictionary/l2/seg_5A/layer2.5A.yaml"
