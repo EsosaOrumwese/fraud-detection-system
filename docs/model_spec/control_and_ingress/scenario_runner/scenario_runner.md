@@ -1,14 +1,14 @@
-# Scenario Runner (Control & Ingress) — Level-2 Specification
+# Scenario Runner (Control & Ingress) - Level-2 Specification
 
 ## 0. Front matter (Binding)
 
 ### 0.1 Document identity (authoritative)
 
-This file defines the **Scenario Runner** component’s **Level-2** specification (binding requirements + informative guidance). It is the authoritative description of Scenario Runner’s black-box responsibilities within **Control & Ingress**.
+This file defines the **Scenario Runner** component's **Level-2** specification (binding requirements + informative guidance). It is the authoritative description of Scenario Runner's black-box responsibilities within **Control & Ingress**.
 
 * **Canonical path (authoritative):**
   `docs/model_spec/control_and_ingress/scenario_runner/scenario_runner.md`
-* **Component:** Control & Ingress · Scenario Runner
+* **Component:** Control & Ingress - Scenario Runner
 * **Spec class:** Level-2 (Binding + Informative)
 * **Status:** DRAFT
 * **Effective date:** 2026-01-02
@@ -19,7 +19,7 @@ This file defines the **Scenario Runner** component’s **Level-2** specificatio
 
 ### 0.2 Companion artefacts in this folder (authoritative)
 
-Scenario Runner’s component-owned surfaces are defined in this folder:
+Scenario Runner's component-owned surfaces are defined in this folder:
 
 * **Contracts (binding):**
 
@@ -36,7 +36,7 @@ Scenario Runner is a control-plane component and MUST align to these authoritati
 
 #### 0.3.1 Platform Rails (authoritative)
 
-Scenario Runner MUST comply with the platform’s cross-cutting rails (identity, envelopes, receipts, PASS/no-read rules):
+Scenario Runner MUST comply with the platform's cross-cutting rails (identity, envelopes, receipts, PASS/no-read rules):
 
 * **Rails doc:**
   `docs/model_spec/observability_and_governance/cross_cutting_rails/cross_cutting_rails.md`
@@ -85,7 +85,7 @@ Everything explicitly labelled **Informative** (examples, diagrams, illustrative
 
   * `docs/model_spec/control_and_ingress/scenario_runner/scenario_runner.md#<section-anchor>`
 * Referenced section numbers/headings MUST NOT be renamed or renumbered without a version bump.
-* If a requirement is moved, the old anchor MUST be preserved with a “Moved to §X.Y” stub for at least one MINOR cycle.
+* If a requirement is moved, the old anchor MUST be preserved with a "Moved to Section X.Y" stub for at least one MINOR cycle.
 
 ### 0.6 Non-authoritative copies
 
@@ -103,7 +103,7 @@ Its primary purpose is to make runs:
 
 * **identifiable** (stable run identity),
 * **pinnable** (explicit references to the world and authoritative inputs),
-* **discoverable** (downstream can find “what run is active” without heuristics),
+* **discoverable** (downstream can find "what run is active" without heuristics),
 * **auditable** (a run can be replayed/examined from its pinned facts).
 
 Scenario Runner treats the Data Engine as a **black box** and coordinates with it only through the **Data Engine Interface Pack** boundary contracts.
@@ -128,7 +128,7 @@ This specification is authoritative for:
 
 3. **Run lifecycle state**
 
-   * Defining the run lifecycle states and allowed transitions (PLANNED → STARTED → COMPLETED/FAILED/CANCELLED)
+   * Defining the run lifecycle states and allowed transitions (PLANNED -> STARTED -> COMPLETED/FAILED/CANCELLED)
    * Recording the run state in a pinnable run record and/or discovery surface
 
 4. **Downstream discovery**
@@ -147,7 +147,7 @@ This specification is authoritative for:
 
 Scenario Runner is **not** authoritative for:
 
-* Data Engine segment/state internals (1A→6B), intermediate artefacts, or algorithms
+* Data Engine segment/state internals (1A->6B), intermediate artefacts, or algorithms
 * Ingestion enforcement and quarantine semantics (owned by Ingestion Gate)
 * Event bus topology, messaging infrastructure, or deployment architecture
 * Feature engineering, scoring/decisioning logic, label/case logic, or training pipelines
@@ -157,13 +157,13 @@ Scenario Runner is **not** authoritative for:
 
 Scenario Runner MUST:
 
-* comply with platform Rails (identity, immutability, and “no PASS → no read” semantics where applicable),
+* comply with platform Rails (identity, immutability, and "no PASS -> no read" semantics where applicable),
 * use the Data Engine Interface Pack to form engine invocations and to reason about engine outputs and gates,
 * avoid any coupling to engine internals beyond those published boundary artefacts.
 
 Scenario Runner MUST NOT:
 
-* infer outputs by scanning storage for “latest,”
+* infer outputs by scanning storage for "latest,"
 * depend on undocumented engine join keys or internal step ordering,
 * treat ungated engine outputs as consumable.
 
@@ -212,7 +212,7 @@ Disallowed:
 * renaming or aliasing canonical identity fields (`parameter_hash`, `manifest_fingerprint`, `scenario_id`, `run_id`, `seed`);
 * redefining the canonical event envelope (Rails-owned);
 * redefining engine invocation / locator / gate receipt semantics (engine interface-owned);
-* using “best effort” reads of ungated outputs in place of PASS enforcement.
+* using "best effort" reads of ungated outputs in place of PASS enforcement.
 
 ### 2.5 Conflict handling
 
@@ -284,11 +284,11 @@ Scenario Runner MUST provide the following capabilities as a control-plane compo
 4. **Form engine invocations via the black-box interface**
 
    * Construct Data Engine invocation requests using the **engine invocation contract** only (no segment/state internals).
-   * Translate Scenario Runner scenario intent into the engine’s `scenario_binding`:
+   * Translate Scenario Runner scenario intent into the engine's `scenario_binding`:
 
-     * baseline/no-overlay runs → `scenario_binding.mode = "none"`
-     * single-scenario runs → `scenario_binding.scenario_id`
-     * multi-scenario runs → `scenario_binding.scenario_set`
+     * baseline/no-overlay runs -> `scenario_binding.mode = "none"`
+     * single-scenario runs -> `scenario_binding.scenario_id`
+     * multi-scenario runs -> `scenario_binding.scenario_set`
    * Provide correlation/idempotency metadata when available (e.g., `request_id`, `invoker`, notes).
 
 5. **Publish the run anchor (Run Record)**
@@ -306,16 +306,16 @@ Scenario Runner MUST provide the following capabilities as a control-plane compo
      * a pointer to the Run Record (`run_record_ref`),
      * pinned engine output locators (`engine_output_locator`) for platform-consumable outputs,
      * and the required PASS proofs/gate receipts needed to read/ingest those outputs.
-   * Ensure run discovery does not depend on heuristic “latest” scanning of storage paths.
+   * Ensure run discovery does not depend on heuristic "latest" scanning of storage paths.
 
 7. **Record engine readiness proofs as pins (not enforcement)**
 
    * Use the engine outputs catalogue (`read_requires_gates`) and gate map to determine which gate IDs authorize which outputs.
-   * Record the relevant PASS proofs (gate receipts or references thereto) into run facts as “pins” suitable for downstream verification.
+   * Record the relevant PASS proofs (gate receipts or references thereto) into run facts as "pins" suitable for downstream verification.
 
 8. **Optional: emit run status-change events**
 
-   * If enabled, emit run status-change events whose **payload** conforms to `run_status_event.payload.schema.yaml` and whose **envelope** conforms to the platform’s canonical event envelope.
+   * If enabled, emit run status-change events whose **payload** conforms to `run_status_event.payload.schema.yaml` and whose **envelope** conforms to the platform's canonical event envelope.
    * Status events MUST be consistent with the Run Record lifecycle and MUST be traceable to the run identity tuple.
 
 ### 4.2 Non-goals (Binding)
@@ -329,8 +329,8 @@ Scenario Runner MUST NOT take responsibility for the following:
 
 2. **No plane-entry enforcement**
 
-   * MUST NOT act as the enforcement boundary for schema validation, quarantine, or “main vs quarantine plane” admission decisions.
-   * MUST NOT claim to “authorize ingestion” by itself; it may only publish pins/proofs for other boundaries to verify.
+   * MUST NOT act as the enforcement boundary for schema validation, quarantine, or "main vs quarantine plane" admission decisions.
+   * MUST NOT claim to "authorize ingestion" by itself; it may only publish pins/proofs for other boundaries to verify.
 
 3. **No output interpretation**
 
@@ -339,7 +339,7 @@ Scenario Runner MUST NOT take responsibility for the following:
 
 4. **No discovery by heuristics**
 
-   * MUST NOT instruct downstream components to locate engine outputs by scanning directories, choosing “latest”, or relying on naming conventions not declared in the catalogue/locator contracts.
+   * MUST NOT instruct downstream components to locate engine outputs by scanning directories, choosing "latest", or relying on naming conventions not declared in the catalogue/locator contracts.
 
 5. **No infrastructure specification**
 
@@ -353,12 +353,12 @@ Scenario Runner MUST treat the following inputs as **authoritative**. If an inpu
 
 ### 5.1 Caller-provided run request (authoritative at the boundary)
 
-* **`scenario_run_request`** (caller → Scenario Runner) is the authoritative request payload for creating/planning a run.
+* **`scenario_run_request`** (caller -> Scenario Runner) is the authoritative request payload for creating/planning a run.
 
   * Scenario Runner MUST validate it against `contracts/scenario_run_request.schema.yaml`.
   * Any fields required to form a valid engine invocation (world identity, seed policy, scenario intent, correlation fields) MUST be present or derivable strictly per this schema.
 
-### 5.2 Scenario definitions (authoritative “scenario knobs” surfaces)
+### 5.2 Scenario definitions (authoritative "scenario knobs" surfaces)
 
 Scenario Runner MUST treat scenario definitions as **read-only authority surfaces** that are either:
 
@@ -368,7 +368,7 @@ Scenario Runner MUST treat scenario definitions as **read-only authority surface
 Authority shape:
 
 * **Scenario catalogue items** MUST conform to `contracts/scenario_definition.schema.yaml`.
-* Scenario Runner MUST NOT “invent” scenario knobs not present in the authoritative scenario definition (or not declared as supported in this component).
+* Scenario Runner MUST NOT "invent" scenario knobs not present in the authoritative scenario definition (or not declared as supported in this component).
 
 ### 5.3 Platform Rails (authoritative)
 
@@ -409,10 +409,10 @@ Scenario Runner MUST treat the Data Engine Interface Pack as authoritative for *
      * how PASS is verified (verification method + required artefacts)
      * which outputs a gate authorizes
      * upstream gate dependencies (if any)
-   * Scenario Runner MUST derive “required PASS proofs to record” from:
+   * Scenario Runner MUST derive "required PASS proofs to record" from:
 
-     * output → `read_requires_gates` (catalogue), and
-     * gate → verification semantics (gate map).
+     * output -> `read_requires_gates` (catalogue), and
+     * gate -> verification semantics (gate map).
 
 4. **Output locator and gate receipt shapes**
 
@@ -429,7 +429,7 @@ Scenario Runner MUST treat the Data Engine Interface Pack as authoritative for *
 Scenario Runner MUST NOT treat the following as authoritative inputs:
 
 * any Data Engine **segment/state** docs, intermediate artefacts, or internal step ordering;
-* any “latest directory scanning” heuristics for discovering engine outputs;
+* any "latest directory scanning" heuristics for discovering engine outputs;
 * any join keys or semantics not declared in the engine output catalogue and locator contracts.
 
 ---
@@ -438,7 +438,7 @@ Scenario Runner MUST NOT treat the following as authoritative inputs:
 
 Scenario Runner produces **control-plane artefacts** that downstream components rely on for **run identity**, **pinning**, and **discovery**. These outputs MUST be treated as **authority surfaces** (read-only truth for consumers) and MUST carry the canonical identity tuple.
 
-Scenario Runner’s primary outputs are:
+Scenario Runner's primary outputs are:
 
 1. **Run Record** (authoritative run anchor; Rails-owned schema)
 2. **Run Facts View** (downstream discovery surface; Scenario Runner-owned schema)
@@ -470,13 +470,13 @@ The **Run Record** is the authoritative anchor for a run.
 
 **Publication and immutability**
 
-* Scenario Runner MUST NOT “silently overwrite” an existing published Run Record instance.
-* If run lifecycle status changes (PLANNED → STARTED → COMPLETED/FAILED/CANCELLED), Scenario Runner MUST publish an updated Run Record **as a new immutable instance/revision** (pinnable by ref/digest).
-* The **current** Run Record for a run MUST be discoverable via the Run Facts View (see §6.2), not by “latest folder scanning.”
+* Scenario Runner MUST NOT "silently overwrite" an existing published Run Record instance.
+* If run lifecycle status changes (PLANNED -> STARTED -> COMPLETED/FAILED/CANCELLED), Scenario Runner MUST publish an updated Run Record **as a new immutable instance/revision** (pinnable by ref/digest).
+* The **current** Run Record for a run MUST be discoverable via the Run Facts View (see Section 6.2), not by "latest folder scanning."
 
 ### 6.2 Run Facts View (Binding)
 
-The **Run Facts View** is the downstream discovery surface for “what run(s) are active and what is pinned.”
+The **Run Facts View** is the downstream discovery surface for "what run(s) are active and what is pinned."
 
 **Shape and authority**
 
@@ -488,7 +488,7 @@ Downstream components MUST be able to use the Run Facts View to:
 
 * discover the **active run(s)** (and/or the active run for a given environment/tenant partition if you model that),
 * obtain the canonical identity tuple for each run,
-* obtain a `run_record_ref` (and optional digest) for the run’s authoritative Run Record,
+* obtain a `run_record_ref` (and optional digest) for the run's authoritative Run Record,
 * locate platform-consumable engine outputs via **engine output locators** (`engine_output_locator` objects),
 * determine which **PASS proofs/gate receipts** are required before reading/ingesting those outputs.
 
@@ -505,7 +505,7 @@ For each run entry, the Run Facts View MUST provide, at minimum:
 
 **Anti-heuristic rule (hard)**
 
-* Downstream components MUST NOT be instructed to discover runs or outputs by scanning storage for “latest.”
+* Downstream components MUST NOT be instructed to discover runs or outputs by scanning storage for "latest."
   Scenario Runner MUST make Run Facts View sufficient for discovery.
 
 **Publication and consistency**
@@ -539,7 +539,7 @@ Scenario Runner MAY emit run status-change events. If it does, the following req
 
 ### 6.4 Output classification and access posture (Binding)
 
-* Scenario Runner outputs (Run Records, Run Facts View, optional status events) MUST be treated as control-plane authority surfaces/events and MUST follow the platform’s security/access posture (classification, least privilege, auditability).
+* Scenario Runner outputs (Run Records, Run Facts View, optional status events) MUST be treated as control-plane authority surfaces/events and MUST follow the platform's security/access posture (classification, least privilege, auditability).
 * Scenario Runner outputs MUST NOT contain secrets.
 
 ---
@@ -555,13 +555,13 @@ This section defines the **authoritative data objects** Scenario Runner uses/emi
 These schemas are owned by Scenario Runner and MUST live under `contracts/` in this component:
 
 * `scenario_run_request.schema.yaml`
-  Caller → Scenario Runner request to plan/create a run.
+  Caller -> Scenario Runner request to plan/create a run.
 
 * `scenario_definition.schema.yaml`
   Read-only scenario catalogue item (scenario knobs surface).
 
 * `run_facts_view.schema.yaml`
-  Downstream discovery surface for “active run(s)” + pinned refs.
+  Downstream discovery surface for "active run(s)" + pinned refs.
 
 * `run_status_event.payload.schema.yaml` *(optional)*
   Payload-only schema for run status-change events (if emitted).
@@ -591,7 +591,7 @@ If a Scenario Runner-owned schema conflicts with any referenced authoritative co
 
 ### 7.2 Canonical data objects (logical model) (Binding)
 
-Scenario Runner deals in a small set of canonical objects. These are logical concepts; their machine shapes are defined by the contract files listed in §7.1.
+Scenario Runner deals in a small set of canonical objects. These are logical concepts; their machine shapes are defined by the contract files listed in Section 7.1.
 
 #### 7.2.1 Identity tuple (pinned terms)
 
@@ -605,7 +605,7 @@ These identifiers MUST be treated as immutable once recorded in a run artefact.
 
 #### 7.2.2 Scenario binding (baseline vs overlays)
 
-Scenario Runner MUST represent scenario intent in a form that can be mapped to the Data Engine’s `scenario_binding` model:
+Scenario Runner MUST represent scenario intent in a form that can be mapped to the Data Engine's `scenario_binding` model:
 
 * baseline/no-overlay runs (engine mode `none`)
 * single-scenario overlay
@@ -628,7 +628,7 @@ Optional identity fields may be included when helpful, but locators MUST remain 
 
 #### 7.2.5 Gate receipt (PASS proof pin)
 
-Scenario Runner pins gate proofs using **gate receipt** objects (or references to them) defined by the engine interface pack. Downstream components use these pins to enforce “no PASS → no read”.
+Scenario Runner pins gate proofs using **gate receipt** objects (or references to them) defined by the engine interface pack. Downstream components use these pins to enforce "no PASS -> no read".
 
 ---
 
@@ -650,7 +650,7 @@ Minimum semantic coverage:
 * **Seed policy:** the request MUST allow either:
 
   * caller-provided `seed`, or
-  * an explicit “runner chooses seed” mode (with the chosen seed recorded in outputs).
+  * an explicit "runner chooses seed" mode (with the chosen seed recorded in outputs).
 * **Idempotency/correlation:** the request SHOULD allow a request correlation/idempotency key (e.g., `request_id`) to support safe retries.
 * **Validation posture:** the schema MUST be strict enough to refuse internally inconsistent requests (e.g., contradictory scenario intent).
 
@@ -668,16 +668,16 @@ Minimum semantic coverage:
 
 #### 7.3.3 `run_facts_view.schema.yaml` (Binding)
 
-The run facts view is the downstream discovery surface and MUST not become “a second run record”. It is a *view* that pins references.
+The run facts view is the downstream discovery surface and MUST not become "a second run record". It is a *view* that pins references.
 
 Minimum semantic coverage:
 
-* **Run discovery:** ability to list “active run(s)” (and optionally partition by environment/tenant if modelled).
+* **Run discovery:** ability to list "active run(s)" (and optionally partition by environment/tenant if modelled).
 * **Canonical identity tuple:** each run entry MUST carry world + run identity (and seed where applicable).
 * **Run record pointer:** each run entry MUST include a `run_record_ref` (and optionally digest) pointing to the authoritative Run Record instance.
 * **Pinned engine output locators:** the schema MUST support listing engine outputs as `engine_output_locator` objects (or a compatible embedding) keyed by `output_id`.
 * **Pinned gate proofs:** the schema MUST support listing required PASS proofs as `gate_receipt` objects or references.
-* **Internal consistency constraints:** the schema MUST enforce “no empty anchors” (e.g., an active run entry must at least include identity + run_record_ref).
+* **Internal consistency constraints:** the schema MUST enforce "no empty anchors" (e.g., an active run entry must at least include identity + run_record_ref).
 
 #### 7.3.4 `run_status_event.payload.schema.yaml` (Optional, Binding if present)
 
@@ -700,7 +700,7 @@ If Scenario Runner emits run status events:
 * Any Scenario Runner **persisted surface** intended for downstream consumption (scenario definitions, run facts views) SHOULD carry a `schema_ref` field (or be accompanied by a manifest carrying it) to enable validation and audit.
 * Run Records MUST follow the Rails `run_record` schema authority rules.
 
-#### 7.4.2 No “near duplicate” schemas
+#### 7.4.2 No "near duplicate" schemas
 
 Scenario Runner MUST NOT create local copies of:
 
@@ -740,11 +740,11 @@ No other lifecycle states are permitted unless introduced via a contract version
 
 Scenario Runner MUST permit only the following transitions:
 
-* `PLANNED → STARTED`
-* `STARTED → COMPLETED`
-* `STARTED → FAILED`
-* `PLANNED → CANCELLED`
-* `STARTED → CANCELLED`
+* `PLANNED -> STARTED`
+* `STARTED -> COMPLETED`
+* `STARTED -> FAILED`
+* `PLANNED -> CANCELLED`
+* `STARTED -> CANCELLED`
 
 Terminal states:
 
@@ -752,9 +752,9 @@ Terminal states:
 
 Disallowed examples:
 
-* `PLANNED → COMPLETED` (must pass through STARTED)
-* `FAILED → STARTED`
-* `COMPLETED → FAILED`
+* `PLANNED -> COMPLETED` (must pass through STARTED)
+* `FAILED -> STARTED`
+* `COMPLETED -> FAILED`
 
 ### 8.3 Timestamp requirements per state (hard)
 
@@ -768,20 +768,20 @@ Scenario Runner MUST ensure the Run Record satisfies the Rails run-record lifecy
 
 If the Rails run-record schema encodes stricter conditional requirements, that schema prevails.
 
-### 8.4 State meaning and “done” semantics (control-plane)
+### 8.4 State meaning and "done" semantics (control-plane)
 
 Scenario Runner MUST interpret lifecycle meaning as follows:
 
-* **STARTED** means the run has been committed to execution and the engine invocation has been issued (or an equivalent “execution begun” action has occurred).
-* **COMPLETED** means Scenario Runner has determined the run’s execution has finished successfully **for control-plane purposes**.
+* **STARTED** means the run has been committed to execution and the engine invocation has been issued (or an equivalent "execution begun" action has occurred).
+* **COMPLETED** means Scenario Runner has determined the run's execution has finished successfully **for control-plane purposes**.
 
 Important:
 
 * Scenario Runner MUST NOT claim that downstream ingestion/feature/decision pipelines have succeeded. Those are separate components.
-* Scenario Runner MAY define “control-plane completion” as:
+* Scenario Runner MAY define "control-plane completion" as:
 
-  * “engine run finished and produced required outputs/gates”, and/or
-  * “engine signalled completion via its own completion artefact,”
+  * "engine run finished and produced required outputs/gates", and/or
+  * "engine signalled completion via its own completion artefact,"
     but this must be expressed only via black-box interface signals (catalogue/gates/receipts), never engine internals.
 
 ### 8.5 Failure semantics (hard)
@@ -816,7 +816,7 @@ Scenario Runner MUST NOT silently cancel; cancellation must be explicit and audi
 Scenario Runner MUST ensure lifecycle updates are idempotent and conflict-safe:
 
 * Re-applying the same transition (e.g., retry publishing STARTED with identical timestamps) MUST be treated as a duplicate update (no conflicting state).
-* Attempting an invalid transition (e.g., STARTED → PLANNED) MUST be refused.
+* Attempting an invalid transition (e.g., STARTED -> PLANNED) MUST be refused.
 * Attempting to update a run with the same `run_id` but differing pinned identity tuple or pins MUST be treated as a conflict and refused.
 
 ### 8.8 Run Facts View consistency with Run Record (hard)
@@ -825,7 +825,7 @@ Scenario Runner MUST ensure:
 
 * Run Facts View reflects the **current** lifecycle state of the run (or points to the authoritative Run Record revision that carries it).
 * Any run marked active/started in Run Facts View MUST have a corresponding Run Record revision that is STARTED.
-* A run in a terminal state MUST NOT remain listed as “active” unless explicitly defined as a separate concept (not recommended).
+* A run in a terminal state MUST NOT remain listed as "active" unless explicitly defined as a separate concept (not recommended).
 
 ---
 
@@ -837,7 +837,7 @@ Scenario Runner MUST interact with the Data Engine **only** through the **Data E
 
 #### 9.1.1 Contract compliance (hard)
 
-* Every engine invocation issued by Scenario Runner MUST conform to the engine interface pack’s **engine invocation contract** (`engine_invocation.schema.yaml`).
+* Every engine invocation issued by Scenario Runner MUST conform to the engine interface pack's **engine invocation contract** (`engine_invocation.schema.yaml`).
 * Scenario Runner MUST NOT add engine-facing fields that are not permitted by that contract.
 
 #### 9.1.2 Required identity binding (hard)
@@ -852,11 +852,11 @@ Scenario Runner MUST ensure the invocation identity matches the Run Record ident
 
 #### 9.1.3 Scenario binding mapping (hard)
 
-Scenario Runner MUST express scenario intent for the engine using the engine’s `scenario_binding` model as defined by the engine invocation contract:
+Scenario Runner MUST express scenario intent for the engine using the engine's `scenario_binding` model as defined by the engine invocation contract:
 
-* Baseline / no-overlay runs MUST map to the engine’s “no scenario overlay” mode.
-* Single-scenario runs MUST map to the engine’s single-scenario mode using the scenario identifier defined in Scenario Runner’s scenario definition surface.
-* Multi-scenario runs MUST map to the engine’s scenario-set mode using the scenario identifiers defined in Scenario Runner’s scenario definition surfaces.
+* Baseline / no-overlay runs MUST map to the engine's "no scenario overlay" mode.
+* Single-scenario runs MUST map to the engine's single-scenario mode using the scenario identifier defined in Scenario Runner's scenario definition surface.
+* Multi-scenario runs MUST map to the engine's scenario-set mode using the scenario identifiers defined in Scenario Runner's scenario definition surfaces.
 
 Scenario Runner MUST NOT invent additional scenario binding modes beyond those defined by the engine invocation contract.
 
@@ -867,16 +867,16 @@ Scenario Runner SHOULD populate engine invocation correlation/idempotency metada
 Rules:
 
 * Re-issuing an invocation with the same `(manifest_fingerprint, parameter_hash, run_id, seed, scenario_binding)` SHOULD be treated as an idempotent retry.
-* Re-issuing an invocation that reuses a `run_id` but changes any pinned identity fields or scenario binding MUST be treated as a **conflict** and refused (do not “last-write-wins”).
+* Re-issuing an invocation that reuses a `run_id` but changes any pinned identity fields or scenario binding MUST be treated as a **conflict** and refused (do not "last-write-wins").
 * Scenario Runner MUST record engine invocation correlation identifiers (when present) in the Run Record and/or Run Facts View for audit.
 
 ---
 
 ### 9.2 Output discovery policy (Binding)
 
-Scenario Runner’s job is to publish **pinnable output locators** for downstream discovery without heuristics.
+Scenario Runner's job is to publish **pinnable output locators** for downstream discovery without heuristics.
 
-#### 9.2.1 Authoritative source of “what outputs exist” (hard)
+#### 9.2.1 Authoritative source of "what outputs exist" (hard)
 
 * Scenario Runner MUST treat `engine_outputs.catalogue.yaml` as the authoritative inventory of engine outputs.
 * Scenario Runner MUST NOT publish locators for any `output_id` not present in the catalogue.
@@ -888,11 +888,11 @@ At minimum, Scenario Runner MUST be able to publish locators for **platform-cons
 Scenario Runner MAY allow the caller (via `scenario_run_request`) or scenario definitions to request a subset/superset, but:
 
 * any requested `output_id` MUST exist in the catalogue; otherwise refuse the request, and
-* Scenario Runner MUST NOT allow downstream-facing discovery of outputs that are explicitly non-exposed unless the spec introduces an explicit “internal use” mechanism.
+* Scenario Runner MUST NOT allow downstream-facing discovery of outputs that are explicitly non-exposed unless the spec introduces an explicit "internal use" mechanism.
 
 #### 9.2.3 Locator shape and construction (hard)
 
-* Scenario Runner MUST publish engine output pins using the engine interface pack’s **engine output locator** shape (`engine_output_locator.schema.yaml`).
+* Scenario Runner MUST publish engine output pins using the engine interface pack's **engine output locator** shape (`engine_output_locator.schema.yaml`).
 * A locator MUST minimally contain:
 
   * `output_id`
@@ -901,13 +901,13 @@ Scenario Runner MAY allow the caller (via `scenario_run_request`) or scenario de
 How `path` is obtained:
 
 * Preferred: use a concrete locator emitted/returned by the engine boundary (if the engine provides one).
-* Permitted fallback: deterministically construct `path` using the catalogue’s `path_template` + required partition keys (e.g., `manifest_fingerprint`, and any run/scenario partitions declared for that output).
+* Permitted fallback: deterministically construct `path` using the catalogue's `path_template` + required partition keys (e.g., `manifest_fingerprint`, and any run/scenario partitions declared for that output).
 
 Prohibited:
 
-* scanning storage to choose “latest”
+* scanning storage to choose "latest"
 * guessing output layout not declared in the catalogue
-* substituting alternate fingerprint tokens (must remain consistent with the engine’s pinned path conventions)
+* substituting alternate fingerprint tokens (must remain consistent with the engine's pinned path conventions)
 
 #### 9.2.4 Schema/dictionary pinning (recommended)
 
@@ -917,13 +917,13 @@ Where the catalogue provides authoritative `schema_ref` and/or `dictionary_ref` 
 
 ### 9.3 Gate readiness policy (Binding)
 
-Scenario Runner MUST treat “no PASS → no read” as the operating rule and MUST publish sufficient gate pins for downstream verification.
+Scenario Runner MUST treat "no PASS -> no read" as the operating rule and MUST publish sufficient gate pins for downstream verification.
 
 #### 9.3.1 Required gates per output (hard)
 
 For any output locator published for downstream consumption, Scenario Runner MUST determine the required gate IDs by reading:
 
-* `read_requires_gates` from the output’s entry in `engine_outputs.catalogue.yaml`.
+* `read_requires_gates` from the output's entry in `engine_outputs.catalogue.yaml`.
 
 Scenario Runner MUST NOT weaken these requirements.
 
@@ -941,16 +941,16 @@ Scenario Runner MUST NOT invent verification rules.
 
 Scenario Runner MUST publish PASS proofs for required gates in a form downstream can use.
 
-* Gate proofs MUST conform to the engine interface pack’s **gate receipt** shape (`gate_receipt.schema.yaml`) or be references to such receipts (if your run facts view chooses a reference model).
+* Gate proofs MUST conform to the engine interface pack's **gate receipt** shape (`gate_receipt.schema.yaml`) or be references to such receipts (if your run facts view chooses a reference model).
 * For each output presented as consumable, Scenario Runner MUST publish (or reference) PASS receipts for **all** gates required by that output.
 
-#### 9.3.4 Presenting “ready” vs “not ready” (hard)
+#### 9.3.4 Presenting "ready" vs "not ready" (hard)
 
 Scenario Runner MUST NOT present an engine output as ready/consumable unless all its required gates are pinned as PASS proofs.
 
 If Scenario Runner publishes locators before gates are available, it MUST ensure the Run Facts View makes the readiness state unambiguous (e.g., by:
 
-* omitting “consumable” presentation until PASS proofs exist, or
+* omitting "consumable" presentation until PASS proofs exist, or
 * explicitly marking the output as pending with the missing gate IDs).
 
 Silently implying readiness is prohibited.
@@ -966,11 +966,11 @@ Recommended default:
 * A run SHOULD be considered **COMPLETED** (control-plane sense) when:
 
   * the run has STARTED, and
-  * all outputs designated “required for completion” by the run request/scenario definition have their required gates pinned as PASS.
+  * all outputs designated "required for completion" by the run request/scenario definition have their required gates pinned as PASS.
 
 Permitted alternatives:
 
-* Completion MAY be driven by a dedicated engine “completion gate” if the interface pack defines one.
+* Completion MAY be driven by a dedicated engine "completion gate" if the interface pack defines one.
 
 Scenario Runner MUST NOT define completion using engine-internal step ordering or intermediate artefacts.
 
@@ -978,7 +978,7 @@ Scenario Runner MUST NOT define completion using engine-internal step ordering o
 
 ### 9.5 Event envelope interaction (Binding)
 
-* Scenario Runner MUST NOT assume engine-emitted events use the platform’s canonical envelope unless the interface pack explicitly states so.
+* Scenario Runner MUST NOT assume engine-emitted events use the platform's canonical envelope unless the interface pack explicitly states so.
 * If Scenario Runner emits **platform** status events, those events MUST use the **Platform Rails canonical event envelope** (payload is Scenario Runner-owned; envelope is Rails-owned).
 * Any mapping between engine-native envelopes and platform envelopes is owned by plane-entry boundaries (e.g., Ingestion Gate), not Scenario Runner.
 
@@ -991,14 +991,14 @@ Scenario Runner MUST NOT:
 * consume or depend on engine segment/state internals,
 * infer undocumented output paths/keys,
 * bypass declared gate requirements,
-* treat “directory scanning” or “latest” heuristics as discovery,
+* treat "directory scanning" or "latest" heuristics as discovery,
 * rewrite identity tuple fields when forming invocations or publishing pins.
 
 ---
 
 ## 10. Determinism, identity, and replayability (Binding)
 
-Scenario Runner is part of the platform’s **replayability contract**. Its job is to ensure that runs are anchored with a stable identity tuple and that all downstream discovery is based on **explicit pins**, not heuristics.
+Scenario Runner is part of the platform's **replayability contract**. Its job is to ensure that runs are anchored with a stable identity tuple and that all downstream discovery is based on **explicit pins**, not heuristics.
 
 ### 10.1 Canonical identity propagation (hard)
 
@@ -1023,7 +1023,7 @@ Once a run is PLANNED (i.e., Run Record published), the following fields MUST be
 * `run_id`
 * `seed` (if present/required)
 
-Scenario Runner MUST NOT “repair” or “normalise” these values. If an incoming request conflicts with an existing run’s pinned identity, Scenario Runner MUST refuse it as a conflict.
+Scenario Runner MUST NOT "repair" or "normalise" these values. If an incoming request conflicts with an existing run's pinned identity, Scenario Runner MUST refuse it as a conflict.
 
 ### 10.3 Determinism promise of the control plane (Binding)
 
@@ -1062,7 +1062,7 @@ Scenario Runner MUST NOT allow a seed to be absent if the engine invocation cont
 
 ### 10.5 Replayability and pinning rules (hard)
 
-Scenario Runner MUST make replay possible by ensuring that downstream components can reconstruct “what this run meant” using only pinned references:
+Scenario Runner MUST make replay possible by ensuring that downstream components can reconstruct "what this run meant" using only pinned references:
 
 * The Run Record SHOULD pin the scenario definition(s) used (refs + digests where available).
 * The Run Facts View MUST pin:
@@ -1073,7 +1073,7 @@ Scenario Runner MUST make replay possible by ensuring that downstream components
 
 Scenario Runner MUST NOT rely on:
 
-* mutable “latest” pointers,
+* mutable "latest" pointers,
 * implicit environment defaults not recorded in pins,
 * or undeclared conventions for locating outputs.
 
@@ -1086,7 +1086,7 @@ Scenario Runner MUST detect and refuse conflicting replays:
   * world identity (`parameter_hash`, `manifest_fingerprint`),
   * scenario binding intent,
   * or seed,
-    Scenario Runner MUST treat this as a conflict and refuse the request (no “last write wins”).
+    Scenario Runner MUST treat this as a conflict and refuse the request (no "last write wins").
 
 * If the same request is retried with the same idempotency/correlation key (if supported), Scenario Runner SHOULD treat it as a duplicate and return the existing run identity and pins.
 
@@ -1094,7 +1094,7 @@ Scenario Runner MUST detect and refuse conflicting replays:
 
 Scenario Runner MUST ensure the following chain can be established for any run:
 
-`scenario_run_request` → `Run Record` → `Run Facts View` → (engine invocation correlation) → (engine outputs + gate receipts)
+`scenario_run_request` -> `Run Record` -> `Run Facts View` -> (engine invocation correlation) -> (engine outputs + gate receipts)
 
 At minimum, Scenario Runner MUST record enough correlation metadata to link:
 
@@ -1105,7 +1105,7 @@ At minimum, Scenario Runner MUST record enough correlation metadata to link:
 
 ## 11. Error handling and refusal behaviours (Binding)
 
-Scenario Runner is a control-plane component and MUST fail in a way that preserves **auditability** and **replay safety**. It must refuse ambiguous or conflicting requests rather than “best-effort” proceed.
+Scenario Runner is a control-plane component and MUST fail in a way that preserves **auditability** and **replay safety**. It must refuse ambiguous or conflicting requests rather than "best-effort" proceed.
 
 ### 11.1 Error taxonomy (Binding)
 
@@ -1146,7 +1146,7 @@ Scenario Runner MUST apply the following control-plane behaviours:
 
 Scenario Runner MUST NOT:
 
-* “assume success” on ambiguous outcomes,
+* "assume success" on ambiguous outcomes,
 * advance lifecycle state without evidence, or
 * weaken required gate pins to proceed.
 
@@ -1170,7 +1170,7 @@ If engine invocation fails due to runtime errors/timeouts:
 * Scenario Runner SHOULD retry under a bounded policy **only if** the invocation is idempotent (same identity tuple + same scenario binding).
 * If retries are exhausted, Scenario Runner MUST mark the run **FAILED** and record reason codes (`ENGINE_INVOCATION_FAILED`).
 
-Scenario Runner MUST NOT “re-issue” an invocation with modified identity/scenario binding in an attempt to recover; that would violate replayability.
+Scenario Runner MUST NOT "re-issue" an invocation with modified identity/scenario binding in an attempt to recover; that would violate replayability.
 
 ### 11.5 Readiness and gate proof failures (Binding)
 
@@ -1180,7 +1180,7 @@ If Scenario Runner is responsible for waiting for or collecting PASS proofs (pol
 
   * Scenario Runner MUST either:
 
-    * keep the run in **STARTED** with a “pending readiness” status marker in run facts, or
+    * keep the run in **STARTED** with a "pending readiness" status marker in run facts, or
     * mark the run **FAILED** with reason category `READINESS_TIMEOUT`,
       depending on the run policy.
 * In either case, Scenario Runner MUST:
@@ -1209,9 +1209,9 @@ Scenario Runner MUST refuse to publish internally inconsistent surfaces:
 * Run Facts View referencing a Run Record revision that does not exist
 * Locators containing `output_id`s not declared in the catalogue
 * Gate receipts referencing `gate_id`s not declared in the gate map
-* “Ready/consumable” outputs without corresponding PASS proofs
+* "Ready/consumable" outputs without corresponding PASS proofs
 
-If such inconsistency is detected, Scenario Runner MUST fail-closed and publish no new “authoritative” surfaces until corrected.
+If such inconsistency is detected, Scenario Runner MUST fail-closed and publish no new "authoritative" surfaces until corrected.
 
 ### 11.8 What gets recorded on refusal (Binding)
 
@@ -1235,7 +1235,7 @@ Scenario Runner MUST NOT:
 * proceed on missing/invalid identity tuple fields,
 * accept conflicting reuse of `run_id`,
 * publish output locators as consumable when required PASS proofs are missing,
-* “guess” engine output locations via scanning or “latest” heuristics,
+* "guess" engine output locations via scanning or "latest" heuristics,
 * silently mutate pins/identity fields in response to errors.
 
 ---
@@ -1258,7 +1258,7 @@ Scenario Runner MUST provide, at minimum:
 2. **Metrics** sufficient to evaluate success/failure and latency of run planning and updates
 3. **Traces or correlation IDs** sufficient to connect:
 
-   * caller request → run planning → engine invocation → run facts updates
+   * caller request -> run planning -> engine invocation -> run facts updates
 
 Tooling choice is implementation-defined; the information requirements are binding.
 
@@ -1353,9 +1353,9 @@ If Scenario Runner emits run status events, those events MUST be consistent with
 
 When Scenario Runner fails or refuses an action, it MUST:
 
-* emit structured logs with failure category and reason codes (§11 taxonomy),
+* emit structured logs with failure category and reason codes (Section 11 taxonomy),
 * record correlation keys and identity tuple fields where known,
-* avoid silent failures (no “it just didn’t happen” outcomes).
+* avoid silent failures (no "it just didn't happen" outcomes).
 
 If Scenario Runner cannot publish updated authority surfaces, it MUST fail-closed and record that lack of discoverability is itself a control-plane failure.
 
@@ -1365,13 +1365,13 @@ Scenario Runner MUST NOT:
 
 * omit canonical identity fields from audit-relevant logs/records,
 * log secrets or sensitive payload content (only refs/IDs),
-* claim a run is “discoverable” without a published run facts revision,
+* claim a run is "discoverable" without a published run facts revision,
 * emit status-change events that cannot be traced back to a specific run record/run facts revision.
 ---
 
 ## 13. Security, privacy, and access posture (Binding)
 
-Scenario Runner is a **control-plane** component. Its artefacts (Run Records, Run Facts Views, scenario definitions) are **authority surfaces** and MUST follow the platform’s security posture.
+Scenario Runner is a **control-plane** component. Its artefacts (Run Records, Run Facts Views, scenario definitions) are **authority surfaces** and MUST follow the platform's security posture.
 
 ### 13.1 Production-like posture (hard)
 
@@ -1425,7 +1425,7 @@ Scenario Runner MUST:
 * avoid embedding event bodies, datasets, or sensitive identifiers in run facts;
 * ensure any operator context (`created_by`, `notes`) is treated as potentially sensitive and is access-controlled accordingly.
 
-Scenario Runner MUST NOT expand engine locators into “directory listings” or enumerations that increase data exposure beyond what the interface pack declares.
+Scenario Runner MUST NOT expand engine locators into "directory listings" or enumerations that increase data exposure beyond what the interface pack declares.
 
 ### 13.6 Encryption and transport (hard)
 
@@ -1457,7 +1457,7 @@ Scenario Runner MUST NOT present quarantine-plane outputs as consumable.
 Scenario Runner MUST NOT:
 
 * store or log secrets,
-* publish run facts that enable “bypass discovery” (e.g., undocumented paths, “latest” pointers),
+* publish run facts that enable "bypass discovery" (e.g., undocumented paths, "latest" pointers),
 * publish consumable locators without required gate proofs,
 * weaken platform rails access posture for convenience,
 * make run discovery publicly readable by default.
@@ -1466,13 +1466,13 @@ Scenario Runner MUST NOT:
 
 ## 14. Conformance checklist (Binding)
 
-Scenario Runner MUST be considered “conformant” only when its behaviour can be demonstrated (by schema validation, deterministic pinning, and auditable artefacts) to comply with Platform Rails and the Data Engine Interface Pack boundary.
+Scenario Runner MUST be considered "conformant" only when its behaviour can be demonstrated (by schema validation, deterministic pinning, and auditable artefacts) to comply with Platform Rails and the Data Engine Interface Pack boundary.
 
 ### 14.1 Rails compliance mapping (hard)
 
 Scenario Runner MUST demonstrate compliance with the following Rails requirements:
 
-* **Canonical identity propagation (§3 Rails)**
+* **Canonical identity propagation (Section 3 Rails)**
 
   * Run Record and Run Facts View MUST carry `parameter_hash`, `manifest_fingerprint`, `scenario_id`, `run_id` (and `seed` where applicable).
 * **Immutability of identity**
@@ -1519,10 +1519,10 @@ Scenario Runner MUST validate its owned boundaries:
 
 Scenario Runner MUST demonstrate:
 
-* Only allowed lifecycle transitions occur (§8.2).
-* Timestamp requirements per state are satisfied (§8.3).
+* Only allowed lifecycle transitions occur (Section 8.2).
+* Timestamp requirements per state are satisfied (Section 8.3).
 * Terminal states are terminal (no transitions out).
-* Run Facts View reflects (or points to) the authoritative Run Record lifecycle state (§8.8).
+* Run Facts View reflects (or points to) the authoritative Run Record lifecycle state (Section 8.8).
 
 ### 14.5 Discovery and pinning conformance (hard)
 
@@ -1530,7 +1530,7 @@ Scenario Runner MUST demonstrate:
 
 * **No heuristic discovery**
 
-  * Downstream discovery is possible using Run Facts View alone (no “latest scanning” required).
+  * Downstream discovery is possible using Run Facts View alone (no "latest scanning" required).
 * **Pin completeness**
 
   * Run Facts View includes:
@@ -1538,11 +1538,11 @@ Scenario Runner MUST demonstrate:
     * canonical identity tuple,
     * `run_record_ref` to the current Run Record revision,
     * engine output locators for declared consumable outputs,
-    * and required PASS/gate proofs (or explicit “pending/missing gate IDs” markers if readiness is not yet met).
+    * and required PASS/gate proofs (or explicit "pending/missing gate IDs" markers if readiness is not yet met).
 * **Internal consistency**
 
-  * Every locator’s `output_id` exists in the catalogue.
-  * Every gate proof’s `gate_id` exists in the gate map.
+  * Every locator's `output_id` exists in the catalogue.
+  * Every gate proof's `gate_id` exists in the gate map.
 
 ### 14.6 Idempotency and conflict conformance (hard)
 
@@ -1562,18 +1562,18 @@ Scenario Runner MUST demonstrate:
 
 Scenario Runner MUST demonstrate:
 
-* Mandatory refusal cases are enforced (§11.2).
-* Engine refusal/failure paths are recorded and auditable (§11.4).
-* Readiness timeout behaviour matches policy and never misrepresents outputs as consumable (§11.5).
+* Mandatory refusal cases are enforced (Section 11.2).
+* Engine refusal/failure paths are recorded and auditable (Section 11.4).
+* Readiness timeout behaviour matches policy and never misrepresents outputs as consumable (Section 11.5).
 
 ### 14.8 Observability and audit conformance (hard)
 
 Scenario Runner MUST demonstrate:
 
-* Logs/metrics/traces include canonical identity fields when run-specific (§12.2).
+* Logs/metrics/traces include canonical identity fields when run-specific (Section 12.2).
 * An auditor can reconstruct:
-  `scenario_run_request → Run Record revisions → Run Facts View revisions → engine invocation correlation → pinned locators + gate proofs` (§12.4).
-* Failures are transparent (no silent drops), and reason codes are emitted (§12.6).
+  `scenario_run_request -> Run Record revisions -> Run Facts View revisions -> engine invocation correlation -> pinned locators + gate proofs` (Section 12.4).
+* Failures are transparent (no silent drops), and reason codes are emitted (Section 12.6).
 
 ### 14.9 Required test vectors (minimum)
 
@@ -1581,24 +1581,24 @@ Scenario Runner MUST be verifiable using at least these test vectors:
 
 **Happy paths**
 
-1. Baseline run (no overlays) → PLANNED → STARTED → COMPLETED; run facts includes expected locators + required PASS proofs.
-2. Single scenario overlay run → same as above.
-3. Multi-scenario set run → same as above.
+1. Baseline run (no overlays) -> PLANNED -> STARTED -> COMPLETED; run facts includes expected locators + required PASS proofs.
+2. Single scenario overlay run -> same as above.
+3. Multi-scenario set run -> same as above.
 
 **Refusals**
-4. Missing/invalid world identity → reject.
-5. Seed required but missing → reject.
-6. Unknown scenario_id/version in request → reject.
-7. Requested `output_id` not in catalogue → reject.
-8. Conflicting reuse of `run_id` (different pins/identity) → reject as conflict.
+4. Missing/invalid world identity -> reject.
+5. Seed required but missing -> reject.
+6. Unknown scenario_id/version in request -> reject.
+7. Requested `output_id` not in catalogue -> reject.
+8. Conflicting reuse of `run_id` (different pins/identity) -> reject as conflict.
 
 **Engine/boundary failures**
-9. Engine invocation refused → FAILED (or policy-defined outcome) with auditable reason codes + correlation.
-10. Engine invocation transient failure → bounded retries → FAILED if exhausted.
-11. Readiness timeout (required gates not available) → policy-defined outcome; outputs not presented as consumable.
+9. Engine invocation refused -> FAILED (or policy-defined outcome) with auditable reason codes + correlation.
+10. Engine invocation transient failure -> bounded retries -> FAILED if exhausted.
+11. Readiness timeout (required gates not available) -> policy-defined outcome; outputs not presented as consumable.
 
 **Publication failures**
-12. Run facts publication failure → fail-closed (no false discoverability) with auditable failure record.
+12. Run facts publication failure -> fail-closed (no false discoverability) with auditable failure record.
 
 ### 14.10 Integration gate (hard)
 
@@ -1639,16 +1639,16 @@ A change MUST be treated as breaking if it does any of the following:
 
 * Removes a field that downstream may read.
 * Renames a field.
-* Changes a field’s type or structural shape.
-* Changes requiredness in a way that would cause previously valid objects to fail validation (e.g., optional → required).
-* Changes semantic meaning in a way that could cause silent misinterpretation (e.g., changing the meaning of “active” runs, changing seed semantics).
+* Changes a field's type or structural shape.
+* Changes requiredness in a way that would cause previously valid objects to fail validation (e.g., optional -> required).
+* Changes semantic meaning in a way that could cause silent misinterpretation (e.g., changing the meaning of "active" runs, changing seed semantics).
 * Changes lifecycle state meanings/transitions in a way that breaks downstream assumptions.
 * Changes the discovery contract such that downstream can no longer discover runs/outputs without new logic.
 
 Breaking changes MUST:
 
 * introduce a new schema version (new `schema_ref` target),
-* define a migration plan and support window (§15.6).
+* define a migration plan and support window (Section 15.6).
 
 ### 15.4 Backward-compatible changes (MINOR permitted)
 
@@ -1666,11 +1666,11 @@ Additive changes MUST NOT:
 
 ### 15.5 Stability promises per artefact
 
-Scenario Runner MUST treat the following as “high stability” surfaces:
+Scenario Runner MUST treat the following as "high stability" surfaces:
 
 * `run_facts_view.schema.yaml` (downstream discovery contract)
 * `scenario_run_request.schema.yaml` (caller boundary contract)
-* the logical meaning of lifecycle states and transitions (§8)
+* the logical meaning of lifecycle states and transitions (Section 8)
 
 These SHOULD evolve additively whenever possible, using `extensions` rather than reshaping core fields.
 
@@ -1735,8 +1735,8 @@ Scenario Runner MUST NOT:
 
 * introduce breaking schema changes under a MINOR bump,
 * change discovery semantics without versioning,
-* duplicate or fork Rails/engine interface contracts locally to “get unstuck,”
-* rely on “latest” pointer behaviour to avoid versioning discipline,
+* duplicate or fork Rails/engine interface contracts locally to "get unstuck,"
+* rely on "latest" pointer behaviour to avoid versioning discipline,
 * silently change lifecycle meanings or seed policy without updating this spec and contract versions.
 
 ---
@@ -1753,7 +1753,7 @@ A persisted artefact/bundle treated as read-only truth by downstream components 
 A run with no scenario overlays applied. For engine invocation this maps to `scenario_binding.mode = "none"` (per engine interface pack).
 
 **Black box (Data Engine)**
-Integration posture where the platform depends only on the engine’s published interface artefacts (invocation contract, output catalogue, gate map, locator + receipt shapes) and not on engine segment/state internals.
+Integration posture where the platform depends only on the engine's published interface artefacts (invocation contract, output catalogue, gate map, locator + receipt shapes) and not on engine segment/state internals.
 
 **Canonical identity tuple**
 The pinned set of identifiers used platform-wide:
@@ -1763,7 +1763,7 @@ The pinned set of identifiers used platform-wide:
 * RNG identity (when applicable): `seed`
 
 **Completion (control-plane)**
-Scenario Runner’s definition of “done” for run lifecycle purposes, expressed only via black-box signals (e.g., required outputs have PASS proofs), not by downstream ingestion or analytics success.
+Scenario Runner's definition of "done" for run lifecycle purposes, expressed only via black-box signals (e.g., required outputs have PASS proofs), not by downstream ingestion or analytics success.
 
 **Conflict (run replay)**
 Reuse of a `run_id` (or idempotency key) with different world identity, seed, scenario binding, or pins. Must be refused.
@@ -1775,7 +1775,7 @@ The black-box request Scenario Runner sends to the Data Engine, shaped by `engin
 A pin object that identifies a specific engine output instance for discovery (at minimum `output_id` + `path`), shaped by `engine_output_locator.schema.yaml`.
 
 **Gate / HashGate**
-A validation gate that produces PASS/FAIL proof for a target. Downstream reads are authorized only when required gates are PASS (“no PASS → no read”).
+A validation gate that produces PASS/FAIL proof for a target. Downstream reads are authorized only when required gates are PASS ("no PASS -> no read").
 
 **Gate receipt**
 The PASS/FAIL proof object for an engine gate, shaped by `gate_receipt.schema.yaml`, pinned into run discovery surfaces for downstream verification.
@@ -1784,9 +1784,9 @@ The PASS/FAIL proof object for an engine gate, shaped by `gate_receipt.schema.ya
 A correlation key used to safely retry a run planning request without creating duplicate runs (e.g., `request_id`).
 
 **Lifecycle state**
-The run’s control-plane state: PLANNED, STARTED, COMPLETED, FAILED, CANCELLED.
+The run's control-plane state: PLANNED, STARTED, COMPLETED, FAILED, CANCELLED.
 
-**No PASS → no read**
+**No PASS -> no read**
 Operating rule: a component must not read/ingest an output unless all declared required gates have PASS proofs.
 
 **Pins**
@@ -1805,7 +1805,7 @@ A read-only authority surface describing scenario knobs and parameters, shaped b
 The method by which scenario intent is communicated to the engine (none / single / set), per the engine invocation contract.
 
 **Seed policy**
-How the run’s RNG identity (`seed`) is provided or selected (caller-supplied vs runner-chosen) and how it is recorded for replayability.
+How the run's RNG identity (`seed`) is provided or selected (caller-supplied vs runner-chosen) and how it is recorded for replayability.
 
 **Status-change event**
 Optional event emitted by Scenario Runner to report lifecycle transitions. Uses Rails canonical envelope and a Scenario Runner-owned payload schema.
