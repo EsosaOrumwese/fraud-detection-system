@@ -754,17 +754,21 @@ class S0GateRunner:
             source_path,
             target_path,
         )
-        frame = (
-            pl.scan_csv(
+        if source_path.suffix.lower() == ".parquet":
+            scan = pl.scan_parquet(source_path)
+        else:
+            scan = pl.scan_csv(
                 source_path,
-                schema_overrides={"merchant_id": pl.Utf8, "mcc": pl.Utf8},
+                schema_overrides={"merchant_id": pl.Int64, "mcc": pl.Int32},
                 ignore_errors=False,
             )
-            .with_columns(
-                pl.col("merchant_id").cast(pl.Utf8),
-                pl.col("mcc").cast(pl.Utf8),
+        frame = (
+            scan.select(
+                [
+                    pl.col("merchant_id").cast(pl.Int64, strict=True),
+                    pl.col("mcc").cast(pl.Int32, strict=True),
+                ]
             )
-            .select(["merchant_id", "mcc"])
             .unique(subset=["merchant_id"], maintain_order=False)
             .sort("merchant_id")
             .collect()
@@ -790,17 +794,29 @@ class S0GateRunner:
                 "E_MCC_SOURCE_ROOT_MISSING",
                 f"reference merchant_ids directory '{base}' is missing",
             )
-        versions = sorted(
-            (path for path in base.iterdir() if path.is_dir()),
-            key=lambda p: p.name,
-        )
+        versions = [path for path in base.iterdir() if path.is_dir()]
         if not versions:
             raise err(
                 "E_MCC_SOURCE_VERSION_MISSING",
                 f"no versions found under '{base}'",
             )
-        candidate = versions[-1] / "transaction_schema_merchant_ids.csv"
-        return candidate
+        dated_versions: list[tuple[datetime, Path]] = []
+        for path in versions:
+            candidate = path.name[1:] if path.name.startswith("v") else path.name
+            try:
+                parsed = datetime.strptime(candidate, "%Y-%m-%d")
+            except ValueError:
+                continue
+            dated_versions.append((parsed, path))
+        if dated_versions:
+            dated_versions.sort(key=lambda item: item[0])
+            chosen = dated_versions[-1][1]
+        else:
+            chosen = sorted(versions, key=lambda p: p.name)[-1]
+        parquet_path = chosen / "transaction_schema_merchant_ids.parquet"
+        if parquet_path.exists():
+            return parquet_path
+        return chosen / "transaction_schema_merchant_ids.csv"
 
     def _rehome_merchant_mcc_map(
         self,

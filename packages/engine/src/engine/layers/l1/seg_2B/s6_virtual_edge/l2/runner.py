@@ -325,13 +325,15 @@ class S6VirtualEdgeRunner:
             parameter_hash=parameter_hash,
             run_id=run_id,
         )
-
-        append_trace_records(
-            trace_path,
-            events=rng_events,
-            seed=seed_int,
-            run_id=run_id,
-        )
+        rng_trace_log_path: Optional[Path] = None
+        if rng_events:
+            append_trace_records(
+                trace_path,
+                events=rng_events,
+                seed=seed_int,
+                run_id=run_id,
+            )
+            rng_trace_log_path = trace_path
 
         self._write_audit_log(
             audit_path=audit_path,
@@ -404,7 +406,7 @@ class S6VirtualEdgeRunner:
         return S6VirtualEdgeResult(
             run_id=run_id,
             rng_event_edge_path=rng_event_path,
-            rng_trace_log_path=trace_path,
+            rng_trace_log_path=rng_trace_log_path,
             rng_audit_log_path=audit_path,
             edge_log_paths=tuple(edge_log_paths),
             run_report_path=run_report_path,

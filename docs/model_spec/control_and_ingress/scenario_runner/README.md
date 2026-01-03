@@ -2,11 +2,11 @@ Below is a **paste-ready `README.md`** for:
 
 `docs/model_spec/control_and_ingress/scenario_runner/`
 
-It’s written to match your style: clear authority boundaries, “rails-first”, and minimal-but-complete.
+It's written to match your style: clear authority boundaries, "rails-first", and minimal-but-complete.
 
 ---
 
-# Scenario Runner (Control & Ingress) — Spec Folder
+# Scenario Runner (Control & Ingress) - Spec Folder
 
 This folder defines the **Scenario Runner** component in the Control & Ingress plane.
 
@@ -88,10 +88,10 @@ Scenario Runner MUST NOT redefine canonical identity, envelope, or receipt seman
 
 This folder owns the following boundary schemas:
 
-* `scenario_run_request.schema.yaml` — request/plan a run (tool-agnostic)
-* `scenario_definition.schema.yaml` — scenario knobs catalogue item (RO authority surface)
-* `run_facts_view.schema.yaml` — downstream discovery surface for “active run(s)” and pinned refs
-* `run_status_event.payload.schema.yaml` — payload-only schema for status-change events (optional)
+* `scenario_run_request.schema.yaml` - request/plan a run (tool-agnostic)
+* `scenario_definition.schema.yaml` - scenario knobs catalogue item (RO authority surface)
+* `run_facts_view.schema.yaml` - downstream discovery surface for "active run(s)" and pinned refs
+* `run_status_event.payload.schema.yaml` - payload-only schema for status-change events (optional)
 
 ---
 
@@ -125,7 +125,7 @@ scenario_runner/
 Human-readable specification that defines:
 
 * responsibilities and non-goals
-* run planning lifecycle (PLANNED → STARTED → COMPLETED/FAILED)
+* run planning lifecycle (PLANNED -> STARTED -> COMPLETED/FAILED)
 * how identity tuples are created and propagated
 * what Scenario Runner pins for downstream discovery (run facts)
 
@@ -141,11 +141,11 @@ The run discovery surface MUST be the **single** downstream mechanism for:
 * pinning run identity and authoritative references
 * recording upstream PASS references (if tracked)
 
-Downstream components MUST NOT infer runs by scanning storage paths or guessing “latest”.
+Downstream components MUST NOT infer runs by scanning storage paths or guessing "latest".
 
 ---
 
-## 5) “Don’t couple to internals” rule (Binding)
+## 5) "Don't couple to internals" rule (Binding)
 
 Scenario Runner MUST:
 
