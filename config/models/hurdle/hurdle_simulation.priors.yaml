@@ -1,5 +1,5 @@
-semver: "1.2.0"
-version: "2025-12-31"
+semver: "1.2.1"
+version: "2026-01-03"
 
 rng:
   algorithm: "philox2x64-10"

@@ -1,0 +1,110 @@
+{
+  "dataset_id": "transaction_schema_merchant_ids",
+  "version": "2026-01-03",
+  "created_at_utc": "2026-01-03T17:51:10.727371+00:00",
+  "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
+  "git_commit_hex": "5db124ae1bda13309b264d1b9a6ecefd3bc8ffb3",
+  "row_count": 10000,
+  "distinct_iso": 190,
+  "distinct_mcc": 290,
+  "channel_counts": {
+    "card_not_present": 2527,
+    "card_present": 7473
+  },
+  "channel_mix": {
+    "card_present": 0.7473,
+    "card_not_present": 0.2527
+  },
+  "iso_stats": {
+    "iso_count": 190,
+    "min_merchants_per_iso": 3,
+    "max_merchants_per_iso": 800
+  },
+  "input_artifacts": {
+    "config\\policy\\channel_policy.1A.yaml": "1b3a4df4169f9c36648f68a1a71555dac76836425c70e8f879b524ac735082c1",
+    "config\\policy\\merchant_allocation.1A.yaml": "c2844f9fd1ea0b4db9aea07c8ec7bab4bd52b38ae8c2c23b3c837b45619926dc",
+    "reference\\governance\\numeric_policy\\2025-12-31\\numeric_policy.json": "b6a1adb5e20718c7a0f49b076e24ccd195e1015c67b0e96aeadee2c04e8797c2",
+    "reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet": "1eb6d9ae47639b17fd41e7875c03247c4133a849b442c0e3ebe61a4cb2c06074",
+    "reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet": "624c9d1029e81980c7d7eb368a7ed07d67c62d8423d0c053cdcd9c58a6c80a3b",
+    "reference/layer1/iso_canonical/2025-10-09/iso_canonical.parquet": "a32fa288a06f00390bdcc4ef89c517d1f1721c557368a720a2831259300640ab",
+    "reference/industry/mcc_canonical/2025-12-31/mcc_canonical.parquet": "71cbc167bcdde7680460c17d56f46465f8130e228f7b36730b08dda0cc2a7335"
+  },
+  "output_files": {
+    "reference\\layer1\\transaction_schema_merchant_ids\\2026-01-03\\transaction_schema_merchant_ids.csv": "9f2f45133c2aa10859a09c68ab4cde8aa80b92f4c8e6486ec8cd6971ba63955a",
+    "reference\\layer1\\transaction_schema_merchant_ids\\2026-01-03\\transaction_schema_merchant_ids.parquet": "df2f940f061a09a018e133828c9b7b2e7e442a1052b5c0105ef927e2b7c696e8"
+  },
+  "gdp_version": "2025-04-15",
+  "bucket_version": "2024",
+  "iso_version": "2025-10-09",
+  "mcc_version": "2025-12-31",
+  "allocation_policy": {
+    "policy_version": "2026-01-02",
+    "total_merchants": 10000,
+    "min_per_iso": 3,
+    "max_per_iso": 800,
+    "weighting": {
+      "base_metric": "gdp_per_capita",
+      "exponent": 1.2,
+      "heavy_tail": 0.15
+    },
+    "regional_adjustments": {
+      "EU": {
+        "iso_codes": [
+          "AT",
+          "BE",
+          "BG",
+          "HR",
+          "CY",
+          "CZ",
+          "DK",
+          "EE",
+          "FI",
+          "FR",
+          "DE",
+          "GR",
+          "HU",
+          "IE",
+          "IT",
+          "LV",
+          "LT",
+          "LU",
+          "MT",
+          "NL",
+          "PL",
+          "PT",
+          "RO",
+          "SK",
+          "SI",
+          "ES",
+          "SE"
+        ],
+        "multiplier": 1.05
+      },
+      "APAC": {
+        "iso_codes": [
+          "AU",
+          "NZ",
+          "JP",
+          "SG",
+          "HK",
+          "KR"
+        ],
+        "multiplier": 1.1
+      }
+    },
+    "seed": "transaction_schema_merchant_ids.v2025-10-07"
+  },
+  "channel_policy": {
+    "policy_version": "2025-10-07",
+    "targets": {
+      "card_present": {
+        "min_ratio": 0.6,
+        "max_ratio": 0.9
+      },
+      "card_not_present": {
+        "min_ratio": 0.1,
+        "max_ratio": 0.4
+      }
+    }
+  }
+}

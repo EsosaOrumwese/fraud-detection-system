@@ -442,7 +442,7 @@ def build_dataset(args: argparse.Namespace) -> None:
     }
     (output_dir / f"{DATASET_ID}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    combined = {**artefact_digests, **policy_paths, **output_digests}
+    combined = {**policy_paths, **output_digests}
     sha_lines = [f"{digest}  {path}" for path, digest in sorted(combined.items())]
     sha_path.write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
 

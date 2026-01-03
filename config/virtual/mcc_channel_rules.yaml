@@ -1194,8 +1194,8 @@ rules:
     notes: "v1:card_present=>physical"
   - mcc: "5962"
     channel: card_not_present
-    decision: virtual
-    notes: "v1:cnp=>virtual;score=1"
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
   - mcc: "5962"
     channel: card_present
     decision: physical
@@ -1210,8 +1210,8 @@ rules:
     notes: "v1:card_present=>physical"
   - mcc: "5964"
     channel: card_not_present
-    decision: virtual
-    notes: "v1:cnp=>virtual;score=1"
+    decision: physical
+    notes: "v1:cnp=>physical;score=1"
   - mcc: "5964"
     channel: card_present
     decision: physical

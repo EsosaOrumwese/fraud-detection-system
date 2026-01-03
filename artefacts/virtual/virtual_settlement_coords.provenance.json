@@ -1,8 +1,8 @@
 {
   "dataset_id": "virtual_settlement_coords",
-  "coordinate_batch": "2025-12-31",
+  "coordinate_batch": "2026-01-03",
   "inputs": {
-    "merchant_snapshot": "reference\\layer1\\transaction_schema_merchant_ids\\2025-12-31\\transaction_schema_merchant_ids.parquet",
+    "merchant_snapshot": "reference\\layer1\\transaction_schema_merchant_ids\\2026-01-03\\transaction_schema_merchant_ids.parquet",
     "pelias_cached_sqlite": "artefacts\\geocode\\pelias_cached.sqlite"
   },
   "algorithm": {
@@ -41,16 +41,9 @@
     "max_candidates": 500
   },
   "summary": {
-    "row_count": 50000,
-    "distinct_settlements": 11189,
-    "max_share_top_settlement_by_country": {
-      "BM": 0.24798567591763654,
-      "LU": 0.16486486486486487,
-      "MC": 0.20919747520288548,
-      "CH": 0.15156794425087108,
-      "NO": 0.15678776290630975,
-      "IE": 0.14309623430962343
-    },
+    "row_count": 10000,
+    "distinct_settlements": 3503,
+    "max_share_top_settlement_by_country": {},
     "candidate_counts": {
       "AD": 16,
       "AE": 105,
