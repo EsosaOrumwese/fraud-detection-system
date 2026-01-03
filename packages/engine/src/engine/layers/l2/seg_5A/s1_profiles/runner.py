@@ -292,7 +292,10 @@ class ProfilesRunner:
         if domain.is_empty():
             return pl.DataFrame(schema=self._PROFILE_SCHEMA)
 
-        class_udf = pl.struct(["mcc", "channel"]).map_elements(lambda s: self._class_for_row(s, class_policy))
+        class_udf = pl.struct(["mcc", "channel"]).map_elements(
+            lambda s: self._class_for_row(s, class_policy),
+            return_dtype=pl.Utf8,
+        )
         df = domain.select(
             [
                 pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),

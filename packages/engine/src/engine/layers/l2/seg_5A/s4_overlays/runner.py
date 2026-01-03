@@ -528,14 +528,22 @@ class OverlaysRunner:
         log_every = 25
         log_interval_s = 120.0
         last_log = time.monotonic()
+        start_time = last_log
         for idx, tzid in enumerate(tzid_values):
             now = time.monotonic()
             if idx == 0 or (idx + 1) % log_every == 0 or now - last_log >= log_interval_s:
+                elapsed = max(now - start_time, 0.0)
+                rate = (idx + 1) / elapsed if elapsed > 0 else 0.0
+                remaining = len(tzid_values) - (idx + 1)
+                eta = remaining / rate if rate > 0 else 0.0
                 logger.info(
-                    "S4 overlays: scenario_id=%s tzid %d/%d",
+                    "S4 overlays: scenario_id=%s tzid %d/%d elapsed=%.1fs rate=%.2f/s eta=%.1fs",
                     scenario_id,
                     idx + 1,
                     len(tzid_values),
+                    elapsed,
+                    rate,
+                    eta,
                 )
                 last_log = now
             baseline_chunk = baseline.filter(pl.col("tzid") == tzid)

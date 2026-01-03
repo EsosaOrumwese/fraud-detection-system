@@ -146,7 +146,8 @@ class NetworkRunner:
         total_parties = party_df.height
         log_every = 5000
         log_interval = 120.0
-        last_log = time.monotonic()
+        start_time = time.monotonic()
+        last_log = start_time
         party_index = 0
         for party in party_df.iter_rows(named=True):
             party_index += 1
@@ -281,12 +282,19 @@ class NetworkRunner:
                 device_id += 1
             now = time.monotonic()
             if party_index % log_every == 0 or (now - last_log) >= log_interval:
+                elapsed = max(now - start_time, 0.0)
+                rate = party_index / elapsed if elapsed > 0 else 0.0
+                remaining = total_parties - party_index
+                eta = remaining / rate if rate > 0 else 0.0
                 logger.info(
-                    "6A.S4 network build progress %s/%s parties devices=%s ips=%s",
+                    "6A.S4 network build progress %s/%s parties devices=%s ips=%s elapsed=%.1fs rate=%.2f/s eta=%.1fs",
                     party_index,
                     total_parties,
                     device_id - 1,
                     ip_id - 1,
+                    elapsed,
+                    rate,
+                    eta,
                 )
                 last_log = now
 

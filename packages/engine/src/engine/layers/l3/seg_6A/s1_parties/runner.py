@@ -107,7 +107,8 @@ class PartyRunner:
         total_cells = len(cell_counts)
         log_every = 100000
         log_interval = 120.0
-        last_log = time.monotonic()
+        start_time = time.monotonic()
+        last_log = start_time
         emitted = 0
         for (country_iso, party_type, segment_id, region_id), count in cell_counts.items():
             for _ in range(count):
@@ -127,10 +128,14 @@ class PartyRunner:
                 emitted += 1
                 now = time.monotonic()
                 if emitted % log_every == 0 or (now - last_log) >= log_interval:
+                    elapsed = max(now - start_time, 0.0)
+                    rate = emitted / elapsed if elapsed > 0 else 0.0
                     logger.info(
-                        "6A.S1 party build progress rows=%s cells=%s",
+                        "6A.S1 party build progress rows=%s cells=%s elapsed=%.1fs rate=%.2f/s",
                         emitted,
                         total_cells,
+                        elapsed,
+                        rate,
                     )
                     last_log = now
 

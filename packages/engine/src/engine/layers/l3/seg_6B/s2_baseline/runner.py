@@ -81,11 +81,24 @@ class BaselineRunner:
             first_event_path: Path | None = None
             log_every = 10
             log_interval_s = 120.0
-            last_log = time.monotonic()
+            start_time = time.monotonic()
+            last_log = start_time
             for shard_idx, path in enumerate(sorted(paths), start=1):
                 now = time.monotonic()
                 if shard_idx == 1 or shard_idx % log_every == 0 or now - last_log >= log_interval_s:
-                    logger.info("6B.S2 scenario=%s shard %d/%d", scenario_id, shard_idx, len(paths))
+                    elapsed = max(now - start_time, 0.0)
+                    rate = shard_idx / elapsed if elapsed > 0 else 0.0
+                    remaining = len(paths) - shard_idx
+                    eta = remaining / rate if rate > 0 else 0.0
+                    logger.info(
+                        "6B.S2 scenario=%s shard %d/%d elapsed=%.1fs rate=%.2f/s eta=%.1fs",
+                        scenario_id,
+                        shard_idx,
+                        len(paths),
+                        elapsed,
+                        rate,
+                        eta,
+                    )
                     last_log = now
                 arrivals_df = pl.read_parquet(path)
                 if arrivals_df.is_empty():

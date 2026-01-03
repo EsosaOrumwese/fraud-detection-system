@@ -334,7 +334,8 @@ def _generate_latent_field(
     total_groups = groups.height
     log_every = 50
     log_interval = 120.0
-    last_log = time.monotonic()
+    start_time = time.monotonic()
+    last_log = start_time
     group_index = 0
     for row in groups.iter_rows(named=True):
         group_index += 1
@@ -413,12 +414,19 @@ def _generate_latent_field(
             )
         now = time.monotonic()
         if group_index % log_every == 0 or (now - last_log) >= log_interval:
+            elapsed = max(now - start_time, 0.0)
+            rate = group_index / elapsed if elapsed > 0 else 0.0
+            remaining = total_groups - group_index
+            eta = remaining / rate if rate > 0 else 0.0
             logger.info(
-                "5B.S2 latent field progress %s/%s groups (scenario_id=%s, buckets=%s)",
+                "5B.S2 latent field progress %s/%s groups (scenario_id=%s, buckets=%s, elapsed=%.1fs, rate=%.2f/s, eta=%.1fs)",
                 group_index,
                 total_groups,
                 scenario_id,
                 bucket_count,
+                elapsed,
+                rate,
+                eta,
             )
             last_log = now
 

@@ -187,7 +187,8 @@ class ArrivalRunner:
             processed_arrivals = 0
             log_every = 5000
             log_interval = 120.0
-            last_log = time.monotonic()
+            start_time = time.monotonic()
+            last_log = start_time
             for row in sorted_counts.iter_rows(named=True):
                 processed_rows += 1
                 count_n = int(row.get("count_N", 0))
@@ -411,12 +412,19 @@ class ArrivalRunner:
                 )
                 now = time.monotonic()
                 if processed_rows % log_every == 0 or (now - last_log) >= log_interval:
+                    elapsed = max(now - start_time, 0.0)
+                    rate = processed_rows / elapsed if elapsed > 0 else 0.0
+                    remaining = total_rows - processed_rows
+                    eta = remaining / rate if rate > 0 else 0.0
                     logger.info(
-                        "5B.S4 progress %s/%s rows, arrivals=%s (scenario_id=%s)",
+                        "5B.S4 progress %s/%s rows, arrivals=%s (scenario_id=%s, elapsed=%.1fs, rate=%.2f/s, eta=%.1fs)",
                         processed_rows,
                         total_rows,
                         processed_arrivals,
                         scenario.scenario_id,
+                        elapsed,
+                        rate,
+                        eta,
                     )
                     last_log = now
 

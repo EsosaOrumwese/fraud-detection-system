@@ -100,7 +100,8 @@ class InstrumentRunner:
         total_accounts = account_df.height
         log_every = 50000
         log_interval = 120.0
-        last_log = time.monotonic()
+        start_time = time.monotonic()
+        last_log = start_time
         account_index = 0
         for account in account_df.iter_rows(named=True):
             account_index += 1
@@ -132,11 +133,18 @@ class InstrumentRunner:
             instrument_id += 1
             now = time.monotonic()
             if account_index % log_every == 0 or (now - last_log) >= log_interval:
+                elapsed = max(now - start_time, 0.0)
+                rate = account_index / elapsed if elapsed > 0 else 0.0
+                remaining = total_accounts - account_index
+                eta = remaining / rate if rate > 0 else 0.0
                 logger.info(
-                    "6A.S3 instrument build progress %s/%s accounts instruments=%s",
+                    "6A.S3 instrument build progress %s/%s accounts instruments=%s elapsed=%.1fs rate=%.2f/s eta=%.1fs",
                     account_index,
                     total_accounts,
                     instrument_id - 1,
+                    elapsed,
+                    rate,
+                    eta,
                 )
                 last_log = now
 

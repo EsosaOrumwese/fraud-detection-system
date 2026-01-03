@@ -122,7 +122,8 @@ class CountRunner:
             total_rows = sorted_df.height
             log_every = 50000
             log_interval = 120.0
-            last_log = time.monotonic()
+            start_time = time.monotonic()
+            last_log = start_time
             row_index = 0
             for row in sorted_df.iter_rows(named=True):
                 row_index += 1
@@ -157,11 +158,18 @@ class CountRunner:
                 )
                 now = time.monotonic()
                 if row_index % log_every == 0 or (now - last_log) >= log_interval:
+                    elapsed = max(now - start_time, 0.0)
+                    rate = row_index / elapsed if elapsed > 0 else 0.0
+                    remaining = total_rows - row_index
+                    eta = remaining / rate if rate > 0 else 0.0
                     logger.info(
-                        "5B.S3 progress %s/%s rows (scenario_id=%s)",
+                        "5B.S3 progress %s/%s rows (scenario_id=%s, elapsed=%.1fs, rate=%.2f/s, eta=%.1fs)",
                         row_index,
                         total_rows,
                         scenario.scenario_id,
+                        elapsed,
+                        rate,
+                        eta,
                     )
                     last_log = now
 
