@@ -133,10 +133,10 @@ B.1 10–15 bullet checklist a reviewer can use to catch violations quickly
 3.2 Optional fields (allowed extensions)
 3.3 Identity pins included at request time (who supplies vs SR mints)
 3.4 World selection pins (explicit vs selection rule)
-3.5 Window semantics (what “a run covers” — dates/interval keys, timezone assumptions)
+3.5 Window fields + minimal validation (shape only); meaning pinned in SR3 (DEC-SR-004/005)
 3.6 Mode hints (if any): reuse/realise/rebuild/resume (names can be abstract; semantics only)
 3.7 Validation rules (what makes a request invalid)
-3.8 Defaulting rules (if a field is omitted, what SR does—must be recorded)
+3.8 Defaulting rules (if a field is omitted, what SR does-must be recorded)
 
 ---
 
@@ -148,9 +148,9 @@ B.1 10–15 bullet checklist a reviewer can use to catch violations quickly
 * `run_record`
 * `run_facts_view`
 * `run_status`
-  4.2 Readiness signal: `run_ready` (or equivalent) — minimum required payload
+  4.2 Readiness notification payload (`run_ready` or equivalent); READY meaning pinned in SR4
   4.3 Output invariants (identity pins present; joinability; monotonic readiness)
-  4.4 Minimal “completion evidence” concept (what SR points to when claiming READY)
+  4.4 Completion evidence pointers (refs only); verification standard pinned in SR4
 
 ---
 
@@ -158,8 +158,8 @@ B.1 10–15 bullet checklist a reviewer can use to catch violations quickly
 
 5.1 Artifact addressing model (how downstream locates SR outputs)
 5.2 Required path tokens / keys (including `fingerprint={manifest_fingerprint}` convention)
-5.3 Reference types: “by-ref” vs “embedded” (SR should prefer refs)
-5.4 Discoverability rules (how to find the “current” run, if that concept exists)
+5.3 Reference types: "by-ref" vs "embedded" (SR should prefer refs)
+5.4 Discoverability interface (locate status/facts); indexing semantics pinned in SR5
 
 ---
 
@@ -174,10 +174,10 @@ B.1 10–15 bullet checklist a reviewer can use to catch violations quickly
 
 ### 7) Idempotency & duplicate handling (Binding)
 
-7.1 Idempotency key definition (what “same request” means)
+7.1 Idempotency inputs (request_id/idempotency_key); run equivalence pinned in SR3
 7.2 Duplicate submission behavior (no duplicate side effects; return existing run refs)
 7.3 Concurrency rules (two callers racing; lease/lock concept at interface level)
-7.4 Replay semantics at interface level (what SR guarantees when asked to replay)
+7.4 Replay request surface (fields/options); replay meaning pinned in SR3
 
 ---
 
@@ -186,6 +186,9 @@ B.1 10–15 bullet checklist a reviewer can use to catch violations quickly
 8.1 Contract version fields (where version lives)
 8.2 Backward/forward compatibility rules
 8.3 Deprecation posture (how SR evolves without breaking downstream)
+8.4 Validation targeting rule (pin here; referenced elsewhere)
+    - preferred: self-describing `kind` + `contract_version`
+    - alternative: binding path -> `$defs` mapping
 
 ---
 
@@ -635,9 +638,9 @@ C.1 10–15 bullets to catch violations quickly (e.g., “READY without evidence
 
 * always join via `run_facts_view`
 * never guess artifact paths
-* never proceed without READY
+* never proceed without READY (READY meaning + gate set pinned in SR4)
   8.2 Contract between SR and Ingestion Gate (what Ingestion reads from `run_facts_view`)
-  8.3 Contract between SR and Observability (what must be logged/metric’d based on ledger)
+  8.3 Contract between SR and Observability (what must be logged/metric'd based on ledger)
 
 ---
 
