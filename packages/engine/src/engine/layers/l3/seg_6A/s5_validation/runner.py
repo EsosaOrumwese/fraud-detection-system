@@ -382,7 +382,7 @@ class PostureRunner:
         sealed_df: pl.DataFrame,
     ) -> list[int]:
         try:
-            manifest_key = self._manifest_key_for("outlet_catalogue_1A", dictionary, sealed_df)
+            manifest_key = self._manifest_key_for("outlet_catalogue", dictionary, sealed_df)
             paths = inventory.resolve_files(manifest_key=manifest_key)
         except Exception:
             return []

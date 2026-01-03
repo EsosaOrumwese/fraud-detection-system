@@ -386,12 +386,12 @@ class BaselineRunner:
             on=["demand_class", "legal_country_iso", "tzid"],
             how="inner",
         )
-        joined_count = joined.select(pl.len()).collect(streaming=True).item()
+        joined_count = joined.select(pl.len()).collect().item()
         if joined_count == 0:
             raise RuntimeError("S3_SHAPE_JOIN_FAILED: no overlap between profiles and shapes")
 
         null_shapes = (
-            joined.select(pl.col("shape_value").is_null().sum()).collect(streaming=True).item()
+            joined.select(pl.col("shape_value").is_null().sum()).collect().item()
         )
         if null_shapes > 0:
             raise RuntimeError("S3_SHAPE_JOIN_FAILED: null shape_value after join")
@@ -444,7 +444,7 @@ class BaselineRunner:
                 ]
             )
             .with_columns((pl.col("weekly_sum") - pl.col("weekly_volume_expected")).alias("delta"))
-        ).collect(streaming=True)
+        ).collect()
         violations = grouped.filter(
             pl.col("delta").abs() > (pl.col("weekly_volume_expected").abs() * tol_rel + tol_abs)
         )
@@ -460,7 +460,7 @@ class BaselineRunner:
             join_keys = ["merchant_id", "legal_country_iso", "tzid", "channel"]
             profile_lazy = profiles.select(join_keys + ["demand_class"]).lazy()
             enriched = baseline.join(profile_lazy, on=join_keys, how="left")
-            missing = enriched.select(pl.col("demand_class").is_null().sum()).collect(streaming=True).item()
+            missing = enriched.select(pl.col("demand_class").is_null().sum()).collect().item()
             if missing > 0:
                 raise RuntimeError(
                     f"S3_CLASS_BASELINE_MISSING_CLASS: {missing} baseline rows missing demand_class"

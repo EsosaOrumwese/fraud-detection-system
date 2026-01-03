@@ -75,7 +75,7 @@ class PartyRunner:
         )
 
         outlet_counts = self._load_country_counts(
-            inventory, dictionary, sealed_df, "outlet_catalogue_1A", inputs
+            inventory, dictionary, sealed_df, "outlet_catalogue", inputs
         )
         arrival_counts = self._load_country_counts(
             inventory, dictionary, sealed_df, "merchant_zone_profile_5A", inputs

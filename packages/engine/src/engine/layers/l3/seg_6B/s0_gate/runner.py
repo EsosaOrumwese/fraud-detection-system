@@ -143,7 +143,7 @@ class S0GateRunner:
         {
             "owner_layer": "1",
             "owner_segment": "1A",
-            "dataset_id": "outlet_catalogue_1A",
+            "dataset_id": "outlet_catalogue",
             "dictionary_rel_path": "contracts/dataset_dictionary/l1/seg_1A/layer1.1A.yaml",
             "role": "upstream_egress",
             "read_scope": "ROW_LEVEL",
