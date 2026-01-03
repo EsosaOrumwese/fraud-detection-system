@@ -16,6 +16,10 @@ from typing import Mapping, Optional
 from jsonschema import Draft202012Validator, ValidationError
 
 from engine.layers.l1.seg_2A.s0_gate.exceptions import S0GateError, err
+from engine.layers.l1.seg_2A.s0_gate.l0.bundle import (
+    compute_index_digest,
+    load_index,
+)
 from engine.layers.l1.seg_2A.shared.dictionary import (
     load_dictionary,
     render_dataset_path,
@@ -309,7 +313,7 @@ class ValidationRunner:
                     "root_scoped": stats.index_path_root_scoped,
                 },
             )
-            digest_hex = self._compute_bundle_digest(staging_dir, evidence_entries)
+            digest_hex = compute_index_digest(staging_dir, load_index(staging_dir))
             stats.digest_hex = digest_hex
             stats.flag_value = digest_hex
             flag_path = staging_dir / FLAG_FILENAME
@@ -574,19 +578,6 @@ class ValidationRunner:
         with path.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 hasher.update(chunk)
-        return hasher.hexdigest()
-
-    def _compute_bundle_digest(
-        self,
-        staging_dir: Path,
-        entries: list[IndexedFile],
-    ) -> str:
-        hasher = hashlib.sha256()
-        for entry in entries:
-            target = staging_dir / entry.path
-            with target.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                    hasher.update(chunk)
         return hasher.hexdigest()
 
     def _resolve_bundle_path(
