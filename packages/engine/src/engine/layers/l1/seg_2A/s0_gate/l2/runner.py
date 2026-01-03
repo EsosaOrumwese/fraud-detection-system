@@ -751,13 +751,13 @@ class S0GateRunner:
         else:
             scan = pl.scan_csv(
                 source_path,
-                schema_overrides={"merchant_id": pl.Int64, "mcc": pl.Int32},
+                schema_overrides={"merchant_id": pl.UInt64, "mcc": pl.Int32},
                 ignore_errors=False,
             )
         frame = (
             scan.select(
                 [
-                    pl.col("merchant_id").cast(pl.Int64, strict=True),
+                    pl.col("merchant_id").cast(pl.UInt64, strict=True),
                     pl.col("mcc").cast(pl.Int32, strict=True),
                 ]
             )
