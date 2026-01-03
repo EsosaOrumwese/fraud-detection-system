@@ -113,7 +113,7 @@ scenario_runner/
 │  ├─ run_facts_view.active.json
 │  └─ run_status_event.started.json          # optional
 └─ diagrams/
-   └─ scenario_runner_flow.ascii.txt
+   └─ scenario_runner_flow.ascii.md
 ```
 
 ---

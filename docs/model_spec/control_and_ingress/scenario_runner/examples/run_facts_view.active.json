@@ -1,0 +1,157 @@
+{
+  "schema_ref": "docs/model_spec/control_and_ingress/scenario_runner/contracts/run_facts_view.schema.yaml#v0.1.0",
+  "produced_at_utc": "2026-01-03T09:20:10.000000Z",
+  "rails_version": "v1.1",
+  "engine_interface_version": "1.0",
+  "active_runs": [
+    {
+      "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+      "scenario_id": "baseline",
+      "run_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "seed": 123456789,
+      "status": "STARTED",
+      "status_at_utc": "2026-01-03T09:18:30.000000Z",
+      "run_record_ref": "control/control_and_ingress/scenario_runner/run_records/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/run_id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/run_record.json",
+      "engine_request_id": "req_20260103T091500Z_baseline_0001",
+      "output_locators": [
+        {
+          "output_id": "outlet_catalogue",
+          "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+          "seed": 123456789,
+          "path": "data/layer1/1A/outlet_catalogue/seed=123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+          "schema_ref": "schemas.1A.yaml#/egress/outlet_catalogue",
+          "dictionary_ref": "docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#outlet_catalogue",
+          "produced_at_utc": "2026-01-03T09:19:59.000000Z",
+          "content_digest": {
+            "algo": "sha256",
+            "hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "notes": "Pinned egress surface (requires gate.layer1.1A.validation before read)."
+        },
+        {
+          "output_id": "site_locations",
+          "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+          "seed": 123456789,
+          "path": "data/layer1/1B/site_locations/seed=123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+          "schema_ref": "schemas.1B.yaml#/egress/site_locations",
+          "dictionary_ref": "docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#site_locations",
+          "produced_at_utc": "2026-01-03T09:20:01.000000Z",
+          "content_digest": {
+            "algo": "sha256",
+            "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        {
+          "output_id": "site_timezones",
+          "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+          "seed": 123456789,
+          "path": "data/layer1/2A/site_timezones/seed=123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+          "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
+          "dictionary_ref": "docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#site_timezones",
+          "produced_at_utc": "2026-01-03T09:20:02.000000Z",
+          "content_digest": {
+            "algo": "sha256",
+            "hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        },
+        {
+          "output_id": "zone_alloc",
+          "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+          "seed": 123456789,
+          "path": "data/layer1/3A/zone_alloc/seed=123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+          "schema_ref": "schemas.3A.yaml#/egress/zone_alloc",
+          "dictionary_ref": "docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#zone_alloc",
+          "produced_at_utc": "2026-01-03T09:20:03.000000Z",
+          "content_digest": {
+            "algo": "sha256",
+            "hex": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      ],
+      "gate_receipts": [
+        {
+          "gate_id": "gate.layer1.1A.validation",
+          "status": "PASS",
+          "scope": {
+            "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          },
+          "produced_at_utc": "2026-01-03T09:19:58.000000Z",
+          "receipt_kind": "passed_flag",
+          "digest": {
+            "algo": "sha256",
+            "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "artifacts": {
+            "validation_bundle_root": "data/layer1/1A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+            "index_path": "data/layer1/1A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/index.json",
+            "passed_flag_path": "data/layer1/1A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/_passed.flag"
+          },
+          "notes": "Portable receipt object; exact verification procedure is defined in engine_gates.map.yaml."
+        },
+        {
+          "gate_id": "gate.layer1.1B.validation",
+          "status": "PASS",
+          "scope": {
+            "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          },
+          "produced_at_utc": "2026-01-03T09:20:00.000000Z",
+          "receipt_kind": "passed_flag",
+          "digest": {
+            "algo": "sha256",
+            "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "artifacts": {
+            "validation_bundle_root": "data/layer1/1B/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+            "index_path": "data/layer1/1B/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/index.json",
+            "passed_flag_path": "data/layer1/1B/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/_passed.flag"
+          },
+          "notes": "Portable receipt object; exact verification procedure is defined in engine_gates.map.yaml."
+        },
+        {
+          "gate_id": "gate.layer1.2A.validation",
+          "status": "PASS",
+          "scope": {
+            "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          },
+          "produced_at_utc": "2026-01-03T09:20:01.000000Z",
+          "receipt_kind": "passed_flag",
+          "digest": {
+            "algo": "sha256",
+            "hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "artifacts": {
+            "validation_bundle_root": "data/layer1/2A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+            "index_path": "data/layer1/2A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/index.json",
+            "passed_flag_path": "data/layer1/2A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/_passed.flag"
+          },
+          "notes": "Portable receipt object; exact verification procedure is defined in engine_gates.map.yaml."
+        },
+        {
+          "gate_id": "gate.layer1.3A.validation",
+          "status": "PASS",
+          "scope": {
+            "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          },
+          "produced_at_utc": "2026-01-03T09:20:02.000000Z",
+          "receipt_kind": "passed_flag",
+          "digest": {
+            "algo": "sha256",
+            "hex": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "artifacts": {
+            "validation_bundle_root": "data/layer1/3A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+            "index_path": "data/layer1/3A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/index.json",
+            "passed_flag_path": "data/layer1/3A/validation/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/_passed.flag"
+          },
+          "notes": "Portable receipt object; exact verification procedure is defined in engine_gates.map.yaml."
+        }
+      ],
+      "notes": "Active baseline run; core layer-1 external surfaces pinned and PASS-authorised."
+    }
+  ]
+}

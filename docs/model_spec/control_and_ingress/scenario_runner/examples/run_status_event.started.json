@@ -1,0 +1,28 @@
+{
+  "event_id": "evt_20260103T091830Z_run_started_0001",
+  "event_type": "run.status.changed",
+  "producer_id": "scenario_runner",
+  "producer_version": "2026.01.03+build.001",
+  "occurred_at": "2026-01-03T09:18:30Z",
+  "emitted_at": "2026-01-03T09:18:30Z",
+  "ingested_at": null,
+  "schema_ref": "docs/model_spec/control_and_ingress/scenario_runner/contracts/run_status_event.payload.schema.yaml#v0.1.0",
+  "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "scenario_id": "baseline",
+  "run_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "partition_key": "run:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sequence": 1,
+  "extensions": {
+    "platform.degraded": false
+  },
+  "payload": {
+    "new_status": "STARTED",
+    "previous_status": "PLANNED",
+    "status_at_utc": "2026-01-03T09:18:30.000000Z",
+    "run_record_ref": "control/control_and_ingress/scenario_runner/run_records/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/run_id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/run_record.json",
+    "run_facts_view_ref": "control/control_and_ingress/scenario_runner/run_facts_view/produced_at_utc=2026-01-03T09:20:10.000000Z/run_facts_view.json",
+    "engine_request_id": "req_20260103T091500Z_baseline_0001",
+    "notes": "Lifecycle transition PLANNED -> STARTED."
+  }
+}
