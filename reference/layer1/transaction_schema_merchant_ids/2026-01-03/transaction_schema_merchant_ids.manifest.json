@@ -1,9 +1,9 @@
 {
   "dataset_id": "transaction_schema_merchant_ids",
   "version": "2026-01-03",
-  "created_at_utc": "2026-01-03T17:51:10.727371+00:00",
+  "created_at_utc": "2026-01-03T18:48:40.431368+00:00",
   "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
-  "git_commit_hex": "5db124ae1bda13309b264d1b9a6ecefd3bc8ffb3",
+  "git_commit_hex": "5b855312bfd72da30398eea6b2a554ee838958eb",
   "row_count": 10000,
   "distinct_iso": 190,
   "distinct_mcc": 290,
@@ -26,7 +26,7 @@
     "reference\\governance\\numeric_policy\\2025-12-31\\numeric_policy.json": "b6a1adb5e20718c7a0f49b076e24ccd195e1015c67b0e96aeadee2c04e8797c2",
     "reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet": "1eb6d9ae47639b17fd41e7875c03247c4133a849b442c0e3ebe61a4cb2c06074",
     "reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet": "624c9d1029e81980c7d7eb368a7ed07d67c62d8423d0c053cdcd9c58a6c80a3b",
-    "reference/layer1/iso_canonical/2025-10-09/iso_canonical.parquet": "a32fa288a06f00390bdcc4ef89c517d1f1721c557368a720a2831259300640ab",
+    "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet": "bfb68d1770abef6a74571cfea4d659eefb7b6c7b39e81f1b6cc483bd60bd8b5f",
     "reference/industry/mcc_canonical/2025-12-31/mcc_canonical.parquet": "71cbc167bcdde7680460c17d56f46465f8130e228f7b36730b08dda0cc2a7335"
   },
   "output_files": {
@@ -35,7 +35,7 @@
   },
   "gdp_version": "2025-04-15",
   "bucket_version": "2024",
-  "iso_version": "2025-10-09",
+  "iso_version": "2024-12-31",
   "mcc_version": "2025-12-31",
   "allocation_policy": {
     "policy_version": "2026-01-02",

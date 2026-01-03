@@ -74,7 +74,7 @@ CROSSBORDER_HYPERPARAMS ?= config/policy/crossborder_hyperparams.yaml
 CCY_SMOOTHING_PARAMS ?= config/allocation/ccy_smoothing_params.yaml
 S6_SELECTION_POLICY ?= config/policy.s6.selection.yaml
 HURDLE_EXPORT_VERSION ?= 2026-01-03
-HURDLE_EXPORT_RUN ?= 20260103T175111Z
+HURDLE_EXPORT_RUN ?= 20260103T184840Z
 HURDLE_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
 NB_DISPERSION_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/nb_dispersion_coefficients.yaml
 
