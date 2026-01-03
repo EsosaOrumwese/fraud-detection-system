@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from string import Formatter
@@ -174,10 +173,6 @@ class SealedInventory:
         merged_args = dict(self._template_args)
         if template_overrides:
             merged_args.update(template_overrides)
-        source_manifest = self._extract_manifest_override(row.get("notes"))
-        if source_manifest:
-            merged_args["manifest_fingerprint"] = source_manifest
-            merged_args["fingerprint"] = source_manifest
         base_dir = self._select_base_dir(template)
         glob_path = self._render_template(template, merged_args)
         if not glob_path:
@@ -196,16 +191,6 @@ class SealedInventory:
             if field not in args:
                 raise ValueError(f"missing template arg '{field}' for sealed input")
         return template.format(**args)
-
-    @staticmethod
-    def _extract_manifest_override(notes: object) -> str | None:
-        if not isinstance(notes, str) or not notes:
-            return None
-        match = re.search(r"source_manifest=([0-9a-f]{64})", notes)
-        if match:
-            return match.group(1)
-        return None
-
 
 def parse_partition_keys(path_template: str) -> tuple[str, ...]:
     """Infer partition keys from a path template."""

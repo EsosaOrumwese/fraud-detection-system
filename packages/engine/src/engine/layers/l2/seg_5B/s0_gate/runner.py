@@ -605,32 +605,13 @@ class S0GateRunner:
             "parameter_hash": inputs.parameter_hash,
             "seed": str(inputs.seed),
         }
-        bundle_fingerprints: dict[str, str] = {}
-        for segment, info in upstream_bundles.items():
-            bundle_path = str(info.get("bundle_path", ""))
-            match = re.search(r"fingerprint=([a-f0-9]{64})", bundle_path)
-            if match:
-                bundle_fingerprints[segment] = match.group(1)
-
         for spec in self._SEALED_UPSTREAM_DATASETS:
-            segment = spec.get("owner_segment", "")
-            segment_fingerprint = bundle_fingerprints.get(segment)
-            spec_args = (
-                {**template_args, "manifest_fingerprint": segment_fingerprint}
-                if segment_fingerprint
-                else template_args
-            )
             rows.extend(
                 self._seal_dataset(
                     base_path=inputs.base_path,
                     repo_root=repo_root,
                     spec=spec,
-                    template_args=spec_args,
-                    notes=(
-                        f"manifest_fingerprint={segment_fingerprint}"
-                        if segment_fingerprint
-                        else None
-                    ),
+                    template_args=template_args,
                 )
             )
 
