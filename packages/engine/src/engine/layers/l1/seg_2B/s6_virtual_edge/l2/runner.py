@@ -553,10 +553,14 @@ class S6VirtualEdgeRunner:
             )
         if len(matches) > 1:
             run_ids = ", ".join(item[0] for item in matches)
-            raise err(
-                "E_S6_RESUME_AMBIGUOUS",
-                f"multiple S6 run_id candidates found; pass --s6-run-id ({run_ids})",
+            chosen = self._select_latest_resume(matches, label="S6")
+            logger.warning(
+                "Multiple S6 run_id candidates found; auto-selecting newest run_id=%s (created_utc=%s). Candidates: %s",
+                chosen[0],
+                chosen[2].get("created_utc"),
+                run_ids,
             )
+            return chosen
         return matches[0]
 
     def _load_run_report(self, path: Path) -> Mapping[str, object]:
@@ -569,6 +573,41 @@ class S6VirtualEdgeRunner:
                 "E_S6_RESUME_INVALID",
                 f"run_report at '{path}' is not valid JSON",
             ) from exc
+
+    def _select_latest_resume(
+        self,
+        matches: Sequence[Tuple[str, Path, Mapping[str, object]]],
+        *,
+        label: str,
+    ) -> Tuple[str, Path, Mapping[str, object]]:
+        def parse_created(report: Mapping[str, object]) -> Optional[datetime]:
+            value = report.get("created_utc")
+            if not isinstance(value, str) or not value:
+                return None
+            raw = value.replace("Z", "+00:00")
+            try:
+                parsed = datetime.fromisoformat(raw)
+            except ValueError:
+                return None
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+
+        def key(item: Tuple[str, Path, Mapping[str, object]]) -> Tuple[int, datetime, float, str]:
+            _, path, report = item
+            created = parse_created(report)
+            try:
+                mtime = path.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            if created is None:
+                created = datetime.fromtimestamp(mtime or 0.0, tz=timezone.utc)
+                return (0, created, mtime, path.as_posix())
+            return (1, created, mtime, path.as_posix())
+
+        if not matches:
+            raise err("E_S6_RESUME_MISSING", f"no {label} run_report matches to select")
+        return max(matches, key=key)
 
     def _discover_edge_logs(
         self,
