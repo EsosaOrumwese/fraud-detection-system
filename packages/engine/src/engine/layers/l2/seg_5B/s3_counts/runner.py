@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Mapping
 
 import polars as pl
+import pyarrow as pa
 import pyarrow.parquet as pq
 import yaml
 
@@ -60,6 +61,8 @@ class CountRunner:
             },
         )
         count_policy = _load_yaml(inventory, "arrival_count_config_5B")
+        count_law = str(count_policy.get("count_law_id", "poisson"))
+        lambda_zero_eps = float(count_policy.get("lambda_zero_eps", 1e-6))
         rng_logger = RNGLogWriter(
             base_path=data_root,
             seed=inputs.seed,
@@ -95,54 +98,93 @@ class CountRunner:
             if not grouping_path.exists():
                 raise FileNotFoundError(f"s1_grouping_5B missing at {grouping_path}")
 
-            grouping_df = pl.read_parquet(grouping_path).select(
-                [
-                    pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
-                    pl.col("zone_representation").cast(pl.Utf8).alias("zone_representation"),
-                    pl.col("channel_group").cast(pl.Utf8).alias("channel_group"),
-                    pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
-                    pl.col("scenario_band").cast(pl.Utf8).alias("scenario_band"),
-                ]
-            )
-            grouping_map: dict[tuple[str, str, str], dict[str, str]] = {}
-            for row in grouping_df.iter_rows(named=True):
-                key = (
-                    str(row.get("merchant_id")),
-                    str(row.get("zone_representation")),
-                    str(row.get("channel_group")),
-                )
-                grouping_map[key] = {
-                    "demand_class": str(row.get("demand_class")),
-                    "scenario_band": str(row.get("scenario_band")),
-                }
-            class_values = {value["demand_class"] for value in grouping_map.values()}
-            if class_values:
-                class_df = pl.DataFrame({"demand_class": sorted(class_values)})
-                missing_classes = _missing_classes(class_df, count_policy)
-                if missing_classes:
-                    raise ValueError(
-                        f"arrival_count_config_5B missing class multipliers for {missing_classes}"
-                    )
-
             intensity_parquet = pq.ParquetFile(intensity_path)
             required_columns = [
                 "merchant_id",
                 "zone_representation",
-                "channel_group",
                 "bucket_index",
                 "lambda_realised",
             ]
-            optional_columns = ["demand_class", "scenario_band"]
+            optional_columns = ["channel_group", "demand_class", "scenario_band"]
             available = set(intensity_parquet.schema.names)
             missing_required = [col for col in required_columns if col not in available]
             if missing_required:
                 raise ValueError(f"s2_realised_intensity_5B missing columns: {missing_required}")
             read_columns = required_columns + [col for col in optional_columns if col in available]
+            has_channel_group = "channel_group" in read_columns
             has_demand_class = "demand_class" in read_columns
             has_scenario_band = "scenario_band" in read_columns
+            needs_grouping = count_law == "nb2" or not has_demand_class or not has_scenario_band
+
+            demand_class_map: dict[tuple[str, str, str], str] = {}
+            scenario_band_map: dict[tuple[str, str, str], str] = {}
+            if needs_grouping:
+                grouping_df = pl.read_parquet(grouping_path)
+                if "demand_class" not in grouping_df.columns:
+                    raise ValueError("s1_grouping_5B missing demand_class")
+                grouping_df = grouping_df.with_columns(
+                    pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
+                    pl.col("zone_representation").cast(pl.Utf8).alias("zone_representation"),
+                    (
+                        pl.when(
+                            pl.col("channel_group").is_null()
+                            | (pl.col("channel_group").cast(pl.Utf8).str.strip_chars() == "")
+                        )
+                        .then(pl.lit("unknown"))
+                        .otherwise(pl.col("channel_group").cast(pl.Utf8))
+                        if "channel_group" in grouping_df.columns
+                        else pl.lit("unknown")
+                    ).alias("channel_group"),
+                    pl.col("demand_class").cast(pl.Utf8).alias("demand_class"),
+                    (
+                        pl.col("scenario_band").cast(pl.Utf8).alias("scenario_band")
+                        if "scenario_band" in grouping_df.columns
+                        else pl.lit("")
+                    ),
+                ).select(
+                    [
+                        "merchant_id",
+                        "zone_representation",
+                        "channel_group",
+                        "demand_class",
+                        "scenario_band",
+                    ]
+                )
+                grouping_cols = grouping_df.select(
+                    [
+                        "merchant_id",
+                        "zone_representation",
+                        "channel_group",
+                        "demand_class",
+                        "scenario_band",
+                    ]
+                )
+                merchants = grouping_cols.get_column("merchant_id").to_list()
+                zones = grouping_cols.get_column("zone_representation").to_list()
+                channels = grouping_cols.get_column("channel_group").to_list()
+                demand_classes = grouping_cols.get_column("demand_class").to_list()
+                scenario_bands = grouping_cols.get_column("scenario_band").to_list()
+                for merchant_id, zone_rep, channel_group, demand_class, scenario_band in zip(
+                    merchants, zones, channels, demand_classes, scenario_bands
+                ):
+                    key = (merchant_id, zone_rep, channel_group)
+                    demand_class_map[key] = demand_class
+                    if scenario_band:
+                        scenario_band_map[key] = scenario_band
+
+                class_values = {value for value in demand_class_map.values() if value}
+                if class_values:
+                    class_df = pl.DataFrame({"demand_class": sorted(class_values)})
+                    missing_classes = _missing_classes(class_df, count_policy)
+                    if missing_classes:
+                        raise ValueError(
+                            f"arrival_count_config_5B missing class multipliers for {missing_classes}"
+                        )
+
             total_rows = intensity_parquet.metadata.num_rows
 
-            rows = []
+            buffers = _init_buffers()
+            buffered = 0
             writer: pq.ParquetWriter | None = None
             output_path = data_root / render_dataset_path(
                 dataset_id="s3_bucket_counts_5B",
@@ -161,67 +203,114 @@ class CountRunner:
             row_index = 0
             flush_every = 100000
             scenario_band_value = "baseline" if scenario.is_baseline else "stress"
+            mf = inputs.manifest_fingerprint
+            ph = inputs.parameter_hash
+            seed = inputs.seed
+            scenario_id = scenario.scenario_id
             for batch in intensity_parquet.iter_batches(batch_size=100000, columns=read_columns):
                 batch_df = pl.from_arrow(batch)
-                for row in batch_df.iter_rows(named=True):
+                batch_df = batch_df.with_columns(
+                    pl.col("merchant_id").cast(pl.Utf8).alias("merchant_id"),
+                    pl.col("zone_representation").cast(pl.Utf8).alias("zone_representation"),
+                    (
+                        pl.when(
+                            pl.col("channel_group").is_null()
+                            | (pl.col("channel_group").cast(pl.Utf8).str.strip_chars() == "")
+                        )
+                        .then(pl.lit("unknown"))
+                        .otherwise(pl.col("channel_group").cast(pl.Utf8))
+                        if has_channel_group
+                        else pl.lit("unknown")
+                    ).alias("channel_group"),
+                    (
+                        pl.col("demand_class").cast(pl.Utf8).alias("demand_class")
+                        if has_demand_class
+                        else pl.lit("")
+                    ),
+                    (
+                        pl.col("scenario_band").cast(pl.Utf8).alias("scenario_band")
+                        if has_scenario_band
+                        else pl.lit("")
+                    ),
+                )
+                merchant_ids = batch_df.get_column("merchant_id").to_list()
+                zone_reps = batch_df.get_column("zone_representation").to_list()
+                channel_groups = batch_df.get_column("channel_group").to_list()
+                bucket_indexes = batch_df.get_column("bucket_index").to_list()
+                lambda_values = batch_df.get_column("lambda_realised").to_list()
+                demand_classes = batch_df.get_column("demand_class").to_list()
+                scenario_bands = batch_df.get_column("scenario_band").to_list()
+
+                buf_manifest = buffers["manifest_fingerprint"]
+                buf_param = buffers["parameter_hash"]
+                buf_seed = buffers["seed"]
+                buf_scenario = buffers["scenario_id"]
+                buf_merchant = buffers["merchant_id"]
+                buf_zone = buffers["zone_representation"]
+                buf_channel = buffers["channel_group"]
+                buf_bucket = buffers["bucket_index"]
+                buf_count = buffers["count_N"]
+                buf_spec = buffers["s3_spec_version"]
+
+                for merchant_id, zone_rep, channel_group, bucket_index, lam, demand_class, scenario_band in zip(
+                    merchant_ids,
+                    zone_reps,
+                    channel_groups,
+                    bucket_indexes,
+                    lambda_values,
+                    demand_classes,
+                    scenario_bands,
+                ):
                     row_index += 1
-                    merchant_id = str(row.get("merchant_id"))
-                    zone_rep = str(row.get("zone_representation"))
-                    channel_group = row.get("channel_group")
-                    channel_group = (
-                        "unknown"
-                        if channel_group is None or str(channel_group).strip() == ""
-                        else str(channel_group)
-                    )
-                    bucket_index = int(row.get("bucket_index"))
-                    lam = float(row.get("lambda_realised") or 0.0)
-                    demand_class = str(row.get("demand_class") or "") if has_demand_class else ""
-                    scenario_band = str(row.get("scenario_band") or "") if has_scenario_band else ""
-                    if not demand_class or not scenario_band:
-                        meta = grouping_map.get((merchant_id, zone_rep, channel_group))
-                        if meta:
-                            if not demand_class:
-                                demand_class = meta["demand_class"]
-                            if not scenario_band:
-                                scenario_band = meta["scenario_band"]
-                    if not demand_class:
+                    demand_class_value = demand_class or ""
+                    scenario_band_value_row = scenario_band or ""
+                    if needs_grouping and (not demand_class_value or not scenario_band_value_row):
+                        meta_key = (merchant_id, zone_rep, channel_group)
+                        if not demand_class_value:
+                            demand_class_value = demand_class_map.get(meta_key, "")
+                        if not scenario_band_value_row:
+                            scenario_band_value_row = scenario_band_map.get(meta_key, "")
+                    if not demand_class_value:
                         raise ValueError(
                             "demand_class missing for intensity row "
                             f"(merchant_id={merchant_id}, zone_representation={zone_rep}, channel_group={channel_group})"
                         )
-                    if not scenario_band:
-                        scenario_band = scenario_band_value
-                    count = _draw_count(
-                        count_policy,
-                        rng_logger=rng_logger,
-                        manifest_fingerprint=inputs.manifest_fingerprint,
-                        parameter_hash=inputs.parameter_hash,
-                        seed=inputs.seed,
-                        scenario_id=scenario.scenario_id,
-                        merchant_id=merchant_id,
-                        zone_rep=zone_rep,
-                        bucket_index=bucket_index,
-                        lambda_value=lam,
-                        scenario_band=scenario_band,
-                        demand_class=demand_class,
-                    )
-                    rows.append(
-                        {
-                            "manifest_fingerprint": inputs.manifest_fingerprint,
-                            "parameter_hash": inputs.parameter_hash,
-                            "seed": inputs.seed,
-                            "scenario_id": scenario.scenario_id,
-                            "merchant_id": merchant_id,
-                            "zone_representation": zone_rep,
-                            "channel_group": channel_group,
-                            "bucket_index": bucket_index,
-                            "count_N": int(count),
-                            "s3_spec_version": "1.0.0",
-                        }
-                    )
-                    if len(rows) >= flush_every:
-                        writer = _write_parquet_batch(output_path, rows, writer)
-                        rows.clear()
+                    if not scenario_band_value_row:
+                        scenario_band_value_row = scenario_band_value
+                    lam_value = float(lam or 0.0)
+                    if lam_value <= lambda_zero_eps:
+                        count = 0
+                    else:
+                        count = _draw_count(
+                            count_policy,
+                            rng_logger=rng_logger,
+                            manifest_fingerprint=mf,
+                            parameter_hash=ph,
+                            seed=seed,
+                            scenario_id=scenario_id,
+                            merchant_id=merchant_id,
+                            zone_rep=zone_rep,
+                            bucket_index=int(bucket_index),
+                            lambda_value=lam_value,
+                            scenario_band=scenario_band_value_row,
+                            demand_class=demand_class_value,
+                        )
+                    buf_manifest.append(mf)
+                    buf_param.append(ph)
+                    buf_seed.append(seed)
+                    buf_scenario.append(scenario_id)
+                    buf_merchant.append(merchant_id)
+                    buf_zone.append(zone_rep)
+                    buf_channel.append(channel_group)
+                    buf_bucket.append(int(bucket_index))
+                    buf_count.append(int(count))
+                    buf_spec.append("1.0.0")
+                    buffered += 1
+
+                    if buffered >= flush_every:
+                        writer = _write_parquet_batch(output_path, buffers, writer)
+                        buffered = 0
+                        _reset_buffers(buffers)
                     now = time.monotonic()
                     if row_index % log_every == 0 or (now - last_log) >= log_interval:
                         elapsed = max(now - start_time, 0.0)
@@ -239,25 +328,13 @@ class CountRunner:
                         )
                         last_log = now
 
-            if rows:
-                writer = _write_parquet_batch(output_path, rows, writer)
-                rows.clear()
+            if buffered:
+                writer = _write_parquet_batch(output_path, buffers, writer)
+                buffered = 0
+                _reset_buffers(buffers)
             if writer is None:
-                empty_df = pl.DataFrame(
-                    schema={
-                        "manifest_fingerprint": pl.Utf8,
-                        "parameter_hash": pl.Utf8,
-                        "seed": pl.UInt64,
-                        "scenario_id": pl.Utf8,
-                        "merchant_id": pl.Utf8,
-                        "zone_representation": pl.Utf8,
-                        "channel_group": pl.Utf8,
-                        "bucket_index": pl.Int64,
-                        "count_N": pl.Int64,
-                        "s3_spec_version": pl.Utf8,
-                    }
-                )
-                empty_df.write_parquet(output_path)
+                empty_table = pa.table({name: [] for name in _S3_OUTPUT_SCHEMA.names}, schema=_S3_OUTPUT_SCHEMA)
+                pq.write_table(empty_table, output_path)
             else:
                 writer.close()
             count_path = output_path
@@ -408,14 +485,38 @@ def _write_dataset(
 
 
 def _write_parquet_batch(
-    output_path: Path, rows: list[Mapping[str, object]], writer: pq.ParquetWriter | None
+    output_path: Path, buffers: Mapping[str, list[object]], writer: pq.ParquetWriter | None
 ) -> pq.ParquetWriter:
-    df = pl.DataFrame(rows)
-    table = df.to_arrow()
+    table = pa.table(buffers, schema=_S3_OUTPUT_SCHEMA)
     if writer is None:
         writer = pq.ParquetWriter(output_path, table.schema)
     writer.write_table(table)
     return writer
+
+
+def _init_buffers() -> dict[str, list[object]]:
+    return {name: [] for name in _S3_OUTPUT_SCHEMA.names}
+
+
+def _reset_buffers(buffers: Mapping[str, list[object]]) -> None:
+    for values in buffers.values():
+        values.clear()
+
+
+_S3_OUTPUT_SCHEMA = pa.schema(
+    [
+        ("manifest_fingerprint", pa.string()),
+        ("parameter_hash", pa.string()),
+        ("seed", pa.uint64()),
+        ("scenario_id", pa.string()),
+        ("merchant_id", pa.string()),
+        ("zone_representation", pa.string()),
+        ("channel_group", pa.string()),
+        ("bucket_index", pa.int64()),
+        ("count_N", pa.int64()),
+        ("s3_spec_version", pa.string()),
+    ]
+)
 
 
 def _write_run_report(
