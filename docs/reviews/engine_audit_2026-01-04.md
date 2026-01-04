@@ -189,12 +189,18 @@ Expected inputs (spec + contracts)
 Observed implementation
 - S0 gate seals upstream bundles and layer-1 artefacts explicitly via cross-segment dictionary paths, and writes sealed_inputs plus run reports (packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py).
  - S0 enumerates required layer-1 inputs (site_timezones, tz_timetable_cache, 2B alias artifacts, 3A zone_alloc, 3B virtual artifacts) using per-segment dictionary files. This matches the spec handoff surface list but depends on upstream gates being present.
+- S1 builds merchant_zone_profile_5A plus optional merchant_class_profile_5A from merchant_class_policy_5A, demand_scale_policy_5A, transaction_schema_merchant_ids, and zone_alloc (packages/engine/src/engine/layers/l2/seg_5A/s1_profiles/runner.py).
+- S2 builds shape_grid_definition_5A + merchant_zone_shapes_5A from shape_library_5A and S1 profiles (packages/engine/src/engine/layers/l2/seg_5A/s2_shapes/runner.py).
+- S3 merges S1 profiles + S2 shapes with baseline_intensity_policy_5A to emit merchant_zone_baseline_local_5A, merchant_zone_baseline_class_5A, merchant_zone_baseline_utc_5A (packages/engine/src/engine/layers/l2/seg_5A/s3_baselines/runner.py).
+- S4 overlays apply scenario_horizon_config_5A + scenario_overlay_policy_5A + scenario_calendar_5A, emitting merchant_zone_scenario_local_5A, merchant_zone_overlay_factors_5A, merchant_zone_scenario_utc_5A; UTC projection uses fixed offsets per tzid (packages/engine/src/engine/layers/l2/seg_5A/s4_overlays/runner.py).
+- S5 validation verifies sealed_inputs digest + required outputs per scenario, writes s5_validation_report_5A, validation_bundle_index_5A, and _passed.flag (packages/engine/src/engine/layers/l2/seg_5A/s5_validation/runner.py).
 
 Handoff to 5B/6A/6B
 - Outputs include merchant_zone_* baselines and scenario overlays (manifest + parameter + scenario scoped). These feed 5B for arrivals and 6A/6B for downstream modeling.
 
 Findings
 - No run evidence in latest log due to upstream 2A failure. 5A S0 expects upstream bundles to exist for 1A-3B; any missing gate will block.
+- Spec alignment risk: S4 UTC projection uses a fixed tz offset snapshot (zoneinfo at 2025-01-01) rather than tz_timetable_cache; DST/offset changes across horizon are not represented.
 
 ---
 
@@ -206,14 +212,20 @@ Expected inputs (spec + contracts)
 - Upstream gates: validation bundles for 1A-3B and 5A; inputs include 5A scenario baselines and 2B routing surfaces, plus 2A civil time.
 
 Observed implementation
-- S0 gate and downstream states present under packages/engine/src/engine/layers/l2/seg_5B. (No runtime evidence yet in latest run.)
- - 5B S0 explicitly verifies upstream bundles for 1A-3B and 5A before sealing upstream datasets and policies (packages/engine/src/engine/layers/l2/seg_5B/s0_gate/runner.py).
+- 5B S0 explicitly verifies upstream bundles for 1A-3B and 5A before sealing upstream datasets and policies (packages/engine/src/engine/layers/l2/seg_5B/s0_gate/runner.py).
+- S1 builds scenario time grids (s1_time_grid_5B) and deterministic groupings (s1_grouping_5B) using time_grid_policy_5B, grouping_policy_5B, merchant_zone_scenario_local_5A, and virtual_classification_3B (packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py).
+- S2 realises intensities by sampling latent LGCP factors from arrival_lgcp_config_5B and applying them to merchant_zone_scenario_local_5A; emits s2_realised_intensity_5B and optional s2_latent_field_5B with RNG logs (packages/engine/src/engine/layers/l2/seg_5B/s2_intensity/runner.py).
+- S3 converts realised intensities to counts using arrival_count_config_5B, parallel row-group processing, and RNG logs; emits s3_bucket_counts_5B (packages/engine/src/engine/layers/l2/seg_5B/s3_counts/runner.py).
+- S4 synthesises arrival_events_5B and s4_arrival_summary_5B by joining counts, time grid, and routing surfaces (s1_site_weights, s4_group_weights, edge_alias_index/blob, virtual_settlement_3B) (packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py).
+- S5 validation checks bundle integrity, routing consistency, civil-time conversions, RNG accounting, and count/time window matching; writes s5_validation_report_5B, validation_bundle_index_5B, and _passed.flag (packages/engine/src/engine/layers/l2/seg_5B/s5_validation/runner.py).
 
 Handoff to 6B
 - Outputs: arrival_events_5B and validation bundle + _passed.flag are required for 6B behavior synthesis.
 
 Findings
-- Prior run failures (run_log_run-3 and earlier) indicate gate mismatches and fingerprint divergence; see cross-segment failure map.
+- Critical: 5B S4 indentation error exits the scenario loop early; the bulk of S4 processing runs once outside the loop, using only the final scenario’s inputs and emitting arrivals for at most one scenario (packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py:181-210).
+- High: 5B S2 rejects latent_model_id=none (default when missing), raising ValueError. If arrival_lgcp_config_5B omits latent_model_id, S2 hard-fails (packages/engine/src/engine/layers/l2/seg_5B/s2_intensity/runner.py:142-149).
+- Medium: S4 relies on edge_alias_blob_3B and edge_alias_index_3B for virtual routing and loads the entire blob into memory; large routing universes may stress memory and violate the “stream large artefacts” doctrine.
 
 ---
 
@@ -227,12 +239,18 @@ Expected inputs (spec + contracts)
 Observed implementation
 - 6A S0 gate explicitly verifies upstream bundles for 1A-3B and 5A/5B and seals upstream egress surfaces (packages/engine/src/engine/layers/l3/seg_6A/s0_gate/runner.py).
  - 6A S0 seals outlet_catalogue, site_locations, site_timezones, zone_alloc, virtual_* datasets as read-authorised inputs for later 6A states.
+- S1 generates s1_party_base_6A and s1_party_summary_6A from population/segmentation priors and outlet/arrival country hints (packages/engine/src/engine/layers/l3/seg_6A/s1_parties/runner.py).
+- S2 builds s2_account_base_6A and s2_party_product_holdings_6A (plus summaries), using account/product mix priors and deterministic per-party weighting (packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py).
+- S3 emits s3_instrument_base_6A, s3_account_instrument_links_6A, s3_party_instrument_holdings_6A, s3_instrument_summary_6A; current logic creates one instrument per eligible account using the first instrument type + scheme (packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py).
+- S4 builds device/ip bases + link graphs (s4_device_base_6A, s4_ip_base_6A, s4_device_links_6A, s4_ip_links_6A) and optional summaries (packages/engine/src/engine/layers/l3/seg_6A/s4_network/runner.py).
+- S5 assigns fraud roles for parties/accounts/merchants/devices/IPs and writes validation bundle artifacts + _passed.flag when outputs are present (packages/engine/src/engine/layers/l3/seg_6A/s5_validation/runner.py).
 
 Handoff to 6B
 - Outputs (party, account, instrument, device/ip graph, fraud posture, 6A validation bundle) are required for 6B behavioral synthesis.
 
 Findings
 - No runtime evidence yet; upstream 2A failure blocks earlier layers.
+- Spec alignment risk: 6A S4 does not use graph_linkage_rules_6A; only device_linkage_rules_6A (max devices per party) influences counts. Spec-specified linkage constraints are currently ignored.
 
 ---
 
@@ -246,9 +264,19 @@ Expected inputs (spec + contracts)
 Observed implementation
 - 6B S0 gate and subsequent states are implemented under packages/engine/src/engine/layers/l3/seg_6B (not exercised in latest run due to upstream failures).
  - 6B S0 verifies bundles for 1A-5B and 6A, then seals upstream datasets (arrival_events_5B, entity graph surfaces) for behavioral synthesis (packages/engine/src/engine/layers/l3/seg_6B/s0_gate/runner.py).
+- S1 attaches entities and session IDs to arrival_events_5B, emitting s1_arrival_entities_6B and s1_session_index_6B (packages/engine/src/engine/layers/l3/seg_6B/s1_arrivals/runner.py).
+- S2 generates baseline flow anchors and event streams from S1 arrivals; only amount_model_6B bounds are used (packages/engine/src/engine/layers/l3/seg_6B/s2_baseline/runner.py).
+- S3 overlays fraud on flows/events using fraud_overlay_policy_6B + fraud_campaign_catalogue_config_6B; emits campaign catalogue and fraud-enriched streams (packages/engine/src/engine/layers/l3/seg_6B/s3_fraud/runner.py).
+- S4 generates truth/bank-view labels and case timelines from S3 outputs, with detection_rate derived from bank_view_policy_6B (packages/engine/src/engine/layers/l3/seg_6B/s4_labels/runner.py).
+- S5 validates presence of all S1-S4 outputs per scenario and writes the validation bundle + _passed.flag (packages/engine/src/engine/layers/l3/seg_6B/s5_validation/runner.py).
 
 Findings
-- No runtime evidence yet; blocked by 2A/5A/5B/6A prerequisites.
+- Critical: 6B S5 uses Path.exists() on dataset paths that include part-*.parquet, so it will always report missing outputs even when files exist (packages/engine/src/engine/layers/l3/seg_6B/s5_validation/runner.py:41-95). This makes 6B validation fail deterministically.
+- Critical: 6B S4 only writes s4_case_timeline_6B if any bank_hit occurs; with zero detected fraud (or no fraud flows), required case timeline outputs are missing and S5 fails (packages/engine/src/engine/layers/l3/seg_6B/s4_labels/runner.py:74-179).
+- High: 6B S1 ignores attachment_policy_6B and sessionisation_policy_6B, using a fixed arrival_seq//10 session rule and uniform attachment across entities; this diverges from the policy-driven contracts and can invalidate expected downstream distributions (packages/engine/src/engine/layers/l3/seg_6B/s1_arrivals/runner.py).
+- High: 6B S2 ignores flow_shape_policy_6B, timing_policy_6B, flow_rng_policy_6B, and rng_profile_layer3; only amount_model_6B is used (packages/engine/src/engine/layers/l3/seg_6B/s2_baseline/runner.py).
+- High: 6B S3 ignores fraud_rng_policy_6B and most fraud_campaign_catalogue_config_6B fields; fraud overlays are a single-rate toggle, not the specified campaign model (packages/engine/src/engine/layers/l3/seg_6B/s3_fraud/runner.py).
+- Medium: 6B S0 seals arrival_events_5B with read_scope=METADATA_ONLY even though S1 reads row-level arrivals; this conflicts with the read-scope contract and audit expectations (packages/engine/src/engine/layers/l3/seg_6B/s0_gate/runner.py).
 
 ---
 
@@ -258,6 +286,8 @@ Cross-segment failure map (run logs + implementation blockers)
 - 1A S2/S4 validation artifact publishing skips because validation bundle path resolves to a non-existent directory; likely dictionary/path mismatch.
 - 3A S3 empty-escalation branch throws UnboundLocalError (rng_trace_path referenced before assignment), so runs with zero escalations fail even if upstream data is valid.
 - 2B S7 evidence validation will always fail when selection logs are provided because site_id hashing in S5 and S7 is inconsistent.
+- 5B S4 indentation bug runs S4 outside the scenario loop, producing outputs only for the final scenario (if any).
+- 6B S5 uses glob paths with Path.exists(), so required datasets that are partitioned as part-*.parquet are always flagged missing.
 
 Prioritized fix list (no code changes in this audit)
 - Fix 2A S0 dictionary mismatch: either add validation_bundle_1A to 2A dictionary or remove 1A bundle resolution from 2A S0 (align with 2A spec).
@@ -269,3 +299,7 @@ Prioritized fix list (no code changes in this audit)
 - Decide whether 2B S0 should enforce optional civil-time assets based on pin_civil_time; align implementation with dictionary optionality.
 - Remove or tighten 2B S5 merchant_mcc_map fallback to the 2B manifest so 2A handoff violations surface explicitly.
 - Stabilize 3A S5 routing_universe_hash serialization to avoid pandas-version drift (e.g., use a fixed-format writer).
+- Fix 5B S4 indentation to ensure scenario processing loop wraps the arrival synthesis logic (s4_arrivals runner).
+- Require arrival_lgcp_config_5B to set latent_model_id explicitly (or handle "none" without raising) to avoid S2 hard-failures.
+- Update 6B S5 to handle part-*.parquet outputs (glob/scan) rather than Path.exists(), or write non-wildcard outputs.
+- Ensure 6B S4 writes empty s4_case_timeline_6B outputs when no cases exist so validation can pass.
