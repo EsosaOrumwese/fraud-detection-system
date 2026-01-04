@@ -36,6 +36,14 @@ Findings
 - Validation bundle path mismatch suspected: run log shows S2/S4 attempting to publish to runs/local_full_run-3/validation_bundle/manifest_fingerprint=... and skipping because the directory is missing. The dictionary path for validation_bundle should be data/layer1/1A/validation/fingerprint=... (contracts/dataset_dictionary/l1/seg_1A/layer1.1A.yaml). Either a stale dictionary or divergent path resolution is used at runtime, which prevents validation artifacts from being added to the bundle.
 - Run log warnings indicate missing legal tender mapping (S5) and missing settlement currency for many merchants (S6), then S8 defaulting to home-only allocation for many merchants. The spec expects full coverage or explicit gate failures for missing coverage; current implementation appears to degrade without abort. Needs an explicit spec-compliance decision: should missing coverage be fatal or allowed with warnings.
 
+Planned fixes (1A)
+- Strict validation bundle resolution: S2/S3/S4 publishers should resolve only `validation_bundle_1A` from the dictionary and hard-fail if missing (remove fallback paths and "skip" behavior). Files: `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/l3/bundle.py`, `packages/engine/src/engine/layers/l1/seg_1A/s3_crossborder_universe/l3/bundle.py`, `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp_target/l3/bundle.py`.
+- Guarantee bundle presence: S0 already materializes the bundle; keep this as the single source of truth and fail any downstream publish if the bundle is absent (fail fast).
+- Merchant currency always-on: in S5 preflight set `allow_partial=False` and require `iso_legal_tender_2024` coverage; remove the guard that skips merchant_currency when legal tender is missing, so any missing ISO or currency coverage triggers a hard fail. File: `packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py`.
+- Remove S6 fallback: do not derive merchant_currency in S6; treat missing `merchant_currency` as a hard error so the pipeline stops instead of silently degrading. File: `packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_selection/loader.py`.
+- Wire reference inputs at run time: add Makefile preflight checks for `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet`, `reference/network/settlement_shares/2024Q4/settlement_shares.parquet`, and `reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet` so Segment 1A fails early if inputs are missing.
+- Optional: resolve `iso_legal_tender_2024` via dictionary path in the 1A orchestrator to keep S5 input resolution contract-driven (instead of relying on defaults). File: `packages/engine/src/engine/scenario_runner/l1_seg_1A.py`.
+
 ---
 
 Segment 1B
@@ -58,6 +66,10 @@ Handoff to 2A (and other downstreams)
 Findings
 - S7 run summary path is written to dataset_path.parent/s7_run_summary.json. dataset_path is the seed/fingerprint/parameter_hash partition, so parent drops parameter_hash. Dictionary expects s7_run_summary inside the partition (contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml). This is a path/partition mismatch.
 - S8 run summary path is written to dataset_path.parent/s8_run_summary.json, which drops fingerprint (seed-only path). Dictionary expects s8_run_summary inside the seed+fingerprint partition. This mismatch is visible in run log (report path missing fingerprint).
+
+Planned fixes (1B)
+- Resolve `s7_run_summary` via the dictionary (or `dataset_path / "s7_run_summary.json"`) so the run summary lives inside the seed/fingerprint/parameter_hash partition. Update both the S7 materialiser and validator to use this resolved path: `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/l2/materialise.py`, `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/l3/validator.py`.
+- Resolve `s8_run_summary` via the dictionary (or `dataset_path / "s8_run_summary.json"`) so the run summary lives inside the seed/fingerprint partition. Update both the S8 materialiser and validator to use this resolved path: `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/l2/materialise.py`, `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/l3/validator.py`.
 
 ---
 
@@ -88,6 +100,12 @@ Findings
 - Critical: S0GateError frozen dataclass causes FrozenInstanceError on exception handling, preventing clean failure reporting.
 - High: S0 depends on reference/layer1/transaction_schema_merchant_ids being present; missing reference root or version folder will hard-fail gate even before upstream bundle checks.
 - Medium: S2 proceeds when MCC overrides exist but merchant_mcc_map is missing, silently skipping overrides. If the spec expects MCC overrides to be applied when declared, this is a compliance gap.
+
+Planned fixes (2A)
+- Add `validation_bundle_1A` (and its `_passed.flag` if required by spec) to the Segment 2A runtime dictionary so S0 can resolve 1A’s parameter_hash_resolved.json via contract paths. Update S0 to resolve these via dictionary only and fail fast if missing: `contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml`, `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/l2/runner.py`.
+- Replace the frozen S0GateError with a normal Exception class (or non-frozen dataclass) so error handling preserves tracebacks: `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/exceptions.py`.
+- Add a dictionary entry for `transaction_schema_merchant_ids` (or reuse the 1A reference ID) and resolve its path via the dictionary instead of scanning “latest” reference folders; add Makefile preflight checks so missing reference assets fail early with a clear message: `contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml`, `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/l2/runner.py`, `makefile`.
+- Make MCC overrides strict: if tz_overrides includes MCC-level rules but merchant_mcc_map is absent, fail the state instead of warning and skipping overrides (or add an explicit allow_missing flag defaulting to false): `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/l2/runner.py`.
 
 ---
 
