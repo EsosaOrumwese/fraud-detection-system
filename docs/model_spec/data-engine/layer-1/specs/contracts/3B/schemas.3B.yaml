@@ -249,6 +249,7 @@ plan:
       - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: is_virtual, type: boolean, nullable: false }
+      - { name: virtual_mode, type: string, enum: [NON_VIRTUAL, HYBRID, VIRTUAL_ONLY], nullable: false }
       - { name: decision_reason, type: string, enum: [RULE_MATCH, OVERRIDE_ACCEPT, OVERRIDE_DENY, DEFAULT_GUARD], nullable: false }
       - { name: rule_id, type: string, nullable: true }
       - { name: rule_version, type: string, nullable: true }

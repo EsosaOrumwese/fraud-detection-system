@@ -314,11 +314,20 @@ class VirtualsRunner:
             channel = str(merchant["channel"])
             rule_id: str | None = None
             is_virtual = False
+            virtual_mode = "NON_VIRTUAL"
             reason = "DEFAULT_GUARD"
             for idx, rule in enumerate(rules):
                 if str(rule.get("mcc")) == mcc and str(rule.get("channel")) == channel:
                     decision = str(rule.get("decision", "")).lower()
-                    is_virtual = decision == "virtual"
+                    if decision == "virtual":
+                        is_virtual = True
+                        virtual_mode = "VIRTUAL_ONLY"
+                    elif decision == "hybrid":
+                        is_virtual = True
+                        virtual_mode = "HYBRID"
+                    else:
+                        is_virtual = False
+                        virtual_mode = "NON_VIRTUAL"
                     rule_id = f"rule_{idx}"
                     reason = "RULE_MATCH"
                     break
@@ -330,6 +339,7 @@ class VirtualsRunner:
                     "fingerprint": manifest_fingerprint,
                     "merchant_id": m_id,
                     "is_virtual": is_virtual,
+                    "virtual_mode": virtual_mode,
                     "decision_reason": reason,
                     "rule_id": rule_id,
                     "rule_version": policy_version if rule_id else None,
@@ -355,6 +365,7 @@ class VirtualsRunner:
             pl.col("source_policy_id").cast(pl.Utf8),
             pl.col("source_policy_version").cast(pl.Utf8),
             pl.col("classification_digest").cast(pl.Utf8),
+            pl.col("virtual_mode").cast(pl.Utf8),
             pl.col("notes").cast(pl.Utf8),
         )
 
