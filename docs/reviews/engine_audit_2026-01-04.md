@@ -67,10 +67,6 @@ Findings
 - S7 run summary path is written to dataset_path.parent/s7_run_summary.json. dataset_path is the seed/fingerprint/parameter_hash partition, so parent drops parameter_hash. Dictionary expects s7_run_summary inside the partition (contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml). This is a path/partition mismatch.
 - S8 run summary path is written to dataset_path.parent/s8_run_summary.json, which drops fingerprint (seed-only path). Dictionary expects s8_run_summary inside the seed+fingerprint partition. This mismatch is visible in run log (report path missing fingerprint).
 
-Planned fixes (1B)
-- Resolve `s7_run_summary` via the dictionary (or `dataset_path / "s7_run_summary.json"`) so the run summary lives inside the seed/fingerprint/parameter_hash partition. Update both the S7 materialiser and validator to use this resolved path: `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/l2/materialise.py`, `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/l3/validator.py`.
-- Resolve `s8_run_summary` via the dictionary (or `dataset_path / "s8_run_summary.json"`) so the run summary lives inside the seed/fingerprint partition. Update both the S8 materialiser and validator to use this resolved path: `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/l2/materialise.py`, `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/l3/validator.py`.
-
 ---
 
 Segment 2A
@@ -100,12 +96,6 @@ Findings
 - Critical: S0GateError frozen dataclass causes FrozenInstanceError on exception handling, preventing clean failure reporting.
 - High: S0 depends on reference/layer1/transaction_schema_merchant_ids being present; missing reference root or version folder will hard-fail gate even before upstream bundle checks.
 - Medium: S2 proceeds when MCC overrides exist but merchant_mcc_map is missing, silently skipping overrides. If the spec expects MCC overrides to be applied when declared, this is a compliance gap.
-
-Planned fixes (2A)
-- Add `validation_bundle_1A` (and its `_passed.flag` if required by spec) to the Segment 2A runtime dictionary so S0 can resolve 1A’s parameter_hash_resolved.json via contract paths. Update S0 to resolve these via dictionary only and fail fast if missing: `contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml`, `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/l2/runner.py`.
-- Replace the frozen S0GateError with a normal Exception class (or non-frozen dataclass) so error handling preserves tracebacks: `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/exceptions.py`.
-- Add a dictionary entry for `transaction_schema_merchant_ids` (or reuse the 1A reference ID) and resolve its path via the dictionary instead of scanning “latest” reference folders; add Makefile preflight checks so missing reference assets fail early with a clear message: `contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml`, `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/l2/runner.py`, `makefile`.
-- Make MCC overrides strict: if tz_overrides includes MCC-level rules but merchant_mcc_map is absent, fail the state instead of warning and skipping overrides (or add an explicit allow_missing flag defaulting to false): `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/l2/runner.py`.
 
 ---
 
@@ -141,13 +131,6 @@ Findings
 - Medium: S5 falls back to merchant_mcc_map under the 2B manifest if the 2A manifest path is missing; this can mask upstream mismatches and violates a strict 2A handoff contract.
 - Low: S3 run report/input summary renders site_timezones paths with manifest_fingerprint instead of seg2a_manifest_fingerprint; if the manifests diverge, run reports misrepresent the actual input partition.
 
-Planned fixes (2B)
-- Enforce 2A gate when civil-time assets are sealed: require validation_bundle_2A + _passed.flag if site_timezones/tz_timetable_cache are present (No PASS -> No Read). Fail fast if 2A assets are referenced without a PASS bundle: `packages/engine/src/engine/layers/l1/seg_2B/s0_gate/l2/runner.py`.
-- Align site_id semantics between routing and audit: either change S5 to emit the same site_id encoding used by S7 audit, or update S7 audit to use the hashed site_id from S5 logs. Pick one contract and enforce it in both states: `packages/engine/src/engine/layers/l1/seg_2B/s5_router/l2/runner.py`, `packages/engine/src/engine/layers/l1/seg_2B/s7_audit/l2/runner.py`.
-- Respect optional civil-time assets: wire pin_civil_time/allow_missing to dictionary optionality so 2B can run without 2A assets when intended, but becomes strict when pin_civil_time is enabled: `packages/engine/src/engine/layers/l1/seg_2B/s0_gate/l2/runner.py`, `contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml`.
-- Remove merchant_mcc_map fallback to the 2B manifest when a seg2a_manifest_fingerprint is provided; treat missing 2A merchant_mcc_map as a hard failure to preserve handoff integrity: `packages/engine/src/engine/layers/l1/seg_2B/s5_router/l2/runner.py`.
-- Fix run report/input summaries to reflect seg2a_manifest_fingerprint when civil-time inputs are pinned, so run receipts accurately document input partitions: `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/l2/runner.py` (and any other 2B run reports referencing site_timezones).
-
 ---
 
 Segment 3A
@@ -177,10 +160,6 @@ Findings
 - Critical: S3 empty-escalation branch references rng_trace_path before it is assigned; when no escalations exist, S3 raises UnboundLocalError instead of emitting empty outputs.
 - Medium: S5 routing_universe_hash hashes pandas.to_csv bytes of s3_zone_shares; pandas formatting differences across versions can change the hash for identical data, risking non-deterministic manifests.
 
-Planned fixes (3A)
-- Fix S3 empty-escalation handling: initialize rng_trace_path before branching and emit empty s3_zone_shares + rng logs with explicit zero counts so the state is deterministic and does not crash when no escalations exist: `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/l2/runner.py`.
-- Stabilize routing_universe_hash: replace pandas.to_csv hashing with a canonical, version-stable serialization (e.g., sorted columns/rows + fixed float formatting or Arrow IPC stream) so identical data yields identical hashes across pandas versions: `packages/engine/src/engine/layers/l1/seg_3A/s5_zone_alloc/l2/runner.py`.
-
 ---
 
 Segment 3B
@@ -205,10 +184,6 @@ Findings
 - Dependent on 2A and 3A gates; current failure in 2A prevents 3B from running in full pipeline.
 - Compliance risk: S1 fills missing settlement coordinates with deterministic pseudo-lat/lon instead of failing; spec describes evidence-backed settlement coords, so this is a placeholder behavior that may violate strict governance expectations.
 - Placeholder scope: S2/S3 emit synthetic single-edge catalogues and JSON alias blobs; these outputs will not match full routing realism expectations until replaced with the intended edge-generation logic.
-
-Planned fixes (3B)
-- Make settlement coordinates strict: remove pseudo-coordinate fallback and fail S1 when settlement coords are missing, or gate the fallback behind an explicit dev-only flag defaulting to false: `packages/engine/src/engine/layers/l1/seg_3B/s1_virtuals/l2/runner.py`.
-- Replace placeholder edge generation: swap the single-edge synthetic catalog/alias outputs for the spec-defined edge construction logic, and ensure edge_alias_* formats match downstream readers: `packages/engine/src/engine/layers/l1/seg_3B/s2_edges/l2/runner.py`, `packages/engine/src/engine/layers/l1/seg_3B/s3_alias/l2/runner.py`.
 
 ---
 
@@ -235,10 +210,6 @@ Findings
 - No run evidence in latest log due to upstream 2A failure. 5A S0 expects upstream bundles to exist for 1A-3B; any missing gate will block.
 - Spec alignment risk: S4 UTC projection uses a fixed tz offset snapshot (zoneinfo at 2025-01-01) rather than tz_timetable_cache; DST/offset changes across horizon are not represented.
 
-Planned fixes (5A)
-- Use tz_timetable_cache (and site_timezones) to compute UTC projection across the full scenario horizon, applying correct DST/offset changes per timestamp. If tz_timetable_cache is absent, fail fast unless an explicit allow_fixed_offsets flag is set for dev-only runs: `packages/engine/src/engine/layers/l2/seg_5A/s4_overlays/runner.py`.
-- Add a preflight gate in S0 to validate that all upstream validation bundles referenced by sealed inputs are present and PASS before continuing, so failure modes are explicit and early: `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py`.
-
 ---
 
 Segment 5B
@@ -263,11 +234,6 @@ Findings
 - Critical: 5B S4 indentation error exits the scenario loop early; the bulk of S4 processing runs once outside the loop, using only the final scenario's inputs and emitting arrivals for at most one scenario (packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py:181-210).
 - High: 5B S2 rejects latent_model_id=none (default when missing), raising ValueError. If arrival_lgcp_config_5B omits latent_model_id, S2 hard-fails (packages/engine/src/engine/layers/l2/seg_5B/s2_intensity/runner.py:142-149).
 - Medium: S4 relies on edge_alias_blob_3B and edge_alias_index_3B for virtual routing and loads the entire blob into memory; large routing universes may stress memory and violate the "stream large artefacts" doctrine.
-
-Planned fixes (5B)
-- Fix the S4 scenario loop indentation so per-scenario arrivals are generated inside the loop, and guard outputs with explicit scenario identifiers in paths/receipts to prevent cross-scenario overwrites: `packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py`.
-- Allow `latent_model_id=none` as a valid mode (no latent field) or enforce a required config with a clear error message and schema validation before running. Prefer defaulting to `none` with deterministic zero-field behavior: `packages/engine/src/engine/layers/l2/seg_5B/s2_intensity/runner.py`, `contracts/dataset_dictionary/l2/seg_5B/layer2.5B.yaml`.
-- Stream or memory-map edge_alias_blob_3B instead of loading it wholesale; add chunked lookup or on-demand slicing to keep memory bounded for large routing universes: `packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py`.
 
 ---
 
@@ -294,10 +260,6 @@ Findings
 - No runtime evidence yet; upstream 2A failure blocks earlier layers.
 - Spec alignment risk: 6A S4 does not use graph_linkage_rules_6A; only device_linkage_rules_6A (max devices per party) influences counts. Spec-specified linkage constraints are currently ignored.
 
-Planned fixes (6A)
-- Implement graph_linkage_rules_6A in S4 to enforce the spec-defined linkage constraints (device/IP link ceilings, party/account link ratios, and any exclusion rules). Fail fast if policy is missing or schema-invalid: `packages/engine/src/engine/layers/l3/seg_6A/s4_network/runner.py`.
-- Add explicit policy sealing for graph_linkage_rules_6A in S0 so downstream states only run when the policy is present and validated: `packages/engine/src/engine/layers/l3/seg_6A/s0_gate/runner.py`, `contracts/dataset_dictionary/l3/seg_6A/layer3.6A.yaml`.
-
 ---
 
 Segment 6B
@@ -323,14 +285,6 @@ Findings
 - High: 6B S2 ignores flow_shape_policy_6B, timing_policy_6B, flow_rng_policy_6B, and rng_profile_layer3; only amount_model_6B is used (packages/engine/src/engine/layers/l3/seg_6B/s2_baseline/runner.py).
 - High: 6B S3 ignores fraud_rng_policy_6B and most fraud_campaign_catalogue_config_6B fields; fraud overlays are a single-rate toggle, not the specified campaign model (packages/engine/src/engine/layers/l3/seg_6B/s3_fraud/runner.py).
 - Medium: 6B S0 seals arrival_events_5B with read_scope=METADATA_ONLY even though S1 reads row-level arrivals; this conflicts with the read-scope contract and audit expectations (packages/engine/src/engine/layers/l3/seg_6B/s0_gate/runner.py).
-
-Planned fixes (6B)
-- Fix S5 validation to handle partitioned outputs: use glob/scan semantics (or resolve partition directories) instead of Path.exists() on paths containing part-*.parquet. Validate file presence deterministically and report missing partitions precisely: `packages/engine/src/engine/layers/l3/seg_6B/s5_validation/runner.py`.
-- Ensure S4 always emits s4_case_timeline_6B (even empty) and any required label outputs so validation can pass when no fraud is detected: `packages/engine/src/engine/layers/l3/seg_6B/s4_labels/runner.py`.
-- Implement attachment_policy_6B and sessionisation_policy_6B in S1, removing the fixed arrival_seq//10 rule and uniform attachment fallback; fail fast if policies are missing or schema-invalid: `packages/engine/src/engine/layers/l3/seg_6B/s1_arrivals/runner.py`.
-- Implement flow_shape_policy_6B, timing_policy_6B, flow_rng_policy_6B, and rng_profile_layer3 in S2 to restore spec-driven baseline behavior (or gate with an explicit placeholder flag): `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline/runner.py`.
-- Implement fraud_rng_policy_6B and the full fraud_campaign_catalogue_config_6B model in S3, or gate the placeholder overlay behind a dev-only flag defaulting to false: `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud/runner.py`.
-- Update S0 sealing to grant READ scope for arrival_events_5B when S1 requires row-level reads; align read_scope with actual access patterns: `packages/engine/src/engine/layers/l3/seg_6B/s0_gate/runner.py`.
 
 ---
 
