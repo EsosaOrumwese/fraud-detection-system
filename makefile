@@ -78,6 +78,86 @@ HURDLE_EXPORT_RUN ?= 20260103T184840Z
 HURDLE_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
 NB_DISPERSION_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/nb_dispersion_coefficients.yaml
 
+# Segment 2B policies
+ALIAS_LAYOUT_POLICY_V1 ?= contracts/policy/2B/alias_layout_policy_v1.json
+DAY_EFFECT_POLICY_V1 ?= contracts/policy/2B/day_effect_policy_v1.json
+ROUTE_RNG_POLICY_V1 ?= contracts/policy/2B/route_rng_policy_v1.json
+VIRTUAL_EDGE_POLICY_V1 ?= contracts/policy/2B/virtual_edge_policy_v1.json
+VIRTUAL_RULES_POLICY_V1 ?= contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
+
+# Segment 3A policies
+ZONE_MIXTURE_POLICY ?= config/policy/3A/zone_mixture_policy.yaml
+COUNTRY_ZONE_ALPHAS ?= config/allocation/country_zone_alphas.yaml
+ZONE_FLOOR_POLICY ?= config/allocation/zone_floor_policy.yaml
+
+# Segment 3B policies
+MCC_CHANNEL_RULES ?= config/virtual/mcc_channel_rules.yaml
+CDN_COUNTRY_WEIGHTS ?= config/virtual/cdn_country_weights.yaml
+VIRTUAL_VALIDATION_POLICY ?= config/virtual/virtual_validation.yml
+
+# Segment 5A policies
+BASELINE_INTENSITY_POLICY_5A ?= config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml
+DEMAND_SCALE_POLICY_5A ?= config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml
+MERCHANT_CLASS_POLICY_5A ?= config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml
+SHAPE_LIBRARY_5A ?= config/layer2/5A/policy/shape_library_5A.v1.yaml
+SCENARIO_HORIZON_CONFIG_5A ?= config/layer2/5A/scenario/scenario_horizon_config_5A.v1.yaml
+SCENARIO_OVERLAY_POLICY_5A ?= config/layer2/5A/scenario/scenario_overlay_policy_5A.v1.yaml
+
+# Segment 5B policies
+ARRIVAL_COUNT_CONFIG_5B ?= config/layer2/5B/arrival_count_config_5B.yaml
+ARRIVAL_LGCP_CONFIG_5B ?= config/layer2/5B/arrival_lgcp_config_5B.yaml
+ARRIVAL_RNG_POLICY_5B ?= config/layer2/5B/arrival_rng_policy_5B.yaml
+ARRIVAL_ROUTING_POLICY_5B ?= config/layer2/5B/arrival_routing_policy_5B.yaml
+ARRIVAL_TIME_PLACEMENT_POLICY_5B ?= config/layer2/5B/arrival_time_placement_policy_5B.yaml
+GROUPING_POLICY_5B ?= config/layer2/5B/grouping_policy_5B.yaml
+TIME_GRID_POLICY_5B ?= config/layer2/5B/time_grid_policy_5B.yaml
+VALIDATION_POLICY_5B ?= config/layer2/5B/validation_policy_5B.yaml
+
+# Segment 6A policies/priors/taxonomies
+DEVICE_LINKAGE_RULES_6A ?= config/layer3/6A/policy/device_linkage_rules_6A.v1.yaml
+GRAPH_LINKAGE_RULES_6A ?= config/layer3/6A/policy/graph_linkage_rules_6A.v1.yaml
+VALIDATION_POLICY_6A ?= config/layer3/6A/policy/validation_policy_6A.v1.yaml
+ACCOUNT_TAXONOMY_6A ?= config/layer3/6A/taxonomy/account_taxonomy_6A.v1.yaml
+DEVICE_TAXONOMY_6A ?= config/layer3/6A/taxonomy/device_taxonomy_6A.v1.yaml
+FRAUD_ROLE_TAXONOMY_6A ?= config/layer3/6A/taxonomy/fraud_role_taxonomy_6A.v1.yaml
+INSTRUMENT_TAXONOMY_6A ?= config/layer3/6A/taxonomy/instrument_taxonomy_6A.v1.yaml
+IP_TAXONOMY_6A ?= config/layer3/6A/taxonomy/ip_taxonomy_6A.v1.yaml
+PARTY_TAXONOMY_6A ?= config/layer3/6A/taxonomy/party_taxonomy_6A.v1.yaml
+ACCOUNT_PER_PARTY_PRIORS_6A ?= config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml
+ACCOUNT_ROLE_PRIORS_6A ?= config/layer3/6A/priors/account_role_priors_6A.v1.yaml
+DEVICE_COUNT_PRIORS_6A ?= config/layer3/6A/priors/device_count_priors_6A.v1.yaml
+DEVICE_ROLE_PRIORS_6A ?= config/layer3/6A/priors/device_role_priors_6A.v1.yaml
+INSTRUMENT_MIX_PRIORS_6A ?= config/layer3/6A/priors/instrument_mix_priors_6A.v1.yaml
+INSTRUMENT_PER_ACCOUNT_PRIORS_6A ?= config/layer3/6A/priors/instrument_per_account_priors_6A.v1.yaml
+IP_COUNT_PRIORS_6A ?= config/layer3/6A/priors/ip_count_priors_6A.v1.yaml
+IP_ROLE_PRIORS_6A ?= config/layer3/6A/priors/ip_role_priors_6A.v1.yaml
+MERCHANT_ROLE_PRIORS_6A ?= config/layer3/6A/priors/merchant_role_priors_6A.v1.yaml
+PARTY_ROLE_PRIORS_6A ?= config/layer3/6A/priors/party_role_priors_6A.v1.yaml
+POPULATION_PRIORS_6A ?= config/layer3/6A/priors/population_priors_6A.v1.yaml
+PRODUCT_MIX_PRIORS_6A ?= config/layer3/6A/priors/product_mix_priors_6A.v1.yaml
+SEGMENTATION_PRIORS_6A ?= config/layer3/6A/priors/segmentation_priors_6A.v1.yaml
+
+# Segment 6B policies
+AMOUNT_MODEL_6B ?= config/layer3/6B/amount_model_6B.yaml
+ATTACHMENT_POLICY_6B ?= config/layer3/6B/attachment_policy_6B.yaml
+BANK_VIEW_POLICY_6B ?= config/layer3/6B/bank_view_policy_6B.yaml
+BEHAVIOUR_CONFIG_6B ?= config/layer3/6B/behaviour_config_6B.yaml
+BEHAVIOUR_PRIOR_PACK_6B ?= config/layer3/6B/behaviour_prior_pack_6B.yaml
+CASE_POLICY_6B ?= config/layer3/6B/case_policy_6B.yaml
+DELAY_MODELS_6B ?= config/layer3/6B/delay_models_6B.yaml
+FLOW_RNG_POLICY_6B ?= config/layer3/6B/flow_rng_policy_6B.yaml
+FLOW_SHAPE_POLICY_6B ?= config/layer3/6B/flow_shape_policy_6B.yaml
+FRAUD_CAMPAIGN_CATALOGUE_6B ?= config/layer3/6B/fraud_campaign_catalogue_config_6B.yaml
+FRAUD_OVERLAY_POLICY_6B ?= config/layer3/6B/fraud_overlay_policy_6B.yaml
+FRAUD_RNG_POLICY_6B ?= config/layer3/6B/fraud_rng_policy_6B.yaml
+LABEL_RNG_POLICY_6B ?= config/layer3/6B/label_rng_policy_6B.yaml
+RNG_POLICY_6B ?= config/layer3/6B/rng_policy_6B.yaml
+RNG_PROFILE_LAYER3 ?= config/layer3/6B/rng_profile_layer3.yaml
+SEGMENT_VALIDATION_POLICY_6B ?= config/layer3/6B/segment_validation_policy_6B.yaml
+SESSIONISATION_POLICY_6B ?= config/layer3/6B/sessionisation_policy_6B.yaml
+TIMING_POLICY_6B ?= config/layer3/6B/timing_policy_6B.yaml
+TRUTH_LABELLING_POLICY_6B ?= config/layer3/6B/truth_labelling_policy_6B.yaml
+
 SEG1B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml
 
 # Segment 1A
@@ -98,6 +178,72 @@ SEG1A_ARGS = \
 	--param nb_dispersion_coefficients.yaml=$(NB_DISPERSION_COEFFS) \
 	--param ccy_smoothing_params.yaml=$(CCY_SMOOTHING_PARAMS) \
 	--param s6_selection_policy.yaml=$(S6_SELECTION_POLICY) \
+	--param alias_layout_policy_v1.json=$(ALIAS_LAYOUT_POLICY_V1) \
+	--param day_effect_policy_v1.json=$(DAY_EFFECT_POLICY_V1) \
+	--param route_rng_policy_v1.json=$(ROUTE_RNG_POLICY_V1) \
+	--param virtual_edge_policy_v1.json=$(VIRTUAL_EDGE_POLICY_V1) \
+	--param virtual_rules_policy_v1.json=$(VIRTUAL_RULES_POLICY_V1) \
+	--param zone_mixture_policy.yaml=$(ZONE_MIXTURE_POLICY) \
+	--param country_zone_alphas.yaml=$(COUNTRY_ZONE_ALPHAS) \
+	--param zone_floor_policy.yaml=$(ZONE_FLOOR_POLICY) \
+	--param mcc_channel_rules.yaml=$(MCC_CHANNEL_RULES) \
+	--param cdn_country_weights.yaml=$(CDN_COUNTRY_WEIGHTS) \
+	--param virtual_validation.yml=$(VIRTUAL_VALIDATION_POLICY) \
+	--param baseline_intensity_policy_5A.v1.yaml=$(BASELINE_INTENSITY_POLICY_5A) \
+	--param demand_scale_policy_5A.v1.yaml=$(DEMAND_SCALE_POLICY_5A) \
+	--param merchant_class_policy_5A.v1.yaml=$(MERCHANT_CLASS_POLICY_5A) \
+	--param shape_library_5A.v1.yaml=$(SHAPE_LIBRARY_5A) \
+	--param scenario_horizon_config_5A.v1.yaml=$(SCENARIO_HORIZON_CONFIG_5A) \
+	--param scenario_overlay_policy_5A.v1.yaml=$(SCENARIO_OVERLAY_POLICY_5A) \
+	--param arrival_count_config_5B.yaml=$(ARRIVAL_COUNT_CONFIG_5B) \
+	--param arrival_lgcp_config_5B.yaml=$(ARRIVAL_LGCP_CONFIG_5B) \
+	--param arrival_rng_policy_5B.yaml=$(ARRIVAL_RNG_POLICY_5B) \
+	--param arrival_routing_policy_5B.yaml=$(ARRIVAL_ROUTING_POLICY_5B) \
+	--param arrival_time_placement_policy_5B.yaml=$(ARRIVAL_TIME_PLACEMENT_POLICY_5B) \
+	--param grouping_policy_5B.yaml=$(GROUPING_POLICY_5B) \
+	--param time_grid_policy_5B.yaml=$(TIME_GRID_POLICY_5B) \
+	--param validation_policy_5B.yaml=$(VALIDATION_POLICY_5B) \
+	--param device_linkage_rules_6A.v1.yaml=$(DEVICE_LINKAGE_RULES_6A) \
+	--param graph_linkage_rules_6A.v1.yaml=$(GRAPH_LINKAGE_RULES_6A) \
+	--param validation_policy_6A.v1.yaml=$(VALIDATION_POLICY_6A) \
+	--param account_taxonomy_6A.v1.yaml=$(ACCOUNT_TAXONOMY_6A) \
+	--param device_taxonomy_6A.v1.yaml=$(DEVICE_TAXONOMY_6A) \
+	--param fraud_role_taxonomy_6A.v1.yaml=$(FRAUD_ROLE_TAXONOMY_6A) \
+	--param instrument_taxonomy_6A.v1.yaml=$(INSTRUMENT_TAXONOMY_6A) \
+	--param ip_taxonomy_6A.v1.yaml=$(IP_TAXONOMY_6A) \
+	--param party_taxonomy_6A.v1.yaml=$(PARTY_TAXONOMY_6A) \
+	--param account_per_party_priors_6A.v1.yaml=$(ACCOUNT_PER_PARTY_PRIORS_6A) \
+	--param account_role_priors_6A.v1.yaml=$(ACCOUNT_ROLE_PRIORS_6A) \
+	--param device_count_priors_6A.v1.yaml=$(DEVICE_COUNT_PRIORS_6A) \
+	--param device_role_priors_6A.v1.yaml=$(DEVICE_ROLE_PRIORS_6A) \
+	--param instrument_mix_priors_6A.v1.yaml=$(INSTRUMENT_MIX_PRIORS_6A) \
+	--param instrument_per_account_priors_6A.v1.yaml=$(INSTRUMENT_PER_ACCOUNT_PRIORS_6A) \
+	--param ip_count_priors_6A.v1.yaml=$(IP_COUNT_PRIORS_6A) \
+	--param ip_role_priors_6A.v1.yaml=$(IP_ROLE_PRIORS_6A) \
+	--param merchant_role_priors_6A.v1.yaml=$(MERCHANT_ROLE_PRIORS_6A) \
+	--param party_role_priors_6A.v1.yaml=$(PARTY_ROLE_PRIORS_6A) \
+	--param population_priors_6A.v1.yaml=$(POPULATION_PRIORS_6A) \
+	--param product_mix_priors_6A.v1.yaml=$(PRODUCT_MIX_PRIORS_6A) \
+	--param segmentation_priors_6A.v1.yaml=$(SEGMENTATION_PRIORS_6A) \
+	--param amount_model_6B.yaml=$(AMOUNT_MODEL_6B) \
+	--param attachment_policy_6B.yaml=$(ATTACHMENT_POLICY_6B) \
+	--param bank_view_policy_6B.yaml=$(BANK_VIEW_POLICY_6B) \
+	--param behaviour_config_6B.yaml=$(BEHAVIOUR_CONFIG_6B) \
+	--param behaviour_prior_pack_6B.yaml=$(BEHAVIOUR_PRIOR_PACK_6B) \
+	--param case_policy_6B.yaml=$(CASE_POLICY_6B) \
+	--param delay_models_6B.yaml=$(DELAY_MODELS_6B) \
+	--param flow_rng_policy_6B.yaml=$(FLOW_RNG_POLICY_6B) \
+	--param flow_shape_policy_6B.yaml=$(FLOW_SHAPE_POLICY_6B) \
+	--param fraud_campaign_catalogue_config_6B.yaml=$(FRAUD_CAMPAIGN_CATALOGUE_6B) \
+	--param fraud_overlay_policy_6B.yaml=$(FRAUD_OVERLAY_POLICY_6B) \
+	--param fraud_rng_policy_6B.yaml=$(FRAUD_RNG_POLICY_6B) \
+	--param label_rng_policy_6B.yaml=$(LABEL_RNG_POLICY_6B) \
+	--param rng_policy_6B.yaml=$(RNG_POLICY_6B) \
+	--param rng_profile_layer3.yaml=$(RNG_PROFILE_LAYER3) \
+	--param segment_validation_policy_6B.yaml=$(SEGMENT_VALIDATION_POLICY_6B) \
+	--param sessionisation_policy_6B.yaml=$(SESSIONISATION_POLICY_6B) \
+	--param timing_policy_6B.yaml=$(TIMING_POLICY_6B) \
+	--param truth_labelling_policy_6B.yaml=$(TRUTH_LABELLING_POLICY_6B) \
 	--git-commit $(GIT_COMMIT) \
 	--seed $(SEED) \
 	--numeric-policy $(NUMERIC_POLICY) \
