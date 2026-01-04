@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 import polars as pl
-from ....seg_1A.s0_foundations.l1.hashing import compute_parameter_hash
 from ...shared.dictionary import (
     default_dictionary_path,
     get_dataset_entry,
@@ -170,21 +169,14 @@ class S0GateRunner:
             inputs=inputs, dictionary=dictionary, upstream_bundles=upstream_bundles
         )
 
-        parameter_assets = [
-            asset for asset in sealed_assets if asset.logical_id in inputs.parameter_asset_ids
-        ]
-        if not parameter_assets:
-            raise err("E_PARAM_EMPTY", "no parameter assets found when computing parameter hash")
-
-        parameter_digests: list[ArtifactDigest] = []
-        for asset in parameter_assets:
-            parameter_digests.extend(asset.digests)
-        parameter_result = compute_parameter_hash(parameter_digests)
-        if parameter_result.parameter_hash != inputs.parameter_hash:
-            raise err(
-                "E_PARAMETER_HASH_MISMATCH",
-                "parameter hash does not match sealed parameter assets",
-            )
+        parameter_resolved = self._load_parameter_hash_resolved(
+            bundle_path=upstream_bundles["1A"]["path"]
+        )
+        self._verify_parameter_hash(
+            inputs=inputs,
+            parameter_resolved=parameter_resolved,
+            sealed_assets=sealed_assets,
+        )
         manifest_fingerprint = inputs.upstream_manifest_fingerprint
         parameter_hash = inputs.parameter_hash
 
@@ -398,6 +390,53 @@ class S0GateRunner:
                 if (candidate / "index.json").exists():
                     return candidate
         return bundle_path
+
+    def _load_parameter_hash_resolved(self, *, bundle_path: Path) -> Mapping[str, object]:
+        resolved_path = bundle_path / "parameter_hash_resolved.json"
+        if not resolved_path.exists():
+            raise err(
+                "E_PARAM_RESOLVED_MISSING",
+                f"parameter_hash_resolved.json missing at {resolved_path}",
+            )
+        payload = json.loads(resolved_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise err(
+                "E_PARAM_RESOLVED_INVALID",
+                "parameter_hash_resolved.json must contain a JSON object",
+            )
+        return payload
+
+    def _verify_parameter_hash(
+        self,
+        *,
+        inputs: GateInputs,
+        parameter_resolved: Mapping[str, object],
+        sealed_assets: Sequence[SealedArtefact],
+    ) -> None:
+        param_hash = parameter_resolved.get("parameter_hash")
+        if not isinstance(param_hash, str) or param_hash != inputs.parameter_hash:
+            raise err(
+                "E_PARAMETER_HASH_MISMATCH",
+                "parameter hash does not match resolved parameter hash",
+            )
+        filenames = parameter_resolved.get("filenames_sorted")
+        if isinstance(filenames, list):
+            filename_set = {str(name) for name in filenames}
+            required = {
+                Path(asset.path).name
+                for asset in sealed_assets
+                if asset.logical_id in inputs.parameter_asset_ids
+            }
+            missing = sorted(name for name in required if name not in filename_set)
+            if missing:
+                raise err(
+                    "E_PARAMETER_ASSET_MISSING",
+                    f"parameter_hash_resolved.json missing parameter files: {missing}",
+                )
+        else:
+            logger.warning(
+                "parameter_hash_resolved.json missing filenames_sorted; skipping parameter file membership check"
+            )
 
     def _collect_manifest_digests(self, sealed_assets: Iterable[SealedArtefact]) -> list[ArtifactDigest]:
         digests: list[ArtifactDigest] = []
