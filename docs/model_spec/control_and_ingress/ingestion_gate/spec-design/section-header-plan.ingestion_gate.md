@@ -137,7 +137,7 @@ B.1 10–15 bullets (e.g., “unknown schema version never guessed”, “accept
 
 3.1 Envelope purpose: “make every admitted event joinable + auditable”
 3.2 **Required identity pins** for admission (scenario/run/world/window) — closes **DEC-IG-001**
-3.3 **Producer/event identity** fields (e.g., `producer_id`, `event_type`, `event_id`)
+3.3 **Producer/event identity** fields (MUST include `producer_id`, `event_type`, `event_id`; define `event_id` uniqueness scope)
 3.4 **Schema targeting fields** (contract kind/version or schema ref) *(details in §4)*
 3.5 **Time semantics** at the boundary
 
@@ -562,10 +562,10 @@ D.1 DEC-IG-008/009/010/018/019: CLOSED wording + pointer to the section that clo
 > IG5 is where these are **CLOSED** (canonical wording lives here). 
 
 2.1 **DEC-IG-013 — Commit semantics (accepted implies durable) details** 
-2.2 **DEC-IG-014 — Routing/partition key policy** 
-2.3 **DEC-IG-015 — Backpressure/overload posture** 
-2.4 **DEC-IG-020 — Retention and archival posture for receipts/quarantine/admitted** 
-2.5 **DEC-IG-017 — Local vs deployed feature toggles (must not change semantics if policies equal)** 
+2.2 **DEC-IG-014 - Receipt + record atomicity posture** 
+2.3 **DEC-IG-015 - Partitioning/routing keys for admitted stream** 
+2.4 **DEC-IG-020 - Backpressure/overload posture** 
+2.5 **DEC-IG-017 - Receipt query surface (indexing/query posture)** 
 
 ---
 
@@ -574,7 +574,7 @@ D.1 DEC-IG-008/009/010/018/019: CLOSED wording + pointer to the section that clo
 3.1 Definitions: “durable admitted record”, “durable receipt”, “durable quarantine record”
 3.2 Core truth rule (restated): **never emit ADMITTED receipt unless admitted record is durably written** 
 3.3 Allowed asymmetry (explicit): admitted record may exist without receipt (receipt can be regenerated)
-3.4 Minimal atomicity posture (v1): what must be ordered/guarded even if storage isn’t transactional
+3.4 Minimal atomicity posture (v1): what must be ordered/guarded even if storage isn't transactional - closes DEC-IG-014
 3.5 Commit ordering rules per outcome:
 
 * ADMITTED: write admitted → write receipt
@@ -585,8 +585,7 @@ D.1 DEC-IG-008/009/010/018/019: CLOSED wording + pointer to the section that clo
 
 ---
 
-### 4) Routing and partition key policy (Binding) — closes DEC-IG-014
-
+### 4) Routing and partition key policy (Binding) - closes DEC-IG-015
 4.1 Purpose of routing policy (joinability, scaling, locality, replay)
 4.2 Canonical partition key(s) for admitted records (must include enough pins to join; e.g., `run_id` and/or `manifest_fingerprint`) 
 4.3 Canonical partition keys for receipts and quarantines (may differ; must remain joinable)
@@ -601,12 +600,10 @@ D.1 DEC-IG-008/009/010/018/019: CLOSED wording + pointer to the section that clo
 5.2 Reference format requirements (ref + optional digest + schema version)
 5.3 Addressing convention touchpoint: incorporate `fingerprint={manifest_fingerprint}` when stored under world roots
 5.4 Immutability posture for stored objects (admitted/quarantine/receipt)
-5.5 Indexing posture (optional): whether IG maintains a “receipt index” or “quarantine index” and what it means
-
+5.5 Indexing posture (optional): whether IG maintains a "receipt index" or "quarantine index" and what it means - closes DEC-IG-017
 ---
 
-### 6) Backpressure / overload posture (Binding) — closes DEC-IG-015
-
+### 6) Backpressure / overload posture (Binding) - closes DEC-IG-020
 6.1 Overload detection signals (queue depth, latency, error rates—conceptual)
 6.2 Chosen posture under overload (one or more, explicitly ordered):
 
@@ -621,14 +618,13 @@ D.1 DEC-IG-008/009/010/018/019: CLOSED wording + pointer to the section that clo
 ### 7) Operational posture (Informative → Binding if desired)
 
 7.1 SLOs (latency/throughput) as targets (can be non-binding if you prefer)
-7.2 Deployment modes (local/dev vs prod) and “policy equivalence” rule — closes DEC-IG-017
+7.2 Deployment modes (local/dev vs prod) and "policy equivalence" rule (must not change semantics)
 7.3 Failure domains (what failures affect single producer vs whole gate)
 7.4 Runbooks minimal set (what an operator must be able to answer from metrics/logs)
 
 ---
 
-### 8) Retention and archival (Binding-ish) — closes DEC-IG-020
-
+### 8) Retention and archival (Informative - Binding if desired)
 8.1 Minimum retention for:
 
 * admitted records
@@ -676,8 +672,16 @@ B.2 QUARANTINED commit ordering
 B.3 DUPLICATE handling sequence
 B.4 Overload behaviour sequence
 
-### Appendix C) Decision closure table (Binding-ish)
+### Appendix C) Admitted Record Contract Map (v1) (Informative)
 
-C.1 DEC-IG-013/014/015/017/020: CLOSED wording + pointer to closing section
+C.1 Mapping to `contracts/ig_admitted_record_v1.schema.json` (`$defs` names)
+C.2 Object inventory (v1): `AdmittedEventRecord`, `IngestionStamp` (and any optional `PartitionKeys`)
+C.3 Required fields only per object (pins + schema refs + ingest stamp minimums)
+C.4 Payload posture (embedded vs by-ref pointer) and where it is pinned (IG3/IG5)
+C.5 Immutability notes for admitted records and stamps (snapshot semantics)
+
+### Appendix D) Decision closure table (Binding-ish)
+
+D.1 DEC-IG-013/014/015/017/020: CLOSED wording + pointer to closing section
 
 ---

@@ -169,6 +169,7 @@ class Segment2AOrchestrator:
                 output_base_path=data_root,
                 seed=config.seed,
                 upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
+                parameter_hash=config.parameter_hash,
                 tzdb_release_tag=config.tzdb_release_tag,
                 git_commit_hex=config.git_commit_hex,
                 dictionary_path=config.dictionary_path,

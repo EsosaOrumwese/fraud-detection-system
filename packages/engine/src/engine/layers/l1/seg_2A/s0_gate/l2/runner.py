@@ -37,10 +37,6 @@ from ..l0 import (
 )
 from ..l1.sealed_inputs import SealedAsset, ensure_unique_assets
 from ..l1.validation import validate_receipt_payload
-from ....seg_1A.s0_foundations.l1.hashing import (
-    ParameterHashResult,
-    compute_parameter_hash,
-)
 
 
 @dataclass(frozen=True)
@@ -51,9 +47,11 @@ class GateInputs:
     output_base_path: Path
     seed: int | str
     upstream_manifest_fingerprint: str
+    parameter_hash: str
     tzdb_release_tag: str
     git_commit_hex: str
     dictionary_path: Optional[Path] = None
+    validation_bundle_1a: Optional[Path] = None
     validation_bundle_path: Optional[Path] = None
     notes: Optional[str] = None
     parameter_asset_ids: tuple[str, ...] = field(
@@ -78,6 +76,12 @@ class GateInputs:
                 "E_UPSTREAM_FINGERPRINT",
                 "upstream manifest fingerprint must be 64 hex characters",
             )
+        if len(self.parameter_hash) != 64:
+            raise err(
+                "E_PARAMETER_HASH",
+                "parameter hash must be 64 hex characters",
+            )
+        int(self.parameter_hash, 16)
         git_hex = self.git_commit_hex.lower()
         if len(git_hex) not in (40, 64):
             raise err(
@@ -156,19 +160,13 @@ class S0GateRunner:
             bundle_index=bundle_index,
         )
 
-        parameter_assets = [
-            asset for asset in sealed_assets if asset.asset_id in inputs.parameter_asset_ids
-        ]
-        if not parameter_assets:
-            raise err(
-                "E_PARAM_EMPTY",
-                "no parameter assets found when computing parameter hash",
-            )
-
-        parameter_digests: list[ArtifactDigest] = []
-        for asset in parameter_assets:
-            parameter_digests.extend(asset.digests)
-        parameter_result = compute_parameter_hash(parameter_digests)
+        bundle_1a = self._resolve_validation_bundle_1a(inputs, dictionary=dictionary)
+        parameter_resolved = self._load_parameter_hash_resolved(bundle_path=bundle_1a)
+        self._verify_parameter_hash(
+            inputs=inputs,
+            parameter_resolved=parameter_resolved,
+            sealed_assets=sealed_assets,
+        )
 
         manifest_fingerprint = inputs.upstream_manifest_fingerprint
         sealed_assets = self._rehome_merchant_mcc_map(
@@ -182,7 +180,7 @@ class S0GateRunner:
             inputs=inputs,
             dictionary=dictionary,
             manifest_fingerprint=manifest_fingerprint,
-            parameter_result=parameter_result,
+            parameter_hash=inputs.parameter_hash,
             flag_sha256_hex=declared_flag,
             sealed_assets=sealed_assets,
         )
@@ -209,7 +207,7 @@ class S0GateRunner:
             bundle_index=bundle_index,
             sealed_assets=sealed_assets,
             manifest_fingerprint=manifest_fingerprint,
-            parameter_hash=parameter_result.parameter_hash,
+            parameter_hash=inputs.parameter_hash,
             bundle_path=bundle_path,
             bundle_digest=computed_flag,
             flag_sha256_hex=declared_flag,
@@ -236,7 +234,7 @@ class S0GateRunner:
 
         return GateOutputs(
             manifest_fingerprint=manifest_fingerprint,
-            parameter_hash=parameter_result.parameter_hash,
+            parameter_hash=inputs.parameter_hash,
             flag_sha256_hex=declared_flag,
             receipt_path=receipt_path,
             inventory_path=inventory_path,
@@ -262,6 +260,21 @@ class S0GateRunner:
             template_args={
                 "manifest_fingerprint": inputs.upstream_manifest_fingerprint
             },
+            dictionary=dictionary,
+        )
+        return (inputs.base_path / rendered).resolve()
+
+    def _resolve_validation_bundle_1a(
+        self,
+        inputs: GateInputs,
+        *,
+        dictionary: Mapping[str, object],
+    ) -> Path:
+        if inputs.validation_bundle_1a is not None:
+            return inputs.validation_bundle_1a.resolve()
+        rendered = render_dataset_path(
+            "validation_bundle_1A",
+            template_args={"manifest_fingerprint": inputs.upstream_manifest_fingerprint},
             dictionary=dictionary,
         )
         return (inputs.base_path / rendered).resolve()
@@ -412,7 +425,7 @@ class S0GateRunner:
         inputs: GateInputs,
         dictionary: Mapping[str, object],
         manifest_fingerprint: str,
-        parameter_result: ParameterHashResult,
+        parameter_hash: str,
         flag_sha256_hex: str,
         sealed_assets: Sequence[SealedAsset],
     ) -> tuple[Path, datetime]:
@@ -431,7 +444,7 @@ class S0GateRunner:
         )
         payload: dict[str, object] = {
             "manifest_fingerprint": manifest_fingerprint,
-            "parameter_hash": parameter_result.parameter_hash,
+            "parameter_hash": parameter_hash,
             "validation_bundle_path": bundle_path_template,
             "flag_sha256_hex": flag_sha256_hex,
             "verified_at_utc": timestamp,
@@ -649,6 +662,53 @@ class S0GateRunner:
             },
         }
         return run_report
+
+    def _load_parameter_hash_resolved(self, *, bundle_path: Path) -> Mapping[str, object]:
+        resolved_path = bundle_path / "parameter_hash_resolved.json"
+        if not resolved_path.exists():
+            raise err(
+                "E_PARAM_RESOLVED_MISSING",
+                f"parameter_hash_resolved.json missing at {resolved_path}",
+            )
+        payload = json.loads(resolved_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise err(
+                "E_PARAM_RESOLVED_INVALID",
+                "parameter_hash_resolved.json must contain a JSON object",
+            )
+        return payload
+
+    def _verify_parameter_hash(
+        self,
+        *,
+        inputs: GateInputs,
+        parameter_resolved: Mapping[str, object],
+        sealed_assets: Sequence[SealedAsset],
+    ) -> None:
+        param_hash = parameter_resolved.get("parameter_hash")
+        if not isinstance(param_hash, str) or param_hash != inputs.parameter_hash:
+            raise err(
+                "E_PARAMETER_HASH_MISMATCH",
+                "parameter hash does not match resolved parameter hash",
+            )
+        filenames = parameter_resolved.get("filenames_sorted")
+        if isinstance(filenames, list):
+            filename_set = {str(name) for name in filenames}
+            required = {
+                Path(asset.path).name
+                for asset in sealed_assets
+                if asset.asset_id in inputs.parameter_asset_ids
+            }
+            missing = sorted(name for name in required if name not in filename_set)
+            if missing:
+                raise err(
+                    "E_PARAMETER_ASSET_MISSING",
+                    f"parameter_hash_resolved.json missing parameter files: {missing}",
+                )
+        else:
+            logger.warning(
+                "parameter_hash_resolved.json missing filenames_sorted; skipping parameter file membership check"
+            )
 
     def _build_validators(self, *, optional_warning: bool) -> list[dict[str, object]]:
         validators = [
