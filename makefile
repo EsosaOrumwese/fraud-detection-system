@@ -12,7 +12,7 @@ PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 # ---------------------------------------------------------------------------
 # Run defaults
 # ---------------------------------------------------------------------------
-RUN_ROOT ?= runs/local_full_run-3
+RUN_ROOT ?= runs/local_full_run-4
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -24,9 +24,9 @@ SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
-RUN_ID ?= 00000000000000000000000000000003
-LOG ?= $(RUN_ROOT)/run_log_run-3.log
-SEED ?= 2026010201
+RUN_ID ?= 00000000000000000000000000000004
+LOG ?= $(RUN_ROOT)/run_log_run-4.log
+SEED ?= 2026010401
 SKIP_SEG1A ?= 0
 SKIP_SEG1B ?= 0
 SKIP_SEG2A ?= 0

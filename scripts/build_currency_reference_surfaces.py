@@ -56,15 +56,26 @@ NON_TENDER_CODES = {
 
 ALIAS_MAP = {
     "BOLIVIA PLURINATIONAL STATE OF": "BOLIVIA",
+    "BRUNEI DARUSSALAM": "BRUNEI",
+    "CONGO DEMOCRATIC REPUBLIC OF": "DEMOCRATIC REPUBLIC OF THE CONGO",
+    "CONGO": "REPUBLIC OF THE CONGO",
+    "COTE D IVOIRE": "IVORY COAST",
     "IRAN ISLAMIC REPUBLIC OF": "IRAN",
-    "KOREA REPUBLIC OF": "KOREA SOUTH",
-    "KOREA DEMOCRATIC PEOPLE S REPUBLIC OF": "KOREA NORTH",
+    "KOREA REPUBLIC OF": "SOUTH KOREA",
+    "KOREA DEMOCRATIC PEOPLE S REPUBLIC OF": "NORTH KOREA",
+    "LAO PEOPLE S DEMOCRATIC REPUBLIC": "LAOS",
+    "MICRONESIA FEDERATED STATES OF": "MICRONESIA",
+    "MOLDOVA REPUBLIC OF": "MOLDOVA",
+    "PALESTINE STATE OF": "PALESTINIAN TERRITORY",
     "RUSSIAN FEDERATION": "RUSSIA",
+    "SINT MAARTEN DUTCH PART": "SINT MAARTEN",
     "TANZANIA UNITED REPUBLIC OF": "TANZANIA",
+    "TURKIYE": "TURKEY",
     "VENEZUELA BOLIVARIAN REPUBLIC OF": "VENEZUELA",
     "VIET NAM": "VIETNAM",
     "UNITED STATES OF AMERICA": "UNITED STATES",
     "UNITED KINGDOM OF GREAT BRITAIN AND NORTHERN IRELAND": "UNITED KINGDOM",
+    "BONAIRE SINT EUSTATIUS AND SABA": "BONAIRE SAINT EUSTATIUS AND SABA",
 }
 
 
@@ -84,7 +95,8 @@ def _download(url: str, target: Path) -> Tuple[str, str]:
     target.parent.mkdir(parents=True, exist_ok=True)
     raw = urllib.request.urlopen(url).read()
     target.write_bytes(raw)
-    return _sha256_bytes(raw), dt.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    ts = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return _sha256_bytes(raw), ts
 
 
 def _normalize_name(value: str) -> str:
@@ -92,9 +104,8 @@ def _normalize_name(value: str) -> str:
     text = text.encode("ascii", "ignore").decode("ascii")
     text = text.upper()
     text = text.replace("&", "AND")
-    text = re.sub(r"[\\'\\.,\\(\\)\\-]", " ", text)
-    text = re.sub(r"\\bTHE\\b", " ", text)
-    text = text.replace("(THE)", " ")
+    text = re.sub(r"[\'\.,()\ -]", " ", text)
+    text = re.sub(r"\bTHE\b", " ", text)
     text = re.sub(r"\\s+", " ", text).strip()
     return text
 
