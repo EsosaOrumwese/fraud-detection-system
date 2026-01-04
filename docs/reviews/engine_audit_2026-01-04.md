@@ -294,6 +294,10 @@ Findings
 - No runtime evidence yet; upstream 2A failure blocks earlier layers.
 - Spec alignment risk: 6A S4 does not use graph_linkage_rules_6A; only device_linkage_rules_6A (max devices per party) influences counts. Spec-specified linkage constraints are currently ignored.
 
+Planned fixes (6A)
+- Implement graph_linkage_rules_6A in S4 to enforce the spec-defined linkage constraints (device/IP link ceilings, party/account link ratios, and any exclusion rules). Fail fast if policy is missing or schema-invalid: `packages/engine/src/engine/layers/l3/seg_6A/s4_network/runner.py`.
+- Add explicit policy sealing for graph_linkage_rules_6A in S0 so downstream states only run when the policy is present and validated: `packages/engine/src/engine/layers/l3/seg_6A/s0_gate/runner.py`, `contracts/dataset_dictionary/l3/seg_6A/layer3.6A.yaml`.
+
 ---
 
 Segment 6B
@@ -319,6 +323,14 @@ Findings
 - High: 6B S2 ignores flow_shape_policy_6B, timing_policy_6B, flow_rng_policy_6B, and rng_profile_layer3; only amount_model_6B is used (packages/engine/src/engine/layers/l3/seg_6B/s2_baseline/runner.py).
 - High: 6B S3 ignores fraud_rng_policy_6B and most fraud_campaign_catalogue_config_6B fields; fraud overlays are a single-rate toggle, not the specified campaign model (packages/engine/src/engine/layers/l3/seg_6B/s3_fraud/runner.py).
 - Medium: 6B S0 seals arrival_events_5B with read_scope=METADATA_ONLY even though S1 reads row-level arrivals; this conflicts with the read-scope contract and audit expectations (packages/engine/src/engine/layers/l3/seg_6B/s0_gate/runner.py).
+
+Planned fixes (6B)
+- Fix S5 validation to handle partitioned outputs: use glob/scan semantics (or resolve partition directories) instead of Path.exists() on paths containing part-*.parquet. Validate file presence deterministically and report missing partitions precisely: `packages/engine/src/engine/layers/l3/seg_6B/s5_validation/runner.py`.
+- Ensure S4 always emits s4_case_timeline_6B (even empty) and any required label outputs so validation can pass when no fraud is detected: `packages/engine/src/engine/layers/l3/seg_6B/s4_labels/runner.py`.
+- Implement attachment_policy_6B and sessionisation_policy_6B in S1, removing the fixed arrival_seq//10 rule and uniform attachment fallback; fail fast if policies are missing or schema-invalid: `packages/engine/src/engine/layers/l3/seg_6B/s1_arrivals/runner.py`.
+- Implement flow_shape_policy_6B, timing_policy_6B, flow_rng_policy_6B, and rng_profile_layer3 in S2 to restore spec-driven baseline behavior (or gate with an explicit placeholder flag): `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline/runner.py`.
+- Implement fraud_rng_policy_6B and the full fraud_campaign_catalogue_config_6B model in S3, or gate the placeholder overlay behind a dev-only flag defaulting to false: `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud/runner.py`.
+- Update S0 sealing to grant READ scope for arrival_events_5B when S1 requires row-level reads; align read_scope with actual access patterns: `packages/engine/src/engine/layers/l3/seg_6B/s0_gate/runner.py`.
 
 ---
 
