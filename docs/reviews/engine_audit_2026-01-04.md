@@ -141,6 +141,13 @@ Findings
 - Medium: S5 falls back to merchant_mcc_map under the 2B manifest if the 2A manifest path is missing; this can mask upstream mismatches and violates a strict 2A handoff contract.
 - Low: S3 run report/input summary renders site_timezones paths with manifest_fingerprint instead of seg2a_manifest_fingerprint; if the manifests diverge, run reports misrepresent the actual input partition.
 
+Planned fixes (2B)
+- Enforce 2A gate when civil-time assets are sealed: require validation_bundle_2A + _passed.flag if site_timezones/tz_timetable_cache are present (No PASS -> No Read). Fail fast if 2A assets are referenced without a PASS bundle: `packages/engine/src/engine/layers/l1/seg_2B/s0_gate/l2/runner.py`.
+- Align site_id semantics between routing and audit: either change S5 to emit the same site_id encoding used by S7 audit, or update S7 audit to use the hashed site_id from S5 logs. Pick one contract and enforce it in both states: `packages/engine/src/engine/layers/l1/seg_2B/s5_router/l2/runner.py`, `packages/engine/src/engine/layers/l1/seg_2B/s7_audit/l2/runner.py`.
+- Respect optional civil-time assets: wire pin_civil_time/allow_missing to dictionary optionality so 2B can run without 2A assets when intended, but becomes strict when pin_civil_time is enabled: `packages/engine/src/engine/layers/l1/seg_2B/s0_gate/l2/runner.py`, `contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml`.
+- Remove merchant_mcc_map fallback to the 2B manifest when a seg2a_manifest_fingerprint is provided; treat missing 2A merchant_mcc_map as a hard failure to preserve handoff integrity: `packages/engine/src/engine/layers/l1/seg_2B/s5_router/l2/runner.py`.
+- Fix run report/input summaries to reflect seg2a_manifest_fingerprint when civil-time inputs are pinned, so run receipts accurately document input partitions: `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/l2/runner.py` (and any other 2B run reports referencing site_timezones).
+
 ---
 
 Segment 3A
@@ -170,6 +177,10 @@ Findings
 - Critical: S3 empty-escalation branch references rng_trace_path before it is assigned; when no escalations exist, S3 raises UnboundLocalError instead of emitting empty outputs.
 - Medium: S5 routing_universe_hash hashes pandas.to_csv bytes of s3_zone_shares; pandas formatting differences across versions can change the hash for identical data, risking non-deterministic manifests.
 
+Planned fixes (3A)
+- Fix S3 empty-escalation handling: initialize rng_trace_path before branching and emit empty s3_zone_shares + rng logs with explicit zero counts so the state is deterministic and does not crash when no escalations exist: `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/l2/runner.py`.
+- Stabilize routing_universe_hash: replace pandas.to_csv hashing with a canonical, version-stable serialization (e.g., sorted columns/rows + fixed float formatting or Arrow IPC stream) so identical data yields identical hashes across pandas versions: `packages/engine/src/engine/layers/l1/seg_3A/s5_zone_alloc/l2/runner.py`.
+
 ---
 
 Segment 3B
@@ -194,6 +205,10 @@ Findings
 - Dependent on 2A and 3A gates; current failure in 2A prevents 3B from running in full pipeline.
 - Compliance risk: S1 fills missing settlement coordinates with deterministic pseudo-lat/lon instead of failing; spec describes evidence-backed settlement coords, so this is a placeholder behavior that may violate strict governance expectations.
 - Placeholder scope: S2/S3 emit synthetic single-edge catalogues and JSON alias blobs; these outputs will not match full routing realism expectations until replaced with the intended edge-generation logic.
+
+Planned fixes (3B)
+- Make settlement coordinates strict: remove pseudo-coordinate fallback and fail S1 when settlement coords are missing, or gate the fallback behind an explicit dev-only flag defaulting to false: `packages/engine/src/engine/layers/l1/seg_3B/s1_virtuals/l2/runner.py`.
+- Replace placeholder edge generation: swap the single-edge synthetic catalog/alias outputs for the spec-defined edge construction logic, and ensure edge_alias_* formats match downstream readers: `packages/engine/src/engine/layers/l1/seg_3B/s2_edges/l2/runner.py`, `packages/engine/src/engine/layers/l1/seg_3B/s3_alias/l2/runner.py`.
 
 ---
 
