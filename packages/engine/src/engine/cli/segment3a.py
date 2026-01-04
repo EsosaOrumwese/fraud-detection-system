@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--parameter-hash",
         type=str,
-        help="Parameter hash required when running S2 if different from S0 hash.",
+        help="Parameter hash required for S0 (reused for S2 unless overridden).",
     )
     parser.add_argument(
         "--run-id",

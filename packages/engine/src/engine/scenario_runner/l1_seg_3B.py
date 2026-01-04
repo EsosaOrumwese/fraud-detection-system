@@ -40,6 +40,7 @@ class Segment3BConfig:
     upstream_manifest_fingerprint: str
     seed: int
     git_commit_hex: str
+    parameter_hash: Optional[str] = None
     dictionary_path: Optional[Path] = None
     validation_bundle_1a: Optional[Path] = None
     validation_bundle_1b: Optional[Path] = None
@@ -109,11 +110,14 @@ class Segment3BOrchestrator:
             config.upstream_manifest_fingerprint,
             config.seed,
         )
+        if not config.parameter_hash:
+            raise ValueError("parameter_hash is required for Segment3B S0")
         s0_inputs = S0GateInputs(
             base_path=data_root,
             output_base_path=data_root,
             seed=config.seed,
             upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
+            parameter_hash=config.parameter_hash,
             git_commit_hex=config.git_commit_hex,
             dictionary_path=config.dictionary_path,
             validation_bundle_1a=config.validation_bundle_1a,

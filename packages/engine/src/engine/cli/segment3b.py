@@ -120,6 +120,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--upstream-manifest-fingerprint", required=True, help="Upstream manifest fingerprint (64 hex)."
     )
+    parser.add_argument(
+        "--parameter-hash",
+        required=False,
+        help="Parameter hash from Segment 1A (required for Segment 3B S0).",
+    )
     parser.add_argument("--seed", required=True, type=int, help="Seed used for upstream segments.")
     parser.add_argument(
         "--git-commit-hex",
@@ -169,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         upstream_manifest_fingerprint=args.upstream_manifest_fingerprint,
         seed=args.seed,
         git_commit_hex=git_commit_hex,
+        parameter_hash=args.parameter_hash,
         dictionary_path=args.dictionary,
         validation_bundle_1a=args.validation_bundle_1a,
         validation_bundle_1b=args.validation_bundle_1b,

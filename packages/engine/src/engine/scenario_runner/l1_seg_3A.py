@@ -114,6 +114,8 @@ class Segment3AOrchestrator:
         resume_manifest = config.resume_manifest_fingerprint
         if config.resume and not resume_manifest:
             raise ValueError("resume requested but resume_manifest_fingerprint not provided")
+        if not config.resume and not config.parameter_hash:
+            raise ValueError("parameter_hash is required for Segment3A S0")
 
         s1_output_path = None
         s1_run_report_path = None
@@ -168,6 +170,7 @@ class Segment3AOrchestrator:
             output_base_path=data_root,
             seed=config.seed,
             upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
+            parameter_hash=config.parameter_hash,
             git_commit_hex=config.git_commit_hex,
             dictionary_path=config.dictionary_path,
             validation_bundle_1a=config.validation_bundle_1a,

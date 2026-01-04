@@ -308,6 +308,7 @@ SEG3A_EXTRA ?=
 SEG3A_ARGS = \
 	--data-root "$(RUN_ROOT)" \
 	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
 	--seed $(SEED) \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary "$(SEG3A_DICTIONARY)" \
@@ -354,6 +355,7 @@ endif
 SEG3B_ARGS = \
 	--data-root "$(RUN_ROOT)" \
 	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
 	--seed $(SEED) \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary "$(SEG3B_DICTIONARY)" \

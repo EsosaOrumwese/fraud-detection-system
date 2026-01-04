@@ -21,12 +21,7 @@ from engine.layers.l1.seg_3A.s0_gate.l0 import (
     read_pass_flag,
 )
 from engine.layers.l1.seg_3A.s0_gate.l1.sealed_inputs import SealedArtefact, ensure_unique_assets
-from engine.layers.l1.seg_1A.s0_foundations.l1.hashing import (
-    ParameterHashResult,
-    compute_manifest_fingerprint,
-    compute_parameter_hash,
-    normalise_git_commit,
-)
+from engine.layers.l1.seg_1A.s0_foundations.l1.hashing import compute_parameter_hash
 from engine.layers.l1.seg_3B.shared import SegmentStateKey, write_segment_state_run_report
 from engine.layers.l1.seg_3B.shared.dictionary import (
     default_dictionary_path,
@@ -48,6 +43,7 @@ class GateInputs:
     output_base_path: Path
     seed: int | str
     upstream_manifest_fingerprint: str
+    parameter_hash: str
     git_commit_hex: str
     dictionary_path: Optional[Path] = None
     validation_bundle_1a: Optional[Path] = None
@@ -77,6 +73,9 @@ class GateInputs:
         object.__setattr__(self, "seed", seed_str)
         if len(self.upstream_manifest_fingerprint) != 64:
             raise err("E_UPSTREAM_FINGERPRINT", "upstream manifest fingerprint must be 64 hex characters")
+        if len(self.parameter_hash) != 64:
+            raise err("E_PARAMETER_HASH", "parameter hash must be 64 hex characters")
+        int(self.parameter_hash, 16)
         git_hex = self.git_commit_hex.lower()
         if len(git_hex) not in (40, 64):
             raise err("E_GIT_COMMIT_LEN", "git commit hex must be 40 (SHA1) or 64 (SHA256) characters")
@@ -152,21 +151,18 @@ class S0GateRunner:
         for asset in parameter_assets:
             parameter_digests.extend(asset.digests)
         parameter_result = compute_parameter_hash(parameter_digests)
-
-        manifest_digests = []
-        for asset in sealed_assets:
-            manifest_digests.extend(asset.digests)
-        git_bytes = normalise_git_commit(bytes.fromhex(inputs.git_commit_hex))
-        manifest_result = compute_manifest_fingerprint(
-            manifest_digests,
-            git_commit_raw=git_bytes,
-            parameter_hash_bytes=bytes.fromhex(parameter_result.parameter_hash),
-        )
+        if parameter_result.parameter_hash != inputs.parameter_hash:
+            raise err(
+                "E_PARAMETER_HASH_MISMATCH",
+                "parameter hash does not match sealed parameter assets",
+            )
+        manifest_fingerprint = inputs.upstream_manifest_fingerprint
+        parameter_hash = inputs.parameter_hash
 
         receipt_path, verified_at = self._write_receipt(
             inputs=inputs,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
-            parameter_result=parameter_result,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
             upstream_bundles=upstream_bundles,
             sealed_assets=sealed_assets,
             gate_verify_ms=gate_verify_ms,
@@ -174,7 +170,7 @@ class S0GateRunner:
         )
         sealed_inputs_path = self._write_sealed_inputs(
             inputs=inputs,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             sealed_assets=sealed_assets,
         )
         run_report_path = inputs.output_base_path / render_dataset_path(
@@ -184,8 +180,8 @@ class S0GateRunner:
         )
         self._write_segment_run_report(
             inputs=inputs,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
-            parameter_hash=parameter_result.parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
             start_at=run_started_at,
             verified_at=verified_at,
             gate_verify_ms=gate_verify_ms,
@@ -195,8 +191,8 @@ class S0GateRunner:
         )
 
         return GateOutputs(
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
-            parameter_hash=parameter_result.parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
             flag_sha256_hex=",".join(sorted(str(info["sha256_hex"]) for info in upstream_bundles.values())),
             receipt_path=receipt_path,
             sealed_inputs_path=sealed_inputs_path,
@@ -420,7 +416,7 @@ class S0GateRunner:
         self,
         inputs: GateInputs,
         manifest_fingerprint: str,
-        parameter_result: ParameterHashResult,
+        parameter_hash: str,
         upstream_bundles: Mapping[str, Mapping[str, object]],
         sealed_assets: Sequence[SealedArtefact],
         gate_verify_ms: int,
@@ -440,7 +436,7 @@ class S0GateRunner:
         receipt_payload: MutableMapping[str, object] = {
             "version": "1.0.0",
             "manifest_fingerprint": manifest_fingerprint,
-            "parameter_hash": parameter_result.parameter_hash,
+            "parameter_hash": parameter_hash,
             "seed": int(inputs.seed),
             "verified_at_utc": verified_at.isoformat(),
             "upstream_gates": {},
