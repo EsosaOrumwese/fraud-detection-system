@@ -684,14 +684,31 @@ def _load_site_lookup(inventory: SealedInventory) -> tuple[dict[tuple[str, str],
     site_weights_files = inventory.resolve_files("s1_site_weights")
     if not site_weights_files:
         raise FileNotFoundError("s1_site_weights missing from sealed inputs")
-    site_weights = pl.read_parquet(site_weights_files[0]).select(
-        ["merchant_id", "legal_country_iso", "site_order", "p_weight"]
+    site_weights = (
+        pl.read_parquet(site_weights_files[0])
+        .select(["merchant_id", "legal_country_iso", "site_order", "p_weight"])
+        .with_columns(
+            [
+                pl.col("merchant_id").cast(pl.UInt64),
+                pl.col("legal_country_iso").cast(pl.Utf8),
+                pl.col("site_order").cast(pl.UInt32),
+            ]
+        )
     )
     site_tz_files = inventory.resolve_files("site_timezones")
     if not site_tz_files:
         raise FileNotFoundError("site_timezones missing from sealed inputs")
-    site_tz = pl.read_parquet(site_tz_files[0]).select(
-        ["merchant_id", "legal_country_iso", "site_order", "tzid"]
+    site_tz = (
+        pl.read_parquet(site_tz_files[0])
+        .select(["merchant_id", "legal_country_iso", "site_order", "tzid"])
+        .with_columns(
+            [
+                pl.col("merchant_id").cast(pl.UInt64),
+                pl.col("legal_country_iso").cast(pl.Utf8),
+                pl.col("site_order").cast(pl.UInt32),
+                pl.col("tzid").cast(pl.Utf8),
+            ]
+        )
     )
     lookup = site_weights.join(site_tz, on=["merchant_id", "legal_country_iso", "site_order"], how="inner")
     if lookup.height == 0:
