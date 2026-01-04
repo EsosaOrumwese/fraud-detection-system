@@ -41,6 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-s3", action="store_true", help="Skip S3 bucket counts")
     parser.add_argument("--no-s4", action="store_true", help="Skip S4 arrivals")
     parser.add_argument("--no-s5", action="store_true", help="Skip S5 validation")
+    parser.add_argument("--s1-resume", action="store_true", help="Reuse existing S1 outputs if present")
+    parser.add_argument("--s2-resume", action="store_true", help="Reuse existing S2 outputs if present")
+    parser.add_argument("--s3-resume", action="store_true", help="Reuse existing S3 outputs if present")
+    parser.add_argument("--s4-resume", action="store_true", help="Reuse existing S4 outputs if present")
     parser.add_argument("--result-json", type=Path, help="Optional output JSON summary path")
     return parser
 
@@ -68,6 +72,10 @@ def main() -> None:
         run_s3=not args.no_s3,
         run_s4=not args.no_s4,
         run_s5=not args.no_s5,
+        resume_s1=args.s1_resume,
+        resume_s2=args.s2_resume,
+        resume_s3=args.s3_resume,
+        resume_s4=args.s4_resume,
     )
 
     orchestrator = Segment5BOrchestrator()

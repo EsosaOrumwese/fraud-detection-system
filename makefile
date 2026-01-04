@@ -385,6 +385,23 @@ SEG5A_CMD = $(PY_ENGINE) -m engine.cli.segment5a $(SEG5A_ARGS)
 
 # Segment 5B
 SEG5B_DICTIONARY ?= contracts/dataset_dictionary/l2/seg_5B/layer2.5B.yaml
+SEG5B_S1_RESUME ?= 0
+SEG5B_S2_RESUME ?= 0
+SEG5B_S3_RESUME ?= 0
+SEG5B_S4_RESUME ?= 0
+SEG5B_EXTRA =
+ifeq ($(strip $(SEG5B_S1_RESUME)),1)
+SEG5B_EXTRA += --s1-resume
+endif
+ifeq ($(strip $(SEG5B_S2_RESUME)),1)
+SEG5B_EXTRA += --s2-resume
+endif
+ifeq ($(strip $(SEG5B_S3_RESUME)),1)
+SEG5B_EXTRA += --s3-resume
+endif
+ifeq ($(strip $(SEG5B_S4_RESUME)),1)
+SEG5B_EXTRA += --s4-resume
+endif
 SEG5B_ARGS = \
 	--data-root "$(RUN_ROOT)" \
 	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
@@ -399,7 +416,8 @@ SEG5B_ARGS = \
 	--validation-bundle-3a "$$VALIDATION_BUNDLE_3A" \
 	--validation-bundle-3b "$$VALIDATION_BUNDLE_3B" \
 	--validation-bundle-5a "$$VALIDATION_BUNDLE_5A" \
-	--result-json "$(SEG5B_RESULT_JSON)"
+	--result-json "$(SEG5B_RESULT_JSON)" \
+	$(SEG5B_EXTRA)
 SEG5B_CMD = $(PY_ENGINE) -m engine.cli.segment5b $(SEG5B_ARGS)
 
 # Segment 6A

@@ -23,7 +23,8 @@ from engine.layers.l2.seg_5B import (
     ValidationInputs,
     ValidationRunner,
 )
-from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary
+from engine.layers.l2.seg_5B.shared.control_plane import load_control_plane
+from engine.layers.l2.seg_5B.shared.dictionary import load_dictionary, render_dataset_path
 from engine.shared.heartbeat import state_heartbeat
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,10 @@ class Segment5BConfig:
     run_s3: bool = True
     run_s4: bool = True
     run_s5: bool = True
+    resume_s1: bool = False
+    resume_s2: bool = False
+    resume_s3: bool = False
+    resume_s4: bool = False
 
 
 @dataclass(frozen=True)
@@ -83,7 +88,7 @@ class Segment5BOrchestrator:
         self._s0_runner = S0GateRunner()
 
     def run(self, config: Segment5BConfig) -> Segment5BResult:
-        load_dictionary(config.dictionary_path)
+        dictionary = load_dictionary(config.dictionary_path)
         data_root = config.data_root.expanduser().absolute()
 
         logger.info(
@@ -118,95 +123,206 @@ class Segment5BOrchestrator:
             s0_elapsed,
         )
 
-        s1_time_grid_paths: dict[str, Path] = {}
-        s1_grouping_paths: dict[str, Path] = {}
-        if config.run_s1:
-            logger.info("Segment5B S1 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
-            s1_start = time.perf_counter()
-            s1_inputs = TimeGridInputs(
+        scenarios = None
+        if config.resume_s1 or config.resume_s2 or config.resume_s3 or config.resume_s4:
+            _, _, scenarios = load_control_plane(
                 data_root=data_root,
                 manifest_fingerprint=s0_outputs.manifest_fingerprint,
                 parameter_hash=s0_outputs.parameter_hash,
-                run_id=config.run_id,
                 dictionary_path=config.dictionary_path,
             )
-            with state_heartbeat(logger, "Segment5B S1"):
-                s1_result = TimeGridRunner().run(s1_inputs)
-            s1_time_grid_paths = s1_result.time_grid_paths
-            s1_grouping_paths = s1_result.grouping_paths
+
+        s1_time_grid_paths: dict[str, Path] = {}
+        s1_grouping_paths: dict[str, Path] = {}
+        s1_available = False
+        if config.run_s1 or config.resume_s1:
+            logger.info("Segment5B S1 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
+            s1_start = time.perf_counter()
+            if config.resume_s1:
+                if scenarios is None:
+                    raise ValueError("Segment5B S1 resume requested but scenarios are unavailable")
+                s1_time_grid_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="s1_time_grid_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                    },
+                )
+                s1_grouping_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="s1_grouping_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                    },
+                )
+            else:
+                s1_inputs = TimeGridInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                    parameter_hash=s0_outputs.parameter_hash,
+                    run_id=config.run_id,
+                    dictionary_path=config.dictionary_path,
+                )
+                with state_heartbeat(logger, "Segment5B S1"):
+                    s1_result = TimeGridRunner().run(s1_inputs)
+                s1_time_grid_paths = s1_result.time_grid_paths
+                s1_grouping_paths = s1_result.grouping_paths
+            s1_available = True
             s1_elapsed = time.perf_counter() - s1_start
             logger.info(
-                "Segment5B S1 completed (scenarios=%d, elapsed=%.2fs)",
+                "Segment5B S1 %s (scenarios=%d, elapsed=%.2fs)",
+                "resumed" if config.resume_s1 else "completed",
                 len(s1_time_grid_paths),
                 s1_elapsed,
             )
 
         s2_intensity_paths: dict[str, Path] = {}
         s2_latent_paths: dict[str, Path] = {}
-        if config.run_s2 and config.run_s1:
+        s2_available = False
+        if config.run_s2 or config.resume_s2:
+            if not s1_available:
+                raise ValueError("Segment5B S2 requires S1 outputs; run S1 or use --s1-resume")
             logger.info("Segment5B S2 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             s2_start = time.perf_counter()
-            s2_inputs = IntensityInputs(
-                data_root=data_root,
-                manifest_fingerprint=s0_outputs.manifest_fingerprint,
-                parameter_hash=s0_outputs.parameter_hash,
-                seed=config.seed,
-                run_id=config.run_id,
-                dictionary_path=config.dictionary_path,
-            )
-            with state_heartbeat(logger, "Segment5B S2"):
-                s2_result = IntensityRunner().run(s2_inputs)
-            s2_intensity_paths = s2_result.intensity_paths
-            s2_latent_paths = s2_result.latent_field_paths
+            if config.resume_s2:
+                if scenarios is None:
+                    raise ValueError("Segment5B S2 resume requested but scenarios are unavailable")
+                s2_intensity_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="s2_realised_intensity_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                        "seed": config.seed,
+                    },
+                )
+                s2_latent_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="s2_latent_field_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                        "seed": config.seed,
+                    },
+                )
+            else:
+                s2_inputs = IntensityInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                    parameter_hash=s0_outputs.parameter_hash,
+                    seed=config.seed,
+                    run_id=config.run_id,
+                    dictionary_path=config.dictionary_path,
+                )
+                with state_heartbeat(logger, "Segment5B S2"):
+                    s2_result = IntensityRunner().run(s2_inputs)
+                s2_intensity_paths = s2_result.intensity_paths
+                s2_latent_paths = s2_result.latent_field_paths
+            s2_available = True
             s2_elapsed = time.perf_counter() - s2_start
             logger.info(
-                "Segment5B S2 completed (scenarios=%d, elapsed=%.2fs)",
+                "Segment5B S2 %s (scenarios=%d, elapsed=%.2fs)",
+                "resumed" if config.resume_s2 else "completed",
                 len(s2_intensity_paths),
                 s2_elapsed,
             )
 
         s3_count_paths: dict[str, Path] = {}
-        if config.run_s3 and config.run_s2:
+        s3_available = False
+        if config.run_s3 or config.resume_s3:
+            if not s2_available:
+                raise ValueError("Segment5B S3 requires S2 outputs; run S2 or use --s2-resume")
             logger.info("Segment5B S3 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             s3_start = time.perf_counter()
-            s3_inputs = CountInputs(
-                data_root=data_root,
-                manifest_fingerprint=s0_outputs.manifest_fingerprint,
-                parameter_hash=s0_outputs.parameter_hash,
-                seed=config.seed,
-                run_id=config.run_id,
-                dictionary_path=config.dictionary_path,
-            )
-            with state_heartbeat(logger, "Segment5B S3"):
-                s3_result = CountRunner().run(s3_inputs)
-            s3_count_paths = s3_result.count_paths
+            if config.resume_s3:
+                if scenarios is None:
+                    raise ValueError("Segment5B S3 resume requested but scenarios are unavailable")
+                s3_count_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="s3_bucket_counts_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                        "seed": config.seed,
+                    },
+                )
+            else:
+                s3_inputs = CountInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                    parameter_hash=s0_outputs.parameter_hash,
+                    seed=config.seed,
+                    run_id=config.run_id,
+                    dictionary_path=config.dictionary_path,
+                )
+                with state_heartbeat(logger, "Segment5B S3"):
+                    s3_result = CountRunner().run(s3_inputs)
+                s3_count_paths = s3_result.count_paths
+            s3_available = True
             s3_elapsed = time.perf_counter() - s3_start
             logger.info(
-                "Segment5B S3 completed (scenarios=%d, elapsed=%.2fs)",
+                "Segment5B S3 %s (scenarios=%d, elapsed=%.2fs)",
+                "resumed" if config.resume_s3 else "completed",
                 len(s3_count_paths),
                 s3_elapsed,
             )
 
         s4_arrival_paths: dict[str, Path] = {}
         s4_summary_paths: dict[str, Path] = {}
-        if config.run_s4 and config.run_s3:
+        if config.run_s4 or config.resume_s4:
+            if not s3_available:
+                raise ValueError("Segment5B S4 requires S3 outputs; run S3 or use --s3-resume")
             logger.info("Segment5B S4 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             s4_start = time.perf_counter()
-            s4_inputs = ArrivalInputs(
-                data_root=data_root,
-                manifest_fingerprint=s0_outputs.manifest_fingerprint,
-                parameter_hash=s0_outputs.parameter_hash,
-                seed=config.seed,
-                run_id=config.run_id,
-                dictionary_path=config.dictionary_path,
-            )
-            with state_heartbeat(logger, "Segment5B S4"):
-                s4_result = ArrivalRunner().run(s4_inputs)
-            s4_arrival_paths = s4_result.arrival_paths
-            s4_summary_paths = s4_result.summary_paths
+            if config.resume_s4:
+                if scenarios is None:
+                    raise ValueError("Segment5B S4 resume requested but scenarios are unavailable")
+                s4_arrival_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="arrival_events_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                        "seed": config.seed,
+                    },
+                    allow_glob=True,
+                )
+                s4_summary_paths = _resume_paths(
+                    data_root=data_root,
+                    dictionary=dictionary,
+                    scenarios=scenarios,
+                    dataset_id="s4_arrival_summary_5B",
+                    template_args={
+                        "manifest_fingerprint": s0_outputs.manifest_fingerprint,
+                        "seed": config.seed,
+                    },
+                    allow_missing=True,
+                )
+            else:
+                s4_inputs = ArrivalInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=s0_outputs.manifest_fingerprint,
+                    parameter_hash=s0_outputs.parameter_hash,
+                    seed=config.seed,
+                    run_id=config.run_id,
+                    dictionary_path=config.dictionary_path,
+                )
+                with state_heartbeat(logger, "Segment5B S4"):
+                    s4_result = ArrivalRunner().run(s4_inputs)
+                s4_arrival_paths = s4_result.arrival_paths
+                s4_summary_paths = s4_result.summary_paths
             s4_elapsed = time.perf_counter() - s4_start
             logger.info(
-                "Segment5B S4 completed (scenarios=%d, elapsed=%.2fs)",
+                "Segment5B S4 %s (scenarios=%d, elapsed=%.2fs)",
+                "resumed" if config.resume_s4 else "completed",
                 len(s4_arrival_paths),
                 s4_elapsed,
             )
@@ -217,7 +333,7 @@ class Segment5BOrchestrator:
         s5_passed_flag_path = None
         s5_run_report_path = None
         s5_overall_status = None
-        if config.run_s5 and config.run_s4:
+        if config.run_s5 and (config.run_s4 or config.resume_s4):
             logger.info("Segment5B S5 starting (manifest=%s)", s0_outputs.manifest_fingerprint)
             s5_start = time.perf_counter()
             s5_inputs = ValidationInputs(
@@ -264,6 +380,37 @@ class Segment5BOrchestrator:
             s5_run_report_path=s5_run_report_path,
             s5_overall_status=s5_overall_status,
         )
+
+
+def _resume_paths(
+    *,
+    data_root: Path,
+    dictionary: dict[str, object],
+    scenarios: list[object],
+    dataset_id: str,
+    template_args: dict[str, object],
+    allow_glob: bool = False,
+    allow_missing: bool = False,
+) -> dict[str, Path]:
+    paths: dict[str, Path] = {}
+    for scenario in scenarios:
+        scenario_id = getattr(scenario, "scenario_id", None)
+        if not scenario_id:
+            raise ValueError(f"resume for {dataset_id} missing scenario_id")
+        rendered = render_dataset_path(
+            dataset_id=dataset_id,
+            template_args={**template_args, "scenario_id": scenario_id},
+            dictionary=dictionary,
+        )
+        resolved = data_root / rendered
+        if allow_glob and "*" in resolved.name:
+            resolved = resolved.with_name(resolved.name.replace("*", "00000"))
+        if not resolved.exists():
+            if allow_missing:
+                continue
+            raise FileNotFoundError(f"resume requested but {dataset_id} missing at {resolved}")
+        paths[scenario_id] = resolved
+    return paths
 
 
 __all__ = ["Segment5BConfig", "Segment5BResult", "Segment5BOrchestrator"]
