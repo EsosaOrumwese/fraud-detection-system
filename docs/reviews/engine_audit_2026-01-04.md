@@ -235,6 +235,10 @@ Findings
 - No run evidence in latest log due to upstream 2A failure. 5A S0 expects upstream bundles to exist for 1A-3B; any missing gate will block.
 - Spec alignment risk: S4 UTC projection uses a fixed tz offset snapshot (zoneinfo at 2025-01-01) rather than tz_timetable_cache; DST/offset changes across horizon are not represented.
 
+Planned fixes (5A)
+- Use tz_timetable_cache (and site_timezones) to compute UTC projection across the full scenario horizon, applying correct DST/offset changes per timestamp. If tz_timetable_cache is absent, fail fast unless an explicit allow_fixed_offsets flag is set for dev-only runs: `packages/engine/src/engine/layers/l2/seg_5A/s4_overlays/runner.py`.
+- Add a preflight gate in S0 to validate that all upstream validation bundles referenced by sealed inputs are present and PASS before continuing, so failure modes are explicit and early: `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py`.
+
 ---
 
 Segment 5B
@@ -256,9 +260,14 @@ Handoff to 6B
 - Outputs: arrival_events_5B and validation bundle + _passed.flag are required for 6B behavior synthesis.
 
 Findings
-- Critical: 5B S4 indentation error exits the scenario loop early; the bulk of S4 processing runs once outside the loop, using only the final scenario’s inputs and emitting arrivals for at most one scenario (packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py:181-210).
+- Critical: 5B S4 indentation error exits the scenario loop early; the bulk of S4 processing runs once outside the loop, using only the final scenario's inputs and emitting arrivals for at most one scenario (packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py:181-210).
 - High: 5B S2 rejects latent_model_id=none (default when missing), raising ValueError. If arrival_lgcp_config_5B omits latent_model_id, S2 hard-fails (packages/engine/src/engine/layers/l2/seg_5B/s2_intensity/runner.py:142-149).
-- Medium: S4 relies on edge_alias_blob_3B and edge_alias_index_3B for virtual routing and loads the entire blob into memory; large routing universes may stress memory and violate the “stream large artefacts” doctrine.
+- Medium: S4 relies on edge_alias_blob_3B and edge_alias_index_3B for virtual routing and loads the entire blob into memory; large routing universes may stress memory and violate the "stream large artefacts" doctrine.
+
+Planned fixes (5B)
+- Fix the S4 scenario loop indentation so per-scenario arrivals are generated inside the loop, and guard outputs with explicit scenario identifiers in paths/receipts to prevent cross-scenario overwrites: `packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py`.
+- Allow `latent_model_id=none` as a valid mode (no latent field) or enforce a required config with a clear error message and schema validation before running. Prefer defaulting to `none` with deterministic zero-field behavior: `packages/engine/src/engine/layers/l2/seg_5B/s2_intensity/runner.py`, `contracts/dataset_dictionary/l2/seg_5B/layer2.5B.yaml`.
+- Stream or memory-map edge_alias_blob_3B instead of loading it wholesale; add chunked lookup or on-demand slicing to keep memory bounded for large routing universes: `packages/engine/src/engine/layers/l2/seg_5B/s4_arrivals/runner.py`.
 
 ---
 
