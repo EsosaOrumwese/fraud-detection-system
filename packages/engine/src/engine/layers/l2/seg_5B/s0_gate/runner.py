@@ -629,24 +629,21 @@ class S0GateRunner:
             match = re.search(r"fingerprint=([a-f0-9]{64})", bundle_path)
             if match:
                 bundle_fingerprints[segment] = match.group(1)
+                if match.group(1) != inputs.upstream_manifest_fingerprint:
+                    raise RuntimeError(
+                        "upstream bundle fingerprint mismatch for "
+                        f"{segment}: expected {inputs.upstream_manifest_fingerprint}, got {match.group(1)}"
+                    )
         for spec in self._SEALED_UPSTREAM_DATASETS:
             segment = spec.get("owner_segment", "")
-            segment_fingerprint = bundle_fingerprints.get(segment)
-            spec_args = (
-                {**template_args, "manifest_fingerprint": segment_fingerprint}
-                if segment_fingerprint
-                else template_args
-            )
+            spec_args = template_args
             sealed_rows = self._seal_dataset(
                 base_path=inputs.base_path,
                 repo_root=repo_root,
                 spec=spec,
                 template_args=spec_args,
-                notes=f"source_manifest={segment_fingerprint}" if segment_fingerprint else None,
+                notes=None,
             )
-            if segment_fingerprint:
-                for row in sealed_rows:
-                    row["manifest_fingerprint"] = inputs.upstream_manifest_fingerprint
             rows.extend(sealed_rows)
 
         for spec in self._SEALED_LAYER2_DATASETS:
