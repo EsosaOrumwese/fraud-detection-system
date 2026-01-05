@@ -67,6 +67,9 @@ Findings
 - S7 run summary path is written to dataset_path.parent/s7_run_summary.json. dataset_path is the seed/fingerprint/parameter_hash partition, so parent drops parameter_hash. Dictionary expects s7_run_summary inside the partition (contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml). This is a path/partition mismatch.
 - S8 run summary path is written to dataset_path.parent/s8_run_summary.json, which drops fingerprint (seed-only path). Dictionary expects s8_run_summary inside the seed+fingerprint partition. This mismatch is visible in run log (report path missing fingerprint).
 
+Planned fixes (1B)
+- Resolve `s7_run_summary` and `s8_run_summary` via dataset dictionary IDs and write/read them exactly at those paths (no dataset_path.parent logic). Update both materialisers and validators so writer/reader paths match: `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/l2/materialise.py`, `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/l3/validator.py`, `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/l2/materialise.py`, `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/l3/validator.py`.
+
 ---
 
 Segment 2A
