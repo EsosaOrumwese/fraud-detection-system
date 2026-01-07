@@ -1,607 +1,610 @@
 # Artefact registry for Layer-3 / Segment 6B
 
-# --- S0 ---
+subsegments:
+  - id: "6B"
+    name: "Behaviour & Fraud Cascades (What happens?)"
+    artifacts:
+      # --- S0 ---
+      - manifest_key: mlr.6B.validation.s0_gate_receipt
+        owner_layer: 3
+        owner_segment: 6B
+        name: s0_gate_receipt_6B
+        semver: 1.0.0
+        path: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+        partition_keys: [fingerprint]
+        schema: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
+        produced_by: 6B.S0
+        dependencies:
+          - mlr.6B.validation.sealed_inputs
+          - mlr.1A.validation.bundle
+          - mlr.1A.validation.passed
+          - mlr.1B.validation.bundle
+          - mlr.1B.validation.passed
+          - mlr.2A.validation.bundle
+          - mlr.2A.validation.passed
+          - mlr.2B.validation.bundle
+          - mlr.2B.validation.passed
+          - mlr.3A.validation.bundle
+          - mlr.3A.validation.passed
+          - mlr.3B.validation.bundle
+          - mlr.3B.validation.passed
+          - mlr.5A.validation.bundle
+          - mlr.5A.validation.passed
+          - mlr.5B.validation.bundle
+          - mlr.5B.validation.passed
+          - mlr.6A.validation.bundle
+          - mlr.6A.validation.passed
+        retention_class: engine_control_plane
+        pii_class: none
 
-- manifest_key: mlr.6B.validation.s0_gate_receipt
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s0_gate_receipt_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
-  partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
-  produced_by: 6B.S0
-  dependencies:
-    - mlr.6B.validation.sealed_inputs
-    - mlr.1A.validation.bundle
-    - mlr.1A.validation.passed
-    - mlr.1B.validation.bundle
-    - mlr.1B.validation.passed
-    - mlr.2A.validation.bundle
-    - mlr.2A.validation.passed
-    - mlr.2B.validation.bundle
-    - mlr.2B.validation.passed
-    - mlr.3A.validation.bundle
-    - mlr.3A.validation.passed
-    - mlr.3B.validation.bundle
-    - mlr.3B.validation.passed
-    - mlr.5A.validation.bundle
-    - mlr.5A.validation.passed
-    - mlr.5B.validation.bundle
-    - mlr.5B.validation.passed
-    - mlr.6A.validation.bundle
-    - mlr.6A.validation.passed
-  retention_class: engine_control_plane
-  pii_class: none
+      - manifest_key: mlr.6B.validation.sealed_inputs
+        owner_layer: 3
+        owner_segment: 6B
+        name: sealed_inputs_6B
+        semver: 1.0.0
+        path: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+        partition_keys: [fingerprint]
+        schema: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
+        produced_by: 6B.S0
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
 
-- manifest_key: mlr.6B.validation.sealed_inputs
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: sealed_inputs_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
-  partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
-  produced_by: 6B.S0
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
+      # --- S0 sealed inputs (policies & configs) ---
 
-# --- S0 sealed inputs (policies & configs) ---
+      - manifest_key: mlr.6B.policy.attachment_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: attachment_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/attachment_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/attachment_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.attachment_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: attachment_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/attachment_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/attachment_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.sessionisation_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: sessionisation_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/sessionisation_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/sessionisation_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.sessionisation_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: sessionisation_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/sessionisation_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/sessionisation_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.behaviour_config
+        owner_layer: 3
+        owner_segment: 6B
+        name: behaviour_config_6B
+        semver: 1.0.0
+        path: config/layer3/6B/behaviour_config_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/behaviour_config_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.behaviour_config
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: behaviour_config_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/behaviour_config_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/behaviour_config_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.behaviour_prior_pack
+        owner_layer: 3
+        owner_segment: 6B
+        name: behaviour_prior_pack_6B
+        semver: 1.0.0
+        path: config/layer3/6B/behaviour_prior_pack_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/behaviour_prior_pack_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.behaviour_prior_pack
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: behaviour_prior_pack_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/behaviour_prior_pack_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/behaviour_prior_pack_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.rng_profile_layer3
+        owner_layer: 3
+        owner_segment: 6B
+        name: rng_profile_layer3
+        semver: 1.0.0
+        path: config/layer3/6B/rng_profile_layer3.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/rng_profile_layer3
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.rng_profile_layer3
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: rng_profile_layer3
-  semver: 1.0.0
-  path_template: config/layer3/6B/rng_profile_layer3.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/rng_profile_layer3
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.rng_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: rng_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/rng_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/rng_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.rng_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: rng_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/rng_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/rng_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.flow_shape_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: flow_shape_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/flow_shape_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/flow_shape_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.flow_shape_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: flow_shape_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/flow_shape_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/flow_shape_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.amount_model
+        owner_layer: 3
+        owner_segment: 6B
+        name: amount_model_6B
+        semver: 1.0.0
+        path: config/layer3/6B/amount_model_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/amount_model_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.amount_model
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: amount_model_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/amount_model_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/amount_model_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.timing_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: timing_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/timing_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/timing_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.timing_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: timing_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/timing_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/timing_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.flow_rng_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: flow_rng_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/flow_rng_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/flow_rng_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.flow_rng_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: flow_rng_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/flow_rng_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/flow_rng_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.fraud_campaign_catalogue_config
+        owner_layer: 3
+        owner_segment: 6B
+        name: fraud_campaign_catalogue_config_6B
+        semver: 1.0.0
+        path: config/layer3/6B/fraud_campaign_catalogue_config_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/fraud_campaign_catalogue_config_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.fraud_campaign_catalogue_config
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: fraud_campaign_catalogue_config_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/fraud_campaign_catalogue_config_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/fraud_campaign_catalogue_config_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.fraud_overlay_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: fraud_overlay_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/fraud_overlay_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/fraud_overlay_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.fraud_overlay_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: fraud_overlay_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/fraud_overlay_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/fraud_overlay_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.fraud_rng_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: fraud_rng_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/fraud_rng_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/fraud_rng_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.fraud_rng_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: fraud_rng_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/fraud_rng_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/fraud_rng_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.truth_labelling_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: truth_labelling_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/truth_labelling_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/truth_labelling_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.truth_labelling_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: truth_labelling_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/truth_labelling_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/truth_labelling_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.bank_view_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: bank_view_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/bank_view_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/bank_view_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.bank_view_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: bank_view_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/bank_view_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/bank_view_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.delay_models
+        owner_layer: 3
+        owner_segment: 6B
+        name: delay_models_6B
+        semver: 1.0.0
+        path: config/layer3/6B/delay_models_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/delay_models_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.delay_models
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: delay_models_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/delay_models_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/delay_models_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.case_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: case_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/case_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/case_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.case_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: case_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/case_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/case_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.label_rng_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: label_rng_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/label_rng_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/label_rng_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.label_rng_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: label_rng_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/label_rng_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/label_rng_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      - manifest_key: mlr.6B.policy.segment_validation_policy
+        owner_layer: 3
+        owner_segment: 6B
+        name: segment_validation_policy_6B
+        semver: 1.0.0
+        path: config/layer3/6B/segment_validation_policy_6B.yaml
+        partition_keys: []
+        schema: schemas.6B.yaml#/policy/segment_validation_policy_6B
+        produced_by: external
+        dependencies: []
+        retention_class: engine_control_plane
+        pii_class: none
+        license: Proprietary-Internal
+        owner: { owner_team: "data-governance" }
+        environment: [runtime]
+        digest:
 
-- manifest_key: mlr.6B.policy.segment_validation_policy
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: segment_validation_policy_6B
-  semver: 1.0.0
-  path_template: config/layer3/6B/segment_validation_policy_6B.yaml
-  partition_keys: []
-  schema_ref: schemas.6B.yaml#/policy/segment_validation_policy_6B
-  produced_by: external
-  dependencies: []
-  retention_class: engine_control_plane
-  pii_class: none
-  license: Proprietary-Internal
-  owner: { owner_team: "data-governance" }
-  environment: [runtime]
-  digest:
+      # --- S1 ---
 
-# --- S1 ---
+      - manifest_key: mlr.6B.s1.arrival_entities
+        owner_layer: 3
+        owner_segment: 6B
+        name: s1_arrival_entities_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s1/arrival_entities_6B
+        produced_by: 6B.S1
+        dependencies:
+          - mlr.6B.validation.sealed_inputs
+          - mlr.6B.validation.s0_gate_receipt
+          - mlr.5B.egress.arrival_events
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s1.arrival_entities
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s1_arrival_entities_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s1/arrival_entities_6B
-  produced_by: 6B.S1
-  dependencies:
-    - mlr.6B.validation.sealed_inputs
-    - mlr.6B.validation.s0_gate_receipt
-    - mlr.5B.egress.arrival_events
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s1.session_index
+        owner_layer: 3
+        owner_segment: 6B
+        name: s1_session_index_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s1/session_index_6B
+        produced_by: 6B.S1
+        dependencies:
+          - mlr.6B.s1.arrival_entities
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s1.session_index
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s1_session_index_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s1/session_index_6B
-  produced_by: 6B.S1
-  dependencies:
-    - mlr.6B.s1.arrival_entities
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      # --- S2 ---
 
-# --- S2 ---
+      - manifest_key: mlr.6B.s2.flow_anchor_baseline
+        owner_layer: 3
+        owner_segment: 6B
+        name: s2_flow_anchor_baseline_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s2/flow_anchor_baseline_6B
+        produced_by: 6B.S2
+        dependencies:
+          - mlr.6B.s1.arrival_entities
+          - mlr.6B.s1.session_index
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s2.flow_anchor_baseline
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s2_flow_anchor_baseline_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s2/flow_anchor_baseline_6B
-  produced_by: 6B.S2
-  dependencies:
-    - mlr.6B.s1.arrival_entities
-    - mlr.6B.s1.session_index
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s2.event_stream_baseline
+        owner_layer: 3
+        owner_segment: 6B
+        name: s2_event_stream_baseline_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s2/event_stream_baseline_6B
+        produced_by: 6B.S2
+        dependencies:
+          - mlr.6B.s2.flow_anchor_baseline
+          - mlr.1A.cache.merchant_currency
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s2.event_stream_baseline
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s2_event_stream_baseline_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s2/event_stream_baseline_6B
-  produced_by: 6B.S2
-  dependencies:
-    - mlr.6B.s2.flow_anchor_baseline
-    - mlr.1A.cache.merchant_currency
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      # --- S3 ---
 
-# --- S3 ---
+      - manifest_key: mlr.6B.s3.campaign_catalogue
+        owner_layer: 3
+        owner_segment: 6B
+        name: s3_campaign_catalogue_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s3/campaign_catalogue_6B
+        produced_by: 6B.S3
+        dependencies:
+          - mlr.6B.s2.flow_anchor_baseline
+          - mlr.6B.s2.event_stream_baseline
+        retention_class: diagnostics
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s3.campaign_catalogue
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s3_campaign_catalogue_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
-  produced_by: 6B.S3
-  dependencies:
-    - mlr.6B.s2.flow_anchor_baseline
-    - mlr.6B.s2.event_stream_baseline
-  retention_class: diagnostics
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s3.flow_anchor_with_fraud
+        owner_layer: 3
+        owner_segment: 6B
+        name: s3_flow_anchor_with_fraud_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
+        produced_by: 6B.S3
+        dependencies:
+          - mlr.6B.s2.flow_anchor_baseline
+          - mlr.6B.s3.campaign_catalogue
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s3.flow_anchor_with_fraud
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s3_flow_anchor_with_fraud_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
-  produced_by: 6B.S3
-  dependencies:
-    - mlr.6B.s2.flow_anchor_baseline
-    - mlr.6B.s3.campaign_catalogue
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s3.event_stream_with_fraud
+        owner_layer: 3
+        owner_segment: 6B
+        name: s3_event_stream_with_fraud_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
+        produced_by: 6B.S3
+        dependencies:
+          - mlr.6B.s2.event_stream_baseline
+          - mlr.6B.s3.flow_anchor_with_fraud
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s3.event_stream_with_fraud
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s3_event_stream_with_fraud_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
-  produced_by: 6B.S3
-  dependencies:
-    - mlr.6B.s2.event_stream_baseline
-    - mlr.6B.s3.flow_anchor_with_fraud
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      # --- S4 ---
 
-# --- S4 ---
+      - manifest_key: mlr.6B.s4.flow_truth_labels
+        owner_layer: 3
+        owner_segment: 6B
+        name: s4_flow_truth_labels_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s4/flow_truth_labels_6B
+        produced_by: 6B.S4
+        dependencies:
+          - mlr.6B.s3.flow_anchor_with_fraud
+          - mlr.6B.s3.event_stream_with_fraud
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s4.flow_truth_labels
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s4_flow_truth_labels_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s4/flow_truth_labels_6B
-  produced_by: 6B.S4
-  dependencies:
-    - mlr.6B.s3.flow_anchor_with_fraud
-    - mlr.6B.s3.event_stream_with_fraud
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s4.flow_bank_view
+        owner_layer: 3
+        owner_segment: 6B
+        name: s4_flow_bank_view_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s4/flow_bank_view_6B
+        produced_by: 6B.S4
+        dependencies:
+          - mlr.6B.s3.flow_anchor_with_fraud
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s4.flow_bank_view
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s4_flow_bank_view_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s4/flow_bank_view_6B
-  produced_by: 6B.S4
-  dependencies:
-    - mlr.6B.s3.flow_anchor_with_fraud
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s4.event_labels
+        owner_layer: 3
+        owner_segment: 6B
+        name: s4_event_labels_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s4/event_labels_6B
+        produced_by: 6B.S4
+        dependencies:
+          - mlr.6B.s3.event_stream_with_fraud
+        retention_class: core_entity
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s4.event_labels
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s4_event_labels_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s4/event_labels_6B
-  produced_by: 6B.S4
-  dependencies:
-    - mlr.6B.s3.event_stream_with_fraud
-  retention_class: core_entity
-  pii_class: synthetic_customer
+      - manifest_key: mlr.6B.s4.case_timeline
+        owner_layer: 3
+        owner_segment: 6B
+        name: s4_case_timeline_6B
+        semver: 1.0.0
+        path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
+        schema: schemas.6B.yaml#/s4/case_timeline_6B
+        produced_by: 6B.S4
+        dependencies:
+          - mlr.6B.s4.flow_truth_labels
+          - mlr.6B.s4.flow_bank_view
+          - mlr.6B.s4.event_labels
+        retention_class: diagnostics
+        pii_class: synthetic_customer
 
-- manifest_key: mlr.6B.s4.case_timeline
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s4_case_timeline_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-  partition_keys: [seed, fingerprint, parameter_hash, scenario_id]
-  schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
-  produced_by: 6B.S4
-  dependencies:
-    - mlr.6B.s4.flow_truth_labels
-    - mlr.6B.s4.flow_bank_view
-    - mlr.6B.s4.event_labels
-  retention_class: diagnostics
-  pii_class: synthetic_customer
+      # --- S5 ---
 
-# --- S5 ---
+      - manifest_key: mlr.6B.validation.report
+        owner_layer: 3
+        owner_segment: 6B
+        name: s5_validation_report_6B
+        semver: 1.0.0
+        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+        partition_keys: [fingerprint]
+        schema: schemas.layer3.yaml#/validation/6B/s5_validation_report
+        produced_by: 6B.S5
+        dependencies:
+          - mlr.6B.s4.flow_truth_labels
+          - mlr.6B.s4.flow_bank_view
+          - mlr.6B.s4.event_labels
+          - mlr.6B.s4.case_timeline
+        retention_class: engine_control_plane
+        pii_class: none
 
-- manifest_key: mlr.6B.validation.report
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s5_validation_report_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
-  partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/6B/s5_validation_report
-  produced_by: 6B.S5
-  dependencies:
-    - mlr.6B.s4.flow_truth_labels
-    - mlr.6B.s4.flow_bank_view
-    - mlr.6B.s4.event_labels
-    - mlr.6B.s4.case_timeline
-  retention_class: engine_control_plane
-  pii_class: none
+      - manifest_key: mlr.6B.validation.issue_table
+        owner_layer: 3
+        owner_segment: 6B
+        name: s5_issue_table_6B
+        semver: 1.0.0
+        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+        partition_keys: [fingerprint]
+        schema: schemas.layer3.yaml#/validation/6B/s5_issue_table
+        produced_by: 6B.S5
+        dependencies:
+          - mlr.6B.validation.report
+        retention_class: engine_control_plane
+        pii_class: none
 
-- manifest_key: mlr.6B.validation.issue_table
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: s5_issue_table_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
-  partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/6B/s5_issue_table
-  produced_by: 6B.S5
-  dependencies:
-    - mlr.6B.validation.report
-  retention_class: engine_control_plane
-  pii_class: none
+      - manifest_key: mlr.6B.validation.bundle
+        owner_layer: 3
+        owner_segment: 6B
+        name: validation_bundle_6B
+        semver: 1.0.0
+        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+        partition_keys: [fingerprint]
+        schema: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
+        produced_by: 6B.S5
+        dependencies:
+          - mlr.6B.validation.report
+          - mlr.6B.validation.issue_table
+        retention_class: engine_control_plane
+        pii_class: none
 
-- manifest_key: mlr.6B.validation.bundle
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: validation_bundle_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
-  partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
-  produced_by: 6B.S5
-  dependencies:
-    - mlr.6B.validation.report
-    - mlr.6B.validation.issue_table
-  retention_class: engine_control_plane
-  pii_class: none
-
-- manifest_key: mlr.6B.validation.passed
-  owner_layer: 3
-  owner_segment: 6B
-  dataset_id: validation_passed_flag_6B
-  semver: 1.0.0
-  path_template: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partition_keys: [fingerprint]
-  schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
-  produced_by: 6B.S5
-  dependencies:
-    - mlr.6B.validation.bundle
-  retention_class: engine_control_plane
-  pii_class: none
+      - manifest_key: mlr.6B.validation.passed
+        owner_layer: 3
+        owner_segment: 6B
+        name: validation_passed_flag_6B
+        semver: 1.0.0
+        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        partition_keys: [fingerprint]
+        schema: schemas.layer3.yaml#/validation/6B/passed_flag_6B
+        produced_by: 6B.S5
+        dependencies:
+          - mlr.6B.validation.bundle
+        retention_class: engine_control_plane
+        pii_class: none
