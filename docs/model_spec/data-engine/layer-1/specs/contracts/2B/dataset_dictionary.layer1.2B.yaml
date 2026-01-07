@@ -351,7 +351,99 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
-  # === 2B.S7 — audit report (authoritative) ===
+  # === 2B RNG logs (run-scoped) ===
+  - id: rng_audit_log
+    status: approved
+    owner_subsegment: 2B
+    description: RNG run audit (identity/config) - one row at run start for 2B routing runs.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+    lineage:
+      produced_by: 2B
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: rng_trace_log
+    status: approved
+    owner_subsegment: 2B
+    description: RNG cumulative trace - append exactly one row after each event append for 2B routing runs.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+    lineage:
+      produced_by: 2B
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  # === 2B RNG event families (run-scoped) ===
+  - id: rng_event_alias_pick_group
+    status: approved
+    owner_subsegment: 2B
+    description: RNG events for 2B.S5 tz-group selection (single-uniform; Stage A).
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/alias_pick_group
+    lineage:
+      produced_by: 2B.S5
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: rng_event_alias_pick_site
+    status: approved
+    owner_subsegment: 2B
+    description: RNG events for 2B.S5 site selection (single-uniform; Stage B).
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/alias_pick_site
+    lineage:
+      produced_by: 2B.S5
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: rng_event_cdn_edge_pick
+    status: approved
+    owner_subsegment: 2B
+    description: RNG events for 2B.S6 virtual-edge pick (single-uniform).
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/cdn_edge_pick
+    lineage:
+      produced_by: 2B.S6
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    licence: Proprietary-Internal
+
+  # === 2B.S7 - audit report (authoritative) ===
   - id: s7_audit_report
     status: approved
     owner_subsegment: 2B

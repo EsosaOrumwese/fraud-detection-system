@@ -370,6 +370,103 @@ subsegments:
         cross_layer: false
         notes: "Write-once; atomic publish per run; partitions: [seed, parameter_hash, run_id, utc_day]."
 
+      # === 2B RNG logs (run-scoped) ===
+      - name: rng_audit_log
+        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        type: log
+        category: rng_core
+        semver: '{semver}'
+        version: '{run_id}'
+        digest: '{sha256}'
+        manifest_key: mlr.rng.core.2B.audit
+        license: Proprietary-Internal
+        role: "Run-scoped audit envelope for Segment 2B RNG usage (seed, parameters, build metadata)."
+        dependencies: [route_rng_policy_v1]
+        source: internal
+        owner: { owner_team: "l1-2b-core" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+        cross_layer: false
+        notes: null
+
+      - name: rng_trace_log
+        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        type: log
+        category: rng_core
+        semver: '{semver}'
+        version: '{run_id}'
+        digest: '{sha256}'
+        manifest_key: mlr.rng.core.2B.trace
+        license: Proprietary-Internal
+        role: "Cumulative RNG trace for Segment 2B substreams; append exactly one row after each event."
+        dependencies: [route_rng_policy_v1, rng_audit_log]
+        source: internal
+        owner: { owner_team: "l1-2b-core" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+        cross_layer: false
+        notes: null
+
+      # === 2B RNG event families (run-scoped) ===
+      - name: rng_event_alias_pick_group
+        path: logs/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: '{semver}'
+        version: '{run_id}'
+        digest: '{sha256}'
+        manifest_key: mlr.rng.events.2B.alias_pick_group
+        license: Proprietary-Internal
+        role: "RNG envelope events for S5 alias_pick_group (one per selection; blocks=1, draws=1)."
+        dependencies: [route_rng_policy_v1]
+        source: internal
+        owner: { owner_team: "l1-2b-core" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.layer1.yaml#/rng/events/alias_pick_group
+        cross_layer: false
+        notes: null
+
+      - name: rng_event_alias_pick_site
+        path: logs/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: '{semver}'
+        version: '{run_id}'
+        digest: '{sha256}'
+        manifest_key: mlr.rng.events.2B.alias_pick_site
+        license: Proprietary-Internal
+        role: "RNG envelope events for S5 alias_pick_site (one per selection; blocks=1, draws=1)."
+        dependencies: [route_rng_policy_v1]
+        source: internal
+        owner: { owner_team: "l1-2b-core" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.layer1.yaml#/rng/events/alias_pick_site
+        cross_layer: false
+        notes: null
+
+      - name: rng_event_cdn_edge_pick
+        path: logs/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: '{semver}'
+        version: '{run_id}'
+        digest: '{sha256}'
+        manifest_key: mlr.rng.events.2B.cdn_edge_pick
+        license: Proprietary-Internal
+        role: "RNG envelope events for S6 cdn_edge_pick (one per virtual arrival; blocks=1, draws=1)."
+        dependencies: [route_rng_policy_v1]
+        source: internal
+        owner: { owner_team: "l1-2b-core" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.layer1.yaml#/rng/events/cdn_edge_pick
+        cross_layer: false
+        notes: null
+
       - name: s7_audit_report
         path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
         type: dataset
