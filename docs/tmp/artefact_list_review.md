@@ -1954,3 +1954,332 @@
 - `sealed_inputs_5A` is the only universe of admissible inputs
 - S5 is the sole authority to emit `validation_bundle_5A` and `_passed.flag`
 - RNG-free; S5 must not emit RNG events or modify S1-S4 outputs
+
+
+---
+
+# 5B.S0 artefacts/policies/configs (from state.5B.s0.expanded.md only)
+
+## Inputs / references
+- Run context: `parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`, `scenario_set`
+- Upstream validation artefacts:
+  - Layer-1 segments `1A`–`3B` validation bundles + `_passed.flag`
+  - Layer-2 `5A` validation bundle + `_passed.flag`
+- Contract catalogues:
+  - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5A.yaml`, `schemas.5B.yaml`
+  - `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3B.yaml`
+  - `dataset_dictionary.layer2.5A.yaml`, `dataset_dictionary.layer2.5B.yaml`
+  - `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`
+  - `artefact_registry_5A.yaml`, `artefact_registry_5B.yaml`
+- Upstream world surfaces (sealed as admissible inputs):
+  - 1B `site_locations`, 2A `site_timezones` / `tz_timetable_cache`
+  - 2B routing artefacts (weights, alias tables, day effects)
+  - 3A `zone_alloc`, `zone_alloc_universe_hash`
+  - 3B virtual artefacts (classification, edge catalogue, alias tables, universe hash)
+  - 5A scenario/intensity surfaces + scenario metadata
+- 5B configs/policies:
+  - arrival/LGCP hyper-parameters
+  - arrival RNG policy
+  - arrival validation policy
+
+## Outputs / datasets
+- `s0_gate_receipt_5B` (fingerprint-scoped gate receipt)
+- `sealed_inputs_5B` (fingerprint-scoped inventory of allowed artefacts)
+
+## Deliverables / reports
+- Run-report record for 5B.S0 (status, upstream PASS/FAIL counts, sealed input row counts, sealed_inputs_digest)
+- Structured log of `upstream_segments` map (segment → status/spec_version/bundle_digest)
+
+## Authority / policies / configs
+- Catalogue-only discovery: dictionaries/registries are the sole authority on shapes/paths/roles
+- `s0_gate_receipt_5B` is the authority on upstream PASS/FAIL map and sealed_inputs_digest
+- `sealed_inputs_5B` is the only whitelist of admissible 5B inputs
+- RNG-free; S0 must not emit RNG events or read row-level data
+
+
+---
+
+# 5B.S1 artefacts/policies/configs (from state.5B.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5B` (includes `scenario_set_5B`, upstream status map, `parameter_hash`, `manifest_fingerprint`)
+  - `sealed_inputs_5B` (whitelisted artefacts + `read_scope`)
+- Required upstream statuses in `s0_gate_receipt_5B`:
+  - `1A`, `1B`, `2A`, `2B`, `3A`, `3B`, `5A` all `PASS`
+- 5A scenario and horizon authority:
+  - `scenario_manifest_5A` (scenario_id list, horizon start/end in UTC)
+- 5A domain keys (row-level allowed if sealed):
+  - `merchant_zone_scenario_local_5A` (keys and bucket index domain only)
+  - Other 5A surfaces may be used for structural alignment only (no intensity changes)
+- 2A civil-time metadata (metadata-only):
+  - `tz_timetable_cache`
+  - `site_timezones`
+- 2B/3A/3B domain hints (metadata-only):
+  - `s1_site_weights`
+  - `s4_group_weights`
+  - `zone_alloc`
+  - `zone_alloc_universe_hash`
+  - `virtual_classification_3B`
+  - `virtual_settlement_3B`
+- 5B local configs/policies (row-level):
+  - `time_grid_policy_5B` (name to be fixed; bucket duration/alignment rules)
+  - `grouping_policy_5B` (grouping keys and pooling rules)
+
+## Outputs / datasets
+- `s1_time_grid_5B` (schema `schemas.5B.yaml#/model/s1_time_grid_5B`)
+  - Partitioned by `fingerprint` + `scenario_id`
+- `s1_grouping_5B` (schema `schemas.5B.yaml#/model/s1_grouping_5B`)
+  - Partitioned by `fingerprint` + `scenario_id`
+
+## Deliverables / reports
+- Run-report record (state_id `5B.S1`, status, error_code, timing, scenario_set)
+- Required metrics:
+  - `scenario_count_requested`, `scenario_count_succeeded`, `scenario_count_failed`
+  - `total_bucket_count`
+  - `total_grouping_rows`
+  - `total_unique_group_ids`
+- Optional structured payload details (per-scenario bucket/group counts, first/last bucket bounds)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5B` is authoritative for upstream PASS/FAIL, scenario_set, and sealed_inputs_digest
+- `sealed_inputs_5B` is the only authority on admissible inputs and `read_scope`
+- `scenario_manifest_5A` is authoritative for scenario_id and horizon bounds
+- 2A `tz_timetable_cache` is authoritative for UTC/local mapping and gap/fold semantics
+- 2B/3A/3B artefacts are authoritative for routing/zone/virtual metadata (S1 uses metadata only)
+- `time_grid_policy_5B` and `grouping_policy_5B` are the only authorities for grid/group rules
+- RNG-free; no RNG logs or metrics
+
+
+---
+
+# 5B.S2 artefacts/policies/configs (from state.5B.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5B`
+  - `sealed_inputs_5B` (whitelisted artefacts + `read_scope`)
+- S1 planning outputs (row-level):
+  - `s1_time_grid_5B` (schema `schemas.5B.yaml#/model/s1_time_grid_5B`)
+  - `s1_grouping_5B` (schema `schemas.5B.yaml#/model/s1_grouping_5B`)
+- 5A deterministic intensity surface (row-level, designated ? source):
+  - `merchant_zone_scenario_local_5A` (or the designated 5A scenario surface listed in `sealed_inputs_5B`)
+- 2A/2B/3A/3B metadata (metadata-only, if needed):
+  - `tz_timetable_cache`
+  - `site_timezones`
+  - optional metadata for grouping/context (2B/3A/3B artefacts)
+- 5B configs/policies (row-level, must be sealed):
+  - arrival-process / LGCP config (name to be fixed, e.g. `arrival_lgcp_config_5B`)
+  - 5B RNG policy (e.g. `arrival_rng_policy_5B`)
+  - optional S2 validation config (if present)
+
+## Outputs / datasets
+- `s2_realised_intensity_5B` (required; schema `schemas.5B.yaml#/model/s2_realised_intensity_5B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s2_latent_field_5B` (optional; schema `schemas.5B.yaml#/model/s2_latent_field_5B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+
+## RNG logs / events
+- RNG event logs per 5B RNG policy (LOG artefacts), e.g. `rng_event_arrival_lgcp_gaussian`
+- RNG event/trace logs are used for run-report RNG metrics
+
+## Deliverables / reports
+- Run-report record (state_id `5B.S2`, status, error_code, timing, scenario_set, seed, run_id)
+- Required metrics:
+  - `scenario_count_requested`, `scenario_count_succeeded`, `scenario_count_failed`
+  - `total_bucket_count`
+  - `total_entity_bucket_count`
+  - `total_group_count`
+  - `total_latent_values`
+  - `latent_field_rows_written` (if `s2_latent_field_5B` is produced)
+  - `latent_rng_event_count`, `latent_rng_total_draws`, `latent_rng_total_blocks`
+- Optional summary stats (recommended in run-report payload):
+  - summary stats for latent values and `lambda_realised`
+
+## Authority / policies / configs
+- `s0_gate_receipt_5B` is authoritative for upstream PASS/FAIL and sealed world identity
+- `sealed_inputs_5B` is authoritative for admissible inputs and `read_scope`
+- `s1_time_grid_5B` and `s1_grouping_5B` are authoritative for bucket structure and grouping
+- 5A scenario intensity surface is authoritative for `lambda_target`
+- LGCP config and RNG policy are the only authorities for stochastic law and RNG layout
+- Contract files: `schemas.5B.yaml`, `schemas.layer2.yaml`, `dataset_dictionary.layer2.5B.yaml`, `artefact_registry_5B.yaml`
+- RNG-bearing; outputs deterministic for `(parameter_hash, manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 5B.S3 artefacts/policies/configs (from state.5B.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5B`
+  - `sealed_inputs_5B` (whitelisted artefacts + `read_scope`)
+- S1 planning outputs (row-level):
+  - `s1_time_grid_5B` (schema `schemas.5B.yaml#/model/s1_time_grid_5B`)
+  - `s1_grouping_5B` (schema `schemas.5B.yaml#/model/s1_grouping_5B`)
+- S2 realised intensities (row-level):
+  - `s2_realised_intensity_5B` (schema `schemas.5B.yaml#/model/s2_realised_intensity_5B`)
+- 5B configs/policies (row-level, must be sealed):
+  - arrival/count-law config (e.g. `arrival_count_config_5B`)
+  - S3 RNG policy (may be shared `arrival_rng_policy_5B`)
+  - optional S3 validation/guardrail config (if present)
+- Optional metadata-only references:
+  - 2A `tz_timetable_cache` (if duration checks needed)
+  - upstream metadata (5A/2B/3A/3B) for structural hints only
+
+## Outputs / datasets
+- `s3_bucket_counts_5B` (required; schema `schemas.5B.yaml#/model/s3_bucket_counts_5B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+
+## RNG logs / events
+- Count-draw RNG event logs (LOG artefacts per 5B RNG policy)
+- RNG trace logs paired to count-draw events
+
+## Deliverables / reports
+- Run-report record (state_id `5B.S3`, status, error_code, timing, scenario_set, seed, run_id)
+- Required metrics:
+  - `scenario_count_requested`, `scenario_count_succeeded`, `scenario_count_failed`
+  - `total_entity_bucket_domain`
+  - `total_count_rows`
+  - `sum_count_N`
+  - `count_rng_event_count`, `count_rng_total_draws`, `count_rng_total_blocks`
+- Optional payload summaries:
+  - `count_rows_min/max/mean`, `sum_count_N_min/max/mean`
+  - count vs mean summaries, optional Fano hints (if configured)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5B` is authoritative for upstream PASS/FAIL and sealed world identity
+- `sealed_inputs_5B` is authoritative for admissible inputs and `read_scope`
+- `s1_time_grid_5B` and `s1_grouping_5B` are authoritative for bucket structure and domain
+- `s2_realised_intensity_5B` is authoritative for `lambda_realised`
+- Arrival/count-law config and S3 RNG policy are the only authorities for count law and RNG layout
+- Contract files: `schemas.5B.yaml`, `schemas.layer2.yaml`, `dataset_dictionary.layer2.5B.yaml`, `artefact_registry_5B.yaml`
+- RNG-bearing; outputs deterministic for `(parameter_hash, manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 5B.S4 artefacts/policies/configs (from state.5B.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5B`
+  - `sealed_inputs_5B` (whitelisted artefacts + `read_scope`)
+- S1 planning outputs (row-level):
+  - `s1_time_grid_5B`
+  - `s1_grouping_5B`
+- S2 realised intensities (optional, row-level):
+  - `s2_realised_intensity_5B` (provenance/diagnostics only)
+- S3 bucket counts (row-level, hard dependency):
+  - `s3_bucket_counts_5B`
+- Layer-1/2 routing & time surfaces (sealed, schema-valid):
+  - 1B: `site_locations`
+  - 2A: `site_timezones`, `tz_timetable_cache`
+  - 2B: `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `route_rng_policy_v1`, alias layout policy
+  - 3A: `zone_alloc`, `zone_alloc_universe_hash`
+  - 3B: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
+- 5B configs/policies (row-level, must be sealed):
+  - time placement config (e.g. `arrival_time_placement_policy_5B`)
+  - routing config (e.g. `arrival_routing_policy_5B`)
+  - S4 RNG policy (time draws, site picks, edge picks)
+
+## Outputs / datasets
+- `s4_arrival_events_5B` (required; canonical arrival event stream)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+  - `parameter_hash` carried as a column
+- Optional diagnostics:
+  - `s4_arrival_summary_5B`
+  - `s4_arrival_anomalies_5B`
+
+## RNG logs / events
+- RNG event families (LOG artefacts):
+  - `arrival_time_jitter`
+  - `arrival_site_pick`
+  - `arrival_edge_pick`
+- RNG trace log entries for S4 event families
+
+## Deliverables / reports
+- Run-report record (state_id `5B.S4`, status, error_code, timing, scenario_id, seed, run_id)
+- Required core metrics:
+  - `n_buckets_total`, `n_buckets_nonzero`, `n_arrivals_total`
+  - `n_arrivals_physical`, `n_arrivals_virtual` (plus optional share fields)
+  - `min_bucket_duration`, `max_bucket_duration`
+  - `n_arrivals_at_bucket_start`, `n_arrivals_at_bucket_end_minus_epsilon`
+  - `counts_match_s3`
+  - `schema_ok`, `partition_ok`
+- Required RNG metrics:
+  - `rng_draws_time`, `rng_draws_site`, `rng_draws_edge`
+  - `rng_blocks_time`, `rng_blocks_site`, `rng_blocks_edge`
+  - `rng_accounting_ok`
+
+## Authority / policies / configs
+- `s0_gate_receipt_5B` is authoritative for run identity and sealed inputs
+- `sealed_inputs_5B` is authoritative for admissible inputs and `read_scope`
+- `s1_time_grid_5B` is authoritative for bucket windows
+- `s3_bucket_counts_5B` is authoritative for `N` (counts)
+- 2A owns civil time; 2B/3A/3B own routing/zone/virtual semantics
+- S4 owns only intra-bucket timing and routing choices under its policies
+- Contract files: `schemas.5B.yaml`, `schemas.layer2.yaml`, `dataset_dictionary.layer2.5B.yaml`, `artefact_registry_5B.yaml`
+- RNG-bearing; outputs deterministic for `(parameter_hash, manifest_fingerprint, scenario_id, seed)` and independent of `run_id`
+
+
+---
+
+# 5B.S5 artefacts/policies/configs (from state.5B.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5B`
+  - `sealed_inputs_5B` (whitelisted artefacts + `read_scope`)
+- S1/S2/S3/S4 outputs (schema-valid evidence):
+  - `s1_time_grid_5B`
+  - `s1_grouping_5B` (optional evidence)
+  - `s2_realised_intensity_5B`
+  - `s3_bucket_counts_5B`
+  - `s4_arrival_events_5B`
+- Upstream segment PASS flags (verified via S0 receipt):
+  - `_passed.flag` for required upstream segments (1A, 1B, 2A, 2B, 3A, 3B, 5A)
+- Layer-1/2 upstream artefacts used for validation:
+  - 1B: `site_locations`
+  - 2A: `site_timezones`, `tz_timetable_cache`
+  - 2B: `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `route_rng_policy_v1`, alias layout policy
+  - 3A: `zone_alloc`, `zone_alloc_universe_hash`
+  - 3B: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
+  - 5A intensity surfaces (e.g. `merchant_zone_scenario_local_5A`, `merchant_zone_scenario_utc_5A`) + 5A validation artefacts (for domain/sanity checks only)
+- RNG infrastructure (for S2/S3/S4 accounting):
+  - `rng_audit_log`, `rng_trace_log`
+  - RNG event tables for S2/S3/S4 families (listed in `sealed_inputs_5B`)
+- Catalogue/contract files (required for discovery):
+  - `schemas.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5B.yaml`
+  - `dataset_dictionary.layer2.5B.yaml`
+  - `artefact_registry_5B.yaml`
+- 5B S5 configs (if present in sealed inputs):
+  - validation policy (checks + thresholds)
+  - bundle layout policy
+
+## Outputs / datasets (fingerprint-scoped)
+- `validation_bundle_5B` (bundle directory)
+  - `index.json` (bundle index)
+  - evidence files (e.g. `validation_report_5B`, RNG summaries, receipts)
+- `validation_bundle_index_5B` (schema `schemas.layer2.yaml#/validation/validation_bundle_index_5B`)
+- `validation_report_5B` (schema `schemas.layer2.yaml#/validation/validation_report_5B`)
+- `validation_issue_table_5B` (optional; schema `schemas.layer2.yaml#/validation/validation_issue_table_5B`)
+- `_passed.flag` / `validation_passed_flag_5B` (bundle digest)
+- Optional S5 receipt object (if produced, must live inside bundle and be indexed)
+
+## Deliverables / reports
+- Run-report record (state_id `5B.S5`, status, error_code, run_id, `5B_spec_version`)
+- Required metrics:
+  - `n_parameter_hashes`, `n_scenarios`, `n_seeds`
+  - `n_buckets_total`, `n_buckets_nonzero`, `n_arrivals_total`
+  - `n_arrivals_physical`, `n_arrivals_virtual`
+  - `counts_match_s3`, `time_windows_ok`, `civil_time_ok`, `routing_ok`
+  - `schema_partition_pk_ok`, `rng_accounting_ok`, `bundle_integrity_ok`
+  - RNG summary: `rng_checked_states`, `rng_families_ok` (optional `rng_draws_by_family`, `rng_blocks_by_family`)
+  - `bundle_sha256` (echoed from `_passed.flag`)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5B` is authoritative for upstream PASS/FAIL and world identity
+- `sealed_inputs_5B` is authoritative for admissible evidence inputs
+- S5 is the sole authority for `validation_bundle_5B` and `_passed.flag`
+- Bundle/hash law is authoritative; S5 is RNG-free
