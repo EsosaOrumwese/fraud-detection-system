@@ -716,3 +716,175 @@
 - Hashing/index law: `_passed.flag` is SHA-256 over raw bytes of all files listed in `index.json` (ASCII-lex by `path`, flag excluded)
 - Gate law: consumers must verify `_passed.flag` before reading 1B egress (No PASS, no read)
 - Publish posture: write-once, stage+fsync+atomic move; file order non-authoritative; omit `_passed.flag` on failure
+
+
+---
+
+# 2A.S0 artefacts/policies/configs (from state.2A.s0.expanded.md only)
+
+## Inputs / references
+- Upstream PASS artefacts (1B):
+  - `validation_bundle_1B` (fingerprint-scoped bundle)
+  - `validation_passed_flag_1B` (`_passed.flag`)
+- Upstream egress pointer:
+  - `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`)
+- Timezone assets:
+  - `tz_world_<release>` polygons (schema `schemas.ingress.layer1.yaml#/tz_world_2025a` example)
+  - IANA tzdb archive + release metadata (e.g., `tzdata2025a.tar.gz`, `zoneinfo_version.yml`)
+- Policy/config inputs:
+  - `config/timezone/tz_overrides.yaml`
+  - `config/timezone/tz_nudge.yml`
+- Optional auxiliaries (only if referenced by later 2A states):
+  - `iso3166_canonical_2024`
+  - `world_countries`
+
+## Outputs / datasets
+- `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
+- `sealed_inputs_v1` inventory (schema `schemas.2A.yaml#/manifests/sealed_inputs_v1`)
+
+## Deliverables / reports
+- S0 run-report JSON (single object; fields include upstream gate results, sealed input counts/digests, tz asset summary, determinism receipt)
+- Determinism receipt for the fingerprint partition (directory hash)
+- Structured log records (`GATE`, `SEAL`, `HASH`, `EMIT`, `DETERMINISM`, `VALIDATION`)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify 1B `_passed.flag` before admitting `site_locations` (No PASS, no read)
+- Sealing rules: content-addressed assets, no aliasing/duplicates, explicit version tags, minimal sanity checks (e.g., CRS=WGS84)
+- Write-once/atomic publish; path-embed equality for `manifest_fingerprint` is binding
+
+
+---
+
+# 2A.S1 artefacts/policies/configs (from state.2A.s1.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
+- Required datasets (reads):
+  - `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`)
+  - `tz_world_<release>` polygons (schema `schemas.ingress.layer1.yaml#/tz_world_2025a` example)
+  - `tz_nudge` policy (schema `schemas.2A.yaml#/policy/tz_nudge_v1`)
+
+## Outputs / datasets
+- `s1_tz_lookup` (schema `schemas.2A.yaml#/plan/s1_tz_lookup`)
+
+## Deliverables / reports
+- S1 run-report JSON (single object with gate verification, input IDs, counts, and diagnostics)
+- Structured log records (`GATE`, `INPUTS`, `LOOKUP`, `VALIDATION`, `EMIT`)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify the 2A.S0 receipt before reading `site_locations` (No PASS, no read)
+- RNG-free; deterministic point-in-polygon assignment with single î-nudge (record `nudge_*` when applied)
+- Write-once/atomic publish; path-embed equality for `manifest_fingerprint` is binding
+
+
+---
+
+# 2A.S2 artefacts/policies/configs (from state.2A.s2.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
+- Required datasets (reads):
+  - `s1_tz_lookup` (schema `schemas.2A.yaml#/plan/s1_tz_lookup`)
+  - `tz_overrides` policy (schema `schemas.2A.yaml#/policy/tz_overrides_v1`)
+  - `tz_world_<release>` polygons (schema `schemas.ingress.layer1.yaml#/tz_world_2025a` example; membership validation)
+- Optional input (only if MCC overrides are used):
+  - merchant-to-MCC mapping (programme-specific; must be sealed in S0)
+
+## Outputs / datasets
+- `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`, final_in_layer)
+
+## Deliverables / reports
+- S2 run-report JSON (single object with gate verification, override counts, and output path)
+- Structured log records (`GATE`, `INPUTS`, `OVERRIDES`, `VALIDATION`, `EMIT`)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify the 2A.S0 receipt before reading inputs (No PASS, no read)
+- Override precedence: site > mcc > country; active iff expiry is null or on/after S0 receipt date
+- RNG-free; `created_utc` set to S0 receipt `verified_at_utc`; carry through `nudge_*` unchanged
+- Write-once/atomic publish; path-embed equality for `manifest_fingerprint` is binding
+
+
+---
+
+# 2A.S3 artefacts/policies/configs (from state.2A.s3.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
+- Required inputs:
+  - `tzdb_release` (schema `schemas.2A.yaml#/ingress/tzdb_release_v1`)
+  - `tz_world_<release>` polygons (schema `schemas.ingress.layer1.yaml#/tz_world_2025a` example; tzid coverage domain)
+
+## Outputs / datasets
+- `tz_timetable_cache` (schema `schemas.2A.yaml#/cache/tz_timetable_cache`)
+
+## Deliverables / reports
+- S3 run-report JSON (single object with gate verification, tzdb parsing, cache summary, coverage counts)
+- Structured log records (`GATE`, `INPUTS`, `TZDB_PARSE`, `COMPILE`, `CANONICALISE`, `COVERAGE`, `VALIDATION`, `EMIT`)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify the 2A.S0 receipt before reading inputs (No PASS, no read)
+- RNG-free; `created_utc` set to S0 receipt `verified_at_utc`
+- Fingerprint-scoped output `[fingerprint]` only; path-embed equality for `manifest_fingerprint` is binding
+- Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 2A.S4 artefacts/policies/configs (from state.2A.s4.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
+- Required datasets (reads):
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
+  - `tz_timetable_cache` (schema `schemas.2A.yaml#/cache/tz_timetable_cache`)
+
+## Outputs / datasets
+- `s4_legality_report` (schema `schemas.2A.yaml#/validation/s4_legality_report`)
+
+## Deliverables / reports
+- S4 run-report JSON (single object with gate verification, cache IDs, legality counts)
+- Structured log records (`GATE`, `INPUTS`, `CHECK`, `VALIDATION`, `EMIT`)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify the 2A.S0 receipt before reading inputs (No PASS, no read)
+- RNG-free; `generated_utc` set to S0 receipt `verified_at_utc`
+- Seed+fingerprint output `[seed, fingerprint]`; path-embed equality is binding
+- Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 2A.S5 artefacts/policies/configs (from state.2A.s5.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
+- Required evidence:
+  - `tz_timetable_cache` (schema `schemas.2A.yaml#/cache/tz_timetable_cache`)
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`) for seed discovery
+  - `s4_legality_report` (schema `schemas.2A.yaml#/validation/s4_legality_report`) per discovered seed
+
+## Outputs / datasets
+- `validation_bundle_2A` (schema `schemas.2A.yaml#/validation/validation_bundle_2A`)
+- `bundle_index_v1` (schema `schemas.2A.yaml#/validation/bundle_index_v1`)
+- `validation_passed_flag_2A` (schema `schemas.2A.yaml#/validation/passed_flag`)
+
+## Deliverables / reports
+- S5 run-report JSON (single object with seed discovery, evidence checks, digest/flag status)
+- Structured log records (`GATE`, `DISCOVERY`, `EVIDENCE`, `INDEX`, `DIGEST`, `VALIDATION`, `EMIT`)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify the 2A.S0 receipt before any reads (No PASS, no read)
+- Bundle law: index lists relative paths in ASCII-lex order; `_passed.flag` hashes raw bytes of indexed files (flag excluded)
+- Fingerprint-scoped output `[fingerprint]` only; path-embed equality is binding
+- Write-once/atomic publish; file order non-authoritative
