@@ -78,6 +78,67 @@ policy:
               type: string
               description: "Optional merchant class key if you differentiate by class."
 
+control:
+  s1_run_report:
+    type: object
+    additionalProperties: true
+    required: [parameter_hash]
+    properties:
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s2_run_report:
+    type: object
+    additionalProperties: true
+    required: [parameter_hash]
+    properties:
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s3_run_report:
+    type: object
+    additionalProperties: true
+    required: [seed, manifest_fingerprint, parameter_hash]
+    properties:
+      seed: {$ref: '#/$defs/uint64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s4_run_report:
+    type: object
+    additionalProperties: true
+    required: [seed, manifest_fingerprint, parameter_hash]
+    properties:
+      seed: {$ref: '#/$defs/uint64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s5_run_report:
+    type: object
+    additionalProperties: true
+    required: [seed, manifest_fingerprint, parameter_hash]
+    properties:
+      seed: {$ref: '#/$defs/uint64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s6_run_report:
+    type: object
+    additionalProperties: true
+    required: [seed, manifest_fingerprint, parameter_hash]
+    properties:
+      seed: {$ref: '#/$defs/uint64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s7_run_summary:
+    type: object
+    additionalProperties: true
+    required: [seed, manifest_fingerprint, parameter_hash]
+    properties:
+      seed: {$ref: '#/$defs/uint64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+  s8_run_summary:
+    type: object
+    additionalProperties: true
+    required: [seed, manifest_fingerprint]
+    properties:
+      seed: {$ref: '#/$defs/uint64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+
 validation:
   s0_gate_receipt:
     type: table

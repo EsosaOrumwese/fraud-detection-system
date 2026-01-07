@@ -61,6 +61,45 @@ subsegments:
     cross_layer: true
     notes: 'Content is a single line: "sha256_hex = <hex64>". Digest equals SHA-256 of the bundle = concat(raw bytes of all files listed in index.json in ASCII-lex path order), excluding the flag itself.'
 
+  # Governance references sealed by 1B.S0 (numeric determinism lineage)
+  - name: numeric_policy_profile
+    path: reference/governance/numeric_policy/{version}/numeric_policy.json
+    type: reference
+    category: governance
+    semver: '{semver}'
+    version: '{version}'
+    digest: '{sha256}'
+    manifest_key: mlr.gov.numeric_policy_profile
+    license: Proprietary-Internal
+    role: Pinned numeric environment policy; participates in manifest_fingerprint.
+    dependencies: []
+    source: internal
+    owner: { owner_team: "data-governance" }
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
+  - name: math_profile_manifest
+    path: reference/governance/math_profile/{version}/math_profile_manifest.json
+    type: reference
+    category: governance
+    semver: '{semver}'
+    version: '{version}'
+    digest: '{sha256}'
+    manifest_key: mlr.gov.math_profile_manifest
+    license: Proprietary-Internal
+    role: Pinned deterministic libm profile; participates in manifest_fingerprint.
+    dependencies: []
+    source: internal
+    owner: { owner_team: "data-governance" }
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
   - name: outlet_catalogue
     path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
     type: dataset

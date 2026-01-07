@@ -200,6 +200,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s1_run_report
+  status: approved
+  owner_subsegment: 1B
+  description: Control-plane run report for S1 tile index publish.
+  version: '{parameter_hash}'
+  format: json
+  path: control/s1_tile_index/parameter_hash={parameter_hash}/s1_run_report.json
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/control/s1_run_report
+  lineage:
+    produced_by: 1B.S1
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: tile_weights
   status: approved
   owner_subsegment: 1B
@@ -210,6 +228,24 @@ datasets:
   partitioning: [parameter_hash]
   ordering: [country_iso, tile_id]
   schema_ref: schemas.1B.yaml#/prep/tile_weights
+  lineage:
+    produced_by: 1B.S2
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s2_run_report
+  status: approved
+  owner_subsegment: 1B
+  description: Control-plane run report for S2 tile weights publish.
+  version: '{parameter_hash}'
+  format: json
+  path: control/s2_tile_weights/parameter_hash={parameter_hash}/s2_run_report.json
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/control/s2_run_report
   lineage:
     produced_by: 1B.S2
     consumed_by: [1B]
