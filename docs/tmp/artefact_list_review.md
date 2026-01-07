@@ -337,6 +337,9 @@
 - `s8_metrics.json`
 - `egress_checksums.json`
 
+
+---
+
 # 1A.S9 artefacts/policies/configs (from state.1A.s9.expanded.md only)
 
 ## Inputs / references
@@ -375,6 +378,172 @@
   - `fingerprint_artifacts.jsonl` (if present from S0)
   - `numeric_policy_attest.json` (if present from S0)
 - `_passed.flag` (hash over files listed in `index.json`)
+
+
+---
+
+# 1B.S0 artefacts/policies/configs (from state.1B.s0.expanded.md only)
+
+## Inputs / references
+- Schema authority bundles:
+  - `schemas.layer1.yaml`
+  - `schemas.ingress.layer1.yaml`
+  - `schemas.1A.yaml`
+  - `schemas.1B.yaml`
+- Dataset dictionaries:
+  - `dataset_dictionary.layer1.1A.yaml`
+  - `dataset_dictionary.layer1.1B.yaml`
+- Validation bundle gate (1A):
+  - `validation_bundle_1A` (schema `schemas.1A.yaml#/validation/validation_bundle`)
+  - `_passed.flag` (ASCII-lex hash over `index.json`-listed files)
+  - `index.json` (bundle index; relative paths)
+- Egress surfaces read after PASS:
+  - `outlet_catalogue` (schema `schemas.1A.yaml#/egress/outlet_catalogue`)
+  - `s3_candidate_set` (schema `schemas.1A.yaml#/s3/candidate_set`)
+- Reference / FK targets pinned by S0 for 1B:
+  - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
+  - `world_countries` (schema `schemas.ingress.layer1.yaml#/world_countries`)
+  - `population_raster_2025` (schema `schemas.ingress.layer1.yaml#/population_raster_2025`)
+  - `tz_world_2025a` (schema `schemas.ingress.layer1.yaml#/tz_world_2025a`)
+- Numeric policy artefacts (lineage):
+  - `numeric_policy.json`
+  - `math_profile_manifest.json`
+
+## Outputs / datasets (fingerprint-scoped)
+- `s0_gate_receipt_1B`
+  - Path: `data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
+  - Schema: `schemas.1B.yaml#/validation/s0_gate_receipt`
+
+
+---
+
+# 1B.S1 artefacts/policies/configs (from state.1B.s1.expanded.md only)
+
+## Inputs / references
+- Schema authority bundle: `schemas.1B.yaml` (tile_index anchor)
+- Dataset dictionary: `dataset_dictionary.layer1.1B.yaml` (tile_index ID/path/partition/sort)
+- Ingress reference surfaces:
+  - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
+  - `world_countries` (schema `schemas.ingress.layer1.yaml#/world_countries`)
+  - `population_raster_2025` (schema `schemas.ingress.layer1.yaml#/population_raster_2025`)
+  - `tz_world_2025a` (schema `schemas.ingress.layer1.yaml#/tz_world_2025a`, listed but not consumed)
+- Gate context (read-only reference): `schemas.1A.yaml#/validation/validation_bundle` (S1 itself does not read 1A egress)
+
+## Outputs / datasets
+- `tile_index` (schema `schemas.1B.yaml#/prep/tile_index`)
+
+## Deliverables / reports
+- `s1_run_report.json` (single-object run report)
+- Per-country summary JSON lines (optional)
+
+
+---
+
+# 1B.S2 artefacts/policies/configs (from state.1B.s2.expanded.md only)
+
+## Inputs / references
+- Schema authority bundle: `schemas.1B.yaml` (tile_weights, tile_index anchors)
+- Dataset dictionary: `dataset_dictionary.layer1.1B.yaml` (tile_weights and tile_index IDs/paths/partitions/sort)
+- Upstream dataset:
+  - `tile_index` (schema `schemas.1B.yaml#/prep/tile_index`)
+- Ingress reference surfaces (sealed, read-only):
+  - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
+  - `world_countries` (schema `schemas.ingress.layer1.yaml#/world_countries`)
+  - `population_raster_2025` (schema `schemas.ingress.layer1.yaml#/population_raster_2025`)
+  - `tz_world_2025a` (schema `schemas.ingress.layer1.yaml#/tz_world_2025a`, provenance only)
+
+## Outputs / datasets
+- `tile_weights` (schema `schemas.1B.yaml#/prep/tile_weights`)
+
+## Deliverables / reports
+- `s2_run_report.json` (single-object run report)
+- Per-country normalization summary (JSON lines)
+
+
+---
+
+# 1B.S3 artefacts/policies/configs (from state.1B.s3.expanded.md only)
+
+## Inputs / references
+- Schema authority bundles:
+  - `schemas.1B.yaml` (anchors: `#/plan/s3_requirements`, `#/prep/tile_weights`, `#/validation/s0_gate_receipt`)
+  - `schemas.1A.yaml` (anchors: `#/egress/outlet_catalogue`, `#/s3/candidate_set`)
+  - `schemas.ingress.layer1.yaml` (anchor: `#/iso3166_canonical_2024`)
+- Gate receipt:
+  - `s0_gate_receipt_1B` (schema `schemas.1B.yaml#/validation/s0_gate_receipt`)
+- Sealed inputs (from the S0 receipt; S3 reads only the ones listed under "Inputs S3 will actually read"):
+  - `outlet_catalogue` (schema `schemas.1A.yaml#/egress/outlet_catalogue`)
+  - `s3_candidate_set` (schema `schemas.1A.yaml#/s3/candidate_set`, sealed not read)
+  - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
+  - `world_countries` (schema `schemas.ingress.layer1.yaml#/world_countries`, sealed not read)
+  - `population_raster_2025` (schema `schemas.ingress.layer1.yaml#/population_raster_2025`, sealed not read)
+  - `tz_world_2025a` (sealed not read)
+- Additional S3 read:
+  - `tile_weights` (schema `schemas.1B.yaml#/prep/tile_weights`)
+- Sealed but not read by S3 (declared for lineage/forward use):
+  - `tile_index` (schema `schemas.1B.yaml#/prep/tile_index`)
+  - `validation_bundle_1A` (basis of the S0 gate proof)
+
+## Outputs / datasets
+- `s3_requirements` (schema `schemas.1B.yaml#/plan/s3_requirements`)
+
+## Deliverables / reports (outside the dataset partition)
+- S3 run report (single JSON object; required fields include `seed`, `manifest_fingerprint`, `parameter_hash`, `rows_emitted`, `merchants_total`, `countries_total`, `source_rows_total`, `ingress_versions`, `determinism_receipt`)
+- Determinism receipt `{partition_path, sha256_hex}` (composite SHA-256 over partition files)
+- Optional summaries:
+  - Per-merchant summary (countries, `n_sites_total`, pairs)
+  - Run-scale health counters (e.g., `fk_country_violations`, `coverage_missing_countries`)
+
+## Failure / event artefacts
+- Failure record with `{code, scope?, reason, seed, manifest_fingerprint, parameter_hash}` (optionally `merchant_id`, `legal_country_iso`)
+- `S3_ERROR` failure event (structured; required on failure)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- Gate law: `s0_gate_receipt_1B` proves PASS before reading `outlet_catalogue` ("No PASS, no read")
+- Write-once/atomic publish; determinism receipt stored in the run report; evidence kept outside the dataset partition (retain >= 30 days)
+
+
+---
+
+# 1B.S4 artefacts/policies/configs (from state.1B.s4.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_1B` (schema `schemas.1B.yaml#/validation/s0_gate_receipt`)
+- Required datasets (reads):
+  - `s3_requirements` (schema `schemas.1B.yaml#/plan/s3_requirements`)
+  - `tile_weights` (schema `schemas.1B.yaml#/prep/tile_weights`)
+  - `tile_index` (schema `schemas.1B.yaml#/prep/tile_index`)
+  - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
+- Sealed but not read:
+  - `outlet_catalogue` (upstream egress)
+  - `s3_candidate_set` (inter-country order authority)
+- Disallowed surfaces (must not read):
+  - `world_countries`
+  - `population_raster_2025`
+  - `tz_world_2025a`
+
+## Outputs / datasets
+- `s4_alloc_plan` (schema `schemas.1B.yaml#/plan/s4_alloc_plan`)
+
+## Deliverables / reports (outside the dataset partition)
+- S4 run report (single JSON object; required fields include `seed`, `manifest_fingerprint`, `parameter_hash`, `rows_emitted`, `merchants_total`, `pairs_total`, `alloc_sum_equals_requirements`, `ingress_versions`, `determinism_receipt`)
+- Determinism receipt `{partition_path, sha256_hex}` (composite SHA-256 over partition files)
+- Optional summaries:
+  - Per-merchant summary (countries, `n_sites_total`, pairs)
+  - Run-scale health counters (`fk_country_violations`, `coverage_missing_countries`, `tile_not_in_index`)
+
+## Failure / event artefacts
+- Failure record with `{code, scope?, reason, seed, manifest_fingerprint, parameter_hash}` (optionally `merchant_id`, `legal_country_iso`)
+- `S4_ERROR` failure event (structured; required on failure)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- Integer arithmetic requirement: use >=128-bit intermediates or bignum for `weight_fp x n_sites` and related sums; overflow is a hard error
+- S4 is RNG-free and writes no RNG logs
+- Gate law: rely on `s0_gate_receipt_1B` (no re-hash of the 1A bundle) before reads
+- Write-once/atomic publish; determinism receipt stored in the run report; evidence kept outside the dataset partition (retain >= 30 days)
 
 
 ---
