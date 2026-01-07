@@ -108,6 +108,24 @@ reference_data:
   pii: false
   licence: Public-Domain
 
+- id: world_countries
+  status: approved
+  owner_subsegment: ingress
+  description: "Country polygons (GeoParquet); optional auxiliary sealed by 2A.S0 when referenced."
+  version: '2024'
+  format: parquet
+  path: reference/spatial/world_countries/2024/world_countries.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/world_countries
+  lineage:
+    produced_by:
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Public-Domain
+
 # ── Policy/Config/Artefacts sealed by 2A.S0 ───────────────────────────────
 policies:
 - id: tz_overrides

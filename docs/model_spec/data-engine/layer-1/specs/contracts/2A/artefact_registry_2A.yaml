@@ -65,6 +65,45 @@ subsegments:
     cross_layer: true
     notes: null
 
+  # Cross-layer pointer to ingress ISO and country polygons used by 2A sealing
+  - name: iso3166_canonical_2024
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024-12-31'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.iso3166_canonical_2024
+    license: Public-Domain
+    role: "Canonical ISO-3166-1 alpha-2 list; FK surface for country_iso."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+    cross_layer: true
+    notes: null
+
+  - name: world_countries
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.world_countries
+    license: Public-Domain
+    role: "Country polygons (GeoParquet) for point-in-country checks."
+    dependencies: [iso3166_canonical_2024]
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/world_countries
+    cross_layer: true
+    notes: null
+
   # Cross-layer pointer to 1B egress consumed by 2A
   - name: site_locations
     path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/

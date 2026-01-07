@@ -321,7 +321,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 * `catalog_path` — string (Dictionary path for the asset; Dictionary is the only authority for IDs→paths). 
 * `sha256_hex` — **hex64** (content digest). 
 * `size_bytes` — **uint64**. 
-* `license_class` — string (must match Dictionary/Registry licence class; e.g., Proprietary-Internal, ODbL-1.0, CC-BY-4.0).
+* `license_class` - string (must match Dictionary/Registry licence class; e.g., Proprietary-Internal, Public-Domain, ODbL-1.0, CC-BY-4.0).
 * `created_utc` — **rfc3339_micros** (observational, non-semantic). 
 
 ---
@@ -899,8 +899,8 @@ The following require a **MAJOR** version and downstream coordination:
 ### A3. Ingress/reference surfaces used by 2A
 
 * **`tz_world_2025a` polygons (GeoParquet, WGS84).** Dictionary entries (ingress pack anchors).
-* **`iso3166_canonical_2024` (ISO-2).** Dictionary entries (FK surface).
-* **`world_countries` polygons.** Dictionary/registry references (ingress anchor).
+* **`iso3166_canonical_2024` (ISO-2).** Dictionary entries (FK surface; licence: Public-Domain).
+* **`world_countries` polygons.** Dictionary/registry references (ingress anchor; licence: Public-Domain).
 * **IANA tzdb release (archive + tag).** 2A overview/narrative establishes the pinned zoneinfo version as a sealed input. *(Shape lives in this segment’s schema pack.)*
 
 ### A4. Segment 2A (this segment) — surfaces introduced downstream of S0
