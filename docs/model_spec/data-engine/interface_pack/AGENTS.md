@@ -2,7 +2,9 @@
 _As of <2026-01-02>_
 
 This folder contains the **Data Engine Black-Box Interface Pack**: a platform-facing contract that
-lets downstream specs depend on the engine **without** importing segment/state internals.
+lets downstream specs depend on the engine **without** importing segment/state internals. 
+
+NOTE: It is not your reference when building or fixing the data engine!! Refer to the other folders which contain the spec `layer-1/`, `layer-2/` and `layer-3/`! Once again, this is not a binding spec for dealing with the data engine's run, stay away from this unless you are working on other components and want to see the blackbox view of the engine!
 
 This router instructs agents (e.g., Codex) how to **review and tighten** the pack for correctness,
 consistency, and “black-box purity”.
