@@ -215,6 +215,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: static.currency_to_country.map.json
+  status: approved
+  owner_subsegment: ingress
+  description: Deterministic currency-to-country mapping for S3 rules (optional; used only if policy references it).
+  version: TBD
+  format: json
+  path: reference/layer1/currency_to_country_map/{version}/static.currency_to_country.map.json
+  partitioning: [version]
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/currency_to_country_map
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 # ── Internally generated datasets (1A) ─────────────────────────────────────
 datasets:
 - id: ccy_country_weights_cache
@@ -541,6 +559,24 @@ datasets:
 #    retention_days: 365
 #    pii: false
 #    licence: "Proprietary-Internal"
+
+- id: merchant_abort_log
+  status: approved
+  owner_subsegment: 1A
+  description: Merchant-scoped abort log for soft failures (does not replace run abort).
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet
+  partitioning: [parameter_hash]
+  ordering: [merchant_id, state, ts_utc]
+  schema_ref: schemas.1A.yaml#/prep/merchant_abort_log
+  lineage:
+    produced_by: 1A.S0
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
 - id: validation_bundle_1A
   status: approved
@@ -923,7 +959,7 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256:
-  dataset_count: 44
+  dataset_count: 48
 
 open_questions: []
 

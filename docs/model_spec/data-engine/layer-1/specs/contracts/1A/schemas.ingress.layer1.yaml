@@ -214,6 +214,18 @@ gdp_bucket_map_2024:
   - {name: k, type: int8, nullable: false, description: Number of buckets (K)., const: 5}
   - {name: source_year, type: int16, nullable: false, description: Year of GDP values used for bucketing.}
 
+
+# -- Static currency-to-country mapping (optional) -------------------------
+currency_to_country_map:
+  type: object
+  description: Deterministic currency-to-country mapping keyed by ISO 4217 currency.
+  propertyNames:
+    $ref: '#/$defs/iso4217'
+  additionalProperties:
+    type: array
+    items:
+      $ref: '#/$defs/iso2'
+
 # -- Currency-level settlement shares (long form) --------------------------
 settlement_shares_2024Q4:
   type: table

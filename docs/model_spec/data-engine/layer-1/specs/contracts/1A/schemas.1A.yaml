@@ -151,6 +151,19 @@ prep:
 
 
 # 3) Allocation outputs (stochastic; seed-dependent)
+  merchant_abort_log:
+    type: table
+    description: Merchant-scoped abort log for soft failures in 1A states.
+    primary_key: [merchant_id, state, ts_utc]
+    partition_keys: [parameter_hash]
+    sort_keys: [merchant_id, state, ts_utc]
+    columns:
+    - {name: merchant_id, $ref: '#/$defs/id64', nullable: false, description: Merchant identifier.}
+    - {name: state, type: string, nullable: false, description: State label emitting the abort.}
+    - {name: module, type: string, nullable: false, description: Producer module name.}
+    - {name: reason, type: string, nullable: false, description: Failure reason code or summary.}
+    - {name: ts_utc, type: string, nullable: false, description: RFC-3339 UTC timestamp.}
+
 alloc:
 
   country_set:

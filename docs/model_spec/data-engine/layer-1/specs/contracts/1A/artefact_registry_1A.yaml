@@ -408,6 +408,25 @@ subsegments:
     cross_layer: true
     notes:
 
+  - name: static.currency_to_country.map.json
+    path: reference/layer1/currency_to_country_map/{version}/static.currency_to_country.map.json
+    type: reference
+    category: allocation
+    semver: '{semver}'
+    version: '{version}'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.currency_to_country_map
+    license: Proprietary-Internal
+    role: Deterministic currency-to-country mapping (optional; used by S3 rules).
+    dependencies: []
+    source: external
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/currency_to_country_map
+    cross_layer: true
+    notes: 'Include in manifest_fingerprint only when policy.s3.rule_ladder.yaml references this map.'
+
   - name: iso_legal_tender_2024
     path: reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet
     type: reference
@@ -596,7 +615,7 @@ subsegments:
     environment: [ci, runtime]
     schema:
     cross_layer: true
-    notes:
+    notes: 'Conditional dependency: include static.currency_to_country.map.json only when policy.s3.rule_ladder.yaml references it.'
 
   - name: philox_master_counter
     path: ci/manifests/philox_master_counter.txt
@@ -1300,6 +1319,25 @@ subsegments:
     schema: schemas.1A.yaml#/s3/site_sequence
     cross_layer: false
     notes: Optional; only if S3 owns sequencing.
+
+  - name: merchant_abort_log
+    path: data/layer1/1A/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet
+    type: dataset
+    category: diagnostics
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.prep.merchant_abort_log
+    license: Proprietary-Internal
+    role: Merchant-scoped abort log for soft failures.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema: schemas.1A.yaml#/prep/merchant_abort_log
+    cross_layer: false
+    notes:
 
 # Prune CI-time artefacts (planning phase)
 #      - name: post_write_validation_routine
