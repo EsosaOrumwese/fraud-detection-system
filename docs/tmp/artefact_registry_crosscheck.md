@@ -179,6 +179,9 @@
 - 3B governed inputs: `mcc_channel_rules`, `virtual_settlement_coords`, `cdn_country_weights`, `virtual_validation_policy`, `hrsl_raster`, `cdn_weights_ext_yaml`, `pelias_cached_sqlite`
 - 3B outputs: `s0_gate_receipt_3B`, `sealed_inputs_3B`, `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_catalogue_index_3B`, `edge_alias_blob_3B`, `edge_alias_index_3B`, `edge_universe_hash_3B`, `gamma_draw_log_3B`, `virtual_routing_policy_3B`, `virtual_validation_contract_3B`, `s4_run_summary_3B`, `validation_bundle_3B`, `validation_bundle_index_3B`, `validation_passed_flag_3B`, `s5_manifest_3B`
 
+### Dictionary-only (missing from registry)
+- `s1_run_report_3B`, `s2_run_report_3B`, `s3_run_report_3B`, `s4_run_report_3B`, `s5_run_report_3B`
+
 ### Registry-only policy/config artefacts referenced by state specs
 - `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `cdn_key_digest` (present in registry; not listed in 3B dictionary)
 
@@ -190,11 +193,164 @@
 - `virtual_settlement_coords.parquet` -> not in dictionary/registry (dictionary uses CSV)
 - `edge_alias_layout_policy_v1` -> registry policy id `alias_layout_policy_v1`
 - `cdn_rng_policy_v1` -> not found in dictionary/registry (spec example; closest is `route_rng_policy_v1` + `cdn_key_digest`)
-- `virtual_classification`, `virtual_settlement`, `edge_catalogue`, `edge_alias_blob`, `edge_alias_index`, `edge_universe_hash` -> spec uses generic names; dictionary/registry use `_3B` suffixed ids
+- `virtual_classification`, `virtual_settlement`, `edge_catalogue`, `edge_catalogue_index`, `edge_alias_blob`, `edge_alias_index`, `edge_universe_hash`, `cdn_alias` -> spec uses generic names; dictionary/registry use `_3B` suffixed ids
 - `validation_bundle_index_3B/index.json`, `_passed.flag`, `s5_manifest_3B.json` -> file names inside bundle; dataset ids are `validation_bundle_index_3B`, `validation_passed_flag_3B`, `s5_manifest_3B`
+- `s5_run_summary_3B` -> optional alias in spec; not in dictionary/registry (use `s5_manifest_3B`)
 
 ### Upstream artefacts referenced in state specs but not in 3B dictionary/registry
 - `outlet_catalogue`, `site_timezones`, `tz_timetable_cache`, `zone_alloc`, `zone_alloc_universe_hash`, `merchant_ids`
 
 ### RNG logs/events referenced but not in 3B dictionary/registry
 - `rng_audit_log`, `rng_trace_log`, `rng_event_edge_tile_assign`, `rng_event_edge_jitter`
+
+## 5A
+
+### Sources (docs/model_spec/data-engine)
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/artefact_registry_5A.yaml`
+
+### Present in dictionary + registry (datasets/configs)
+- 5A policies/configs: `merchant_class_policy_5A`, `demand_scale_policy_5A`, `baseline_intensity_policy_5A`, `shape_library_5A`, `scenario_horizon_config_5A`, `scenario_calendar_5A`, `scenario_overlay_policy_5A`
+- 5A control-plane: `s0_gate_receipt_5A`, `sealed_inputs_5A`, `scenario_manifest_5A`
+- 5A outputs: `merchant_zone_profile_5A`, `merchant_class_profile_5A`, `shape_grid_definition_5A`, `class_zone_shape_5A`, `class_shape_catalogue_5A`, `merchant_zone_baseline_local_5A`, `class_zone_baseline_local_5A`, `merchant_zone_baseline_utc_5A`, `merchant_zone_scenario_local_5A`, `merchant_zone_overlay_factors_5A`, `merchant_zone_scenario_utc_5A`
+- 5A validation artefacts: `validation_bundle_index_5A`, `validation_report_5A`, `validation_issue_table_5A`, `validation_passed_flag_5A`
+
+### Dictionary-only (missing from registry)
+- Run reports: `segment_state_runs`, `s1_run_report_5A`, `s2_run_report_5A`, `s3_run_report_5A`, `s4_run_report_5A`, `s5_run_report_5A`
+
+### Alias or mismatch vs dictionary/registry ids
+- `_passed.flag` -> dictionary/registry id `validation_passed_flag_5A`
+- `validation_bundle_5A` (bundle directory) -> not in dictionary/registry; registry maps `mlr.5A.validation.bundle` to `validation_bundle_index_5A`
+- `scenario_calendar` -> `scenario_calendar_5A`
+- `calendar_overlay_policy_5A` -> not found; closest is `scenario_overlay_policy_5A`
+- `shape_time_grid_policy_5A` -> not found in dictionary/registry (grid semantics may be part of `shape_library_5A`)
+- `shape_library_policy_5A` -> dictionary/registry use `shape_library_5A`
+- `overlay_ordering_policy_5A`, `scenario_overlay_validation_policy_5A` -> not found in dictionary/registry
+- `scenario_metadata` -> not found in dictionary/registry
+- `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5A.yaml` -> schema packs, not artefact ids
+- `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3B.yaml`, `dataset_dictionary.layer2.5A.yaml`, `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`, `artefact_registry_5A.yaml` -> doc references, not artefact ids
+
+### Upstream artefacts referenced in state specs but not in 5A dictionary/registry
+- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-3B
+- Upstream data surfaces: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`, `zone_alloc`, `zone_alloc_universe_hash`
+- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `virtual_routing_policy_3B`, `virtual_validation_contract_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`
+
+## 5B
+
+### Sources (docs/model_spec/data-engine)
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml`
+
+### Present in dictionary + registry (datasets/configs)
+- 5B configs/policies: `time_grid_policy_5B`, `grouping_policy_5B`, `arrival_lgcp_config_5B`, `arrival_count_config_5B`, `arrival_time_placement_policy_5B`, `arrival_routing_policy_5B`, `arrival_rng_policy_5B`, `validation_policy_5B`
+- 5B control-plane: `s0_gate_receipt_5B`, `sealed_inputs_5B`
+- 5B outputs: `s1_time_grid_5B`, `s1_grouping_5B`, `s2_realised_intensity_5B`, `s2_latent_field_5B`, `s3_bucket_counts_5B`, `arrival_events_5B`, `s4_arrival_summary_5B`, `s4_arrival_anomalies_5B`
+- 5B validation artefacts: `validation_bundle_index_5B`, `validation_report_5B`, `validation_issue_table_5B`, `validation_passed_flag_5B`
+
+### Dictionary-only (missing from registry)
+- Run-report journal: `segment_state_runs`
+
+### Alias or mismatch vs dictionary/registry ids
+- `_passed.flag` -> dictionary/registry id `validation_passed_flag_5B`
+- `validation_bundle_5B` (bundle directory) -> not in dictionary/registry; bundle index id is `validation_bundle_index_5B`
+- `s4_arrival_events_5B` -> dictionary/registry id `arrival_events_5B`
+- `bundle layout policy` -> not found in dictionary/registry
+- `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5A.yaml`, `schemas.5B.yaml` -> schema packs, not artefact ids
+- `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3B.yaml`, `dataset_dictionary.layer2.5A.yaml`, `dataset_dictionary.layer2.5B.yaml`, `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`, `artefact_registry_5A.yaml`, `artefact_registry_5B.yaml` -> doc references, not artefact ids
+
+### Upstream artefacts referenced in state specs but not in 5B dictionary/registry
+- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-3B and 5A
+- Upstream surfaces: `site_locations`, `site_timezones`, `tz_timetable_cache`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `zone_alloc`, `zone_alloc_universe_hash`
+- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
+- 5A surfaces: `scenario_manifest_5A`, `merchant_zone_scenario_local_5A`, `merchant_zone_scenario_utc_5A`
+- 2B policy refs: `route_rng_policy_v1`, `alias_layout_policy_v1`
+
+### RNG logs/events referenced but not in 5B dictionary/registry
+- `rng_audit_log`, `rng_trace_log`
+- `rng_event_arrival_lgcp_gaussian`
+- `arrival_time_jitter`, `arrival_site_pick`, `arrival_edge_pick`
+
+## 6A
+
+### Sources (docs/model_spec/data-engine)
+- `docs/model_spec/data-engine/layer-3/specs/contracts/6A/dataset_dictionary.layer3.6A.yaml`
+- `docs/model_spec/data-engine/layer-3/specs/contracts/6A/artefact_registry_6A.yaml`
+
+### Present in dictionary + registry (datasets/configs)
+- 6A control-plane: `s0_gate_receipt_6A`, `sealed_inputs_6A`
+- 6A priors/taxonomies/policies: `prior_population_6A`, `prior_segmentation_6A`, `taxonomy_party_6A`, `prior_account_per_party_6A`, `prior_product_mix_6A`, `taxonomy_account_types_6A`, `prior_instrument_per_account_6A`, `prior_instrument_mix_6A`, `taxonomy_instrument_types_6A`, `prior_device_counts_6A`, `taxonomy_devices_6A`, `prior_ip_counts_6A`, `taxonomy_ips_6A`, `taxonomy_fraud_roles_6A`, `prior_party_roles_6A`, `prior_account_roles_6A`, `prior_merchant_roles_6A`, `prior_device_roles_6A`, `prior_ip_roles_6A`, `validation_policy_6A`, `graph_linkage_rules_6A`, `device_linkage_rules_6A`
+- 6A outputs: `s1_party_base_6A`, `s1_party_summary_6A`, `s2_account_base_6A`, `s2_party_product_holdings_6A`, `s2_merchant_account_base_6A`, `s2_account_summary_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A`, `s4_entity_neighbourhoods_6A`, `s4_network_summary_6A`, `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`, `validation_bundle_index_6A`, `validation_passed_flag_6A`
+
+### Dictionary-only (missing from registry)
+- `s5_validation_report_6A`, `s5_issue_table_6A`
+
+### Alias or mismatch vs dictionary/registry ids
+- `_passed.flag` -> dictionary/registry id `validation_passed_flag_6A`
+- `validation_bundle_6A` (bundle directory) -> not in dictionary/registry; bundle index id is `validation_bundle_index_6A`
+- `POPULATION_PRIOR` -> `prior_population_6A`
+- `SEGMENT_PRIOR` -> `prior_segmentation_6A`
+- `PRODUCT_PRIOR` -> `prior_product_mix_6A` (+ `prior_account_per_party_6A` for account counts)
+- `INSTRUMENT_PRIOR` -> `prior_instrument_mix_6A` (+ `prior_instrument_per_account_6A`)
+- `DEVICE_PRIOR` -> `prior_device_counts_6A`
+- `IP_PRIOR` / `ENDPOINT_PRIOR` -> `prior_ip_counts_6A`
+- `FRAUD_ROLE_PRIOR` / `FRAUD_PRIOR` -> `prior_party_roles_6A`, `prior_account_roles_6A`, `prior_merchant_roles_6A`, `prior_device_roles_6A`, `prior_ip_roles_6A`
+- `TAXONOMY` -> `taxonomy_party_6A`, `taxonomy_account_types_6A`, `taxonomy_instrument_types_6A`, `taxonomy_devices_6A`, `taxonomy_ips_6A`, `taxonomy_fraud_roles_6A`
+- `GRAPH_LINKAGE_RULES` -> `graph_linkage_rules_6A`
+- `DEVICE_LINKAGE_RULES` -> `device_linkage_rules_6A`
+- `VALIDATION_POLICY_6A` / `SEGMENT_CHECKLIST_6A` -> `validation_policy_6A`
+- `PRODUCT_LINKAGE_RULES`, `PRODUCT_ELIGIBILITY_CONFIG`, `INSTRUMENT_LINKAGE_RULES` -> not found in dictionary/registry
+- `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.layer3.yaml`, `schemas.6A.yaml` -> schema packs, not artefact ids
+- `dataset_dictionary.layer3.6A.yaml`, `artefact_registry_6A.yaml` -> doc references, not artefact ids
+
+### Upstream artefacts referenced in state specs but not in 6A dictionary/registry
+- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-5B
+- Upstream surfaces: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, `zone_alloc`, `zone_alloc_universe_hash`
+- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
+- 5A surfaces: `merchant_zone_profile_5A` and related intensity surfaces
+- 5B surfaces: `arrival_events_5B`
+
+### Run-report / field tokens (not artefact ids)
+- `sealed_inputs_digest_6A`, `sealed_inputs_row_count`
+- `spec_version_6A`, `upstream_gates_summary`, `prior_packs_summary`
+
+### RNG logs/events referenced but not in 6A dictionary/registry
+- `rng_audit_log`, `rng_trace_log`
+- `party_count_realisation`, `party_attribute_sampling`
+- `account_count_realisation`, `account_allocation_sampling`, `account_attribute_sampling`
+- `instrument_count_realisation`, `instrument_allocation_sampling`, `instrument_attribute_sampling`
+- `device_count_realisation`, `device_allocation_sampling`, `device_attribute_sampling`
+- `ip_count_realisation`, `ip_allocation_sampling`, `ip_attribute_sampling`
+- `fraud_role_sampling_party`, `fraud_role_sampling_account`, `fraud_role_sampling_merchant`, `fraud_role_sampling_device`, `fraud_role_sampling_ip`
+
+## 6B
+
+### Sources (docs/model_spec/data-engine)
+- `docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`
+- `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml`
+
+### Present in dictionary + registry (datasets/configs)
+- 6B control-plane: `s0_gate_receipt_6B`, `sealed_inputs_6B`
+- 6B policies/configs: `attachment_policy_6B`, `sessionisation_policy_6B`, `behaviour_config_6B`, `behaviour_prior_pack_6B`, `rng_profile_layer3`, `rng_policy_6B`, `flow_shape_policy_6B`, `amount_model_6B`, `timing_policy_6B`, `flow_rng_policy_6B`, `fraud_campaign_catalogue_config_6B`, `fraud_overlay_policy_6B`, `fraud_rng_policy_6B`, `truth_labelling_policy_6B`, `bank_view_policy_6B`, `delay_models_6B`, `case_policy_6B`, `label_rng_policy_6B`, `segment_validation_policy_6B`
+- 6B outputs: `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`, `s3_campaign_catalogue_6B`, `s3_flow_anchor_with_fraud_6B`, `s3_event_stream_with_fraud_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_event_labels_6B`, `s4_case_timeline_6B`
+- 6B validation artefacts: `s5_validation_report_6B`, `s5_issue_table_6B`, `validation_bundle_6B`, `validation_passed_flag_6B`
+
+### Alias or mismatch vs dictionary/registry ids
+- `_passed.flag` -> dictionary/registry id `validation_passed_flag_6B`
+- `validation_bundle_index_6B` -> not found in dictionary/registry (bundle is `validation_bundle_6B`)
+- `validation_policy_6B` -> dictionary/registry use `segment_validation_policy_6B`
+- `campaign_catalogue_config_6B` -> dictionary id is `fraud_campaign_catalogue_config_6B`
+- `labelling_policy_6B` -> dictionary uses `truth_labelling_policy_6B`
+- `schemas.layer1.yaml`, `schemas.layer2.yaml`, `schemas.layer3.yaml`, `schemas.6B.yaml` -> schema packs, not artefact ids
+- `dataset_dictionary.layer3.6B.yaml`, `artefact_registry_6B.yaml` -> doc references, not artefact ids
+
+### Upstream artefacts referenced in state specs but not in 6B dictionary/registry
+- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-6A
+- Upstream sealed inputs: `sealed_inputs_5A`, `sealed_inputs_5B`, `sealed_inputs_6A`
+- Upstream arrivals/entities: `arrival_events_5B`, `s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`
+- 6A fraud posture: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`
+
+### RNG logs/events referenced but not in 6B dictionary/registry
+- `rng_audit_log`, `rng_trace_log`
+- `rng_event_flow_anchor_baseline`, `rng_event_event_stream_baseline`
+- `rng_event_fraud_campaign_pick`, `rng_event_fraud_overlay_apply`
+- `rng_event_truth_label`, `rng_event_bank_view_label`
