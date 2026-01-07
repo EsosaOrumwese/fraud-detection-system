@@ -1454,3 +1454,263 @@
 - RNG-free; S7 only packages and hashes artefacts; no re-validation beyond S6 gate
 - Outputs are fingerprint-scoped; `_passed.flag` is the authoritative PASS signal for 3A
 - Write-once/atomic publish; `index.json` member digests drive the composite HashGate digest
+
+
+---
+
+# 3B.S0 artefacts/policies/configs (from state.3B.s0.expanded.md only)
+
+## Inputs / references
+- Upstream PASS artefacts:
+  - `validation_bundle_1A` + `_passed.flag`
+  - `validation_bundle_1B` + `_passed.flag`
+  - `validation_bundle_2A` + `_passed.flag`
+  - `validation_bundle_3A` + `_passed.flag`
+- Upstream datasets (metadata-only in S0):
+  - `outlet_catalogue` (1A egress)
+  - `site_locations` (1B egress)
+  - `site_timezones` (2A egress)
+  - `tz_timetable_cache` (2A cache)
+  - `zone_alloc` (3A egress)
+  - `zone_alloc_universe_hash` (3A validation artefact)
+- 3B policies (sealed):
+  - Virtual classification rules (e.g., `mcc_channel_rules.yaml`)
+  - `virtual_settlement_coords` (legal anchor coordinates)
+  - `cdn_country_weights` (CDN country mix policy)
+  - `virtual_validation` policy (post-hoc thresholds)
+- Geospatial/time assets (sealed):
+  - HRSL / population rasters
+  - world polygons / country shapes
+  - tz-world polygons + pinned tzdb archive/release
+- RNG/routing policies (sealed):
+  - `route_rng_policy_v1`
+  - `cdn_rng_policy_v1` / `cdn_key_digest` (if defined)
+- Catalogue authorities:
+  - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.3B.yaml`
+  - `dataset_dictionary.layer1.3B.yaml`, `artefact_registry_3B.yaml`
+  - upstream schema/dictionary/registry packs (1A/1B/2A/2B/3A)
+
+## Outputs / datasets
+- `s0_gate_receipt_3B` (schema `schemas.3B.yaml#/validation/s0_gate_receipt_3B`)
+- `sealed_inputs_3B` (schema `schemas.3B.yaml#/validation/sealed_inputs_3B`)
+
+## Deliverables / reports
+- S0 run-report record (outputs_written, gate verification summary, paths)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; verifies upstream HashGate bundles for 1A/1B/2A/3A before sealing
+- Output partition is fingerprint-only; path-embed equality is binding
+- Write-once/atomic publish; sealed inputs define the only admissible 3B input universe
+
+
+---
+
+# 3B.S1 artefacts/policies/configs (from state.3B.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3B` (schema `schemas.3B.yaml#/validation/s0_gate_receipt_3B`)
+  - `sealed_inputs_3B` (schema `schemas.3B.yaml#/validation/sealed_inputs_3B`)
+- Required control-plane artefacts (sealed):
+  - virtual classification rules (schema `schemas.3B.yaml#/policy/virtual_classification_rules`)
+  - virtual settlement coordinate source (schema `schemas.3B.yaml#/ingress/virtual_settlement_coords`)
+  - any S1-specific overrides (allow/deny lists) if required
+  - timezone/geospatial assets for settlement tzid resolution (tz-world/tzdb), if S1 resolves tzids directly
+- Required data-plane input:
+  - merchant reference dataset (merchant_id, mcc, channel, legal_country_iso) per ingress/1A schema
+- Optional consistency inputs (sealed):
+  - `outlet_catalogue`, `site_locations`, `site_timezones` (for checks)
+
+## Outputs / datasets
+- `virtual_classification_3B` (schema `schemas.3B.yaml#/plan/virtual_classification_3B`)
+- `virtual_settlement_3B` (schema `schemas.3B.yaml#/plan/virtual_settlement_3B`)
+
+## Deliverables / reports
+- S1 run-report record (classification counts, settlement row count, output paths)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; classification and settlement are deterministic from sealed inputs
+- Output partitions `[seed, fingerprint]`; path-embed equality is binding
+- Write-once/atomic publish; S1 outputs are authoritative for virtual status and settlement nodes
+
+
+---
+
+# 3B.S2 artefacts/policies/configs (from state.3B.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3B`
+  - `sealed_inputs_3B`
+- S1 outputs:
+  - `virtual_classification_3B`
+  - `virtual_settlement_3B`
+- CDN edge-budget policy artefacts:
+  - `cdn_country_weights`
+  - per-merchant override policies (if present)
+- Spatial surfaces:
+  - `tile_index`, `tile_weights` (1B-owned or 3B-specific tiling)
+  - HRSL / population rasters
+  - world-country polygons
+- Timezone assets:
+  - tz-world polygons
+  - tzdb archive/release
+  - tz override packs (if present)
+- RNG/routing policy artefacts for 3B.S2 streams (Philox envelope; substreams like `edge_tile_assign`, `edge_jitter`)
+- Feature flags in the governed parameter set (examples: `enable_virtual_edges`, `shared_tile_surfaces`, `fixed_edges_per_merchant`)
+
+## Outputs / datasets
+- `edge_catalogue_3B` (schema `schemas.3B.yaml#/plan/edge_catalogue_3B`)
+- `edge_catalogue_index_3B` (schema `schemas.3B.yaml#/plan/edge_catalogue_index_3B`)
+- Optional planning surface `edge_tile_plan_3B` (if persisted; per-merchant tile allocations)
+- RNG logs/events (Layer-1 shared):
+  - `rng_audit_log`
+  - `rng_trace_log`
+  - `rng_event_edge_tile_assign`
+  - `rng_event_edge_jitter`
+
+## Deliverables / reports
+- S2 run-report record (status, counts, and paths for gate receipts, S1 inputs, and S2 outputs)
+- Structured lifecycle logs (`start`, `finish`) and error log events (`E3B_S2_*`)
+- Metrics counters/gauges (e.g. `3b_s2_runs_total`, `3b_s2_edge_count_total`, jitter resample counters)
+
+## Authority / policies / configs
+- JSON-Schema packs: `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.1B.yaml`, `schemas.2A.yaml`, `schemas.3B.yaml`
+- Dataset dictionaries: `dataset_dictionary.layer1.3B.yaml` (plus ingress/1B/2A dictionaries for inputs)
+- Artefact registries: `artefact_registry_3B.yaml` (plus ingress/1B/2A registries for inputs)
+- Policy schema anchors (examples): `schemas.3B.yaml#/policy/cdn_country_weights`, `schemas.3B.yaml#/spatial/virtual_tile_surface`
+
+
+---
+
+# 3B.S3 artefacts/policies/configs (from state.3B.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3B`
+  - `sealed_inputs_3B`
+- S1 outputs (consistency checks):
+  - `virtual_classification_3B`
+  - `virtual_settlement_3B`
+- S2 outputs (edge universe):
+  - `edge_catalogue_3B`
+  - `edge_catalogue_index_3B`
+- Alias layout policy (e.g. `edge_alias_layout_policy_v1`; schema `schemas.3B.yaml#/policy/edge_alias_layout_policy`)
+- RNG/routing policy (compat expectations for 2B decode; supported alias layout versions)
+- Policy digests used by `edge_universe_hash_3B`:
+  - `cdn_country_weights` + overrides
+  - spatial surface digests (tiles/rasters used by S2)
+  - alias layout policy digest
+  - RNG policy digest
+- Optional input: 3A zone-universe hash descriptor (e.g. `zone_alloc_universe_hash`) if sealed
+- Feature flags in governed parameter set (examples: `alias_layout_version`, `enable_global_alias_header`, `enable_additional_alias_metadata`)
+
+## Outputs / datasets
+- `edge_alias_blob_3B` (binary blob; header schema `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`)
+- `edge_alias_index_3B` (schema `schemas.3B.yaml#/plan/edge_alias_index_3B`)
+- `edge_universe_hash_3B` (schema `schemas.3B.yaml#/validation/edge_universe_hash_3B`)
+- Optional run-summary/receipt dataset (e.g. `s3_run_summary_3B` or `s3_gate_receipt_3B`) if declared
+
+## Deliverables / reports
+- S3 run-report record (status, counts, alias blob size, and paths for S0/S2/S3 artefacts)
+- Structured lifecycle logs (`start`, `finish`) and error logs with `E3B_S3_*` codes
+- Metrics counters/gauges (e.g. `3b_s3_runs_total`, `3b_s3_alias_blob_size_bytes`, alias table length histogram)
+
+## Authority / policies / configs
+- JSON-Schema packs: `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.3B.yaml`
+- Dataset dictionary: `dataset_dictionary.layer1.3B.yaml`
+- Artefact registry: `artefact_registry_3B.yaml`
+- Alias layout policy is the sole authority on blob/index layout and quantisation; RNG/routing policy is the sole authority on 2B decode compatibility
+- RNG-free; S3 must not emit RNG events or logs
+
+
+---
+
+# 3B.S4 artefacts/policies/configs (from state.3B.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3B`
+  - `sealed_inputs_3B`
+- S1 outputs:
+  - `virtual_classification_3B`
+  - `virtual_settlement_3B`
+- S2 outputs:
+  - `edge_catalogue_3B`
+  - `edge_catalogue_index_3B`
+- S3 outputs:
+  - `edge_alias_blob_3B`
+  - `edge_alias_index_3B`
+  - `edge_universe_hash_3B`
+- Virtual validation policy pack (e.g. `virtual_validation.yml`)
+- Routing/RNG policy (2B compatibility; alias layout support and RNG stream bindings)
+- Event schema / routing field contracts (2B event schema anchors / routing field bindings)
+- Feature flags in governed parameter set (examples: `enable_virtual_routing`, `virtual_validation_profile`, hybrid routing modes)
+
+## Outputs / datasets
+- `virtual_routing_policy_3B` (schema `schemas.3B.yaml#/egress/virtual_routing_policy_3B`)
+- `virtual_validation_contract_3B` (schema `schemas.3B.yaml#/egress/virtual_validation_contract_3B`)
+- Optional run-summary/receipt `s4_run_summary_3B` (schema `schemas.3B.yaml#/validation/s4_run_summary_3B`)
+
+## Deliverables / reports
+- S4 run-report record (status, counts, and paths for S0-S3 inputs plus S4 outputs)
+- Structured lifecycle logs (`start`, `finish`) and error logs with `E3B_S4_*` codes
+- Metrics counters/gauges for S4 runs and contract sizes
+
+## Authority / policies / configs
+- JSON-Schema packs: `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.3B.yaml`
+- Dataset dictionary: `dataset_dictionary.layer1.3B.yaml`
+- Artefact registry: `artefact_registry_3B.yaml`
+- Routing policy and validation policy are the only authorities on routing semantics and validation tests
+- RNG-free; S4 must not emit RNG events or logs
+
+
+---
+
+# 3B.S5 artefacts/policies/configs (from state.3B.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3B`
+  - `sealed_inputs_3B`
+- S1 outputs:
+  - `virtual_classification_3B`
+  - `virtual_settlement_3B`
+- S2 outputs:
+  - `edge_catalogue_3B`
+  - `edge_catalogue_index_3B`
+  - S2 RNG logs/events (`rng_audit_log`, `rng_trace_log`, S2 event streams)
+- S3 outputs:
+  - `edge_alias_blob_3B`
+  - `edge_alias_index_3B`
+  - `edge_universe_hash_3B`
+- S4 outputs:
+  - `virtual_routing_policy_3B`
+  - `virtual_validation_contract_3B`
+- Sealed policies and governance:
+  - CDN edge policy (e.g. `cdn_country_weights` + overrides)
+  - spatial/tiling assets + world polygons
+  - tz-world, tzdb archive, tz overrides
+  - alias layout policy
+  - routing/RNG policy
+  - virtual validation policy
+
+## Outputs / datasets
+- `validation_bundle_3B` (bundle directory under `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`)
+- `validation_bundle_index_3B` (`index.json` inside the bundle)
+- `validation_passed_flag_3B` (`_passed.flag`)
+- Optional evidence/summary files (if declared): `s5_manifest_3B`, `s5_run_summary_3B`
+
+## Deliverables / reports
+- S5 run-report record (status, evidence counts, RNG discrepancy counts, and bundle/index/flag paths)
+- Structured lifecycle logs (`start`, `finish`) and error logs with `E3B_S5_*` codes
+- Metrics counters/gauges (e.g. `3b_s5_runs_total`, `3b_s5_evidence_file_count`, `3b_s5_rng_discrepancies_total`)
+
+## Authority / policies / configs
+- JSON-Schema packs: `schemas.layer1.yaml`, `schemas.3B.yaml` (bundle/index/flag schemas)
+- Dataset dictionary: `dataset_dictionary.layer1.3B.yaml`
+- Artefact registry: `artefact_registry_3B.yaml`
+- HashGate law for bundle hashing and `_passed.flag` content is authoritative
+- RNG-free; S5 must not emit RNG events or logs
