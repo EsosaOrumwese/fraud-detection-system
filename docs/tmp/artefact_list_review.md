@@ -2283,3 +2283,371 @@
 - `sealed_inputs_5B` is authoritative for admissible evidence inputs
 - S5 is the sole authority for `validation_bundle_5B` and `_passed.flag`
 - Bundle/hash law is authoritative; S5 is RNG-free
+
+
+---
+
+# 6A.S0 artefacts/policies/configs (from state.6A.s0.expanded.md only)
+
+## Inputs / references
+- Upstream HashGates (bundle + flag) required:
+  - 1A: `validation_bundle_1A` + `_passed.flag`
+  - 1B: `validation_bundle_1B` + `_passed.flag`
+  - 2A: `validation_bundle_2A` + `_passed.flag`
+  - 2B: `validation_bundle_2B` + `_passed.flag`
+  - 3A: `validation_bundle_3A` + `_passed.flag`
+  - 3B: `validation_bundle_3B` + `_passed.flag`
+  - 5A: `validation_bundle_5A` + `_passed.flag`
+  - 5B: `validation_bundle_5B` + `_passed.flag`
+- Layer-1/2 shape authority (schemas + catalogues):
+  - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`
+  - dataset dictionaries + artefact registries for 1A-3B and 5A-5B
+- Layer-3 / 6A contracts:
+  - `schemas.layer3.yaml`
+  - `schemas.6A.yaml`
+  - `dataset_dictionary.layer3.6A.yaml`
+  - `artefact_registry_6A.yaml`
+- 6A prior/config packs (as referenced by the 6A registry):
+  - population priors
+  - segmentation priors
+  - product mix priors
+  - device/IP priors
+  - fraud-role priors
+  - taxonomy/enumeration packs
+- Upstream egress candidates for sealing (metadata-only at S0):
+  - 1A: `outlet_catalogue`
+  - 1B: `site_locations`
+  - 2A: `site_timezones`, `tz_timetable_cache`
+  - 3A: `zone_alloc`, `zone_alloc_universe_hash`
+  - 3B: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
+  - 5A: `merchant_zone_profile_5A` and related intensity surfaces
+  - 5B: `arrival_events_5B` (metadata-only)
+
+## Outputs / datasets
+- `s0_gate_receipt_6A` (gate receipt; schema `schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A`)
+- `sealed_inputs_6A` (sealed input manifest; schema `schemas.layer3.yaml#/gate/6A/sealed_inputs_6A`)
+- `sealed_inputs_digest_6A` (digest recorded in `s0_gate_receipt_6A`)
+
+## Deliverables / reports
+- Run-report record (state_id `6A.S0`, status, error_code, run_id, `spec_version_6A`)
+- Required run-report fields/metrics:
+  - `sealed_inputs_digest_6A`, `sealed_inputs_row_count`
+  - `upstream_gates_summary` (counts of PASS/FAIL/MISSING)
+  - `prior_packs_summary` (counts by prior role)
+  - `upstream_segments_required`, `upstream_segments_pass`, `upstream_segments_fail`, `upstream_segments_missing`
+  - `sealed_inputs_by_role`, `sealed_inputs_by_status`, `sealed_inputs_by_read_scope`
+
+## Authority / policies / configs
+- S0 is the sole authority for `s0_gate_receipt_6A` and `sealed_inputs_6A`
+- Upstream HashGates are authoritative for segment PASS/FAIL
+- 6A contracts (schemas/dictionary/registry) are authoritative for 6A shapes
+- RNG-free; control-plane only
+
+
+---
+
+# 6A.S1 artefacts/policies/configs (from state.6A.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6A`
+  - `sealed_inputs_6A` (whitelisted artefacts + `read_scope`)
+  - latest 6A.S0 run-report must be `PASS`
+- Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
+  - `POPULATION_PRIOR` artefacts (population scale + regional splits)
+  - `SEGMENT_PRIOR` artefacts (segment mix per region/type)
+  - `TAXONOMY` artefacts (party types, segments, region codes)
+- 6A contracts (METADATA_ONLY):
+  - `schemas.layer3.yaml`
+  - `schemas.6A.yaml`
+  - `dataset_dictionary.layer3.6A.yaml`
+  - `artefact_registry_6A.yaml`
+- Optional contextual inputs (if sealed):
+  - upstream region/country surfaces or aggregate 5A/5B volume summaries (must respect `read_scope`)
+
+## Outputs / datasets
+- `s1_party_base_6A` (required; schema `schemas.6A.yaml#/s1/party_base`)
+  - Partition keys: `seed`, `manifest_fingerprint`
+  - Columns include `parameter_hash` and party identity/segment/geography fields
+- `s1_party_summary_6A` (optional; schema `schemas.6A.yaml#/s1/party_summary`)
+  - Derived aggregate counts from `s1_party_base_6A`
+
+## RNG logs / events
+- RNG families for:
+  - `party_count_realisation`
+  - `party_attribute_sampling`
+- RNG event tables + layer-wide trace logs (Philox envelope)
+
+## Deliverables / reports
+- Run-report record (state_id `6A.S1`, status, error_code, run_id, `spec_version_6A`)
+- Required metrics:
+  - `total_parties`
+  - `parties_by_region`, `parties_by_segment`, `parties_by_party_type`
+  - `N_world_target`, `N_world_int` (plus optional region summaries)
+  - `rng_party_count_events`, `rng_party_count_draws`
+  - `rng_party_attribute_events`, `rng_party_attribute_draws`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6A` and `sealed_inputs_6A` are authoritative for allowed inputs
+- Population/segment priors and taxonomies are authoritative for party counts/attributes
+- S1 is the sole authority for the party base for `(manifest_fingerprint, seed)`
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 6A.S2 artefacts/policies/configs (from state.6A.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6A`
+  - `sealed_inputs_6A` (whitelisted artefacts + `read_scope`)
+  - latest 6A.S0 run-report must be `PASS`
+- S1 party base gate:
+  - latest 6A.S1 run-report must be `PASS`
+  - `s1_party_base_6A` (schema `schemas.6A.yaml#/s1/party_base`)
+- Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
+  - `PRODUCT_PRIOR` artefacts (product mix, account-per-party distributions)
+  - product linkage/eligibility rules (e.g. `PRODUCT_LINKAGE_RULES`, `PRODUCT_ELIGIBILITY_CONFIG`)
+  - `TAXONOMY` artefacts (account types, product families, enums)
+- 6A contracts (METADATA_ONLY):
+  - `schemas.layer3.yaml`
+  - `schemas.6A.yaml`
+  - `dataset_dictionary.layer3.6A.yaml`
+  - `artefact_registry_6A.yaml`
+- Optional contextual inputs (if sealed):
+  - upstream region/geo or socio-economic surfaces
+  - aggregate 5A/5B volume hints (must respect `read_scope`)
+
+## Outputs / datasets
+- `s2_account_base_6A` (required; schema `schemas.6A.yaml#/s2/account_base`)
+  - Partition keys: `seed`, `manifest_fingerprint`
+  - Columns include `parameter_hash`, `account_id`, owner refs, product attributes
+- `s2_party_product_holdings_6A` (required; schema `schemas.6A.yaml#/s2/party_product_holdings`)
+  - Derived from `s2_account_base_6A` and `s1_party_base_6A`
+- Optional derived views:
+  - `s2_merchant_account_base_6A` (schema `schemas.6A.yaml#/s2/merchant_account_base`)
+  - `s2_account_summary_6A` (schema `schemas.6A.yaml#/s2/account_summary`)
+
+## RNG logs / events
+- RNG families for:
+  - `account_count_realisation`
+  - `account_allocation_sampling`
+  - `account_attribute_sampling`
+- RNG event tables + layer-wide trace logs (Philox envelope)
+
+## Deliverables / reports
+- Run-report record (state_id `6A.S2`, status, error_code, run_id, `spec_version_6A`)
+- Required metrics:
+  - `total_accounts`
+  - `accounts_by_type`, `accounts_by_product_family` (optional), `accounts_by_region`, `accounts_by_segment`
+  - `accounts_per_party_min`, `accounts_per_party_max`, `accounts_per_party_mean`, `accounts_per_party_pXX`
+  - `rng_account_count_events`, `rng_account_count_draws`
+  - `rng_account_allocation_events`, `rng_account_allocation_draws`
+  - `rng_account_attribute_events`, `rng_account_attribute_draws`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6A` and `sealed_inputs_6A` are authoritative for allowed inputs
+- `s1_party_base_6A` is authoritative for party identity and segmentation
+- S2 is the sole authority for account universe and ownership topology
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 6A.S3 artefacts/policies/configs (from state.6A.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6A`
+  - `sealed_inputs_6A` (whitelisted artefacts + `read_scope`)
+  - latest 6A.S0 run-report must be `PASS`
+- S1/S2 gates:
+  - latest 6A.S1 run-report must be `PASS`
+  - `s1_party_base_6A` (schema `schemas.6A.yaml#/s1/party_base`)
+  - latest 6A.S2 run-report must be `PASS`
+  - `s2_account_base_6A` (schema `schemas.6A.yaml#/s2/account_base`)
+  - `s2_party_product_holdings_6A` (schema `schemas.6A.yaml#/s2/party_product_holdings`)
+- Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
+  - instrument mix priors (`PRODUCT_PRIOR` / `INSTRUMENT_PRIOR`)
+  - instrument linkage/eligibility rules (`INSTRUMENT_LINKAGE_RULES` / `PRODUCT_LINKAGE_RULES`)
+  - `TAXONOMY` artefacts (instrument types, schemes, brands, token types)
+- 6A contracts (METADATA_ONLY):
+  - `schemas.layer3.yaml`
+  - `schemas.6A.yaml`
+  - `dataset_dictionary.layer3.6A.yaml`
+  - `artefact_registry_6A.yaml`
+- Optional contextual inputs (if sealed):
+  - region/scheme penetration hints, aggregated L2 volume hints (must respect `read_scope`)
+
+## Outputs / datasets
+- `s3_instrument_base_6A` (required; schema `schemas.6A.yaml#/s3/instrument_base`)
+  - Partition keys: `seed`, `manifest_fingerprint`
+- `s3_account_instrument_links_6A` (required; schema `schemas.6A.yaml#/s3/account_instrument_links`)
+  - Partition keys: `seed`, `manifest_fingerprint`
+- Optional derived views:
+  - `s3_party_instrument_holdings_6A` (derived holdings)
+  - `s3_instrument_summary_6A` (aggregate counts/QA)
+
+## RNG logs / events
+- RNG families for:
+  - `instrument_count_realisation`
+  - `instrument_allocation_sampling`
+  - `instrument_attribute_sampling`
+- RNG event tables + layer-wide trace logs (Philox envelope)
+
+## Deliverables / reports
+- Run-report record (state_id `6A.S3`, status, error_code, run_id, `spec_version_6A`)
+- Required metrics:
+  - `total_instruments`
+  - `instruments_by_type`, `instruments_by_scheme`, `instruments_by_account_type`
+  - `instruments_by_party_segment`, `instruments_by_region`
+  - `instruments_per_account_min`, `instruments_per_account_max`, `instruments_per_account_mean`, `instruments_per_account_pXX`
+  - optional `instruments_per_party_*` metrics
+  - `rng_instrument_count_events`, `rng_instrument_count_draws`
+  - `rng_instrument_allocation_events`, `rng_instrument_allocation_draws`
+  - `rng_instrument_attribute_events`, `rng_instrument_attribute_draws`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6A` and `sealed_inputs_6A` are authoritative for allowed inputs
+- `s1_party_base_6A` is authoritative for party identity/segmentation
+- `s2_account_base_6A` is authoritative for account identity/ownership
+- S3 is the sole authority for instrument universe and account-instrument links
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 6A.S4 artefacts/policies/configs (from state.6A.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6A`
+  - `sealed_inputs_6A` (whitelisted artefacts + `read_scope`)
+  - latest 6A.S0 run-report must be `PASS`
+- S1/S2/S3 gates:
+  - latest 6A.S1 run-report must be `PASS`
+  - `s1_party_base_6A` (schema `schemas.6A.yaml#/s1/party_base`)
+  - latest 6A.S2 run-report must be `PASS`
+  - `s2_account_base_6A` (schema `schemas.6A.yaml#/s2/account_base`)
+  - `s2_party_product_holdings_6A` (schema `schemas.6A.yaml#/s2/party_product_holdings`)
+  - latest 6A.S3 run-report must be `PASS`
+  - `s3_instrument_base_6A` (schema `schemas.6A.yaml#/s3/instrument_base`)
+  - `s3_account_instrument_links_6A` (schema `schemas.6A.yaml#/s3/account_instrument_links`)
+- Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
+  - `DEVICE_PRIOR` artefacts (device counts + device-type mix)
+  - `IP_PRIOR` / `ENDPOINT_PRIOR` artefacts (IP counts + IP-type mix)
+  - graph/linkage rules (`GRAPH_LINKAGE_RULES` / `DEVICE_LINKAGE_RULES`)
+  - `TAXONOMY` artefacts (device_type, os_family, ip_type, asn_class, risk tags)
+- 6A contracts (METADATA_ONLY):
+  - `schemas.layer3.yaml`
+  - `schemas.6A.yaml`
+  - `dataset_dictionary.layer3.6A.yaml`
+  - `artefact_registry_6A.yaml`
+- Optional contextual inputs (if sealed):
+  - connectivity/ASN mix surfaces, merchant channel mix hints (respect `read_scope`)
+
+## Outputs / datasets
+- `s4_device_base_6A` (required; schema `schemas.6A.yaml#/s4/device_base`)
+- `s4_ip_base_6A` (required; schema `schemas.6A.yaml#/s4/ip_base`)
+- `s4_device_links_6A` (required; schema `schemas.6A.yaml#/s4/device_links`)
+- `s4_ip_links_6A` (required; schema `schemas.6A.yaml#/s4/ip_links`)
+- Optional derived views:
+  - `s4_entity_neighbourhoods_6A`
+  - `s4_network_summary_6A`
+
+## RNG logs / events
+- RNG families for:
+  - `device_count_realisation`
+  - `device_allocation_sampling`
+  - `device_attribute_sampling`
+  - `ip_count_realisation`
+  - `ip_allocation_sampling`
+  - `ip_attribute_sampling`
+- RNG event tables + layer-wide trace logs (Philox envelope)
+
+## Deliverables / reports
+- Run-report record (state_id `6A.S4`, status, error_code, run_id, `spec_version_6A`)
+- Required metrics:
+  - `total_devices`, `total_ips`
+  - `devices_by_type`, `devices_by_os_family`, `devices_by_region` (optional `devices_by_party_segment`)
+  - `ips_by_type`, `ips_by_asn_class`, `ips_by_region`
+  - `devices_per_party_min`, `devices_per_party_max`, `devices_per_party_mean`, `devices_per_party_pXX`
+  - `ips_per_device_min`, `ips_per_device_max`, `ips_per_device_mean`, `ips_per_device_pXX`
+  - shared-device/shared-IP counts (high-degree indicators)
+  - `rng_device_count_events`, `rng_device_count_draws`
+  - `rng_device_allocation_events`, `rng_device_allocation_draws`
+  - `rng_device_attribute_events`, `rng_device_attribute_draws`
+  - `rng_ip_count_events`, `rng_ip_count_draws`
+  - `rng_ip_allocation_events`, `rng_ip_allocation_draws`
+  - `rng_ip_attribute_events`, `rng_ip_attribute_draws`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6A` and `sealed_inputs_6A` are authoritative for allowed inputs
+- `s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A` are authoritative for parties/accounts/instruments
+- S4 is the sole authority for device/IP universes and graph links
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 6A.S5 artefacts/policies/configs (from state.6A.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6A`
+  - `sealed_inputs_6A` (whitelisted artefacts + `read_scope`)
+  - latest 6A.S0 run-report must be `PASS`
+- S1-S4 gates and bases:
+  - latest 6A.S1/S2/S3/S4 run-reports must be `PASS`
+  - `s1_party_base_6A`, `s2_account_base_6A`, `s2_party_product_holdings_6A`
+  - `s3_instrument_base_6A`, `s3_account_instrument_links_6A`
+  - `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A`
+- Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
+  - fraud-role priors (`FRAUD_ROLE_PRIOR` / `FRAUD_PRIOR`)
+  - fraud taxonomies (`TAXONOMY` for party/account/merchant/device/ip roles, risk tiers)
+  - validation policy/checklist (`VALIDATION_POLICY_6A` / `SEGMENT_CHECKLIST_6A`)
+- 6A contracts (METADATA_ONLY):
+  - `schemas.layer3.yaml`
+  - `schemas.6A.yaml`
+  - `dataset_dictionary.layer3.6A.yaml`
+  - `artefact_registry_6A.yaml`
+- Optional contextual inputs (if sealed):
+  - upstream risk summaries or policy parameters (must respect `read_scope`)
+
+## Outputs / datasets
+- Fraud-role surfaces (seed-scoped):
+  - `s5_party_fraud_roles_6A`
+  - `s5_account_fraud_roles_6A`
+  - `s5_merchant_fraud_roles_6A`
+  - `s5_device_fraud_roles_6A`
+  - `s5_ip_fraud_roles_6A`
+- Validation artefacts (fingerprint-scoped):
+  - `s5_validation_report_6A`
+  - `s5_issue_table_6A` (optional)
+  - `validation_bundle_index_6A`
+  - `validation_passed_flag_6A` (`_passed.flag`)
+
+## RNG logs / events
+- RNG families for fraud-role sampling:
+  - `fraud_role_sampling_party`
+  - `fraud_role_sampling_account`
+  - `fraud_role_sampling_merchant`
+  - `fraud_role_sampling_device`
+  - `fraud_role_sampling_ip`
+- RNG event tables + layer-wide trace/audit logs
+
+## Deliverables / reports
+- Seed-level run-report record (state_id `6A.S5`, status, error_code, run_id, `spec_version_6A`)
+- Required metrics (per seed):
+  - entity totals: `total_parties`, `total_accounts`, `total_merchants`, `total_devices`, `total_ips`
+  - role counts/proportions per entity type (`roles_*_counts`, `roles_*_proportions`)
+  - optional cell-level fraud summaries (per region/segment/type)
+  - RNG metrics: `rng_party_role_events/draws`, `rng_account_role_events/draws`, `rng_merchant_role_events/draws`, `rng_device_role_events/draws`, `rng_ip_role_events/draws`
+- World-level status exposure via validation bundle + `_passed.flag`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6A` and `sealed_inputs_6A` are authoritative for allowed inputs
+- S1-S4 bases are authoritative for world structure; S5 overlays static fraud roles
+- S5 is the sole authority for fraud-role surfaces and the 6A validation bundle/HashGate
+- RNG-bearing for role sampling; outputs deterministic for `(manifest_fingerprint, seed)` and independent of `run_id`
