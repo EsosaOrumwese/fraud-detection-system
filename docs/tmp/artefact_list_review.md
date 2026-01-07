@@ -2651,3 +2651,398 @@
 - S1-S4 bases are authoritative for world structure; S5 overlays static fraud roles
 - S5 is the sole authority for fraud-role surfaces and the 6A validation bundle/HashGate
 - RNG-bearing for role sampling; outputs deterministic for `(manifest_fingerprint, seed)` and independent of `run_id`
+
+
+---
+
+# 6B.S0 artefacts/policies/configs (from state.6B.s0.expanded.md only)
+
+## Inputs / references
+- Required upstream HashGates (bundle + `_passed.flag`):
+  - 1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A
+- Upstream sealed-input manifests (where available):
+  - `sealed_inputs_5A`, `sealed_inputs_5B`, `sealed_inputs_6A` (must be schema-valid)
+- Layer-3 / 6B contracts:
+  - `schemas.layer3.yaml`
+  - `schemas.6B.yaml`
+  - `dataset_dictionary.layer3.6B.yaml`
+  - `artefact_registry_6B.yaml`
+- Catalogue/dictionary/registry for upstream segments:
+  - `schemas.layer1.yaml`, `schemas.layer2.yaml`
+  - dataset dictionaries + artefact registries for 1A-3B, 5A-5B, 6A
+- 6B config/policy packs (sealed, schema-valid):
+  - behaviour priors (e.g. `behaviour_prior_pack_6B`)
+  - campaign config (e.g. `campaign_catalogue_config_6B`)
+  - labelling policy (e.g. `labelling_policy_6B`)
+  - validation policy (e.g. `validation_policy_6B`)
+
+## Outputs / datasets
+- `s0_gate_receipt_6B` (gate receipt; schema `schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B`)
+- `sealed_inputs_6B` (sealed input manifest; schema `schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`)
+- `sealed_inputs_digest_6B` (digest recorded in `s0_gate_receipt_6B`)
+
+## Deliverables / reports
+- Run-report section for `segment=6B`, `state=S0` (world-scoped)
+- Required run-report fields:
+  - `manifest_fingerprint`, `spec_version_6B`, `parameter_hash`
+  - `status`, `primary_error_code`, `secondary_error_codes`
+  - `sealed_inputs_digest_6B`
+  - `upstream_segment_summary` (required segments + status/bundle sha/flag path)
+  - `sealed_inputs_summary`:
+    - `total_rows`, `rows_by_layer`, `rows_by_segment`
+    - `required_rows`, `optional_rows`, `metadata_only_rows`
+    - `arrivals_present`, `entity_graph_present`
+
+## Authority / policies / configs
+- Upstream HashGates are authoritative for segment PASS/FAIL
+- `s0_gate_receipt_6B` and `sealed_inputs_6B` are the sole authority on 6B inputs
+- RNG-free; metadata-only state
+
+
+---
+
+# 6B.S1 artefacts/policies/configs (from state.6B.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6B`
+  - `sealed_inputs_6B` (whitelisted artefacts + `read_scope`)
+  - run-report must show 6B.S0 `status="PASS"` for `manifest_fingerprint`
+- Required arrivals (ROW_LEVEL):
+  - `arrival_events_5B` (from 5B; partitioned by `seed`, `manifest_fingerprint`, `scenario_id`)
+- Required entities/posture (ROW_LEVEL, from 6A):
+  - `s1_party_base_6A`
+  - `s2_account_base_6A`
+  - `s3_instrument_base_6A`
+  - `s3_account_instrument_links_6A` (or equivalent)
+  - `s4_device_base_6A`
+  - `s4_ip_base_6A`
+  - `s4_device_links_6A`
+  - `s4_ip_links_6A`
+  - `s5_party_fraud_roles_6A`
+  - `s5_account_fraud_roles_6A`
+  - `s5_device_fraud_roles_6A`
+  - `s5_ip_fraud_roles_6A`
+  - `s5_merchant_fraud_roles_6A` (if required by policy)
+- 6B behaviour configs/policies (ROW_LEVEL):
+  - `behaviour_prior_pack_6B`
+  - `sessionisation_policy_6B` (may be embedded in behaviour pack)
+  - `entity_attachment_policy_6B` (if separate)
+  - `rng_policy_6B_S1` (if separate from layer RNG config)
+- Layer-3 RNG/numeric policy (metadata-only):
+  - Layer-3 RNG envelope/event family definitions
+  - numeric policy / math profile for probabilities (sealed via contracts)
+- Contract files / dictionaries:
+  - `schemas.layer3.yaml` (gate + RNG envelope)
+  - `schemas.6B.yaml` (S1 outputs)
+  - `schemas.5B.yaml`, `schemas.6A.yaml` (input schema refs in `sealed_inputs_6B`)
+  - `dataset_dictionary.layer3.6B.yaml`
+  - `artefact_registry_6B.yaml`
+  - `dataset_dictionary.layer2.5B.yaml` (arrival partitions)
+
+## Outputs / datasets
+- `s1_arrival_entities_6B` (required; schema `schemas.6B.yaml#/s1/arrival_entities_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s1_session_index_6B` (required; schema `schemas.6B.yaml#/s1/session_index_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+
+## RNG logs / events
+- RNG families (Layer-3 envelope):
+  - `rng_event_entity_attach`
+  - `rng_event_session_boundary`
+
+## Deliverables / reports
+- Run-report entry per `(manifest_fingerprint, seed, scenario_id)`
+- Required summary metrics:
+  - `arrival_count_5B`, `arrival_count_S1`, `session_count_S1`
+  - `arrival_coverage_ok`, `session_coverage_ok`
+  - `attachment_missing_entities_count`, `attachment_invalid_fk_count`
+  - session distribution hints (e.g. `avg_arrivals_per_session`, `p95_arrivals_per_session`, `max_arrivals_per_session`, `avg_session_duration_seconds`)
+
+## Authority / policies / configs
+- `s0_gate_receipt_6B` and `sealed_inputs_6B` are authoritative for allowed inputs
+- `arrival_events_5B` is authoritative for arrivals; 6A bases/links/posture are authoritative for entities
+- S1 is the sole authority for arrival-entity attachments and sessionisation
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and independent of `run_id`
+
+
+---
+
+# 6B.S2 artefacts/policies/configs (from state.6B.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6B`
+  - `sealed_inputs_6B` (whitelisted artefacts + `read_scope`)
+  - run-report must show 6B.S0 `status="PASS"` for `manifest_fingerprint`
+- S1 gate evidence:
+  - run-report must show 6B.S1 `status="PASS"` for `(manifest_fingerprint, seed, scenario_id)`
+- Required S1 surfaces (ROW_LEVEL):
+  - `s1_arrival_entities_6B`
+  - `s1_session_index_6B`
+- Required S2 config packs (ROW_LEVEL; names per 6B contracts):
+  - `flow_shape_policy_6B` (flow structure priors)
+  - `amount_model_6B` (amount/currency model)
+  - `timing_policy_6B` (timing/spacing policy, if separate)
+  - `flow_rng_policy_6B` (S2 RNG family/budget policy)
+- Optional context inputs (if sealed in 6B; `status="OPTIONAL"`):
+  - `arrival_events_5B` (role `arrival_stream`, typically `read_scope="METADATA_ONLY"`)
+  - 6A bases and fraud roles (`s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s5_*_fraud_roles_6A`)
+  - 5A intensity surfaces (`merchant_zone_*_5A`)
+  - 2B routing plan surfaces
+  - 3B virtual routing policy
+- Layer-3 RNG/numeric policy (metadata-only):
+  - Layer-3 RNG envelope/event family definitions
+  - numeric policy / math profile (sealed via contracts)
+- Contract files / dictionaries:
+  - `schemas.layer3.yaml` (gate + RNG envelope)
+  - `schemas.6B.yaml` (S2 outputs and config pack schema refs)
+  - `dataset_dictionary.layer3.6B.yaml`
+  - `artefact_registry_6B.yaml`
+
+## Outputs / datasets
+- `s2_flow_anchor_baseline_6B` (required plan surface; schema `schemas.6B.yaml#/s2/flow_anchor_baseline_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s2_event_stream_baseline_6B` (required plan surface; schema `schemas.6B.yaml#/s2/event_stream_baseline_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+
+## RNG logs / events
+- RNG families (Layer-3 envelope, via `flow_rng_policy_6B`):
+  - `rng_event_flow_shape`
+  - `rng_event_event_timing`
+  - `rng_event_amount_draw`
+
+## Deliverables / reports
+- Run-report entry per `(manifest_fingerprint, seed, scenario_id)`
+- Required summary metrics:
+  - `session_count_S1`, `arrival_count_S1`
+  - `flow_count_S2`, `event_count_S2`
+  - `flows_have_events_ok`, `no_orphan_events_ok`
+  - `session_linkage_ok`, `arrival_linkage_ok`
+  - `temporal_consistency_ok`, `amount_consistency_ok`
+  - `avg_events_per_flow`, `p95_events_per_flow`, `max_events_per_flow`
+  - `fraction_flows_with_refund`, `fraction_flows_declined`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6B` and `sealed_inputs_6B` are authoritative for allowed inputs
+- `s1_arrival_entities_6B` and `s1_session_index_6B` are authoritative for arrival-entity and session mappings
+- `arrival_events_5B` is authoritative for arrival identity/timestamps/routing when cross-checking
+- 6A bases/fraud roles are authoritative for entity attributes/posture when used
+- 6B flow/amount/timing/RNG policy packs are the only authority for S2 flow/event synthesis
+- S2 is the sole authority for baseline flow anchors and baseline event stream
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and independent of `run_id`
+
+
+---
+
+# 6B.S3 artefacts/policies/configs (from state.6B.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6B`
+  - `sealed_inputs_6B` (whitelisted artefacts + `read_scope`)
+  - run-report must show 6B.S0 `status="PASS"` for `manifest_fingerprint`
+- S1 and S2 gate evidence:
+  - run-report must show 6B.S1 and 6B.S2 `status="PASS"` for `(manifest_fingerprint, seed, scenario_id)`
+- Required S1/S2 surfaces (ROW_LEVEL):
+  - `s1_arrival_entities_6B`
+  - `s1_session_index_6B`
+  - `s2_flow_anchor_baseline_6B`
+  - `s2_event_stream_baseline_6B`
+- Required 6A fraud posture surfaces (ROW_LEVEL unless policy allows metadata-only):
+  - `s5_party_fraud_roles_6A`
+  - `s5_account_fraud_roles_6A`
+  - `s5_device_fraud_roles_6A`
+  - `s5_ip_fraud_roles_6A`
+  - `s5_merchant_fraud_roles_6A` (if required by policy)
+- Required fraud/abuse config packs (ROW_LEVEL; names per 6B contracts):
+  - `fraud_campaign_catalogue_config_6B` (campaign templates)
+  - `fraud_overlay_policy_6B` (overlay mutation rules)
+  - `fraud_rng_policy_6B` (S3 RNG families/budgets)
+- Optional context inputs (if sealed in 6B; `status="OPTIONAL"`):
+  - Additional 6A attributes and posture tables (for targeting/enrichment)
+  - 5A/5B context surfaces
+  - 2B routing plan surfaces
+  - 3B virtual routing policy
+- Layer-3 RNG/numeric policy (metadata-only):
+  - Layer-3 RNG envelope/event family definitions
+  - numeric policy / math profile (sealed via contracts)
+- Contract files / dictionaries:
+  - `schemas.layer3.yaml` (gate + RNG envelope)
+  - `schemas.6B.yaml` (S3 outputs and config pack schema refs)
+  - `dataset_dictionary.layer3.6B.yaml`
+  - `artefact_registry_6B.yaml`
+
+## Outputs / datasets
+- `s3_campaign_catalogue_6B` (required; schema `schemas.6B.yaml#/s3/campaign_catalogue_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`
+- `s3_flow_anchor_with_fraud_6B` (required; schema `schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s3_event_stream_with_fraud_6B` (required; schema `schemas.6B.yaml#/s3/event_stream_with_fraud_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+
+## RNG logs / events
+- RNG families (Layer-3 envelope, via `fraud_rng_policy_6B`):
+  - `rng_event_campaign_activation`
+  - `rng_event_campaign_targeting`
+  - `rng_event_overlay_mutation`
+
+## Deliverables / reports
+- Run-report entry per `(manifest_fingerprint, seed)` for `state="S3_campaign"`
+- Run-report entry per `(manifest_fingerprint, seed, scenario_id)` for `state="S3_overlay"`
+- Required summary metrics (campaign scope):
+  - `campaign_count_total`
+  - `campaign_count_by_type`
+  - `campaigns_with_targets_total`, `campaigns_without_targets_total`
+  - `campaign_target_flow_count_total`, `campaign_target_event_count_total`
+- Required summary metrics (overlay scope):
+  - `flow_count_baseline`, `flow_count_with_fraud`
+  - `event_count_baseline`, `event_count_with_fraud`
+  - `flows_untouched_count`, `flows_touched_count`
+  - `baseline_flow_coverage_ok`, `flow_event_coverage_ok`, `campaign_linkage_ok`, `entity_routing_consistency_ok`
+  - `fraud_flow_fraction`, `fraud_event_fraction`, `avg_fraud_events_per_fraud_flow`
+  - Optional per-pattern maps: `fraud_flow_count_by_pattern_type`, `fraud_event_count_by_pattern_type`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6B` and `sealed_inputs_6B` are authoritative for allowed inputs
+- S1 and S2 outputs are authoritative for attachments, sessions, baseline flows, and baseline events
+- 6A fraud role surfaces are authoritative for static fraud posture
+- 6B campaign/overlay/RNG policy packs are the only authority for overlay behaviour and targeting
+- S3 is the sole authority for campaign catalogue and fraud overlay surfaces
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and independent of `run_id`
+
+
+---
+
+# 6B.S4 artefacts/policies/configs (from state.6B.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6B`
+  - `sealed_inputs_6B` (whitelisted artefacts + `read_scope`)
+  - run-report must show 6B.S0 `status="PASS"` for `manifest_fingerprint`
+- S1/S2/S3 gate evidence:
+  - run-report must show 6B.S1, 6B.S2, and 6B.S3 `status="PASS"` for `(manifest_fingerprint, seed, scenario_id)`
+- Required S3 behavioural canvases (ROW_LEVEL):
+  - `s3_flow_anchor_with_fraud_6B`
+  - `s3_event_stream_with_fraud_6B`
+- Required S3 provenance:
+  - `s3_campaign_catalogue_6B`
+- Required context surfaces (if mandated by label policy):
+  - S2 baseline surfaces: `s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B` (often `METADATA_ONLY`)
+  - S1 surfaces: `s1_arrival_entities_6B`, `s1_session_index_6B`
+  - 6A fraud roles: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`
+- Required S4 config packs (ROW_LEVEL; names per 6B contracts):
+  - `truth_labelling_policy_6B`
+  - `bank_view_policy_6B`
+  - `delay_models_6B`
+  - `case_policy_6B`
+  - `label_rng_policy_6B`
+- Optional context inputs (if sealed in 6B; `status="OPTIONAL"`):
+  - Additional 6A attributes or monitoring surfaces
+- Layer-3 RNG/numeric policy (metadata-only):
+  - Layer-3 RNG envelope/event family definitions
+  - numeric policy / math profile (sealed via contracts)
+- Contract files / dictionaries:
+  - `schemas.layer3.yaml` (gate + RNG envelope)
+  - `schemas.6B.yaml` (S4 outputs and policy schema refs)
+  - `dataset_dictionary.layer3.6B.yaml`
+  - `artefact_registry_6B.yaml`
+
+## Outputs / datasets
+- `s4_flow_truth_labels_6B` (required; schema `schemas.6B.yaml#/s4/flow_truth_labels_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s4_flow_bank_view_6B` (required; schema `schemas.6B.yaml#/s4/flow_bank_view_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s4_event_labels_6B` (required; schema `schemas.6B.yaml#/s4/event_labels_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`, `scenario_id`
+- `s4_case_timeline_6B` (required; schema `schemas.6B.yaml#/s4/case_timeline_6B`)
+  - Partition keys: `seed`, `manifest_fingerprint`
+
+## RNG logs / events
+- RNG families (Layer-3 envelope, via `label_rng_policy_6B`):
+  - `rng_event_truth_label_ambiguity`
+  - `rng_event_detection_delay`
+  - `rng_event_dispute_delay`
+  - `rng_event_chargeback_delay`
+  - `rng_event_case_timeline`
+
+## Deliverables / reports
+- Run-report entry per `(manifest_fingerprint, seed, scenario_id)` for `state="S4_labels"`
+- Run-report entry per `(manifest_fingerprint, seed)` for `state="S4_cases"`
+- Required summary metrics (label scope):
+  - `flow_count_S3`, `flow_count_labeled`
+  - `truth_label_distribution`, `truth_subtype_distribution`
+  - `bank_view_label_distribution`, `detection_outcome_distribution`
+  - `fraud_flow_count_truth`, `fraud_flow_detected_count`, `fraud_detection_rate`
+  - `chargeback_count`
+  - `event_count_S3`, `event_count_labeled`
+  - `fraud_event_count_truth`, `detection_event_count`, `case_event_flagged_count`
+  - `flow_label_coverage_ok`, `event_label_coverage_ok`
+  - `truth_consistency_ok`, `bank_view_consistency_ok`
+- Required summary metrics (case scope):
+  - `case_count_total`, `case_event_count_total`
+  - `flows_in_cases_total`, `flows_in_cases_by_truth_label`
+  - `case_status_distribution` (if encoded)
+  - `avg_case_duration_seconds`
+
+## Authority / policies / configs
+- `s0_gate_receipt_6B` and `sealed_inputs_6B` are authoritative for allowed inputs
+- S3 overlays are authoritative for behavioural surfaces to label
+- S2 baseline surfaces are reference context only; S4 must not bypass S3
+- 6A fraud roles are authoritative for static posture
+- S4 policy packs are the only authority for truth labels, bank-view outcomes, delays, and case rules
+- S4 is the sole authority for label and case timeline outputs
+- RNG-bearing; outputs deterministic for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and independent of `run_id`
+
+
+---
+
+# 6B.S5 artefacts/policies/configs (from state.6B.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_6B`
+  - `sealed_inputs_6B` (whitelisted artefacts + `read_scope`)
+- Required upstream HashGates (bundle + `_passed.flag`):
+  - 1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A
+- Required 6B data-plane surfaces (S1-S4):
+  - `s1_arrival_entities_6B`, `s1_session_index_6B`
+  - `s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`
+  - `s3_campaign_catalogue_6B`, `s3_flow_anchor_with_fraud_6B`, `s3_event_stream_with_fraud_6B`
+  - `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_event_labels_6B`, `s4_case_timeline_6B`
+- Required control-plane/report inputs:
+  - Layer-3 run-report entries for S1, S2, S3_overlay, S4_labels (per seed/scenario)
+  - Layer-3 run-report entries for S4_cases (per seed)
+- Required S5 policy packs:
+  - `segment_validation_policy_6B`
+  - `segment_validation_rng_policy_6B` (if non-trivial; S5 typically RNG-free)
+- Contract files / dictionaries / registries:
+  - `schemas.layer1.yaml`, `schemas.layer2.yaml`, `schemas.layer3.yaml`
+  - `schemas.1A.yaml` .. `schemas.3B.yaml`, `schemas.5A.yaml`, `schemas.5B.yaml`, `schemas.6A.yaml`, `schemas.6B.yaml`
+  - `dataset_dictionary.layer1.*.yaml`, `dataset_dictionary.layer2.*.yaml`, `dataset_dictionary.layer3.6A.yaml`, `dataset_dictionary.layer3.6B.yaml`
+  - `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`, `artefact_registry_5A.yaml`, `artefact_registry_5B.yaml`, `artefact_registry_6A.yaml`, `artefact_registry_6B.yaml`
+
+## Outputs / datasets
+- `s5_validation_report_6B` (required; schema `schemas.layer3.yaml#/validation/6B/s5_validation_report`)
+  - Partition keys: `manifest_fingerprint`
+- `s5_issue_table_6B` (optional; schema `schemas.layer3.yaml#/validation/6B/s5_issue_table`)
+  - Partition keys: `manifest_fingerprint`
+- `validation_bundle_6B` (bundle directory under `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/`)
+- `validation_bundle_index_6B` (`index.json`; schema `schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B`)
+  - Partition keys: `manifest_fingerprint`
+- `validation_passed_flag_6B` (`_passed.flag`; schema `schemas.layer3.yaml#/validation/6B/passed_flag_6B`)
+
+## Deliverables / reports
+- World-scoped run-report entry for `segment="6B"`, `state="S5"`
+- `s5_validation_report_6B` with per-check PASS/WARN/FAIL and `overall_status`
+- Optional `s5_issue_table_6B` with per-check or per-artefact anomalies
+
+## Authority / policies / configs
+- `s0_gate_receipt_6B` and `sealed_inputs_6B` are authoritative for allowed inputs and contracts
+- Upstream HashGate `_passed.flag` bundles are authoritative for upstream segment validity
+- Schema packs and dictionaries/registries are authoritative for shapes, ids, and paths
+- `segment_validation_policy_6B` is the sole authority for S5 check selection and severity
+- S5 is the sole authority to emit `validation_bundle_6B` and `validation_passed_flag_6B`
+- Hashing law: bundle index paths sorted ASCII-lex; SHA-256 over raw bytes of listed files; `_passed.flag` excluded from index
+- RNG-free by default; if RNG is configured, must follow `segment_validation_rng_policy_6B`
