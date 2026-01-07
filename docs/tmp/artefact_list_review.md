@@ -1714,3 +1714,243 @@
 - Artefact registry: `artefact_registry_3B.yaml`
 - HashGate law for bundle hashing and `_passed.flag` content is authoritative
 - RNG-free; S5 must not emit RNG events or logs
+
+
+---
+
+# 5A.S0 artefacts/policies/configs (from state.5A.s0.expanded.md only)
+
+## Inputs / references
+- Run context: `parameter_hash`, `manifest_fingerprint`, `run_id`
+- Upstream validation artefacts (for 1A, 1B, 2A, 2B, 3A, 3B):
+  - `validation_bundle_*` directories
+  - `_passed.flag` files
+- Contract catalogues:
+  - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5A.yaml`
+  - `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3B.yaml`
+  - `dataset_dictionary.layer2.5A.yaml`
+  - `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`
+  - `artefact_registry_5A.yaml`
+- Upstream world surfaces (sealed as admissible inputs):
+  - 1A: `outlet_catalogue`, merchant reference tables (MCC, channel, etc.)
+  - 1B: `site_locations`
+  - 2A: `site_timezones`, `tz_timetable_cache`
+  - 2B: `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`
+  - 3A: `zone_alloc`, `zone_alloc_universe_hash`
+  - 3B: `virtual_classification_3B`, `virtual_settlement_3B`, `virtual_routing_policy_3B`, `virtual_validation_contract_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`
+- Scenario configs (Layer-2):
+  - `scenario_calendar`
+  - `scenario_metadata`
+- 5A policies:
+  - `merchant_class_policy_5A`
+  - `shape_library_5A`
+  - `calendar_overlay_policy_5A`
+  - additional Layer-2 knobs (default scale factors, clipping thresholds)
+
+## Outputs / datasets
+- `s0_gate_receipt_5A` (fingerprint-scoped gate receipt)
+- `sealed_inputs_5A` (fingerprint-scoped inventory of allowed artefacts)
+- Optional `scenario_manifest_5A` (fingerprint-scoped scenario summary)
+
+## Deliverables / reports
+- Run-report entry for 5A.S0 (status, sealed_inputs_digest/counts, upstream status summary)
+- Structured lifecycle logs (`state_start`, `state_success`, `state_failure`)
+- Metrics (e.g. `fraudengine_5A_s0_runs_total`, upstream missing/fail counters, sealed input counts)
+
+## Authority / policies / configs
+- Catalogue-only discovery: schemas, dictionaries, and registries are the sole authority on shapes/paths/roles
+- Upstream validation bundle/hash laws are authoritative per segment
+- RNG-free; S0 must not emit RNG events or read row-level data
+
+
+---
+
+# 5A.S1 artefacts/policies/configs (from state.5A.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5A`
+  - `sealed_inputs_5A` (including `sealed_inputs_digest`)
+- Required upstream segments must be `PASS` in `s0_gate_receipt_5A`:
+  - `1A`, `1B`, `2A`, `2B`, `3A`, `3B`
+- Required sealed inputs (via `sealed_inputs_5A`):
+  - Merchant attributes (Layer-1/ingress tables: `merchant_id`, `legal_country_iso`, MCC, channel, size buckets)
+  - 3A `zone_alloc` (merchant, legal_country_iso, tzid domain)
+  - 3B virtual artefacts (if virtual in scope): `virtual_classification_3B`, optional `virtual_settlement_3B`
+  - Scenario metadata (scenario ID/type flags)
+  - 5A policies: `merchant_class_policy_5A`, `demand_scale_policy_5A`
+  - Optional reference inputs (GDP buckets, region clusters, auxiliary merchant descriptors)
+
+## Outputs / datasets
+- `merchant_zone_profile_5A` (required; per merchant/zone demand class + base scale)
+- `merchant_class_profile_5A` (optional convenience aggregate per merchant)
+- Optional diagnostic tables only if declared in dictionary/registry
+
+## Deliverables / reports
+- Run-report entry for 5A.S1 (status, domain sizes, class distribution, scale stats, policies used, scenario_id)
+- Structured logs (`state_start`, `inputs_resolved`, `domain_built`, `classification_summary`, `scale_summary`, `state_success`, `state_failure`)
+- Metrics (e.g. `fraudengine_5A_s1_runs_total`, domain size gauges, class counts, scale distribution stats)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5A` is the authority on upstream PASS/FAIL status and scenario binding
+- `sealed_inputs_5A` is the only authority on what S1 may read and at what scope
+- `zone_alloc` defines the merchant/zone domain; merchant attributes are authoritative for MCC/channel/etc.
+- RNG-free; S1 must not emit RNG events or time-series outputs
+
+
+---
+
+# 5A.S2 artefacts/policies/configs (from state.5A.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5A`
+  - `sealed_inputs_5A` (including `sealed_inputs_digest`)
+- Required upstream segments must be `PASS` in `s0_gate_receipt_5A`:
+  - `1A`, `1B`, `2A`, `2B`, `3A`, `3B`
+- S1 output (domain discovery):
+  - `merchant_zone_profile_5A` (used only to derive `DOMAIN_S2`)
+- Time-grid config:
+  - `shape_time_grid_policy_5A` (bucket size, `T_week`, mapping rules)
+- Shape library policy/config:
+  - `shape_library_policy_5A`
+  - optional class-to-template mapping tables and region/tz hint tables
+- Scenario metadata (if scenario-sensitive shapes are enabled)
+- Optional reference inputs (weekend patterns, zone overrides, diagnostics)
+
+## Outputs / datasets
+- `shape_grid_definition_5A` (required; local-week bucket grid)
+- `class_zone_shape_5A` (required; normalised weekly shapes per class/zone[/channel])
+- Optional `class_shape_catalogue_5A` (base template catalogue)
+
+## Deliverables / reports
+- Run-report entry for 5A.S2 (grid summary, domain counts, shape sanity stats, policies used, `s2_spec_version`)
+- Structured logs (`state_start`, `inputs_resolved`, `domain_built`, `grid_built`, `shape_summary`, `state_success`, `state_failure`)
+- Metrics (e.g. `fraudengine_5A_s2_runs_total`, grid size, domain size, shape L1 error stats)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5A` and `sealed_inputs_5A` are the sole authority on gating and allowed inputs
+- `merchant_zone_profile_5A` defines the class/zone domain (no per-merchant scale usage)
+- Time-grid and shape policies are the only authority on grid and shape semantics
+- RNG-free; S2 must not emit RNG events or per-merchant intensities
+
+
+---
+
+# 5A.S3 artefacts/policies/configs (from state.5A.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5A`
+  - `sealed_inputs_5A` (including `sealed_inputs_digest`)
+- Required upstream segments must be `PASS` in `s0_gate_receipt_5A`:
+  - `1A`, `1B`, `2A`, `2B`, `3A`, `3B`
+- S1 output:
+  - `merchant_zone_profile_5A` (demand_class + base scale per merchant/zone)
+- S2 outputs:
+  - `shape_grid_definition_5A`
+  - `class_zone_shape_5A`
+- S3 baseline policy (if required):
+  - `baseline_intensity_policy_5A` (scale field choice, units, clipping)
+- Scenario metadata (scenario_id bound to the run)
+- Optional reference inputs for diagnostics (if sealed)
+
+## Outputs / datasets
+- `merchant_zone_baseline_local_5A` (required; baseline local-week intensities per merchant/zone/bucket)
+- Optional aggregates:
+  - `class_zone_baseline_local_5A`
+  - `merchant_zone_baseline_utc_5A` (if UTC mapping is materialised)
+
+## Deliverables / reports
+- Run-report entry for 5A.S3 (domain counts, lambda stats, weekly-sum error stats, policy/spec versions)
+- Structured logs (`state_start`, `inputs_resolved`, `domain_built`, `intensity_summary`, `state_success`, `state_failure`)
+- Metrics (e.g. `fraudengine_5A_s3_runs_total`, domain size, lambda min/max, weekly sum error)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5A` and `sealed_inputs_5A` are the sole authority on gating and allowed inputs
+- `merchant_zone_profile_5A` is the only authority for class and base scale
+- `shape_grid_definition_5A` and `class_zone_shape_5A` are the only authority for grid and shapes
+- RNG-free; S3 must not emit RNG events or calendar overlays
+
+
+---
+
+# 5A.S4 artefacts/policies/configs (from state.5A.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence (from S0):
+  - `s0_gate_receipt_5A`
+  - `sealed_inputs_5A` (including `sealed_inputs_digest`)
+- Required upstream segments must be `PASS` in `s0_gate_receipt_5A`:
+  - `1A`, `1B`, `2A`, `2B`, `3A`, `3B`
+- S1 outputs:
+  - `merchant_zone_profile_5A`
+- S2 outputs:
+  - `shape_grid_definition_5A`
+  - `class_zone_shape_5A`
+- S3 outputs:
+  - `merchant_zone_baseline_local_5A`
+- Scenario/calendar config:
+  - `scenario_calendar_5A` (events)
+  - `scenario_horizon_config_5A` (horizon grid)
+  - scenario metadata (scenario_id/type)
+- Overlay policies:
+  - `scenario_overlay_policy_5A`
+  - optional `overlay_ordering_policy_5A`
+  - optional `scenario_overlay_validation_policy_5A`
+- Optional reference inputs for event scoping/diagnostics
+
+## Outputs / datasets
+- `merchant_zone_scenario_local_5A` (required; scenario-adjusted local intensities)
+- Optional:
+  - `merchant_zone_overlay_factors_5A` (overlay factor table)
+  - `merchant_zone_scenario_utc_5A` (UTC-projected intensities)
+
+## Deliverables / reports
+- Run-report entry for 5A.S4 (domain/horizon sizes, overlay stats, lambda stats, policy/spec IDs)
+- Structured logs (`state_start`, `inputs_resolved`, `domain_built`, `overlay_summary`, `state_success`, `state_failure`)
+- Metrics (e.g. `fraudengine_5A_s4_runs_total`, overlay factor min/max, horizon buckets)
+
+## Authority / policies / configs
+- `s0_gate_receipt_5A` and `sealed_inputs_5A` are the sole authority on gating and allowed inputs
+- `merchant_zone_baseline_local_5A` is the only baseline authority; S4 only applies overlays
+- Scenario calendar and overlay policies are the only authority on event timing and factor rules
+- RNG-free; S4 must not emit RNG events or generate arrivals
+
+
+---
+
+# 5A.S5 artefacts/policies/configs (from state.5A.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_5A`
+  - `sealed_inputs_5A`
+- 5A outputs to validate:
+  - S1: `merchant_zone_profile_5A`
+  - S2: `shape_grid_definition_5A`, `class_zone_shape_5A`
+  - S3: `merchant_zone_baseline_local_5A` (plus any optional S3 outputs)
+  - S4: `merchant_zone_scenario_local_5A` (plus any optional S4 outputs)
+- 5A policies/configs used in validation:
+  - S1 classing/scale policies
+  - S2 time-grid and shape policies
+  - S3 baseline intensity policy
+  - S4 overlay policies and horizon config
+- Upstream validation artefacts (1A-3B) as sealed inputs (optional corroboration)
+
+## Outputs / datasets
+- `validation_bundle_5A` (bundle directory)
+- `validation_bundle_index_5A` (index file inside bundle)
+- `validation_report_5A` (summary report)
+- `validation_issue_table_5A` (optional issue table)
+- `_passed.flag` (validation gate flag)
+
+## Deliverables / reports
+- Run-report entry for 5A.S5 (bundle/flag presence, overall_status_5A, counts of validated packs/scenarios)
+- Structured logs (`state_start`, `inputs_resolved`, `runs_discovered`, `validation_summary`, `bundle_built`, `flag_written`, `state_success`, `state_failure`)
+- Metrics (e.g. `fraudengine_5A_s5_runs_total`, bundle sizes, PASS/FAIL breakdown)
+
+## Authority / policies / configs
+- `sealed_inputs_5A` is the only universe of admissible inputs
+- S5 is the sole authority to emit `validation_bundle_5A` and `_passed.flag`
+- RNG-free; S5 must not emit RNG events or modify S1-S4 outputs
