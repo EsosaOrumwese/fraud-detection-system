@@ -547,3 +547,172 @@
 
 
 ---
+
+# 1B.S5 artefacts/policies/configs (from state.1B.s5.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_1B` (schema `schemas.1B.yaml#/validation/s0_gate_receipt`)
+- Required datasets (reads):
+  - `s4_alloc_plan` (schema `schemas.1B.yaml#/plan/s4_alloc_plan`)
+  - `tile_index` (schema `schemas.1B.yaml#/prep/tile_index`)
+  - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
+- Optional diagnostics:
+  - `s3_requirements` (same identity as S4; not required for assignment logic)
+- Sealed but not read by S5:
+  - `outlet_catalogue`
+  - `s3_candidate_set`
+  - `tile_weights`
+- Disallowed surfaces (must not read):
+  - `world_countries`
+  - `population_raster_2025`
+  - `tz_world_2025a`
+
+## Outputs / datasets
+- `s5_site_tile_assignment` (schema `schemas.1B.yaml#/plan/s5_site_tile_assignment`)
+
+## Outputs / RNG logs
+- `site_tile_assign` RNG events (schema `schemas.layer1.yaml#/rng/events/site_tile_assign`)
+  - `logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+
+## Deliverables / reports (outside the dataset partition)
+- S5 run report (single JSON object; required fields include `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, `rows_emitted`, `pairs_total`, `rng_events_emitted`, `determinism_receipt`)
+- Determinism receipt `{partition_path, sha256_hex}` (composite SHA-256 over dataset partition files only)
+- Optional summaries:
+  - Per-merchant summary (countries, `sites_total`, `tiles_distinct`, `assignments_by_country`)
+  - RNG budgeting summary (`expected_events`, `actual_events`)
+  - Health counters (`fk_country_violations`, `tile_not_in_index`, `quota_mismatches`, `dup_sites`)
+
+## Failure / event artefacts
+- Failure record with `{code, scope?, reason, seed, manifest_fingerprint, parameter_hash}` (optionally `merchant_id`, `legal_country_iso`)
+- `S5_ERROR` failure event (structured; required on failure)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- RNG envelope: substream `site_tile_assign`, budget is exactly one draw per assigned site, single `run_id` per publish
+- Gate law: rely on `s0_gate_receipt_1B` (no re-hash of the 1A bundle) before reads
+- Write-once/atomic publish; determinism receipt stored in the run report; evidence kept outside the dataset partition (retain >= 30 days)
+
+
+---
+
+# 1B.S6 artefacts/policies/configs (from state.1B.s6.expanded.md only)
+
+## Inputs / references
+- Gate receipt:
+  - `s0_gate_receipt_1B` (authorises reads after PASS)
+- Required datasets (reads):
+  - `s5_site_tile_assignment` (schema `schemas.1B.yaml#/plan/s5_site_tile_assignment`)
+  - `tile_index` (schema `schemas.1B.yaml#/prep/tile_index`)
+  - `world_countries` (country polygons; point-in-country authority)
+- FK reference surface:
+  - canonical ISO-3166 ingress surface (FK target for `legal_country_iso`)
+
+## Outputs / datasets
+- `s6_site_jitter` (schema `schemas.1B.yaml#/plan/s6_site_jitter`)
+
+## Outputs / RNG logs
+- `rng_event_in_cell_jitter` (schema `schemas.layer1.yaml#/rng/events/in_cell_jitter`)
+  - `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+- RNG core logs:
+  - `rng_audit_log`
+  - `rng_trace_log` (append one row per RNG event)
+
+## Deliverables / reports (forwarded to S7; outside dataset partition)
+- S6 run-report counters (JSON object with `identity`, `counts`, `validation_counters`, `by_country`)
+  - `identity`: `{seed, parameter_hash, manifest_fingerprint, run_id}`
+  - `counts`: `sites_total`, `rng.events_total`, `rng.draws_total`, `rng.blocks_total`, `rng.counter_span`
+  - `validation_counters`: `fk_tile_index_failures`, `point_outside_pixel`, `point_outside_country`, `path_embed_mismatches`
+  - `by_country`: per-ISO `sites`, `rng_events`, `rng_draws`, `outside_pixel`, `outside_country`
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- RNG envelope: per-attempt events under `in_cell_jitter`, `blocks=1`, `draws="2"`, `sigma_lat_deg=0.0`, `sigma_lon_deg=0.0` (uniform-in-pixel lane)
+- Bounded resample policy `MAX_ATTEMPTS` (abort on exhaustion; resample attempts appear as multiple events per site)
+- Gate law: rely on `s0_gate_receipt_1B` (No PASS, no read)
+- Write-once/atomic publish for `s6_site_jitter`; RNG logs append-only; file order non-authoritative
+
+
+---
+
+# 1B.S7 artefacts/policies/configs (from state.1B.s7.expanded.md only)
+
+## Inputs / references
+- Gate condition (before reading 1A egress):
+  - 1A validation bundle `_passed.flag` must be valid for `manifest_fingerprint` (No PASS, no read)
+- Required datasets (reads):
+  - `s5_site_tile_assignment` (schema `schemas.1B.yaml#/plan/s5_site_tile_assignment`)
+  - `s6_site_jitter` (schema `schemas.1B.yaml#/plan/s6_site_jitter`)
+  - `tile_bounds` (schema `schemas.1B.yaml#/prep/tile_bounds`)
+  - `outlet_catalogue` (1A egress; coverage parity check)
+
+## Outputs / datasets
+- `s7_site_synthesis` (schema `schemas.1B.yaml#/plan/s7_site_synthesis`)
+
+## Downstream reference (not produced here)
+- `site_locations` (S8 egress; schema `schemas.1B.yaml#/egress/site_locations`, partitions `[seed, fingerprint]`)
+
+## Deliverables / reports (forwarded to S8; outside dataset partition)
+- S7 run-summary counters (JSON object with keys `identity`, `sizes`, `validation_counters`, `by_country`, `gates`)
+- Optional determinism receipt `{partition_path, sha256_hex}` for the S7 partition
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- RNG-free; no new RNG logs introduced
+- Path-embed equality for `manifest_fingerprint` is binding
+- Inside-pixel conformance check against S1 `tile_bounds`; optional point-in-country recheck allowed
+- No inter-country order encoding (order authority remains 1A `s3_candidate_set`)
+
+
+---
+
+# 1B.S8 artefacts/policies/configs (from state.1B.s8.expanded.md only)
+
+## Inputs / references
+- Required dataset (read):
+  - `s7_site_synthesis` (schema `schemas.1B.yaml#/plan/s7_site_synthesis`)
+
+## Outputs / datasets
+- `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`, final_in_layer)
+
+## Deliverables / reports (outside dataset partition)
+- S8 run-summary JSON with keys `identity`, `sizes`, `validation_counters`, `by_country`
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- Egress is order-free; inter-country order remains via 1A `s3_candidate_set`
+- Partition shift: drop `parameter_hash` and publish under `[seed, fingerprint]`
+- Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 1B.S9 artefacts/policies/configs (from state.1B.s9.expanded.md only)
+
+## Inputs / references
+- Required datasets (reads):
+  - `s7_site_synthesis` (schema `schemas.1B.yaml#/plan/s7_site_synthesis`)
+  - `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`)
+- Required RNG evidence (reads):
+  - `rng_event_site_tile_assign` (schema `schemas.layer1.yaml#/rng/events/site_tile_assign`)
+  - `rng_event_in_cell_jitter` (schema `schemas.layer1.yaml#/rng/events/in_cell_jitter`)
+  - `rng_audit_log` (core RNG log)
+  - `rng_trace_log` (core RNG log)
+
+## Outputs / validation bundle (fingerprint-scoped)
+- Bundle root: `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`
+- Required files:
+  - `MANIFEST.json`
+  - `parameter_hash_resolved.json`
+  - `manifest_fingerprint_resolved.json`
+  - `rng_accounting.json`
+  - `s9_summary.json`
+  - `egress_checksums.json`
+  - `index.json` (1A bundle-index schema)
+  - `_passed.flag` (only on success)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/writer sort/licence; Artefact Registry records provenance/licences
+- Hashing/index law: `_passed.flag` is SHA-256 over raw bytes of all files listed in `index.json` (ASCII-lex by `path`, flag excluded)
+- Gate law: consumers must verify `_passed.flag` before reading 1B egress (No PASS, no read)
+- Publish posture: write-once, stage+fsync+atomic move; file order non-authoritative; omit `_passed.flag` on failure
