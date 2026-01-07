@@ -1339,7 +1339,26 @@ subsegments:
     cross_layer: false
     notes:
 
-# Prune CI-time artefacts (planning phase)
+  - name: segment_state_runs
+    path: reports/l1/segment_states/segment_state_runs.jsonl
+    type: dataset
+    category: ops_telemetry
+    semver: '{semver}'
+    version: latest
+    digest: '{sha256}'
+    manifest_key: mlr.1A.ops.segment_state_runs
+    license: Proprietary-Internal
+    role: Segment-state run-report journal (JSONL), one row per state invocation.
+    dependencies: []
+    source: internal
+    owner: {ops_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema: schemas.layer1.yaml#/run_report/segment_state_run
+    cross_layer: false
+    notes: Non-authoritative telemetry; does not gate outputs or determinism.
+
+  # Prune CI-time artefacts (planning phase)
 #      - name: post_write_validation_routine
 #        path: src/validation/post_write_validation.py
 #        type: script

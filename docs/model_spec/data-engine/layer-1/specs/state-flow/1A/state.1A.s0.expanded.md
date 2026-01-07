@@ -2219,6 +2219,13 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 
 **Envelope (per S0.3):** `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, counter_before/after, blocks, draws, ts_utc, payload…}`.
 `rng_trace_log` aggregates **blocks**.
+
+### Ops telemetry (segment-state run journal)
+
+**Log:** `segment_state_runs`
+**Path:** `reports/l1/segment_states/segment_state_runs.jsonl`
+**Schema:** `schemas.layer1.yaml#/run_report/segment_state_run`
+**Scope:** One JSONL row per state invocation across S0-S9; ops-only telemetry (non-gating, not used for determinism).
 ---
 
 ## S0.10.4 Immutability, idempotence & retention

@@ -956,10 +956,30 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+reports:
+- id: segment_state_runs
+  status: draft
+  owner_subsegment: 1A
+  description: Layer-1 segment-state run-report (JSONL), one row per state invocation.
+  version: latest
+  format: jsonl
+  path: reports/l1/segment_states/segment_state_runs.jsonl
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  lineage:
+    produced_by: 1A.S0|1A.S1|1A.S2|1A.S3|1A.S4|1A.S5|1A.S6|1A.S7|1A.S8|1A.S9
+    consumed_by: [orchestrator, ops]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256:
-  dataset_count: 48
+  dataset_count: 49
 
 open_questions: []
 

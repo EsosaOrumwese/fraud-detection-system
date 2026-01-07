@@ -101,8 +101,30 @@ $defs:
         $ref: '#/$defs/dec_u128'
         description: Uniform variates consumed by THIS event (decimal u128 string). Independent of the counter delta; validators enforce per-family budgets.
       blocks:
-        description: PRNG block increments for THIS event (delta of the 128-bit counters). MUST equal u128(after) − u128(before) and fit in uint64.
+        description: PRNG block increments for THIS event (delta of the 128-bit counters). MUST equal u128(after) - u128(before) and fit in uint64.
         $ref: '#/$defs/uint64'
+
+run_report:
+  segment_state_run:
+    type: object
+    additionalProperties: true
+    required:
+      - layer
+      - segment
+      - state
+      - parameter_hash
+      - manifest_fingerprint
+      - run_id
+      - status
+    properties:
+      layer: {type: string}
+      segment: {type: string}
+      state: {type: string}
+      parameter_hash: {$ref: '#/$defs/hex64'}
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+      run_id: {type: string}
+      status: {type: string}
+
 # -- RNG: Core logs (JSONL) ------------------------------------------------
 rng:
   core:
