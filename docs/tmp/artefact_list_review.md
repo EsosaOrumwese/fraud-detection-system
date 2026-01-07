@@ -888,3 +888,290 @@
 - Bundle law: index lists relative paths in ASCII-lex order; `_passed.flag` hashes raw bytes of indexed files (flag excluded)
 - Fingerprint-scoped output `[fingerprint]` only; path-embed equality is binding
 - Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 2B.S0 artefacts/policies/configs (from state.2B.s0.expanded.md only)
+
+## Inputs / references
+- Upstream gate artefacts (1B):
+  - `validation_bundle_1B` (bundle root)
+  - `_passed.flag` (companion flag)
+- Required pins:
+  - `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`)
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
+- Policy packs (fingerprint-scoped; IDs per Dictionary):
+  - `route_rng_policy_v1`
+  - `alias_layout_policy_v1`
+  - `day_effect_policy_v1`
+  - `virtual_edge_policy_v1`
+- Optional cache (if declared for the fingerprint):
+  - `tz_timetable_cache` (schema `schemas.2A.yaml#/cache/tz_timetable_cache`)
+
+## Outputs / datasets
+- `s0_gate_receipt_2B` (schema `schemas.2B.yaml#/validation/s0_gate_receipt_v1`)
+- `sealed_inputs_v1` inventory (schema `schemas.2B.yaml#/validation/sealed_inputs_v1`)
+
+## Deliverables / reports
+- S0 run-report JSON (stdout; gate verification, inventory summary, validators)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- Gate law: verify 1B bundle hash from index (ASCII-lex order, flag excluded) before any egress read
+- Dictionary-only resolution; no literal paths; no network fetches
+- Write-once/atomic publish; fingerprint-only outputs; path-embed equality for `manifest_fingerprint` is binding
+
+
+---
+
+# 2B.S1 artefacts/policies/configs (from state.2B.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required inputs:
+  - `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`)
+  - `alias_layout_policy_v1` (schema `schemas.2B.yaml#/policy/alias_layout_policy_v1`)
+- Optional pins (all-or-none; read-only):
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
+  - `tz_timetable_cache` (schema `schemas.2A.yaml#/cache/tz_timetable_cache`)
+
+## Outputs / datasets
+- `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
+
+## Deliverables / reports
+- S1 run-report JSON (stdout; gate, policy, transform metrics, validators)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; deterministic normalisation + quantisation per `alias_layout_policy_v1`
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Output partition `[seed, fingerprint]`; PK writer order; path-embed equality is binding
+- Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 2B.S2 artefacts/policies/configs (from state.2B.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required inputs:
+  - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
+  - `alias_layout_policy_v1` (schema `schemas.2B.yaml#/policy/alias_layout_policy_v1`)
+
+## Outputs / datasets
+- `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
+- `s2_alias_blob` (schema `schemas.2B.yaml#/binary/s2_alias_blob`)
+
+## Deliverables / reports
+- S2 run-report JSON (stdout; gate, policy, encode/serialize metrics, validators)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; deterministic grid reconstruction + alias encode per `alias_layout_policy_v1`
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Output partitions `[seed, fingerprint]`; index writer order by `merchant_id`; path-embed equality is binding
+- Write-once/atomic publish; blob digest `blob_sha256` must match raw bytes
+
+
+---
+
+# 2B.S3 artefacts/policies/configs (from state.2B.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required inputs:
+  - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
+  - `day_effect_policy_v1` (schema `schemas.2B.yaml#/policy/day_effect_policy_v1`)
+
+## Outputs / datasets
+- `s3_day_effects` (schema `schemas.2B.yaml#/plan/s3_day_effects`)
+
+## Deliverables / reports
+- S3 run-report JSON (stdout; gate, policy, RNG accounting, coverage)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-bounded; one Philox draw per row per `day_effect_policy_v1`; counters recorded
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Output partition `[seed, fingerprint]`; PK writer order; path-embed equality is binding
+- Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 2B.S4 artefacts/policies/configs (from state.2B.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required inputs:
+  - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
+  - `s3_day_effects` (schema `schemas.2B.yaml#/plan/s3_day_effects`)
+
+## Outputs / datasets
+- `s4_group_weights` (schema `schemas.2B.yaml#/plan/s4_group_weights`)
+
+## Deliverables / reports
+- S4 run-report JSON (stdout; validators, counts, normalisation metrics, samples)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; deterministic tz-group aggregation + renormalisation using S3 `gamma` values
+- Normalisation tolerance uses the program epsilon constant (per spec)
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Output partition `[seed, fingerprint]`; PK writer order; path-embed equality is binding
+- Write-once/atomic publish; file order non-authoritative
+
+
+---
+
+# 2B.S5 artefacts/policies/configs (from state.2B.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Upstream reference:
+  - `s3_day_effects` (day effects surface)
+- Required inputs:
+  - `s4_group_weights` (schema `schemas.2B.yaml#/plan/s4_group_weights`)
+  - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
+  - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
+  - `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
+  - `s2_alias_blob` (schema `schemas.2B.yaml#/binary/s2_alias_blob`)
+  - `route_rng_policy_v1` (schema `schemas.2B.yaml#/policy/route_rng_policy_v1`)
+  - `alias_layout_policy_v1` (schema `schemas.2B.yaml#/policy/alias_layout_policy_v1`)
+
+## Outputs / datasets
+- `rng_audit_log` (run-scoped JSONL core log)
+- `rng_trace_log` (run-scoped JSONL core log)
+- `rng_event.alias_pick_group` (per-arrival RNG event family)
+- `rng_event.alias_pick_site` (per-arrival RNG event family)
+- `s5_selection_log` (optional; schema `schemas.2B.yaml#/trace/s5_selection_log_row`, only if Dictionary registers it)
+
+## Deliverables / reports
+- S5 run-report JSON (stdout; policy digests, selections processed, RNG accounting, samples)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-bounded; two single-uniform draws per arrival per `route_rng_policy_v1`; events logged in order (group then site) with trace updates
+- Alias layout/endianness/alignment from `alias_layout_policy_v1`; `s2_alias_index` header must match and `s2_alias_blob` digest validated
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Inputs read at `[seed, fingerprint]`; RNG logs/events partition `[seed, parameter_hash, run_id]`; optional `s5_selection_log` partition `[seed, parameter_hash, run_id, utc_day]` with `manifest_fingerprint` as a column
+- Write-once/atomic publish; no mandatory persisted egress dataset
+
+
+---
+
+# 2B.S6 artefacts/policies/configs (from state.2B.s6.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required policies (token-less, S0-sealed):
+  - `route_rng_policy_v1` (schema `schemas.2B.yaml#/policy/route_rng_policy_v1`)
+  - `virtual_edge_policy_v1` (schema `schemas.2B.yaml#/policy/virtual_edge_policy_v1`)
+- Optional context (no decode in v1):
+  - `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
+  - `s2_alias_blob` (schema `schemas.2B.yaml#/binary/s2_alias_blob`)
+
+## Outputs / datasets
+- `rng_audit_log` (run-scoped JSONL core log)
+- `rng_trace_log` (run-scoped JSONL core log)
+- `rng_event.cdn_edge_pick` (single-uniform RNG event family; one per virtual arrival)
+- `s6_edge_log` (optional; schema `schemas.2B.yaml#/trace/s6_edge_log_row`, only if Dictionary registers it)
+
+## Deliverables / reports
+- S6 run-report JSON (stdout; sealed policy selection, virtual-arrival draw counts, RNG accounting, evidence summary)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-bounded; one single-uniform draw per virtual arrival on the `routing_edge` stream; no draws for non-virtual arrivals
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Policies selected by exact S0-sealed path+digest; token-less policies use empty partition maps
+- RNG logs/events partition `[seed, parameter_hash, run_id]`; optional `s6_edge_log` partition `[seed, parameter_hash, run_id, utc_day]` with `manifest_fingerprint` as a column
+- Write-once/atomic publish; no mandatory fingerprint-scoped egress dataset
+
+
+---
+
+# 2B.S7 artefacts/policies/configs (from state.2B.s7.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required inputs:
+  - `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
+  - `s2_alias_blob` (schema `schemas.2B.yaml#/binary/s2_alias_blob`)
+  - `s3_day_effects` (schema `schemas.2B.yaml#/plan/s3_day_effects`)
+  - `s4_group_weights` (schema `schemas.2B.yaml#/plan/s4_group_weights`)
+- Policies (token-less, S0-sealed):
+  - `alias_layout_policy_v1` (schema `schemas.2B.yaml#/policy/alias_layout_policy_v1`)
+  - `route_rng_policy_v1` (schema `schemas.2B.yaml#/policy/route_rng_policy_v1`)
+  - `virtual_edge_policy_v1` (schema `schemas.2B.yaml#/policy/virtual_edge_policy_v1`)
+- Optional router diagnostics (run-scoped, if present):
+  - `s5_selection_log` (schema `schemas.2B.yaml#/trace/s5_selection_log_row`)
+  - `s6_edge_log` (schema `schemas.2B.yaml#/trace/s6_edge_log_row`)
+  - `rng_audit_log` / `rng_trace_log` (Layer-1 core logs for reconciliation)
+
+## Outputs / datasets
+- `s7_audit_report` (schema `schemas.2B.yaml#/validation/s7_audit_report_v1`)
+
+## Deliverables / reports
+- S7 run-report JSON (stdout; diagnostic only)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; validates S2 alias parity, S3/S4 coherence, and optional router logs against Layer-1 RNG evidence
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Inputs read at `[seed, fingerprint]`; optional logs at `[seed, parameter_hash, run_id, utc_day]`; policies selected by exact S0-sealed path+digest
+- Output partition `[seed, fingerprint]`; path-embed equality is binding
+- Write-once/atomic publish; `s7_audit_report` is the sole authoritative persisted output
+
+
+---
+
+# 2B.S8 artefacts/policies/configs (from state.2B.s8.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_2B`
+  - `sealed_inputs_v1`
+- Required inputs:
+  - `s7_audit_report` (schema `schemas.2B.yaml#/validation/s7_audit_report_v1`)
+  - `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
+  - `s2_alias_blob` (schema `schemas.2B.yaml#/binary/s2_alias_blob`)
+  - `s3_day_effects` (schema `schemas.2B.yaml#/plan/s3_day_effects`)
+  - `s4_group_weights` (schema `schemas.2B.yaml#/plan/s4_group_weights`)
+- Policies (token-less, S0-sealed):
+  - `alias_layout_policy_v1`
+  - `route_rng_policy_v1`
+  - `virtual_edge_policy_v1`
+
+## Outputs / datasets
+- `index.json` (validation bundle index; `{path, sha256_hex}` entries in ASCII-lex order)
+- `_passed.flag` (single-line bundle digest; not listed in `index.json`)
+
+## Deliverables / reports
+- S8 run-report JSON (stdout; diagnostic bundle/seed summary)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; seed set is the intersection of seeds across `s2_alias_index`, `s3_day_effects`, `s4_group_weights`
+- S7 audit reports must exist per seed and be PASS before publish
+- `created_utc` set to S0 receipt `verified_at_utc`
+- Bundle output is fingerprint-only (`data/layer1/2B/validation/fingerprint={manifest_fingerprint}/`); path-embed equality is binding
+- Write-once/atomic publish; index/flag hash law is canonical; no re-auditing
