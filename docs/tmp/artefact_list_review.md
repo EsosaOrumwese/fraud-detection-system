@@ -1175,3 +1175,282 @@
 - `created_utc` set to S0 receipt `verified_at_utc`
 - Bundle output is fingerprint-only (`data/layer1/2B/validation/fingerprint={manifest_fingerprint}/`); path-embed equality is binding
 - Write-once/atomic publish; index/flag hash law is canonical; no re-auditing
+
+
+---
+
+# 3A.S0 artefacts/policies/configs (from state.3A.s0.expanded.md only)
+
+## Inputs / references
+- Upstream PASS artefacts:
+  - `validation_bundle_1A` + `_passed.flag`
+  - `validation_bundle_1B` + `_passed.flag`
+  - `validation_bundle_2A` + `_passed.flag`
+- Upstream egress surfaces (sealed for 3A):
+  - `outlet_catalogue` (1A egress)
+  - `site_timezones` (2A egress)
+  - `tz_timetable_cache` (2A cache)
+  - `s4_legality_report` (2A validation; optional in later 3A diagnostics)
+  - `tz_index_manifest` (optional 2A TZ index digest)
+- Ingress/reference data:
+  - `iso3166_canonical_2024`
+  - `tz_world_2025a`
+- Policy/prior configs (token-less, sealed in parameter_hash):
+  - `zone_mixture_policy` (e.g., `zone_mixture_policy_3A`)
+  - `country_zone_alphas` (e.g., `country_zone_alphas_3A`)
+  - `zone_floor_policy` (e.g., `zone_floor_policy_3A`)
+  - `day_effect_policy_v1` (2B policy sealed as a parameter input)
+- Catalogue authorities (resolved by ID):
+  - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, `schemas.1B.yaml`, `schemas.2A.yaml`, `schemas.2B.yaml`, `schemas.3A.yaml`
+  - `dataset_dictionary.layer1.1A.yaml`, `dataset_dictionary.layer1.1B.yaml`, `dataset_dictionary.layer1.2A.yaml`, `dataset_dictionary.layer1.2B.yaml`, `dataset_dictionary.layer1.3A.yaml`
+  - `artefact_registry_1A.yaml`, `artefact_registry_1B.yaml`, `artefact_registry_2A.yaml`, `artefact_registry_2B.yaml`, `artefact_registry_3A.yaml`
+
+## Outputs / datasets
+- `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+- `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+
+## Deliverables / reports
+- Segment-state run-report row (one per `(parameter_hash, manifest_fingerprint, seed)`)
+- Metrics counters (sealed inputs totals and by-segment gauges)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; S0 verifies upstream 1A/1B/2A bundles and `_passed.flag` before sealing inputs
+- `created_utc` set to the canonical S0 verified time; `seed` is metadata only for S0
+- Output partition is fingerprint-only; path-embed equality is binding
+- Write-once/atomic publish; no other persistent outputs beyond `s0_gate_receipt_3A` and `sealed_inputs_3A`
+
+
+---
+
+# 3A.S1 artefacts/policies/configs (from state.3A.s1.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required inputs:
+  - `outlet_catalogue` (schema `schemas.1A.yaml#/egress/outlet_catalogue`)
+  - `iso3166_canonical_2024` (ingress reference)
+  - `tz_world_2025a` (ingress reference)
+  - `zone_mixture_policy_3A` (schema `schemas.3A.yaml#/policy/zone_mixture_policy_3A`)
+- Optional input:
+  - `tz_timetable_cache` (2A cache manifest, for tz universe validation)
+
+## Outputs / datasets
+- `s1_escalation_queue` (schema `schemas.3A.yaml#/plan/s1_escalation_queue`)
+
+## Deliverables / reports
+- Segment-state run-report row (one per `(parameter_hash, manifest_fingerprint, seed)`)
+- Metrics counters (pairs/escalations/zone counts per spec)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; escalation is deterministic from sealed inputs + mixture policy
+- `s1_escalation_queue` is the sole authority for escalated vs monolithic pairs
+- Output partition `[seed, fingerprint]`; path-embed equality is binding
+- Write-once/atomic publish; no other datasets produced in S1
+
+
+---
+
+# 3A.S2 artefacts/policies/configs (from state.3A.s2.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required policy/prior inputs:
+  - `country_zone_alphas_3A` (schema `schemas.3A.yaml#/policy/country_zone_alphas_v1`)
+  - `zone_floor_policy_3A` (schema `schemas.3A.yaml#/policy/zone_floor_policy_v1`)
+- Zone-universe references:
+  - `iso3166_canonical_2024`
+  - `tz_world_2025a` (or sealed `country_tz_universe` mapping if present)
+- Optional hyperparameter packs (if present in sealed inputs)
+
+## Outputs / datasets
+- `s2_country_zone_priors` (schema `schemas.3A.yaml#/plan/s2_country_zone_priors`)
+
+## Deliverables / reports
+- Segment-state run-report row (parameter-scoped; includes manifest_fingerprint_ref)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; priors and floor/bump rules applied deterministically
+- Output partition is `parameter_hash` only (no seed/fingerprint)
+- `s2_country_zone_priors` is the sole authority for effective Dirichlet alpha vectors
+- Write-once/atomic publish; no other datasets produced in S2
+
+
+---
+
+# 3A.S3 artefacts/policies/configs (from state.3A.s3.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required inputs:
+  - `s1_escalation_queue` (schema `schemas.3A.yaml#/plan/s1_escalation_queue`)
+  - `s2_country_zone_priors` (schema `schemas.3A.yaml#/plan/s2_country_zone_priors`)
+- Structural references:
+  - `iso3166_canonical_2024`
+  - `country_tz_universe` (or equivalent sealed mapping, if present)
+- RNG configuration (sealed policies):
+  - Layer-1 RNG policy artefacts (philox/envelope)
+  - 3A RNG layout policy (e.g., `zone_rng_policy_3A`) if registered/sealed
+
+## Outputs / datasets
+- `s3_zone_shares` (schema `schemas.3A.yaml#/plan/s3_zone_shares`)
+- `rng_event_zone_dirichlet` (Layer-1 RNG event family; one per escalated merchant-country)
+- `rng_audit_log` (run-scoped JSONL core log)
+- `rng_trace_log` (run-scoped JSONL core log)
+
+## Deliverables / reports
+- Segment-state run-report row (run-scoped; includes RNG totals and `s3_zone_shares` counts)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-bounded; Dirichlet draws via Philox with `rng_event_zone_dirichlet` and trace reconciliation
+- `s1_escalation_queue` is the escalation authority; `s2_country_zone_priors` is the alpha authority
+- Output partition `[seed, fingerprint]`; RNG logs/events partition `[seed, parameter_hash, run_id]`
+- Write-once/atomic publish; `s3_zone_shares` is the stochastic planning surface
+
+
+---
+
+# 3A.S4 artefacts/policies/configs (from state.3A.s4.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required inputs:
+  - `s1_escalation_queue` (schema `schemas.3A.yaml#/plan/s1_escalation_queue`)
+  - `s2_country_zone_priors` (schema `schemas.3A.yaml#/plan/s2_country_zone_priors`)
+  - `s3_zone_shares` (schema `schemas.3A.yaml#/plan/s3_zone_shares`)
+- Optional external references (if used for structural checks):
+  - `iso3166_canonical_2024`
+  - `country_tz_universe` or `tz_world_2025a`
+
+## Outputs / datasets
+- `s4_zone_counts` (schema `schemas.3A.yaml#/plan/s4_zone_counts`)
+
+## Deliverables / reports
+- Segment-state run-report row (run-scoped; integerisation totals)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; deterministic integerisation of S3 shares with count conservation
+- `s1_escalation_queue` defines domain and `site_count`; `s2_country_zone_priors` defines `Z(c)`; `s3_zone_shares` defines draws
+- Output partition `[seed, fingerprint]`; path-embed equality is binding
+- Write-once/atomic publish; `s4_zone_counts` is the sole authoritative zone-count surface
+
+
+---
+
+# 3A.S5 artefacts/policies/configs (from state.3A.s5.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required internal inputs:
+  - `s1_escalation_queue` (schema `schemas.3A.yaml#/plan/s1_escalation_queue`)
+  - `s2_country_zone_priors` (schema `schemas.3A.yaml#/plan/s2_country_zone_priors`)
+  - `s3_zone_shares` (schema `schemas.3A.yaml#/plan/s3_zone_shares`)
+  - `s4_zone_counts` (schema `schemas.3A.yaml#/plan/s4_zone_counts`)
+- Policy/prior artefacts (sealed; used for digests):
+  - `zone_mixture_policy_3A` (schema `schemas.3A.yaml#/policy/zone_mixture_policy_3A`)
+  - `country_zone_alphas_3A` (schema `schemas.3A.yaml#/policy/country_zone_alphas_v1`)
+  - `zone_floor_policy_3A` (schema `schemas.3A.yaml#/policy/zone_floor_policy_v1`)
+  - `day_effect_policy_v1` (schema `schemas.2B.yaml#/policy/day_effect_policy_v1`)
+
+## Outputs / datasets
+- `zone_alloc` (schema `schemas.3A.yaml#/egress/zone_alloc`)
+- `zone_alloc_universe_hash` (schema `schemas.3A.yaml#/validation/zone_alloc_universe_hash`)
+
+## Deliverables / reports
+- Segment-state run-report row (run-scoped; zone_alloc counts and digest summary)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; S5 projects S4 counts into `zone_alloc` and computes digests for routing universe hash
+- Output partition for `zone_alloc` is `[seed, fingerprint]`; `zone_alloc_universe_hash` is fingerprint-only
+- `zone_alloc` is cross-layer egress; `zone_alloc_universe_hash` binds priors/mixture/floor/day-effect + `zone_alloc`
+- Write-once/atomic publish; no other datasets produced in S5
+
+
+---
+
+# 3A.S6 artefacts/policies/configs (from state.3A.s6.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required internal inputs:
+  - `s1_escalation_queue` (schema `schemas.3A.yaml#/plan/s1_escalation_queue`)
+  - `s2_country_zone_priors` (schema `schemas.3A.yaml#/plan/s2_country_zone_priors`)
+  - `s3_zone_shares` (schema `schemas.3A.yaml#/plan/s3_zone_shares`)
+  - `s4_zone_counts` (schema `schemas.3A.yaml#/plan/s4_zone_counts`)
+  - `zone_alloc` (schema `schemas.3A.yaml#/egress/zone_alloc`)
+  - `zone_alloc_universe_hash` (schema `schemas.3A.yaml#/validation/zone_alloc_universe_hash`)
+- RNG evidence:
+  - `rng_event_zone_dirichlet` (Layer-1 RNG events for S3)
+  - `rng_trace_log` (Layer-1 core log for S3 reconciliation)
+- External references/policies (sealed in `sealed_inputs_3A` for checks):
+  - `zone_mixture_policy_3A`
+  - `country_zone_alphas_3A`
+  - `zone_floor_policy_3A`
+  - `day_effect_policy_v1`
+  - `iso3166_canonical_2024`, `country_tz_universe` or `tz_world_2025a`
+
+## Outputs / datasets
+- `s6_validation_report_3A` (schema `schemas.3A.yaml#/validation/s6_validation_report_3A`)
+- `s6_issue_table_3A` (schema `schemas.3A.yaml#/validation/s6_issue_table_3A`)
+- `s6_receipt_3A` (schema `schemas.3A.yaml#/validation/s6_receipt_3A`)
+
+## Deliverables / reports
+- Segment-state run-report row (S6 run status + overall_status)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; read-only structural validation across S0-S5 + RNG accounting for S3
+- Outputs are fingerprint-scoped; path-embed equality is binding
+- Write-once/atomic publish; S6 outputs are authoritative for segment validation status
+
+
+---
+
+# 3A.S7 artefacts/policies/configs (from state.3A.s7.expanded.md only)
+
+## Inputs / references
+- Gate evidence:
+  - `s0_gate_receipt_3A` (schema `schemas.3A.yaml#/validation/s0_gate_receipt_3A`)
+  - `sealed_inputs_3A` (schema `schemas.3A.yaml#/validation/sealed_inputs_3A`)
+- Required internal artefacts for bundling:
+  - `s1_escalation_queue` (schema `schemas.3A.yaml#/plan/s1_escalation_queue`)
+  - `s2_country_zone_priors` (schema `schemas.3A.yaml#/plan/s2_country_zone_priors`)
+  - `s3_zone_shares` (schema `schemas.3A.yaml#/plan/s3_zone_shares`)
+  - `s4_zone_counts` (schema `schemas.3A.yaml#/plan/s4_zone_counts`)
+  - `zone_alloc` (schema `schemas.3A.yaml#/egress/zone_alloc`)
+  - `zone_alloc_universe_hash` (schema `schemas.3A.yaml#/validation/zone_alloc_universe_hash`)
+  - `s6_validation_report_3A` (schema `schemas.3A.yaml#/validation/s6_validation_report_3A`)
+  - `s6_issue_table_3A` (schema `schemas.3A.yaml#/validation/s6_issue_table_3A`)
+  - `s6_receipt_3A` (schema `schemas.3A.yaml#/validation/s6_receipt_3A`)
+- Required evidence:
+  - Segment-state run-report row for S6 with `status="PASS"` and `s6_receipt_3A.overall_status="PASS"`
+
+## Outputs / datasets
+- `validation_bundle_3A` (bundle directory with `index.json`; schema `schemas.layer1.yaml#/validation/validation_bundle_index_3A`)
+- `validation_passed_flag_3A` (`_passed.flag` with composite bundle digest)
+
+## Deliverables / reports
+- Segment-state run-report row (S7 run status + bundle digest)
+
+## Authority / policies / configs
+- JSON-Schema is the sole shape authority; Dataset Dictionary governs IDs/paths/partitions/format; Artefact Registry records provenance/licences
+- RNG-free; S7 only packages and hashes artefacts; no re-validation beyond S6 gate
+- Outputs are fingerprint-scoped; `_passed.flag` is the authoritative PASS signal for 3A
+- Write-once/atomic publish; `index.json` member digests drive the composite HashGate digest
