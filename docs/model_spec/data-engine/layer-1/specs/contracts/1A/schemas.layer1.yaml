@@ -274,6 +274,26 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    zone_dirichlet:
+      description: "Segment 3A Dirichlet draw per escalated merchant x country."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, merchant_id, country_iso, rng_stream_id, zone_count]
+        properties:
+          module: { const: 3A.S3 }
+          substream_label: { const: zone_dirichlet }
+          merchant_id: { $ref: '#/$defs/id64' }
+          country_iso: { $ref: '#/$defs/iso2' }
+          rng_stream_id: { type: string }
+          zone_count: { type: integer, minimum: 1 }
+          alpha_sum_country: { type: number, minimum: 0.0, nullable: true }
+          alpha_min: { type: number, minimum: 0.0, nullable: true }
+          alpha_max: { type: number, minimum: 0.0, nullable: true }
+          notes: { type: string, nullable: true }
+      - type: object
+        unevaluatedProperties: false
+
     zone_dirichlet_share:
       description: "Segment 3A Dirichlet share draw for zone allocation."
       allOf:

@@ -790,7 +790,6 @@ The sealed input set `𝕊` is the union of:
    * `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}` (1A egress),
    * `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}` (2A egress),
     * `tz_timetable_cache@fingerprint={manifest_fingerprint}` (2A cache),
-    * `tz_index_manifest@fingerprint={manifest_fingerprint}` (if 2A publishes the STR-tree digest separately from the cache bundle),
     * ingress references required structurally by later 3A states (e.g. `iso3166_canonical_2024`, `tz_world_2025a`).
 
 3. **3A policies and priors**
@@ -1177,7 +1176,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S0 is considered 
 
      * upstream gates (1A/1B/2A bundles + flags),
      * upstream data-plane inputs required later (1A `outlet_catalogue`, 2A `site_timezones`, `tz_timetable_cache`, ingress reference tables),
-     * timezone-geometry artefacts (ingress `tz_world` release, 2A `tz_timetable_cache`, and, if present, `tz_index_manifest`) whose digests match the `tz_universe` section of `s0_gate_receipt_3A`,
+     * timezone-geometry artefacts (ingress `tz_world` release and 2A `tz_timetable_cache`) whose digests match the `tz_universe` section of `s0_gate_receipt_3A`,
      * all sealed policies/priors from the current parameter set.
    * Each row in `sealed_inputs_3A`:
 
@@ -1196,7 +1195,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S0 is considered 
    * Its `upstream_gates` entries align with the actual verified bundles (same bundle paths, flag paths, digests).
    * Its `catalogue_versions` reflect the exact versions and digests of schema/dictionary/registry packs loaded in this run.
    * Its `sealed_policy_set` entries all correspond 1:1 to rows in `sealed_inputs_3A` with matching IDs and `sha256_hex`.
-   * Its `tz_universe` section matches the sealed rows for `tz_world`, `tz_index_manifest` (if applicable) and `tz_timetable_cache`.
+   * Its `tz_universe` section matches the sealed rows for `tz_world` and `tz_timetable_cache`.
    * Its `engine_commit`, `dictionary_digest`, and `registry_digest` fields are populated and correspond to the actual commit and catalogue bundles used for S0.
 
    Any mismatch between gate receipt and actual sealed inputs MUST cause S0 to fail.

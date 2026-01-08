@@ -111,7 +111,257 @@ subsegments:
     notes:
 
       # ---------------------------
-      # S1–S4 PLAN DATASETS
+      # CROSS-LAYER INPUTS (EXPLICIT)
+      # ---------------------------
+  - name: validation_bundle_1A
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.bundle
+    license: Proprietary-Internal
+    role: "1A validation bundle required before 3A consumes outlet_catalogue."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/validation/validation_bundle
+    cross_layer: true
+    notes: null
+
+  - name: validation_passed_flag_1A
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1A.validation.passed
+    license: Proprietary-Internal
+    role: "PASS flag for 1A validation bundle (sha256_hex of bundle)."
+    dependencies: [mlr.1A.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-1a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
+
+  - name: validation_bundle_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.validation.bundle
+    license: Proprietary-Internal
+    role: "1B validation bundle required before 3A admits 2A outputs."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/validation_bundle_1B
+    cross_layer: true
+    notes: null
+
+  - name: validation_passed_flag_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1B.validation.passed
+    license: Proprietary-Internal
+    role: "PASS flag for 1B validation bundle (sha256_hex of bundle)."
+    dependencies: [mlr.1B.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-1b-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
+
+  - name: validation_bundle_2A
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.validation.bundle
+    license: Proprietary-Internal
+    role: "2A validation bundle required before 3A admits 2A outputs."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-2a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/validation_bundle_2A
+    cross_layer: true
+    notes: null
+
+  - name: validation_passed_flag_2A
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.2A.validation.passed
+    license: Proprietary-Internal
+    role: "PASS flag for 2A validation bundle (sha256_hex of bundle)."
+    dependencies: [mlr.2A.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-2a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
+
+  - name: outlet_catalogue
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.output.outlet_catalogue
+    license: Proprietary-Internal
+    role: "Immutable outlet stubs from 1A; required input for 3A escalation."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/egress/outlet_catalogue
+    cross_layer: true
+    notes: null
+
+  - name: site_timezones
+    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.egress.site_timezones
+    license: Proprietary-Internal
+    role: "Per-site tzid assignments from 2A (optional pin for routing governance)."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/egress/site_timezones
+    cross_layer: true
+    notes: null
+
+  - name: tz_timetable_cache
+    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: cache
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.cache.tz_timetable
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped civil-time cache manifest compiled by 2A."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/cache/tz_timetable_cache
+    cross_layer: true
+    notes: null
+
+  - name: s4_legality_report
+    path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.validation.legality_report
+    license: Proprietary-Internal
+    role: "Optional DST gaps/folds legality report from 2A."
+    dependencies: [mlr.2A.egress.site_timezones, mlr.2A.cache.tz_timetable]
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/s4_legality_report
+    cross_layer: true
+    notes: null
+
+  - name: iso3166_canonical_2024
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024-12-31'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.iso3166_canonical_2024
+    license: CC-BY-4.0
+    role: "Canonical ISO-3166-1 alpha-2 list; FK surface for country_iso."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+    cross_layer: true
+    notes: null
+
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2025a'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.tz_world_2025a
+    license: ODbL-1.0
+    role: "Time-zone polygons (GeoParquet) for the 2025a TZDB release."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/tz_world_2025a
+    cross_layer: true
+    notes: null
+
+  - name: day_effect_policy_v1
+    path: contracts/policy/2B/day_effect_policy_v1.json
+    type: policy
+    category: config
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.2B.policy.day_effect_v1
+    license: Proprietary-Internal
+    role: "Day-effect variance policy consumed when computing the zone universe hash."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "l1-2b-governance"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2B.yaml#/policy/day_effect_policy_v1
+    cross_layer: true
+    notes: null
+
+      # ---------------------------
+      # S1-S4 PLAN DATASETS
       # ---------------------------
   - name: s1_escalation_queue
     path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -169,6 +419,63 @@ subsegments:
     schema: schemas.3A.yaml#/plan/s3_zone_shares
     cross_layer: true
     notes:
+
+  - name: rng_audit_log
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    type: log
+    category: rng_core
+    semver: '1.0.0'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.3A.audit
+    license: Proprietary-Internal
+    role: "Run-scoped audit envelope for Segment 3A RNG usage (seed, parameters, build metadata)."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+    cross_layer: false
+    notes: null
+
+  - name: rng_trace_log
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    type: log
+    category: rng_core
+    semver: '1.0.0'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.3A.trace
+    license: Proprietary-Internal
+    role: "Cumulative RNG trace for Segment 3A substreams; append exactly one row after each event."
+    dependencies: [mlr.rng.core.3A.audit, mlr.rng.events.3A.zone_dirichlet]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+    cross_layer: false
+    notes: null
+
+  - name: rng_event_zone_dirichlet
+    path: logs/rng/events/zone_dirichlet/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '1.0.0'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.3A.zone_dirichlet
+    license: Proprietary-Internal
+    role: "RNG envelope events for S3 zone_dirichlet (one per escalated merchant x country)."
+    dependencies: [mlr.3A.s1.escalation_queue]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/zone_dirichlet
+    cross_layer: false
+    notes: null
 
   - name: s4_zone_counts
     path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/

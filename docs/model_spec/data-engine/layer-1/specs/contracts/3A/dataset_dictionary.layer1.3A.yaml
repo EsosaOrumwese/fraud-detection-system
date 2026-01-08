@@ -91,10 +91,10 @@ reference_data:
   status: approved
   owner_subsegment: 1A
   description: Outlet catalogue emitted by Segment 1A (per merchantxcountry site list).
-  version: '{seed}.{manifest_fingerprint}'
+  version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/outlet_catalogue.parquet
-  partitioning: [seed, manifest_fingerprint]
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
   lineage:
@@ -135,6 +135,24 @@ reference_data:
   schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
   lineage:
     produced_by: 2A.S3
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s4_legality_report
+  status: optional
+  owner_subsegment: 2A
+  description: Optional DST gaps/folds legality report from Segment 2A.
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/s4_legality_report
+  lineage:
+    produced_by: 2A.S4
     consumed_by: [3A]
     final_in_layer: false
   retention_days: 365
@@ -265,6 +283,60 @@ datasets:
     consumed_by: [3A.S4, 3A.S5]
     final_in_layer: false
   retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_audit_log
+  status: draft
+  owner_subsegment: 3A
+  description: RNG run audit (identity/config) - one row at run start for 3A routing runs.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+  lineage:
+    produced_by: 3A.S3
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_trace_log
+  status: draft
+  owner_subsegment: 3A
+  description: RNG cumulative trace - append exactly one row after each event append for 3A S3 runs.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+  lineage:
+    produced_by: 3A.S3
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_event_zone_dirichlet
+  status: draft
+  owner_subsegment: 3A
+  description: RNG events for 3A.S3 Dirichlet draws (one per escalated merchant x country).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/zone_dirichlet/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/zone_dirichlet
+  lineage:
+    produced_by: 3A.S3
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 30
   pii: false
   licence: Proprietary-Internal
 
