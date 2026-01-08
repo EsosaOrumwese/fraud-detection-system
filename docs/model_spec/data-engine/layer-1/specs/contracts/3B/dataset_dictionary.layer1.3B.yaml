@@ -33,6 +33,186 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: outlet_catalogue
+  status: approved
+  owner_subsegment: 1A
+  description: Immutable outlet stubs emitted by 1A; used to derive virtual overlays.
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+  lineage:
+    produced_by: 1A.S8
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: site_timezones
+  status: approved
+  owner_subsegment: 2A
+  description: Per-site tzid assignments from Segment 2A; admissible input for virtual routing.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.2A.yaml#/egress/site_timezones
+  lineage:
+    produced_by: 2A.S2
+    consumed_by: [3B]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: tz_timetable_cache
+  status: approved
+  owner_subsegment: 2A
+  description: Fingerprint-scoped civil-time cache manifest compiled by Segment 2A.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+  lineage:
+    produced_by: 2A.S3
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_alloc
+  status: approved
+  owner_subsegment: 3A
+  description: Cross-layer zone allocation egress used by virtual routing.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/egress/zone_alloc
+  lineage:
+    produced_by: 3A.S5
+    consumed_by: [3B]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_alloc_universe_hash
+  status: approved
+  owner_subsegment: 3A
+  description: Digest summary tying priors, policies, and allocation outputs for zone allocation.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+  lineage:
+    produced_by: 3A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: transaction_schema_merchant_ids
+  status: approved
+  owner_subsegment: ingress
+  description: Authoritative merchant ID seed list derived from transaction schema.
+  version: '{version}'
+  format: parquet
+  path: reference/layer1/transaction_schema_merchant_ids/{version}/
+  partitioning: [version]
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+  lineage:
+    produced_by:
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: route_rng_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Philox sub-stream layout & RNG budgets for routing states.
+  version: '{policy_version}'
+  format: json
+  path: contracts/policy/2B/route_rng_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: alias_layout_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Alias table byte layout, alignment, and decode invariants.
+  version: '{policy_version}'
+  format: json
+  path: contracts/policy/2B/alias_layout_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: day_effect_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Daily modulation cadence, variance, and clipping configuration for S3.
+  version: '{policy_version}'
+  format: json
+  path: contracts/policy/2B/day_effect_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: cdn_key_digest
+  status: approved
+  owner_subsegment: 3B
+  description: Canonical CDN key digest inputs for deterministic aliasing.
+  version: '{config_version}'
+  format: yaml
+  path: config/virtual/cdn_key_digest.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/policy/cdn_key_digest_v1
+  lineage:
+    produced_by: 3B.governance
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
 - id: mcc_channel_rules
   status: draft
   owner_subsegment: 3B
@@ -139,7 +319,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: Proprietary-Internal
+  licence: CC-BY-4.0
 
 - id: pelias_cached_sqlite
   status: approved
@@ -338,6 +518,78 @@ datasets:
     consumed_by: [validation]
     final_in_layer: false
   retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_audit_log
+  status: draft
+  owner_subsegment: 3B
+  description: RNG run audit (identity/config) - one row at run start for 3B S2 runs.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_trace_log
+  status: draft
+  owner_subsegment: 3B
+  description: RNG cumulative trace - append exactly one row after each event append for 3B S2 runs.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_event_edge_tile_assign
+  status: draft
+  owner_subsegment: 3B
+  description: RNG events for S2 edge tile assignment (one per expanded edge slot).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/edge_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/edge_tile_assign
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 30
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_event_edge_jitter
+  status: draft
+  owner_subsegment: 3B
+  description: RNG events for S2 edge jitter attempts (one per attempt).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/edge_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/edge_jitter
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 30
   pii: false
   licence: Proprietary-Internal
 
