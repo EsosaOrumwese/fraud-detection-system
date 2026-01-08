@@ -28,6 +28,9 @@ $defs:
     type: string
     pattern: ^[a-f0-9]{64}$
     description: Lowercase hex SHA-256 digest.
+  sha256:
+    type: string
+    pattern: ^[a-f0-9]{64}$
   hex32:
     type: string
     pattern: ^[a-f0-9]{32}$
@@ -50,6 +53,124 @@ $defs:
     type: integer
     minimum: 0
     maximum: 18446744073709551615
+  semver:
+    type: string
+    pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+  rng_algorithm:
+    type: string
+    enum: [philox2x64-10]
+  iso8601_utc:
+    type: string
+    anyOf:
+      - {pattern: '^[0-9]{8}T[0-9]{6}Z$'}
+      - {pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'}
+  channel_offsets:
+    type: object
+    additionalProperties: false
+    required: [CP, CNP]
+    properties:
+      CP: {type: number}
+      CNP: {type: number}
+  bucket_offsets_1_to_5:
+    type: object
+    additionalProperties: false
+    required: ["1", "2", "3", "4", "5"]
+    properties:
+      "1": {type: number}
+      "2": {type: number}
+      "3": {type: number}
+      "4": {type: number}
+      "5": {type: number}
+  mcc_offsets:
+    type: object
+    patternProperties:
+      '^[0-9]{4}$': {type: number}
+    additionalProperties: false
+  mcc_range_offsets:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [range, offset]
+      properties:
+        range: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+        offset: {type: number}
+  artifact_ref:
+    type: object
+    additionalProperties: false
+    required: [path, sha256]
+    properties:
+      path: {type: string, minLength: 1}
+      sha256: {$ref: '#/$defs/sha256'}
+  s3_rule_predicate:
+    oneOf:
+    - type: object
+      additionalProperties: false
+      required: [op]
+      properties:
+        op: {const: "TRUE"}
+    - type: object
+      additionalProperties: false
+      required: [op, field, set]
+      properties:
+        op: {const: "IN_SET"}
+        field: {const: "home_country_iso"}
+        set: {type: string, minLength: 1}
+    - type: object
+      additionalProperties: false
+      required: [op, values]
+      properties:
+        op: {const: "CHANNEL_IN"}
+        values:
+          type: array
+          minItems: 1
+          items: {type: string, enum: [card_present, card_not_present]}
+    - type: object
+      additionalProperties: false
+      required: [op]
+      properties:
+        op: {const: "MCC_IN"}
+        codes:
+          type: array
+          minItems: 1
+          items: {type: string, pattern: '^[0-9]{4}$'}
+        ranges:
+          type: array
+          minItems: 1
+          items: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+      anyOf:
+      - required: [codes]
+      - required: [ranges]
+    - type: object
+      additionalProperties: false
+      required: [op, value]
+      properties:
+        op: {const: "N_GE"}
+        value: {type: integer, minimum: 0}
+    - type: object
+      additionalProperties: false
+      required: [op, args]
+      properties:
+        op: {const: "AND"}
+        args:
+          type: array
+          minItems: 1
+          items: {$ref: '#/$defs/s3_rule_predicate'}
+    - type: object
+      additionalProperties: false
+      required: [op, args]
+      properties:
+        op: {const: "OR"}
+        args:
+          type: array
+          minItems: 1
+          items: {$ref: '#/$defs/s3_rule_predicate'}
+    - type: object
+      additionalProperties: false
+      required: [op, arg]
+      properties:
+        op: {const: "NOT"}
+        arg: {$ref: '#/$defs/s3_rule_predicate'}
   six_digit_seq:
     type: string
     pattern: ^[0-9]{6}$
@@ -744,6 +865,38 @@ governance:
       checksum:
         type: string
         pattern: ^[0-9a-f]{64}$
+  license_map:
+    type: object
+    additionalProperties: false
+    required: [semver, version, licenses]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+      licenses:
+        type: object
+        additionalProperties:
+          type: object
+          additionalProperties: false
+          required:
+          - spdx
+          - osi_approved
+          - redistribution
+          - notice_required
+          - sharealike
+          - source_disclosure
+          - text_path
+          - attribution_template
+          - notes
+          properties:
+            spdx: {type: [string, 'null']}
+            osi_approved: {type: [boolean, 'null']}
+            redistribution: {type: string, enum: [open, restricted, internal]}
+            notice_required: {type: boolean}
+            sharealike: {type: boolean}
+            source_disclosure: {type: boolean}
+            text_path: {type: string, minLength: 1}
+            attribution_template: {type: [string, 'null']}
+            notes: {type: [string, 'null']}
 
 
 policy:
@@ -863,6 +1016,614 @@ policy:
           threshold_h: {type: number, exclusiveMinimum: 0.0}
       notes: {type: string}
 
+  s3_rule_ladder:
+    type: object
+    additionalProperties: false
+    required: [precedence_order, reason_codes, filter_tags, rules]
+    properties:
+      precedence_order:
+        type: array
+        minItems: 6
+        uniqueItems: true
+        items: {type: string, enum: [DENY, ALLOW, CLASS, LEGAL, THRESHOLD, DEFAULT]}
+      reason_codes:
+        type: array
+        minItems: 1
+        items: {type: string}
+      filter_tags:
+        type: array
+        minItems: 1
+        items: {type: string}
+      country_sets:
+        type: object
+        patternProperties:
+          '^[A-Z0-9_]+$':
+            type: array
+            minItems: 1
+            items: {$ref: '#/$defs/iso2'}
+        additionalProperties: false
+      rules:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [rule_id, precedence, priority, is_decision_bearing, predicate, outcome]
+          properties:
+            rule_id: {type: string, pattern: '^[A-Z0-9_]+$'}
+            precedence: {type: string, enum: [DENY, ALLOW, CLASS, LEGAL, THRESHOLD, DEFAULT]}
+            priority: {type: integer, minimum: 0}
+            is_decision_bearing: {type: boolean}
+            predicate: {$ref: '#/$defs/s3_rule_predicate'}
+            admit_countries:
+              type: array
+              items: {$ref: '#/$defs/iso2'}
+            admit_sets:
+              type: array
+              items: {type: string}
+            deny_countries:
+              type: array
+              items: {$ref: '#/$defs/iso2'}
+            deny_sets:
+              type: array
+              items: {type: string}
+            row_tags:
+              type: array
+              items: {type: string}
+            outcome:
+              type: object
+              additionalProperties: false
+              required: [reason_code]
+              properties:
+                reason_code: {type: string}
+                tags:
+                  type: array
+                  items: {type: string}
+
+  s3_base_weight:
+    type: object
+    additionalProperties: false
+    required: [version, dp, model, bounds]
+    properties:
+      version: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      dp: {type: integer, minimum: 0, maximum: 255}
+      model:
+        type: object
+        additionalProperties: false
+        required: [kind, coeffs]
+        properties:
+          kind: {type: string, const: "loglinear_rank_home"}
+          coeffs:
+            type: object
+            additionalProperties: false
+            required: [beta0, beta_home, beta_rank]
+            properties:
+              beta0: {type: number}
+              beta_home: {type: number}
+              beta_rank: {type: number}
+      bounds:
+        type: object
+        additionalProperties: false
+        required: [log_w_min, log_w_max, w_min, w_max]
+        properties:
+          log_w_min: {type: number}
+          log_w_max: {type: number}
+          w_min: {type: number, exclusiveMinimum: 0.0}
+          w_max: {type: number, exclusiveMinimum: 0.0}
+
+  s3_thresholds:
+    type: object
+    additionalProperties: false
+    required:
+    - semver
+    - version
+    - enabled
+    - home_min
+    - force_at_least_one_foreign_if_foreign_present
+    - min_one_per_country_when_feasible
+    - foreign_cap_mode
+    - on_infeasible
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+      enabled: {type: boolean}
+      home_min: {type: integer, minimum: 0}
+      force_at_least_one_foreign_if_foreign_present: {type: boolean}
+      min_one_per_country_when_feasible: {type: boolean}
+      foreign_cap_mode: {type: string, enum: [none, n_minus_home_min]}
+      on_infeasible: {type: string, enum: [fail]}
+
+  crossborder_hyperparams:
+    type: object
+    additionalProperties: false
+    required: [semver, version, eligibility, ztp]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+      eligibility:
+        type: object
+        additionalProperties: false
+        required: [rule_set_id, default_decision, rules]
+        properties:
+          rule_set_id: {type: string, minLength: 1}
+          default_decision: {type: string, enum: [allow, deny]}
+          rules:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              additionalProperties: false
+              required: [id, priority, decision, channel, iso, mcc]
+              properties:
+                id: {type: string, minLength: 1}
+                priority: {type: integer, minimum: 0}
+                decision: {type: string, enum: [allow, deny]}
+                channel:
+                  anyOf:
+                  - {type: string, const: "*"}
+                  - type: array
+                    minItems: 1
+                    items: {type: string, enum: [CP, CNP]}
+                iso:
+                  anyOf:
+                  - {type: string, const: "*"}
+                  - type: array
+                    minItems: 1
+                    items: {$ref: '#/$defs/iso2'}
+                mcc:
+                  anyOf:
+                  - {type: string, const: "*"}
+                  - type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      pattern: '^[0-9]{4}(-[0-9]{4})?$'
+                reason: {type: string}
+      ztp:
+        type: object
+        additionalProperties: false
+        required:
+        - rule_set_id
+        - theta_order
+        - theta
+        - feature_x
+        - MAX_ZTP_ZERO_ATTEMPTS
+        - ztp_exhaustion_policy
+        properties:
+          rule_set_id: {type: string, minLength: 1}
+          theta_order:
+            type: array
+            minItems: 1
+            items: {type: string}
+          theta:
+            type: object
+            additionalProperties: {type: number}
+          feature_x:
+            type: object
+            additionalProperties: false
+            required: [feature_id, x_default, x_transform]
+            properties:
+              feature_id: {type: string, minLength: 1}
+              x_default: {type: number, minimum: 0.0, maximum: 1.0}
+              x_transform:
+                type: object
+                additionalProperties: false
+                required: [kind]
+                properties:
+                  kind: {type: string, enum: [clamp01]}
+          MAX_ZTP_ZERO_ATTEMPTS: {type: integer, minimum: 1}
+          ztp_exhaustion_policy: {type: string, enum: [abort, downgrade_domestic]}
+
+  ccy_smoothing_params:
+    type: object
+    additionalProperties: false
+    required: [semver, version, dp, defaults]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+      dp: {type: integer, minimum: 0, maximum: 18}
+      defaults:
+        type: object
+        additionalProperties: false
+        required: [blend_weight, alpha, obs_floor, min_share, shrink_exponent]
+        properties:
+          blend_weight: {type: number, minimum: 0.0, maximum: 1.0}
+          alpha: {type: number, minimum: 0.0}
+          obs_floor: {type: integer, minimum: 0}
+          min_share: {type: number, minimum: 0.0, maximum: 1.0}
+          shrink_exponent: {type: number, minimum: 0.0}
+      per_currency:
+        type: object
+        patternProperties:
+          '^[A-Z]{3}$':
+            type: object
+            additionalProperties: false
+            properties:
+              blend_weight: {type: number, minimum: 0.0, maximum: 1.0}
+              alpha: {type: number, minimum: 0.0}
+              obs_floor: {type: integer, minimum: 0}
+              min_share: {type: number, minimum: 0.0, maximum: 1.0}
+              shrink_exponent: {type: number, minimum: 0.0}
+        additionalProperties: false
+      overrides:
+        type: object
+        additionalProperties: false
+        properties:
+          alpha_iso:
+            type: object
+            patternProperties:
+              '^[A-Z]{3}$':
+                type: object
+                patternProperties:
+                  '^[A-Z]{2}$': {type: number, minimum: 0.0}
+                additionalProperties: false
+            additionalProperties: false
+          min_share_iso:
+            type: object
+            patternProperties:
+              '^[A-Z]{3}$':
+                type: object
+                patternProperties:
+                  '^[A-Z]{2}$': {type: number, minimum: 0.0, maximum: 1.0}
+                additionalProperties: false
+            additionalProperties: false
+
+  dirichlet_alpha_policy:
+    type: object
+    additionalProperties: false
+    required: [semver, version, enabled, alpha_model, bounds, fallback]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+      enabled: {type: boolean}
+      alpha_model:
+        type: object
+        additionalProperties: false
+        required: [kind, total_concentration, base_share_source, include_home_boost, home_boost_multiplier]
+        properties:
+          kind: {type: string, enum: [scaled_base_shares, uniform]}
+          total_concentration: {type: number, exclusiveMinimum: 0.0}
+          base_share_source: {type: string, enum: [base_weight_priors, ccy_country_weights_cache, uniform]}
+          include_home_boost: {type: boolean}
+          home_boost_multiplier: {type: number, minimum: 1.0}
+      bounds:
+        type: object
+        additionalProperties: false
+        required: [alpha_min, alpha_max]
+        properties:
+          alpha_min: {type: number, exclusiveMinimum: 0.0}
+          alpha_max: {type: number, exclusiveMinimum: 0.0}
+      fallback:
+        type: object
+        additionalProperties: false
+        required: [on_missing_base_shares, on_nonfinite_alpha]
+        properties:
+          on_missing_base_shares: {type: string, enum: [fail, uniform]}
+          on_nonfinite_alpha: {type: string, enum: [fail]}
+
+  residual_quantisation:
+    type: object
+    additionalProperties: false
+    required: [semver, version, dp_resid, rounding, sort, tiebreak, validation]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+      dp_resid: {type: integer, minimum: 0, maximum: 18}
+      rounding: {type: string, enum: [RNE]}
+      sort:
+        type: object
+        additionalProperties: false
+        required: [primary_key, stable]
+        properties:
+          primary_key: {type: string, enum: [residual_desc]}
+          stable: {type: boolean}
+      tiebreak:
+        type: object
+        additionalProperties: false
+        required: [keys]
+        properties:
+          keys:
+            type: array
+            minItems: 1
+            items: {type: string, enum: [country_iso_asc, candidate_rank_asc, merchant_id_asc, tile_id_asc]}
+      validation:
+        type: object
+        additionalProperties: false
+        required: [forbid_nan_inf, residual_domain, enforce_residual_domain]
+        properties:
+          forbid_nan_inf: {type: boolean}
+          residual_domain:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: {type: number}
+          enforce_residual_domain: {type: boolean}
+
+  hurdle_coefficients:
+    type: object
+    additionalProperties: false
+    required: [semver, version, metadata, dict_mcc, dict_ch, dict_dev5, beta, beta_mu, design]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, minLength: 1}
+      metadata:
+        type: object
+        additionalProperties: false
+        required: [simulation_manifest]
+        properties:
+          simulation_manifest: {type: string, minLength: 1}
+          simulation_config_path: {type: string}
+          seed: {$ref: '#/$defs/uint64'}
+          created_utc: {type: string}
+          inputs:
+            type: object
+            additionalProperties: true
+      dict_mcc:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: integer, minimum: 0, maximum: 9999}
+      dict_ch:
+        type: array
+        minItems: 2
+        maxItems: 2
+        uniqueItems: true
+        items: {type: string, enum: [CP, CNP]}
+      dict_dev5:
+        type: array
+        minItems: 5
+        maxItems: 5
+        uniqueItems: true
+        items: {type: integer, enum: [1, 2, 3, 4, 5]}
+      beta:
+        type: array
+        minItems: 1
+        items: {type: number}
+      beta_mu:
+        type: array
+        minItems: 1
+        items: {type: number}
+      design:
+        type: object
+        additionalProperties: false
+        required: [beta_order, beta_mu_order]
+        properties:
+          beta_order:
+            type: array
+            minItems: 1
+            items: {type: string}
+          beta_mu_order:
+            type: array
+            minItems: 1
+            items: {type: string}
+
+  nb_dispersion_coefficients:
+    type: object
+    additionalProperties: false
+    required: [semver, version, metadata, dict_mcc, dict_ch, beta_phi]
+    properties:
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      version: {type: string, minLength: 1}
+      metadata:
+        type: object
+        additionalProperties: false
+        required: [simulation_manifest]
+        properties:
+          simulation_manifest: {type: string, minLength: 1}
+          simulation_config_path: {type: string}
+          seed: {$ref: '#/$defs/uint64'}
+          created_utc: {type: string}
+          inputs:
+            type: object
+            additionalProperties: true
+      dict_mcc:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: integer, minimum: 0, maximum: 9999}
+      dict_ch:
+        type: array
+        minItems: 2
+        maxItems: 2
+        uniqueItems: true
+        items: {type: string, enum: [CP, CNP]}
+      beta_phi:
+        type: array
+        minItems: 1
+        items: {type: number}
+      design:
+        type: object
+        additionalProperties: false
+        properties:
+          beta_phi_order:
+            type: array
+            minItems: 1
+            items: {type: string}
+
+
+training:
+  hurdle_simulation_priors:
+    type: object
+    additionalProperties: false
+    required: [semver, version, rng, calibration, noise, clamps, hurdle, nb_mean, dispersion]
+    properties:
+      semver: {$ref: '#/$defs/semver'}
+      version: {type: string, minLength: 1}
+      rng:
+        type: object
+        additionalProperties: false
+        required: [algorithm, seed]
+        properties:
+          algorithm: {$ref: '#/$defs/rng_algorithm'}
+          seed: {$ref: '#/$defs/uint64'}
+      calibration:
+        type: object
+        additionalProperties: false
+        required: [enabled, mean_pi_target, mean_mu_target_multi, median_phi_target, fixed_iters, brackets]
+        properties:
+          enabled: {type: boolean}
+          mean_pi_target: {type: number, minimum: 0.0, maximum: 1.0}
+          mean_mu_target_multi: {type: number, exclusiveMinimum: 0.0}
+          median_phi_target: {type: number, exclusiveMinimum: 0.0}
+          fixed_iters: {type: integer, minimum: 1, maximum: 1024}
+          brackets:
+            type: object
+            additionalProperties: false
+            required: [base_logit, base_log_mean, base_log_phi]
+            properties:
+              base_logit:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: {type: number}
+              base_log_mean:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: {type: number}
+              base_log_phi:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: {type: number}
+      noise:
+        type: object
+        additionalProperties: false
+        required: [per_merchant_logit_sd, per_merchant_log_mu_sd, per_merchant_log_phi_sd]
+        properties:
+          per_merchant_logit_sd: {type: number, minimum: 0.0}
+          per_merchant_log_mu_sd: {type: number, minimum: 0.0}
+          per_merchant_log_phi_sd: {type: number, minimum: 0.0}
+      clamps:
+        type: object
+        additionalProperties: false
+        required: [pi, mu, phi]
+        properties:
+          pi:
+            type: object
+            additionalProperties: false
+            required: [min, max]
+            properties:
+              min: {type: number, minimum: 0.0, maximum: 1.0}
+              max: {type: number, minimum: 0.0, maximum: 1.0}
+          mu:
+            type: object
+            additionalProperties: false
+            required: [min, max]
+            properties:
+              min: {type: number, exclusiveMinimum: 0.0}
+              max: {type: number, exclusiveMinimum: 0.0}
+          phi:
+            type: object
+            additionalProperties: false
+            required: [min, max]
+            properties:
+              min: {type: number, exclusiveMinimum: 0.0}
+              max: {type: number, exclusiveMinimum: 0.0}
+      hurdle:
+        type: object
+        additionalProperties: false
+        required: [base_logit, channel_offsets, bucket_offsets, mcc_offsets]
+        properties:
+          base_logit: {type: number}
+          channel_offsets: {$ref: '#/$defs/channel_offsets'}
+          bucket_offsets: {$ref: '#/$defs/bucket_offsets_1_to_5'}
+          mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+          mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+      nb_mean:
+        type: object
+        additionalProperties: false
+        required: [base_log_mean, channel_offsets, mcc_offsets]
+        properties:
+          base_log_mean: {type: number}
+          channel_offsets: {$ref: '#/$defs/channel_offsets'}
+          mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+          mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+      dispersion:
+        type: object
+        additionalProperties: false
+        required: [base_log_phi, gdp_log_slope, channel_offsets, mcc_offsets, mom]
+        properties:
+          base_log_phi: {type: number}
+          gdp_log_slope: {type: number}
+          channel_offsets: {$ref: '#/$defs/channel_offsets'}
+          mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+          mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+          mom:
+            type: object
+            additionalProperties: false
+            required: [epsilon, n_min, cell_weight_rule]
+            properties:
+              epsilon: {type: number, exclusiveMinimum: 0.0}
+              n_min: {type: integer, minimum: 1}
+              cell_weight_rule:
+                type: string
+                enum: ["n_cell", "sqrt_n_cell"]
+
+  training_manifest_1A_hurdle_sim:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_semver
+      - simulation_version
+      - created_utc
+      - rng
+      - simulation_config
+      - inputs
+      - outputs
+      - exports
+    properties:
+      manifest_semver: {$ref: '#/$defs/semver'}
+      simulation_version: {type: string, minLength: 1}
+      created_utc: {$ref: '#/$defs/iso8601_utc'}
+      rng:
+        type: object
+        additionalProperties: false
+        required: [algorithm, seed]
+        properties:
+          algorithm: {$ref: '#/$defs/rng_algorithm'}
+          seed: {$ref: '#/$defs/uint64'}
+      simulation_config:
+        type: object
+        additionalProperties: false
+        required: [config_path, sha256]
+        properties:
+          config_path: {type: string, minLength: 1}
+          sha256: {$ref: '#/$defs/sha256'}
+          semver: {$ref: '#/$defs/semver'}
+          version: {type: string, minLength: 1}
+      inputs:
+        type: object
+        additionalProperties: false
+        required:
+          - transaction_schema_merchant_ids
+          - world_bank_gdp_per_capita
+          - gdp_bucket_map
+          - iso3166_canonical
+        properties:
+          transaction_schema_merchant_ids: {$ref: '#/$defs/artifact_ref'}
+          world_bank_gdp_per_capita: {$ref: '#/$defs/artifact_ref'}
+          gdp_bucket_map: {$ref: '#/$defs/artifact_ref'}
+          iso3166_canonical: {$ref: '#/$defs/artifact_ref'}
+      outputs:
+        type: object
+        additionalProperties: false
+        required: [logistic_parquet, nb_mean_parquet]
+        properties:
+          logistic_parquet: {$ref: '#/$defs/artifact_ref'}
+          nb_mean_parquet: {$ref: '#/$defs/artifact_ref'}
+          notes: {type: string}
+      exports:
+        type: object
+        additionalProperties: false
+        required: [hurdle_coefficients_yaml, nb_dispersion_coefficients_yaml, bundle_selfcheck_json]
+        properties:
+          hurdle_coefficients_yaml: {$ref: '#/$defs/artifact_ref'}
+          nb_dispersion_coefficients_yaml: {$ref: '#/$defs/artifact_ref'}
+          bundle_selfcheck_json: {$ref: '#/$defs/artifact_ref'}
+      git_commit_hex:
+        type: string
+        pattern: '^(?:[0-9a-f]{40}|[0-9a-f]{64})$'
 
 validation:
   numeric_policy_attest:

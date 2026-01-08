@@ -452,7 +452,7 @@ subsegments:
     owner: {ml_platform_team: null}
     last_updated: '{iso8601_timestamp}'
     environment: [training]
-    schema: schemas.training.layer1.yaml#/hurdle_simulation_priors
+    schema: schemas.layer1.yaml#/training/hurdle_simulation_priors
     cross_layer: false
     notes: Training-only. Its sha256 MUST be recorded in the training manifest.
 
@@ -474,18 +474,18 @@ subsegments:
     owner: {ml_platform_team: null}
     last_updated: '{iso8601_timestamp}'
     environment: [training]
-    schema: schemas.training.layer1.yaml#/training_manifest_1A_hurdle_sim
+    schema: schemas.layer1.yaml#/training/training_manifest_1A_hurdle_sim
     cross_layer: false
     notes: Export YAMLs MUST embed metadata.simulation_manifest pointing here.
 ```
 
 ---
 
-## Appendix B — `schemas.training.layer1.yaml`
+## Appendix B — `schemas.layer1.yaml` (training section)
 
 ```yaml
 version: '1.0'
-$id: schemas.training.layer1.yaml
+$id: schemas.layer1.yaml
 description: Training-plane schemas for Layer-1 offline simulations and manifests (1A hurdle training).
 
 $defs:
@@ -755,7 +755,7 @@ This is the **file Codex writes per training run** at:
 `artefacts/training/1A/hurdle_sim/simulation_version={simulation_version}/seed={seed}/{iso8601_timestamp}/manifest.json`
 
 …and validates against:
-`schemas.training.layer1.yaml#/training_manifest_1A_hurdle_sim`
+`schemas.layer1.yaml#/training/training_manifest_1A_hurdle_sim`
 
 ```json
 {
