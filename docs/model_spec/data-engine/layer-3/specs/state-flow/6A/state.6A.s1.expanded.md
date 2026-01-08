@@ -619,8 +619,8 @@ RNG discipline:
 
 * S1 uses **two logical RNG families**:
 
-  * `party_count_realisation` — for sampling integer counts per population cell.
-  * `party_attribute_sampling` — for sampling per-party attributes (within each cell).
+  * `party_count_realisation` (contract id: `rng_event_party_count_realisation`; substream_label: `party_count_realisation`) - for sampling integer counts per population cell.
+  * `party_attribute_sampling` (contract id: `rng_event_party_attribute_sampling`; substream_label: `party_attribute_sampling`) - for sampling per-party attributes (within each cell).
 
 The exact event schema and trace integration live in `schemas.layer3.yaml` / `schemas.6A.yaml`; this spec fixes their **intended meaning**.
 

@@ -114,6 +114,18 @@ policy:
       $id: "#/policy/device_linkage_rules_6A"
       type: object
       description: "6A.S4 device linkage rules (device sharing constraints and caps)."
+    product_linkage_rules_6A:
+      $id: "#/policy/product_linkage_rules_6A"
+      type: object
+      description: "Optional 6A.S2 product linkage rules (account/product wiring constraints)."
+    product_eligibility_config_6A:
+      $id: "#/policy/product_eligibility_config_6A"
+      type: object
+      description: "Optional 6A.S2 product eligibility config (admissibility rules)."
+    instrument_linkage_rules_6A:
+      $id: "#/policy/instrument_linkage_rules_6A"
+      type: object
+      description: "Optional 6A.S3 instrument linkage rules (ownership constraints)."
 
 s1:
   description: "State 6A.S1 outputs"

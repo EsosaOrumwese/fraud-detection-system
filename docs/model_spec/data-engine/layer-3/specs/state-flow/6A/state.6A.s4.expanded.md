@@ -1197,12 +1197,12 @@ RNG discipline:
 
 * S4 defines distinct RNG families (names indicative, semantics binding):
 
-  * `device_count_realisation` — for realising integer device counts per planning cell.
-  * `device_allocation_sampling` — for assigning devices to parties/accounts/merchants.
-  * `device_attribute_sampling` — for sampling device attributes.
-  * `ip_count_realisation` — for realising integer IP counts per IP-cell.
-  * `ip_allocation_sampling` — for wiring IPs to devices/parties/merchants.
-  * `ip_attribute_sampling` — for sampling IP attributes.
+  * `device_count_realisation` (contract id: `rng_event_device_count_realisation`; substream_label: `device_count_realisation`) - for realising integer device counts per planning cell.
+  * `device_allocation_sampling` (contract id: `rng_event_device_allocation_sampling`; substream_label: `device_allocation_sampling`) - for assigning devices to parties/accounts/merchants.
+  * `device_attribute_sampling` (contract id: `rng_event_device_attribute_sampling`; substream_label: `device_attribute_sampling`) - for sampling device attributes.
+  * `ip_count_realisation` (contract id: `rng_event_ip_count_realisation`; substream_label: `ip_count_realisation`) - for realising integer IP counts per IP-cell.
+  * `ip_allocation_sampling` (contract id: `rng_event_ip_allocation_sampling`; substream_label: `ip_allocation_sampling`) - for wiring IPs to devices/parties/merchants.
+  * `ip_attribute_sampling` (contract id: `rng_event_ip_attribute_sampling`; substream_label: `ip_attribute_sampling`) - for sampling IP attributes.
 
 Each RNG event is logged with:
 
@@ -3914,32 +3914,32 @@ S4 uses the shared **Layer-3 Philox-2x64-10** engine with S4-specific RNG famili
   * `"6A.S4.ip_allocation_sampling"`
   * `"6A.S4.ip_attribute_sampling"`
 
-* **`device_count_realisation`**
+* **`device_count_realisation`** (contract id: `rng_event_device_count_realisation`; substream_label: `device_count_realisation`)
   RNG family for converting continuous device targets `N_device_target(c_dev, type)` into integer counts `N_device(c_dev, type)`.
 
-* **`device_allocation_sampling`**
+* **`device_allocation_sampling`** (contract id: `rng_event_device_allocation_sampling`; substream_label: `device_allocation_sampling`)
   RNG family for allocating devices to parties/accounts/merchants in each cell, consistent with sharing/linkage priors.
 
-* **`device_attribute_sampling`**
+* **`device_attribute_sampling`** (contract id: `rng_event_device_attribute_sampling`; substream_label: `device_attribute_sampling`)
   RNG family for sampling device attributes (os_family, ua_family, risk flags, etc.) from conditional priors.
 
-* **`ip_count_realisation`**
+* **`ip_count_realisation`** (contract id: `rng_event_ip_count_realisation`; substream_label: `ip_count_realisation`)
   RNG family for converting continuous IP targets `N_ip_target(c_ip)` into integer counts `N_ip(c_ip)`.
 
-* **`ip_allocation_sampling`**
+* **`ip_allocation_sampling`** (contract id: `rng_event_ip_allocation_sampling`; substream_label: `ip_allocation_sampling`)
   RNG family for wiring IPs to devices/parties/merchants (IP-sharing topology).
 
-* **`ip_attribute_sampling`**
+* **`ip_attribute_sampling`** (contract id: `rng_event_ip_attribute_sampling`; substream_label: `ip_attribute_sampling`)
   RNG family for sampling IP attributes (ip_risk_tier, masked representation, geo buckets, etc.).
 
 RNG events:
 
-* **`rng_event_device_count`**
-* **`rng_event_device_allocation`**
-* **`rng_event_device_attribute`**
-* **`rng_event_ip_count`**
-* **`rng_event_ip_allocation`**
-* **`rng_event_ip_attribute`**
+* **`rng_event_device_count_realisation`**
+* **`rng_event_device_allocation_sampling`**
+* **`rng_event_device_attribute_sampling`**
+* **`rng_event_ip_count_realisation`**
+* **`rng_event_ip_allocation_sampling`**
+* **`rng_event_ip_attribute_sampling`**
 
 Each event records:
 

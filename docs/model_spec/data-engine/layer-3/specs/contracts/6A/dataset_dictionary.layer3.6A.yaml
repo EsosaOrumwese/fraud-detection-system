@@ -17,7 +17,484 @@ layer:
   id: layer3
   name: Layer-3 (Segment 6A)
 
-reference_data: []
+reference_data:
+  # Upstream HashGate artefacts sealed by 6A.S0
+  - id: validation_bundle_1A
+    owner_layer: 1
+    owner_segment: 1A
+    status: required
+    description: Validator outputs for 1A (metrics, plots, diffs).
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1A.yaml#/validation/validation_bundle
+    columns_strict: false
+    lineage:
+      produced_by: [ '1A.validation' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_1A
+    owner_layer: 1
+    owner_segment: 1A
+    status: required
+    description: HashGate PASS flag for the 1A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '1A.validation' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_1B
+    owner_layer: 1
+    owner_segment: 1B
+    status: required
+    description: Validation bundle for 1B publish (one per manifest_fingerprint).
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+    columns_strict: false
+    lineage:
+      produced_by: [ '1B.S9' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_1B
+    owner_layer: 1
+    owner_segment: 1B
+    status: required
+    description: HashGate PASS flag for the 1B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '1B.S9' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_2A
+    owner_layer: 1
+    owner_segment: 2A
+    status: required
+    description: Validation bundle for 2A publish (one per fingerprint).
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+    columns_strict: false
+    lineage:
+      produced_by: [ '2A.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_2A
+    owner_layer: 1
+    owner_segment: 2A
+    status: required
+    description: HashGate PASS flag for the 2A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '2A.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_2B
+    owner_layer: 1
+    owner_segment: 2B
+    status: required
+    description: Fingerprint-scoped PASS bundle index for Segment 2B.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+    columns_strict: false
+    lineage:
+      produced_by: [ '2B.S8' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_2B
+    owner_layer: 1
+    owner_segment: 2B
+    status: required
+    description: HashGate PASS flag for the 2B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '2B.S8' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_3A
+    owner_layer: 1
+    owner_segment: 3A
+    status: required
+    description: Fingerprint-scoped validation bundle for Segment 3A.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+    columns_strict: false
+    lineage:
+      produced_by: [ '3A.S7' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_3A
+    owner_layer: 1
+    owner_segment: 3A
+    status: required
+    description: HashGate PASS flag for the 3A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+    columns_strict: false
+    lineage:
+      produced_by: [ '3A.S7' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: Fingerprint-scoped validation bundle for Segment 3B.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: HashGate PASS flag for the 3B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_5A
+    owner_layer: 2
+    owner_segment: 5A
+    status: required
+    description: Directory artefact containing the 5A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+    columns_strict: false
+    lineage:
+      produced_by: [ '5A.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_5A
+    owner_layer: 2
+    owner_segment: 5A
+    status: required
+    description: HashGate PASS flag for the 5A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
+    columns_strict: false
+    lineage:
+      produced_by: [ '5A.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: Directory artefact containing the 5B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: HashGate PASS flag for the 5B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  # Upstream egress/context surfaces sealed by 6A.S0
+  - id: outlet_catalogue
+    owner_layer: 1
+    owner_segment: 1A
+    status: required
+    description: Immutable outlet stubs per merchant and legal country.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+    columns_strict: false
+    lineage:
+      produced_by: [ '1A' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: site_locations
+    owner_layer: 1
+    owner_segment: 1B
+    status: required
+    description: Site locations with absolute lat/lon (post jitter + geometry stitch).
+    version: '{seed}.{manifest_fingerprint}'
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1B.yaml#/egress/site_locations
+    columns_strict: false
+    lineage:
+      produced_by: [ '1B.S8' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: site_timezones
+    owner_layer: 1
+    owner_segment: 2A
+    status: required
+    description: Final per-site IANA tzid with provenance.
+    version: '{seed}.{manifest_fingerprint}'
+    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.2A.yaml#/egress/site_timezones
+    columns_strict: false
+    lineage:
+      produced_by: [ '2A.S2' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: tz_timetable_cache
+    owner_layer: 1
+    owner_segment: 2A
+    status: required
+    description: Fingerprint-scoped cache manifest for tz transitions.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+    columns_strict: false
+    lineage:
+      produced_by: [ '2A.S3' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: zone_alloc
+    owner_layer: 1
+    owner_segment: 3A
+    status: required
+    description: Cross-layer zone allocation egress for routing segment.
+    version: '{seed}.{manifest_fingerprint}'
+    path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, tzid]
+    schema_ref: schemas.3A.yaml#/egress/zone_alloc
+    columns_strict: false
+    lineage:
+      produced_by: [ '3A.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: zone_alloc_universe_hash
+    owner_layer: 1
+    owner_segment: 3A
+    status: required
+    description: Digest summary tying priors and policies to the published zone allocation.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+    columns_strict: false
+    lineage:
+      produced_by: [ '3A.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: virtual_classification_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: Merchant-level classification surface with closed vocabulary reason codes.
+    version: '{seed}.{manifest_fingerprint}'
+    path: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id]
+    schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S1' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: virtual_settlement_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: One settlement node per virtual merchant with tzid semantics and evidence URLs.
+    version: '{seed}.{manifest_fingerprint}'
+    path: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id]
+    schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S1' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: edge_universe_hash_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: Fingerprint-scoped hash tying virtual routing artefacts together.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S3' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: virtual_routing_policy_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: Dual-TZ routing contract for virtual merchants.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S5' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: merchant_zone_profile_5A
+    owner_layer: 2
+    owner_segment: 5A
+    status: required
+    description: Merchantxzone demand profile including class and scale for the local week.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+    partitioning: [fingerprint]
+    ordering: [merchant_id, legal_country_iso, tzid]
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A
+    columns_strict: false
+    lineage:
+      produced_by: [ '5A.S1' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: arrival_events_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: Canonical arrival skeleton stream per scenario and seed.
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, fingerprint, scenario_id]
+    ordering: [scenario_id, merchant_id, ts_utc, arrival_seq]
+    schema_ref: schemas.5B.yaml#/egress/s4_arrival_events_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S4' ]
+      consumed_by: [ '6A.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
 
 datasets:
   - id: s0_gate_receipt_6A
@@ -431,6 +908,416 @@ datasets:
     lineage:
       produced_by: []
       consumed_by: [ '6A.S0', '6A.S4' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: product_linkage_rules_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: optional
+    description: Optional product linkage rules for 6A.S2 (account/product wiring constraints).
+    version: 'v1'
+    path: config/layer3/6A/policy/product_linkage_rules_6A.v1.yaml
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.6A.yaml#/policy/product_linkage_rules_6A
+    columns_strict: false
+    lineage:
+      produced_by: []
+      consumed_by: [ '6A.S0', '6A.S2' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: product_eligibility_config_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: optional
+    description: Optional product eligibility config for 6A.S2 (account/product admissibility rules).
+    version: 'v1'
+    path: config/layer3/6A/policy/product_eligibility_config_6A.v1.yaml
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.6A.yaml#/policy/product_eligibility_config_6A
+    columns_strict: false
+    lineage:
+      produced_by: []
+      consumed_by: [ '6A.S0', '6A.S2' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: instrument_linkage_rules_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: optional
+    description: Optional instrument linkage rules for 6A.S3 (instrument ownership constraints).
+    version: 'v1'
+    path: config/layer3/6A/policy/instrument_linkage_rules_6A.v1.yaml
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.6A.yaml#/policy/instrument_linkage_rules_6A
+    columns_strict: false
+    lineage:
+      produced_by: []
+      consumed_by: [ '6A.S0', '6A.S3' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  # --- RNG logs & event tables ---
+
+  - id: rng_audit_log
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: Run-scoped RNG audit envelope for 6A runs.
+    version: '{run_id}'
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/core/rng_audit_log
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S1', '6A.S2', '6A.S3', '6A.S4', '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_trace_log
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: Aggregated RNG trace log for 6A runs (per event family draws/blocks).
+    version: '{run_id}'
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/core/rng_trace_log
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S1', '6A.S2', '6A.S3', '6A.S4', '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_party_count_realisation
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S1 party count realisation.
+    version: '{run_id}'
+    path: logs/rng/events/party_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/party_count_realisation
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S1' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_party_attribute_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S1 party attribute sampling.
+    version: '{run_id}'
+    path: logs/rng/events/party_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/party_attribute_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S1' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_account_count_realisation
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S2 account count realisation.
+    version: '{run_id}'
+    path: logs/rng/events/account_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/account_count_realisation
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S2' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_account_allocation_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S2 account allocation sampling.
+    version: '{run_id}'
+    path: logs/rng/events/account_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/account_allocation_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S2' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_account_attribute_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S2 account attribute sampling.
+    version: '{run_id}'
+    path: logs/rng/events/account_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/account_attribute_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S2' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_instrument_count_realisation
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S3 instrument count realisation.
+    version: '{run_id}'
+    path: logs/rng/events/instrument_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/instrument_count_realisation
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S3' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_instrument_allocation_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S3 instrument allocation sampling.
+    version: '{run_id}'
+    path: logs/rng/events/instrument_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/instrument_allocation_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S3' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_instrument_attribute_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S3 instrument attribute sampling.
+    version: '{run_id}'
+    path: logs/rng/events/instrument_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/instrument_attribute_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S3' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_device_count_realisation
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S4 device count realisation.
+    version: '{run_id}'
+    path: logs/rng/events/device_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/device_count_realisation
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_device_allocation_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S4 device allocation sampling.
+    version: '{run_id}'
+    path: logs/rng/events/device_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/device_allocation_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_device_attribute_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S4 device attribute sampling.
+    version: '{run_id}'
+    path: logs/rng/events/device_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/device_attribute_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_ip_count_realisation
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S4 IP count realisation.
+    version: '{run_id}'
+    path: logs/rng/events/ip_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/ip_count_realisation
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_ip_allocation_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S4 IP allocation sampling.
+    version: '{run_id}'
+    path: logs/rng/events/ip_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/ip_allocation_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_ip_attribute_sampling
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S4 IP attribute sampling.
+    version: '{run_id}'
+    path: logs/rng/events/ip_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/ip_attribute_sampling
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_fraud_role_sampling_party
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S5 party fraud-role sampling.
+    version: '{run_id}'
+    path: logs/rng/events/fraud_role_sampling_party/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_role_sampling_party
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_fraud_role_sampling_account
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S5 account fraud-role sampling.
+    version: '{run_id}'
+    path: logs/rng/events/fraud_role_sampling_account/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_role_sampling_account
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_fraud_role_sampling_merchant
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S5 merchant fraud-role sampling.
+    version: '{run_id}'
+    path: logs/rng/events/fraud_role_sampling_merchant/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_role_sampling_merchant
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_fraud_role_sampling_device
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S5 device fraud-role sampling.
+    version: '{run_id}'
+    path: logs/rng/events/fraud_role_sampling_device/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_role_sampling_device
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: rng_event_fraud_role_sampling_ip
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: RNG events for 6A.S5 IP fraud-role sampling.
+    version: '{run_id}'
+    path: logs/rng/events/fraud_role_sampling_ip/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_role_sampling_ip
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by: [ '6A.S5' ]
     pii_class: none
     retention_class: engine_control_plane
 
@@ -964,6 +1851,27 @@ datasets:
         - '6B.S0'
         - '6B.S1'
     pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Validation bundle directory for Layer-3 / Segment 6A, containing the
+      evidence index and HashGate outputs for this manifest_fingerprint.
+    version: '{manifest_fingerprint}'
+    path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: none
     retention_class: engine_control_plane
 
   - id: validation_bundle_index_6A

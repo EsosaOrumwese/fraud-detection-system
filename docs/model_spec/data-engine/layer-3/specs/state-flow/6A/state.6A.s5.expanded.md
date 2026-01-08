@@ -1091,11 +1091,11 @@ RNG discipline:
 
 * At minimum, distinct RNG families MUST exist for:
 
-  * `fraud_role_sampling_party`
-  * `fraud_role_sampling_account`
-  * `fraud_role_sampling_merchant`
-  * `fraud_role_sampling_device`
-  * `fraud_role_sampling_ip`
+  * `fraud_role_sampling_party` (contract id: `rng_event_fraud_role_sampling_party`; substream_label: `fraud_role_sampling_party`)
+  * `fraud_role_sampling_account` (contract id: `rng_event_fraud_role_sampling_account`; substream_label: `fraud_role_sampling_account`)
+  * `fraud_role_sampling_merchant` (contract id: `rng_event_fraud_role_sampling_merchant`; substream_label: `fraud_role_sampling_merchant`)
+  * `fraud_role_sampling_device` (contract id: `rng_event_fraud_role_sampling_device`; substream_label: `fraud_role_sampling_device`)
+  * `fraud_role_sampling_ip` (contract id: `rng_event_fraud_role_sampling_ip`; substream_label: `fraud_role_sampling_ip`)
 
   (You may internally split “count realisation” vs “per-entity sampling” per family, but these are the externally visible families.)
 
@@ -3743,13 +3743,13 @@ Downstream systems recompute `bundle_digest_sha256` from `validation_bundle_inde
 
 S5 uses the Layer-3 Philox-2x64-10 RNG via S5-specific families, e.g.:
 
-* **`fraud_role_sampling_party`**
-* **`fraud_role_sampling_account`**
-* **`fraud_role_sampling_merchant`**
-* **`fraud_role_sampling_device`**
-* **`fraud_role_sampling_ip`**
+* **`fraud_role_sampling_party`** (contract id: `rng_event_fraud_role_sampling_party`; substream_label: `fraud_role_sampling_party`)
+* **`fraud_role_sampling_account`** (contract id: `rng_event_fraud_role_sampling_account`; substream_label: `fraud_role_sampling_account`)
+* **`fraud_role_sampling_merchant`** (contract id: `rng_event_fraud_role_sampling_merchant`; substream_label: `fraud_role_sampling_merchant`)
+* **`fraud_role_sampling_device`** (contract id: `rng_event_fraud_role_sampling_device`; substream_label: `fraud_role_sampling_device`)
+* **`fraud_role_sampling_ip`** (contract id: `rng_event_fraud_role_sampling_ip`; substream_label: `fraud_role_sampling_ip`)
 
-Each RNG **event** (in a conceptual schema like `rng_event_fraud_role_*`) records:
+Each RNG **event** (contract ids listed above) records:
 
 * `counter_before`, `counter_after` — Philox counters before/after the event.
 * `blocks`, `draws` — how many Philox blocks and individual draws were consumed.

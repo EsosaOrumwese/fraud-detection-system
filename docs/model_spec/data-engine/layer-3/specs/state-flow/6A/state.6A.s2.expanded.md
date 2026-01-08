@@ -182,8 +182,8 @@ These taxonomies may be `REQUIRED` or `OPTIONAL`, but:
 
 Artefacts (often priors or config packs) describing **which parties are allowed to own which products**, with `role` values like:
 
-* `PRODUCT_LINKAGE_RULES`,
-* `PRODUCT_ELIGIBILITY_CONFIG`,
+* `PRODUCT_LINKAGE_RULES` (contract id: `product_linkage_rules_6A`),
+* `PRODUCT_ELIGIBILITY_CONFIG` (contract id: `product_eligibility_config_6A`),
 * or a specific `PRODUCT_PRIOR` with a subtype.
 
 Examples:
@@ -340,7 +340,7 @@ From `sealed_inputs_6A` with `status ∈ {REQUIRED, OPTIONAL}` and `read_scope =
   * product families / brands (`product_family`),
   * any enums used in S2 outputs (e.g. `account_risk_tier`, `account_channel_profile`).
 
-* **Linkage / eligibility rules** (`role` e.g. `"PRODUCT_LINKAGE_RULES"` / `"PRODUCT_ELIGIBILITY_CONFIG"`):
+* **Linkage / eligibility rules** (`role` e.g. `"PRODUCT_LINKAGE_RULES"` / `"PRODUCT_ELIGIBILITY_CONFIG"`; contract ids: `product_linkage_rules_6A`, `product_eligibility_config_6A`):
 
   * constraints such as:
 
@@ -835,9 +835,9 @@ RNG discipline:
 
 * S2 defines at least these RNG families (names indicative, but semantics binding):
 
-  * `account_count_realisation` — realising integer account counts per cell/product.
-  * `account_allocation_sampling` — allocating realised counts to parties/merchants.
-  * `account_attribute_sampling` — sampling account-level attributes (currency, tier, flags).
+  * `account_count_realisation` (contract id: `rng_event_account_count_realisation`; substream_label: `account_count_realisation`) - realising integer account counts per cell/product.
+  * `account_allocation_sampling` (contract id: `rng_event_account_allocation_sampling`; substream_label: `account_allocation_sampling`) - allocating realised counts to parties/merchants.
+  * `account_attribute_sampling` (contract id: `rng_event_account_attribute_sampling`; substream_label: `account_attribute_sampling`) - sampling account-level attributes (currency, tier, flags).
 
 * Each RNG event is logged under an `rng_event_*` schema with:
 
@@ -874,7 +874,7 @@ RNG **never** influences identity axes (`manifest_fingerprint`, `parameter_hash`
    Partition these into:
 
    * **Product mix priors & account-per-party priors** (PRODUCT_PRIOR).
-   * **Linkage/eligibility rules** (PRODUCT_LINKAGE_RULES or similar).
+   * **Linkage/eligibility rules** (contract ids: `product_linkage_rules_6A`, `product_eligibility_config_6A`).
    * **Account/product taxonomies** (TAXONOMY).
    * **Optional context surfaces** (UPSTREAM_EGRESS / SCENARIO_CONFIG).
 
@@ -2950,8 +2950,9 @@ From `sealed_inputs_6A`:
 
 * **`role`** (S2 cares about):
 
-  * `PRODUCT_PRIOR` — product-mix and account-per-party priors.
-  * `PRODUCT_LINKAGE_RULES` — eligibility/linkage configuration.
+  * `PRODUCT_PRIOR` - product-mix and account-per-party priors.
+  * `PRODUCT_LINKAGE_RULES` - eligibility/linkage configuration (contract id: `product_linkage_rules_6A`).
+  * `PRODUCT_ELIGIBILITY_CONFIG` - eligibility config (contract id: `product_eligibility_config_6A`).
   * `TAXONOMY` — account/product taxonomies, risk tiers, etc.
   * `UPSTREAM_EGRESS` — upstream context surfaces (geo, economic indicators) used as hints.
   * `SCENARIO_CONFIG` — optional scenario/volume context from 5A/5B.
@@ -2976,16 +2977,16 @@ S2’s effective input universe is the intersection of `{REQUIRED, OPTIONAL}` an
 
 S2 uses the Layer-3 Philox envelope; these names refer to logical RNG families:
 
-* **`account_count_realisation`**
+* **`account_count_realisation`** (contract id: `rng_event_account_count_realisation`; substream_label: `account_count_realisation`)
   RNG family used when turning continuous targets `N_acc_target(c)` into integer counts `N_acc(c)` per cell.
 
-* **`account_allocation_sampling`**
+* **`account_allocation_sampling`** (contract id: `rng_event_account_allocation_sampling`; substream_label: `account_allocation_sampling`)
   RNG family used to allocate accounts to parties (and merchants), given the integer plan.
 
-* **`account_attribute_sampling`**
+* **`account_attribute_sampling`** (contract id: `rng_event_account_attribute_sampling`; substream_label: `account_attribute_sampling`)
   RNG family used to sample account-level attributes (currency, risk tier, channel profile, flags) from conditional priors.
 
-* **`rng_event_account_count`**, **`rng_event_account_allocation`**, **`rng_event_account_attribute`**
+* **`rng_event_account_count_realisation`**, **`rng_event_account_allocation_sampling`**, **`rng_event_account_attribute_sampling`**
   Logical event types in RNG logs that record:
 
   * context (mf, seed, cell, attribute family),

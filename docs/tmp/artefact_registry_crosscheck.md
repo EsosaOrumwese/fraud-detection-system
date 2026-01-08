@@ -267,15 +267,15 @@
 
 ### Present in dictionary + registry (datasets/configs)
 - 6A control-plane: `s0_gate_receipt_6A`, `sealed_inputs_6A`
-- 6A priors/taxonomies/policies: `prior_population_6A`, `prior_segmentation_6A`, `taxonomy_party_6A`, `prior_account_per_party_6A`, `prior_product_mix_6A`, `taxonomy_account_types_6A`, `prior_instrument_per_account_6A`, `prior_instrument_mix_6A`, `taxonomy_instrument_types_6A`, `prior_device_counts_6A`, `taxonomy_devices_6A`, `prior_ip_counts_6A`, `taxonomy_ips_6A`, `taxonomy_fraud_roles_6A`, `prior_party_roles_6A`, `prior_account_roles_6A`, `prior_merchant_roles_6A`, `prior_device_roles_6A`, `prior_ip_roles_6A`, `validation_policy_6A`, `graph_linkage_rules_6A`, `device_linkage_rules_6A`
-- 6A outputs: `s1_party_base_6A`, `s1_party_summary_6A`, `s2_account_base_6A`, `s2_party_product_holdings_6A`, `s2_merchant_account_base_6A`, `s2_account_summary_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A`, `s4_entity_neighbourhoods_6A`, `s4_network_summary_6A`, `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`, `validation_bundle_index_6A`, `validation_passed_flag_6A`
+- 6A priors/taxonomies/policies: `prior_population_6A`, `prior_segmentation_6A`, `taxonomy_party_6A`, `prior_account_per_party_6A`, `prior_product_mix_6A`, `taxonomy_account_types_6A`, `prior_instrument_per_account_6A`, `prior_instrument_mix_6A`, `taxonomy_instrument_types_6A`, `prior_device_counts_6A`, `taxonomy_devices_6A`, `prior_ip_counts_6A`, `taxonomy_ips_6A`, `taxonomy_fraud_roles_6A`, `prior_party_roles_6A`, `prior_account_roles_6A`, `prior_merchant_roles_6A`, `prior_device_roles_6A`, `prior_ip_roles_6A`, `validation_policy_6A`, `graph_linkage_rules_6A`, `device_linkage_rules_6A`, `product_linkage_rules_6A`, `product_eligibility_config_6A`, `instrument_linkage_rules_6A`
+- 6A outputs: `s1_party_base_6A`, `s1_party_summary_6A`, `s2_account_base_6A`, `s2_party_product_holdings_6A`, `s2_merchant_account_base_6A`, `s2_account_summary_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A`, `s4_entity_neighbourhoods_6A`, `s4_network_summary_6A`, `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`, `s5_validation_report_6A`, `s5_issue_table_6A`, `validation_bundle_6A`, `validation_bundle_index_6A`, `validation_passed_flag_6A`
+- 6A RNG logs/events: `rng_audit_log`, `rng_trace_log`, `rng_event_party_count_realisation`, `rng_event_party_attribute_sampling`, `rng_event_account_count_realisation`, `rng_event_account_allocation_sampling`, `rng_event_account_attribute_sampling`, `rng_event_instrument_count_realisation`, `rng_event_instrument_allocation_sampling`, `rng_event_instrument_attribute_sampling`, `rng_event_device_count_realisation`, `rng_event_device_allocation_sampling`, `rng_event_device_attribute_sampling`, `rng_event_ip_count_realisation`, `rng_event_ip_allocation_sampling`, `rng_event_ip_attribute_sampling`, `rng_event_fraud_role_sampling_party`, `rng_event_fraud_role_sampling_account`, `rng_event_fraud_role_sampling_merchant`, `rng_event_fraud_role_sampling_device`, `rng_event_fraud_role_sampling_ip`
 
 ### Dictionary-only (missing from registry)
-- `s5_validation_report_6A`, `s5_issue_table_6A`
+- None (after alignment).
 
 ### Alias or mismatch vs dictionary/registry ids
 - `_passed.flag` -> dictionary/registry id `validation_passed_flag_6A`
-- `validation_bundle_6A` (bundle directory) -> not in dictionary/registry; bundle index id is `validation_bundle_index_6A`
 - `POPULATION_PRIOR` -> `prior_population_6A`
 - `SEGMENT_PRIOR` -> `prior_segmentation_6A`
 - `PRODUCT_PRIOR` -> `prior_product_mix_6A` (+ `prior_account_per_party_6A` for account counts)
@@ -287,29 +287,18 @@
 - `GRAPH_LINKAGE_RULES` -> `graph_linkage_rules_6A`
 - `DEVICE_LINKAGE_RULES` -> `device_linkage_rules_6A`
 - `VALIDATION_POLICY_6A` / `SEGMENT_CHECKLIST_6A` -> `validation_policy_6A`
-- `PRODUCT_LINKAGE_RULES`, `PRODUCT_ELIGIBILITY_CONFIG`, `INSTRUMENT_LINKAGE_RULES` -> not found in dictionary/registry
 - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.layer3.yaml`, `schemas.6A.yaml` -> schema packs, not artefact ids
 - `dataset_dictionary.layer3.6A.yaml`, `artefact_registry_6A.yaml` -> doc references, not artefact ids
 
 ### Upstream artefacts referenced in state specs but not in 6A dictionary/registry
-- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-5B
-- Upstream surfaces: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, `zone_alloc`, `zone_alloc_universe_hash`
-- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
-- 5A surfaces: `merchant_zone_profile_5A` and related intensity surfaces
-- 5B surfaces: `arrival_events_5B`
+- None (after alignment).
 
 ### Run-report / field tokens (not artefact ids)
 - `sealed_inputs_digest_6A`, `sealed_inputs_row_count`
 - `spec_version_6A`, `upstream_gates_summary`, `prior_packs_summary`
 
 ### RNG logs/events referenced but not in 6A dictionary/registry
-- `rng_audit_log`, `rng_trace_log`
-- `party_count_realisation`, `party_attribute_sampling`
-- `account_count_realisation`, `account_allocation_sampling`, `account_attribute_sampling`
-- `instrument_count_realisation`, `instrument_allocation_sampling`, `instrument_attribute_sampling`
-- `device_count_realisation`, `device_allocation_sampling`, `device_attribute_sampling`
-- `ip_count_realisation`, `ip_allocation_sampling`, `ip_attribute_sampling`
-- `fraud_role_sampling_party`, `fraud_role_sampling_account`, `fraud_role_sampling_merchant`, `fraud_role_sampling_device`, `fraud_role_sampling_ip`
+- None (now listed in 6A contracts).
 
 ## 6B
 
@@ -322,6 +311,7 @@
 - 6B policies/configs: `attachment_policy_6B`, `sessionisation_policy_6B`, `behaviour_config_6B`, `behaviour_prior_pack_6B`, `rng_profile_layer3`, `rng_policy_6B`, `flow_shape_policy_6B`, `amount_model_6B`, `timing_policy_6B`, `flow_rng_policy_6B`, `fraud_campaign_catalogue_config_6B`, `fraud_overlay_policy_6B`, `fraud_rng_policy_6B`, `truth_labelling_policy_6B`, `bank_view_policy_6B`, `delay_models_6B`, `case_policy_6B`, `label_rng_policy_6B`, `segment_validation_policy_6B`
 - 6B outputs: `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`, `s3_campaign_catalogue_6B`, `s3_flow_anchor_with_fraud_6B`, `s3_event_stream_with_fraud_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_event_labels_6B`, `s4_case_timeline_6B`
 - 6B validation artefacts: `s5_validation_report_6B`, `s5_issue_table_6B`, `validation_bundle_6B`, `validation_passed_flag_6B`
+- 6B RNG logs/events: `rng_audit_log`, `rng_trace_log`, `rng_event_flow_anchor_baseline`, `rng_event_event_stream_baseline`, `rng_event_fraud_campaign_pick`, `rng_event_fraud_overlay_apply`, `rng_event_truth_label`, `rng_event_bank_view_label`
 
 ### Alias or mismatch vs dictionary/registry ids
 - `_passed.flag` -> dictionary/registry id `validation_passed_flag_6B`
@@ -339,7 +329,4 @@
 - 6A fraud posture: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`
 
 ### RNG logs/events referenced but not in 6B dictionary/registry
-- `rng_audit_log`, `rng_trace_log`
-- `rng_event_flow_anchor_baseline`, `rng_event_event_stream_baseline`
-- `rng_event_fraud_campaign_pick`, `rng_event_fraud_overlay_apply`
-- `rng_event_truth_label`, `rng_event_bank_view_label`
+- None (now listed in 6B contracts).

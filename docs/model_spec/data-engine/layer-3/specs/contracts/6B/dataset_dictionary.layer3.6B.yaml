@@ -344,6 +344,128 @@ datasets:
       produced_by: []
       consumed_by: [ '6B.S0', '6B.S5' ]
 
+
+  # --- RNG logs & event tables ---
+
+  - id: rng_audit_log
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: Run-scoped RNG audit envelope for 6B runs.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/core/rng_audit_log
+    lineage:
+      produced_by: [ '6B.S1', '6B.S2', '6B.S3', '6B.S4' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_trace_log
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: Aggregated RNG trace log for 6B runs (per event family draws/blocks).
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/core/rng_trace_log
+    lineage:
+      produced_by: [ '6B.S1', '6B.S2', '6B.S3', '6B.S4' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_event_flow_anchor_baseline
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: RNG events for 6B.S2 baseline flow anchor draws.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/flow_anchor_baseline
+    lineage:
+      produced_by: [ '6B.S2' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_event_event_stream_baseline
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: RNG events for 6B.S2 baseline event stream draws.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/event_stream_baseline
+    lineage:
+      produced_by: [ '6B.S2' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_event_fraud_campaign_pick
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: RNG events for 6B.S3 fraud campaign selection.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_campaign_pick
+    lineage:
+      produced_by: [ '6B.S3' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_event_fraud_overlay_apply
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: RNG events for 6B.S3 fraud overlay application.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/fraud_overlay_apply
+    lineage:
+      produced_by: [ '6B.S3' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_event_truth_label
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: RNG events for 6B.S4 truth-label sampling.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/truth_label
+    lineage:
+      produced_by: [ '6B.S4' ]
+      consumed_by: [ '6B.S5' ]
+
+  - id: rng_event_bank_view_label
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: RNG events for 6B.S4 bank-view label sampling.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/rng/events/bank_view_label
+    lineage:
+      produced_by: [ '6B.S4' ]
+      consumed_by: [ '6B.S5' ]
   # --- S1: arrivals → entities & sessions ---
 
   - id: s1_arrival_entities_6B

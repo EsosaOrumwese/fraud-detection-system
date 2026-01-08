@@ -449,6 +449,169 @@ subsegments:
         schema: schemas.6B.yaml#/policy/segment_validation_policy_6B
         cross_layer: false
         notes: null
+
+      # --- RNG logs & event tables ---
+      - name: rng_audit_log
+        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        type: log
+        category: rng_core
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.core.6B.audit
+        license: null
+        role: Run-scoped RNG audit envelope for 6B runs.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/core/rng_audit_log
+        cross_layer: false
+        notes: null
+      - name: rng_trace_log
+        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        type: log
+        category: rng_core
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.core.6B.trace
+        license: null
+        role: Aggregated RNG trace log for 6B runs (per event family draws/blocks).
+        dependencies:
+        - mlr.rng.core.6B.audit
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/core/rng_trace_log
+        cross_layer: false
+        notes: null
+      - name: rng_event_flow_anchor_baseline
+        path: logs/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6B.flow_anchor_baseline
+        license: null
+        role: RNG events for 6B.S2 baseline flow anchor draws.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/flow_anchor_baseline
+        cross_layer: false
+        notes: null
+      - name: rng_event_event_stream_baseline
+        path: logs/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6B.event_stream_baseline
+        license: null
+        role: RNG events for 6B.S2 baseline event stream draws.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/event_stream_baseline
+        cross_layer: false
+        notes: null
+      - name: rng_event_fraud_campaign_pick
+        path: logs/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6B.fraud_campaign_pick
+        license: null
+        role: RNG events for 6B.S3 fraud campaign selection.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_campaign_pick
+        cross_layer: false
+        notes: null
+      - name: rng_event_fraud_overlay_apply
+        path: logs/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6B.fraud_overlay_apply
+        license: null
+        role: RNG events for 6B.S3 fraud overlay application.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_overlay_apply
+        cross_layer: false
+        notes: null
+      - name: rng_event_truth_label
+        path: logs/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6B.truth_label
+        license: null
+        role: RNG events for 6B.S4 truth-label sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/truth_label
+        cross_layer: false
+        notes: null
+      - name: rng_event_bank_view_label
+        path: logs/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6B.bank_view_label
+        license: null
+        role: RNG events for 6B.S4 bank-view label sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/bank_view_label
+        cross_layer: false
+        notes: null
       # --- S1 ---
 
       - name: s1_arrival_entities_6B

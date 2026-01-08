@@ -553,7 +553,6 @@ All binding schema anchors, dataset IDs, partitioning rules, and manifest keys f
 - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml`
 - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
 - `docs/model_spec/data-engine/layer-3/specs/contracts/schemas.layer3.yaml`
-
 This specification only summarises semantics so there is a single source of truth for catalogue details. Always consult the files above for precise schema refs, physical paths, partition keys, writer ordering, lifecycle flags, and dependency metadata.
 
 ### 5.1 Outputs owned by this state

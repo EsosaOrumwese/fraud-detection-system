@@ -217,7 +217,7 @@ Taxonomies referenced by S3 schemas (e.g. enums in `s3_instrument_base_6A`) MUST
 
 Artefacts (often priors or config packs) with roles such as:
 
-* `"PRODUCT_LINKAGE_RULES"`, `"INSTRUMENT_LINKAGE_RULES"` or similar, specifying:
+* `"PRODUCT_LINKAGE_RULES"` (contract id: `product_linkage_rules_6A`), `"INSTRUMENT_LINKAGE_RULES"` (contract id: `instrument_linkage_rules_6A`) or similar, specifying:
 
   * which `account_type`s are eligible for which instrument types and schemes,
   * which party segments or regions may hold which instrument types,
@@ -387,7 +387,7 @@ From `sealed_inputs_6A` with `status ∈ {REQUIRED, OPTIONAL}` and `read_scope =
   * scheme/brand mix per region/segment/account_type,
   * optional priors for static flags (contactless enabled, virtual-only).
 
-* **Linkage / eligibility rules** (`role` e.g. `"INSTRUMENT_LINKAGE_RULES"` / `"PRODUCT_LINKAGE_RULES"`):
+* **Linkage / eligibility rules** (`role` e.g. `"INSTRUMENT_LINKAGE_RULES"` / `"PRODUCT_LINKAGE_RULES"`; contract ids: `instrument_linkage_rules_6A`, `product_linkage_rules_6A`):
 
   * which account types can have which instrument types and schemes,
   * which party segments/regions are eligible for given instruments,
@@ -957,9 +957,9 @@ RNG discipline:
 
 * S3 defines (at least) these RNG families:
 
-  * `instrument_count_realisation` — for turning continuous instrument targets into integer counts per cell/type/scheme.
-  * `instrument_allocation_sampling` — for distributing instrument counts across accounts.
-  * `instrument_attribute_sampling` — for sampling instrument attributes (scheme/brand selection where not fixed by priors, expiries, flags, masked ID patterns, etc.).
+  * `instrument_count_realisation` (contract id: `rng_event_instrument_count_realisation`; substream_label: `instrument_count_realisation`) - for turning continuous instrument targets into integer counts per cell/type/scheme.
+  * `instrument_allocation_sampling` (contract id: `rng_event_instrument_allocation_sampling`; substream_label: `instrument_allocation_sampling`) - for distributing instrument counts across accounts.
+  * `instrument_attribute_sampling` (contract id: `rng_event_instrument_attribute_sampling`; substream_label: `instrument_attribute_sampling`) - for sampling instrument attributes (scheme/brand selection where not fixed by priors, expiries, flags, masked ID patterns, etc.).
 
 * Each RNG event is logged using S3-specific event schemas, with:
 
@@ -999,6 +999,8 @@ No RNG is used for schema, identity axes, path construction, or partitioning.
 
    * `role ∈ {"PRODUCT_PRIOR","INSTRUMENT_PRIOR","INSTRUMENT_LINKAGE_RULES","TAXONOMY","UPSTREAM_EGRESS","SCENARIO_CONFIG"}`,
    * `status ∈ {"REQUIRED","OPTIONAL"}`.
+
+   Contract ids for linkage rules: `product_linkage_rules_6A`, `instrument_linkage_rules_6A`.
 
    Partition them into:
 
@@ -3275,7 +3277,7 @@ From `sealed_inputs_6A`:
 * **`role`** (S3 cares about):
 
   * `PRODUCT_PRIOR` / `INSTRUMENT_PRIOR` — instrument mix and instruments-per-account priors.
-  * `INSTRUMENT_LINKAGE_RULES` / `PRODUCT_LINKAGE_RULES` — eligibility and constraint configurations.
+  * `INSTRUMENT_LINKAGE_RULES` / `PRODUCT_LINKAGE_RULES` - eligibility and constraint configurations (contract ids: `instrument_linkage_rules_6A`, `product_linkage_rules_6A`).
   * `TAXONOMY` — instrument and scheme taxonomies, brand tiers, token types, etc.
   * `UPSTREAM_EGRESS` — context surfaces, e.g. region-level penetration.
   * `SCENARIO_CONFIG` — optional scenario/volume context (aggregated).
@@ -3310,16 +3312,16 @@ S3 uses the shared Layer-3 Philox envelope with S3-specific RNG families:
   * `"6A.S3.instrument_allocation_sampling"`
   * `"6A.S3.instrument_attribute_sampling"`
 
-* **`instrument_count_realisation`**
+* **`instrument_count_realisation`** (contract id: `rng_event_instrument_count_realisation`; substream_label: `instrument_count_realisation`)
   RNG family used when converting `N_instr_target(c_instr)` into integer counts `N_instr(c_instr)`.
 
-* **`instrument_allocation_sampling`**
+* **`instrument_allocation_sampling`** (contract id: `rng_event_instrument_allocation_sampling`; substream_label: `instrument_allocation_sampling`)
   RNG family used when allocating instruments to specific accounts within each cell (per-account draws).
 
-* **`instrument_attribute_sampling`**
+* **`instrument_attribute_sampling`** (contract id: `rng_event_instrument_attribute_sampling`; substream_label: `instrument_attribute_sampling`)
   RNG family used when sampling per-instrument attributes (e.g. scheme if not fixed, brand tier, expiry, flags, identifier components).
 
-* **`rng_event_instrument_count`**, **`rng_event_instrument_allocation`**, **`rng_event_instrument_attribute`**
+* **`rng_event_instrument_count_realisation`**, **`rng_event_instrument_allocation_sampling`**, **`rng_event_instrument_attribute_sampling`**
   Logical RNG event types that record:
 
   * `counter_before`, `counter_after`,
