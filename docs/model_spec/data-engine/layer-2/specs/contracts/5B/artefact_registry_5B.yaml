@@ -15,6 +15,20 @@ subsegments:
         digest:
         dependencies:
           - sealed_inputs_5B
+          - validation_bundle_1A
+          - validation_passed_flag_1A
+          - validation_bundle_1B
+          - validation_passed_flag_1B
+          - validation_bundle_2A
+          - validation_passed_flag_2A
+          - validation_bundle_2B
+          - validation_passed_flag_2B
+          - validation_bundle_3A
+          - validation_passed_flag_3A
+          - validation_bundle_3B
+          - validation_passed_flag_3B
+          - validation_bundle_5A
+          - validation_passed_flag_5A
         source: internal
         owner: { team: data-engineering }
         last_updated:
@@ -39,7 +53,739 @@ subsegments:
         cross_layer: true
         notes:
 
-      # S1 — time grid & grouping
+      # Upstream cross-layer inputs sealed by 5B.S0
+      - manifest_key: mlr.1A.validation.bundle
+        name: validation_bundle_1A
+        type: dataset
+        category: validation
+        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.1A.yaml#/validation/validation_bundle
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { qa_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.1A.validation.passed
+        name: validation_passed_flag_1A
+        type: manifest
+        category: validation
+        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.layer1.yaml#/validation/passed_flag
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_1A]
+        source: internal
+        owner: { qa_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.1B.validation.bundle
+        name: validation_bundle_1B
+        type: bundle
+        category: validation
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.1B.yaml#/validation/validation_bundle_1B
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-1b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.1B.validation.passed
+        name: validation_passed_flag_1B
+        type: manifest
+        category: validation
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.1B.yaml#/validation/passed_flag
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_1B]
+        source: internal
+        owner: { owner_team: mlr-1b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2A.validation.bundle
+        name: validation_bundle_2A
+        type: bundle
+        category: validation
+        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.2A.yaml#/validation/validation_bundle_2A
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-2a-validation }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2A.validation.passed
+        name: validation_passed_flag_2A
+        type: manifest
+        category: validation
+        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.2A.yaml#/validation/passed_flag
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_2A]
+        source: internal
+        owner: { owner_team: mlr-2a-validation }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.validation.bundle
+        name: validation_bundle_2B
+        type: dataset
+        category: validation
+        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+        schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: l1-2b-governance }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.validation.passed
+        name: validation_passed_flag_2B
+        type: file
+        category: validation
+        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.1B.yaml#/validation/passed_flag
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_2B]
+        source: internal
+        owner: { owner_team: l1-2b-governance }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3A.validation.bundle
+        name: validation_bundle_3A
+        type: dataset
+        category: validation
+        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-3a-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3A.validation.passed
+        name: validation_passed_flag_3A
+        type: dataset
+        category: validation
+        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.layer1.yaml#/validation/passed_flag_3A
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_3A]
+        source: internal
+        owner: { owner_team: mlr-3a-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.validation.bundle
+        name: validation_bundle_3B
+        type: bundle
+        category: validation
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { qa_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.validation.passed
+        name: validation_passed_flag_3B
+        type: file
+        category: validation
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.layer1.yaml#/validation/passed_flag_3B
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_3B]
+        source: internal
+        owner: { qa_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.validation.bundle
+        name: validation_bundle_5A
+        type: dataset
+        category: validation
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.validation.passed
+        name: validation_passed_flag_5A
+        type: dataset
+        category: validation
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        schema: schemas.layer2.yaml#/validation/passed_flag_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: [validation_bundle_5A]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.1B.egress.site_locations
+        name: site_locations
+        type: dataset
+        category: output
+        path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.1B.yaml#/egress/site_locations
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-1b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2A.egress.site_timezones
+        name: site_timezones
+        type: dataset
+        category: output
+        path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.2A.yaml#/egress/site_timezones
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-2a-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2A.cache.tz_timetable
+        name: tz_timetable_cache
+        type: dataset
+        category: cache
+        path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+        schema: schemas.2A.yaml#/cache/tz_timetable_cache
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-2a-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.s1.site_weights
+        name: s1_site_weights
+        type: dataset
+        category: plan
+        path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.2B.yaml#/plan/s1_site_weights
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: l1-2b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.s2.alias_blob
+        name: s2_alias_blob
+        type: dataset
+        category: plan
+        path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+        schema: schemas.2B.yaml#/binary/s2_alias_blob
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: l1-2b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.s2.alias_index
+        name: s2_alias_index
+        type: dataset
+        category: plan
+        path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+        schema: schemas.2B.yaml#/plan/s2_alias_index
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: l1-2b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.s3.day_effects
+        name: s3_day_effects
+        type: dataset
+        category: plan
+        path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.2B.yaml#/plan/s3_day_effects
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: l1-2b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes: optional
+
+      - manifest_key: mlr.2B.s4.group_weights
+        name: s4_group_weights
+        type: dataset
+        category: plan
+        path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.2B.yaml#/plan/s4_group_weights
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: l1-2b-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes: optional
+
+      - manifest_key: mlr.3A.zone_alloc
+        name: zone_alloc
+        type: dataset
+        category: egress
+        path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.3A.yaml#/egress/zone_alloc
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-3a-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3A.zone_alloc_universe_hash
+        name: zone_alloc_universe_hash
+        type: dataset
+        category: validation
+        path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+        schema: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: mlr-3a-core }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.s1.virtual_classification
+        name: virtual_classification_3B
+        type: dataset
+        category: plan
+        path: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.3B.yaml#/plan/virtual_classification_3B
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.s1.virtual_settlement
+        name: virtual_settlement_3B
+        type: dataset
+        category: plan
+        path: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.3B.yaml#/plan/virtual_settlement_3B
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.s2.edge_catalogue
+        name: edge_catalogue_3B
+        type: dataset
+        category: plan
+        path: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema: schemas.3B.yaml#/plan/edge_catalogue_3B
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.s2.edge_catalogue_index
+        name: edge_catalogue_index_3B
+        type: dataset
+        category: plan
+        path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+        schema: schemas.3B.yaml#/plan/edge_catalogue_index_3B
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.s3.edge_alias_blob
+        name: edge_alias_blob_3B
+        type: dataset
+        category: plan
+        path: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+        schema: schemas.3B.yaml#/binary/edge_alias_blob_3B
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.s3.edge_alias_index
+        name: edge_alias_index_3B
+        type: dataset
+        category: plan
+        path: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+        schema: schemas.3B.yaml#/plan/edge_alias_index_3B
+        semver: '{semver}'
+        version: '{seed}.{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.validation.edge_universe_hash
+        name: edge_universe_hash_3B
+        type: dataset
+        category: validation
+        path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+        schema: schemas.3B.yaml#/validation/edge_universe_hash_3B
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.virtual.routing_policy
+        name: virtual_routing_policy_3B
+        type: dataset
+        category: virtual_routing
+        path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+        schema: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { platform_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.3B.virtual.validation_contract
+        name: virtual_validation_contract_3B
+        type: dataset
+        category: validation
+        path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+        schema: schemas.3B.yaml#/egress/virtual_validation_contract_3B
+        semver: '{semver}'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { qa_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.validation.scenario_manifest
+        name: scenario_manifest_5A
+        type: dataset
+        category: control
+        path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
+        schema: schemas.5A.yaml#/validation/scenario_manifest_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.model.merchant_zone_profile
+        name: merchant_zone_profile_5A
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_profile_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.model.shape_grid_definition
+        name: shape_grid_definition_5A
+        type: dataset
+        category: model_config
+        path: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
+        schema: schemas.5A.yaml#/model/shape_grid_definition_5A
+        semver: '1.0.0'
+        version: '{parameter_hash}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.model.class_zone_shape
+        name: class_zone_shape_5A
+        type: dataset
+        category: model
+        path: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
+        schema: schemas.5A.yaml#/model/class_zone_shape_5A
+        semver: '1.0.0'
+        version: '{parameter_hash}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.model.merchant_zone_baseline_local
+        name: merchant_zone_baseline_local_5A
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.model.merchant_zone_scenario_local
+        name: merchant_zone_scenario_local_5A
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.5A.model.merchant_zone_overlay_factors
+        name: merchant_zone_overlay_factors_5A
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
+
+      - manifest_key: mlr.5A.model.merchant_zone_scenario_utc
+        name: merchant_zone_scenario_utc_5A
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
+
+      - manifest_key: mlr.2B.policy.route_rng_v1
+        name: route_rng_policy_v1
+        type: policy
+        category: config
+        path: contracts/policy/2B/route_rng_policy_v1.json
+        schema: schemas.2B.yaml#/policy/route_rng_policy_v1
+        semver: '{semver}'
+        version: '{policy_version}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      - manifest_key: mlr.2B.policy.alias_layout_v1
+        name: alias_layout_policy_v1
+        type: policy
+        category: config
+        path: contracts/policy/2B/alias_layout_policy_v1.json
+        schema: schemas.2B.yaml#/policy/alias_layout_policy_v1
+        semver: '{semver}'
+        version: '{policy_version}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
+      # S1 - time grid & grouping
       - manifest_key: mlr.5B.model.s1_time_grid
         name: s1_time_grid_5B
         type: dataset
@@ -167,11 +913,11 @@ subsegments:
           - arrival_time_placement_policy_5B
           - arrival_routing_policy_5B
           - arrival_rng_policy_5B
-          - site_locations_1B
-          - site_timezones_2A
-          - tz_timetable_cache_2A
-          - zone_alloc_3A
-          - virtual_routing_3B
+          - site_locations
+          - site_timezones
+          - tz_timetable_cache
+          - zone_alloc
+          - virtual_routing_policy_3B
         source: internal
         owner: { team: data-engineering }
         last_updated:
@@ -215,7 +961,135 @@ subsegments:
         cross_layer: false
         notes: optional
 
-      # S5 — validation bundle
+      # RNG logs & event tables
+      - manifest_key: mlr.rng.core.5B.audit
+        name: rng_audit_log
+        type: log
+        category: rng_core
+        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      - manifest_key: mlr.rng.core.5B.trace
+        name: rng_trace_log
+        type: log
+        category: rng_core
+        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B, rng_audit_log]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      - manifest_key: mlr.rng.events.5B.arrival_lgcp_gaussian
+        name: rng_event_arrival_lgcp_gaussian
+        type: log
+        category: rng_event
+        path: logs/rng/events/arrival_lgcp_gaussian/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        schema: schemas.layer1.yaml#/rng/events/arrival_lgcp_gaussian
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      - manifest_key: mlr.rng.events.5B.arrival_time_jitter
+        name: rng_event_arrival_time_jitter
+        type: log
+        category: rng_event
+        path: logs/rng/events/arrival_time_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        schema: schemas.layer1.yaml#/rng/events/arrival_time_jitter
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      - manifest_key: mlr.rng.events.5B.arrival_site_pick
+        name: rng_event_arrival_site_pick
+        type: log
+        category: rng_event
+        path: logs/rng/events/arrival_site_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        schema: schemas.layer1.yaml#/rng/events/arrival_site_pick
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      - manifest_key: mlr.rng.events.5B.arrival_edge_pick
+        name: rng_event_arrival_edge_pick
+        type: log
+        category: rng_event
+        path: logs/rng/events/arrival_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        schema: schemas.layer1.yaml#/rng/events/arrival_edge_pick
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      # S5 - validation bundle
+      - manifest_key: mlr.5B.validation.bundle_dir
+        name: validation_bundle_5B
+        type: dataset
+        category: validation
+        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - s0_gate_receipt_5B
+          - sealed_inputs_5B
+          - s1_time_grid_5B
+          - s1_grouping_5B
+          - s2_realised_intensity_5B
+          - s3_bucket_counts_5B
+          - arrival_events_5B
+          - validation_policy_5B
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
+
       - manifest_key: mlr.5B.validation.bundle
         name: validation_bundle_index_5B
         type: dataset
@@ -226,6 +1100,7 @@ subsegments:
         version: '{manifest_fingerprint}'
         digest:
         dependencies:
+          - validation_bundle_5B
           - s0_gate_receipt_5B
           - sealed_inputs_5B
           - s1_time_grid_5B
@@ -430,4 +1305,39 @@ subsegments:
         last_updated:
         environment: [ci, dev, staging, prod]
         cross_layer: false
+        notes:
+
+      - manifest_key: mlr.5B.config.bundle_layout_policy
+        name: bundle_layout_policy_5B
+        type: config
+        category: config
+        path: config/layer2/5B/bundle_layout_policy_5B.yaml
+        schema: schemas.5B.yaml#/config/bundle_layout_policy_5B
+        semver: '1.0.0'
+        version: '{policy_version}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: false
+        notes: optional
+
+      # Run-report journal (layer-wide)
+      - manifest_key: mlr.5B.run_report.segment_state_runs
+        name: segment_state_runs
+        type: dataset
+        category: run_report
+        path: reports/l2/segment_states/segment_state_runs.jsonl
+        schema: schemas.layer2.yaml#/run_report/segment_state_run
+        semver: '1.0.0'
+        version: 'v1'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
         notes:

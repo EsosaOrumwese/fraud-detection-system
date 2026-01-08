@@ -355,3 +355,6 @@ config:
   validation_policy_5B:
     type: object
     additionalProperties: true
+  bundle_layout_policy_5B:
+    type: object
+    additionalProperties: true

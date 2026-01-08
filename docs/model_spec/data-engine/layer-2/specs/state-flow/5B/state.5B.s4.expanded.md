@@ -1358,6 +1358,10 @@ All RNG used by S4 MUST be exposed via the layer-wide RNG logging surfaces (as d
   * intra-bucket time draws (e.g. `arrival_time_jitter`),
   * physical site picks (e.g. `arrival_site_pick`),
   * virtual edge picks (e.g. `arrival_edge_pick`).
+
+The contract IDs for these RNG event tables are `rng_event_arrival_time_jitter`, `rng_event_arrival_site_pick`, and
+`rng_event_arrival_edge_pick`; the `substream_label` values remain `arrival_time_jitter`, `arrival_site_pick`, and
+`arrival_edge_pick`.
 * For each consuming draw, S4 MUST emit an RNG event row with:
 
   * `module = "5B.S4"` (or equivalent),

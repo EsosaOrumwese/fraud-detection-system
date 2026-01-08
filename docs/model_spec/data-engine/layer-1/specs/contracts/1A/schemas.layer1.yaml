@@ -233,6 +233,48 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    arrival_lgcp_gaussian:
+      description: "Segment 5B.S2 LGCP latent-vector draws (arrival intensity)."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, scenario_id, group_id]
+        properties:
+          module: { const: 5B.S2 }
+          substream_label: { const: latent_vector }
+          scenario_id: { type: string }
+          group_id: { type: string }
+
+    arrival_time_jitter:
+      description: "Segment 5B.S4 time placement jitter draws."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label]
+        properties:
+          module: { const: 5B.S4 }
+          substream_label: { const: arrival_time_jitter }
+
+    arrival_site_pick:
+      description: "Segment 5B.S4 physical site selection draws."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label]
+        properties:
+          module: { const: 5B.S4 }
+          substream_label: { const: arrival_site_pick }
+
+    arrival_edge_pick:
+      description: "Segment 5B.S4 virtual edge selection draws."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label]
+        properties:
+          module: { const: 5B.S4 }
+          substream_label: { const: arrival_edge_pick }
+
     edge_tile_assign:
       description: "Segment 3B.S2 tile assignment or permutation when expanding CDN weights."
       allOf:

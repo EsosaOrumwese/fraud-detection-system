@@ -237,33 +237,27 @@
 - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml`
 
 ### Present in dictionary + registry (datasets/configs)
-- 5B configs/policies: `time_grid_policy_5B`, `grouping_policy_5B`, `arrival_lgcp_config_5B`, `arrival_count_config_5B`, `arrival_time_placement_policy_5B`, `arrival_routing_policy_5B`, `arrival_rng_policy_5B`, `validation_policy_5B`
+- 5B configs/policies: `time_grid_policy_5B`, `grouping_policy_5B`, `arrival_lgcp_config_5B`, `arrival_count_config_5B`, `arrival_time_placement_policy_5B`, `arrival_routing_policy_5B`, `arrival_rng_policy_5B`, `validation_policy_5B`, `bundle_layout_policy_5B`
 - 5B control-plane: `s0_gate_receipt_5B`, `sealed_inputs_5B`
 - 5B outputs: `s1_time_grid_5B`, `s1_grouping_5B`, `s2_realised_intensity_5B`, `s2_latent_field_5B`, `s3_bucket_counts_5B`, `arrival_events_5B`, `s4_arrival_summary_5B`, `s4_arrival_anomalies_5B`
-- 5B validation artefacts: `validation_bundle_index_5B`, `validation_report_5B`, `validation_issue_table_5B`, `validation_passed_flag_5B`
+- 5B validation artefacts: `validation_bundle_5B`, `validation_bundle_index_5B`, `validation_report_5B`, `validation_issue_table_5B`, `validation_passed_flag_5B`
+- 5B RNG logs/events: `rng_audit_log`, `rng_trace_log`, `rng_event_arrival_lgcp_gaussian`, `rng_event_arrival_time_jitter`, `rng_event_arrival_site_pick`, `rng_event_arrival_edge_pick`
+- Run-report journal: `segment_state_runs`
 
 ### Dictionary-only (missing from registry)
-- Run-report journal: `segment_state_runs`
+- None (5B dictionary + registry are aligned for the contract surfaces).
 
 ### Alias or mismatch vs dictionary/registry ids
 - `_passed.flag` -> dictionary/registry id `validation_passed_flag_5B`
-- `validation_bundle_5B` (bundle directory) -> not in dictionary/registry; bundle index id is `validation_bundle_index_5B`
 - `s4_arrival_events_5B` -> dictionary/registry id `arrival_events_5B`
-- `bundle layout policy` -> not found in dictionary/registry
 - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5A.yaml`, `schemas.5B.yaml` -> schema packs, not artefact ids
 - `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3B.yaml`, `dataset_dictionary.layer2.5A.yaml`, `dataset_dictionary.layer2.5B.yaml`, `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`, `artefact_registry_5A.yaml`, `artefact_registry_5B.yaml` -> doc references, not artefact ids
 
 ### Upstream artefacts referenced in state specs but not in 5B dictionary/registry
-- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-3B and 5A
-- Upstream surfaces: `site_locations`, `site_timezones`, `tz_timetable_cache`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `zone_alloc`, `zone_alloc_universe_hash`
-- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
-- 5A surfaces: `scenario_manifest_5A`, `merchant_zone_scenario_local_5A`, `merchant_zone_scenario_utc_5A`
-- 2B policy refs: `route_rng_policy_v1`, `alias_layout_policy_v1`
+- None (upstream bundles, routing surfaces, and 5A scenario inputs are registered as cross-layer pointers).
 
 ### RNG logs/events referenced but not in 5B dictionary/registry
-- `rng_audit_log`, `rng_trace_log`
-- `rng_event_arrival_lgcp_gaussian`
-- `arrival_time_jitter`, `arrival_site_pick`, `arrival_edge_pick`
+- None (RNG logs and event tables are now contract entries; substream labels remain `arrival_time_jitter`, `arrival_site_pick`, `arrival_edge_pick`).
 
 ## 6A
 
