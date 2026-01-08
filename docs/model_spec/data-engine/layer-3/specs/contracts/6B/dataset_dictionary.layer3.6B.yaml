@@ -18,7 +18,671 @@ layer:
   id: layer3
   name: Layer-3 (Segment 6B)
 
-reference_data: []
+reference_data:
+  # Upstream HashGate artefacts sealed by 6B.S0
+  - id: validation_bundle_1A
+    owner_layer: 1
+    owner_segment: 1A
+    status: required
+    description: Validator outputs for 1A (metrics, plots, diffs).
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1A.yaml#/validation/validation_bundle
+    columns_strict: false
+    lineage:
+      produced_by: [ '1A.validation' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_1A
+    owner_layer: 1
+    owner_segment: 1A
+    status: required
+    description: HashGate PASS flag for the 1A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '1A.validation' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_1B
+    owner_layer: 1
+    owner_segment: 1B
+    status: required
+    description: Validation bundle for 1B publish (one per manifest_fingerprint).
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+    columns_strict: false
+    lineage:
+      produced_by: [ '1B.S9' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_1B
+    owner_layer: 1
+    owner_segment: 1B
+    status: required
+    description: HashGate PASS flag for the 1B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '1B.S9' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_2A
+    owner_layer: 1
+    owner_segment: 2A
+    status: required
+    description: Validation bundle for 2A publish (one per fingerprint).
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+    columns_strict: false
+    lineage:
+      produced_by: [ '2A.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_2A
+    owner_layer: 1
+    owner_segment: 2A
+    status: required
+    description: HashGate PASS flag for the 2A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '2A.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_2B
+    owner_layer: 1
+    owner_segment: 2B
+    status: required
+    description: Fingerprint-scoped PASS bundle index for Segment 2B.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+    columns_strict: false
+    lineage:
+      produced_by: [ '2B.S8' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_2B
+    owner_layer: 1
+    owner_segment: 2B
+    status: required
+    description: HashGate PASS flag for the 2B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    columns_strict: false
+    lineage:
+      produced_by: [ '2B.S8' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_3A
+    owner_layer: 1
+    owner_segment: 3A
+    status: required
+    description: Fingerprint-scoped validation bundle for Segment 3A.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+    columns_strict: false
+    lineage:
+      produced_by: [ '3A.S7' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_3A
+    owner_layer: 1
+    owner_segment: 3A
+    status: required
+    description: HashGate PASS flag for the 3A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+    columns_strict: false
+    lineage:
+      produced_by: [ '3A.S7' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: Fingerprint-scoped validation bundle for Segment 3B.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_3B
+    owner_layer: 1
+    owner_segment: 3B
+    status: required
+    description: HashGate PASS flag for the 3B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
+    columns_strict: false
+    lineage:
+      produced_by: [ '3B.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_5A
+    owner_layer: 2
+    owner_segment: 5A
+    status: required
+    description: Directory artefact containing the 5A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+    columns_strict: false
+    lineage:
+      produced_by: [ '5A.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_5A
+    owner_layer: 2
+    owner_segment: 5A
+    status: required
+    description: HashGate PASS flag for the 5A validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
+    columns_strict: false
+    lineage:
+      produced_by: [ '5A.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_bundle_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: Directory artefact containing the 5B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: HashGate PASS flag for the 5B validation bundle.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S5' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  # Upstream Layer-3 HashGate artefacts sealed by 6B.S0
+  - id: validation_bundle_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Validation bundle directory for Layer-3 / Segment 6A, containing the
+      evidence index and HashGate outputs for this manifest_fingerprint.
+    version: '{manifest_fingerprint}'
+    path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: null
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: validation_passed_flag_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256
+      digest over the validation bundle for this manifest_fingerprint.
+    version: '{manifest_fingerprint}'
+    path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: none
+    retention_class: engine_control_plane
+
+  # Upstream sealed inputs sealed by 6B.S0
+  - id: sealed_inputs_5A
+    owner_layer: 2
+    owner_segment: 5A
+    status: required
+    description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
+    columns_strict: false
+    lineage:
+      produced_by: [ '5A.S0' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: sealed_inputs_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: Inventory of artefacts 5B is allowed to read for a fingerprint.
+    version: '{manifest_fingerprint}'
+    path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+    partitioning: [fingerprint]
+    ordering: [owner_segment, artifact_id, role]
+    schema_ref: schemas.5B.yaml#/validation/sealed_inputs_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S0' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  - id: sealed_inputs_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: Sealed list of all artefacts 6A is allowed to read for a given manifest_fingerprint.
+    version: '{manifest_fingerprint}'
+    path: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+    partitioning: [fingerprint]
+    ordering: [owner_layer, owner_segment, manifest_key]
+    schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
+    columns_strict: false
+    lineage:
+      produced_by: [ '6A.S0' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: none
+    retention_class: engine_control_plane
+
+  # Upstream data-plane surfaces sealed by 6B.S0
+  - id: arrival_events_5B
+    owner_layer: 2
+    owner_segment: 5B
+    status: required
+    description: Canonical arrival skeleton stream per scenario and seed.
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, fingerprint, scenario_id]
+    ordering: [scenario_id, merchant_id, ts_utc, arrival_seq]
+    schema_ref: schemas.5B.yaml#/egress/s4_arrival_events_5B
+    columns_strict: false
+    lineage:
+      produced_by: [ '5B.S4' ]
+      consumed_by: [ '6B.S0' ]
+    pii_class: synthetic_customer
+    retention_class: engine_control_plane
+
+  - id: s1_party_base_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Base party/customer universe for Layer-3 / Segment 6A.
+      One row per party per (manifest_fingerprint, seed), including type,
+      home geography and static segment attributes.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [country_iso, segment_id, party_type, party_id]
+    schema_ref: schemas.6A.yaml#/s1/party_base
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S1' ]
+      consumed_by:
+        - '6A.S2'
+        - '6A.S3'
+        - '6A.S4'
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s2_account_base_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Account and product universe for Layer-3 / Segment 6A.
+      One row per account per (manifest_fingerprint, seed), including owner
+      references, account type, currency and static account attributes.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [country_iso, account_type, owner_party_id, account_id]
+    schema_ref: schemas.6A.yaml#/s2/account_base
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S2' ]
+      consumed_by:
+        - '6A.S3'
+        - '6A.S4'
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s3_instrument_base_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Instrument and payment-credential universe for Layer-3 / Segment 6A.
+      One row per instrument per (manifest_fingerprint, seed), including
+      owner account, owner party/merchant (if modelled), instrument type,
+      scheme/network, masked identifier, expiry, and static flags.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [account_id, instrument_type, scheme, instrument_id]
+    schema_ref: schemas.6A.yaml#/s3/instrument_base
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S3' ]
+      consumed_by:
+        - '6A.S4'
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s3_account_instrument_links_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Per-account instrument linkage surface for Layer-3 / Segment 6A.
+      Derived from s3_instrument_base_6A and s2_account_base_6A; provides
+      either per-instrument or aggregated per-account, per-instrument-type
+      views of instrument ownership.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [account_id, instrument_type, scheme, instrument_id]
+    schema_ref: schemas.6A.yaml#/s3/account_instrument_links
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S3' ]
+      consumed_by:
+        - '6A.S4'
+        - '6A.S5'
+        - '6B.S0'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s4_device_base_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Device universe for Layer-3 / Segment 6A. One row per device per
+      (manifest_fingerprint, seed), with device classification, primary
+      owner context and static device risk/capability flags.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [device_type, primary_party_id, primary_merchant_id, device_id]
+    schema_ref: schemas.6A.yaml#/s4/device_base
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by:
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s4_ip_base_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      IP / network endpoint universe for Layer-3 / Segment 6A. One row
+      per IP/endpoint per (manifest_fingerprint, seed), including masked
+      representation, ip_type, asn_class, geo hints and static risk tags.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [ip_type, asn_class, country_iso, ip_id]
+    schema_ref: schemas.6A.yaml#/s4/ip_base
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by:
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s4_device_links_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Device-to-entity edges for Layer-3 / Segment 6A. Links each
+      device_id to one or more parties/accounts/instruments/merchants
+      with a link_role describing the semantics.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [device_id, party_id, account_id, instrument_id, merchant_id, link_role]
+    schema_ref: schemas.6A.yaml#/s4/device_links
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by:
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s5_party_fraud_roles_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Static fraud posture for parties in Layer-3 / Segment 6A.
+      One row per party per (manifest_fingerprint, seed).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [party_id]
+    schema_ref: schemas.6A.yaml#/s5/party_fraud_roles
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+        - '6B.S2'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s5_account_fraud_roles_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Static fraud posture for accounts in Layer-3 / Segment 6A.
+      One row per account per (manifest_fingerprint, seed).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [account_id]
+    schema_ref: schemas.6A.yaml#/s5/account_fraud_roles
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+        - '6B.S2'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s5_merchant_fraud_roles_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Static fraud posture for merchants in Layer-3 / Segment 6A.
+      One row per merchant, keyed by merchant_id.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [merchant_id]
+    schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+        - '6B.S2'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s5_device_fraud_roles_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Static fraud posture for devices in Layer-3 / Segment 6A.
+      One row per device per (manifest_fingerprint, seed).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [device_id]
+    schema_ref: schemas.6A.yaml#/s5/device_fraud_roles
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  - id: s5_ip_fraud_roles_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A.
+      One row per ip_id per (manifest_fingerprint, seed).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [ip_id]
+    schema_ref: schemas.6A.yaml#/s5/ip_fraud_roles
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S5' ]
+      consumed_by:
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
+  # --- S5 validation & HashGate (fingerprint-scoped) ---
 
 datasets:
   - id: s0_gate_receipt_6B
@@ -765,6 +1429,24 @@ datasets:
     version: '{manifest_fingerprint}'
     format: directory
     path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: [ '6B.S5' ]
+      consumed_by: [ '6B.S5', '4A', '4B', 'ops_tooling' ]
+
+  - id: validation_bundle_index_6B
+    owner_layer: 3
+    owner_segment: 6B
+    status: required
+    description: >
+      Index for the Segment 6B validation bundle, listing evidence files
+      and their SHA-256 digests.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
     partitioning: [fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []

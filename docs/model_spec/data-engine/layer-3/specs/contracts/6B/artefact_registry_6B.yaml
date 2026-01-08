@@ -66,6 +66,793 @@ subsegments:
         schema: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
         cross_layer: false
         notes: null
+      # --- S0 sealed inputs (upstream cross-layer) ---
+      - name: validation_bundle_1A
+        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 1A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1A.yaml#/validation/validation_bundle
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_1A
+        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 1A.
+        dependencies:
+        - mlr.1A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_1B
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1B.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 1B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/validation/validation_bundle_1B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_1B
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 1B.
+        dependencies:
+        - mlr.1B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_2A
+        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 2A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.2A.yaml#/validation/validation_bundle_2A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_2A
+        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 2A.
+        dependencies:
+        - mlr.2A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.2A.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_2B
+        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2B.validation.bundle
+        license: null
+        role: Upstream validation bundle index for Segment 2B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_2B
+        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 2B.
+        dependencies:
+        - mlr.2B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_3A
+        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 3A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_3A
+        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 3A.
+        dependencies:
+        - mlr.3A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/passed_flag_3A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_3B
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 3B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_3B
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 3B.
+        dependencies:
+        - mlr.3B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/passed_flag_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_5A
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 5A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_5A
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 5A.
+        dependencies:
+        - mlr.5A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/passed_flag_5A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_5B
+        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5B.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 5B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_5B
+        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 5B.
+        dependencies:
+        - mlr.5B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/passed_flag_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_6A
+        path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.bundle
+        license: null
+        role: Validation bundle directory for Segment 6A (index + evidence + _passed.flag).
+        dependencies:
+        - mlr.6A.validation.report
+        - mlr.6A.validation.issue_table
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_6A
+        path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.passed
+        license: null
+        role: HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256 digest over the
+          validation bundle for this manifest_fingerprint.
+        dependencies:
+        - mlr.6A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/passed_flag_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: sealed_inputs_5A
+        path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+        type: dataset
+        category: control
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5A.validation.sealed_inputs
+        license: null
+        role: Layer-2 / Segment 5A sealed inputs manifest.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.5A.yaml#/validation/sealed_inputs_5A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: sealed_inputs_5B
+        path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+        type: dataset
+        category: control
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5B.control.sealed_inputs
+        license: null
+        role: Layer-2 / Segment 5B sealed inputs manifest.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.5B.yaml#/validation/sealed_inputs_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: sealed_inputs_6A
+        path: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.sealed_inputs
+        license: null
+        role: Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint,
+          with roles, digests, and read scopes.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      # --- S0 sealed inputs (upstream cross-layer) ---
+      # --- S0 sealed inputs (upstream data-plane) ---
+      - name: arrival_events_5B
+        path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+        digest: null
+        manifest_key: mlr.5B.egress.arrival_events
+        license: null
+        role: Upstream arrival events surface from Segment 5B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.5B.yaml#/egress/s4_arrival_events_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      # --- S0 sealed inputs (priors & taxonomies) ---
+
+      - name: s1_party_base_6A
+        path: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s1.party_base
+        license: null
+        role: Base party/customer universe for Layer-3 / Segment 6A. One row per party per
+          (manifest_fingerprint, seed), including type, home geography and static segment
+          attributes.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.prior.population
+        - mlr.6A.prior.segmentation
+        - mlr.6A.taxonomy.party
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s1/party_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s2_account_base_6A
+        path: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s2.account_base
+        license: null
+        role: Account and product universe for Layer-3 / Segment 6A. One row per account
+          per (manifest_fingerprint, seed), including owner references, account type, currency
+          and static account attributes.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.prior.product_mix
+        - mlr.6A.prior.account_per_party
+        - mlr.6A.taxonomy.account_types
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s2/account_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s3_instrument_base_6A
+        path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s3.instrument_base
+        license: null
+        role: Instrument and payment-credential universe for Layer-3 / Segment 6A. One row
+          per instrument per (manifest_fingerprint, seed), including owner account, owner
+          party/merchant (if modelled), instrument type, scheme/network, masked identifier,
+          expiry, and static flags.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        - mlr.6A.prior.instrument_mix
+        - mlr.6A.prior.instrument_per_account
+        - mlr.6A.taxonomy.instrument_types
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s3/instrument_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s3_account_instrument_links_6A
+        path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s3.account_instrument_links
+        license: null
+        role: Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived from
+          s3_instrument_base_6A and s2_account_base_6A; provides either per-instrument or
+          aggregated per-account, per-instrument-type views of instrument ownership.
+        dependencies:
+        - mlr.6A.s2.account_base
+        - mlr.6A.s3.instrument_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s3/account_instrument_links
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_device_base_6A
+        path: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.device_base
+        license: null
+        role: Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint,
+          seed), with device classification, primary owner context and static device risk/capability
+          flags.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.prior.device_counts
+        - mlr.6A.taxonomy.devices
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/device_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_ip_base_6A
+        path: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.ip_base
+        license: null
+        role: IP / network endpoint universe for Layer-3 / Segment 6A. One row per IP/endpoint
+          per (manifest_fingerprint, seed), including masked representation, ip_type, asn_class,
+          geo hints and static risk tags.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.prior.ip_counts
+        - mlr.6A.taxonomy.ips
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/ip_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_device_links_6A
+        path: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.device_links
+        license: null
+        role: Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id to one
+          or more parties/accounts/instruments/merchants with a link_role describing the
+          semantics.
+        dependencies:
+        - mlr.6A.s4.device_base
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        - mlr.6A.s3.instrument_base
+        - mlr.6A.policy.graph_linkage_rules
+        - mlr.6A.policy.device_linkage_rules
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/device_links
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_party_fraud_roles_6A
+        path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.party_fraud_roles
+        license: null
+        role: Static fraud posture for parties in Layer-3 / Segment 6A. One row per party
+          per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.s5.prior.party_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/party_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_account_fraud_roles_6A
+        path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.account_fraud_roles
+        license: null
+        role: Static fraud posture for accounts in Layer-3 / Segment 6A. One row per account
+          per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s2.account_base
+        - mlr.6A.s1.party_base
+        - mlr.6A.s5.prior.account_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/account_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_merchant_fraud_roles_6A
+        path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.merchant_fraud_roles
+        license: null
+        role: Static fraud posture for merchants in Layer-3 / Segment 6A. One row per merchant,
+          keyed by merchant_id.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.1A.output.outlet_catalogue
+        - mlr.6A.s5.prior.merchant_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/merchant_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_device_fraud_roles_6A
+        path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.device_fraud_roles
+        license: null
+        role: Static fraud posture for devices in Layer-3 / Segment 6A. One row per device
+          per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s4.device_base
+        - mlr.6A.s5.prior.device_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/device_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_ip_fraud_roles_6A
+        path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.ip_fraud_roles
+        license: null
+        role: Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One row per
+          ip_id per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s5.prior.ip_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/ip_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      # --- S5 validation & HashGate ---
+
       # --- S0 sealed inputs (policies & configs) ---
 
       - name: attachment_policy_6B
@@ -935,6 +1722,31 @@ subsegments:
         last_updated: '{iso8601_timestamp}'
         environment:
         - runtime
+        schema: null
+        cross_layer: true
+        notes: null
+      - name: validation_bundle_index_6B
+        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6B.validation.bundle_index
+        license: null
+        role: Index for the Segment 6B validation bundle, listing evidence files and their SHA-256 digests.
+        dependencies:
+        - mlr.6B.validation.bundle
+        - mlr.6B.validation.s0_gate_receipt
+        - mlr.6B.validation.sealed_inputs
+        - mlr.6B.validation.report
+        - mlr.6B.validation.issue_table
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
         schema: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
         cross_layer: true
         notes: null
@@ -950,6 +1762,7 @@ subsegments:
         role: Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.
         dependencies:
         - mlr.6B.validation.bundle
+        - mlr.6B.validation.bundle_index
         source: internal
         owner:
           owner_team: null

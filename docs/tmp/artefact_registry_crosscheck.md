@@ -310,12 +310,15 @@
 - 6B control-plane: `s0_gate_receipt_6B`, `sealed_inputs_6B`
 - 6B policies/configs: `attachment_policy_6B`, `sessionisation_policy_6B`, `behaviour_config_6B`, `behaviour_prior_pack_6B`, `rng_profile_layer3`, `rng_policy_6B`, `flow_shape_policy_6B`, `amount_model_6B`, `timing_policy_6B`, `flow_rng_policy_6B`, `fraud_campaign_catalogue_config_6B`, `fraud_overlay_policy_6B`, `fraud_rng_policy_6B`, `truth_labelling_policy_6B`, `bank_view_policy_6B`, `delay_models_6B`, `case_policy_6B`, `label_rng_policy_6B`, `segment_validation_policy_6B`
 - 6B outputs: `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`, `s3_campaign_catalogue_6B`, `s3_flow_anchor_with_fraud_6B`, `s3_event_stream_with_fraud_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_event_labels_6B`, `s4_case_timeline_6B`
-- 6B validation artefacts: `s5_validation_report_6B`, `s5_issue_table_6B`, `validation_bundle_6B`, `validation_passed_flag_6B`
+- 6B validation artefacts: `s5_validation_report_6B`, `s5_issue_table_6B`, `validation_bundle_6B`, `validation_bundle_index_6B`, `validation_passed_flag_6B`
 - 6B RNG logs/events: `rng_audit_log`, `rng_trace_log`, `rng_event_flow_anchor_baseline`, `rng_event_event_stream_baseline`, `rng_event_fraud_campaign_pick`, `rng_event_fraud_overlay_apply`, `rng_event_truth_label`, `rng_event_bank_view_label`
+- Upstream bundles/flags: `validation_bundle_1A`, `validation_passed_flag_1A`, `validation_bundle_1B`, `validation_passed_flag_1B`, `validation_bundle_2A`, `validation_passed_flag_2A`, `validation_bundle_2B`, `validation_passed_flag_2B`, `validation_bundle_3A`, `validation_passed_flag_3A`, `validation_bundle_3B`, `validation_passed_flag_3B`, `validation_bundle_5A`, `validation_passed_flag_5A`, `validation_bundle_5B`, `validation_passed_flag_5B`, `validation_bundle_6A`, `validation_passed_flag_6A`
+- Upstream sealed inputs: `sealed_inputs_5A`, `sealed_inputs_5B`, `sealed_inputs_6A`
+- Upstream arrivals/entities: `arrival_events_5B`, `s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`
+- 6A fraud posture: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`
 
 ### Alias or mismatch vs dictionary/registry ids
 - `_passed.flag` -> dictionary/registry id `validation_passed_flag_6B`
-- `validation_bundle_index_6B` -> not found in dictionary/registry (bundle is `validation_bundle_6B`)
 - `validation_policy_6B` -> dictionary/registry use `segment_validation_policy_6B`
 - `campaign_catalogue_config_6B` -> dictionary id is `fraud_campaign_catalogue_config_6B`
 - `labelling_policy_6B` -> dictionary uses `truth_labelling_policy_6B`
@@ -323,10 +326,7 @@
 - `dataset_dictionary.layer3.6B.yaml`, `artefact_registry_6B.yaml` -> doc references, not artefact ids
 
 ### Upstream artefacts referenced in state specs but not in 6B dictionary/registry
-- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-6A
-- Upstream sealed inputs: `sealed_inputs_5A`, `sealed_inputs_5B`, `sealed_inputs_6A`
-- Upstream arrivals/entities: `arrival_events_5B`, `s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`
-- 6A fraud posture: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`
+- None (after alignment).
 
 ### RNG logs/events referenced but not in 6B dictionary/registry
 - None (now listed in 6B contracts).

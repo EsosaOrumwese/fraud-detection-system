@@ -253,7 +253,7 @@ These parameters are treated as **given** by the orchestration layer. S0 **MUST 
 
    * Entries for `s0_gate_receipt_6B` and `sealed_inputs_6B`.
    * Entries for the eventual `validation_bundle_6B` and `validation_passed_flag_6B`.
-   * Any 6B-specific config/validation packs that are treated as artefacts (e.g. `behaviour_prior_pack_6B`, `campaign_catalogue_config_6B`, `labelling_policy_6B`, `validation_policy_6B`).
+   * Any 6B-specific config/validation packs that are treated as artefacts (e.g. `behaviour_prior_pack_6B`, `fraud_campaign_catalogue_config_6B`, `truth_labelling_policy_6B`, `segment_validation_policy_6B`).
 
    S0 binds to these via dictionary/registry; it does **not** interpret the internal semantics of the config packs, only their identity and checksums.
 
@@ -319,13 +319,13 @@ Within the authority stack above, 6B.S0 is allowed to read the following **upstr
 * Behaviour priors (e.g. `behaviour_prior_pack_6B`)
   Priors describing typical behaviours per segment, channel, geography, etc.
 
-* Campaign configuration packs (e.g. `campaign_catalogue_config_6B`)
+* Campaign configuration packs (e.g. `fraud_campaign_catalogue_config_6B`)
   Template definitions for fraud and abuse campaigns, their target populations, and scheduling/activation rules.
 
-* Labelling & outcome policies (e.g. `labelling_policy_6B`)
+* Labelling & outcome policies (e.g. `truth_labelling_policy_6B`)
   Rules and distributions governing truth labels, bank-view labels, dispute/chargeback delays, and case evolution.
 
-* 6B validation policy (e.g. `validation_policy_6B`)
+* 6B validation policy (e.g. `segment_validation_policy_6B`)
   Which checks the final 6B validation state must run, thresholds for PASS/WARN/FAIL, and what evidence must be present in `validation_bundle_6B`.
 
 All such packs:
