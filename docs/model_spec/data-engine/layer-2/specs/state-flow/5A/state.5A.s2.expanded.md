@@ -343,7 +343,7 @@ Required artefact(s):
 
 * One or more 5A-specific policy/config objects that define the **shape library**, e.g.:
 
-  * `shape_library_policy_5A`
+  * `shape_library_5A`
 
     * per `demand_class` base template types and parameters,
     * optional zone/country/channel modifiers,
@@ -585,7 +585,7 @@ Any change in time grid MUST be enacted via these configs and a new `parameter_h
 
 Logical inputs may include artefacts such as:
 
-* `shape_library_policy_5A`
+* `shape_library_5A`
 * `class_shape_templates_5A`
 * optional `zone_shape_modifiers_5A`, `channel_shape_modifiers_5A`
 
@@ -1064,7 +1064,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S2 — 
 **Inputs (from `sealed_inputs_5A`):**
 
 * Time-grid config, e.g. `shape_time_grid_policy_5A`.
-* Shape policy artefacts, e.g. `shape_library_policy_5A` and any supporting configs.
+* Shape policy artefacts, e.g. `shape_library_5A` and any supporting configs.
 * Scenario metadata (if shapes are scenario-sensitive).
 
 **Procedure:**
@@ -1087,7 +1087,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S2 — 
 
 3. Resolve shape policy artefacts:
 
-   * Load `shape_library_policy_5A` and any auxiliary configs (class→template mapping tables, region/channel modifiers, etc.).
+   * Load `shape_library_5A` and any auxiliary configs (class→template mapping tables, region/channel modifiers, etc.).
    * Validate against their schemas; verify they reference known `demand_class` labels and zone/channel groupings.
 
 4. Resolve scenario metadata (if needed):
@@ -1798,7 +1798,7 @@ If any of these fail, S2 MUST NOT be treated as green, regardless of its own out
 
 5. **Shape library policies ready**
 
-   * Shape policy artefacts (e.g. `shape_library_policy_5A` and supporting tables) are present in `sealed_inputs_5A` with:
+   * Shape policy artefacts (e.g. `shape_library_5A` and supporting tables) are present in `sealed_inputs_5A` with:
 
      * `owner_segment="5A"`,
      * `status="REQUIRED"`,
@@ -2185,7 +2185,7 @@ This is about S1/5A **data artefacts**, not policies (those have their own code)
 Raised when **time-grid or shape policies** required for S2 are missing or unusable, for example:
 
 * No `shape_time_grid_policy_5A` (or equivalent) in `sealed_inputs_5A`, or its `schema_ref` is invalid.
-* `shape_library_policy_5A` or required supporting configs are missing or fail schema validation.
+* `shape_library_5A` or required supporting configs are missing or fail schema validation.
 * `read_scope` prevents S2 from reading the policy contents (e.g. erroneously marked `METADATA_ONLY` for a config that must be read).
 
 Detected in Step 2 (§6.3).
@@ -2223,7 +2223,7 @@ Detected in Step 3 (§6.4) while building `shape_grid_definition_5A`.
 
 Raised when S2 cannot resolve a coherent base template for at least one `(demand_class, zone[, channel])` in `DOMAIN_S2`, for example:
 
-* `shape_library_policy_5A` has no entry for a `demand_class` that appears in `DOMAIN_S2`, and no default template is defined.
+* `shape_library_5A` has no entry for a `demand_class` that appears in `DOMAIN_S2`, and no default template is defined.
 * Policy rules conflict, yielding multiple templates for the same `(class, zone[, channel])` when only one is allowed.
 * Referenced `template_id` or template parameters are missing or inconsistent with the template schema.
 
@@ -3141,7 +3141,7 @@ Most behaviour changes in S2 are expected to come from:
 Any change to:
 
 * time-grid policy (`shape_time_grid_policy_5A`),
-* shape library policy (`shape_library_policy_5A`), or
+* shape library policy (`shape_library_5A`), or
 * any supporting tables that affect shapes,
 
 MUST trigger:
@@ -3244,7 +3244,7 @@ This appendix defines short-hands, symbols, and abbreviations used in the **5A.S
 | `sealed_inputs_5A`          | S0 inventory of all artefacts 5A may read for a given `manifest_fingerprint`.                  |
 | `merchant_zone_profile_5A`  | S1 output: per-merchant×zone demand profiles; S2 uses it to derive the class/zone domain only. |
 | `shape_time_grid_policy_5A` | 5A config: defines bucket size, buckets per week, mapping `bucket_index → local time`.         |
-| `shape_library_policy_5A`   | 5A config: defines base templates and modifiers per `demand_class` / zone / channel group.     |
+| `shape_library_5A`   | 5A config: defines base templates and modifiers per `demand_class` / zone / channel group.     |
 
 (Exact `artifact_id` / `manifest_key` values come from the dataset dictionary and artefact registry.)
 

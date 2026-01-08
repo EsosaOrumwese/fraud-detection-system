@@ -672,7 +672,7 @@ Used to validate:
 
 #### 3.4.2 S2 shape/time-grid policies
 
-* e.g. `shape_time_grid_policy_5A`, `shape_library_policy_5A`.
+* e.g. `shape_time_grid_policy_5A`, `shape_library_5A`.
 
 Used to validate:
 

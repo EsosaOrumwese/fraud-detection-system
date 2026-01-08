@@ -210,30 +210,25 @@
 - `docs/model_spec/data-engine/layer-2/specs/contracts/5A/artefact_registry_5A.yaml`
 
 ### Present in dictionary + registry (datasets/configs)
-- 5A policies/configs: `merchant_class_policy_5A`, `demand_scale_policy_5A`, `baseline_intensity_policy_5A`, `shape_library_5A`, `scenario_horizon_config_5A`, `scenario_calendar_5A`, `scenario_overlay_policy_5A`
+- 5A policies/configs: `merchant_class_policy_5A`, `demand_scale_policy_5A`, `baseline_intensity_policy_5A`, `shape_library_5A`, `shape_time_grid_policy_5A`, `scenario_horizon_config_5A`, `scenario_metadata`, `scenario_calendar_5A`, `scenario_overlay_policy_5A`, `overlay_ordering_policy_5A`, `scenario_overlay_validation_policy_5A`
 - 5A control-plane: `s0_gate_receipt_5A`, `sealed_inputs_5A`, `scenario_manifest_5A`
 - 5A outputs: `merchant_zone_profile_5A`, `merchant_class_profile_5A`, `shape_grid_definition_5A`, `class_zone_shape_5A`, `class_shape_catalogue_5A`, `merchant_zone_baseline_local_5A`, `class_zone_baseline_local_5A`, `merchant_zone_baseline_utc_5A`, `merchant_zone_scenario_local_5A`, `merchant_zone_overlay_factors_5A`, `merchant_zone_scenario_utc_5A`
-- 5A validation artefacts: `validation_bundle_index_5A`, `validation_report_5A`, `validation_issue_table_5A`, `validation_passed_flag_5A`
+- 5A validation artefacts: `validation_bundle_5A`, `validation_bundle_index_5A`, `validation_report_5A`, `validation_issue_table_5A`, `validation_passed_flag_5A`
+- Run reports: `segment_state_runs`, `s1_run_report_5A`, `s2_run_report_5A`, `s3_run_report_5A`, `s4_run_report_5A`, `s5_run_report_5A`
+- Upstream bundles/flags: `validation_bundle_1A`, `validation_passed_flag_1A`, `validation_bundle_1B`, `validation_passed_flag_1B`, `validation_bundle_2A`, `validation_passed_flag_2A`, `validation_bundle_2B`, `validation_passed_flag_2B`, `validation_bundle_3A`, `validation_passed_flag_3A`, `validation_bundle_3B`, `validation_passed_flag_3B`
+- Upstream data surfaces: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`, `zone_alloc`, `zone_alloc_universe_hash`
+- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `virtual_routing_policy_3B`, `virtual_validation_contract_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`
 
 ### Dictionary-only (missing from registry)
-- Run reports: `segment_state_runs`, `s1_run_report_5A`, `s2_run_report_5A`, `s3_run_report_5A`, `s4_run_report_5A`, `s5_run_report_5A`
+- None (after alignment)
 
 ### Alias or mismatch vs dictionary/registry ids
 - `_passed.flag` -> dictionary/registry id `validation_passed_flag_5A`
-- `validation_bundle_5A` (bundle directory) -> not in dictionary/registry; registry maps `mlr.5A.validation.bundle` to `validation_bundle_index_5A`
-- `scenario_calendar` -> `scenario_calendar_5A`
-- `calendar_overlay_policy_5A` -> not found; closest is `scenario_overlay_policy_5A`
-- `shape_time_grid_policy_5A` -> not found in dictionary/registry (grid semantics may be part of `shape_library_5A`)
-- `shape_library_policy_5A` -> dictionary/registry use `shape_library_5A`
-- `overlay_ordering_policy_5A`, `scenario_overlay_validation_policy_5A` -> not found in dictionary/registry
-- `scenario_metadata` -> not found in dictionary/registry
 - `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.layer2.yaml`, `schemas.5A.yaml` -> schema packs, not artefact ids
 - `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3B.yaml`, `dataset_dictionary.layer2.5A.yaml`, `artefact_registry_1A.yaml` .. `artefact_registry_3B.yaml`, `artefact_registry_5A.yaml` -> doc references, not artefact ids
 
 ### Upstream artefacts referenced in state specs but not in 5A dictionary/registry
-- Upstream validation bundles/flags: `validation_bundle_*`, `_passed.flag` for segments 1A-3B
-- Upstream data surfaces: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`, `zone_alloc`, `zone_alloc_universe_hash`
-- 3B virtual surfaces: `virtual_classification_3B`, `virtual_settlement_3B`, `virtual_routing_policy_3B`, `virtual_validation_contract_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`
+- None (after alignment)
 
 ## 5B
 

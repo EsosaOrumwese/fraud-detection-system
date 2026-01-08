@@ -240,7 +240,7 @@ For the `(parameter_hash, manifest_fingerprint)` pair that 5A.S0 is invoked with
    * The engine’s scenario configuration (e.g. scenario calendar, campaign schedule, special days) for this `parameter_hash` MUST be discoverable via the Layer-2 dictionaries/registries and resolve to:
 
      * a unique **scenario ID** (or a small, explicit set of scenario IDs) that 5A will support; and
-     * one or more schema-governed configuration artefacts (e.g. `scenario_calendar`, `campaign_overlays`) for that parameter pack.
+     * one or more schema-governed configuration artefacts (e.g. `scenario_calendar_5A`, `campaign_overlays`) for that parameter pack.
 
 2. **5A policy readiness**
 
@@ -443,14 +443,14 @@ Examples:
 
 * **Scenario configs** (parameter-scoped, often shared across segments):
 
-  * `scenario_calendar` (holidays, paydays, campaign windows, outages).
+  * `scenario_calendar_5A` (holidays, paydays, campaign windows, outages).
   * `scenario_metadata` (scenario IDs, labels, types, horizon).
 
 * **5A policies**:
 
   * `merchant_class_policy_5A` (rules for grouping merchants into demand classes).
   * `shape_library_5A` (catalogue of normalised weekly shapes per class/zone/channel).
-  * `calendar_overlay_policy_5A` (global rules for turning scenario events into multiplicative/additive factors).
+  * `scenario_overlay_policy_5A` (global rules for turning scenario events into multiplicative/additive factors).
   * Any additional Layer-2–wide knobs that 5A will use (e.g. default scale factors, clipping thresholds).
 
 Rules:
@@ -1483,7 +1483,7 @@ Even if the general conditions above are satisfied, 5A.S0 MUST additionally enfo
 
      * `merchant_class_policy_5A`,
      * `shape_library_5A`,
-     * `calendar_overlay_policy_5A`.
+     * `scenario_overlay_policy_5A`.
 
 3. **Upstream world surfaces that 5A is designed to consume**
 
@@ -1774,7 +1774,7 @@ Typically detected while building `CANDIDATES` or when trying to include scenari
 
 Raised when a 5A-specific policy/config artefact marked as `status="required"` for 5A is not resolvable for this `parameter_hash`, e.g.:
 
-* `merchant_class_policy_5A`, `shape_library_5A`, or `calendar_overlay_policy_5A` is not found in the catalogue for the parameter pack.
+* `merchant_class_policy_5A`, `shape_library_5A`, or `scenario_overlay_policy_5A` is not found in the catalogue for the parameter pack.
 * The artefact is present but flagged as deprecated or incompatible by the registry.
 
 **Effect**
