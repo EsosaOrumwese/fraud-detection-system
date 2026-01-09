@@ -15,21 +15,20 @@ Authoritative inputs (read-only at S8 entry)
       · S8 MUST use this for policy parity and provenance; no rewrites
 
 [Schema+Dict]
-    - schemas.1A.yaml
-        · `#/validation/validation_bundle.index_schema` — canonical bundle index schema
     - schemas.1B.yaml
-        · `#/validation/passed_flag` — canonical `_passed.flag` schema
+        ú `#/validation/passed_flag` - canonical `_passed.flag` schema
     - schemas.2B.yaml
-        · `#/validation/s7_audit_report_v1` — S7 report shape
-        · anchors for S2/S3/S4 plan/binary surfaces (provenance only; S8 does NOT re-audit)
+        ú `#/validation/validation_bundle_index_2B` - bundle index schema
+        ú `#/validation/s7_audit_report_v1` - S7 report shape
+        ú anchors for S2/S3/S4 plan/binary surfaces (provenance only; S8 does NOT re-audit)
     - dataset_dictionary.layer1.2B.yaml
-        · IDs → paths/partitions for:
-            · s7_audit_report
-            · s2_alias_index, s2_alias_blob
-            · s3_day_effects, s4_group_weights
-            · validation_bundle_2B, validation_passed_flag_2B
+        ú IDs ǂ paths/partitions for:
+            ú s7_audit_report
+            ú s2_alias_index, s2_alias_blob
+            ú s3_day_effects, s4_group_weights
+            ú validation_bundle_2B, validation_bundle_index_2B, validation_passed_flag_2B
     - artefact_registry_2B.yaml
-        · metadata for validation_bundle_2B and validation_passed_flag_2B (write-once/atomic; final_in_layer)
+        ú metadata for validation_bundle_2B, validation_bundle_index_2B, validation_passed_flag_2B (write-once/atomic; final_in_layer)
 
 [Seed-scoped audit evidence]
     - s7_audit_report
@@ -50,16 +49,21 @@ Authoritative inputs (read-only at S8 entry)
 
 [Outputs owned by S8]
     - validation_bundle_2B
-        · index.json @ data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
-        · partition: [fingerprint]
-        · schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
-        · role: authoritative PASS bundle index for Segment 2B
+        ú bundle directory @ data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+        ú partition: [manifest_fingerprint]
+        ú schema: schemas.2B.yaml#/validation/validation_bundle_index_2B
+        ú role: authoritative PASS bundle root for Segment 2B
+    - validation_bundle_index_2B
+        ú index.json @ data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+        ú partition: [manifest_fingerprint]
+        ú schema: schemas.2B.yaml#/validation/validation_bundle_index_2B
+        ú role: authoritative PASS bundle index for Segment 2B
     - validation_passed_flag_2B
-        · _passed.flag @ data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-        · partition: [fingerprint]
-        · schema: schemas.1B.yaml#/validation/passed_flag
-        · content: exactly one line `sha256_hex = <64 lowercase hex>`
-        · role: PASS gate; `sha256_hex` MUST equal bundle digest
+        ú _passed.flag @ data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        ú partition: [manifest_fingerprint]
+        ú schema: schemas.1B.yaml#/validation/passed_flag
+        ú content: exactly one line `sha256_hex = <64 lowercase hex>`
+        ú role: PASS gate; `sha256_hex` MUST equal bundle digest
 
 [Numeric & RNG posture]
     - RNG:
@@ -70,7 +74,7 @@ Authoritative inputs (read-only at S8 entry)
     - Catalogue & identity:
         · Dictionary-only resolution (IDs + partitions), no literal paths, no network I/O.
         · S8 never mutates bytes of included evidence; it only copies/links and indexes them.
-        · Publish is fingerprint-scoped only: `…/validation/fingerprint={manifest_fingerprint}/`.
+        · Publish is fingerprint-scoped only: `…/validation/manifest_fingerprint={manifest_fingerprint}/`.
 
 
 ----------------------------------------------------------------------
@@ -175,7 +179,7 @@ sealed_inputs_2B,
                         · UTF-8,
                         · consistently ordered keys and whitespace so that re-runs produce identical bytes.
                     - Validate `index.json` against the canonical bundle index schema
-                      (schemas.layer1.yaml#/validation/validation_bundle/index_schema).
+                      (schemas.2B.yaml#/validation/validation_bundle_index_2B).
 
 (Bundle workspace with index.json),
 [Schema+Dict]
@@ -206,7 +210,7 @@ sealed_inputs_2B,
                         · require `<64 hex>` equals `bundle_digest` just computed.
                     - Partition & identity:
                         · prospective publish path MUST be
-                              `data/layer1/2B/validation/fingerprint={manifest_fingerprint}/`.
+                              `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`.
                         · for S0/S7 files inside the workspace, embedded `{seed, fingerprint}` fields
                           MUST equal their path tokens (path↔embed equality).
                     - If any check fails → Abort; workspace MUST NOT be published.
@@ -216,8 +220,8 @@ sealed_inputs_2B,
 [S0 Gate & Identity]
                 ->  (S8.8) Publish validation_bundle_2B & validation_passed_flag_2B (write-once)
                     - Final bundle root (via Dictionary, ID `validation_bundle_2B` / `validation_passed_flag_2B`):
-                        · directory: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/
-                        · index.json path matches Dictionary entry for validation_bundle_2B.
+                        · directory: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+                        · index.json path matches Dictionary entry for validation_bundle_index_2B.
                         · _passed.flag path matches Dictionary entry for validation_passed_flag_2B.
                     - Write-once & idempotent:
                         · If the target directory does **not** exist:
@@ -234,12 +238,12 @@ sealed_inputs_2B,
 (published validation_bundle_2B + validation_passed_flag_2B),
 [Schema+Dict]
                 ->  (S8.9) Post-publish verification & STDOUT report (non-authoritative)
-                    - Resolve validation_bundle_2B and validation_passed_flag_2B via Dataset Dictionary.
+                    - Resolve validation_bundle_2B, validation_bundle_index_2B, and validation_passed_flag_2B via Dataset Dictionary.
                     - Re-validate:
                         · index.json conforms to bundle index schema,
                         · `_passed.flag` conforms to passed_flag schema,
                         · `_passed.flag.sha256_hex` equals recomputed bundle digest from indexed files,
-                        · partition path is exactly `fingerprint={manifest_fingerprint}`.
+                        · partition path is exactly `manifest_fingerprint={manifest_fingerprint}`.
                     - Confirm identity:
                         · any embedded fingerprint in included evidence (S0/S7) still matches path tokens.
                     - Emit a non-authoritative STDOUT summary:
@@ -257,10 +261,10 @@ Downstream touchpoints
       s3_day_effects, s4_group_weights), consumers SHALL enforce:
           **No PASS → No read**  
       where PASS means:
-          1. `validation_bundle_2B` exists at `fingerprint={manifest_fingerprint}`, and
+          1. `validation_bundle_2B` exists at `manifest_fingerprint={manifest_fingerprint}`, and
           2. `_passed.flag` content matches the hash of the indexed bundle bytes.
 - **Governance / CI:**
-    - MAY inspect `validation_bundle_2B/index.json` (and the included S0/S7 evidence) to drive dashboards and gates.
+    - MAY inspect `validation_bundle_index_2B (index.json)` (and the included S0/S7 evidence) to drive dashboards and gates.
     - SHALL treat bundle contents as immutable; any update requires a **new** manifest_fingerprint.
 - **Upstream segments:**
     - 2B.S8 does **not** change any plan surface; it only packages evidence.

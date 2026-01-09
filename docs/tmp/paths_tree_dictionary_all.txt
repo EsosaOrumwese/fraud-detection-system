@@ -235,7 +235,7 @@ data/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_2A]
           _passed.flag  [id: validation_passed_flag_2A]
     2B/
-      s0_gate_receipt_2B/
+      s0_gate_receipt/
         manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_2B.json  [id: s0_gate_receipt_2B]
       s1_site_weights/
@@ -269,9 +269,9 @@ data/
         manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_2B.json  [id: sealed_inputs_2B]
       validation/
-        manifest_fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_2B]
           _passed.flag  [id: validation_passed_flag_2B]
-          index.json  [id: validation_bundle_2B]
+          index.json  [id: validation_bundle_2B, validation_bundle_index_2B]
     3A/
       s0_gate_receipt/
         manifest_fingerprint={manifest_fingerprint}/
@@ -468,7 +468,7 @@ data/
           validation_report_5B.json  [id: validation_report_5B]
   layer3/
     6A/
-      gate_receipt/
+      s0_gate_receipt/
         manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_6A.json  [id: s0_gate_receipt_6A]
       s1_party_base_6A/
@@ -586,7 +586,7 @@ data/
           s5_validation_report_6A.json  [id: s5_validation_report_6A]
           validation_bundle_index_6A.json  [id: validation_bundle_index_6A]
     6B/
-      gate_receipt/
+      s0_gate_receipt/
         manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_6B.json  [id: s0_gate_receipt_6B]
       s1_arrival_entities_6B/

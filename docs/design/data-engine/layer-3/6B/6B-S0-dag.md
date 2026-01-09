@@ -99,7 +99,7 @@ Authoritative inputs (read-only at S0 entry)
       · rows MUST only describe artefacts that actually exist; missing required artefacts MUST cause S0 to fail before writing.
 
     - s0_gate_receipt_6B
-      @ data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+      @ data/layer3/6B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
       · partition_keys: [fingerprint]
       · schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
       · single logical object per fingerprint, recording:
@@ -267,7 +267,7 @@ schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
 schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
                 ->  (S0.10) Write s0_gate_receipt_6B (fingerprint-scoped, write-once)
                     - Target path via dictionary:
-                        · data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+                        · data/layer3/6B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
                     - If file does NOT exist:
                         · write JSON via staging → fsync → atomic move.
                     - If file exists:

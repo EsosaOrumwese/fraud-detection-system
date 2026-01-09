@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S5 entry)
 --------------------------------------------
 [S0 gate & sealed inputs]
     - s0_gate_receipt_6B
-      @ data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+      @ data/layer3/6B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
       · For this world:
           - manifest_fingerprint        (world id),
           - parameter_hash              (6B parameter pack id),

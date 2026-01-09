@@ -5,7 +5,7 @@ Authoritative inputs (read-only at S3 entry)
 --------------------------------------------
 [S0 gate & sealed inputs]
     - s0_gate_receipt_6B
-      @ data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+      @ data/layer3/6B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
       · For this world:
           - manifest_fingerprint, parameter_hash, run_id, spec_version_6B,
           - upstream_segments{seg_id → {status,bundle_path,bundle_sha256,flag_path}},

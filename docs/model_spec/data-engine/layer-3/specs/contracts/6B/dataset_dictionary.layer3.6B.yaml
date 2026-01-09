@@ -694,7 +694,7 @@ datasets:
       summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+    path: data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
     partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []

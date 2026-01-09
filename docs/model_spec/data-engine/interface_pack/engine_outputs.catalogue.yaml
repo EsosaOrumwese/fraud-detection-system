@@ -1335,7 +1335,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 2B
-  path_template: data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+  path_template: data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
@@ -1590,23 +1590,38 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'Deterministic audit report emitted by S7 (validators, evidence, run metadata).'
-- output_id: validation_bundle_index_2B
+- output_id: validation_bundle_2B
   class: gate
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 2B
-  path_template: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+  path_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
   partitions:
   - manifest_fingerprint
-  schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+  schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#validation_bundle_2B
   primary_key: []
   join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
+  description: 'Directory artefact containing the 2B validation bundle contents.'
+- output_id: validation_bundle_index_2B
+  class: gate
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 2B
+  path_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#validation_bundle_index_2B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
   description: 'Fingerprint-scoped PASS bundle index for Segment 2B.'
-  notes: 'Dictionary id validation_bundle_2B; bundle index is stored as index.json in 2B.'
 - output_id: validation_passed_flag_2B
   class: gate
   exposure: internal
@@ -3419,7 +3434,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 6A
-  path_template: data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+  path_template: data/layer3/6A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A
@@ -3925,7 +3940,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 6B
-  path_template: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+  path_template: data/layer3/6B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B

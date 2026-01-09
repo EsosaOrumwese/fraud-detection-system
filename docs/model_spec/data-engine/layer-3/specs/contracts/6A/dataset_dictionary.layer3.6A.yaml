@@ -505,7 +505,7 @@ datasets:
       Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint,
       summarising upstream gates and the sealed input universe for 6A.
     version: '{manifest_fingerprint}'
-    path: data/layer3/6A/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+    path: data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
     partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A

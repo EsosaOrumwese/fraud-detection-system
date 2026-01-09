@@ -6,7 +6,7 @@ subsegments:
     artifacts:
       # --- S0 ---
       - name: s0_gate_receipt_6B
-        path: data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+        path: data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
         type: dataset
         category: validation
         semver: 1.0.0

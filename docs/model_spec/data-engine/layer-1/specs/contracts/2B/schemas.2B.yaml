@@ -111,6 +111,20 @@ validation:
         schema_ref:
           type: string
 
+  validation_bundle_index_2B:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [path, sha256_hex]
+      properties:
+        path:
+          type: string
+          pattern: "^(?!/)(?!.*\\\\)(?!.*\\.\\.).+"
+        sha256_hex:
+          $ref: "#/$defs/hex64"
+
   s7_audit_report_v1:
     type: object
     additionalProperties: false

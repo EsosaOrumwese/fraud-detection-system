@@ -23,7 +23,7 @@ datasets:
     description: Gate receipt attesting upstream verification, identity, and catalogue-only resolution.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/s0_gate_receipt_2B/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+    path: data/layer1/2B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
     partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
@@ -462,17 +462,35 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
-  # === 2B.S8 — Validation bundle (authoritative) ===
+  # === 2B.S8 - Validation bundle (authoritative) ===
   - id: validation_bundle_2B
     status: approved
     owner_subsegment: 2B
-    description: Fingerprint-scoped PASS bundle index for Segment 2B.
+    description: Directory artefact containing the 2B validation bundle contents.
+    version: '{manifest_fingerprint}'
+    format: folder
+    path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B
+    lineage:
+      produced_by: 2B.S8
+      consumed_by: []
+      final_in_layer: true
+    retention_days: 1095
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: validation_bundle_index_2B
+    status: approved
+    owner_subsegment: 2B
+    description: index.json enumerating evidence files plus their SHA-256 digests.
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
     partitioning: [manifest_fingerprint]
     ordering: []
-    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+    schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B
     lineage:
       produced_by: 2B.S8
       consumed_by: []

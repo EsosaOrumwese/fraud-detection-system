@@ -11,6 +11,8 @@ None
 
 EXPECTED DUPLICATES
 -------------------
+- data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json  [ids: validation_bundle_2B, validation_bundle_index_2B]
+- data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json  [ids: validation_bundle_2B, validation_bundle_index_2B]
 - rng_audit_log
   - logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   - logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl

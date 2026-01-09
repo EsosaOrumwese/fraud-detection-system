@@ -230,13 +230,14 @@ S8 produces **exactly two artefacts** under the fingerprint path:
 * The flag’s `sha256_hex` MUST equal the **SHA-256 over the concatenation of all indexed file bytes in ASCII-lex `path` order**. 
 
 **5.6 Catalogue notes (Dictionary/Registry).**
-Register two IDs in the **Dataset Dictionary** (and mirror them in the **Artefact Registry** as metadata with `write_once: true`, `atomic_publish: true`):
+Register three IDs in the **Dataset Dictionary** (and mirror them in the **Artefact Registry** as metadata with `write_once: true`, `atomic_publish: true`):
 
-* `validation_bundle_2B` → `…/fingerprint={manifest_fingerprint}/index.json`
-  `format: json` · `schema_ref: …#/validation/validation_bundle.index_schema`. 
-* `validation_passed_flag_2B` → `…/fingerprint={manifest_fingerprint}/_passed.flag`
-  `format: text` · `schema_ref: …#/validation/passed_flag`. 
-
+* `validation_bundle_2B` -> `./fingerprint={manifest_fingerprint}/` (bundle directory)  
+  `format: folder` ; `schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B`.
+* `validation_bundle_index_2B` -> `./fingerprint={manifest_fingerprint}/index.json`  
+  `format: json` ; `schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B`.
+* `validation_passed_flag_2B` -> `./fingerprint={manifest_fingerprint}/_passed.flag`  
+  `format: text` ; `schema_ref: schemas.1B.yaml#/validation/passed_flag`.
 > Net: S8 emits a **single, fingerprint-scoped validation bundle** whose **index.json** and **`_passed.flag`** form the authoritative PASS proof for 2B; identity is fingerprint-only; ordering and digests follow the canonical bundle laws; and publish is **write-once + atomic**.
 
 ---
@@ -249,7 +250,7 @@ JSON-Schema is **sole** shape authority. S8 binds to the canonical **bundle inde
 ---
 
 **6.2 Bundle index — `index.json` (Binding)**
-**Anchor (canonical):** `schemas.layer1.yaml#/validation/validation_bundle/index_schema`
+**Anchor (canonical):** `schemas.2B.yaml#/validation/validation_bundle_index_2B`
 **Fields-strict** JSON array of objects with exactly:
 
 * `path` (string) — **relative** to the bundle root; **no** leading `/`, **no** `..` segments; UTF-8.
@@ -853,7 +854,7 @@ Require a coordinated **major** for S8 and contract packs:
 
 **13.6 Dictionary/Registry coordination**
 
-* **Required IDs:** `validation_bundle_2B` (index) and `validation_passed_flag_2B` (flag) must be present with fingerprint-only partitioning and write-once/atomic metadata in the Registry. Any rename, path-family change, or partition change is **MAJOR**. 
+* **Required IDs:** `validation_bundle_2B` (bundle directory), `validation_bundle_index_2B` (index), and `validation_passed_flag_2B` (flag) must be present with fingerprint-only partitioning and write-once/atomic metadata in the Registry. Any rename, path-family change, or partition change is **MAJOR**.
 * **Optional:** run-report is diagnostic; not catalogued.
 
 **13.7 Deprecation & migration protocol**
@@ -878,7 +879,7 @@ Require a coordinated **major** for S8 and contract packs:
 **A.1 Shape authorities (packs)**
 
 * **Bundle laws (canonical):**
-  • **Index schema:** `schemas.layer1.yaml#/validation/validation_bundle/index_schema` (array of `{path, sha256_hex}`; paths **relative**; entries **ASCII-lex**).
+  • **Index schema:** `schemas.2B.yaml#/validation/validation_bundle_index_2B` (array of `{path, sha256_hex}`; paths **relative**; entries **ASCII-lex**).
   • **PASS flag:** `schemas.1B.yaml#/validation/passed_flag` (single line `sha256_hex = <hex64>`; **flag not indexed**).
 * **2B pack (segment surfaces):** `schemas.2B.yaml` — `#/validation/s7_audit_report_v1` (S7 report), plus S2/S3/S4 plan/binary anchors and policy anchors.
 * **Layer-1 pack (only if needed for provenance checks elsewhere):** common `$defs` (e.g., `hex64`, `uint64`, `rfc3339_micros`).
@@ -908,14 +909,15 @@ Require a coordinated **major** for S8 and contract packs:
   • Policies `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1` → **token-less** (`partition = {}`), **selected by S0-sealed path+sha256**
   • S0 evidence (`s0_gate_receipt_2B`, `sealed_inputs_2B`) → **`[fingerprint]`**
 * **Outputs (authoritative):**
-  • `validation_bundle_2B` → `…/fingerprint={manifest_fingerprint}/index.json` (**`[fingerprint]`**; `format: json`; `schema_ref: …#/validation/validation_bundle.index_schema`)
-  • `validation_passed_flag_2B` → `…/fingerprint={manifest_fingerprint}/_passed.flag` (**`[fingerprint]`**; `format: text`; `schema_ref: …#/validation/passed_flag`)
+  • `validation_bundle_2B` → `…/fingerprint={manifest_fingerprint}/` (**`[fingerprint]`**; `format: folder`; `schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B`)
+  • `validation_bundle_index_2B` → `…/fingerprint={manifest_fingerprint}/index.json` (**`[fingerprint]`**; `format: json`; `schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B`)
+  • `validation_passed_flag_2B` → `…/fingerprint={manifest_fingerprint}/_passed.flag` (**`[fingerprint]`**; `format: text`; `schema_ref: schemas.1B.yaml#/validation/passed_flag`)
 
 ---
 
 **A.4 Artefact Registry (metadata only)**
 
-* Mirror Dictionary entries for `validation_bundle_2B` and `validation_passed_flag_2B` with `write_once: true` and `atomic_publish: true`.
+* Mirror Dictionary entries for `validation_bundle_2B`, `validation_bundle_index_2B`, and `validation_passed_flag_2B` with `write_once: true` and `atomic_publish: true`.
 * Registry records **owners/licence/retention**; shapes/partitions stay governed by the schema pack and Dictionary.
 
 ---

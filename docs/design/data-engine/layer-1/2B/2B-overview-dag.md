@@ -6,7 +6,7 @@ Authoritative inputs (sealed in S0)
 [M] Upstream 1B egress & gate:
     - validation_bundle_1B              @ [fingerprint]
     - validation_passed_flag_1B         @ [fingerprint]  (_passed.flag; HashGate for 1B)
-      · bundle index schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+      · bundle index schema: schemas.2B.yaml#/validation/validation_bundle_index_2B
       · flag schema: schemas.1B.yaml#/validation/passed_flag       
     - site_locations                    @ [seed, fingerprint]
       · final per-site geometry from 1B (lon_deg, lat_deg)
@@ -221,7 +221,7 @@ DAG
                      - Build index.json (bundle index):
                          · one row per non-flag file: {path, sha256_hex}, path relative; ASCII-lex by path; no duplicates;
                            every file exists; `_passed.flag` excluded.
-                         · validate against canonical bundle index law (schemas.layer1.yaml#/validation/validation_bundle/index_schema).
+                         · validate against canonical bundle index law (schemas.2B.yaml#/validation/validation_bundle_index_2B).
                      - Compute bundle_digest = SHA-256(concat(all indexed file bytes in ASCII-lex path order)).
                 -> validation_passed_flag_2B  @ [fingerprint]
                      - _passed.flag content: `sha256_hex = <bundle_digest>`
@@ -234,7 +234,7 @@ DAG
 Downstream touchpoints
 ----------------------
 - **Any consumer of 2B routing plan surfaces** (e.g. Layer-2 arrival mechanics, downstream simulators, scenario runner):
-    1) Locate `data/layer1/2B/validation/fingerprint={manifest_fingerprint}/`.
+    1) Locate `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`.
     2) Read `index.json`, recompute SHA-256 over the listed files’ raw bytes in ASCII-lex path order (excluding `_passed.flag`).
     3) Read `_passed.flag` and compare its `sha256_hex` to the recomputed digest.
     4) Only if they match MAY the consumer read:

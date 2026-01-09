@@ -1407,9 +1407,9 @@
     "status": "approved",
     "owner_subsegment": "2B",
     "description": "Gate receipt attesting upstream verification, identity, and catalogue-only resolution.",
-    "path": "data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json",
+    "path": "data/layer1/2B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
     "schema_ref": "schemas.2B.yaml#/validation/s0_gate_receipt_v1",
@@ -1777,13 +1777,33 @@
     "id": "validation_bundle_2B",
     "status": "approved",
     "owner_subsegment": "2B",
-    "description": "Fingerprint-scoped PASS bundle index for Segment 2B.",
-    "path": "data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json",
+    "description": "Directory artefact containing the 2B validation bundle contents.",
+    "path": "data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
-    "schema_ref": "schemas.layer1.yaml#/validation/validation_bundle/index_schema",
+    "schema_ref": "schemas.2B.yaml#/validation/validation_bundle_index_2B",
+    "primary_key": null,
+    "format": "folder",
+    "lineage": {
+      "produced_by": "2B.S8",
+      "consumed_by": [],
+      "final_in_layer": true
+    }
+  },
+  {
+    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2B\\dataset_dictionary.layer1.2B.yaml",
+    "id": "validation_bundle_index_2B",
+    "status": "approved",
+    "owner_subsegment": "2B",
+    "description": "index.json enumerating evidence files plus their SHA-256 digests.",
+    "path": "data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json",
+    "partitioning": [
+      "manifest_fingerprint"
+    ],
+    "ordering": [],
+    "schema_ref": "schemas.2B.yaml#/validation/validation_bundle_index_2B",
     "primary_key": null,
     "format": "json",
     "lineage": {
@@ -1798,9 +1818,9 @@
     "status": "approved",
     "owner_subsegment": "2B",
     "description": "Companion flag containing the SHA-256 digest of the 2B validation bundle.",
-    "path": "data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag",
+    "path": "data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
     "schema_ref": "schemas.1B.yaml#/validation/passed_flag",
@@ -3674,9 +3694,9 @@
     "status": "required",
     "owner_subsegment": "6A",
     "description": "Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint, summarising upstream gates and the sealed input universe for 6A.\n",
-    "path": "data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json",
+    "path": "data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
     "schema_ref": "schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A",
@@ -4489,9 +4509,9 @@
     "status": "required",
     "owner_subsegment": "6B",
     "description": "Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.\n",
-    "path": "data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json",
+    "path": "data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
     "schema_ref": "schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B",

@@ -874,7 +874,7 @@ S0 must not attempt to “repair” or reinterpret upstream HashGates; it either
    * Write this under:
 
      ```text
-     data/layer3/6A/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+     data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
      ```
 
    * Again, use the schema and path defined in the dictionary/registry.
@@ -975,7 +975,7 @@ Both S0 outputs are **fingerprint-scoped control-plane datasets**.
     * `fingerprint={manifest_fingerprint}`
   * Path template (schematic):
 
-    * `data/layer3/6A/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json`
+    * `data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json`
 
 * `sealed_inputs_6A`:
 

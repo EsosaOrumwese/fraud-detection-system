@@ -428,7 +428,7 @@ The gate receipt MUST be registered in the 6B dataset dictionary and artefact re
 
 * `version: '{manifest_fingerprint}'`
 * `format: json`
-* `path: data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
+* `path: data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
 * `partitioning: [fingerprint]`
 * `primary_key: [manifest_fingerprint]`
 * `ordering: []` (single logical row per fingerprint; writer is free to serialise fields in any JSON object order consistent with the schema)
@@ -842,7 +842,7 @@ If any problem occurs in reading or serialising `sealed_inputs_6B`, S0 MUST trea
 3. Perform an **atomic write** to:
 
    ```text
-   data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+   data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
    ```
 
    using the engine’s standard write-once semantics:
@@ -911,7 +911,7 @@ Both outputs of 6B.S0 are **fingerprint-partitioned control-plane datasets**:
 * `s0_gate_receipt_6B`:
 
   * Path (template):
-    `data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
+    `data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
   * Partitioning: `[fingerprint]`
   * Primary key: `[manifest_fingerprint]`
 
