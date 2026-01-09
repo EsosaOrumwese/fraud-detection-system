@@ -533,11 +533,11 @@ All path resolutions **MUST** follow the **Dataset Dictionary** and schema ancho
 
 # 8) Outputs & side-effects **(Binding)**
 
-S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **consumes no RNG** and **must not** modify any 1A partitions.
+S0 produces **two** artefacts on **PASS** and **nothing** on **ABORT**. It **consumes no RNG** and **must not** modify any 1A partitions.
 
 ---
 
-## 8.1 Required output on PASS — `s0_gate_receipt_1B` (fingerprint-scoped)
+## 8.1 Required output on PASS - `s0_gate_receipt_1B` (fingerprint-scoped)
 
 **Purpose.** A minimal receipt that proves §4’s gate was verified for the target fingerprint and enumerates the upstream surfaces S0 sealed for downstream 1B states. It is **not** a substitute for 1B’s S9 validation bundle; it only records the 1A consumer hand-off.
 **Partition:** `[fingerprint]` (where the path token **equals** the embedded `manifest_fingerprint`). **No `seed` partition here.**  
@@ -554,7 +554,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 * `validation_bundle_path : string` — resolved folder for `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`. 
 * `flag_sha256_hex : hex64` — the exact hex read from `_passed.flag` after recomputation. 
 * `verified_at_utc : RFC-3339 (microseconds)` — observational timestamp (non-semantic).
-* `sealed_inputs : array<object>` — entries S0 authorises for 1B, at minimum:
+* `sealed_inputs : array<object>` - entries S0 authorises for 1B, at minimum:
 
   * `{ id:"outlet_catalogue", partition:["seed","fingerprint"], schema_ref:"schemas.1A.yaml#/egress/outlet_catalogue" }` (order-free egress; only readable after PASS).  
   * `{ id:"s3_candidate_set", partition:["parameter_hash"], schema_ref:"schemas.1A.yaml#/s3/candidate_set" }` (sole inter-country order authority; pinned for later joins).  
@@ -563,27 +563,44 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
     `{ id:"population_raster_2025","schema_ref":"schemas.ingress.layer1.yaml#/population_raster_2025" }`
     (FK/geo surfaces declared consumable by 1B; Dictionary will encode these same anchors).  
   * `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces reserved for later segments; dictionary encodes their schema refs).
-* `notes : string` — optional free-form, non-semantic.
+* `notes : string` - optional free-form, non-semantic.
 
-**Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{fingerprint}` **MUST** be byte-identical. 
+**Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{fingerprint}` **MUST** be byte-identical.
 
 ---
 
-## 8.2 Side-effects on PASS (and only on PASS)
+## 8.2 Required output on PASS - `sealed_inputs_1B` (fingerprint-scoped)
+
+**Purpose.** A JSON inventory that records the exact sealed assets S0 validated for 1B, including digests and version tags. It is the authoritative per-asset list that backs the receipt's `sealed_inputs[]`.
+
+**Partition:** `[fingerprint]` (path token equals embedded `manifest_fingerprint`).
+
+**Canonical template (Dictionary owns the exact final path):**
+`data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json`
+
+**Schema anchor:** `schemas.1B.yaml#/validation/sealed_inputs_1B`
+
+**Publish rule:** stage → fsync → single atomic rename into `…/manifest_fingerprint={manifest_fingerprint}/`; partition is immutable once published.
+
+**Required columns (non-exhaustive, Binding):** `asset_id`, `version_tag`, `sha256_hex`, `path`, `partition`, `schema_ref` (plus optional `notes`).
+
+---
+
+## 8.3 Side-effects on PASS (and only on PASS)
 
 * **Read-authorisation becomes active** for `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` (order-free; consumers must join S3 for inter-country order). S0 may **read** it, but S0 **does not** write to any 1A datasets.  
 * **No RNG logs/layer1/1B/events** are written in S0 (S0 consumes no RNG); any audit lines belong to general state audit, not RNG channels. 
 
 ---
 
-## 8.3 Behaviour on ABORT (flag missing/mismatch)
+## 8.4 Behaviour on ABORT (flag missing/mismatch)
 
 * **No outputs are written.** Absence of `s0_gate_receipt_1B` under the fingerprint is the expected state.
 * Downstream states **MUST NOT** read `outlet_catalogue`; 1A’s **no PASS → no read** remains in force. 
 
 ---
 
-## 8.4 Writer policy, atomicity & idempotence (receipt)
+## 8.5 Writer policy, atomicity & idempotence (receipt)
 
 * **Atomic publish:** stage the receipt under a temp dir, fsync, then perform a **single atomic rename** into `…/fingerprint={manifest_fingerprint}/`. **Partial contents MUST NOT become visible.** 
 * **Immutability:** once published, the receipt partition is **immutable**; a subsequent publication for the same identity must be **byte-identical** or a no-op. 
@@ -591,7 +608,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 
 ---
 
-## 8.5 Prohibitions (fail-closed)
+## 8.6 Prohibitions (fail-closed)
 
 S0 **MUST NOT**:
 
@@ -771,7 +788,7 @@ S0 has enumerated the exact upstreams 1B may rely on downstream:
 - FK/geo references: `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`, `tz_world_2025a` (anchors in ingress schema / dictionary; tz_world reserved for later segments).  
 
 **E5. S0 receipt published (idempotent).**
-`s0_gate_receipt_1B` exists under `…/fingerprint={manifest_fingerprint}/…`, validates against its schema, and embeds `manifest_fingerprint` **byte-equal** to the path token. Re-publishing the same identity is byte-identical (atomic publish; partitions immutable). *(Receipt is the only S0 output; format/path are governed by the 1B dictionary.)*  
+`s0_gate_receipt_1B` exists under `…/fingerprint={manifest_fingerprint}/…`, validates against its schema, and embeds `manifest_fingerprint` **byte-equal** to the path token. Re-publishing the same identity is byte-identical (atomic publish; partitions immutable). *(Receipt and `sealed_inputs_1B` are the only S0 outputs; format/path are governed by the 1B dictionary.)*  
 
 **E6. Numeric/RNG baselines pinned for 1B.**
 Layer baselines are in force (IEEE-754 **binary64**, RNE, **no** FMA/**no** FTZ/DAZ; counter-based Philox; envelope & trace rules), as inherited from 1A S0/S9. *(S0 consumes no RNG, but pins the environment for 1B.)* 

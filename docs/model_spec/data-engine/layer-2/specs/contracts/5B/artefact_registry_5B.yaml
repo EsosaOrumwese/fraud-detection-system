@@ -40,7 +40,7 @@ subsegments:
         name: sealed_inputs_5B
         type: dataset
         category: control
-        path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+        path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
         schema: schemas.5B.yaml#/validation/sealed_inputs_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'

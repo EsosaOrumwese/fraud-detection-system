@@ -16,7 +16,7 @@
 
 **Normative cross-references (Binding):**
 
-* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_v1`**.
+* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_2B`**.
 * Upstream in-segment input: **`s1_site_weights`** (2B · S1).
 * Policy: **`alias_layout_policy_v1`** (layout/endianness/alignment, bit-depth, decode/encode law).
 * Segment overview: `state-flow-overview.2B.txt` (context only; this spec governs).
@@ -74,7 +74,7 @@ S2 SHALL read **only** the following assets for this run’s identity:
 2. **`alias_layout_policy_v1`** — policy pack declaring **layout/endianness/alignment**, **bit-depth** (`quantised_bits`), **encode/decode law**, and **checksumming/digest** rules for alias artefacts.
    *This policy is a single file with **no partition tokens**; the selection is the exact path/digest sealed by S0 for this fingerprint.*
 
-> All required assets MUST be resolvable via the Dictionary and MUST appear in S0’s `sealed_inputs_v1` for the same fingerprint.
+> All required assets MUST be resolvable via the Dictionary and MUST appear in S0’s `sealed_inputs_2B` for the same fingerprint.
 
 ### 3.3 Policy minima (Abort if unmet)
 
@@ -96,7 +96,7 @@ Absence of any listed policy entry is an **Abort**.
 * **Exact partitions.**
   • `s1_site_weights`: **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
   • `alias_layout_policy_v1`: **no partition tokens** — select the **exact S0-sealed path** and validate its digest.
-* **Subset of S0.** Every asset S2 reads **MUST** be present in S0’s `sealed_inputs_v1` for this fingerprint. Accessing any asset not listed there is an error.
+* **Subset of S0.** Every asset S2 reads **MUST** be present in S0’s `sealed_inputs_2B` for this fingerprint. Accessing any asset not listed there is an error.
 * **No optional pins.** S2 SHALL NOT read 2A pins (`site_timezones`, `tz_timetable_cache`); they are not required for alias construction.
 
 ### 3.5 Integrity & provenance inputs
@@ -132,7 +132,7 @@ Resolve **only** the following via the Dictionary (no literal paths):
 
 ### 4.3 S0-evidence rule
 
-Cross-layer/policy assets **MUST** appear in S0's `sealed_inputs_v1` for this fingerprint (token-less policies are selected by exact S0‑sealed `path+sha256_hex`, `partition={}`).
+Cross-layer/policy assets **MUST** appear in S0's `sealed_inputs_2B` for this fingerprint (token-less policies are selected by exact S0‑sealed `path+sha256_hex`, `partition={}`).
 Within-segment datasets (e.g., `s1_site_weights`, S2 outputs) are **NOT** S0‑sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed, fingerprint]`**. Literal paths and network I/O are forbidden.
 
 ### 4.4 Prohibited resources & behaviours
@@ -570,7 +570,7 @@ Target partitions for index and blob were empty before publish, or existing byte
 Re-running S2 with identical sealed inputs reproduces **bit-for-bit identical** index and blob; otherwise abort rather than overwrite.
 
 **V-24 — No network & no extra reads (Abort).**
-Execution performed with network I/O disabled and accessed **only** the assets listed in S0’s `sealed_inputs_v1` for this fingerprint.
+Execution performed with network I/O disabled and accessed **only** the assets listed in S0’s `sealed_inputs_2B` for this fingerprint.
 
 **V-25 — Endianness & alignment echo (Abort).**
 Header `endianness` and `alignment_bytes` equal the policy values; every merchant slice begins at an offset aligned to `alignment_bytes`.
@@ -598,7 +598,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
   *Context:* `id`, `expected_partition_or_path`.
 * **2B-S2-021 PROHIBITED_LITERAL_PATH (Abort)** — Attempted read/write via a non-Dictionary path.
   *Context:* `path`.
-* **2B-S2-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed but absent from S0 `sealed_inputs_v1`.
+* **2B-S2-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed but absent from S0 `sealed_inputs_2B`.
   *Context:* `id|path`.
 * **2B-S2-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
   *Context:* `endpoint`.
@@ -1080,7 +1080,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 ### A.2 Prior state evidence (2B.S0)
 
 * **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (fingerprint-scoped).
-* **`sealed_inputs_v1`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
+* **`sealed_inputs_2B`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S2 does not re-hash 1B; it relies on this evidence.)*
 
 ### A.3 Inputs consumed by S2 (read-only)

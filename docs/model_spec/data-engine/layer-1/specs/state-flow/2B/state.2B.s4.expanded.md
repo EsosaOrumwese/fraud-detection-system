@@ -17,7 +17,7 @@
 
 **Normative cross-references (Binding):**
 
-* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_v1`**.
+* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_2B`**.
 * Inputs: **`s1_site_weights`** (2B · S1), **`site_timezones`** (2A egress), **`s3_day_effects`** (2B · S3).
 * Segment overview: `state-flow-overview.2B.txt` (context only; this spec governs).
 
@@ -26,7 +26,7 @@
 * **Run identity:** `{ seed, manifest_fingerprint }`.
 * **Partitioning for S4 outputs:** `[seed, fingerprint]`; **path↔embed equality** MUST hold.
 * **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden.
-  *Evidence rule:* Cross-layer/policy assets MUST appear in S0 `sealed_inputs_v1`;
+  *Evidence rule:* Cross-layer/policy assets MUST appear in S0 `sealed_inputs_2B`;
   within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed but
   MUST match this run’s `{seed,fingerprint}` and be resolved by Dictionary IDs only.
 * **RNG posture:** **RNG-free**.
@@ -77,7 +77,7 @@
 * **Run identity fixed.** The pair **`{ seed, manifest_fingerprint }`** is fixed at S4 start and MUST remain constant.
 * **RNG posture.** S4 performs **no random draws** (RNG-free).
 * **Catalogue discipline.** All inputs resolve by **Dataset Dictionary IDs**; **literal paths are forbidden**.
-* **S0-evidence rule.** Cross-layer/policy assets MUST appear in S0’s `sealed_inputs_v1`;
+* **S0-evidence rule.** Cross-layer/policy assets MUST appear in S0’s `sealed_inputs_2B`;
   within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed
   but MUST match this run’s `{seed,fingerprint}` and be resolved by Dictionary IDs only.
 
@@ -133,7 +133,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 2. **`site_timezones`** — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` per site).
 3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `{utc_day, tz_group_id, gamma}`).
 
-> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1` for the same fingerprint.
+> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for the same fingerprint.
 > Within-segment datasets (`s1_site_weights`, `s3_day_effects`) are not S0-sealed; select them
 > exactly by `{seed,fingerprint}` via the Dictionary (no literals, no wildcards).
 
@@ -492,7 +492,7 @@ Re-running S4 with identical sealed inputs produces **byte-identical** output; o
 
 **V-18 — No network & no extra reads (Abort).**
 Execution performed with network I/O disabled and accessed **only** the inputs enumerated in §4.2
-(Dictionary-resolved). Every cross-layer/policy asset read appears in S0’s `sealed_inputs_v1` for this fingerprint.
+(Dictionary-resolved). Every cross-layer/policy asset read appears in S0’s `sealed_inputs_2B` for this fingerprint.
 
 **V-19 — Optional audit coherence (Abort if present).**
 If `mass_raw`/`denom_raw` columns are present, then for each `{merchant, utc_day}`:
@@ -522,7 +522,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
   *Context:* `path`.
 
 * **2B-S4-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed that is not enumerated in §4.2,
-  or a cross-layer/policy asset absent from S0 `sealed_inputs_v1`.
+  or a cross-layer/policy asset absent from S0 `sealed_inputs_2B`.
   *Context:* `id|path`.
 
 * **2B-S4-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
@@ -977,7 +977,7 @@ Validator IDs (`V-01`…`V-20`) and canonical codes (`2B-S4-…`) are **reserved
 ### A.2 Prior state evidence (2B.S0)
 
 * **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (fingerprint-scoped).
-* **`sealed_inputs_v1`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
+* **`sealed_inputs_2B`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S4 does not re-hash 1B; it relies on this evidence.)*
 
 ### A.3 Inputs consumed by S4 (read-only)

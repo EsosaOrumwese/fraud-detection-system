@@ -996,8 +996,8 @@ datasets:
     owner_subsegment: 5B
     description: Inventory of artefacts 5B is allowed to read for a fingerprint.
     version: '{manifest_fingerprint}'
-    format: parquet
-    path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+    format: json
+    path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
     partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint, owner_segment, artifact_id]
     ordering: [owner_segment, artifact_id, role]

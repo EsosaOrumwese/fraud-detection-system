@@ -337,14 +337,14 @@ subsegments:
     cross_layer: true
     notes: null
 
-  - name: sealed_inputs_v1
-    path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+  - name: sealed_inputs_2A
+    path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
     type: dataset
     category: manifest
     semver: '{semver}'
     version: '{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.manifests.sealed_inputs_v1
+    manifest_key: mlr.2A.manifests.sealed_inputs_2A
     license: Proprietary-Internal
     role: "Row-wise inventory of sealed assets for 2A fingerprint."
     dependencies: [s0_gate_receipt_2A]
@@ -352,6 +352,6 @@ subsegments:
     owner: { owner_team: "mlr-2a-core" }
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema: schemas.2A.yaml#/manifests/sealed_inputs_v1
+    schema: schemas.2A.yaml#/manifests/sealed_inputs_2A
     cross_layer: false
     notes: "Partition manifest_fingerprint={manifest_fingerprint}; path↔embed equality enforced."

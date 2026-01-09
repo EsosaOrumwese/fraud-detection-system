@@ -21,6 +21,25 @@ subsegments:
     schema: schemas.1B.yaml#/validation/s0_gate_receipt
     cross_layer: false
     notes: 'Partition: manifest_fingerprint={manifest_fingerprint}; path↔embed equality enforced.'
+  - name: sealed_inputs_1B
+    path: data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.validation.sealed_inputs
+    license: Proprietary-Internal
+    role: "Authoritative list of assets sealed by 1B.S0 (IDs, tags, digests, paths, partitions)."
+    dependencies: [s0_gate_receipt_1B]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/sealed_inputs_1B
+    cross_layer: false
+    notes:
+
 
   # Cross-layer inputs explicitly referenced by 1B.S0 (gating semantics live in 1A bundle/flag)
   - name: validation_bundle_1A

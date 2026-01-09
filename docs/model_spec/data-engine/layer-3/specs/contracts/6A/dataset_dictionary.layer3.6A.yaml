@@ -524,7 +524,7 @@ datasets:
       Manifest of all artefacts 6A is authorised to depend on for a given
       manifest_fingerprint, with roles, digests, and read scopes.
     version: '{manifest_fingerprint}'
-    path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+    path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
     partitioning: [manifest_fingerprint]
     ordering: [owner_layer, owner_segment, manifest_key]
     schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A

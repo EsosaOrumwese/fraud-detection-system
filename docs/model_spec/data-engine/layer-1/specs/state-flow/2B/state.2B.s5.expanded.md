@@ -16,7 +16,7 @@
 **Normative cross-references (Binding):**
 Upstream evidence & inputs that S5 SHALL treat as authoritative:
 
-* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B` and `sealed_inputs_v1` (fingerprint-scoped; S5 verifies presence, identity, catalogue versions). 
+* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B` and `sealed_inputs_2B` (fingerprint-scoped; S5 verifies presence, identity, catalogue versions). 
 * **Alias artefacts (2B.S2):** `s2_alias_index` (directory & decode invariants) and `s2_alias_blob` (raw bytes; digest echoed in index). 
 * **Day effects (2B.S3):** `s3_day_effects` (γ per merchant×UTC-day×tz-group). 
 * **Group mixes (2B.S4):** `s4_group_weights` (RNG-free probabilities used to pick tz-group). 
@@ -61,8 +61,8 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 
 **3.1 Gate & run-identity (must be true before any read)**
 
-* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_v1`, partitioned by `[fingerprint]`. Path↔embed equality **must** hold. S5 **relies** on this receipt; it does **not** re-hash upstream bundles.  
-* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1`;
+* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B`, partitioned by `[fingerprint]`. Path↔embed equality **must** hold. S5 **relies** on this receipt; it does **not** re-hash upstream bundles.  
+* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B`;
   within-segment datasets (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`,
   `s4_group_weights`, `site_timezones`) are **NOT** S0-sealed but **MUST** be read by
   Dictionary ID at exactly `[seed,fingerprint]`. Literal paths are forbidden.
@@ -146,7 +146,7 @@ S5 SHALL read **exactly** these inputs, under the run identity `{seed, manifest_
 **4.3 Partition & identity discipline (binding)**
 
 * **Exact partitions:** All partitioned reads use **exactly** `[seed, fingerprint]` per the Dictionary; token-less policies carry `partition = {}` in receipts/inventory (schema allows empty maps). **Path↔embed equality** MUST hold wherever identity is embedded.
-* **Evidence:** Cross-layer/policy assets appear in `sealed_inputs_v1`; within-segment datasets are
+* **Evidence:** Cross-layer/policy assets appear in `sealed_inputs_2B`; within-segment datasets are
   selected exactly at `[seed,fingerprint]` by ID (no literals, no wildcards). 
 
 **4.4 Authority boundaries (what S5 SHALL NOT do)**
@@ -440,7 +440,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 
 **V-01 — Gate evidence present (S0)**
 
-* **Checks:** For this `manifest_fingerprint`, `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and are schema-valid; path↔embed equality holds.
+* **Checks:** For this `manifest_fingerprint`, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and are schema-valid; path↔embed equality holds.
 * **Fail →** ⟨2B-S5-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 — S0-evidence & exact selection**
@@ -541,7 +541,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 ### 10.1 Gate & catalogue discipline
 
 **2B-S5-001 — S0_RECEIPT_MISSING** · *Abort*
-**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_v1` absent or schema-invalid at `[fingerprint]`.
+**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent or schema-invalid at `[fingerprint]`.
 **Detect:** V-01. **Remedy:** (i) produce S0 for this fingerprint; (ii) fix schema/partition; re-run. 
 
 **2B-S5-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
@@ -895,7 +895,7 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
 ### A.2 Prior state evidence (2B.S0)
 
 * **`s0_gate_receipt_2B`** (fingerprint-scoped): `schemas.2B.yaml#/validation/s0_gate_receipt_v1`. 
-* **`sealed_inputs_v1`** (fingerprint-scoped): `schemas.2B.yaml#/validation/sealed_inputs_v1`. 
+* **`sealed_inputs_2B`** (fingerprint-scoped): `schemas.2B.yaml#/validation/sealed_inputs_2B`. 
   *(S5 verifies presence/identity; it does not re-hash the 1B bundle.)* 
 
 ---

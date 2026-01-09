@@ -342,7 +342,7 @@ reference_data:
     status: required
     description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+    path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
     partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
@@ -359,7 +359,7 @@ reference_data:
     status: required
     description: Inventory of artefacts 5B is allowed to read for a fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+    path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
     partitioning: [manifest_fingerprint]
     ordering: [owner_segment, artifact_id, role]
     schema_ref: schemas.5B.yaml#/validation/sealed_inputs_5B
@@ -376,7 +376,7 @@ reference_data:
     status: required
     description: Sealed list of all artefacts 6A is allowed to read for a given manifest_fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+    path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
     partitioning: [manifest_fingerprint]
     ordering: [owner_layer, owner_segment, manifest_key]
     schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
@@ -712,7 +712,7 @@ datasets:
       manifest_fingerprint, with roles, schema_refs and digests.
     version: '{manifest_fingerprint}'
     format: parquet
-    path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+    path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
     partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]
     ordering: [owner_layer, owner_segment, manifest_key]

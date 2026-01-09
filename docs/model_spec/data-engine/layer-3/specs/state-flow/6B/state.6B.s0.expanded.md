@@ -478,7 +478,7 @@ The sealed-inputs manifest MUST be registered in the 6B dataset dictionary and a
 
 * `version: '{manifest_fingerprint}'`
 * `format: parquet`
-* `path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
+* `path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json`
 * `partitioning: [fingerprint]`
 * `primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]`
 * `ordering: [owner_layer, owner_segment, manifest_key]`
@@ -761,7 +761,7 @@ At the end of Step 3, S0 has a complete in-memory representation of every artefa
 4. Write the sorted rows into a single parquet file under:
 
    ```text
-   data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+   data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
    ```
 
    taking care to:
@@ -918,7 +918,7 @@ Both outputs of 6B.S0 are **fingerprint-partitioned control-plane datasets**:
 * `sealed_inputs_6B`:
 
   * Path (template):
-    `data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
+    `data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json`
   * Partitioning: `[fingerprint]`
   * Primary key: `[manifest_fingerprint, owner_layer, owner_segment, manifest_key]`
 

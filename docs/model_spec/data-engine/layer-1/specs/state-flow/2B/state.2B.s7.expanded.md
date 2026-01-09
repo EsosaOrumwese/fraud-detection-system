@@ -15,7 +15,7 @@ Schema packs are the **sole shape authorities**; the **Dataset Dictionary** gove
 
 **Normative cross-references (Binding).** S7 SHALL treat the following as authoritative:
 
-* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B` + `sealed_inputs_v1` at `[fingerprint]` prove the sealed inputs; S7 **does not** re-hash 1B. 
+* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B` + `sealed_inputs_2B` at `[fingerprint]` prove the sealed inputs; S7 **does not** re-hash 1B. 
 * **S2 — Alias mechanics (read-only):** `s2_alias_index` (`#/plan/s2_alias_index`) and `s2_alias_blob` (`#/binary/s2_alias_blob`) at `[seed,fingerprint]`; policy echo via `alias_layout_policy_v1`. 
 * **S3 — Day effects (read-only):** `s3_day_effects` (`#/plan/s3_day_effects`) at `[seed,fingerprint]`. 
 * **S4 — Group mixes (read-only):** `s4_group_weights` (`#/plan/s4_group_weights`) at `[seed,fingerprint]`. 
@@ -54,7 +54,7 @@ Schema packs are the **sole shape authorities**; the **Dataset Dictionary** gove
 
 **3.1 Gate & run-identity (must hold before any read)**
 
-* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and validate against the 2B schema pack. S7 **relies** on this receipt; it **does not** re-hash 1B.   
+* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and validate against the 2B schema pack. S7 **relies** on this receipt; it **does not** re-hash 1B.   
 * **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed,fingerprint]`** (no literal paths; no network I/O). 
 
 **3.2 Inputs required by S7 (sealed; read-only)**
@@ -356,7 +356,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 > Every validator below is **mandatory**. S7 is **RNG-free**; when S5/S6 logs are present, S7 only **reads** Layer-1 evidence (events + trace) to reconcile counts/counters/ordering. Inputs are resolved **by Dataset Dictionary ID** at exact partitions; shapes come from the **2B pack** (plan/binary/policies/trace), and Layer-1 only for RNG envelope/core logs.
 
 **V-01 — Gate evidence present (S0)**
-**Check:** `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and are schema-valid.
+**Check:** `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and are schema-valid.
 **Fail →** ⟨2B-S7-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 - S0-evidence & Dictionary-only resolution**
@@ -463,7 +463,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 ### 10.1 Gate & catalogue discipline
 
 * **2B-S7-001 — S0_RECEIPT_MISSING** · *Abort*
-  **Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_v1` absent/invalid at `[fingerprint]`.
+  **Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[fingerprint]`.
   **Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition. 
 
 * **2B-S7-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*

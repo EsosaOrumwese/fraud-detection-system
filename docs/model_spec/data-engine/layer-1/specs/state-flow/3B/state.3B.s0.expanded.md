@@ -362,7 +362,7 @@ They MUST, however, treat `s0_gate_receipt_3B` and `sealed_inputs_3B` as the **o
 4.1.3 The **sealed-inputs inventory** MUST be written as a single-columnar dataset (e.g. Parquet) at a fingerprint-only location:
 
 * Path pattern (normative):
-  `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`
+  `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json`
 * Schema reference (normative):
   `schemas.3B.yaml#/validation/sealed_inputs_3B`.
 
@@ -577,7 +577,7 @@ MUST be treated as a **breaking change** and MUST be accompanied by a major vers
 
 * `dataset_id: sealed_inputs_3B`,
 * `schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B`,
-* `path_template: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`,
+* `path_template: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json`,
 * `partition_keys: ["fingerprint"]`,
 * `writer_sort: ["owner_segment", "artefact_kind", "logical_id", "path"]`.
 
@@ -1010,7 +1010,7 @@ These fields MUST be considered **authoritative** identity for downstream 3B sta
 * `s0_gate_receipt_3B` MUST live at
   `data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`.
 * `sealed_inputs_3B` MUST live at
-  `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`.
+  `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json`.
 
 No other partition keys (e.g. `seed`, `parameter_hash`, `run_id`) MAY appear in the on-disk path for these datasets.
 
@@ -1823,7 +1823,7 @@ Then:
 11.4.2 Storage footprint of S0 outputs is negligible compared to data-plane artefacts:
 
 * `s0_gate_receipt_3B` — single JSON document (kB–10s of kB),
-* `sealed_inputs_3B` — small Parquet table, O(A) rows with a handful of columns.
+* `sealed_inputs_3B` — small JSON table, O(A) rows with a handful of columns.
 
 11.4.3 Because S0 outputs are fingerprint-scoped and immutable:
 

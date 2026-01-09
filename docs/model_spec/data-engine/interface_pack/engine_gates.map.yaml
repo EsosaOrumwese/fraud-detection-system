@@ -14,7 +14,7 @@ gates:
       digest_field: sha256_hex
       ordering: ascii_lex
       exclude_filenames: [_passed.flag]
-    authorizes_outputs: ['outlet_catalogue']
+    authorizes_outputs: ['outlet_catalogue', 'sealed_inputs_1A']
     upstream_gate_dependencies: []
     receipts_emitted: []
     required_by_components: [ingestion_gate, downstream_readers, observability_governance]
@@ -32,7 +32,7 @@ gates:
       digest_field: sha256_hex
       ordering: ascii_lex
       exclude_filenames: [_passed.flag]
-    authorizes_outputs: ['s3_requirements', 's3_run_report', 's4_alloc_plan', 's4_run_report', 's5_site_tile_assignment', 's5_run_report', 's6_site_jitter', 's6_run_report', 's7_site_synthesis', 's7_run_summary', 'site_locations', 's8_run_summary']
+    authorizes_outputs: ['sealed_inputs_1B', 's3_requirements', 's3_run_report', 's4_alloc_plan', 's4_run_report', 's5_site_tile_assignment', 's5_run_report', 's6_site_jitter', 's6_run_report', 's7_site_synthesis', 's7_run_summary', 'site_locations', 's8_run_summary']
     upstream_gate_dependencies: [gate.layer1.1A.validation]
     receipts_emitted: [s0_gate_receipt_1B]
     required_by_components: [ingestion_gate, downstream_readers, observability_governance]
@@ -50,7 +50,7 @@ gates:
       digest_field: sha256_hex
       ordering: ascii_lex
       exclude_filenames: [_passed.flag]
-    authorizes_outputs: ['sealed_inputs_v1_2A', 's1_tz_lookup', 'site_timezones', 'tz_timetable_cache', 's4_legality_report']
+    authorizes_outputs: ['sealed_inputs_2A', 's1_tz_lookup', 'site_timezones', 'tz_timetable_cache', 's4_legality_report']
     upstream_gate_dependencies: [gate.layer1.1B.validation]
     receipts_emitted: [s0_gate_receipt_2A]
     required_by_components: [ingestion_gate, downstream_readers, observability_governance]
@@ -68,7 +68,7 @@ gates:
       digest_field: sha256_hex
       ordering: ascii_lex
       exclude_filenames: [_passed.flag]
-    authorizes_outputs: ['sealed_inputs_v1_2B', 's1_site_weights', 's2_alias_index', 's2_alias_blob', 's3_day_effects', 's4_group_weights', 's7_audit_report']
+    authorizes_outputs: ['sealed_inputs_2B', 's1_site_weights', 's2_alias_index', 's2_alias_blob', 's3_day_effects', 's4_group_weights', 's7_audit_report']
     upstream_gate_dependencies: [gate.layer1.1B.validation, gate.layer1.2A.validation]
     receipts_emitted: [s0_gate_receipt_2B]
     required_by_components: [ingestion_gate, downstream_readers, observability_governance]

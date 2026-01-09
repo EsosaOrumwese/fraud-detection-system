@@ -99,6 +99,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
 - Upstream gates required: _(none)_
 - Public (gated) surfaces:
   - `outlet_catalogue`  (PK: merchant_id, legal_country_iso, site_order)  -> `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`
+  - `sealed_inputs_1A`  (PK: -)  -> `data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json`
 
 ### LAYER1 - 1B
 - S0: 1B - State S0 ("Gate-in & Foundations")
@@ -106,6 +107,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
 - Upstream gates required: `gate.layer1.1A.validation`
 - Public (gated) surfaces:
   - `site_locations`  (PK: merchant_id, legal_country_iso, site_order)  -> `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  - `sealed_inputs_1B`  (PK: -)  -> `data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json`
 
 ### LAYER1 - 2A
 - S0: State 2A.S0 - Gate, Manifest & Sealed Inputs
@@ -137,7 +139,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
   - `s6_issue_table_3A`  (PK: severity, issue_code, merchant_id, legal_country_iso, tzid)  -> `data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet`
   - `s6_receipt_3A`  (PK: -)  -> `data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json`
   - `s6_validation_report_3A`  (PK: -)  -> `data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json`
-  - `sealed_inputs_3A`  (PK: owner_segment, artefact_kind, logical_id)  -> `data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
+  - `sealed_inputs_3A`  (PK: owner_segment, artefact_kind, logical_id)  -> `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json`
   - `zone_alloc`  (PK: merchant_id, legal_country_iso, tzid)  -> `data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/`
   - `zone_alloc_universe_hash`  (PK: -)  -> `data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json`
 
@@ -154,7 +156,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
   - `gamma_draw_log_3B`  (PK: merchant_id, day_index)  -> `logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl`
   - `s4_run_summary_3B`  (PK: -)  -> `data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
   - `s5_manifest_3B`  (PK: -)  -> `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
-  - `sealed_inputs_3B`  (PK: owner_segment, artefact_kind, logical_id, path)  -> `data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`
+  - `sealed_inputs_3B`  (PK: owner_segment, artefact_kind, logical_id, path)  -> `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json`
   - `virtual_classification_3B`  (PK: merchant_id)  -> `data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/`
   - `virtual_routing_policy_3B`  (PK: -)  -> `data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
   - `virtual_settlement_3B`  (PK: merchant_id)  -> `data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/`
@@ -174,7 +176,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
   - `merchant_zone_scenario_local_5A`  (PK: merchant_id, legal_country_iso, tzid, local_horizon_bucket_index)  -> `data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet`
   - `merchant_zone_scenario_utc_5A`  (PK: merchant_id, legal_country_iso, tzid, utc_horizon_bucket_index)  -> `data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet`
   - `scenario_manifest_5A`  (PK: -)  -> `data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet`
-  - `sealed_inputs_5A`  (PK: -)  -> `data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`
+  - `sealed_inputs_5A`  (PK: -)  -> `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json`
   - `validation_issue_table_5A`  (PK: -)  -> `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet`
   - `validation_report_5A`  (PK: -)  -> `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json`
 
@@ -191,7 +193,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
   - `s3_bucket_counts_5B`  (PK: scenario_id, merchant_id, zone_representation, channel_group, bucket_index)  -> `data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet`
   - `s4_arrival_anomalies_5B`  (PK: scenario_id, anomaly_id)  -> `data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet`
   - `s4_arrival_summary_5B`  (PK: scenario_id, merchant_id, zone_representation, bucket_index)  -> `data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet`
-  - `sealed_inputs_5B`  (PK: owner_segment, artifact_id, role)  -> `data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet`
+  - `sealed_inputs_5B`  (PK: owner_segment, artifact_id, role)  -> `data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json`
   - `validation_issue_table_5B`  (PK: -)  -> `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet`
   - `validation_report_5B`  (PK: -)  -> `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json`
 
@@ -223,7 +225,7 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
   - `s5_merchant_fraud_roles_6A`  (PK: merchant_id)  -> `data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet`
   - `s5_party_fraud_roles_6A`  (PK: party_id)  -> `data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet`
   - `s5_validation_report_6A`  (PK: -)  -> `data/layer3/6A/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6A.json`
-  - `sealed_inputs_6A`  (PK: owner_layer, owner_segment, manifest_key)  -> `data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet`
+  - `sealed_inputs_6A`  (PK: owner_layer, owner_segment, manifest_key)  -> `data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json`
 
 ### LAYER3 - 6B
 - S0: 6B.S0 - Behavioural universe gate & sealed inputs (Layer-3 / Segment 6B)
@@ -243,4 +245,4 @@ In the summaries below, "Public (gated) surfaces" means **surfaces a consumer ma
   - `s4_flow_truth_labels_6B`  (PK: seed, manifest_fingerprint, scenario_id, flow_id)  -> `data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet`
   - `s5_issue_table_6B`  (PK: manifest_fingerprint, check_id, issue_id)  -> `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet`
   - `s5_validation_report_6B`  (PK: -)  -> `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json`
-  - `sealed_inputs_6B`  (PK: owner_layer, owner_segment, manifest_key)  -> `data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
+  - `sealed_inputs_6B`  (PK: owner_layer, owner_segment, manifest_key)  -> `data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json`

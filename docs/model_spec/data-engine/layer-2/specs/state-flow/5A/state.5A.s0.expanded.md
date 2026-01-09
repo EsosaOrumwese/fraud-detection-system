@@ -790,7 +790,7 @@ Binding notes:
 
 Binding notes:
 
-- Stored under `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`; partition key is `manifest_fingerprint` only.
+- Stored under `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json`; partition key is `manifest_fingerprint` only.
 - Rows enumerate the whitelist of artefacts 5A may read (owner segment, manifest key, schema_ref, digest, `status`, `read_scope`). Column definitions and enums live solely in the schema pack.
 - Downstream states MUST treat this table as authoritative – no reading artefacts outside the listed rows. Updates require regenerating the manifest and rerunning S0.
 
@@ -1172,7 +1172,7 @@ This digest will be embedded into `s0_gate_receipt_5A` and can be used by downst
 2. **Write to staging locations**
 
    * Write `SEALED_ROWS` to a temporary/staging path, e.g.:
-     `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/.staging/sealed_inputs_5A.parquet`
+     `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/.staging/sealed_inputs_5A.json`
    * Write `RECEIPT` to a temporary/staging path, e.g.:
      `data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/.staging/s0_gate_receipt_5A.json`
 
@@ -1187,7 +1187,7 @@ This digest will be embedded into `s0_gate_receipt_5A` and can be used by downst
 
    * Perform atomic moves/renames from staging to canonical locations:
 
-     * Staging `sealed_inputs_5A.parquet` → canonical `sealed_inputs_5A.parquet`.
+     * Staging `sealed_inputs_5A.json` → canonical `sealed_inputs_5A.json`.
      * Staging `s0_gate_receipt_5A.json` → canonical `s0_gate_receipt_5A.json`.
 
    * The commit MUST be ordered such that:
@@ -1259,7 +1259,7 @@ Both control datasets are **fingerprint-partitioned only**:
 
   * `partition_keys: ["fingerprint"]`
   * Path template:
-    `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`
+    `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json`
 
 If `scenario_manifest_5A` is implemented:
 
@@ -2281,7 +2281,7 @@ Both are small under reasonable constraints on the catalogue/manifest.
 
 * Two small, sequential writes per fingerprint:
 
-  * `sealed_inputs_5A` (single Parquet file).
+  * `sealed_inputs_5A` (single JSON file).
   * `s0_gate_receipt_5A` (single JSON file).
 
 **Potential hotspots**

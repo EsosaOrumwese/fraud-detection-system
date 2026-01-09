@@ -364,6 +364,24 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'HashGate PASS flag for the 1A validation bundle.'
+- output_id: sealed_inputs_1A
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 1A
+  path_template: data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.1A.yaml#/validation/sealed_inputs_1A
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#sealed_inputs_1A
+  primary_key: []
+  join_keys: []
+  read_requires_gates:
+  - gate.layer1.1A.validation
+  immutability:
+    immutable_once_written: true
+  description: 'Authoritative inventory of every asset sealed by 1A.S0 for the manifest.'
+  notes: 'Dictionary id sealed_inputs_1A; namespaced here to enforce unique output_id.'
 - output_id: rng_audit_log_1A
   class: stream
   exposure: internal
@@ -1022,6 +1040,24 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'PASS gate flag; equals SHA-256 of the bundle per S9 hashing rule.'
+- output_id: sealed_inputs_1B
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 1B
+  path_template: data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.1B.yaml#/validation/sealed_inputs_1B
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#sealed_inputs_1B
+  primary_key: []
+  join_keys: []
+  read_requires_gates:
+  - gate.layer1.1B.validation
+  immutability:
+    immutable_once_written: true
+  description: 'Authoritative inventory of every asset sealed by 1B.S0 for the manifest.'
+  notes: 'Dictionary id sealed_inputs_1B; namespaced here to enforce unique output_id.'
 - output_id: jitter_policy
   class: surface
   exposure: internal
@@ -1157,16 +1193,16 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'Fingerprint-scoped receipt proving 1B PASS and recording sealed inputs for 2A.'
-- output_id: sealed_inputs_v1_2A
+- output_id: sealed_inputs_2A
   class: surface
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 2A
-  path_template: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+  path_template: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
   partitions:
   - manifest_fingerprint
-  schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#sealed_inputs_v1
+  schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_2A
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#sealed_inputs_2A
   primary_key:
   - manifest_fingerprint
   - asset_id
@@ -1178,7 +1214,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'Diagnostic inventory of sealed inputs for a 2A fingerprint.'
-  notes: 'Dictionary id sealed_inputs_v1; namespaced here to enforce unique output_id.'
+  notes: 'Dictionary id sealed_inputs_2A; namespaced here to enforce unique output_id.'
 - output_id: s1_tz_lookup
   class: surface
   exposure: internal
@@ -1310,16 +1346,16 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'Gate receipt attesting upstream verification, identity, and catalogue-only resolution.'
-- output_id: sealed_inputs_v1_2B
+- output_id: sealed_inputs_2B
   class: surface
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 2B
-  path_template: data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+  path_template: data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json
   partitions:
   - manifest_fingerprint
-  schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#sealed_inputs_v1
+  schema_ref: schemas.2B.yaml#/validation/sealed_inputs_2B
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#sealed_inputs_2B
   primary_key: []
   join_keys: []
   read_requires_gates:
@@ -1327,7 +1363,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'Authoritative inventory of every asset sealed by 2B.S0 for the manifest.'
-  notes: 'Dictionary id sealed_inputs_v1; namespaced here to enforce unique output_id.'
+  notes: 'Dictionary id sealed_inputs_2B; namespaced here to enforce unique output_id.'
 - output_id: route_rng_policy_v1
   class: surface
   exposure: internal
@@ -1653,7 +1689,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 3A
-  path_template: data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
+  path_template: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.3A.yaml#/validation/sealed_inputs_3A
@@ -2102,7 +2138,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 3B
-  path_template: data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
+  path_template: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B
@@ -2504,7 +2540,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 5A
-  path_template: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+  path_template: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
@@ -3038,7 +3074,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 5B
-  path_template: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+  path_template: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.5B.yaml#/validation/sealed_inputs_5B
@@ -3399,7 +3435,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 6A
-  path_template: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+  path_template: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
@@ -3907,7 +3943,7 @@ outputs:
   exposure: internal
   scope: scope_manifest_fingerprint
   owner_segment: 6B
-  path_template: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+  path_template: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
   partitions:
   - manifest_fingerprint
   schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B

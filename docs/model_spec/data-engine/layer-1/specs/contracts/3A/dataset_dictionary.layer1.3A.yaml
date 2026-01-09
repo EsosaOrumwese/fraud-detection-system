@@ -219,8 +219,8 @@ datasets:
   owner_subsegment: 3A
   description: Sealed inventory of artefacts authorised for Segment 3A.
   version: '{manifest_fingerprint}'
-  format: parquet
-  path: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
+  format: json
+  path: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json
   partitioning: [manifest_fingerprint]
   ordering: [owner_segment, artefact_kind, logical_id]
   schema_ref: schemas.3A.yaml#/validation/sealed_inputs_3A

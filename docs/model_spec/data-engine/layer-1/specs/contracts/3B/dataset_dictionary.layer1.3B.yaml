@@ -400,8 +400,8 @@ datasets:
   owner_subsegment: 3B
   description: Inventory of every artefact authorised for the manifest.
   version: '{manifest_fingerprint}'
-  format: parquet
-  path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
+  format: json
+  path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json
   partitioning: [manifest_fingerprint]
   ordering: [owner_segment, artefact_kind, logical_id, path]
   schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B

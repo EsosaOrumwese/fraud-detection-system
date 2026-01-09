@@ -199,7 +199,7 @@ Before 5B.S1 may execute for a given `(parameter_hash = ph, manifest_fingerprint
    * A single `s0_gate_receipt_5B` file MUST exist at:
      `data/layer2/5B/s0_gate_receipt/manifest_fingerprint=mf/s0_gate_receipt_5B.json`
    * A single `sealed_inputs_5B` file MUST exist at:
-     `data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.parquet`
+     `data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.json`
 
 2. **Receipt and inventory MUST be consistent**
 

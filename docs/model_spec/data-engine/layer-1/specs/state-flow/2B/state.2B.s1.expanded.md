@@ -16,7 +16,7 @@
 
 **Normative cross-references (Binding):**
 
-* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_v1`**.
+* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_2B`**.
 * Upstream egress: **`site_locations`** (Layer-1 · 1B).
 * Policy: **`alias_layout_policy_v1`** (quantisation/floor/encoding constraints for S1/S2).
 * Optional pins (read-only): **`site_timezones`**, **`tz_timetable_cache`** (Layer-2 · 2A).
@@ -97,7 +97,7 @@ If exactly one is present in S0’s inventory, S1 MUST treat this as **mixed pin
   • For `site_locations`: **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
   • For `alias_layout_policy_v1`: **no partition tokens**; select the **exact S0-sealed path** (and digest) for this fingerprint.
   • For optional pins: as stated above.
-* **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0's `sealed_inputs_v1` for this fingerprint. Accessing any asset not listed there is an error.
+* **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0's `sealed_inputs_2B` for this fingerprint. Accessing any asset not listed there is an error.
 * **No re-hashing upstream gates.** S1 MUST NOT recompute the 1B bundle hash; the S0 receipt is the sole attestation.
 
 ### 3.5 Input field expectations (from policy; Abort if unmet)
@@ -133,7 +133,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
    * `site_timezones` — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}`
    * `tz_timetable_cache` — 2A cache at `fingerprint={manifest_fingerprint}`
 
-> **Subset of S0:** Every asset S1 reads **MUST** appear in the S0 `sealed_inputs_v1` for the same fingerprint.
+> **Subset of S0:** Every asset S1 reads **MUST** appear in the S0 `sealed_inputs_2B` for the same fingerprint.
 
 ### 4.3 Prohibited resources & reads
 
@@ -487,7 +487,7 @@ Target partition was empty before publish, or existing bytes are bit-identical.
 Re-running S1 with identical sealed inputs reproduces **byte-identical** output; otherwise abort rather than overwrite.
 
 **V-19 — No network & no extra reads (Abort).**
-Execution performed with network I/O disabled and only accessed assets listed in S0’s `sealed_inputs_v1` for this fingerprint.
+Execution performed with network I/O disabled and only accessed assets listed in S0’s `sealed_inputs_2B` for this fingerprint.
 
 **V-20 — Optional pins all-or-none (Warn).**
 If one of `{site_timezones, tz_timetable_cache}` is present for this fingerprint, both are present; otherwise neither.
@@ -510,7 +510,7 @@ Each failure **MUST** be logged with: `code`, `severity`, `message`, `fingerprin
 * **2B-S1-021 PROHIBITED_LITERAL_PATH (Abort)** — Attempted read/write via a literal path (not Dictionary-resolved).
   *Context:* `path`.
 
-* **2B-S1-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset was accessed but is absent from S0’s `sealed_inputs_v1`.
+* **2B-S1-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset was accessed but is absent from S0’s `sealed_inputs_2B`.
   *Context:* `id|path`.
 
 * **2B-S1-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
@@ -964,7 +964,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 ### A.2 Prior state evidence (2B.S0)
 
 * **`s0_gate_receipt_2B`** (JSON; fingerprint-scoped) — gate verification, identity, catalogue versions.
-* **`sealed_inputs_v1`** (JSON table; fingerprint-scoped) — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
+* **`sealed_inputs_2B`** (JSON table; fingerprint-scoped) — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S1 does not re-hash 1B; it relies on this evidence.)*
 
 ### A.3 Inputs consumed by S1 (read-only)

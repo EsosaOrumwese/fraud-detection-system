@@ -42,8 +42,8 @@ subsegments:
         schema: schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
-      - name: sealed_inputs_6A
-        path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+  - name: sealed_inputs_6A
+    path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
         type: dataset
         category: validation
         semver: 1.0.0

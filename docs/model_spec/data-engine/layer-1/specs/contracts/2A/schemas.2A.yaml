@@ -134,7 +134,7 @@ validation:
 # ── Manifests (diagnostics) ───────────────────────────────────────────────
 manifests:
 
-  sealed_inputs_v1:
+  sealed_inputs_2A:
     type: table
     description: "Row-wise inventory of sealed assets for 2A fingerprint."
     primary_key: [manifest_fingerprint, asset_id]

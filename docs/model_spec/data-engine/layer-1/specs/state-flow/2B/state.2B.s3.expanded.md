@@ -17,7 +17,7 @@
 
 **Normative cross-references (Binding):**
 
-* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_v1`**.
+* Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_2B`**.
 * Upstream inputs: **`s1_site_weights`** (2B · S1), **`site_timezones`** (2A egress).
 * Policy: **`day_effect_policy_v1`** (Philox sub-streams/budgets, σ parameters, day range).
 * Segment context: `state-flow-overview.2B.txt` (context only; this spec governs).
@@ -71,7 +71,7 @@
 * **Run identity fixed.** The pair **`{ seed, manifest_fingerprint }`** is fixed at S3 start and MUST remain constant.
 * **RNG posture.** S3 is **RNG-bounded, reproducible** (counter-based Philox per governed policy).
 * **Catalogue discipline.** All inputs resolve by **Dataset Dictionary IDs**; literal paths are forbidden.
-* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1` for this fingerprint; within-segment datasets are **NOT** S0-sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`**.
+* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for this fingerprint; within-segment datasets are **NOT** S0-sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`**.
 
 ### 3.2 Required sealed inputs (must all be present)
 
@@ -136,7 +136,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 2. **`site_timezones`** — at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` for tz-grouping).
 3. **`day_effect_policy_v1`** — policy pack (**no partition tokens**); select the **exact S0-sealed path/digest** for this fingerprint.
 
-> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1`; within-segment datasets are **NOT** S0-sealed and are resolved by ID at **`[seed,fingerprint]`**.
+> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B`; within-segment datasets are **NOT** S0-sealed and are resolved by ID at **`[seed,fingerprint]`**.
 
 ### 4.3 Prohibited resources & behaviours
 
@@ -536,7 +536,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S3-021 PROHIBITED_LITERAL_PATH (Abort)** — Attempted read/write via a non-Dictionary path.
   *Context:* `path`.
 
-* **2B-S3-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed but absent from S0 `sealed_inputs_v1`.
+* **2B-S3-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed but absent from S0 `sealed_inputs_2B`.
   *Context:* `id|path`.
 
 * **2B-S3-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
@@ -1037,7 +1037,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 ### A.2 Prior state evidence (2B.S0)
 
 * **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (fingerprint-scoped).
-* **`sealed_inputs_v1`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
+* **`sealed_inputs_2B`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S3 does not re-hash 1B; it relies on this evidence.)*
 
 ### A.3 Inputs consumed by S3 (read-only)

@@ -5,7 +5,7 @@ subsegments:
     artifacts:
       # S0 — control plane
       - manifest_key: mlr.5A.validation.s0_gate_receipt
-        name: Layer-2 / 5A gate receipt
+        name: s0_gate_receipt_5A
         type: dataset
         category: control
         path: data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
@@ -35,10 +35,10 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.validation.sealed_inputs
-        name: Layer-2 / 5A sealed inputs
+        name: sealed_inputs_5A
         type: dataset
         category: control
-        path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+        path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
         schema: schemas.5A.yaml#/validation/sealed_inputs_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -52,7 +52,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.validation.scenario_manifest
-        name: Layer-2 / 5A scenario manifest
+        name: scenario_manifest_5A
         type: dataset
         category: control
         path: data/layer2/5A/scenario_manifest/manifest_fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
@@ -600,7 +600,7 @@ subsegments:
 
       # 5A - policy & scenario configs (inputs, sealed by S0)
       - manifest_key: mlr.5A.policy.merchant_class
-        name: Layer-2 / 5A merchant class policy
+        name: merchant_class_policy_5A
         type: dataset
         category: policy
         path: config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml
@@ -617,7 +617,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.policy.demand_scale
-        name: Layer-2 / 5A demand scale policy
+        name: demand_scale_policy_5A
         type: dataset
         category: policy
         path: config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml
@@ -634,7 +634,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.policy.baseline_intensity
-        name: Layer-2 / 5A baseline intensity policy
+        name: baseline_intensity_policy_5A
         type: dataset
         category: policy
         path: config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml
@@ -651,7 +651,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.policy.shape_library
-        name: Layer-2 / 5A shape library
+        name: shape_library_5A
         type: dataset
         category: policy
         path: config/layer2/5A/policy/shape_library_5A.v1.yaml
@@ -702,7 +702,7 @@ subsegments:
         notes: optional
 
       - manifest_key: mlr.5A.scenario.horizon_config
-        name: Layer-2 / 5A scenario horizon config
+        name: scenario_horizon_config_5A
         type: dataset
         category: config
         path: config/layer2/5A/scenario/scenario_horizon_config_5A.v1.yaml
@@ -736,7 +736,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.scenario.calendar
-        name: Layer-2 / 5A scenario calendar
+        name: scenario_calendar_5A
         type: dataset
         category: config
         path: data/layer2/5A/scenario_calendar/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/scenario_calendar_5A.parquet
@@ -770,7 +770,7 @@ subsegments:
         notes: optional
 
       - manifest_key: mlr.5A.scenario.overlay_policy
-        name: Layer-2 / 5A scenario overlay policy
+        name: scenario_overlay_policy_5A
         type: dataset
         category: policy
         path: config/layer2/5A/scenario/scenario_overlay_policy_5A.v1.yaml
@@ -839,7 +839,7 @@ subsegments:
 
       # S1 - classification
       - manifest_key: mlr.5A.model.merchant_zone_profile
-        name: Layer-2 / 5A merchant×zone demand profile
+        name: merchant_zone_profile_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
@@ -858,7 +858,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.model.merchant_class_profile
-        name: Layer-2 / 5A merchant class profile
+        name: merchant_class_profile_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_class_profile/manifest_fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
@@ -877,7 +877,7 @@ subsegments:
 
       # S2 — weekly shape library
       - manifest_key: mlr.5A.model.shape_grid_definition
-        name: Layer-2 / 5A local-week shape grid definition
+        name: shape_grid_definition_5A
         type: dataset
         category: model_config
         path: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
@@ -894,7 +894,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.model.class_zone_shape
-        name: Layer-2 / 5A class×zone weekly shape library
+        name: class_zone_shape_5A
         type: dataset
         category: model
         path: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
@@ -913,7 +913,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.model.class_shape_catalogue
-        name: Layer-2 / 5A base class shape catalogue
+        name: class_shape_catalogue_5A
         type: dataset
         category: model
         path: data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
@@ -932,7 +932,7 @@ subsegments:
 
       # S3 — baselines
       - manifest_key: mlr.5A.model.merchant_zone_baseline_local
-        name: Layer-2 / 5A merchant×zone baseline local intensities
+        name: merchant_zone_baseline_local_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_zone_baseline_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
@@ -952,7 +952,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.model.class_zone_baseline_local
-        name: Layer-2 / 5A class×zone baseline local intensities
+        name: class_zone_baseline_local_5A
         type: dataset
         category: model
         path: data/layer2/5A/class_zone_baseline_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
@@ -970,7 +970,7 @@ subsegments:
         notes: optional
 
       - manifest_key: mlr.5A.model.merchant_zone_baseline_utc
-        name: Layer-2 / 5A merchant×zone baseline UTC intensities
+        name: merchant_zone_baseline_utc_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_zone_baseline_utc/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
@@ -991,7 +991,7 @@ subsegments:
 
       # S4 — scenario overlays
       - manifest_key: mlr.5A.model.merchant_zone_scenario_local
-        name: Layer-2 / 5A merchant×zone scenario-adjusted local intensities
+        name: merchant_zone_scenario_local_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_zone_scenario_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
@@ -1013,7 +1013,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.model.merchant_zone_overlay_factors
-        name: Layer-2 / 5A merchant×zone overlay factors
+        name: merchant_zone_overlay_factors_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_zone_overlay_factors/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
@@ -1034,7 +1034,7 @@ subsegments:
         notes: optional
 
       - manifest_key: mlr.5A.model.merchant_zone_scenario_utc
-        name: Layer-2 / 5A merchant×zone scenario-adjusted UTC intensities
+        name: merchant_zone_scenario_utc_5A
         type: dataset
         category: model
         path: data/layer2/5A/merchant_zone_scenario_utc/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
@@ -1116,7 +1116,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.validation.report
-        name: Layer-2 / 5A validation report
+        name: validation_report_5A
         type: dataset
         category: validation
         path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
@@ -1134,7 +1134,7 @@ subsegments:
         notes:
 
       - manifest_key: mlr.5A.validation.issues
-        name: Layer-2 / 5A validation issue table
+        name: validation_issue_table_5A
         type: dataset
         category: validation
         path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet

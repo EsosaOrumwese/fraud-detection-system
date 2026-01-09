@@ -35,16 +35,16 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
-  - id: sealed_inputs_v1
+  - id: sealed_inputs_2B
     status: approved
     owner_subsegment: 2B
     description: Authoritative inventory of every asset sealed by 2B.S0 for the manifest.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/sealed_inputs_v1/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    path: data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json
     partitioning: [manifest_fingerprint]
     ordering: []
-    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
+    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_2B
     lineage:
       produced_by: 2B.S0
       consumed_by: [2B]

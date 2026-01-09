@@ -431,12 +431,12 @@ No downstream consumer may treat the **presence** of `s0_gate_receipt_3A` alone 
 
 **Identity & path**
 
-* Dataset ID (logical): **`sealed_inputs_3A`** (or a shared `sealed_inputs_v1` schema reused across segments, as defined in `dataset_dictionary.layer1.3A.yaml`).
+* Dataset ID (logical): **`sealed_inputs_3A`** (schema defined in `dataset_dictionary.layer1.3A.yaml`).
 * Scope: one dataset per `manifest_fingerprint`.
 * Physical layout (conceptual pattern):
 
   * Path pattern:
-    `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
+    `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json`
     (filename and format are implementation details; the path **MUST** include `fingerprint={manifest_fingerprint}` as the only partition key).
   * Partitioning: **`[fingerprint]`** only.
 * Each row MUST contain a `manifest_fingerprint` column whose value equals the path token.
@@ -989,7 +989,7 @@ Both S0 artefacts are **fingerprint-scoped**. They MUST obey the same partitioni
 
    * Partition key set: `["fingerprint"]` only.
    * Physical layout MUST follow the dictionary entry (conceptually):
-     `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
+     `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json`
    * All rows in a given partition MUST have the same `manifest_fingerprint` value.
 
 **Partitioning invariants:**

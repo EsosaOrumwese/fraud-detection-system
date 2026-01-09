@@ -27,11 +27,20 @@ $defs:
     minimum: 1
     maximum: 18446744073709551615
     description: Positive 64-bit identifier (unsigned envelope).
+  hex64:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    description: Lowercase hex SHA-256 digest.
   uint64:
     type: integer
     minimum: 0
     maximum: 18446744073709551615
     description: Unsigned 64-bit integer.
+  partition_kv:
+    type: object
+    additionalProperties:
+      type: string
+    minProperties: 0
 
 # NOTE (aligned with S0): Parameter-scoped datasets partition by parameter_hash.
 #   • Row-level lineage: they MUST embed parameter_hash; they MAY include produced_by_fingerprint (hex64) as optional, informational lineage.
@@ -368,6 +377,30 @@ validation:
 #      - { name: lower,     type: float64,  nullable: true,  description: "Lower bound (if monitored with bounds)." }
 #      - { name: upper,     type: float64,  nullable: true,  description: "Upper bound (if monitored with bounds)." }
 #      - { name: passed,    type: boolean,  nullable: true,  description: "Optional quick flag whether within thresholds." }
+
+  sealed_inputs_1A:
+    type: array
+    description: "Authoritative inventory of every asset sealed by 1A.S0 for the manifest."
+    items:
+      type: object
+      additionalProperties: false
+      required: [asset_id, version_tag, sha256_hex, path, partition]
+      properties:
+        asset_id:
+          type: string
+          minLength: 1
+        version_tag:
+          type: string
+          minLength: 1
+        sha256_hex:
+          $ref: '#/$defs/hex64'
+        path:
+          type: string
+          minLength: 1
+        partition:
+          $ref: '#/$defs/partition_kv'
+        schema_ref:
+          type: string
 
   validation_bundle:
     type: bundle

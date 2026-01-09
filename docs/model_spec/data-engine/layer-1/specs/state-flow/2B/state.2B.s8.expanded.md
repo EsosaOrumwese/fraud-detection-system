@@ -24,7 +24,7 @@
 **Normative cross-references (Binding).**
 S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
-* **S0 evidence (2B):** `s0_gate_receipt_2B`, `sealed_inputs_v1` — fingerprint-scoped.
+* **S0 evidence (2B):** `s0_gate_receipt_2B`, `sealed_inputs_2B` — fingerprint-scoped.
 * **S7 audit:** `s7_audit_report_v1` — one per **seed** at `[seed, fingerprint]` and status **PASS**.
 * **Plans referenced for provenance (read-only):** `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` — all at `[seed, fingerprint]`.
 * **Policies (token-less; S0-sealed):** `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1`.
@@ -101,7 +101,7 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 **3.1 Gate & authority (must hold before any read)**
 
-* **S0 evidence present for this fingerprint.** `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and validate against the 2B pack. S8 **relies** on S0 (does not re-hash upstream 1B). 
+* **S0 evidence present for this fingerprint.** `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and validate against the 2B pack. S8 **relies** on S0 (does not re-hash upstream 1B). 
 * **Index/flag laws in force.** S8 will use the canonical **bundle index schema** (fields `{path, sha256_hex}`, relative paths, ASCII-lex order) and the **`_passed.flag`** law (exact one-line `sha256_hex = <hex64>`).
 * **RNG posture:** **RNG-free**. No random draws are permitted anywhere in S8. *(Hashing only.)*
 
@@ -123,7 +123,7 @@ Evidence posture: cross‑layer/policy assets **MUST** appear in S0’s sealed i
 within‑segment datasets (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) are **NOT** S0‑sealed and **MUST**
 be read at exactly **`[seed, fingerprint]`** (no literals, no network).
 
-* **S0 evidence (fingerprint-scoped):** `s0_gate_receipt_2B`, `sealed_inputs_v1` (for provenance and sealed digests/paths). 
+* **S0 evidence (fingerprint-scoped):** `s0_gate_receipt_2B`, `sealed_inputs_2B` (for provenance and sealed digests/paths). 
 * **S7 reports (seed×fingerprint-scoped):** one `s7_audit_report` per required seed (PASS). **Shape:** `#/validation/s7_audit_report_v1`. 
 * **Plans for provenance echo (seed×fingerprint-scoped):**
   `s2_alias_index` (`#/plan/s2_alias_index`), `s2_alias_blob` (`#/binary/s2_alias_blob`), `s3_day_effects` (`#/plan/s3_day_effects`), `s4_group_weights` (`#/plan/s4_group_weights`). *(S8 does **not** re-audit these; used to echo/verify digests and to compute the seed intersection.)* 
@@ -138,7 +138,7 @@ be read at exactly **`[seed, fingerprint]`** (no literals, no network).
 **3.6 Integrity pre-flight before packaging (abort on failure)**
 
 * **S7 presence & status:** every required seed has a report; each validates (`s7_audit_report_v1`) with `overall_status="PASS"`. 
-* **Sealed‑digest parity (policies only):** for token‑less policies, the `(path, sha256_hex)` in `sealed_inputs_v1` **must** match what S8 resolves.
+* **Sealed‑digest parity (policies only):** for token‑less policies, the `(path, sha256_hex)` in `sealed_inputs_2B` **must** match what S8 resolves.
   S8 does **not** require S0 parity for S2/S3/S4; these are within‑segment and **must** be selected by ID at **`[seed, fingerprint]`**
   (their integrity is audited upstream; S8 packages evidence only).
 * **Bundle law availability:** the implementation must have the canonical **index schema** and **flag** anchors available (see §6) to validate `index.json` and `_passed.flag` prior to publish.
@@ -166,7 +166,7 @@ be read at exactly **`[seed, fingerprint]`** (no literals, no network).
 Evidence rule: cross‑layer/policy inputs **MUST** appear in S0’s sealed inventory; within‑segment inputs are **not** S0‑sealed and
 **MUST** be selected by ID at **`[seed, fingerprint]`**.
 
-* **S0 evidence (fingerprint):** `s0_gate_receipt_2B`, `sealed_inputs_v1` — provenance + sealed digests/paths.
+* **S0 evidence (fingerprint):** `s0_gate_receipt_2B`, `sealed_inputs_2B` — provenance + sealed digests/paths.
 * **S7 audit reports (one per required seed):**
   `s7_audit_report@seed={seed}/fingerprint={manifest_fingerprint}`
   **Shape:** `schemas.2B.yaml#/validation/s7_audit_report_v1` (fields-strict). **Partition:** `[seed, fingerprint]`.  
@@ -301,7 +301,7 @@ S8 *does not re-audit*; it references these anchors to validate prerequisites an
 * **Recommended** deterministic layout (informative):
 
   * `reports/seed={seed}/s7_audit_report.json` (one per seed)
-  * `evidence/s0/{s0_gate_receipt_2B.json, sealed_inputs_v1.json}`
+  * `evidence/s0/{s0_gate_receipt_2B.json, sealed_inputs_2B.json}`
   * `evidence/refs/{policies|s2|s3|s4}/…` (optional snapshots)
 * All files listed in `index.json` **must** reside **within** the bundle root.
 
@@ -333,10 +333,10 @@ Implementations **MUST** validate, prior to publish:
 
 ### 7.1 Resolve & verify prerequisites (RNG-free)
 
-1. **Resolve by ID (Dictionary-only):** `s0_gate_receipt_2B`, `sealed_inputs_v1`; all **S7** reports; **S2/S3/S4** plans; token-less **policies** (selected by S0-sealed path+digest). **No network I/O; no literal paths.**
+1. **Resolve by ID (Dictionary-only):** `s0_gate_receipt_2B`, `sealed_inputs_2B`; all **S7** reports; **S2/S3/S4** plans; token-less **policies** (selected by S0-sealed path+digest). **No network I/O; no literal paths.**
 2. **Seed discovery (intersection):** Required seeds = **intersection** of seeds present at this fingerprint in `s2_alias_index`, `s3_day_effects`, `s4_group_weights`. **Abort** if empty. Sort seeds **ASCII-lex** by their decimal string for stability. 
 3. **S7 coverage:** For **every** discovered seed, load `s7_audit_report@[seed,fingerprint]`, validate against `#/validation/s7_audit_report_v1`, and require `summary.overall_status == "PASS"`. (WARN allowed unless policy forbids.) 
-4. **Sealed-digest parity (policies only):** For token-less policies, echo `(path, sha256_hex)` from `sealed_inputs_v1` and require equality.
+4. **Sealed-digest parity (policies only):** For token-less policies, echo `(path, sha256_hex)` from `sealed_inputs_2B` and require equality.
    For S2/S3/S4 (within-segment), select by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`** (no literals); do not require S0 parity. 
 
 ### 7.2 Stage bundle workspace (RNG-free)
@@ -345,7 +345,7 @@ Implementations **MUST** validate, prior to publish:
 6. **Deterministic layout (informative):**
 
    * `reports/seed={seed}/s7_audit_report.json` (one per seed, seeds in sorted order)
-   * `evidence/s0/{s0_gate_receipt_2B.json, sealed_inputs_v1.json}`
+   * `evidence/s0/{s0_gate_receipt_2B.json, sealed_inputs_2B.json}`
    * `evidence/refs/{policies|s2|s3|s4}/…` (optional snapshots)
      Copy or hard-link **bytes unchanged** (no normalisation, no re-write). Paths in the bundle **must be under the root** (no `..`). 
 
@@ -432,7 +432,7 @@ Validate against the **flag** anchor. **The flag is not listed** in `index.json`
 > S8 is **RNG-free**. All inputs are **Dataset-Dictionary** resolved; all publishes are **fingerprint-scoped**. Index/flag laws are **canonical**.
 
 **V-01 — Gate evidence present (S0)**
-**Check:** `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and validate.
+**Check:** `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and validate.
 **Fail →** ⟨2B-S8-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 — S0-evidence & Dictionary-only**
@@ -450,7 +450,7 @@ inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`)
 **Fail →** ⟨2B-S8-031 S7_REPORT_NOT_PASS⟩ / ⟨2B-S8-032 S7_REPORT_MISSING⟩. 
 
 **V-05 - Sealed-digest parity (policies only)**
-**Check:** For token-less policies, the `(path, sha256_hex)` in `sealed_inputs_v1` **equals** what S8 resolves.
+**Check:** For token-less policies, the `(path, sha256_hex)` in `sealed_inputs_2B` **equals** what S8 resolves.
 For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`** (no S0 parity required).
 **Fail →** ⟨2B-S8-033 SEALED_DIGEST_MISMATCH⟩. 
 
@@ -514,7 +514,7 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 ### 10.1 Gate & catalogue discipline
 
 **2B-S8-001 — S0_RECEIPT_MISSING** · *Abort*
-**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_v1` absent/invalid at `[fingerprint]`.
+**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[fingerprint]`.
 **Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition.
 
 **2B-S8-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
@@ -887,7 +887,7 @@ Require a coordinated **major** for S8 and contract packs:
 
 **A.2 2B anchors S8 references (read-only evidence)**
 
-* **S0 evidence:** `#/validation/s0_gate_receipt_2B`, `#/validation/sealed_inputs_v1` (fingerprint-scoped provenance).
+* **S0 evidence:** `#/validation/s0_gate_receipt_2B`, `#/validation/sealed_inputs_2B` (fingerprint-scoped provenance).
 * **S7 audit:** `#/validation/s7_audit_report_v1` (one per seed at `[seed,fingerprint]`).
 * **Plans/Binary:**
   • `#/plan/s2_alias_index` · `#/binary/s2_alias_blob`
@@ -906,7 +906,7 @@ Require a coordinated **major** for S8 and contract packs:
   • `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` → **`[seed, fingerprint]`**
   • `s7_audit_report` → **`[seed, fingerprint]`**
   • Policies `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1` → **token-less** (`partition = {}`), **selected by S0-sealed path+sha256**
-  • S0 evidence (`s0_gate_receipt_2B`, `sealed_inputs_v1`) → **`[fingerprint]`**
+  • S0 evidence (`s0_gate_receipt_2B`, `sealed_inputs_2B`) → **`[fingerprint]`**
 * **Outputs (authoritative):**
   • `validation_bundle_2B` → `…/fingerprint={manifest_fingerprint}/index.json` (**`[fingerprint]`**; `format: json`; `schema_ref: …#/validation/validation_bundle.index_schema`)
   • `validation_passed_flag_2B` → `…/fingerprint={manifest_fingerprint}/_passed.flag` (**`[fingerprint]`**; `format: text`; `schema_ref: …#/validation/passed_flag`)
@@ -933,7 +933,7 @@ Require a coordinated **major** for S8 and contract packs:
 **A.6 Recommended bundle layout (non-authoritative)**
 
 * `reports/seed={seed}/s7_audit_report.json` (one per seed)
-* `evidence/s0/{s0_gate_receipt_2B.json, sealed_inputs_v1.json}`
+* `evidence/s0/{s0_gate_receipt_2B.json, sealed_inputs_2B.json}`
 * `evidence/refs/{policies|s2|s3|s4}/…` (optional snapshots)
 
 > These cross-references pin S8’s authority chain: canonical **index/flag** laws for the bundle; 2B and S0/S7 anchors for evidence; Dictionary IDs for selection & partitions; and Registry metadata for write-once/atomic publish.

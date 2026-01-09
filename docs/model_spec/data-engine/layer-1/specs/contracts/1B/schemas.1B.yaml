@@ -9,6 +9,11 @@ $defs:
     type: string
     pattern: ^[a-f0-9]{64}$
     description: Lowercase hex SHA-256 digest.
+  partition_kv:
+    type: object
+    additionalProperties:
+      type: string
+    minProperties: 0
   uint64:
     type: integer
     minimum: 0
@@ -165,6 +170,30 @@ validation:
             schema_ref: {type: string, description: 'Schema anchor for the input, when applicable.'}
           additionalProperties: false
       - {name: notes, type: string, nullable: true, description: 'Optional free-text.'}
+
+  sealed_inputs_1B:
+    type: array
+    description: "Authoritative inventory of every asset sealed by 1B.S0 for the manifest."
+    items:
+      type: object
+      additionalProperties: false
+      required: [asset_id, version_tag, sha256_hex, path, partition]
+      properties:
+        asset_id:
+          type: string
+          minLength: 1
+        version_tag:
+          type: string
+          minLength: 1
+        sha256_hex:
+          $ref: "#/$defs/hex64"
+        path:
+          type: string
+          minLength: 1
+        partition:
+          $ref: "#/$defs/partition_kv"
+        schema_ref:
+          type: string
 
   validation_bundle_1B:
     type: bundle

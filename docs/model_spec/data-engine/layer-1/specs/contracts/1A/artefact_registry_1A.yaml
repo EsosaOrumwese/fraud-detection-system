@@ -1378,6 +1378,25 @@ subsegments:
 #        cross_layer: false
 #        notes: null
 
+  - name: sealed_inputs_1A
+    path: data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.sealed_inputs
+    license: Proprietary-Internal
+    role: "Authoritative list of assets sealed by 1A.S0 (IDs, tags, digests, paths, partitions)."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/validation/sealed_inputs_1A
+    cross_layer: false
+    notes:
+
   - name: validation_bundle_1A
     path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: dataset

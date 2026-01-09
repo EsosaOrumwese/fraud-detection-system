@@ -222,16 +222,16 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-- id: sealed_inputs_v1
+- id: sealed_inputs_2A
   status: approved
   owner_subsegment: 2A
   description: 'Diagnostic inventory of sealed inputs for a 2A fingerprint.'
   version: '{manifest_fingerprint}'
-  format: parquet
-  path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+  format: json
+  path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
   partitioning: [manifest_fingerprint]
   ordering: [asset_kind, basename]
-  schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
+  schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_2A
   lineage:
     produced_by: 2A.S0
     consumed_by: [2A]

@@ -165,6 +165,9 @@ data/
             parameter_hash={parameter_hash}/  [id: s6_membership]
         seed={seed}/
           parameter_hash={parameter_hash}/  [id: s6_validation_receipt]
+      sealed_inputs/
+        manifest_fingerprint={manifest_fingerprint}/
+          sealed_inputs_1A.json  [id: sealed_inputs_1A]
       sparse_flag/
         parameter_hash={parameter_hash}/  [id: sparse_flag]
       validation/
@@ -194,6 +197,9 @@ data/
         seed={seed}/
           parameter_hash={parameter_hash}/
             manifest_fingerprint={manifest_fingerprint}/  [id: s7_site_synthesis]
+      sealed_inputs/
+        manifest_fingerprint={manifest_fingerprint}/
+          sealed_inputs_1B.json  [id: sealed_inputs_1B]
       site_locations/
         seed={seed}/
           manifest_fingerprint={manifest_fingerprint}/  [id: site_locations]
@@ -219,7 +225,7 @@ data/
           manifest_fingerprint={manifest_fingerprint}/  [id: s1_tz_lookup]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_v1.parquet  [id: sealed_inputs_v1]
+          sealed_inputs_2A.json  [id: sealed_inputs_2A]
       site_timezones/
         seed={seed}/
           manifest_fingerprint={manifest_fingerprint}/  [id: site_timezones]
@@ -259,9 +265,9 @@ data/
         seed={seed}/
           manifest_fingerprint={manifest_fingerprint}/
             s7_audit_report.json  [id: s7_audit_report]
-      sealed_inputs_v1/
+      sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_v1.json  [id: sealed_inputs_v1]
+          sealed_inputs_2B.json  [id: sealed_inputs_2B]
       validation/
         manifest_fingerprint={manifest_fingerprint}/
           _passed.flag  [id: validation_passed_flag_2B]
@@ -292,7 +298,7 @@ data/
           report.json  [id: s6_validation_report_3A]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_3A.parquet  [id: sealed_inputs_3A]
+          sealed_inputs_3A.json  [id: sealed_inputs_3A]
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_3A]
           _passed.flag  [id: validation_passed_flag_3A]
@@ -326,7 +332,7 @@ data/
           s0_gate_receipt_3B.json  [id: s0_gate_receipt_3B]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_3B.parquet  [id: sealed_inputs_3B]
+          sealed_inputs_3B.json  [id: sealed_inputs_3B]
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_3B]
           _passed.flag  [id: validation_passed_flag_3B]
@@ -396,7 +402,7 @@ data/
           scenario_manifest_5A.parquet  [id: scenario_manifest_5A]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_5A.parquet  [id: sealed_inputs_5A]
+          sealed_inputs_5A.json  [id: sealed_inputs_5A]
       shape_grid_definition/
         parameter_hash={parameter_hash}/
           scenario_id={scenario_id}/
@@ -453,7 +459,7 @@ data/
               s3_bucket_counts_5B.parquet  [id: s3_bucket_counts_5B]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_5B.parquet  [id: sealed_inputs_5B]
+          sealed_inputs_5B.json  [id: sealed_inputs_5B]
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_5B]
           _passed.flag  [id: validation_passed_flag_5B]
@@ -572,7 +578,7 @@ data/
               s5_party_fraud_roles_6A.parquet  [id: s5_party_fraud_roles_6A]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_6A.parquet  [id: sealed_inputs_6A]
+          sealed_inputs_6A.json  [id: sealed_inputs_6A]
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_6A]
           _passed.flag  [id: validation_passed_flag_6A]
@@ -651,7 +657,7 @@ data/
                 part-*.parquet  [id: s4_flow_truth_labels_6B]
       sealed_inputs/
         manifest_fingerprint={manifest_fingerprint}/
-          sealed_inputs_6B.parquet  [id: sealed_inputs_6B]
+          sealed_inputs_6B.json  [id: sealed_inputs_6B]
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_6B]
           _passed.flag  [id: validation_passed_flag_6B]

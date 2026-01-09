@@ -883,8 +883,8 @@ datasets:
     owner_subsegment: 5A
     description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
     version: '{manifest_fingerprint}'
-    format: parquet
-    path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+    format: json
+    path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
     partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint, owner_segment, artifact_id]
     ordering: []

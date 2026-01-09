@@ -45,8 +45,8 @@ subsegments:
         schema: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
         cross_layer: true
         notes: null
-      - name: sealed_inputs_6B
-        path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+  - name: sealed_inputs_6B
+    path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
         type: dataset
         category: validation
         semver: 1.0.0
@@ -440,7 +440,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: sealed_inputs_5A
-        path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+        path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
         type: dataset
         category: control
         semver: 1.0.0
@@ -460,7 +460,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: sealed_inputs_5B
-        path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+        path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
         type: dataset
         category: control
         semver: 1.0.0
@@ -480,7 +480,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: sealed_inputs_6A
-        path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+        path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
         type: dataset
         category: validation
         semver: 1.0.0

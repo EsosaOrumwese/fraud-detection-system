@@ -92,7 +92,7 @@ subsegments:
     notes:
 
   - name: sealed_inputs_3A
-    path: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
+    path: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json
     type: dataset
     category: inventory
     semver: '1.0.0'

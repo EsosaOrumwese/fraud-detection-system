@@ -11,25 +11,16 @@ None
 
 EXPECTED DUPLICATES
 -------------------
-- data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet  [ids: Layer-2 / 5A merchant×zone demand profile, merchant_zone_profile_5A]
-- data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet  [ids: Layer-2 / 5A sealed inputs, sealed_inputs_5A]
 - rng_audit_log
   - logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   - logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   - logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   - logs/layer1/3A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
-  - logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
-  - logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
 - rng_trace_log
   - logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
   - logs/layer1/1B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
   - logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
   - logs/layer1/3A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
-  - logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
-  - logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
-- sealed_inputs_v1
-  - data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
-  - data/layer1/2B/sealed_inputs_v1/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
 - segment_state_runs
   - reports/layer1/segment_state_runs/segment=1A/utc_day={utc_day}/segment_state_runs.jsonl
   - reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl

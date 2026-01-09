@@ -534,8 +534,8 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: sealed_inputs_3B
-        path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
+    - name: sealed_inputs_3B
+      path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json
         type: dataset
         category: validation
         semver: "{semver}"

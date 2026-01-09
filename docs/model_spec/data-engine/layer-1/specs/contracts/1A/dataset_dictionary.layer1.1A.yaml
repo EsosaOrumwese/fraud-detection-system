@@ -578,6 +578,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: sealed_inputs_1A
+  status: approved
+  owner_subsegment: 1A
+  description: Authoritative inventory of every asset sealed by 1A.S0 for the manifest.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json
+  partitioning: [manifest_fingerprint]
+  ordering: [asset_id, path]
+  schema_ref: schemas.1A.yaml#/validation/sealed_inputs_1A
+  lineage:
+    produced_by: 1A.S0
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: validation_bundle_1A
   status: approved
   owner_subsegment: 1A
@@ -979,7 +997,7 @@ reports:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256:
-  dataset_count: 49
+  dataset_count: 50
 
 open_questions: []
 

@@ -166,7 +166,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 
 ### 4.6 Inventory boundary
 
-* **Every asset read or trusted by S0** MUST appear in `sealed_inputs_v1` with `{asset_id, version_tag, sha256_hex, path, partition}`.
+* **Every asset read or trusted by S0** MUST appear in `sealed_inputs_2B` with `{asset_id, version_tag, sha256_hex, path, partition}`.
 * It is an error to access any asset not present in the inventory, even if resolvable via the Dictionary.
 
 ---
@@ -176,7 +176,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.1 Products (IDs)
 
 * **`s0_gate_receipt_2B`** — receipt that attests upstream gate verification, fixed run identity, and catalogue-only resolution.
-* **`sealed_inputs_v1`** — **mandatory** inventory enumerating every asset sealed by S0 (authority record for inputs).
+* **`sealed_inputs_2B`** — **mandatory** inventory enumerating every asset sealed by S0 (authority record for inputs).
 
 ### 5.2 Partitioning & identity law
 
@@ -190,7 +190,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 * The **Dataset Dictionary** binds each ID to its **path template**, **partition tokens**, and **storage format**. S0 SHALL write:
 
   * `s0_gate_receipt_2B` to the Dictionary’s **receipt path family** for 2B, **stored as JSON**.
-  * `sealed_inputs_v1` to the Dictionary’s **inventory path family** for 2B, **stored as a strict table** (columns fixed by schema).
+  * `sealed_inputs_2B` to the Dictionary’s **inventory path family** for 2B, **stored as a strict table** (columns fixed by schema).
 * Literal paths are forbidden; only Dictionary-resolved locations are valid targets.
 
 ### 5.4 Write-once, atomic publish, re-emit discipline
@@ -201,17 +201,17 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 
 ### 5.5 Deterministic writer order
 
-* `sealed_inputs_v1` rows **MUST** be written in a deterministic order: lexicographic by `asset_id`, then by `path` when `asset_id` ties.
+* `sealed_inputs_2B` rows **MUST** be written in a deterministic order: lexicographic by `asset_id`, then by `path` when `asset_id` ties.
 * The `s0_gate_receipt_2B` JSON object **MUST** be serialised with a deterministic field order as defined by the schema pack’s receipt anchor.
 
 ### 5.6 Provenance & timing
 
 * `s0_gate_receipt_2B` **MUST** include `verified_at_utc` marking the instant the upstream bundle hash was verified; this timestamp also serves as the canonical creation time for S0 outputs.
-* `sealed_inputs_v1` **MUST** capture, per row: `asset_id`, `version_tag`, `sha256_hex`, `path`, and `partition` exactly as resolved.
+* `sealed_inputs_2B` **MUST** capture, per row: `asset_id`, `version_tag`, `sha256_hex`, `path`, and `partition` exactly as resolved.
 
 ### 5.7 Content constraints
 
-* `sealed_inputs_v1` **MUST** enumerate **every** asset trusted or read by S0 (gate bundle, flag, `site_locations`, `site_timezones`, policy pack(s), and optional cache if present). No extras; no omissions.
+* `sealed_inputs_2B` **MUST** enumerate **every** asset trusted or read by S0 (gate bundle, flag, `site_locations`, `site_timezones`, policy pack(s), and optional cache if present). No extras; no omissions.
 * Duplicate physical bytes referenced by multiple IDs are represented as **distinct rows** (same `sha256_hex`, different `asset_id`).
 
 ### 5.8 Downstream visibility
@@ -264,7 +264,7 @@ All shapes in this state are governed by **`schemas.2B.yaml`** (shape authority)
 
 ---
 
-### 6.3 Output anchor — `schemas.2B.yaml#/validation/sealed_inputs_v1`
+### 6.3 Output anchor — `schemas.2B.yaml#/validation/sealed_inputs_2B`
 
 **Type:** JSON table (array of row objects, fields-strict)
 **Required row fields:** `asset_id`, `version_tag`, `sha256_hex`, `path`, `partition`
@@ -324,7 +324,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 ### 6.6 Format bindings (Dictionary authority)
 
 * `s0_gate_receipt_2B` — **stored as JSON** at the Dictionary’s receipt path family, partitioned by `fingerprint`.
-* `sealed_inputs_v1` — **stored as JSON table** at the Dictionary’s inventory path family, partitioned by `fingerprint`.
+* `sealed_inputs_2B` — **stored as JSON table** at the Dictionary’s inventory path family, partitioned by `fingerprint`.
 * Both outputs are **write-once**; path tokens MUST equal embedded identity.
 
 ---
@@ -374,7 +374,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 * `catalogue_resolution`: `{dictionary_version, registry_version}` from §7.1.
 * `determinism_receipt`: `{engine_commit?, python_version?, platform?, policy_ids[], policy_digests[]}` where `policy_ids/digests` enumerate the sealed 2B policy pack rows from the inventory.
 
-15. **Compose `sealed_inputs_v1` (table, fields-strict):** one row per sealed asset with `{asset_id, version_tag, sha256_hex, path, partition, schema_ref?}`.
+15. **Compose `sealed_inputs_2B` (table, fields-strict):** one row per sealed asset with `{asset_id, version_tag, sha256_hex, path, partition, schema_ref?}`.
 
 * **Row order** is deterministic: sort by `asset_id`, then `path`.
 * If multiple IDs resolve to identical bytes, emit **distinct rows** (same `sha256_hex`, different `asset_id`).
@@ -405,7 +405,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 ### 8.2 Partitioning
 
 * **Receipt path:** `…/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json`
-* **Inventory path:** `…/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json`
+* **Inventory path:** `…/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json`
 * **Selection:** exact match on `fingerprint={manifest_fingerprint}`. No wildcarding, globbing, or multi-partition writes.
 
 ### 8.3 Path↔embed equality
@@ -486,22 +486,22 @@ If `tz_timetable_cache` is present, it must validate and be recorded in the inve
 ` s0_gate_receipt_2B` validates against `schemas.2B.yaml#/validation/s0_gate_receipt_v1` (fields-strict), including `verified_at_utc` and `catalogue_resolution`.
 
 **V-07 — Inventory shape valid (Abort).**
-` sealed_inputs_v1` validates against `schemas.2B.yaml#/validation/sealed_inputs_v1` (fields-strict).
+` sealed_inputs_2B` validates against `schemas.2B.yaml#/validation/sealed_inputs_2B` (fields-strict).
 
 **V-08 — Receipt ↔ inventory membership match (Abort).**
 Set of **IDs** in `receipt.sealed_inputs[]` equals set of `inventory.asset_id` (no extras/omissions).
 
 **V-09 — Digests & tags present (Abort).**
-Every `sealed_inputs_v1` row has **non-empty** `version_tag` and `sha256_hex` (hex64).
+Every `sealed_inputs_2B` row has **non-empty** `version_tag` and `sha256_hex` (hex64).
 
 **V-10 — Policy capture coherent (Abort).**
-`determinism_receipt.policy_ids`/`policy_digests` are present, equal-length, and each pair matches the corresponding `sealed_inputs_v1` rows for the 2B policy pack(s).
+`determinism_receipt.policy_ids`/`policy_digests` are present, equal-length, and each pair matches the corresponding `sealed_inputs_2B` rows for the 2B policy pack(s).
 
 **V-11 - Partition selection exact (Abort).**
 Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}`, `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}`, and fingerprint-only selection for bundle/flag/policies (and optional cache if present) with no wildcards or cross-seed reads.
 
 **V-12 — No duplicate IDs (Abort).**
-`sealed_inputs_v1.asset_id` has no duplicates. (Multiple IDs may reference identical bytes; same-ID duplicates are illegal.)
+`sealed_inputs_2B.asset_id` has no duplicates. (Multiple IDs may reference identical bytes; same-ID duplicates are illegal.)
 
 **V-13 — Path↔embed equality (Abort).**
 Each S0 output embeds the same `manifest_fingerprint` as in its path token.
@@ -513,7 +513,7 @@ Target partitions for the receipt and inventory were empty prior to publish **or
 A same-inputs rerun reproduces byte-identical receipt and inventory; if not, abort rather than overwrite.
 
 **V-16 — No network & no extra reads (Abort).**
-Execution performed with network I/O disabled and accessed **only** the assets enumerated in `sealed_inputs_v1`.
+Execution performed with network I/O disabled and accessed **only** the assets enumerated in `sealed_inputs_2B`.
 
 **Reporting.** The run-report MUST include: validator outcomes, counts (`inputs_total`, `inventory_rows`, `digests_recorded`), the recomputed bundle digest, and the list of sealed policy `{id, version_tag, sha256_hex}`.
 
@@ -545,7 +545,7 @@ Execution performed with network I/O disabled and accessed **only** the assets e
 * **2B-S0-021 PROHIBITED_LITERAL_PATH (Abort)** — Attempted read/write using a literal path not obtained from a Dictionary ID.
   *Context:* `path`.  *(V-03, V-16)*
 
-* **2B-S0-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset was read/trusted but not listed in `sealed_inputs_v1`.
+* **2B-S0-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset was read/trusted but not listed in `sealed_inputs_2B`.
   *Context:* `id|path`.  *(V-16)*
 
 * **2B-S0-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
@@ -556,13 +556,13 @@ Execution performed with network I/O disabled and accessed **only** the assets e
 * **2B-S0-030 RECEIPT_SCHEMA_INVALID (Abort)** — `s0_gate_receipt_2B` fails schema.
   *Context:* `schema_errors[]`.  *(V-06)*
 
-* **2B-S0-031 INVENTORY_SCHEMA_INVALID (Abort)** — `sealed_inputs_v1` fails schema.
+* **2B-S0-031 INVENTORY_SCHEMA_INVALID (Abort)** — `sealed_inputs_2B` fails schema.
   *Context:* `schema_errors[]`.  *(V-07)*
 
 * **2B-S0-040 INVENTORY_RECEIPT_MISMATCH (Abort)** — Set of IDs in `receipt.sealed_inputs[]` ≠ set of `inventory.asset_id`.
   *Context:* `missing_in_inventory[]`, `missing_in_receipt[]`.  *(V-08)*
 
-* **2B-S0-041 MISSING_DIGEST_OR_TAG (Abort)** — A row in `sealed_inputs_v1` lacks `version_tag` or `sha256_hex`.
+* **2B-S0-041 MISSING_DIGEST_OR_TAG (Abort)** — A row in `sealed_inputs_2B` lacks `version_tag` or `sha256_hex`.
   *Context:* `asset_id`.  *(V-09)*
 
 * **2B-S0-042 POLICY_CAPTURE_INCOHERENT (Abort)** — `determinism_receipt.policy_ids/digests` are missing, unequal length, or don’t match the sealed policy rows.
@@ -666,7 +666,7 @@ A run-report **MUST** contain the following top-level fields:
   * `duplicate_byte_sets`: `<int>` *(count of distinct `sha256_hex` shared by >1 `asset_id`)*
 * `publish`:
 
-  * `targets`: `[ { id: "s0_gate_receipt_2B", path: <string>, bytes: <int> }, { id: "sealed_inputs_v1", path: <string>, bytes: <int> } ]`
+  * `targets`: `[ { id: "s0_gate_receipt_2B", path: <string>, bytes: <int> }, { id: "sealed_inputs_2B", path: <string>, bytes: <int> } ]`
   * `write_once_verified`: `<bool>`
   * `atomic_publish`: `<bool>`
 * `validators`: `[ { id: "V-01", status: "PASS|FAIL|WARN", codes: [ "2B-S0-011", … ] } … ]`
@@ -707,7 +707,7 @@ Arrays in the run-report **MUST** be emitted in deterministic order:
 
 * `policy_ids`/`policy_digests`: lexicographic by `policy_id` with 1:1 alignment.
 * `validators`: sorted by validator ID (`"V-01" … "V-16"`).
-* `targets`: fixed order `["s0_gate_receipt_2B", "sealed_inputs_v1"]`.
+* `targets`: fixed order `["s0_gate_receipt_2B", "sealed_inputs_2B"]`.
 * Samples per §11.4 follow their stated deterministic picks.
 
 ### 11.7 PASS/WARN/FAIL semantics
@@ -745,7 +745,7 @@ Let:
 
 * **B** = number of files listed in the upstream **1B bundle index**
 * **Σbundle** = total bytes of those B files (raw, as read for hashing)
-* **N** = number of assets recorded in `sealed_inputs_v1` (gate artefacts + `site_locations` + `site_timezones` + policy packs [+ optional cache])
+* **N** = number of assets recorded in `sealed_inputs_2B` (gate artefacts + `site_locations` + `site_timezones` + policy packs [+ optional cache])
 * **Σdigest** = additional bytes hashed for assets that **lack** a canonical digest (ideally small; e.g., policy packs)
 
 S0 is predominantly **I/O-bound**. CPU cost is minimal (SHA-256 over streamed bytes + JSON serialisation).
@@ -796,7 +796,7 @@ S0 is predominantly **I/O-bound**. CPU cost is minimal (SHA-256 over streamed by
 
 ### 13.1 Scope
 
-This section governs **what may change** after this spec is ratified and **how** such changes are versioned and rolled out. It applies to: the S0 procedure, its **outputs** (`s0_gate_receipt_2B`, `sealed_inputs_v1`), the **minimum sealed set**, and **validators/error codes**.
+This section governs **what may change** after this spec is ratified and **how** such changes are versioned and rolled out. It applies to: the S0 procedure, its **outputs** (`s0_gate_receipt_2B`, `sealed_inputs_2B`), the **minimum sealed set**, and **validators/error codes**.
 
 ---
 
@@ -808,7 +808,7 @@ S0 **MUST NOT** change the following within the same major version:
 * **Outputs & partitions:** presence of both outputs; fingerprint-only partitioning; **path↔embed equality**; write-once + atomic publish.
 * **Output shapes & IDs:** anchor names and required fields of
   `schemas.2B.yaml#/validation/s0_gate_receipt_v1` and
-  `schemas.2B.yaml#/validation/sealed_inputs_v1`.
+  `schemas.2B.yaml#/validation/sealed_inputs_2B`.
 * **Minimum sealed set:** `validation_bundle_1B/`, `_passed.flag`, `site_locations@seed,fingerprint`, `site_timezones@seed,fingerprint`, and **required 2B policy pack(s)**.
 * **Prohibitions:** dictionary-only resolution; no literal paths; no network I/O.
 * **Acceptance posture:** the set of **Abort** validators (by ID) and their semantics.
@@ -911,7 +911,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
   * Validation/output anchors used by S0:
 
     * `#/validation/s0_gate_receipt_v1` — gate receipt
-    * `#/validation/sealed_inputs_v1` — sealed-inputs inventory
+    * `#/validation/sealed_inputs_2B` — sealed-inputs inventory
   * Policy anchors captured (IDs only, bytes sealed):
 
     * `#/policy/route_rng_policy_v1`
@@ -924,7 +924,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
   * Output IDs & path families:
 
     * `s0_gate_receipt_2B` → `…/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json`
-    * `sealed_inputs_v1` → `…/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json`
+    * `sealed_inputs_2B` → `…/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json`
   * Input IDs S0 resolves:
 
     * `validation_bundle_1B` (root), `_passed.flag`
@@ -961,8 +961,8 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
 * **`s0_gate_receipt_2B`** (JSON; fingerprint-scoped)
   **Shape:** `schemas.2B.yaml#/validation/s0_gate_receipt_v1`
-* **`sealed_inputs_v1`** (JSON table; fingerprint-scoped)
-  **Shape:** `schemas.2B.yaml#/validation/sealed_inputs_v1`
+* **`sealed_inputs_2B`** (JSON table; fingerprint-scoped)
+  **Shape:** `schemas.2B.yaml#/validation/sealed_inputs_2B`
 
 ### A.6 Policy packs captured (IDs; bytes & digests sealed)
 

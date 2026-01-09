@@ -987,7 +987,7 @@ Both S0 outputs are **fingerprint-scoped control-plane datasets**.
     * `fingerprint={manifest_fingerprint}`
   * Path template (schematic):
 
-    * `data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet`
+    * `data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json`
 
 Binding rules:
 

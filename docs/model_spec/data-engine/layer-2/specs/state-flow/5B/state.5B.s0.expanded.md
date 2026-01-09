@@ -402,7 +402,7 @@ Usage constraints:
 
 #### 3.2.2 Upstream sealed-input manifests
 
-Where upstream segments publish sealed-inputs tables (e.g. `sealed_inputs_v1` in 2A/2B/3A/3B, `sealed_inputs_5A` in 5A), 5B.S0 MAY read those manifests in **row form** as part of its own sealing process.
+Where upstream segments publish sealed-inputs tables (e.g. `sealed_inputs_2A`, `sealed_inputs_2B`, `sealed_inputs_3A`, `sealed_inputs_3B`, and `sealed_inputs_5A`), 5B.S0 MAY read those manifests in **row form** as part of its own sealing process.
 
 * These tables are treated as **trusted evidence** of what each upstream segment has already sealed into its own manifest.
 * 5B.S0 MAY use them to:
@@ -723,7 +723,7 @@ Optional metadata (`notes`, `source_manifest`, `owner_team`, etc.) MAY appear bu
 * **Path template (normative intent):**
 
   ```text
-  data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+  data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
   ```
 
 * **Mutability:**
@@ -1074,7 +1074,7 @@ After all candidates are processed:
    * Materialise `sealed_inputs_rows` to a Parquet (or agreed) file at:
 
      ```text
-     data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.parquet
+     data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.json
      ```
 
    * Enforce:
@@ -1198,7 +1198,7 @@ Concretely:
 * `sealed_inputs_5B`:
 
   ```text
-  data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+  data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
   ```
 
 Binding constraints:
@@ -1348,7 +1348,7 @@ For a given `(parameter_hash = ph, manifest_fingerprint = mf, seed, run_id, scen
    * Exactly one file exists at:
 
      ```text
-     data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.parquet
+     data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.json
      ```
 
    * The file:
@@ -1557,7 +1557,7 @@ In both cases, S5 MUST set `upstream_segments[seg].status = "FAIL" | "MISSING"` 
    * a `REQUIRED` 5B config/policy artefact is missing.
 
 6. **`5B.S0.SEALED_INPUTS_SCHEMA_INVALID`**
-   Raised when the materialised `sealed_inputs_5B.parquet` fails validation against `schemas.5B.yaml#/validation/sealed_inputs_5B`, e.g.:
+   Raised when the materialised `sealed_inputs_5B.json` fails validation against `schemas.5B.yaml#/validation/sealed_inputs_5B`, e.g.:
 
    * missing required columns;
    * invalid enum values in `role`, `status`, or `read_scope`.
@@ -1815,7 +1815,7 @@ Implementations SHOULD aim for:
 * **Low, predictable latency**, dominated by:
 
   * reading ~7 upstream validation bundles + flags, and
-  * writing a single Parquet file (`sealed_inputs_5B`) and a single JSON (`s0_gate_receipt_5B`).
+  * writing a single JSON file (`sealed_inputs_5B`) and a single JSON (`s0_gate_receipt_5B`).
 
 Reasonable expectations:
 
@@ -1842,7 +1842,7 @@ I/O:
   * 5B config/policy artefacts.
 * S5 writes:
 
-  * exactly one Parquet file (`sealed_inputs_5B`),
+  * exactly one JSON file (`sealed_inputs_5B`),
   * exactly one JSON file (`s0_gate_receipt_5B`).
 
 Implementations SHOULD:

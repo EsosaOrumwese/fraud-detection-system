@@ -16,7 +16,7 @@
 **Normative cross-references (Binding).**
 S6 SHALL treat the following surfaces as authoritative:
 
-* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B`, `sealed_inputs_v1` (fingerprint-scoped; proves sealed inputs for this fingerprint). *(S6 relies on the receipt; it does not re-hash upstream bundles.)* 
+* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B`, `sealed_inputs_2B` (fingerprint-scoped; proves sealed inputs for this fingerprint). *(S6 relies on the receipt; it does not re-hash upstream bundles.)* 
 * **Routing policies (token-less; S0-sealed):**
   `route_rng_policy_v1` (declares Philox stream/substreams & budgets for **edge routing**),
   `virtual_edge_policy_v1` (eligible `edge_id`s, weights/attrs). *(Both referenced in the 2B schema pack’s policy section.)* 
@@ -55,7 +55,7 @@ S6 SHALL treat the following surfaces as authoritative:
 
 **3.1 Gate & run-identity (must hold before any read)**
 
-* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and validate against the 2B schema pack; S6 **relies** on this receipt and **does not** re-hash upstream bundles. 
+* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and validate against the 2B schema pack; S6 **relies** on this receipt and **does not** re-hash upstream bundles. 
 * **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (e.g., `s2_alias_index`, `s2_alias_blob`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, fingerprint]`** (no literal paths). 
 
 **3.2 Inputs required by S6 (sealed; read-only)**
@@ -397,7 +397,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 
 **V-01 — Gate evidence present (S0)**
 
-* **Check:** For this fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and are schema-valid.
+* **Check:** For this fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and are schema-valid.
 * **Fail →** ⟨2B-S6-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 - S0-evidence + token-less policy selection**
@@ -490,7 +490,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 ### 10.1 Gate & catalogue discipline
 
 **2B-S6-001 — S0_RECEIPT_MISSING** · *Abort*
-**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_v1` absent/invalid at `[fingerprint]`.
+**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[fingerprint]`.
 **Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition. 
 
 **2B-S6-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*

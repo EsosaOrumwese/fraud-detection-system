@@ -88,7 +88,7 @@ validation:
             type: array
             items: { $ref: "#/$defs/hex64" }
 
-  sealed_inputs_v1:
+  sealed_inputs_2B:
     type: array
     items:
       type: object

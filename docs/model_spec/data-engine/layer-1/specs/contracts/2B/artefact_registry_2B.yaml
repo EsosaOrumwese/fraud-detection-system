@@ -33,21 +33,21 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: sealed_inputs_v1
-        path: data/layer1/2B/sealed_inputs_v1/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+      - name: sealed_inputs_2B
+        path: data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json
         type: dataset
         category: validation
         semver: '{semver}'
         version: '{manifest_fingerprint}'
         digest: '{sha256}'
-        manifest_key: mlr.2B.validation.sealed_inputs_v1
+        manifest_key: mlr.2B.validation.sealed_inputs_2B
         license: Proprietary-Internal
         role: "Authoritative list of all assets sealed by 2B.S0 (IDs, tags, digests, paths, partitions)."
         source: internal
         owner: { owner_team: "l1-2b-core" }
         last_updated: '{iso8601_timestamp}'
         environment: [runtime]
-        schema: schemas.2B.yaml#/validation/sealed_inputs_v1
+        schema: schemas.2B.yaml#/validation/sealed_inputs_2B
         dependencies:
           - validation_bundle_1B
           - validation_passed_flag_1B
@@ -521,7 +521,7 @@ subsegments:
         manifest_key: mlr.2B.validation.bundle
         license: Proprietary-Internal
         role: "2B PASS bundle index (fields-strict; relative paths; ASCII-lex)."
-        dependencies: [s0_gate_receipt_2B, sealed_inputs_v1, s7_audit_report]
+        dependencies: [s0_gate_receipt_2B, sealed_inputs_2B, s7_audit_report]
         source: internal
         owner: { owner_team: "l1-2b-governance" }
         last_updated: '{iso8601_timestamp}'

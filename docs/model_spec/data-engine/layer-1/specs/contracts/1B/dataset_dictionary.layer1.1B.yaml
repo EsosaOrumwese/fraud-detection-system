@@ -181,6 +181,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: sealed_inputs_1B
+  status: approved
+  owner_subsegment: 1B
+  description: Authoritative inventory of every asset sealed by 1B.S0 for the manifest.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json
+  partitioning: [manifest_fingerprint]
+  ordering: [asset_id, path]
+  schema_ref: schemas.1B.yaml#/validation/sealed_inputs_1B
+  lineage:
+    produced_by: 1B.S0
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 # Current 1B datasets (binding once their states are ratified; `tile_index` binds with S1)
 - id: tile_index
   status: approved

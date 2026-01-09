@@ -1229,22 +1229,22 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
-    "id": "sealed_inputs_v1",
+    "source": "docs\\model_spec\\data-engine\\layer-1\\specs\\contracts\\2A\\dataset_dictionary.layer1.2A.yaml",
+    "id": "sealed_inputs_2A",
     "status": "approved",
     "owner_subsegment": "2A",
     "description": "Diagnostic inventory of sealed inputs for a 2A fingerprint.",
-    "path": "data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet",
+    "path": "data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [
       "asset_kind",
       "basename"
     ],
-    "schema_ref": "schemas.2A.yaml#/manifests/sealed_inputs_v1",
+    "schema_ref": "schemas.2A.yaml#/manifests/sealed_inputs_2A",
     "primary_key": null,
-    "format": "parquet",
+    "format": "json",
     "lineage": {
       "produced_by": "2A.S0",
       "consumed_by": [
@@ -1424,17 +1424,17 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\2B\\dataset_dictionary.layer1.2B.yaml",
-    "id": "sealed_inputs_v1",
+    "source": "docs\\model_spec\\data-engine\\layer-1\\specs\\contracts\\2B\\dataset_dictionary.layer1.2B.yaml",
+    "id": "sealed_inputs_2B",
     "status": "approved",
     "owner_subsegment": "2B",
     "description": "Authoritative inventory of every asset sealed by 2B.S0 for the manifest.",
-    "path": "data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json",
+    "path": "data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
-    "schema_ref": "schemas.2B.yaml#/validation/sealed_inputs_v1",
+    "schema_ref": "schemas.2B.yaml#/validation/sealed_inputs_2B",
     "primary_key": null,
     "format": "json",
     "lineage": {
@@ -1841,14 +1841,14 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
+    "source": "docs\\model_spec\\data-engine\\layer-1\\specs\\contracts\\3A\\dataset_dictionary.layer1.3A.yaml",
     "id": "sealed_inputs_3A",
     "status": "draft",
     "owner_subsegment": "3A",
     "description": "Sealed inventory of artefacts authorised for Segment 3A.",
-    "path": "data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet",
+    "path": "data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [
       "owner_segment",
@@ -1857,7 +1857,7 @@
     ],
     "schema_ref": "schemas.3A.yaml#/validation/sealed_inputs_3A",
     "primary_key": null,
-    "format": "parquet",
+    "format": "json",
     "lineage": {
       "produced_by": "3A.S0",
       "consumed_by": [
@@ -2181,14 +2181,14 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-1/specs/contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
+    "source": "docs\\model_spec\\data-engine\\layer-1\\specs\\contracts\\3B\\dataset_dictionary.layer1.3B.yaml",
     "id": "sealed_inputs_3B",
     "status": "draft",
     "owner_subsegment": "3B",
     "description": "Inventory of every artefact authorised for the manifest.",
-    "path": "data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet",
+    "path": "data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [
       "owner_segment",
@@ -2198,7 +2198,7 @@
     ],
     "schema_ref": "schemas.3B.yaml#/validation/sealed_inputs_3B",
     "primary_key": null,
-    "format": "parquet",
+    "format": "json",
     "lineage": {
       "produced_by": "3B.S0",
       "consumed_by": [
@@ -2618,23 +2618,19 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
+    "source": "docs\\model_spec\\data-engine\\layer-2\\specs\\contracts\\5A\\dataset_dictionary.layer2.5A.yaml",
     "id": "sealed_inputs_5A",
     "status": "required",
     "owner_subsegment": "5A",
     "description": "Inventory of sealed artefacts 5A is allowed to read for a fingerprint.",
-    "path": "data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet",
+    "path": "data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [],
     "schema_ref": "schemas.5A.yaml#/validation/sealed_inputs_5A",
-    "primary_key": [
-      "manifest_fingerprint",
-      "owner_segment",
-      "artifact_id"
-    ],
-    "format": "parquet",
+    "primary_key": null,
+    "format": "json",
     "lineage": {
       "produced_by": [
         "5A.S0"
@@ -3231,14 +3227,14 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-2/specs/contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
+    "source": "docs\\model_spec\\data-engine\\layer-2\\specs\\contracts\\5B\\dataset_dictionary.layer2.5B.yaml",
     "id": "sealed_inputs_5B",
     "status": "required",
     "owner_subsegment": "5B",
     "description": "Inventory of artefacts 5B is allowed to read for a fingerprint.",
-    "path": "data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet",
+    "path": "data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [
       "owner_segment",
@@ -3246,12 +3242,8 @@
       "role"
     ],
     "schema_ref": "schemas.5B.yaml#/validation/sealed_inputs_5B",
-    "primary_key": [
-      "manifest_fingerprint",
-      "owner_segment",
-      "artifact_id"
-    ],
-    "format": "parquet",
+    "primary_key": null,
+    "format": "json",
     "lineage": {
       "produced_by": [
         "5B.S0"
@@ -3705,14 +3697,14 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
+    "source": "docs\\model_spec\\data-engine\\layer-3\\specs\\contracts\\6A\\dataset_dictionary.layer3.6A.yaml",
     "id": "sealed_inputs_6A",
     "status": "required",
-    "owner_subsegment": "6A",
+    "owner_subsegment": null,
     "description": "Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint, with roles, digests, and read scopes.\n",
-    "path": "data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet",
+    "path": "data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [
       "owner_layer",
@@ -4523,14 +4515,14 @@
     }
   },
   {
-    "source": "docs/model_spec/data-engine\\layer-3/specs/contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
+    "source": "docs\\model_spec\\data-engine\\layer-3\\specs\\contracts\\6B\\dataset_dictionary.layer3.6B.yaml",
     "id": "sealed_inputs_6B",
     "status": "required",
-    "owner_subsegment": "6B",
+    "owner_subsegment": null,
     "description": "Sealed list of all artefacts 6B is allowed to read for a given manifest_fingerprint, with roles, schema_refs and digests.\n",
-    "path": "data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet",
+    "path": "data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json",
     "partitioning": [
-      "fingerprint"
+      "manifest_fingerprint"
     ],
     "ordering": [
       "owner_layer",
@@ -4538,12 +4530,7 @@
       "manifest_key"
     ],
     "schema_ref": "schemas.layer3.yaml#/gate/6B/sealed_inputs_6B",
-    "primary_key": [
-      "manifest_fingerprint",
-      "owner_layer",
-      "owner_segment",
-      "manifest_key"
-    ],
+    "primary_key": null,
     "format": "parquet",
     "lineage": {
       "produced_by": [
@@ -5097,6 +5084,56 @@
         "4B",
         "ops_tooling"
       ]
+    }
+  },
+  {
+    "source": "docs\\model_spec\\data-engine\\layer-1\\specs\\contracts\\1A\\dataset_dictionary.layer1.1A.yaml",
+    "id": "sealed_inputs_1A",
+    "status": "approved",
+    "owner_subsegment": "1A",
+    "description": "Authoritative inventory of every asset sealed by 1A.S0 for the manifest.",
+    "path": "data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json",
+    "partitioning": [
+      "manifest_fingerprint"
+    ],
+    "ordering": [
+      "asset_id",
+      "path"
+    ],
+    "schema_ref": "schemas.1A.yaml#/validation/sealed_inputs_1A",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "1A.S0",
+      "consumed_by": [
+        "1A"
+      ],
+      "final_in_layer": false
+    }
+  },
+  {
+    "source": "docs\\model_spec\\data-engine\\layer-1\\specs\\contracts\\1B\\dataset_dictionary.layer1.1B.yaml",
+    "id": "sealed_inputs_1B",
+    "status": "approved",
+    "owner_subsegment": "1B",
+    "description": "Authoritative inventory of every asset sealed by 1B.S0 for the manifest.",
+    "path": "data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json",
+    "partitioning": [
+      "manifest_fingerprint"
+    ],
+    "ordering": [
+      "asset_id",
+      "path"
+    ],
+    "schema_ref": "schemas.1B.yaml#/validation/sealed_inputs_1B",
+    "primary_key": null,
+    "format": "json",
+    "lineage": {
+      "produced_by": "1B.S0",
+      "consumed_by": [
+        "1B"
+      ],
+      "final_in_layer": false
     }
   }
 ]

@@ -2160,6 +2160,8 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 
 2. **Lineage & attestation files** (**fingerprint-scoped**)
 
+* `sealed_inputs_1A` inventory (JSON table; schema `schemas.1A.yaml#/validation/sealed_inputs_1A`).
+
 * `validation_bundle_1A` directory (see §S0.10.5), containing:
 
   * `MANIFEST.json`
@@ -2208,6 +2210,11 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 **Directory:** `validation_bundle_1A`
 **Path:** `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`
 **Contents:** §S0.10.5.
+
+**Dataset:** `sealed_inputs_1A`
+**Path:** `data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json`
+**Schema:** `schemas.1A.yaml#/validation/sealed_inputs_1A`
+**Row keys:** `asset_id` (PK)
 
 ### Log-scoped (RNG)
 
