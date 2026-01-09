@@ -543,7 +543,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 * `id: virtual_routing_policy_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B`
-* `path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
+* `path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []` (single JSON document; no row sort concept)
 
@@ -611,7 +611,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 * `id: virtual_validation_contract_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B`
-* `path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
+* `path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
 * `partitioning: ["fingerprint"]`
 * `ordering: ["test_id"]`
 
@@ -681,7 +681,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 * `id: s4_run_summary_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B`
-* `path: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
+* `path: data/layer1/3B/s4_run_summary/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -776,7 +776,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `id: virtual_routing_policy_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B`
-* `path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
+* `path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []` (single JSON document per fingerprint)
 
@@ -881,7 +881,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `id: virtual_validation_contract_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B`
-* `path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
+* `path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
 * `partitioning: ["fingerprint"]`
 * `ordering: ["test_id"]`
 
@@ -964,7 +964,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `id: s4_run_summary_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B`
-* `path: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
+* `path: data/layer1/3B/s4_run_summary/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 

@@ -6,7 +6,7 @@ subsegments:
     artifacts:
       # --- S0 ---
       - name: s0_gate_receipt_6B
-        path: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+        path: data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
         type: dataset
         category: validation
         semver: 1.0.0
@@ -46,7 +46,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: sealed_inputs_6B
-        path: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+        path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
         type: dataset
         category: validation
         semver: 1.0.0
@@ -68,7 +68,7 @@ subsegments:
         notes: null
       # --- S0 sealed inputs (upstream cross-layer) ---
       - name: validation_bundle_1A
-        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -88,7 +88,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_1A
-        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -109,7 +109,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_1B
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -129,7 +129,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_1B
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -150,7 +150,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_2A
-        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -170,7 +170,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_2A
-        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -191,7 +191,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_2B
-        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
         type: dataset
         category: validation
         semver: 1.0.0
@@ -211,7 +211,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_2B
-        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -232,7 +232,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_3A
-        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -252,7 +252,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_3A
-        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -273,7 +273,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_3B
-        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -293,7 +293,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_3B
-        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -314,7 +314,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_5A
-        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -334,7 +334,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_5A
-        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -355,7 +355,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_5B
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -375,7 +375,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_5B
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -396,7 +396,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_bundle_6A
-        path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -418,7 +418,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: validation_passed_flag_6A
-        path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0
@@ -440,7 +440,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: sealed_inputs_5A
-        path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+        path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
         type: dataset
         category: control
         semver: 1.0.0
@@ -460,7 +460,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: sealed_inputs_5B
-        path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+        path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
         type: dataset
         category: control
         semver: 1.0.0
@@ -480,7 +480,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=engine_control_plane; pii_class=none
       - name: sealed_inputs_6A
-        path: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+        path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
         type: dataset
         category: validation
         semver: 1.0.0
@@ -504,7 +504,7 @@ subsegments:
       # --- S0 sealed inputs (upstream cross-layer) ---
       # --- S0 sealed inputs (upstream data-plane) ---
       - name: arrival_events_5B
-        path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -526,7 +526,7 @@ subsegments:
       # --- S0 sealed inputs (priors & taxonomies) ---
 
       - name: s1_party_base_6A
-        path: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet
+        path: data/layer3/6A/s1_party_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_base_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -553,7 +553,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s2_account_base_6A
-        path: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet
+        path: data/layer3/6A/s2_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_base_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -581,7 +581,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s3_instrument_base_6A
-        path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet
+        path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_base_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -611,7 +611,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s3_account_instrument_links_6A
-        path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet
+        path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_account_instrument_links_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -635,7 +635,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s4_device_base_6A
-        path: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet
+        path: data/layer3/6A/s4_device_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_base_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -662,7 +662,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s4_ip_base_6A
-        path: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet
+        path: data/layer3/6A/s4_ip_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_base_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -688,7 +688,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s4_device_links_6A
-        path: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet
+        path: data/layer3/6A/s4_device_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_links_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -716,7 +716,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s5_party_fraud_roles_6A
-        path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet
+        path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -743,7 +743,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s5_account_fraud_roles_6A
-        path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet
+        path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_account_fraud_roles_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -771,7 +771,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s5_merchant_fraud_roles_6A
-        path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet
+        path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -798,7 +798,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s5_device_fraud_roles_6A
-        path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet
+        path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_device_fraud_roles_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -825,7 +825,7 @@ subsegments:
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s5_ip_fraud_roles_6A
-        path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet
+        path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_ip_fraud_roles_6A.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1239,7 +1239,7 @@ subsegments:
 
       # --- RNG logs & event tables ---
       - name: rng_audit_log
-        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        path: logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
         type: log
         category: rng_core
         semver: 1.0.0
@@ -1259,7 +1259,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_trace_log
-        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        path: logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
         type: log
         category: rng_core
         semver: 1.0.0
@@ -1280,7 +1280,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_event_flow_anchor_baseline
-        path: logs/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer3/6B/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: 1.0.0
@@ -1300,7 +1300,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_event_event_stream_baseline
-        path: logs/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer3/6B/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: 1.0.0
@@ -1320,7 +1320,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_event_fraud_campaign_pick
-        path: logs/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer3/6B/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: 1.0.0
@@ -1340,7 +1340,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_event_fraud_overlay_apply
-        path: logs/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer3/6B/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: 1.0.0
@@ -1360,7 +1360,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_event_truth_label
-        path: logs/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer3/6B/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: 1.0.0
@@ -1380,7 +1380,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: rng_event_bank_view_label
-        path: logs/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer3/6B/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: 1.0.0
@@ -1402,7 +1402,7 @@ subsegments:
       # --- S1 ---
 
       - name: s1_arrival_entities_6B
-        path: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1426,7 +1426,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: s1_session_index_6B
-        path: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s1_session_index_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1450,7 +1450,7 @@ subsegments:
       # --- S2 ---
 
       - name: s2_flow_anchor_baseline_6B
-        path: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1473,7 +1473,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: s2_event_stream_baseline_6B
-        path: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1497,7 +1497,7 @@ subsegments:
       # --- S3 ---
 
       - name: s3_campaign_catalogue_6B
-        path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+        path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1520,7 +1520,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: s3_flow_anchor_with_fraud_6B
-        path: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1542,7 +1542,7 @@ subsegments:
         cross_layer: false
         notes: null
       - name: s3_event_stream_with_fraud_6B
-        path: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1567,7 +1567,7 @@ subsegments:
       # --- S4 ---
 
       - name: s4_flow_truth_labels_6B
-        path: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1589,7 +1589,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: s4_flow_bank_view_6B
-        path: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1611,7 +1611,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: s4_event_labels_6B
-        path: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s4_event_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1632,7 +1632,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: s4_case_timeline_6B
-        path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         type: dataset
         category: output
         semver: 1.0.0
@@ -1657,7 +1657,7 @@ subsegments:
       # --- S5 ---
 
       - name: s5_validation_report_6B
-        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+        path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
         type: dataset
         category: validation
         semver: 1.0.0
@@ -1682,7 +1682,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: s5_issue_table_6B
-        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+        path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
         type: dataset
         category: validation
         semver: 1.0.0
@@ -1703,7 +1703,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: validation_bundle_6B
-        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: validation
         semver: 1.0.0
@@ -1726,7 +1726,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: validation_bundle_index_6B
-        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
         type: dataset
         category: validation
         semver: 1.0.0
@@ -1751,7 +1751,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: validation_passed_flag_6B
-        path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: dataset
         category: validation
         semver: 1.0.0

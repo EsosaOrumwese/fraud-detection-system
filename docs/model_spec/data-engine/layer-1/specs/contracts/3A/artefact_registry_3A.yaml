@@ -67,7 +67,7 @@ subsegments:
       # S0 GATE SURFACES
       # ---------------------------
   - name: s0_gate_receipt_3A
-    path: data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
+    path: data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
     type: dataset
     category: gate
     semver: '1.0.0'
@@ -92,7 +92,7 @@ subsegments:
     notes:
 
   - name: sealed_inputs_3A
-    path: data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
+    path: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
     type: dataset
     category: inventory
     semver: '1.0.0'
@@ -114,7 +114,7 @@ subsegments:
       # CROSS-LAYER INPUTS (EXPLICIT)
       # ---------------------------
   - name: validation_bundle_1A
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
@@ -133,7 +133,7 @@ subsegments:
     notes: null
 
   - name: validation_passed_flag_1A
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -152,7 +152,7 @@ subsegments:
     notes: null
 
   - name: validation_bundle_1B
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
@@ -171,7 +171,7 @@ subsegments:
     notes: null
 
   - name: validation_passed_flag_1B
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -190,7 +190,7 @@ subsegments:
     notes: null
 
   - name: validation_bundle_2A
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
@@ -209,7 +209,7 @@ subsegments:
     notes: null
 
   - name: validation_passed_flag_2A
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -228,7 +228,7 @@ subsegments:
     notes: null
 
   - name: outlet_catalogue
-    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -247,7 +247,7 @@ subsegments:
     notes: null
 
   - name: site_timezones
-    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -266,7 +266,7 @@ subsegments:
     notes: null
 
   - name: tz_timetable_cache
-    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: cache
     semver: '{semver}'
@@ -285,7 +285,7 @@ subsegments:
     notes: null
 
   - name: s4_legality_report
-    path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+    path: data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
     type: dataset
     category: validation
     semver: '{semver}'
@@ -364,7 +364,7 @@ subsegments:
       # S1-S4 PLAN DATASETS
       # ---------------------------
   - name: s1_escalation_queue
-    path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: plan
     semver: '1.0.0'
@@ -402,7 +402,7 @@ subsegments:
     notes:
 
   - name: s3_zone_shares
-    path: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: plan
     semver: '1.0.0'
@@ -421,7 +421,7 @@ subsegments:
     notes:
 
   - name: rng_audit_log
-    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    path: logs/layer1/3A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
     type: log
     category: rng_core
     semver: '1.0.0'
@@ -440,7 +440,7 @@ subsegments:
     notes: null
 
   - name: rng_trace_log
-    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    path: logs/layer1/3A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
     type: log
     category: rng_core
     semver: '1.0.0'
@@ -459,7 +459,7 @@ subsegments:
     notes: null
 
   - name: rng_event_zone_dirichlet
-    path: logs/rng/events/zone_dirichlet/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/3A/rng/events/zone_dirichlet/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '1.0.0'
@@ -478,7 +478,7 @@ subsegments:
     notes: null
 
   - name: s4_zone_counts
-    path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: plan
     semver: '1.0.0'
@@ -500,7 +500,7 @@ subsegments:
       # S5 EGRESS + HASH UNIVERSE
       # ---------------------------
   - name: zone_alloc
-    path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: egress
     semver: '1.0.0'
@@ -519,7 +519,7 @@ subsegments:
     notes:
 
   - name: zone_alloc_universe_hash
-    path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
     type: dataset
     category: validation
     semver: '1.0.0'
@@ -541,7 +541,7 @@ subsegments:
       # S6 VALIDATION SURFACES
       # ---------------------------
   - name: s6_validation_report_3A
-    path: data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
+    path: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json
     type: dataset
     category: validation
     semver: '1.0.0'
@@ -560,7 +560,7 @@ subsegments:
     notes:
 
   - name: s6_issue_table_3A
-    path: data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
+    path: data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
     type: dataset
     category: validation
     semver: '1.0.0'
@@ -579,7 +579,7 @@ subsegments:
     notes:
 
   - name: s6_receipt_3A
-    path: data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
+    path: data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
     type: dataset
     category: validation
     semver: '1.0.0'
@@ -601,7 +601,7 @@ subsegments:
       # S7 VALIDATION BUNDLE
       # ---------------------------
   - name: validation_bundle_3A
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: validation
     semver: '1.0.0'
@@ -631,7 +631,7 @@ subsegments:
     notes:
 
   - name: validation_passed_flag_3A
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: dataset
     category: validation
     semver: '1.0.0'

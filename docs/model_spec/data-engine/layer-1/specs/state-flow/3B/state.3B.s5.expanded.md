@@ -482,7 +482,7 @@ S5 MUST treat this as a **contract violation** and fail, rather than silently co
 * `id: validation_bundle_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias) - for the index shape;
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/`
 * `partitioning: ["fingerprint"]`
 * `ordering: []` (directory artefact; sort semantics are handled inside `index.json`).
 
@@ -505,7 +505,7 @@ S5 MUST treat this as a **contract violation** and fail, rather than silently co
 
 The exact set and naming of evidence files SHOULD be stable and schema-documented, but may be extended in backwards-compatible ways (see §12).
 
-4.2.4 All evidence files listed in `index.json` MUST reside under the bundle root `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/` using **relative paths** without `..` or absolute path components.
+4.2.4 All evidence files listed in `index.json` MUST reside under the bundle root `data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/` using **relative paths** without `..` or absolute path components.
 
 ---
 
@@ -516,7 +516,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `id: validation_bundle_index_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias)
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -557,7 +557,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `id: validation_passed_flag_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -593,7 +593,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `id: s5_manifest_3B` (or `s5_run_summary_3B`);
 * `owner_subsegment: 3B`;
 * `schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B`;
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -659,7 +659,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * `id: validation_bundle_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (for the index shape; the bundle itself is a directory)
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -687,7 +687,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * `id: validation_bundle_index_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B`
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []` (single JSON document per fingerprint)
 
@@ -731,7 +731,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * `id: validation_passed_flag_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -767,7 +767,7 @@ Any deviation MUST be treated as a schema violation.
 * `id: s5_manifest_3B` (or `s5_run_summary_3B` if preferred);
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B`
-* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
+* `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []`
 
@@ -1034,7 +1034,7 @@ Any mismatch MUST be recorded and cause S5 to fail (RNG-accounting error).
 6.6.1 S5 MUST assemble all 3B validation evidence into a staging directory for the target `manifest_fingerprint`, under:
 
 ```text
-data/layer1/3B/validation/fingerprint={manifest_fingerprint}/.staging/
+data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/.staging/
 ```
 
 (or equivalent temporary location).
@@ -1104,7 +1104,7 @@ No additional lines, spaces or trailing content are permitted.
 * Move/rename the staging directory to the canonical validation path:
 
 ```text
-data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 so that:
@@ -1185,25 +1185,25 @@ and MUST equal the partition `fingerprint` and upstream S0 identity.
 * Validation bundle root:
 
   ```text
-  data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+  data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
   ```
 
 * Index:
 
   ```text
-  data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
+  data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
   ```
 
 * Flag:
 
   ```text
-  data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 * S5 manifest/summary (if present):
 
   ```text
-  data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+  data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json
   ```
 
 7.2.3 S5 MUST NOT:
@@ -2721,7 +2721,7 @@ Operators MUST then:
 
 * **`validation_bundle_3B`**
   S5 egress. Directory under
-  `data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
+  `data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/`
   containing 3B validation evidence, `index.json` and `_passed.flag`.
 
 * **`validation_bundle_index_3B`**

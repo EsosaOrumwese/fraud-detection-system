@@ -4,7 +4,7 @@ subsegments:
   artifacts:
 
   - name: s0_gate_receipt_1B
-    path: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    path: data/layer1/1B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     type: dataset
     category: validation
     semver: '{semver}'
@@ -20,11 +20,11 @@ subsegments:
     environment: [runtime]
     schema: schemas.1B.yaml#/validation/s0_gate_receipt
     cross_layer: false
-    notes: 'Partition: fingerprint={manifest_fingerprint}; path↔embed equality enforced.'
+    notes: 'Partition: manifest_fingerprint={manifest_fingerprint}; path↔embed equality enforced.'
 
   # Cross-layer inputs explicitly referenced by 1B.S0 (gating semantics live in 1A bundle/flag)
   - name: validation_bundle_1A
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: validation
     semver: '{semver}'
@@ -43,7 +43,7 @@ subsegments:
     notes: 'S0 computes SHA-256 over ASCII-lex index (bundle index) to verify _passed.flag. Retention per Dictionary.'
 
   - name: validation_passed_flag_1A
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -101,7 +101,7 @@ subsegments:
     notes:
 
   - name: outlet_catalogue
-    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -280,7 +280,7 @@ subsegments:
 
   # ---- S3 output dataset ----
   - name: s3_requirements
-    path: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    path: data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: prep
     semver: '{semver}'
@@ -297,12 +297,12 @@ subsegments:
     schema: schemas.1B.yaml#/plan/s3_requirements
     cross_layer: false
     notes: |
-      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Partitioning: seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso]
       Write-once; atomic move into live partition; file order non-authoritative.
 
   - name: s4_alloc_plan
-    path: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    path: data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: prep
     semver: '{semver}'
@@ -319,12 +319,12 @@ subsegments:
     schema: schemas.1B.yaml#/plan/s4_alloc_plan
     cross_layer: false
     notes: |
-      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Partitioning: seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, tile_id]
       Write-once; atomic move into live partition; file order non-authoritative.
 
   - name: s5_site_tile_assignment
-    path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: prep
     semver: '{semver}'
@@ -341,12 +341,12 @@ subsegments:
     schema: schemas.1B.yaml#/plan/s5_site_tile_assignment
     cross_layer: false
     notes: |
-      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Partitioning: seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, site_order]
       Write-once; atomic move; file order non-authoritative.
 
   - name: s6_site_jitter
-    path: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    path: data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: prep
     semver: '{semver}'
@@ -363,12 +363,12 @@ subsegments:
     schema: schemas.1B.yaml#/plan/s6_site_jitter
     cross_layer: false
     notes: |
-      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Partitioning: seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, site_order]
       Write-once; atomic move; file order non-authoritative.
 
   - name: s7_site_synthesis
-    path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    path: data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: prep
     semver: '{semver}'
@@ -385,7 +385,7 @@ subsegments:
     schema: schemas.1B.yaml#/plan/s7_site_synthesis
     cross_layer: false
     notes: |
-      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Partitioning: seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, site_order]
       Write-once; atomic move; file order non-authoritative.
 
@@ -409,7 +409,7 @@ subsegments:
     notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
 
   - name: site_locations
-    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -425,10 +425,10 @@ subsegments:
     environment: [runtime]
     schema: schemas.1B.yaml#/egress/site_locations
     cross_layer: true
-    notes: 'Partition: seed={seed}/fingerprint={manifest_fingerprint}; writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic move; file order non-authoritative.'
+    notes: 'Partition: seed={seed}/manifest_fingerprint={manifest_fingerprint}; writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic move; file order non-authoritative.'
 
   - name: validation_bundle_1B
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
@@ -445,12 +445,12 @@ subsegments:
     environment: [runtime]
     cross_layer: true
     notes: |
-      Partitioning: fingerprint={manifest_fingerprint}
+      Partitioning: manifest_fingerprint={manifest_fingerprint}
       Publish posture: write-once; stage → fsync → single atomic move; file order non-authoritative.
       Hashing law: _passed.flag = SHA-256 over raw bytes of files listed in index.json, in ASCII-lex order of 'path' (flag excluded).
 
   - name: validation_passed_flag_1B
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -469,7 +469,7 @@ subsegments:
     notes: 'Content is a single line: "sha256_hex = <hex64>". Digest equals SHA-256 of the bundle per bundle hashing law.'
 
   - name: rng_event_site_tile_assign
-    path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
     type: log
     category: rng_event
     semver: '{semver}'
@@ -488,7 +488,7 @@ subsegments:
     notes: null
 
   - name: rng_audit_log
-    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    path: logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
     type: log
     category: rng_core
     semver: '{semver}'
@@ -507,7 +507,7 @@ subsegments:
     notes: null
 
   - name: rng_trace_log
-    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    path: logs/layer1/1B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
     type: log
     category: rng_core
     semver: '{semver}'
@@ -526,7 +526,7 @@ subsegments:
     notes: null
 
   - name: rng_event_in_cell_jitter
-    path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
     type: log
     category: rng_event
     semver: '{semver}'

@@ -578,7 +578,7 @@ There MUST NOT be duplicate rows for the same triple.
 **Conceptual path template** (finalised in dictionary):
 
 ```text
-data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 Binding rules:
@@ -894,7 +894,7 @@ datasets:
     description: Integer outlet counts per merchant×country×zone after floor/bump.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
@@ -928,7 +928,7 @@ For each `{seed, manifest_fingerprint}`, the 3A artefact registry records `s4_zo
   subsegment: "3A"
   type: "dataset"
   category: "plan"
-  path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+  path: data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
   schema: schemas.3A.yaml#/plan/s4_zone_counts
   semver: '1.0.0'
   version: '{seed}.{manifest_fingerprint}'
@@ -1278,7 +1278,7 @@ Using the dictionary entry for `s4_zone_counts`:
 * Determine the target path:
 
   ```text
-  data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/...
+  data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 * Sort rows by the declared writer-sort key:
@@ -1315,7 +1315,7 @@ Throughout all phases, S4 MUST:
 
 * **not read wall-clock time**
 
-  * any timestamps in logs/run-report are provided by the orchestrator, NOT used in S4’s data-plane logic.
+  * any timestamps in logs/layer1/3A/run-report are provided by the orchestrator, NOT used in S4’s data-plane logic.
 
 * **not mutate upstream artefacts**
 
@@ -1430,7 +1430,7 @@ No additional partition keys (e.g. `parameter_hash`, `run_id`) are allowed for t
 From the dictionary:
 
 ```text
-data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 Binding rules:
@@ -3184,7 +3184,7 @@ These fields are repeated on all rows of `s4_zone_counts` for a given run and sh
 
 * **`status`**
 
-  S4 outcome in logs/run-report:
+  S4 outcome in logs/layer1/3A/run-report:
 
   * `"PASS"` — S4 met all acceptance criteria; `s4_zone_counts` is authoritative for this `{seed,fingerprint}`.
   * `"FAIL"` — S4 terminated with one of the error codes above; its outputs for that run MUST NOT be used.

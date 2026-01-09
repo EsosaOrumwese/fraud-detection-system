@@ -626,7 +626,7 @@ subsegments:
     notes: Referenced by validator_manifest for DST/time provenance.
 
   - name: site_catalogue
-    path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/outputs/1B/site_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: validator_input
     semver: '{semver}'

@@ -22,8 +22,8 @@ reference_data:
   description: 'Per-site coordinates (order-free). Read only after verifying 1B PASS.'
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/egress/site_locations
   lineage:
@@ -40,8 +40,8 @@ reference_data:
   description: 'Validation bundle for 1B publish (fingerprint-scoped). Gate evidence for 2A.S0.'
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
   lineage:
@@ -58,8 +58,8 @@ reference_data:
   description: 'PASS gate flag; equals SHA-256 of 1B bundle per S9 index law.'
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/passed_flag
   lineage:
@@ -210,8 +210,8 @@ datasets:
   description: 'Fingerprint-scoped receipt proving 1B PASS and recording sealed inputs for 2A.'
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
-  partitioning: [fingerprint]
+  path: data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/validation/s0_gate_receipt_v1
   lineage:
@@ -228,8 +228,8 @@ datasets:
   description: 'Diagnostic inventory of sealed inputs for a 2A fingerprint.'
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
-  partitioning: [fingerprint]
+  path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+  partitioning: [manifest_fingerprint]
   ordering: [asset_kind, basename]
   schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
   lineage:
@@ -246,8 +246,8 @@ datasets:
   description: Provisional tz lookup results per site (deterministic).
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
   lineage:
@@ -264,8 +264,8 @@ datasets:
   description: Final per-site IANA tzid with provenance; order-free egress.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.2A.yaml#/egress/site_timezones
   lineage:
@@ -282,8 +282,8 @@ datasets:
   description: Fingerprint-scoped cache manifest for tz transitions.
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
   lineage:
@@ -300,8 +300,8 @@ datasets:
   description: Legality/DST report per seed×fingerprint (JSON summary).
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
-  partitioning: [seed, fingerprint]
+  path: data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/validation/s4_legality_report
   lineage:
@@ -318,8 +318,8 @@ datasets:
   description: Validation bundle for 2A publish (one per fingerprint).
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
   lineage:
@@ -336,8 +336,8 @@ datasets:
   description: PASS flag; equals SHA-256 of bundle per index+ASCII-lex law.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/validation/passed_flag
   lineage:

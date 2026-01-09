@@ -668,7 +668,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
   * `seed={seed}`
   * `fingerprint={manifest_fingerprint}`
 * The normative path pattern SHALL be defined in `dataset_dictionary.layer1.3B.yaml`, e.g.:
-  `data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`
+  `data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…`
 * `writer_sort` MUST be defined in the dictionary and respected by S2. A recommended law is:
 
   * `writer_sort: ["merchant_id","edge_id"]` (or composite merchant key first, then `edge_id`).
@@ -703,7 +703,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 * `id: edge_catalogue_index_3B`;
 * `owner_subsegment: 3B`;
 * `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B`;
-* `path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/`;
+* `path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`;
 * `partitioning: [seed, fingerprint]`;
 * `ordering` reflecting the key structure (e.g. `["scope","merchant_id"]`, as defined in the schema).
 
@@ -822,7 +822,7 @@ is non-conformant with this specification and MUST be corrected or versioned app
 * `id: edge_catalogue_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B`
-* `path: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `path: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * `partitioning: [seed, fingerprint]`
 * `ordering: ["merchant_id","edge_id"]`
   (or `["merchant_key","edge_id"]` if a composite merchant key is adopted across 3B; in that case the spec MUST be explicit).
@@ -928,7 +928,7 @@ is non-conformant with this specification and MUST be corrected or versioned app
 * `id: edge_catalogue_index_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B`
-* `path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * `partitioning: [seed, fingerprint]`
 * `ordering`:
 

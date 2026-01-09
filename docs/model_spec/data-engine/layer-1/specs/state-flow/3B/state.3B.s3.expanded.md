@@ -601,7 +601,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
   * `fingerprint={manifest_fingerprint}`
 
 * The normative `path` SHALL be defined in `dataset_dictionary.layer1.3B.yaml`, i.e.:
-  `data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
+  `data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
 
 * No other partition keys MAY be used.
 
@@ -691,7 +691,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
   * `fingerprint={manifest_fingerprint}`
 
 * The normative `path` SHALL be defined in the 3B dictionary, i.e.:
-  `data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
+  `data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
 
 * `ordering` MUST follow the declared primary keys, i.e. `["scope","merchant_id"]` with any composite merchant key encoded consistently across 3B.
 
@@ -732,7 +732,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 * `edge_universe_hash_3B` MUST be fingerprint-only:
 
-  * `path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
+  * `path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
 
   * `partitioning: ["fingerprint"]`.
 
@@ -750,7 +750,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 4.5.1 If the design includes an S3 run-summary dataset (e.g. `s3_run_summary_3B`), it MUST be declared in `schemas.3B.yaml` and the 3B dictionary with:
 
 * `schema_ref: schemas.3B.yaml#/validation/s3_run_summary_3B`;
-* `path: data/layer1/3B/s3_run_summary/fingerprint={manifest_fingerprint}/s3_run_summary_3B.json` (or similar);
+* `path: data/layer1/3B/s3_run_summary/manifest_fingerprint={manifest_fingerprint}/s3_run_summary_3B.json` (or similar);
 * `partitioning: ["fingerprint"]`.
 
 4.5.2 Such a summary MAY capture:
@@ -821,7 +821,7 @@ is **non-conformant** with this specification and MUST be corrected under the ch
 * `id: edge_alias_blob_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B`
-* `path: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
+* `path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
 * `partitioning: [seed, fingerprint]`
 * `ordering: []` (blob is a single binary file per `{seed,fingerprint}`; sort concept is N/A)
 
@@ -867,7 +867,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `id: edge_alias_index_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B`
-* `path: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
+* `path: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
 * `partitioning: [seed, fingerprint]`
 * `ordering: ["scope","merchant_id"]`
 
@@ -952,7 +952,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `id: edge_universe_hash_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B`
-* `path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
+* `path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
 * `partitioning: ["fingerprint"]`
 * `ordering: []` (single JSON doc per fingerprint)
 
@@ -1005,7 +1005,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `id: gamma_draw_log_3B`
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B`
-* `path: logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl`
+* `path: logs/layer1/3B/gamma_draw/seed={seed}/manifest_fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl`
 * `partitioning: [seed, fingerprint]`
 * `ordering: [merchant_id, day_index]`
 
@@ -1556,7 +1556,7 @@ but it MUST NOT:
 The canonical path is of the form:
 
 ```text
-data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
 ```
 
 No additional partition keys (e.g. `parameter_hash`, `run_id`, or merchant-level sharding) are allowed unless **explicitly** added via a versioned change to the dataset dictionary and this spec.
@@ -1569,7 +1569,7 @@ No additional partition keys (e.g. `parameter_hash`, `run_id`, or merchant-level
 with a canonical path of the form:
 
 ```text
-data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
 ```
 
 Again, no additional partition keys are allowed without a versioned contract change.
@@ -1580,7 +1580,7 @@ Again, no additional partition keys are allowed without a versioned contract cha
 * canonical path of the form:
 
 ```text
-data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
 ```
 
 It MUST NOT be partitioned by `seed` or any other key. The descriptor is manifest-scoped, not seed-scoped.
@@ -1976,7 +1976,7 @@ All codes in this section are reserved for 3B.S3 and MUST NOT be reused by other
 9.1.3 Unless explicitly marked as `WARN`, all codes defined below are **FATAL** for S3:
 
 * **FATAL** ⇒ S3 MUST NOT publish `edge_alias_blob_3B`, `edge_alias_index_3B` or `edge_universe_hash_3B` as valid canonical outputs for that `{seed,fingerprint}`. The virtual edge alias universe MUST be considered **not constructed** for that manifest.
-* **WARN** ⇒ S3 MAY complete and publish outputs, but the condition MUST be observable via logs/run-report and SHOULD be visible in metrics; WARNs MUST NOT be used to hide conditions that this spec treats as FATAL.
+* **WARN** ⇒ S3 MAY complete and publish outputs, but the condition MUST be observable via logs/layer1/3B/run-report and SHOULD be visible in metrics; WARNs MUST NOT be used to hide conditions that this spec treats as FATAL.
 
 ---
 

@@ -21,8 +21,8 @@ reference_data:
   description: Immutable per-site geometry emitted by 1B; 3B joins by `merchant_id` but MUST NOT mutate these rows.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/egress/site_locations
   lineage:
@@ -39,8 +39,8 @@ reference_data:
   description: Immutable outlet stubs emitted by 1A; used to derive virtual overlays.
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
   lineage:
@@ -57,8 +57,8 @@ reference_data:
   description: Per-site tzid assignments from Segment 2A; admissible input for virtual routing.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.2A.yaml#/egress/site_timezones
   lineage:
@@ -75,8 +75,8 @@ reference_data:
   description: Fingerprint-scoped civil-time cache manifest compiled by Segment 2A.
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
   lineage:
@@ -93,8 +93,8 @@ reference_data:
   description: Cross-layer zone allocation egress used by virtual routing.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, tzid]
   schema_ref: schemas.3A.yaml#/egress/zone_alloc
   lineage:
@@ -111,8 +111,8 @@ reference_data:
   description: Digest summary tying priors, policies, and allocation outputs for zone allocation.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
-  partitioning: [fingerprint]
+  path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
   lineage:
@@ -383,8 +383,8 @@ datasets:
   description: Gate receipt capturing upstream PASS status, sealed policy set and authoritative digests.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/s0_gate_receipt_3B
   lineage:
@@ -401,8 +401,8 @@ datasets:
   description: Inventory of every artefact authorised for the manifest.
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
-  partitioning: [fingerprint]
+  path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
+  partitioning: [manifest_fingerprint]
   ordering: [owner_segment, artefact_kind, logical_id, path]
   schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B
   lineage:
@@ -419,8 +419,8 @@ datasets:
   description: Merchant-level classification surface with closed vocabulary reason codes.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id]
   schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B
   lineage:
@@ -437,8 +437,8 @@ datasets:
   description: One settlement node per virtual merchant with tzid semantics and evidence URLs.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id]
   schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B
   lineage:
@@ -455,8 +455,8 @@ datasets:
   description: Per-edge geometry, tz semantics and weights for all virtual merchants.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, edge_id]
   schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B
   lineage:
@@ -473,8 +473,8 @@ datasets:
   description: Digest summary and per-merchant counts for the edge catalogue.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+  partitioning: [seed, manifest_fingerprint]
   ordering: [scope, merchant_id]
   schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B
   lineage:
@@ -491,8 +491,8 @@ datasets:
   description: Contiguous alias blob covering every virtual merchant edge distribution.
   version: '{seed}.{manifest_fingerprint}'
   format: bin
-  path: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B
   lineage:
@@ -509,8 +509,8 @@ datasets:
   description: Index and checksum metadata for locating merchant alias segments inside the blob.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+  partitioning: [seed, manifest_fingerprint]
   ordering: [scope, merchant_id]
   schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B
   lineage:
@@ -527,8 +527,8 @@ datasets:
   description: Fingerprint-scoped hash tying cdn weights, edge catalogue/index and alias outputs.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B
   lineage:
@@ -545,8 +545,8 @@ datasets:
   description: Structured Philox audit for any gamma draws in the virtual pipeline.
   version: '{seed}.{manifest_fingerprint}'
   format: jsonl
-  path: logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
-  partitioning: [seed, fingerprint]
+  path: logs/layer1/3B/gamma_draw/seed={seed}/manifest_fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, day_index]
   schema_ref: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B
   lineage:
@@ -563,7 +563,7 @@ datasets:
   description: RNG run audit (identity/config) - one row at run start for 3B S2 runs.
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  path: logs/layer1/3B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
@@ -581,7 +581,7 @@ datasets:
   description: RNG cumulative trace - append exactly one row after each event append for 3B S2 runs.
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  path: logs/layer1/3B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
@@ -599,7 +599,7 @@ datasets:
   description: RNG events for S2 edge tile assignment (one per expanded edge slot).
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/edge_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/3B/rng/events/edge_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/edge_tile_assign
@@ -617,7 +617,7 @@ datasets:
   description: RNG events for S2 edge jitter attempts (one per attempt).
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/edge_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/3B/rng/events/edge_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/edge_jitter
@@ -635,8 +635,8 @@ datasets:
   description: Dual-TZ routing contract that tells 2B how to consume the virtual artefacts.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B
   lineage:
@@ -653,8 +653,8 @@ datasets:
   description: Declarative suite of validation tests (IP mix, cut-offs, alias health) scoped to the manifest.
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
-  partitioning: [fingerprint]
+  path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+  partitioning: [manifest_fingerprint]
   ordering: [test_id]
   schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B
   lineage:
@@ -671,8 +671,8 @@ datasets:
   description: Optional S4 receipt capturing policy digests and status.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
-  partitioning: [fingerprint]
+  path: reports/layer1/3B/state=S4/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B
   lineage:
@@ -689,8 +689,8 @@ datasets:
   description: Directory artefact containing manifest, digests and structural or RNG evidence.
   version: '{manifest_fingerprint}'
   format: folder
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
   lineage:
@@ -707,8 +707,8 @@ datasets:
   description: index.json enumerating evidence files plus their SHA-256 digests.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
   lineage:
@@ -725,8 +725,8 @@ datasets:
   description: ASCII _passed.flag storing the hash of the validation bundle.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
   lineage:
@@ -743,8 +743,8 @@ datasets:
   description: Optional S5 manifest summarising identity, digests and validator outcomes; lives inside the bundle.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B
   lineage:
@@ -761,8 +761,8 @@ datasets:
   description: Run report for 3B.S1 virtual classification.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s1_virtuals/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -779,8 +779,8 @@ datasets:
   description: Run report for 3B.S2 edge catalogue.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s2_edges/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S2/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -797,8 +797,8 @@ datasets:
   description: Run report for 3B.S3 alias packaging.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s3_alias/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -815,8 +815,8 @@ datasets:
   description: Run report for 3B.S4 routing policy compilation.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s4_routing/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -833,8 +833,8 @@ datasets:
   description: Run report for 3B.S5 validation bundle.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s5_validation/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:

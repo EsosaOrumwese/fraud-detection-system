@@ -494,7 +494,7 @@ S4 can emit up to three datasets:
 
 Binding rules:
 
-* Files live under `data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, with partition keys `[seed, fingerprint, scenario_id]`. S4 MUST NOT deviate from this layout.
+* Files live under `data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, with partition keys `[seed, fingerprint, scenario_id]`. S4 MUST NOT deviate from this layout.
 * Each row captures one realised arrival “skeleton” (merchant, zone/channel context, UTC/local timestamps, routing info). Column definitions and required orderings are governed by the schema pack; S4 MUST keep them byte-accurate.
 * The registry declares that this surface is final-in-layer and depends on S3 counts, routing metadata, and RNG policies. S4 MUST NOT read additional artefacts that aren’t declared and sealed.
 * Determinism: same `(seed, scenario_id, parameter_hash, manifest_fingerprint)` ⇒ byte-identical arrival stream.

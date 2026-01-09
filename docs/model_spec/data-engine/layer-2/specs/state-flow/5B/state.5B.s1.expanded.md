@@ -197,9 +197,9 @@ Before 5B.S1 may execute for a given `(parameter_hash = ph, manifest_fingerprint
 1. **S0 outputs MUST exist and be valid**
 
    * A single `s0_gate_receipt_5B` file MUST exist at:
-     `data/layer2/5B/s0_gate_receipt/fingerprint=mf/s0_gate_receipt_5B.json`
+     `data/layer2/5B/s0_gate_receipt/manifest_fingerprint=mf/s0_gate_receipt_5B.json`
    * A single `sealed_inputs_5B` file MUST exist at:
-     `data/layer2/5B/sealed_inputs/fingerprint=mf/sealed_inputs_5B.parquet`
+     `data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.parquet`
 
 2. **Receipt and inventory MUST be consistent**
 
@@ -645,7 +645,7 @@ No other datasets may be emitted unless those contracts are extended first.
 
 Binding rules:
 
-* The dictionary path (`data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/…`) and partition keys `[manifest_fingerprint, scenario_id]` are normative; S1 MUST write exactly there and nowhere else.
+* The dictionary path (`data/layer2/5B/s1_time_grid/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/…`) and partition keys `[manifest_fingerprint, scenario_id]` are normative; S1 MUST write exactly there and nowhere else.
 * Row content (bucket indices, UTC/local timing metadata, scenario tags) MUST match the schema pack’s definitions. This spec constrains behaviour (no gaps/overlaps, deterministic ordering) but the schema is the shape authority.
 * Dependencies listed in the registry (S0 gate receipt, 5A scenario manifest, 5B time-grid policy) are the only artefacts S1 may read for this output; anything else must first be added to `sealed_inputs_5B`.
 * Under a fixed `(parameter_hash, manifest_fingerprint)`, re-running S1 MUST regenerate byte-identical files; all variability (e.g. different bucket duration choices) requires a contract update.
@@ -893,7 +893,7 @@ Using `grouping_policy_5B` and the ordered domain `D_s`:
    * For each `scenario_id`, write a Parquet (or agreed) file at:
 
      ```text
-     data/layer2/5B/s1_time_grid/fingerprint=mf/scenario_id={scenario_id}/s1_time_grid_5B.parquet
+     data/layer2/5B/s1_time_grid/manifest_fingerprint=mf/scenario_id={scenario_id}/s1_time_grid_5B.parquet
      ```
 
    * Enforce:
@@ -907,7 +907,7 @@ Using `grouping_policy_5B` and the ordered domain `D_s`:
    * For each `scenario_id`, write:
 
      ```text
-     data/layer2/5B/s1_grouping/fingerprint=mf/scenario_id={scenario_id}/s1_grouping_5B.parquet
+     data/layer2/5B/s1_grouping/manifest_fingerprint=mf/scenario_id={scenario_id}/s1_grouping_5B.parquet
      ```
 
    * Enforce:
@@ -987,13 +987,13 @@ Canonical paths:
 * `s1_time_grid_5B`:
 
   ```text
-  data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
+  data/layer2/5B/s1_time_grid/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
   ```
 
 * `s1_grouping_5B`:
 
   ```text
-  data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
+  data/layer2/5B/s1_grouping/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
   ```
 
 Binding constraints:

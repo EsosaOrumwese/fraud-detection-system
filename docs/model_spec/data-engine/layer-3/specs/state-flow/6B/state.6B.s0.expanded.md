@@ -428,7 +428,7 @@ The gate receipt MUST be registered in the 6B dataset dictionary and artefact re
 
 * `version: '{manifest_fingerprint}'`
 * `format: json`
-* `path: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
+* `path: data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
 * `partitioning: [fingerprint]`
 * `primary_key: [manifest_fingerprint]`
 * `ordering: []` (single logical row per fingerprint; writer is free to serialise fields in any JSON object order consistent with the schema)
@@ -478,7 +478,7 @@ The sealed-inputs manifest MUST be registered in the 6B dataset dictionary and a
 
 * `version: '{manifest_fingerprint}'`
 * `format: parquet`
-* `path: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
+* `path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
 * `partitioning: [fingerprint]`
 * `primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]`
 * `ordering: [owner_layer, owner_segment, manifest_key]`
@@ -540,7 +540,7 @@ The dataset dictionary and artefact registry for Layer-3 / Segment 6B **MUST** r
 The eventual 6B validation bundle (`validation_bundle_6B`) and flag (`validation_passed_flag_6B`) are **not** produced by S0, but they will:
 
 * Depend on the correctness of `s0_gate_receipt_6B` and `sealed_inputs_6B`.
-* Be registered in the same dictionary/registry and sit under `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/…` with `partitioning: [fingerprint]`.
+* Be registered in the same dictionary/registry and sit under `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/…` with `partitioning: [fingerprint]`.
 
 This section fully defines the output surfaces and identity model for 6B.S0. Subsequent sections describe how these outputs are populated (algorithm), how their partitions are written (merge discipline), and how downstream states are required to use them.
 
@@ -654,8 +654,8 @@ For each required upstream segment `SEG` in the list above:
 2. Using those entries, construct the expected bundle and flag locations for the target `manifest_fingerprint`, e.g.:
 
    ```text
-   data/layer1/2A/validation/fingerprint={manifest_fingerprint}/index.json
-   data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+   data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+   data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
    ```
 
 3. Check for existence of both the bundle directory and the flag file. If either is missing, record `status="MISSING"` for that segment in a working `upstream_segments` map and mark S0 as not runnable.
@@ -761,7 +761,7 @@ At the end of Step 3, S0 has a complete in-memory representation of every artefa
 4. Write the sorted rows into a single parquet file under:
 
    ```text
-   data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+   data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
    ```
 
    taking care to:
@@ -842,7 +842,7 @@ If any problem occurs in reading or serialising `sealed_inputs_6B`, S0 MUST trea
 3. Perform an **atomic write** to:
 
    ```text
-   data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+   data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
    ```
 
    using the engine’s standard write-once semantics:
@@ -911,14 +911,14 @@ Both outputs of 6B.S0 are **fingerprint-partitioned control-plane datasets**:
 * `s0_gate_receipt_6B`:
 
   * Path (template):
-    `data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
+    `data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
   * Partitioning: `[fingerprint]`
   * Primary key: `[manifest_fingerprint]`
 
 * `sealed_inputs_6B`:
 
   * Path (template):
-    `data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
+    `data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet`
   * Partitioning: `[fingerprint]`
   * Primary key: `[manifest_fingerprint, owner_layer, owner_segment, manifest_key]`
 

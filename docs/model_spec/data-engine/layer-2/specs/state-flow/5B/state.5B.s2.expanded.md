@@ -919,7 +919,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
    * For each `(seed, mf, scenario_id)`, materialise a Parquet file at:
 
      ```text
-     data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={mf}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+     data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
      ```
 
    * Enforce:
@@ -940,7 +940,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
      * For each `(seed, mf, scenario_id)`, write:
 
        ```text
-       data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={mf}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+       data/layer2/5B/s2_latent_field/seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
        ```
 
      * Enforce:

@@ -421,8 +421,8 @@ datasets:
   description: Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9).
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
   lineage:
@@ -584,8 +584,8 @@ datasets:
   description: Validator outputs for 1A (metrics, plots, diffs).
   version: '{manifest_fingerprint}'
   format: folder
-  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1A.yaml#/validation/validation_bundle
   lineage:
@@ -602,8 +602,8 @@ datasets:
   description: HashGate PASS flag for the 1A validation bundle.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/passed_flag
   lineage:
@@ -621,7 +621,7 @@ datasets:
   description: Run-scoped RNG audit log (master seed, counters, substream jumps).
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  path: logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
@@ -639,7 +639,7 @@ datasets:
   description: Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each RNG event append (per S4 §2A).
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  path: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
@@ -657,7 +657,7 @@ datasets:
   description: 'Event stream: hurdle Bernoulli draws per merchant (π).'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/hurdle_bernoulli
@@ -675,7 +675,7 @@ datasets:
   description: 'Event stream: gamma draws for NB/Dirichlet components.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/gamma_component
@@ -696,7 +696,7 @@ datasets:
   description: 'Event stream: Poisson draws used in NB composition / ZTP.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: [merchant_id, attempt]
   schema_ref: schemas.layer1.yaml#/rng/events/poisson_component
@@ -718,7 +718,7 @@ datasets:
   description: 'Event stream: final Negative Binomial draws for outlet counts.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/nb_final
@@ -739,7 +739,7 @@ datasets:
   description: 'Event stream: ZTP rejection samples and acceptance traces.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: [merchant_id, attempt]
   schema_ref: schemas.layer1.yaml#/rng/events/ztp_rejection
@@ -763,7 +763,7 @@ datasets:
   description: 'Event stream: ZTP retry exhaustion (diagnostic hard events).'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: [merchant_id, attempts]
   schema_ref: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
@@ -787,7 +787,7 @@ datasets:
   description: 'Event stream: S4 single acceptance record per resolved merchant (fixes K_target and run facts).'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: [merchant_id]
   schema_ref: schemas.layer1.yaml#/rng/events/ztp_final
@@ -811,7 +811,7 @@ datasets:
   description: 'Event stream: Gumbel-top-k keys for foreign-country selection.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/gumbel_key
@@ -835,7 +835,7 @@ datasets:
   description: 'Event stream: Dirichlet gamma vectors for splitting outlets across countries.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
@@ -856,7 +856,7 @@ datasets:
   description: 'Event stream: explicit Philox stream/substream jump records.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/stream_jump
@@ -877,7 +877,7 @@ datasets:
   description: 'Event stream: standard normal draws via Box–Muller (Z only; sine mate discarded).'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/normal_box_muller
@@ -899,7 +899,7 @@ datasets:
   description: 'Event stream: final sequence allocation per (merchant,country) block.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/sequence_finalize
@@ -920,7 +920,7 @@ datasets:
   description: 'Event stream: deterministic ranks of largest-remainder residuals for per-country integerisation.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/residual_rank
@@ -941,7 +941,7 @@ datasets:
   description: 'Event stream: guardrail events when site sequence space is exhausted.'
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  path: logs/layer1/1A/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/site_sequence_overflow
@@ -963,7 +963,7 @@ reports:
   description: Layer-1 segment-state run-report (JSONL), one row per state invocation.
   version: latest
   format: jsonl
-  path: reports/l1/segment_states/segment_state_runs.jsonl
+  path: reports/layer1/segment_state_runs/segment=1A/utc_day={utc_day}/segment_state_runs.jsonl
   partitioning: []
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run

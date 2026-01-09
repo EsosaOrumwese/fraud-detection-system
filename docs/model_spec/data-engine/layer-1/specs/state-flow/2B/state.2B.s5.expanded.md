@@ -173,15 +173,15 @@ S5 is a **runtime decision fabric**. It produces **no mandatory persisted egress
 S5 **MUST** append RNG evidence under the **layer RNG envelope**; partitions and lineage follow the existing law:
 
 * **Core logs (run-scoped):**
-  `rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
-  `rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
+  `rng_audit_log` → `logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
+  `rng_trace_log` → `logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
   *(Append exactly **one** cumulative trace row **after each event append**.)*
 
 * **Event families (per-arrival):** **two single-uniform streams** (group pick, site pick), each partitioned by
   `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` and carrying the standard envelope (`before/after` counters, `blocks=1`, `draws="1"`).
   *Naming note:* family names are reserved for the layer catalog and will be registered alongside their schemas; S5 consumes **two events per selection** and reconciles totals via `rng_trace_log`. 
 
-**Identity implications.** RNG logs/events are **never fingerprint-partitioned**; they bind to the run via `{seed, parameter_hash, run_id}` (fingerprint is echoed only where a schema requires it). This matches Layer-1 precedent. 
+**Identity implications.** RNG logs/layer1/2B/events are **never fingerprint-partitioned**; they bind to the run via `{seed, parameter_hash, run_id}` (fingerprint is echoed only where a schema requires it). This matches Layer-1 precedent. 
 
 **5.3 Optional diagnostic dataset (policy-gated)**
 If routing diagnostics are enabled by policy, S5 **MAY** emit a per-arrival selection log:
@@ -411,7 +411,7 @@ Wherever lineage appears **both** in the path and in a payload/row (e.g., `manif
 
 **8.5 Immutability & atomic publish (binding)**
 
-* **Write-once + atomic publish** applies to any S5-produced artefact (logs/events) and to optional `s5_selection_log`. No partial files; publish by atomic move into the final path. **No in-place mutation.** 
+* **Write-once + atomic publish** applies to any S5-produced artefact (logs/layer1/2B/events) and to optional `s5_selection_log`. No partial files; publish by atomic move into the final path. **No in-place mutation.** 
 * **Idempotent re-emit:** Re-emitting a partition (e.g., retry) is only permitted if the resulting bytes are **identical**. Otherwise, use a **new `run_id`** (and/or a new `{seed, fingerprint}` if upstream identity changed). 
 
 **8.6 Merge discipline (binding)**
@@ -624,7 +624,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 
 **2B-S5-090 — PROHIBITED_WRITE** · *Abort*
 **Trigger:** Any write to plan/egress tables at `[seed,fingerprint]` (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`).
-**Detect:** V-14. **Remedy:** treat these as read-only; S5 writes only logs/events (and optional `s5_selection_log`). 
+**Detect:** V-14. **Remedy:** treat these as read-only; S5 writes only logs/layer1/2B/events (and optional `s5_selection_log`). 
 
 ---
 
@@ -880,7 +880,7 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
 
 * **Dataset Dictionary (catalogue authority):** `dataset_dictionary.layer1.2B.yaml`
   **IDs & path families S5 resolves (all read-only):**
-  • `s4_group_weights` → `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (Parquet; `[seed,fingerprint]`) 
+  • `s4_group_weights` → `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (Parquet; `[seed,fingerprint]`) 
   • `s1_site_weights` → `…/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (Parquet; `[seed,fingerprint]`) 
   • `s2_alias_index` → `…/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json` (JSON; `[seed,fingerprint]`) 
   • `s2_alias_blob` → `…/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin` (binary; `[seed,fingerprint]`) 
@@ -935,6 +935,6 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
 ### A.7 Token & identity law (where to look)
 
 * **Plan/egress inputs:** selected at **`[seed, fingerprint]`** exactly as per the Dictionary entries above. 
-* **RNG logs/events:** produced at **`[seed, parameter_hash, run_id]`** with the layer RNG envelope. 
+* **RNG logs/layer1/2B/events:** produced at **`[seed, parameter_hash, run_id]`** with the layer RNG envelope. 
 
 ---

@@ -1261,7 +1261,7 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
    * Write all event rows for the partition to the appropriate path under:
 
      ```text
-     data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
      ```
 
    * Ensure:
@@ -1275,7 +1275,7 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
    * Write all flow anchor rows for the same partition under:
 
      ```text
-     data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
      ```
 
    * Ensure:

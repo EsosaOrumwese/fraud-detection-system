@@ -157,7 +157,7 @@ S7 SHALL NOT read any surface outside §4.2 (e.g., priors, policies, or alternat
 
 **ID (Dictionary):** `s7_site_synthesis`
 **Path family:**
-`data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+`data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
 **Partitions (binding):** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Format:** parquet · **Write-once; atomic move; file order non-authoritative**.
 **Shape authority:** `schemas.1B.yaml#/plan/s7_site_synthesis` (PK `[merchant_id, legal_country_iso, site_order]`, columns_strict=true).
 **Notes:** Aligns with S5/S6 partition/sort law.   
@@ -174,7 +174,7 @@ S7 SHALL NOT read any surface outside §4.2 (e.g., priors, policies, or alternat
 ## 5.2 Downstream reference — S8 egress `site_locations` (order-free)
 
 **Target path family:**
-`data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` (file order non-authoritative).
 S7 SHALL prepare rows that can be published under this identity without encoding inter-country order. 
 
@@ -193,7 +193,7 @@ S7 is deterministic and introduces **no RNG event streams**. Existing RNG logs f
 **ID → Schema:** `s7_site_synthesis` → `schemas.1B.yaml#/plan/s7_site_synthesis`.
 **Identity:** partitions **`[seed, fingerprint, parameter_hash]`**; **PK** `[merchant_id, legal_country_iso, site_order]`; **writer sort** `[merchant_id, legal_country_iso, site_order]`; **columns_strict: true**.
 **Dictionary path family:**  
-`data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+`data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
 *Rationale for identity/sort is parity with approved S5/S6 tables (same partitions and writer sort).* 
 
 ## 6.2 Referenced input anchors (read-only)
@@ -274,7 +274,7 @@ Write exactly one `s7_site_synthesis` row for the site with fields per the S7 sc
 
 * **S7 dataset:**
   Path family:
-  `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`.
   *(Identity/sort mirror approved S5/S6 tables to keep 1B uniform.)*  
 
@@ -664,18 +664,18 @@ A **MAJOR** change to any baseline that affects S7’s bound interfaces requires
 ## A.3 Dataset IDs → path families & partitions (Dictionary law)
 
 * **S5 — `s5_site_tile_assignment`**
-  `data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Writer sort `[merchant_id, legal_country_iso, site_order]`. 
 * **S6 — `s6_site_jitter`**
-  `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Writer sort `[merchant_id, legal_country_iso, site_order]`. 
 * **S7 — `s7_site_synthesis`**
-  `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Writer sort `[merchant_id, legal_country_iso, site_order]`. *(Matches S5/S6.)*
 * **S1 geometry — `tile_bounds`**
   `…/parameter_hash={parameter_hash}/` · Partitions `[parameter_hash]` · Sort `[country_iso, tile_id]`. 
 * **S8 egress — `site_locations`**
-  `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions `[seed, fingerprint]` · Order-free; consumers join 1A S3 for inter-country order. 
 
 *(All datasets are write-once; publish via single atomic move; file order non-authoritative — Registry posture.)* 
@@ -785,7 +785,7 @@ lat* =  51.525000 - 0.01977055 =  51.50522945
 *(Exact columns owned by the S7 anchor; partitions & writer-sort mirror S5/S6.)*
 
 **Partition path:**
-`data/layer1/1B/s7_site_synthesis/seed=4242424242/fingerprint=deadbeef…/parameter_hash=c0ffee…/part-0000.snappy.parquet`
+`data/layer1/1B/s7_site_synthesis/seed=4242424242/manifest_fingerprint=deadbeef…/parameter_hash=c0ffee…/part-0000.snappy.parquet`
 
 **Row (CSV-style rendering):**
 

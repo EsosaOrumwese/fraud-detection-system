@@ -512,7 +512,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 4.2.4 Partitioning and path:
 
 * `virtual_classification_3B` MUST be partitioned by `{seed, fingerprint}` and written under a path of the form:
-  `data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/...`
+  `data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`
 * The exact `path_template`, `partition_keys` and `writer_sort` are binding and SHALL be defined in `dataset_dictionary.layer1.3B.yaml` and referenced in §5.
 
 4.2.5 Downstream obligations:
@@ -546,7 +546,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 4.3.4 Partitioning and path:
 
 * `virtual_settlement_3B` MUST be partitioned by `{seed, fingerprint}` and written under a path of the form:
-  `data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/...`
+  `data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`
 * The exact `path_template`, `partition_keys` and `writer_sort` SHALL be defined in `dataset_dictionary.layer1.3B.yaml` and referenced in §5.
 
 4.3.5 Downstream obligations:
@@ -637,7 +637,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 * `dataset_id: virtual_classification_3B`
 * `schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B`
-* `path_template: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `path_template: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * `partition_keys: ["seed","fingerprint"]`
 * `writer_sort: ["merchant_id"]` (or a stricter sort if required; see 5.1.4)
 
@@ -704,7 +704,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 * `dataset_id: virtual_settlement_3B`
 * `schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B`
-* `path_template: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `path_template: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * `partition_keys: ["seed","fingerprint"]`
 * `writer_sort: ["merchant_id"]` (or `[merchant_key,…]` if a composite key is used)
 

@@ -143,7 +143,7 @@ S7 emits exactly **one** authoritative artefact per `(seed, manifest_fingerprint
 
 * **ID:** `s7_audit_report`
 * **Path family (Dictionary-governed):**
-  `data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json`
+  `data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s7_audit_report.json`
 * **Partitioning:** **`[seed, fingerprint]`** (no other tokens).
 * **Shape authority:** `schemas.2B.yaml#/validation/s7_audit_report_v1` *(fields-strict; §6 defines required keys)*. 
 
@@ -230,7 +230,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 **6.6 Format & storage (Dictionary authority)**
 
 * **`s7_audit_report`**:
-  Path → `data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json` · **Partitioning:** `[seed,fingerprint]` · **Format:** `json` · **Schema-ref:** `schemas.2B.yaml#/validation/s7_audit_report_v1`.
+  Path → `data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s7_audit_report.json` · **Partitioning:** `[seed,fingerprint]` · **Format:** `json` · **Schema-ref:** `schemas.2B.yaml#/validation/s7_audit_report_v1`.
 * **Referenced inputs:** `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` at `[seed,fingerprint]`; policies are token-less files selected by **S0-sealed** path+digest.  
 
 ---
@@ -316,7 +316,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 * **Read surfaces (plan/egress):** `{ seed, manifest_fingerprint }` — used by **S2/S3/S4** inputs S7 reads:
   `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` **at exactly** `seed={seed}/fingerprint={manifest_fingerprint}` per the Dictionary. 
 * **Optional router logs (evidence only):** `{ seed, parameter_hash, run_id, utc_day }` — if present, S5 `s5_selection_log` and S6 `s6_edge_log` are **run-scoped** log partitions validated against the Layer-1 RNG envelope/core logs. 
-* **S7 output (authoritative):** `s7_audit_report` is **fingerprint-scoped** at `data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/…` (Dictionary governs the path family; schema governs shape). 
+* **S7 output (authoritative):** `s7_audit_report` is **fingerprint-scoped** at `data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…` (Dictionary governs the path family; schema governs shape). 
 
 **8.2 Partition selection (binding)**
 

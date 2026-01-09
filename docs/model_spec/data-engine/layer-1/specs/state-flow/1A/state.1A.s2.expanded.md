@@ -12,7 +12,7 @@ Note that examples are informative; behaviour is defined by the normative rules 
 For a merchant $m$ to enter S2 (where $m$ is the S0 canonical $merchant_{u64}$ key):
 
 1. **Hurdle provenance.** There exists exactly one S1 event record under
-   `logs/rng/events/hurdle_bernoulli/…` with the merchant key and payload containing `is_multi=true`. This is the canonical gate from S1. **Absence** or `is_multi=false` ⇒ S2 MUST NOT run for $m$. (Branch purity.)
+   `logs/layer1/1A/rng/events/hurdle_bernoulli/…` with the merchant key and payload containing `is_multi=true`. This is the canonical gate from S1. **Absence** or `is_multi=false` ⇒ S2 MUST NOT run for $m$. (Branch purity.)
 2. **Branch purity guarantee.** For `is_multi=0`, **no S2 events** may exist for $m$ in any stream; any presence constitutes a structural failure detected by validation.
 3. **Lineage anchors available.** The run exposes `run_id`, `seed`, `parameter_hash`, and `manifest_fingerprint` (used in RNG envelopes and joins). S2.1 **does not** recompute any lineage keys.
 
@@ -412,7 +412,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
    }
    ```
 
-   Schema (authoritative): `schemas.layer1.yaml#/rng/events/gamma_component`. **Partition:** `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...`. **Draws:** per §3.1 above.
+   Schema (authoritative): `schemas.layer1.yaml#/rng/events/gamma_component`. **Partition:** `logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...`. **Draws:** per §3.1 above.
 
 2. **Poisson step (context=`"nb"`)**
    Compute $\lambda=\frac{\mu_m}{\phi_m}\,G$ in binary64. Draw $K\sim\mathrm{Poisson}(\lambda)$ via **3.2** on `substream_label="poisson_nb"`.
@@ -442,7 +442,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
    }
    ```
 
-   Schema (authoritative): `schemas.layer1.yaml#/rng/events/poisson_component`. **Partition:** `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...`. **Draws:** variable; reconciled by envelope counters.
+   Schema (authoritative): `schemas.layer1.yaml#/rng/events/poisson_component`. **Partition:** `logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...`. **Draws:** variable; reconciled by envelope counters.
 
 > **Note (types).** All floating-point payloads are **IEEE-754 binary64** and must round-trip exactly. Integers are signed 64-bit (`k≥0`).
 
@@ -736,7 +736,7 @@ For `nb_final`, **before == after** (non-consuming) ⇒ `blocks = 0`, `draws = "
 Persist **exactly one row** per $(\texttt{seed},\texttt{parameter\_hash},\texttt{run\_id},\texttt{merchant\_id})$ to:
 
 ```
-logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
 ```
 
 * **Schema (authoritative):** `schemas.layer1.yaml#/rng/events/nb_final`.
@@ -898,8 +898,8 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
 * **Schemas (authoritative):** `schemas.layer1.yaml#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`. Each includes the **rng envelope** with pre/post 128-bit counters.
 * **Dictionary paths/partitions:**
 
-  * `logs/rng/events/poisson_component/...` (approved; `["seed","parameter_hash","run_id"]`),
-  * `logs/rng/events/nb_final/...` (approved; same partitions).
+  * `logs/layer1/1A/rng/events/poisson_component/...` (approved; `["seed","parameter_hash","run_id"]`),
+  * `logs/layer1/1A/rng/events/nb_final/...` (approved; same partitions).
     (Gamma stream path is pinned similarly; consumers/partitions mirror Poisson.)
 
 **Trace duty (pointer):** After **each** RNG event append, emit **exactly one** cumulative `rng_trace_log` row (saturating totals) — same 'one trace row per event' duty as S4 §2A; see S4 §10.8 for the canonical wording.
@@ -1417,9 +1417,9 @@ Define **all** conditions under which the S2 NB sampler (multi-site outlet count
 * S2.1 (entry gate, inputs), S2.2 (NB2 links), S2.3 (Gamma/Poisson samplers), S2.4 (rejection loop), S2.5 (finalisation), S2.6 (RNG discipline), S2.7 (corridors).
 
 **Authoritative streams & schema anchors** (must be used by validator):
-`logs/rng/events/gamma_component/…  #/rng/events/gamma_component`
-`logs/rng/events/poisson_component/…  #/rng/events/poisson_component`
-`logs/rng/events/nb_final/…  #/rng/events/nb_final`  (all partitioned by `["seed","parameter_hash","run_id"]`).
+`logs/layer1/1A/rng/events/gamma_component/…  #/rng/events/gamma_component`
+`logs/layer1/1A/rng/events/poisson_component/…  #/rng/events/poisson_component`
+`logs/layer1/1A/rng/events/nb_final/…  #/rng/events/nb_final`  (all partitioned by `["seed","parameter_hash","run_id"]`).
 
 ---
 
@@ -1579,7 +1579,7 @@ function validate_S2(nb_gamma, nb_pois, nb_final, hurdle, dictionary, policy):
 ## 8) Run outcome & artifacts
 
 * **Any single hard failure** causes the S2 block to **fail validation**, so **1A fails** for that `manifest_fingerprint`. The validator still writes a **bundle** to
-  `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+  `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`
   containing: `index.json`, `schema_checks.json`, `rng_accounting.json`, `metrics.csv`, diffs; `_passed.flag` is **omitted**. 1A→1B hand-off is **disallowed** until fixed.
 
 ---
@@ -1605,17 +1605,17 @@ S2 closes by (i) **persisting only the authoritative RNG event streams** for the
 Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","run_id"]`, with the indicated **schema refs**. Cardinalities are **hard** contracts:
 
 1. **Gamma components (NB mixture)**
-   Path: `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+   Path: `logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/gamma_component`
    Cardinality per multi-site merchant: **≥ 1** (one row **per attempt**).
 
 2. **Poisson components (NB mixture)**
-   Path: `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+   Path: `logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/poisson_component`
    Cardinality: **≥ 1** (one row **per attempt**). (This stream id is **reused by S4** with a different `context`, hence the dictionary description `NB composition / ZTP`.)
 
 3. **NB final (accepted outcome)**
-   Path: `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+   Path: `logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/nb_final`
    Cardinality: **exactly 1** row **per merchant** (echoes `mu`, `dispersion_k`, `n_outlets`, `nb_rejections`).
 
@@ -1697,7 +1697,7 @@ row := {
   n_outlets: N, nb_rejections: r
 }
 write_jsonl(
-  path="logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
+  path="logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
   envelope=envelope, payload=row
 )
 

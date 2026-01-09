@@ -28,7 +28,7 @@ A **MAJOR** in any baseline that changes these bound interfaces requires S9 re-r
 ## 1.4 Identity & lineage posture (state-wide)
 
 * **Bundle identity:** S9 publishes a fingerprint-scoped bundle under `…/validation/fingerprint={manifest_fingerprint}/`; whenever lineage appears in bundle files, embedded `manifest_fingerprint` **MUST** equal the `fingerprint=` path token (**path↔embed equality**). This mirrors the fingerprint posture used for gates and validation surfaces.
-* **Inputs identity (read-side):** S7 under **`[seed, fingerprint, parameter_hash]`** and S8 under **`[seed, fingerprint]`**; RNG logs/core logs under **`[seed, parameter_hash, run_id]`**.
+* **Inputs identity (read-side):** S7 under **`[seed, fingerprint, parameter_hash]`** and S8 under **`[seed, fingerprint]`**; RNG logs/layer1/1B/core logs under **`[seed, parameter_hash, run_id]`**.
 * **Publish posture:** write-once; stage → fsync → **single atomic move**; **file order non-authoritative**. 
 
 ## 1.5 Audience & scope notes
@@ -55,7 +55,7 @@ A **MAJOR** in any baseline that changes these bound interfaces requires S9 re-r
 
 * **No RNG** and **no data mutation**: S9 does not resample, alter S7/S8 rows, or touch 1A egress; it validates and packages only. 
 * **No order encoding:** S9 must not introduce any inter-country order (egress remains order-free; order comes from 1A S3). 
-* **No extra surfaces:** S9 MUST NOT depend on priors/policies or new geometry beyond what’s implied by S7/S8 and RNG logs/core logs. (Events/trace identity and partitions are already governed.) 
+* **No extra surfaces:** S9 MUST NOT depend on priors/policies or new geometry beyond what’s implied by S7/S8 and RNG logs/layer1/1B/core logs. (Events/trace identity and partitions are already governed.) 
 
 **Outcome.** On success, S9 publishes a **fingerprint-scoped** bundle and `_passed.flag`; on failure, it publishes the bundle **without** the flag. Downstream consumers enforce the gate before reading 1B egress. 
 
@@ -72,20 +72,20 @@ S9 executes under a fixed lineage tuple **`{seed, manifest_fingerprint, paramete
 S9 **SHALL** read only the following sealed surfaces for **this** identity:
 
 * **S7 — `s7_site_synthesis`** (deterministic per-site absolutes; RNG-free)
-  **Path family:** `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **Partitions:** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Schema:** `schemas.1B.yaml#/plan/s7_site_synthesis`. 
+  **Path family:** `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Schema:** `schemas.1B.yaml#/plan/s7_site_synthesis`. 
 
 * **S8 — `site_locations`** (egress; order-free; final in layer)
-  **Path family:** `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Schema:** `schemas.1B.yaml#/egress/site_locations`. 
+  **Path family:** `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Schema:** `schemas.1B.yaml#/egress/site_locations`. 
 
 ## 3.3 Required RNG evidence surfaces (this run)
 
 S9 **SHALL** read the 1B RNG evidence (event streams and core logs) for the same `{seed, parameter_hash, run_id}`:
 
 * **Event — `rng_event_site_tile_assign`** (S5; **one event per site**)
-  `logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` · **Partitions:** `[seed, parameter_hash, run_id]` · **Schema:** `schemas.layer1.yaml#/rng/events/site_tile_assign`. 
+  `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` · **Partitions:** `[seed, parameter_hash, run_id]` · **Schema:** `schemas.layer1.yaml#/rng/events/site_tile_assign`. 
 
 * **Event — `rng_event_in_cell_jitter`** (S6; **≥1 event per site (per attempt)**; **per-event budget** `blocks=1`, `draws="2"`)
-  `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` · **Partitions:** `[seed, parameter_hash, run_id]` · **Schema:** `schemas.layer1.yaml#/rng/events/in_cell_jitter`.
+  `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` · **Partitions:** `[seed, parameter_hash, run_id]` · **Schema:** `schemas.layer1.yaml#/rng/events/in_cell_jitter`.
 
 * **Core — `rng_audit_log`** (one row at run start) and **`rng_trace_log`** (append-only cumulative counters) under `[seed, parameter_hash, run_id]` per the layer RNG core schemas and envelope invariants (`u128(after)−u128(before)=blocks`; `draws` dec-u128). 
 
@@ -119,11 +119,11 @@ S9 SHALL read **only** the following dataset surfaces for the run’s fixed iden
 
 * **S7 — `s7_site_synthesis`** (deterministic per-site absolutes; RNG-free)
   **Schema:** `schemas.1B.yaml#/plan/s7_site_synthesis` · **Path family:**
-  `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **Partitions:** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
+  `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
 
 * **S8 — `site_locations`** (egress; order-free; final in layer)
   **Schema:** `schemas.1B.yaml#/egress/site_locations` · **Path family:**
-  `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
 
 ## 4.3 Bound RNG evidence (same run)
 
@@ -131,11 +131,11 @@ S9 SHALL reconcile RNG **events** and **core logs** for the same `{seed, paramet
 
 * **Event stream — `rng_event_site_tile_assign` (S5):** **one event per site**.
   **Schema:** `schemas.layer1.yaml#/rng/events/site_tile_assign` · **Path family:**
-  `logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. 
+  `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. 
 
 * **Event stream — `rng_event_in_cell_jitter` (S6):** **≥1 event per site (one per attempt)**; **per-event** budget **`blocks=1`**, **`draws="2"`**.
   **Schema:** `schemas.layer1.yaml#/rng/events/in_cell_jitter` · **Path family:**
-  `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+  `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
 
 * **Core logs — `rng_audit_log`, `rng_trace_log`:** partitioned by `[seed, parameter_hash, run_id]`; counter law **u128(after) − u128(before) = blocks**; `draws` is decimal-encoded u128. *(Layer RNG core posture referenced by S6/S7 docs.)* 
 
@@ -158,7 +158,7 @@ S9 SHALL read **only** the inputs enumerated in **§4.2–§4.3**. Reading prior
 ## 5.1 Bundle root & partition law
 
 * **Root path (fingerprint-scoped):**
-  `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`
+  `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/`
   **Partition:** `[fingerprint]` (path token **MUST** byte-equal any embedded `manifest_fingerprint` fields in bundle files → **path↔embed equality**). 
 
 * **Publish posture:** write-once; stage → fsync → **single atomic move** into the fingerprint folder; **file order non-authoritative**. 
@@ -194,7 +194,7 @@ S9 **SHALL** produce at least the files below under the bundle root:
 ## 5.5 Egress reference (readers’ gate target)
 
 * The bundle certifies the **S8 egress**:
-  `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   (partitions `[seed, fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`; **order-free**). 
 
 ## 5.6 Index constraints (binding)
@@ -286,7 +286,7 @@ Using **S7** as the authoritative site keyset:
 
 ## 7.4 Egress checksums (deterministic)
 
-Enumerate all **S8** files under `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`. For each file, compute **SHA-256 over raw bytes** and write `egress_checksums.json` (path → hex). Paths recorded **relative to the bundle root** (see §7.6) to make them ASCII-sortable. 
+Enumerate all **S8** files under `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`. For each file, compute **SHA-256 over raw bytes** and write `egress_checksums.json` (path → hex). Paths recorded **relative to the bundle root** (see §7.6) to make them ASCII-sortable. 
 
 ## 7.5 S9 summary & RNG accounting artefacts
 
@@ -302,7 +302,7 @@ Produce two JSON artefacts (non-identity, packaged in the bundle):
 3. **`index.json` (binding):** list **every non-flag file exactly once** with a **relative** `path`. The **hashing order** is ASCII-lex by `path`. Validate `index.json` against the **1A bundle-index schema**. 
 4. **`_passed.flag`:** compute `sha256_hex` = SHA-256 over the **raw bytes of files listed in `index.json`**, concatenated in **ASCII-lex order**, **excluding** the flag; write single-line `sha256_hex = <hex64>`. 
 5. **Atomic publish:** move the staged dir to
-   `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (write-once; atomic move; file order non-authoritative).
+   `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (write-once; atomic move; file order non-authoritative).
 
 ## 7.7 ABORT semantics (fail-closed)
 
@@ -317,14 +317,14 @@ If any check in §7.2–§7.3 fails, **do not** write `_passed.flag`. You MAY pu
 ## 8.1 Bundle identity (fingerprint-scoped)
 
 * **Partition:** the validation bundle **MUST** publish under
-  `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (**partition** `[fingerprint]`).
+  `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (**partition** `[fingerprint]`).
   Fingerprint scoping and naming align with existing 1B validation artefacts (e.g., S0 gate receipt) and the 1A bundle pattern. **Path↔embed equality** applies wherever `manifest_fingerprint` appears.
 
 ## 8.2 Input/output identities used by S9 (read-side facts)
 
 * **S7** `s7_site_synthesis`: partitions **`[seed, fingerprint, parameter_hash]`**; writer sort `[merchant_id, legal_country_iso, site_order]`. 
 * **S8** `site_locations` (egress): partitions **`[seed, fingerprint]`**; writer sort `[merchant_id, legal_country_iso, site_order]`; **order-free; final_in_layer: true**.
-* **RNG logs/core** for this run: partitions **`[seed, parameter_hash, run_id]`** (events & core); **file order non-authoritative**.
+* **RNG logs/layer1/1B/core** for this run: partitions **`[seed, parameter_hash, run_id]`** (events & core); **file order non-authoritative**.
 
 ## 8.3 Ordering posture
 
@@ -520,7 +520,7 @@ A run **PASSES** S9 only if **all** checks below succeed.
 * **`s9_summary.json`** — run-level verdicts and counters (binding keys in §11.2).
 * **`rng_accounting.json`** — per-family RNG coverage/budget/trace reconciliation (binding keys in §11.3).
   Both files are **non-identity** artefacts and MUST be present under
-  `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (see §5 for bundle contents).
+  `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (see §5 for bundle contents).
 
 ## 11.2 Binding keys in `s9_summary.json` (minimum set)
 
@@ -830,7 +830,7 @@ This is the same **index + ASCII-lex + raw-bytes** law used in the 1A validation
 This file records **per-file SHA-256** for the certified egress partition:
 
 ```
-data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 Record paths **relative to the bundle root** (so they participate cleanly in ASCII-lex sorting) and map each to its hex digest; you may also include a composite checksum over the partition for convenience. 

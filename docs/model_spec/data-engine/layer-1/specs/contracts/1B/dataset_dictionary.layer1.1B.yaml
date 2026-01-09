@@ -95,8 +95,8 @@ reference_data:
   description: 1A validator outputs for the fingerprint (basis of consumer gate for outlet_catalogue).
   version: '{manifest_fingerprint}'
   format: directory
-  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1A.yaml#/validation/validation_bundle
   lineage:
@@ -113,8 +113,8 @@ reference_data:
   description: 1A PASS gate flag (_passed.flag) used by 1B.S0 before any read of outlet_catalogue.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/passed_flag
   lineage:
@@ -131,8 +131,8 @@ reference_data:
   description: Immutable outlet stubs; order-free (join S3 for inter-country order).
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
   lineage:
@@ -169,8 +169,8 @@ datasets:
   description: 'Fingerprint-scoped receipt proving 1A PASS verification; enumerates sealed inputs for 1B.'
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
-  partitioning: [fingerprint]
+  path: data/layer1/1B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/s0_gate_receipt
   lineage:
@@ -206,7 +206,7 @@ datasets:
   description: Control-plane run report for S1 tile index publish.
   version: '{parameter_hash}'
   format: json
-  path: control/s1_tile_index/parameter_hash={parameter_hash}/s1_run_report.json
+  path: reports/layer1/1B/state=S1/parameter_hash={parameter_hash}/s1_run_report.json
   partitioning: [parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s1_run_report
@@ -242,7 +242,7 @@ datasets:
   description: Control-plane run report for S2 tile weights publish.
   version: '{parameter_hash}'
   format: json
-  path: control/s2_tile_weights/parameter_hash={parameter_hash}/s2_run_report.json
+  path: reports/layer1/1B/state=S2/parameter_hash={parameter_hash}/s2_run_report.json
   partitioning: [parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s2_run_report
@@ -260,8 +260,8 @@ datasets:
   description: Deterministic site counts per (merchant_id, legal_country_iso) for this run.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: parquet
-  path: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: [merchant_id, legal_country_iso]
   schema_ref: schemas.1B.yaml#/plan/s3_requirements
   lineage:
@@ -278,8 +278,8 @@ datasets:
   description: Control-plane counters and receipts for S3 requirements publish.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: json
-  path: control/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_run_report.json
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: reports/layer1/1B/state=S3/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_run_report.json
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s3_run_report
   lineage:
@@ -296,8 +296,8 @@ datasets:
   description: Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives only).
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: parquet
-  path: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: [merchant_id, legal_country_iso, tile_id]
   schema_ref: schemas.1B.yaml#/plan/s4_alloc_plan
   lineage:
@@ -314,8 +314,8 @@ datasets:
   description: Control-plane counters and receipts for S4 allocation publish.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: json
-  path: control/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_run_report.json
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: reports/layer1/1B/state=S4/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_run_report.json
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s4_run_report
   lineage:
@@ -332,8 +332,8 @@ datasets:
   description: Site→tile assignment; one row per site; satisfies S4 per-tile quotas.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: parquet
-  path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/plan/s5_site_tile_assignment
   lineage:
@@ -350,8 +350,8 @@ datasets:
   description: Control-plane counters and receipts for S5 site→tile assignment publish.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: json
-  path: control/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_run_report.json
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: reports/layer1/1B/state=S5/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_run_report.json
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s5_run_report
   lineage:
@@ -368,8 +368,8 @@ datasets:
   description: Per-site in-pixel jitter; effective deltas (projection into country); one row per site.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: parquet
-  path: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/plan/s6_site_jitter
   lineage:
@@ -386,8 +386,8 @@ datasets:
   description: Control-plane counters and RNG coverage for S6 jitter publish.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: json
-  path: control/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s6_run_report.json
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: reports/layer1/1B/state=S6/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s6_run_report.json
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s6_run_report
   lineage:
@@ -422,8 +422,8 @@ datasets:
   description: Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes; RNG-free; 1:1 with outlet_catalogue.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: parquet
-  path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/plan/s7_site_synthesis
   lineage:
@@ -440,8 +440,8 @@ datasets:
   description: Control-plane run summary for S7 site synthesis publish.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: json
-  path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s7_run_summary.json
-  partitioning: [seed, fingerprint, parameter_hash]
+  path: reports/layer1/1B/state=S7/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s7_run_summary.json
+  partitioning: [seed, manifest_fingerprint, parameter_hash]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s7_run_summary
   lineage:
@@ -458,8 +458,8 @@ datasets:
   description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/egress/site_locations
   lineage:
@@ -476,8 +476,8 @@ datasets:
   description: Control-plane summary for S8 site_locations publish.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/s8_run_summary.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/1B/state=S8/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s8_run_summary.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/control/s8_run_summary
   lineage:
@@ -494,8 +494,8 @@ datasets:
   description: Validation bundle for a 1B publish (one per manifest_fingerprint).
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
   lineage:
@@ -512,8 +512,8 @@ datasets:
   description: PASS gate flag; equals SHA-256 of the bundle per S9 hashing rule.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/passed_flag
   lineage:
@@ -549,7 +549,7 @@ logs:
   description: RNG events for site→tile assignment (one event per assigned site).
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+  path: logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/site_tile_assign
@@ -567,7 +567,7 @@ logs:
   description: RNG events for S6 in-cell jitter (≥1 event per site; one per attempt; per-event budget; blocks=1, draws=2).
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+  path: logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/events/in_cell_jitter
@@ -585,7 +585,7 @@ logs:
   description: RNG run audit (identity/config) — one row at run start.
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  path: logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
@@ -603,7 +603,7 @@ logs:
   description: RNG cumulative trace — append exactly one row after each event append.
   version: '{run_id}'
   format: jsonl
-  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  path: logs/layer1/1B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
   partitioning: [seed, parameter_hash, run_id]
   ordering: []
   schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log

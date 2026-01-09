@@ -198,7 +198,7 @@ S5 **SHALL NOT**:
 **Role.** The authoritative, immutable evidence set that proves 2A is publishable for a single **`manifest_fingerprint`**.
 
 **Catalogue (Dictionary).** Path family (fingerprint only):
-`data/layer1/2A/validation/fingerprint={manifest_fingerprint}/`
+`data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/`
 
 **Required contents (binding):**
 
@@ -349,7 +349,7 @@ sha256_hex = <64 lowercase hex>
 
 1. **Bind fingerprint.** Select the target `manifest_fingerprint` (S5 is fingerprint-scoped; no `seed`).
 2. **Discover seeds (SEEDS).** Using the **Dictionary path family** for S2 egress, define
-   **`SEEDS = { seed | exists data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/ }`**.
+   **`SEEDS = { seed | exists data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/ }`**.
    Discovery is **catalogue-only**; S5 SHALL NOT read site rows.
 3. **Require S4 PASS per seed.** For **every `seed ∈ SEEDS`**, require a matching `s4_legality_report` at `[seed,fingerprint]` with **`status="PASS"`**. Absence or non-PASS **ABORTS** the run.
 
@@ -402,7 +402,7 @@ S5 SHALL create **`index.json`** listing **every** bundled file as `{path, sha25
 
 ### 7.7 Emission & identity discipline
 
-* **Partitioning:** publish to `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/` (**`[fingerprint]`** only).
+* **Partitioning:** publish to `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/` (**`[fingerprint]`** only).
 * **Atomic publish (binding):** stage files → write `index.json` → compute digest → write `_passed.flag` → **single atomic move** into the fingerprint partition.
 * **Write-once:** if the partition already exists, any re-emit **MUST** be **byte-identical**; otherwise **ABORT**.
 * **Path↔embed equality:** bundled evidence is copied **verbatim**; embedded lineage values remain unchanged.
@@ -436,7 +436,7 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 
 * **Outputs:**
   `validation_bundle_2A`, `validation_passed_flag_2A` →
-  `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/`
+  `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/`
 * **Partitions (binding):** **`[fingerprint]` only**; no additional partitions are permitted.
 * **Catalogue authority:** The Dataset Dictionary governs filenames/layout inside the validation path family.
 
@@ -502,7 +502,7 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 
 ### 9.5 Identity & merge (mandatory)
 
-**V-15 — Partitioning (Abort).** Outputs are emitted under `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/` (**`[fingerprint]`** only).
+**V-15 — Partitioning (Abort).** Outputs are emitted under `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/` (**`[fingerprint]`** only).
 **V-16 — Write-once (Abort).** If the target fingerprint partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
 
 ### 9.6 Outcome semantics
@@ -642,7 +642,7 @@ A single UTF-8 JSON object **SHALL** be written with at least the fields below. 
 
 **Bundle assembly**
 
-* `bundle.path : string` — Dictionary path to `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/`
+* `bundle.path : string` — Dictionary path to `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/`
 * `bundle.files_indexed : uint32` — count of entries in `index.json`
 * `bundle.bytes_indexed : uint64` — sum of sizes for indexed files
 * `bundle.index_sorted_ascii_lex : bool` — EXPECT `true` on PASS
@@ -865,7 +865,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target **f
 * **Validation bundle** — `schemas.2A.yaml#/validation/validation_bundle_2A` containing
   **`#/validation/bundle_index_v1`** (`files[*].path`, `files[*].sha256_hex`, ASCII-lex ordered).
 * **PASS flag** — `schemas.2A.yaml#/validation/passed_flag` (single-line canonical format).
-* **Catalogue path family** — `data/layer1/2A/validation/fingerprint={manifest_fingerprint}/` (partitions `[fingerprint]` only).
+* **Catalogue path family** — `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/` (partitions `[fingerprint]` only).
 
 ### A4. Dataset Dictionary (catalogue authority)
 
@@ -887,7 +887,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target **f
 ### A6. Seed discovery rule (catalogue-only)
 
 * Define **SEEDS** as the exact set of `seed` partitions present under
-  `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/` in the Dictionary.
+  `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` in the Dictionary.
 * For **every** `seed ∈ SEEDS`, a matching S4 report **must** exist at the same `(seed,fingerprint)` with `status="PASS"` and be bundled verbatim.
 
 ### A7. Programme context

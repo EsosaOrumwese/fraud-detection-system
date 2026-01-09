@@ -20,7 +20,7 @@ S8 v1.* is written against—and assumes—these frozen surfaces:
 
 * **Egress anchor:** `schemas.1B.yaml#/egress/site_locations` — **partitions `[seed, fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, columns_strict=true, **order-free** egress. 
 * **Dictionary entry:** `site_locations` → path
-  `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`, **partitioning `[seed, fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, **partitioning `[seed, fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
 * **Registry stanza:** `site_locations` (egress) with role “Concrete per-outlet coordinates (order-free; join 1A S3 for inter-country order)”; notes: write-once; atomic move; file order non-authoritative. 
 
 A **MAJOR** change to any of the above (e.g., egress partitions, writer sort, or the egress schema) requires re-ratifying S8.
@@ -46,7 +46,7 @@ Here’s **Section 2 — Purpose & scope (Binding)** for **L1·1B·S8**.
 ## 2.1 In-scope (what S8 SHALL do)
 
 * **Row mapping (S7 → S8).** For every site key `(merchant_id, legal_country_iso, site_order)` in **S7**, select/map fields to the egress anchor **`#/egress/site_locations`** (Schema-owned). 
-* **Partition shift.** Write to `site_locations` under **`data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`** (drop `parameter_hash` from partitions; fingerprint subsumes parameters). 
+* **Partition shift.** Write to `site_locations` under **`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`** (drop `parameter_hash` from partitions; fingerprint subsumes parameters). 
 * **Writer discipline.** Publish in writer sort `[merchant_id, legal_country_iso, site_order]`; treat **file order as non-authoritative**; publish via stage → fsync → **single atomic move**.
 * **Parity.** Ensure **1:1** row parity with S7’s keyset (S8 emits exactly one row per S7 row). 
 
@@ -73,7 +73,7 @@ S8 executes under a fixed lineage tuple **`{seed, manifest_fingerprint, paramete
 S8 SHALL read **only** the following sealed input for **this** `{seed, fingerprint, parameter_hash}`:
 
 * **S7 — `s7_site_synthesis`** (deterministic per-site absolutes; RNG-free)
-  **Path family:** `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  **Path family:** `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   **Partitions / writer sort:** `[seed, fingerprint, parameter_hash]`; `[merchant_id, legal_country_iso, site_order]`.
   **Shape authority:** `schemas.1B.yaml#/plan/s7_site_synthesis`. 
 
@@ -82,7 +82,7 @@ S8 SHALL read **only** the following sealed input for **this** `{seed, fingerpri
 ## 3.3 Egress target identity (preview)
 
 S8 MUST publish **`site_locations`** at
-`data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` with **partitions `[seed, fingerprint]`** and **writer sort `[merchant_id, legal_country_iso, site_order]`**. The egress dataset is **order-free**.
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions `[seed, fingerprint]`** and **writer sort `[merchant_id, legal_country_iso, site_order]`**. The egress dataset is **order-free**.
 
 ## 3.4 Resolution rule (no literal paths)
 
@@ -139,7 +139,7 @@ S8 SHALL NOT read any surface other than **`s7_site_synthesis`**. The egress Reg
 **ID → Schema:** `site_locations` → `schemas.1B.yaml#/egress/site_locations` (**columns_strict=true**; Schema owns exact columns). 
 
 **Path family (Dictionary):**
-`data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` 
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` 
 
 **Partitions (binding):** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true** · **Retention:** 365 days · **Format:** parquet. 
 
@@ -165,7 +165,7 @@ S8 introduces **no** RNG/event logs; egress consists solely of the `site_locatio
 The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, fingerprint]`, **writer sort** `[merchant_id, legal_country_iso, site_order]`, and `columns_strict: true`. 
 
 **Dictionary binding (for the same ID):**
-Path family `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, fingerprint]`; **ordering** `[merchant_id, legal_country_iso, site_order]`; `final_in_layer: true`. 
+Path family `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, fingerprint]`; **ordering** `[merchant_id, legal_country_iso, site_order]`; `final_in_layer: true`. 
 
 ## 6.2 Referenced input anchor (read-only)
 
@@ -173,7 +173,7 @@ Path family `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fin
 The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, fingerprint, parameter_hash]`, **writer sort** `[merchant_id, legal_country_iso, site_order]`, and `columns_strict: true`. 
 
 **Dictionary binding (for the same ID):**
-Path family `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`; **partitioning** `[seed, fingerprint, parameter_hash]`; **ordering** `[merchant_id, legal_country_iso, site_order]`. 
+Path family `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, fingerprint, parameter_hash]`; **ordering** `[merchant_id, legal_country_iso, site_order]`. 
 
 ## 6.3 Resolution & path law **(Binding)**
 
@@ -221,7 +221,7 @@ Where lineage appears in rows (e.g., `manifest_fingerprint`, if present), it **M
 ## 7.6 Publish posture
 
 Write to a **staging** location under the target identity, **fsync**, then perform a **single atomic move** into:
-`data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`. Enforce **write-once; atomic move; file order non-authoritative**. 
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`. Enforce **write-once; atomic move; file order non-authoritative**. 
 
 ## 7.7 Prohibitions (fail-closed)
 
@@ -243,7 +243,7 @@ Write to a **staging** location under the target identity, **fsync**, then perfo
 ## 8.2 Partition law & path family (resolve via Dictionary; no literal paths)
 
 * **Dataset:** `site_locations` → `schemas.1B.yaml#/egress/site_locations`.
-  **Path family:** `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  **Path family:** `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true**. 
 
 ## 8.3 Ordering posture (writer sort vs file order)
@@ -293,7 +293,7 @@ A run **PASSES** S8 only if **all** checks below succeed.
 ## A803 — Partition & identity law (egress)
 
 **Rule.** Egress is written at
-`data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions **`[seed, fingerprint]`**; any embedded lineage (e.g., `manifest_fingerprint`, if present) **byte-equals** the path token (**path↔embed equality**).
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions **`[seed, fingerprint]`**; any embedded lineage (e.g., `manifest_fingerprint`, if present) **byte-equals** the path token (**path↔embed equality**).
 **Detection.** Compare path-derived identity to embedded fields; verify Dictionary partitions.
 
 ## A804 — Writer sort
@@ -436,10 +436,10 @@ by_country[ISO]: { rows_s7, rows_s8, parity_ok }
 ## 11.2 Sources this summary MUST draw from
 
 * **Upstream input:** `s7_site_synthesis` under
-  `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   (partitions `[seed, fingerprint, parameter_hash]`; writer sort `[merchant_id, legal_country_iso, site_order]`). 
 * **Egress output:** `site_locations` under
-  `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   (partitions `[seed, fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`; **final_in_layer: true**; order-free). 
 
 ## 11.3 Publish & posture (binding)
@@ -503,7 +503,7 @@ S8 SHALL expose at least the keys below (values per §11.1):
 
 ## 12.5 Idempotent publish & retries
 
-* **Write-once, atomic.** Stage → fsync → **single atomic move** into `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`. Retrying a failed publish must either leave no traces or produce byte-identical output for the same identity. **Do not** rely on file order for semantics. 
+* **Write-once, atomic.** Stage → fsync → **single atomic move** into `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`. Retrying a failed publish must either leave no traces or produce byte-identical output for the same identity. **Do not** rely on file order for semantics. 
 * **Identity guard.** Refuse to publish if a different `{seed,fingerprint}` is already present in the target partition (or if present but not byte-identical).
 
 ## 12.6 Back-pressure & throughput
@@ -539,7 +539,7 @@ Changes that can invalidate previously valid egress or alter bound interfaces:
 1. **Identity / path law**
 
    * Changing egress **partitions** from **`[seed, fingerprint]`** or its **path family**
-     `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`.
+     `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
    * Changing the **writer sort** from `[merchant_id, legal_country_iso, site_order]`. 
 
 2. **Schema-owned shape**
@@ -615,10 +615,10 @@ A **MAJOR** change to any baseline that affects these contracts requires an S8 *
 ## A.3 Dataset IDs → path families & partitions (Dictionary law)
 
 * **S7 — `s7_site_synthesis`**
-  `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Ordering `[merchant_id, legal_country_iso, site_order]`. 
 * **S8 (egress) — `site_locations`**
-  `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions `[seed, fingerprint]` · Ordering `[merchant_id, legal_country_iso, site_order]` · **final_in_layer: true**. 
 
 *(All dataset IDs resolve via the **Dataset Dictionary**; no literal paths are permitted.)* 
@@ -659,10 +659,10 @@ manifest_fingerprint   = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbe
 ```
 
 **Input (S7) partition:**
-`data/layer1/1B/s7_site_synthesis/seed=4242424242/fingerprint=deadbeef…/parameter_hash=c0ffee…/` — partitions `[seed, fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`. 
+`data/layer1/1B/s7_site_synthesis/seed=4242424242/manifest_fingerprint=deadbeef…/parameter_hash=c0ffee…/` — partitions `[seed, fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`. 
 
 **Output (S8 egress) partition:**
-`data/layer1/1B/site_locations/seed=4242424242/fingerprint=deadbeef…/` — partitions `[seed, fingerprint]`, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
+`data/layer1/1B/site_locations/seed=4242424242/manifest_fingerprint=deadbeef…/` — partitions `[seed, fingerprint]`, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
 
 ---
 
@@ -696,7 +696,7 @@ lat_deg=51.50522945
 ```
 
 **Egress path (writer-sort respected):**
-`data/layer1/1B/site_locations/seed=4242424242/fingerprint=deadbeef…/part-0000.snappy.parquet`
+`data/layer1/1B/site_locations/seed=4242424242/manifest_fingerprint=deadbeef…/part-0000.snappy.parquet`
 (Path family and partition law per Dictionary; writer sort `[merchant_id, legal_country_iso, site_order]`.) 
 
 ---

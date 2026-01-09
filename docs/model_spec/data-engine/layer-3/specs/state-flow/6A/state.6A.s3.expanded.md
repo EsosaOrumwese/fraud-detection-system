@@ -1364,7 +1364,7 @@ Using allocations and attributes from Phases 4–5:
 * Write to:
 
   ```text
-  data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={mf}/...
+  data/layer3/6A/s3_instrument_base_6A/seed={seed}/manifest_fingerprint={mf}/...
   ```
 
   using the canonical ordering defined in the dictionary (e.g. `account_id, instrument_type, scheme, instrument_id`).
@@ -1564,8 +1564,8 @@ If implemented:
 * Path templates:
 
   ```text
-  data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/fingerprint={mf}/...
-  data/layer3/6A/s3_instrument_summary_6A/seed={seed}/fingerprint={mf}/...
+  data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/manifest_fingerprint={mf}/...
+  data/layer3/6A/s3_instrument_summary_6A/seed={seed}/manifest_fingerprint={mf}/...
   ```
 
 **Binding rules:**

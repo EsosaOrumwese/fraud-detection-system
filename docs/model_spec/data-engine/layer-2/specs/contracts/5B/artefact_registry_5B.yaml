@@ -8,7 +8,7 @@ subsegments:
         name: s0_gate_receipt_5B
         type: dataset
         category: control
-        path: data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+        path: data/layer2/5B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
         schema: schemas.5B.yaml#/validation/s0_gate_receipt_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -40,7 +40,7 @@ subsegments:
         name: sealed_inputs_5B
         type: dataset
         category: control
-        path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+        path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
         schema: schemas.5B.yaml#/validation/sealed_inputs_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -58,7 +58,7 @@ subsegments:
         name: validation_bundle_1A
         type: dataset
         category: validation
-        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.1A.yaml#/validation/validation_bundle
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -75,7 +75,7 @@ subsegments:
         name: validation_passed_flag_1A
         type: manifest
         category: validation
-        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.layer1.yaml#/validation/passed_flag
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -92,7 +92,7 @@ subsegments:
         name: validation_bundle_1B
         type: bundle
         category: validation
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.1B.yaml#/validation/validation_bundle_1B
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -109,7 +109,7 @@ subsegments:
         name: validation_passed_flag_1B
         type: manifest
         category: validation
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.1B.yaml#/validation/passed_flag
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -126,7 +126,7 @@ subsegments:
         name: validation_bundle_2A
         type: bundle
         category: validation
-        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.2A.yaml#/validation/validation_bundle_2A
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -143,7 +143,7 @@ subsegments:
         name: validation_passed_flag_2A
         type: manifest
         category: validation
-        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.2A.yaml#/validation/passed_flag
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -160,7 +160,7 @@ subsegments:
         name: validation_bundle_2B
         type: dataset
         category: validation
-        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
         schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -177,7 +177,7 @@ subsegments:
         name: validation_passed_flag_2B
         type: file
         category: validation
-        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.1B.yaml#/validation/passed_flag
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -194,7 +194,7 @@ subsegments:
         name: validation_bundle_3A
         type: dataset
         category: validation
-        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
         semver: 1.0.0
         version: '{manifest_fingerprint}'
@@ -211,7 +211,7 @@ subsegments:
         name: validation_passed_flag_3A
         type: dataset
         category: validation
-        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.layer1.yaml#/validation/passed_flag_3A
         semver: 1.0.0
         version: '{manifest_fingerprint}'
@@ -228,7 +228,7 @@ subsegments:
         name: validation_bundle_3B
         type: bundle
         category: validation
-        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -245,7 +245,7 @@ subsegments:
         name: validation_passed_flag_3B
         type: file
         category: validation
-        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.layer1.yaml#/validation/passed_flag_3B
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -262,7 +262,7 @@ subsegments:
         name: validation_bundle_5A
         type: dataset
         category: validation
-        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.layer2.yaml#/validation/validation_bundle_index_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -279,7 +279,7 @@ subsegments:
         name: validation_passed_flag_5A
         type: dataset
         category: validation
-        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.layer2.yaml#/validation/passed_flag_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -296,7 +296,7 @@ subsegments:
         name: site_locations
         type: dataset
         category: output
-        path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.1B.yaml#/egress/site_locations
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -313,7 +313,7 @@ subsegments:
         name: site_timezones
         type: dataset
         category: output
-        path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.2A.yaml#/egress/site_timezones
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -330,7 +330,7 @@ subsegments:
         name: tz_timetable_cache
         type: dataset
         category: cache
-        path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.2A.yaml#/cache/tz_timetable_cache
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -347,7 +347,7 @@ subsegments:
         name: s1_site_weights
         type: dataset
         category: plan
-        path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.2B.yaml#/plan/s1_site_weights
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -364,7 +364,7 @@ subsegments:
         name: s2_alias_blob
         type: dataset
         category: plan
-        path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+        path: data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin
         schema: schemas.2B.yaml#/binary/s2_alias_blob
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -381,7 +381,7 @@ subsegments:
         name: s2_alias_index
         type: dataset
         category: plan
-        path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json
         schema: schemas.2B.yaml#/plan/s2_alias_index
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -398,7 +398,7 @@ subsegments:
         name: s3_day_effects
         type: dataset
         category: plan
-        path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.2B.yaml#/plan/s3_day_effects
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -415,7 +415,7 @@ subsegments:
         name: s4_group_weights
         type: dataset
         category: plan
-        path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.2B.yaml#/plan/s4_group_weights
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -432,7 +432,7 @@ subsegments:
         name: zone_alloc
         type: dataset
         category: egress
-        path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.3A.yaml#/egress/zone_alloc
         semver: 1.0.0
         version: '{seed}.{manifest_fingerprint}'
@@ -449,7 +449,7 @@ subsegments:
         name: zone_alloc_universe_hash
         type: dataset
         category: validation
-        path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+        path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
         schema: schemas.3A.yaml#/validation/zone_alloc_universe_hash
         semver: 1.0.0
         version: '{manifest_fingerprint}'
@@ -466,7 +466,7 @@ subsegments:
         name: virtual_classification_3B
         type: dataset
         category: plan
-        path: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.3B.yaml#/plan/virtual_classification_3B
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -483,7 +483,7 @@ subsegments:
         name: virtual_settlement_3B
         type: dataset
         category: plan
-        path: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.3B.yaml#/plan/virtual_settlement_3B
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -500,7 +500,7 @@ subsegments:
         name: edge_catalogue_3B
         type: dataset
         category: plan
-        path: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.3B.yaml#/plan/edge_catalogue_3B
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -517,7 +517,7 @@ subsegments:
         name: edge_catalogue_index_3B
         type: dataset
         category: plan
-        path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+        path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
         schema: schemas.3B.yaml#/plan/edge_catalogue_index_3B
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -534,7 +534,7 @@ subsegments:
         name: edge_alias_blob_3B
         type: dataset
         category: plan
-        path: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+        path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
         schema: schemas.3B.yaml#/binary/edge_alias_blob_3B
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -551,7 +551,7 @@ subsegments:
         name: edge_alias_index_3B
         type: dataset
         category: plan
-        path: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+        path: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
         schema: schemas.3B.yaml#/plan/edge_alias_index_3B
         semver: '{semver}'
         version: '{seed}.{manifest_fingerprint}'
@@ -568,7 +568,7 @@ subsegments:
         name: edge_universe_hash_3B
         type: dataset
         category: validation
-        path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+        path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
         schema: schemas.3B.yaml#/validation/edge_universe_hash_3B
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -585,7 +585,7 @@ subsegments:
         name: virtual_routing_policy_3B
         type: dataset
         category: virtual_routing
-        path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+        path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
         schema: schemas.3B.yaml#/egress/virtual_routing_policy_3B
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -602,7 +602,7 @@ subsegments:
         name: virtual_validation_contract_3B
         type: dataset
         category: validation
-        path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+        path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
         schema: schemas.3B.yaml#/egress/virtual_validation_contract_3B
         semver: '{semver}'
         version: '{manifest_fingerprint}'
@@ -619,7 +619,7 @@ subsegments:
         name: scenario_manifest_5A
         type: dataset
         category: control
-        path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
+        path: data/layer2/5A/scenario_manifest/manifest_fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
         schema: schemas.5A.yaml#/validation/scenario_manifest_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -636,7 +636,7 @@ subsegments:
         name: merchant_zone_profile_5A
         type: dataset
         category: model
-        path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+        path: data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
         schema: schemas.5A.yaml#/model/merchant_zone_profile_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -687,7 +687,7 @@ subsegments:
         name: merchant_zone_baseline_local_5A
         type: dataset
         category: model
-        path: data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+        path: data/layer2/5A/merchant_zone_baseline_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
         schema: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -704,7 +704,7 @@ subsegments:
         name: merchant_zone_scenario_local_5A
         type: dataset
         category: model
-        path: data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+        path: data/layer2/5A/merchant_zone_scenario_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
         schema: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -721,7 +721,7 @@ subsegments:
         name: merchant_zone_overlay_factors_5A
         type: dataset
         category: model
-        path: data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+        path: data/layer2/5A/merchant_zone_overlay_factors/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
         schema: schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -738,7 +738,7 @@ subsegments:
         name: merchant_zone_scenario_utc_5A
         type: dataset
         category: model
-        path: data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+        path: data/layer2/5A/merchant_zone_scenario_utc/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
         schema: schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -790,7 +790,7 @@ subsegments:
         name: s1_time_grid_5B
         type: dataset
         category: model
-        path: data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
+          path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         schema: schemas.5B.yaml#/model/s1_time_grid_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -811,7 +811,7 @@ subsegments:
         name: s1_grouping_5B
         type: dataset
         category: model
-        path: data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
+        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         schema: schemas.5B.yaml#/model/s1_grouping_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -833,7 +833,7 @@ subsegments:
         name: s2_realised_intensity_5B
         type: dataset
         category: model
-        path: data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         schema: schemas.5B.yaml#/model/s2_realised_intensity_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -855,7 +855,7 @@ subsegments:
         name: s2_latent_field_5B
         type: dataset
         category: diagnostic
-        path: data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+        path: |
         schema: schemas.5B.yaml#/model/s2_latent_field_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -877,7 +877,7 @@ subsegments:
         name: s3_bucket_counts_5B
         type: dataset
         category: model
-        path: data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
+        path: |
         schema: schemas.5B.yaml#/model/s3_bucket_counts_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -900,7 +900,7 @@ subsegments:
         name: arrival_events_5B
         type: dataset
         category: egress
-        path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         schema: schemas.5B.yaml#/egress/s4_arrival_events_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -929,7 +929,7 @@ subsegments:
         name: s4_arrival_summary_5B
         type: dataset
         category: diagnostic
-        path: data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
+        path: |
         schema: schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -947,7 +947,7 @@ subsegments:
         name: s4_arrival_anomalies_5B
         type: dataset
         category: diagnostic
-        path: data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
+        path: |
         schema: schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -966,7 +966,7 @@ subsegments:
         name: rng_audit_log
         type: log
         category: rng_core
-        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        path: logs/layer2/5B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
         schema: schemas.layer1.yaml#/rng/core/rng_audit_log
         semver: '1.0.0'
         version: '{run_id}'
@@ -983,7 +983,7 @@ subsegments:
         name: rng_trace_log
         type: log
         category: rng_core
-        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        path: logs/layer2/5B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
         schema: schemas.layer1.yaml#/rng/core/rng_trace_log
         semver: '1.0.0'
         version: '{run_id}'
@@ -1000,7 +1000,7 @@ subsegments:
         name: rng_event_arrival_lgcp_gaussian
         type: log
         category: rng_event
-        path: logs/rng/events/arrival_lgcp_gaussian/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer2/5B/rng/events/arrival_lgcp_gaussian/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         schema: schemas.layer1.yaml#/rng/events/arrival_lgcp_gaussian
         semver: '1.0.0'
         version: '{run_id}'
@@ -1017,7 +1017,7 @@ subsegments:
         name: rng_event_arrival_time_jitter
         type: log
         category: rng_event
-        path: logs/rng/events/arrival_time_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer2/5B/rng/events/arrival_time_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         schema: schemas.layer1.yaml#/rng/events/arrival_time_jitter
         semver: '1.0.0'
         version: '{run_id}'
@@ -1034,7 +1034,7 @@ subsegments:
         name: rng_event_arrival_site_pick
         type: log
         category: rng_event
-        path: logs/rng/events/arrival_site_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer2/5B/rng/events/arrival_site_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         schema: schemas.layer1.yaml#/rng/events/arrival_site_pick
         semver: '1.0.0'
         version: '{run_id}'
@@ -1051,7 +1051,7 @@ subsegments:
         name: rng_event_arrival_edge_pick
         type: log
         category: rng_event
-        path: logs/rng/events/arrival_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer2/5B/rng/events/arrival_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         schema: schemas.layer1.yaml#/rng/events/arrival_edge_pick
         semver: '1.0.0'
         version: '{run_id}'
@@ -1069,7 +1069,7 @@ subsegments:
         name: validation_bundle_5B
         type: dataset
         category: validation
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
         schema: schemas.layer2.yaml#/validation/validation_bundle_index_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -1094,7 +1094,7 @@ subsegments:
         name: validation_bundle_index_5B
         type: dataset
         category: validation
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
         schema: schemas.layer2.yaml#/validation/validation_bundle_index_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -1120,7 +1120,7 @@ subsegments:
         name: validation_passed_flag_5B
         type: dataset
         category: validation
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         schema: schemas.layer2.yaml#/validation/passed_flag_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -1138,7 +1138,7 @@ subsegments:
         name: validation_report_5B
         type: dataset
         category: validation
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/validation_report_5B.json
         schema: schemas.layer2.yaml#/validation/validation_report_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -1156,7 +1156,7 @@ subsegments:
         name: validation_issue_table_5B
         type: dataset
         category: validation
-        path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
         schema: schemas.layer2.yaml#/validation/validation_issue_table_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}'
@@ -1329,7 +1329,7 @@ subsegments:
         name: segment_state_runs
         type: dataset
         category: run_report
-        path: reports/l2/segment_states/segment_state_runs.jsonl
+        path: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
         schema: schemas.layer2.yaml#/run_report/segment_state_run
         semver: '1.0.0'
         version: 'v1'

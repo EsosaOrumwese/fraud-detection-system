@@ -1050,7 +1050,7 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
   `rng_trace_log` carries only `module` and `substream_label` (no `context`).
 * **File order is non-authoritative:** Pairing/replay **MUST** use **envelope counters** only.
 * **Trace duty:** After each event append, **append exactly one** cumulative `rng_trace_log` row (see §§7/10).
-* **Failure records sink:** On abort, write values-only `failure.json` under the S0 bundle path `data/layer1/1A/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/` using the payload keys in §12.1/§12.4. *(Not a stream.)*
+* **Failure records sink:** On abort, write values-only `failure.json` under the S0 bundle path `data/layer1/1A/validation/failures/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_id={run_id}/` using the payload keys in §12.1/§12.4. *(Not a stream.)*
 
 **Schema versioning note.** The optional `reason:"no_admissible"` field on `ztp_final` is **present only** in schema versions that include it (per §21.1 it is absent in this version). Its mention in the table is **forward-compatible**; producers must omit it unless the bound schema version defines it.
 

@@ -1838,7 +1838,7 @@ Each `(manifest_fingerprint, scenario_id)` partition is self-contained.
   * no columns.
     S3 has no RNG and does not depend on a seed.
 
-* `run_id` MUST NOT be surfaced in S3 datasets, only in logs/run-report.
+* `run_id` MUST NOT be surfaced in S3 datasets, only in logs/layer2/5A/run-report.
 
 Any use of `seed` or `run_id` in S3 schemas or path templates is a spec violation.
 
@@ -2637,7 +2637,7 @@ On **FAILED**, the run-report entry MUST include:
 * `error_message` — concise explanation.
 * `error_details` — optional structured object (e.g. offending merchant/zone/bucket indices; class/zones for shape join failures), keeping detail minimal but actionable.
 
-The run-report MUST be treated as the **primary source** for S3’s outcome; logs/metrics support deeper diagnosis.
+The run-report MUST be treated as the **primary source** for S3’s outcome; logs/layer2/5A/metrics support deeper diagnosis.
 
 ---
 
@@ -2802,7 +2802,7 @@ Operational dashboards SHOULD be able to show, for each `(parameter_hash, manife
 * basic health indicators of λ (range, weekly-sum error);
 * recent S3 failure codes and frequencies.
 
-Downstream states (5A.S4, 5B, 6A) MUST NOT rely on logs/metrics alone as gates; they MUST continue to use:
+Downstream states (5A.S4, 5B, 6A) MUST NOT rely on logs/layer2/5A/metrics alone as gates; they MUST continue to use:
 
 * S0/S1/S2/S3 **data-level gates** (presence/validity of S3 datasets, plus later `_passed.flag`),
 

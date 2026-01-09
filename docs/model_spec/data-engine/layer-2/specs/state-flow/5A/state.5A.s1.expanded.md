@@ -701,7 +701,7 @@ For this dataset:
 
   * `partition_keys: ["fingerprint"]`
   * Path template (illustrative):
-    `data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet`
+    `data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet`
 
 * **Primary key (logical):**
 
@@ -753,7 +753,7 @@ If this dataset is materialised:
 * `partition_keys: ["fingerprint"]`
 
 * Path template (illustrative):
-  `data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet`
+  `data/layer2/5A/merchant_class_profile/manifest_fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet`
 
 * `primary_key: ["merchant_id"]`
 
@@ -835,7 +835,7 @@ Datasets:
 * **Dictionary id:** `merchant_zone_profile_5A`
 * **Registry key:** `mlr.5A.model.merchant_zone_profile`
 
-Binding notes: deterministic per `(parameter_hash, manifest_fingerprint)`; written at `data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/…` with the PK/order defined in the dictionary. Schema pack governs keys, demand classes, scale factors, and audit fields.
+Binding notes: deterministic per `(parameter_hash, manifest_fingerprint)`; written at `data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/…` with the PK/order defined in the dictionary. Schema pack governs keys, demand classes, scale factors, and audit fields.
 
 ### 5.2 `merchant_class_profile_5A`
 
@@ -1356,7 +1356,7 @@ There are two layers of identity:
 
 Binding rules:
 
-* `run_id` is **not** part of any primary key or partitioning; it may appear only in logs/run-report (not in the S1 datasets).
+* `run_id` is **not** part of any primary key or partitioning; it may appear only in logs/layer2/5A/run-report (not in the S1 datasets).
 * `parameter_hash` and `manifest_fingerprint` MUST be embedded as columns in S1 outputs and MUST match the run context used for S0.
 
 For a given `manifest_fingerprint`, multiple S1 runs (different `run_id`s) MUST either:
@@ -1389,13 +1389,13 @@ Path templates (illustrative; exact names are binding, root prefix may vary but 
 * `merchant_zone_profile_5A`:
 
   ```text
-  data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+  data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
   ```
 
 * `merchant_class_profile_5A` (optional):
 
   ```text
-  data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
+  data/layer2/5A/merchant_class_profile/manifest_fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
   ```
 
 These templates MUST be the ones declared in `dataset_dictionary.layer2.5A.yaml` and echoed in `artefact_registry_5A.yaml`.
@@ -1526,7 +1526,7 @@ Binding rules:
 * `run_id` MUST NOT be a partition key or part of dataset primary keys.
 * It MAY appear only:
 
-  * in logs/run-report entries, and
+  * in logs/layer2/5A/run-report entries, and
   * optionally in in-memory metadata; not as a persisted column in S1 outputs.
 
 #### 7.5.3 Parameter hash
@@ -2211,7 +2211,7 @@ On **FAILED**, the run-report MUST include:
 * `error_message` — short text summary.
 * `error_details` — optional structured object (e.g. offending `merchant_id` / `artifact_id` / `segment`), avoiding sensitive values.
 
-The run-report is the **primary authority** for S1’s outcome; logs/metrics support it.
+The run-report is the **primary authority** for S1’s outcome; logs/layer2/5A/metrics support it.
 
 ---
 
@@ -2382,7 +2382,7 @@ Operational dashboards SHOULD be able to answer, for each active `(parameter_has
 * How are demand classes distributed across the world?
 * Are there any recurring S1 failure modes (e.g. missing policies, domain alignment issues)?
 
-Downstream segments MUST NOT rely on logs/metrics alone to gate their work; they MUST still obey the **data-level gates** (i.e. presence and validity of `s0_gate_receipt_5A` and `merchant_zone_profile_5A` as per §§2, 4, 8). Observability is a diagnostic layer, not an authority for gating.
+Downstream segments MUST NOT rely on logs/layer2/5A/metrics alone to gate their work; they MUST still obey the **data-level gates** (i.e. presence and validity of `s0_gate_receipt_5A` and `merchant_zone_profile_5A` as per §§2, 4, 8). Observability is a diagnostic layer, not an authority for gating.
 
 Within these rules, 5A.S1 is fully observable: its executions can be tracked, failures diagnosed, and outputs summarised, without leaking or duplicating bulk merchant/zone data.
 

@@ -37,7 +37,7 @@ S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before runn
 ## 0.6 Run sealing & lineage (identifiers, partitions, equality)
 
 * **Lineage keys:** `{seed, parameter_hash, run_id}` on RNG logs and validator reads; `{manifest_fingerprint}` for the validation bundle/flag partition. **Path tokens MUST equal embedded columns byte-for-byte** wherever both exist. 
-* **Validation bundle location:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). `_passed.flag` lives **inside** this folder. 
+* **Validation bundle location:** `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint partition). `_passed.flag` lives **inside** this folder. 
 * **Gate semantics (consumer binding):** `_passed.flag` contains `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in **ASCII-lexicographic order of the `index.json` `path` entries**; consumers **MUST** verify this for the same fingerprint **before** reading egress (**no PASS → no read**).
 
 ## 0.7 Change control & ratification
@@ -52,7 +52,7 @@ S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before runn
 ## 1.1 Purpose
 
 S9’s role is to **re-derive and verify** the promises made by **S0–S8**, then **publish a fingerprint-scoped validation bundle** and a **single consumer gate flag**. If and only if all checks pass, S9 writes `validation_bundle_1A/` under
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` and a colocated `_passed.flag` whose **content hash equals `SHA256(validation_bundle_1A)`**. **Consumers MUST verify this flag for the same fingerprint before reading `outlet_catalogue`** (**no PASS → no read**).   
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` and a colocated `_passed.flag` whose **content hash equals `SHA256(validation_bundle_1A)`**. **Consumers MUST verify this flag for the same fingerprint before reading `outlet_catalogue`** (**no PASS → no read**).   
 
 ## 1.2 Scope — what S9 MUST do
 
@@ -124,7 +124,7 @@ The **Dataset Dictionary** is authoritative for **dataset IDs, canonical paths, 
 
 The **Artefact Registry** pins gate artefacts and their semantics used by S9:
 
-* **Validation bundle (fingerprint-scoped)** `validation_bundle_1A` under `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`. 
+* **Validation bundle (fingerprint-scoped)** `validation_bundle_1A` under `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`. 
 * **Consumer flag** `_passed.flag` whose **content** is `sha256_hex = <SHA256(bundle)>`; **consumers must verify** this for the same fingerprint **before** reading `outlet_catalogue` (**no PASS → no read**). 
 
 ## 2.4 Authority surfaces (what decides *what*)
@@ -155,7 +155,7 @@ When documents disagree, S9 **MUST** apply this precedence ladder:
 
 ## 2.7 Path↔embed equality & identity (applies to all S9 reads/writes)
 
-Where lineage appears **both** in the path and in embedded columns/fields, **byte-equality is binding** (e.g., `outlet_catalogue.manifest_fingerprint == fingerprint` (path), and for logs/events `{seed,parameter_hash,run_id}` equal their path tokens). **File order is non-authoritative.** 
+Where lineage appears **both** in the path and in embedded columns/fields, **byte-equality is binding** (e.g., `outlet_catalogue.manifest_fingerprint == fingerprint` (path), and for logs/layer1/1A/events `{seed,parameter_hash,run_id}` equal their path tokens). **File order is non-authoritative.** 
 
 ---
 
@@ -167,14 +167,14 @@ Where lineage appears **both** in the path and in embedded columns/fields, **byt
 
 ## 3.0 Overview (read-only stance)
 
-S9 is **read-only**. It enumerates **exactly** which datasets/logs/events it may read, with their **IDs → schema anchors → partitions**, and the **gates** that **MUST** be verified **before** use. Path↔embed lineage equality is **binding** for every read in scope.  
+S9 is **read-only**. It enumerates **exactly** which datasets/logs/layer1/1A/events it may read, with their **IDs → schema anchors → partitions**, and the **gates** that **MUST** be verified **before** use. Path↔embed lineage equality is **binding** for every read in scope.  
 
 ---
 
 ## 3.1 Fingerprint-scoped egress to validate
 
 **Dataset ID:** `outlet_catalogue` → **`schemas.1A.yaml#/egress/outlet_catalogue`**.
-**Partitions:** `[seed, fingerprint]` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`.
+**Partitions:** `[seed, fingerprint]` at `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 **Binding rules:** rows **MUST NOT** encode inter-country order; consumers later **MUST** join `s3_candidate_set.candidate_rank`. `manifest_fingerprint` (column) **MUST** byte-equal the `fingerprint` path token; `global_seed` **MUST** equal the `seed` token.  
 
 ---
@@ -195,8 +195,8 @@ S9 is **read-only**. It enumerates **exactly** which datasets/logs/events it may
 
 ## 3.3 RNG core logs (run-scoped) — required for accounting
 
-* `rng_audit_log` → **`schemas.layer1.yaml#/rng/core/rng_audit_log`**; path `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`; **partitions:** `{seed, parameter_hash, run_id}`. 
-* `rng_trace_log` → **`schemas.layer1.yaml#/rng/core/rng_trace_log`**; path `logs/rng/trace/…`; **emit exactly one cumulative row after each RNG event append** (S9 selects the **final** row per `(module,substream_label,run_id)`). 
+* `rng_audit_log` → **`schemas.layer1.yaml#/rng/core/rng_audit_log`**; path `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`; **partitions:** `{seed, parameter_hash, run_id}`. 
+* `rng_trace_log` → **`schemas.layer1.yaml#/rng/core/rng_trace_log`**; path `logs/layer1/1A/rng/trace/…`; **emit exactly one cumulative row after each RNG event append** (S9 selects the **final** row per `(module,substream_label,run_id)`). 
 
 **Run binding.** S9 **MUST** take the set of `{run_id}` values observed in the **event streams it validates** (below) and read the matching `rng_trace_log`/`rng_audit_log` partitions for those `(seed, parameter_hash, run_id)` tuples. (Trace is run-scoped; events embed lineage and, per S1/S0, include `manifest_fingerprint` for run-to-egress binding.)  
 
@@ -212,7 +212,7 @@ All event streams are **JSONL**, partitioned by `{seed, parameter_hash, run_id}`
 
 **S4 (ZTP target):** `rng_event.ztp_final` (non-consuming) + Poisson attempt components under the ZTP label. 
 
-**S6 (selection keys):** `rng_event.gumbel_key` (single-uniform: `blocks=1`, `draws="1"`); optional `stream_jump` if registered; logs/trace updated. 
+**S6 (selection keys):** `rng_event.gumbel_key` (single-uniform: `blocks=1`, `draws="1"`); optional `stream_jump` if registered; logs/layer1/1A/trace updated. 
 
 **S7 (integerisation evidence):** `rng_event.residual_rank` — **non-consuming**, residuals quantised to **dp=8**, rank ≥1, one per `(merchant,country)` in domain.  
 
@@ -255,7 +255,7 @@ Where lineage appears **both** in the path and embedded fields, **byte-equality 
 
 * Egress: `outlet_catalogue.manifest_fingerprint == fingerprint` (path), `global_seed == seed`. 
 * Parameter-scoped tables: each row embeds `parameter_hash` equal to the path token. 
-* RNG logs/events: embedded `{seed, parameter_hash, run_id}` **must equal** their path tokens on **every** row; events also carry the **layer envelope** (`before/after/blocks/draws`) and obey the **trace-after-each-event** rule.  
+* RNG logs/layer1/1A/events: embedded `{seed, parameter_hash, run_id}` **must equal** their path tokens on **every** row; events also carry the **layer envelope** (`before/after/blocks/draws`) and obey the **trace-after-each-event** rule.  
 
 ---
 
@@ -269,7 +269,7 @@ Where lineage appears **both** in the path and embedded fields, **byte-equality 
 
 **Identifier:** `validation_bundle_1A`
 **Location (partitioned):**
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`
 **Authority anchors:** Dataset Dictionary ID `validation_bundle_1A`; schema anchor `schemas.1A.yaml#/validation/validation_bundle`.  
 
 **Role.** The bundle is the machine-readable proof set for S9’s checks and the basis for the consumer gate; it **MUST** be written for exactly one **fingerprint** and **MUST** not contain any producer data mutations. 
@@ -375,7 +375,7 @@ S9 **MUST** enforce the PK/UK constraints specified by schema/dictionary on a pe
 * **`s3_candidate_set`** — uniqueness over `[merchant_id, candidate_rank, country_iso]` per `parameter_hash` partition (order authority is replay-checked in §8; here we enforce structural uniqueness). 
 * **`s3_integerised_counts`** (if present) — uniqueness over `[merchant_id, country_iso]` per `parameter_hash`. 
 * **`s3_site_sequence`** (if present) — uniqueness over `[merchant_id, country_iso, site_order]` per `parameter_hash`. 
-* **RNG logs/events** — JSONL streams **MUST NOT** contain duplicate rows for the same event identity fields as defined by the event schema (module/substream + envelope counters + payload identity); S9 treats duplicate physical files/lines with identical content as a **structural error**.
+* **RNG logs/layer1/1A/events** — JSONL streams **MUST NOT** contain duplicate rows for the same event identity fields as defined by the event schema (module/substream + envelope counters + payload identity); S9 treats duplicate physical files/lines with identical content as a **structural error**.
 
 ---
 
@@ -423,7 +423,7 @@ S9 **MUST** recompute the lineage identifiers and prove equality to what produce
 
 * **`parameter_hash`** — Recompute from the governed set **𝓟** using S0.2.2’s **UER + tuple-hash** procedure over canonical basenames; compare to the **partition key** and any embedded `parameter_hash` in parameter-scoped inputs (e.g., S3 tables). **Equality is mandatory.**  
 * **`manifest_fingerprint`** — Recompute using S0.2.3 over the actually opened artefacts (𝓐), `git_32`, and `parameter_hash_bytes`; the result **MUST** byte-equal the `fingerprint` path token for `outlet_catalogue` and the bundle folder, and any embedded `manifest_fingerprint` fields.  
-* **`run_id` (logs-only)** — Verify `run_id` presence and uniqueness per `{seed, parameter_hash}` using S0.2.4 (UER payload with bounded collision loop). S9 **MUST** assert that `run_id` partitions **only** logs/events and that egress/parameter-scoped tables **do not** depend on `run_id`. 
+* **`run_id` (logs-only)** — Verify `run_id` presence and uniqueness per `{seed, parameter_hash}` using S0.2.4 (UER payload with bounded collision loop). S9 **MUST** assert that `run_id` partitions **only** logs/layer1/1A/events and that egress/parameter-scoped tables **do not** depend on `run_id`. 
 
 S9 writes `parameter_hash_resolved.json` and `manifest_fingerprint_resolved.json` into the bundle as the attestation artefacts. 
 
@@ -473,7 +473,7 @@ S9 **MUST** treat Parquet/JSONL physical order as **non-authoritative**; equalit
 
 S9 **MUST** enforce that lineage keys are used only in their scoped roles:
 
-* **`seed`** drives RNG; partitions **all** RNG logs/events (never S3/S5). 
+* **`seed`** drives RNG; partitions **all** RNG logs/layer1/1A/events (never S3/S5). 
 * **`parameter_hash`** versions parameter-scoped inputs/outputs (e.g., S3, S5). Changing any **𝓟** member’s bytes flips it. 
 * **`manifest_fingerprint`** versions egress/validation; consumers **must** verify the fingerprint-scoped gate before reading egress. 
 * **`run_id`** partitions logs only; **never** influences model state or egress. 
@@ -848,7 +848,7 @@ On any **run-scoped** or **merchant-scoped** failures, S9 **MUST** still write a
 
 ## 11.1 Execution model (read-parallel, order-agnostic)
 
-S9 is a **read-only** validator. It **MAY** scan inputs in parallel but **MUST NOT** rely on physical file order. For JSONL logs/events the Dataset Dictionary declares **set semantics** (`ordering: []`), so S9’s checks **MUST** be defined by keys and totals, not by line/file sequence. Egress order is governed by the Dictionary **writer sort** and is verified as a constraint (see §5).  
+S9 is a **read-only** validator. It **MAY** scan inputs in parallel but **MUST NOT** rely on physical file order. For JSONL logs/layer1/1A/events the Dataset Dictionary declares **set semantics** (`ordering: []`), so S9’s checks **MUST** be defined by keys and totals, not by line/file sequence. Egress order is governed by the Dictionary **writer sort** and is verified as a constraint (see §5).  
 
 ## 11.2 Sharding & run binding
 
@@ -877,7 +877,7 @@ Re-running S9 with identical inputs and authorities **MUST** produce a **byte-id
 
 * **Trace coverage under parallelism.** For every validated event append, there is **exactly one** subsequent cumulative `rng_trace_log` row for its `(module, substream_label, run_id)`; totals reconcile on the final row. **Any gap or double-append is FAIL** (see §7). 
 * **Egress monotonicity across files.** Within each `(seed,fingerprint)` egress partition, S9 verifies Dictionary **writer sort** `[merchant_id, legal_country_iso, site_order]` **within files and across file boundaries**. 
-* **Set semantics for logs/events.** JSONL streams are treated as **sets**; duplicate identity rows are structural errors; physical order is non-authoritative. 
+* **Set semantics for logs/layer1/1A/events.** JSONL streams are treated as **sets**; duplicate identity rows are structural errors; physical order is non-authoritative. 
 
 ## 11.7 No reliance on producer worker count
 
@@ -899,7 +899,7 @@ S9’s outcomes **MUST NOT** change with producer/validator worker counts or sch
 ## 12.1 Bundle root & index (what the folder MUST contain)
 
 * **Location (partitioned):**
-  `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). 
+  `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint partition). 
 * **Every non-flag file MUST be listed once in `index.json`** using the schema below; `path` entries are **relative** to the bundle root; `kind ∈ {plot|table|diff|text|summary}`. **`artifact_id` MUST be unique.**
 * **Index field hygiene:** `artifact_id` **MUST** match `^[A-Za-z0-9._-]+$` (ASCII only). `path` **MUST** be **relative** (no leading slash, no `..` segments) and ASCII-normalised.
 * **Hashing precondition:** The gate hash (§9) is computed over the byte contents of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**.
@@ -1034,7 +1034,7 @@ Purpose: prove **byte-stability** of `outlet_catalogue` under re-runs for the sa
 }
 ```
 
-* File list MUST cover **all** files in `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`. **Writer sort** verification lives in §5; this file establishes byte-identity. 
+* File list MUST cover **all** files in `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`. **Writer sort** verification lives in §5; this file establishes byte-identity. 
 * The **composite hash rule** mirrors the flag’s lexicographic concatenation pattern for determinism. 
 
 ---
@@ -1075,7 +1075,7 @@ S9 **MUST** compute and persist (via `rng_accounting.json` and `s9_summary.json`
 ## 13.1 Consumer obligation (egress read rule)
 
 Downstream consumers (e.g., 1B) **MUST NOT** read `outlet_catalogue` for a given `fingerprint` unless the **co-located** `_passed.flag` under
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` **exists** and its **content** equals `SHA256(validation_bundle_1A)` **for the same fingerprint**. This is the canonical **no PASS → no read** gate for 1A egress. The Dataset Dictionary and Artefact Registry restate this consumer duty.  
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` **exists** and its **content** equals `SHA256(validation_bundle_1A)` **for the same fingerprint**. This is the canonical **no PASS → no read** gate for 1A egress. The Dataset Dictionary and Artefact Registry restate this consumer duty.  
 
 ## 13.2 What consumers MUST verify (exact checks)
 
@@ -1123,7 +1123,7 @@ A conformant consumer library **MUST** expose (at minimum):
 ## 14.1 Signals & sinks (what S9 MUST expose)
 
 S9 **MUST** emit machine-readable observability into the **validation bundle** (fingerprint-scoped) and **MAY** mirror selected counters to an ops sink. Required bundle artefacts and their shapes are fixed in §12 (`rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`, `index.json`). These files live under:
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`.  
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`.  
 
 **Upstream surfaces S9 reads for observability:**
 
@@ -1215,20 +1215,20 @@ Retention and storage hygiene for the bundle and logs follow the **Dataset Dicti
 
 ## 15.5 Dataset Dictionary IDs (IDs → path → partitions → `$ref`) used by S9
 
-* **`outlet_catalogue`** → `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` → `[seed,fingerprint]` → `schemas.1A.yaml#/egress/outlet_catalogue`. *(Writer sort `[merchant_id,legal_country_iso,site_order]`; “no PASS → no read”.)*  
+* **`outlet_catalogue`** → `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` → `[seed,fingerprint]` → `schemas.1A.yaml#/egress/outlet_catalogue`. *(Writer sort `[merchant_id,legal_country_iso,site_order]`; “no PASS → no read”.)*  
 * **`s3_candidate_set`** → `…/s3_candidate_set/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/candidate_set`. 
 * **`s3_integerised_counts`** (optional) → `…/s3_integerised_counts/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/integerised_counts`. 
 * **`s3_site_sequence`** (optional cross-check) → `…/s3_site_sequence/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/site_sequence`.  
 * **`s6_membership`** (if used) → `…/s6/membership/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `#/alloc/membership` (**gate**: `s6_validation_receipt`).
 * **`s6_validation_receipt`** → `…/s6/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `schemas.layer1.yaml#/validation/s6_receipt`. 
-* **`rng_audit_log`** → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_audit_log`. 
-* **`rng_trace_log`** → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_trace_log`. 
-* **`rng_event.sequence_finalize`** → `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/sequence_finalize`. 
-* **`rng_event.site_sequence_overflow`** → `logs/rng/events/site_sequence_overflow/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/site_sequence_overflow`. 
-* **`rng_event.residual_rank`** → `logs/rng/events/residual_rank/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/residual_rank`. 
-* **`rng_event.gumbel_key`** → `logs/rng/events/gumbel_key/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/gumbel_key`. 
-* **`rng_event.gamma_component` / `rng_event.poisson_component` / `rng_event.nb_final` / `rng_event.ztp_rejection` / `rng_event.ztp_final`** → `logs/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` → `[seed,parameter_hash,run_id]` → corresponding `#/rng/events/*` anchors.  
-* **`validation_bundle_1A`** (output of S9) → `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` → `[fingerprint]` → `schemas.1A.yaml#/validation/validation_bundle`. *(Flag `_passed.flag` co-located; content hash equals `SHA256(bundle)`.)*  
+* **`rng_audit_log`** → `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_audit_log`. 
+* **`rng_trace_log`** → `logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_trace_log`. 
+* **`rng_event.sequence_finalize`** → `logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/sequence_finalize`. 
+* **`rng_event.site_sequence_overflow`** → `logs/layer1/1A/rng/events/site_sequence_overflow/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/site_sequence_overflow`. 
+* **`rng_event.residual_rank`** → `logs/layer1/1A/rng/events/residual_rank/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/residual_rank`. 
+* **`rng_event.gumbel_key`** → `logs/layer1/1A/rng/events/gumbel_key/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/gumbel_key`. 
+* **`rng_event.gamma_component` / `rng_event.poisson_component` / `rng_event.nb_final` / `rng_event.ztp_rejection` / `rng_event.ztp_final`** → `logs/layer1/1A/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` → `[seed,parameter_hash,run_id]` → corresponding `#/rng/events/*` anchors.  
+* **`validation_bundle_1A`** (output of S9) → `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` → `[fingerprint]` → `schemas.1A.yaml#/validation/validation_bundle`. *(Flag `_passed.flag` co-located; content hash equals `SHA256(bundle)`.)*  
 
 ---
 
@@ -1305,7 +1305,7 @@ This appendix freezes the **exact strings/enums** S9 relies on when validating S
 * **Flag filename:** `_passed.flag`
   **Content (one line):** `sha256_hex = <hex64>` where `<hex64>` is **SHA-256 over the raw bytes of all files listed in `index.json`**, in **ASCII-lexicographic order of the `path` entries**. *(Flag file excluded from the hash.)*
 
-* **Bundle root:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+* **Bundle root:** `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`
   **Index schema kind:** `kind ∈ {"plot","table","diff","text","summary"}`. 
 
 * **Required bundle filenames:**
@@ -1372,7 +1372,7 @@ This appendix shows the **expected folder shape**, **example filenames**, and **
 Root (partitioned by fingerprint):
 
 ```
-data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 This folder is the **single source** of validation artifacts for that fingerprint; the **consumer gate** `_passed.flag` is co-located here. (Dictionary + Registry)  

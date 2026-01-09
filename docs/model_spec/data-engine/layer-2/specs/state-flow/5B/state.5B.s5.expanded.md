@@ -191,7 +191,7 @@ Environment assumptions:
 
   * predictable base prefix for `data/layer2/5B/…`,
   * read access to 5B and upstream data paths for `mf`,
-  * write access to `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/`.
+  * write access to `data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/`.
 
 Non-dependencies (for clarity):
 
@@ -399,7 +399,7 @@ In particular:
 For a given `manifest_fingerprint = mf`, S5 MUST write its artefacts under a single directory of the form:
 
 ```text
-data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 Within this directory:
@@ -461,7 +461,7 @@ S5 produces four artefacts:
 * **Dictionary entry:** `datasets[].id == "validation_bundle_index_5B"`
 * **Registry manifest key:** `mlr.5B.validation.bundle`
 
-Binding rules: single JSON object per fingerprint, listing bundle members + SHA-256 digests exactly as described in the schema pack. File lives at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json` and must be sorted according to the Layer-2 HashGate contract.
+Binding rules: single JSON object per fingerprint, listing bundle members + SHA-256 digests exactly as described in the schema pack. File lives at `data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/index.json` and must be sorted according to the Layer-2 HashGate contract.
 
 ### 5.2 `validation_report_5B`
 
@@ -485,7 +485,7 @@ Binding rules: optional dataset. When emitted it MUST follow the schema/dictiona
 * **Dictionary entry:** `datasets[].id == "validation_passed_flag_5B"`
 * **Registry manifest key:** `mlr.5B.validation.flag`
 
-Binding rules: JSON object stored at `data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag`. Its digest must match the bundle index ordering contract. No other format (text, binary) is permitted.
+Binding rules: JSON object stored at `data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag`. Its digest must match the bundle index ordering contract. No other format (text, binary) is permitted.
 
 S5 MUST update or regenerate these artefacts together; partial writes violate the HashGate contract. Any changes to their shapes must originate in the schema pack before implementations are updated.
 ## 6. Deterministic algorithm (RNG-free validator & bundler) *(Binding)*
@@ -651,7 +651,7 @@ If all checks in Phases 2–3 pass, S5 MUST materialise its evidence artefacts f
 All of these MUST be written under:
 
 ```text
-data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
+data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 and their paths recorded for the next phase.
@@ -873,7 +873,7 @@ Given the rules above:
 
 * The **dataset dictionary** entry for each S5 artefact MUST use:
 
-  * `path: "data/layer2/5B/validation/fingerprint={manifest_fingerprint}/…"`
+  * `path: "data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/…"`
     with no other partition tokens.
 * The **artefact registry** MUST mark:
 
@@ -1048,7 +1048,7 @@ After all checks above pass:
 * The bundle digest computed according to the law in §7.4 matches the value written into `_passed.flag` at:
 
   ```text
-  data/layer2/5B/validation/fingerprint={mf}/_passed.flag
+  data/layer2/5B/validation/manifest_fingerprint={mf}/_passed.flag
   ```
 
 * If a previous `_passed.flag` already exists for `mf`, S5 recomputes the digest and confirms it is identical.

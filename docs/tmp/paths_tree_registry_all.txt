@@ -1,6 +1,7 @@
 REGISTRY PATH TREE (ALL SEGMENTS COMBINED)
 ==========================================
 
+_MISSING_PATH_  [id: s2_latent_field_5B, s3_bucket_counts_5B, s4_arrival_anomalies_5B, s4_arrival_summary_5B]
 artefacts/
   external/
     cdn_weights_ext.yaml  [id: cdn_weights_ext_yaml]
@@ -22,10 +23,6 @@ config/
         shape_time_grid_policy_5A.v1.yaml  [id: shape_time_grid_policy_5A]
         zone_shape_modifiers_5A.v1.yaml  [id: zone_shape_modifiers_5A]
       scenario/
-        calendar/
-          fingerprint={manifest_fingerprint}/
-            scenario={scenario_id}/
-              scenario_calendar_5A.parquet  [id: Layer-2 / 5A scenario calendar]
         overlay_ordering_policy_5A.v1.yaml  [id: overlay_ordering_policy_5A]
         scenario_horizon_config_5A.v1.yaml  [id: Layer-2 / 5A scenario horizon config]
         scenario_metadata.v1.yaml  [id: scenario_metadata]
@@ -113,47 +110,47 @@ data/
     1A/
       outlet_catalogue/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: outlet_catalogue]
+          manifest_fingerprint={manifest_fingerprint}  [id: outlet_catalogue]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_1A]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_1A]
           _passed.flag  [id: validation_passed_flag_1A]
     1B/
       site_locations/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: site_locations]
+          manifest_fingerprint={manifest_fingerprint}  [id: site_locations]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_1B]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_1B]
           _passed.flag  [id: validation_passed_flag_1B]
     2A/
       site_timezones/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: site_timezones]
+          manifest_fingerprint={manifest_fingerprint}  [id: site_timezones]
       tz_timetable_cache/
-        fingerprint={manifest_fingerprint}  [id: tz_timetable_cache]
+        manifest_fingerprint={manifest_fingerprint}  [id: tz_timetable_cache]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_2A]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_2A]
           _passed.flag  [id: validation_passed_flag_2A]
     2B/
       s0_gate_receipt_2B/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_2B.json  [id: s0_gate_receipt_2B]
       s1_site_weights/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: s1_site_weights]
+          manifest_fingerprint={manifest_fingerprint}  [id: s1_site_weights]
       s2_alias_blob/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             alias.bin  [id: s2_alias_blob]
       s2_alias_index/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             index.json  [id: s2_alias_index]
       s3_day_effects/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: s3_day_effects]
+          manifest_fingerprint={manifest_fingerprint}  [id: s3_day_effects]
       s4_group_weights/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: s4_group_weights]
+          manifest_fingerprint={manifest_fingerprint}  [id: s4_group_weights]
       s5_selection_log/
         seed={seed}/
           parameter_hash={parameter_hash}/
@@ -162,69 +159,66 @@ data/
                 selection_log.jsonl  [id: s5_selection_log]
       s7_audit_report/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             s7_audit_report.json  [id: s7_audit_report]
       sealed_inputs_v1/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_v1.json  [id: sealed_inputs_v1]
       validation/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           _passed.flag  [id: validation_passed_flag_2B]
           index.json  [id: validation_bundle_2B]
     3A/
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_3A]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_3A]
           _passed.flag  [id: validation_passed_flag_3A]
       zone_alloc/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: zone_alloc]
+          manifest_fingerprint={manifest_fingerprint}  [id: zone_alloc]
       zone_universe/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           zone_alloc_universe_hash.json  [id: zone_alloc_universe_hash]
     3B/
       edge_alias_blob/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             edge_alias_blob_3B.bin  [id: edge_alias_blob_3B]
       edge_alias_index/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             edge_alias_index_3B.parquet  [id: edge_alias_index_3B]
       edge_catalogue/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: edge_catalogue_3B]
+          manifest_fingerprint={manifest_fingerprint}  [id: edge_catalogue_3B]
       edge_catalogue_index/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             edge_catalogue_index_3B.parquet  [id: edge_catalogue_index_3B]
       edge_universe_hash/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           edge_universe_hash_3B.json  [id: edge_universe_hash_3B]
       s0_gate_receipt/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_3B.json  [id: s0_gate_receipt_3B]
-      s4_run_summary/
-        fingerprint={manifest_fingerprint}/
-          s4_run_summary_3B.json  [id: s4_run_summary_3B]
       sealed_inputs/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_3B.parquet  [id: sealed_inputs_3B]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_3B]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_3B]
           _passed.flag  [id: validation_passed_flag_3B]
           index.json  [id: validation_bundle_index_3B]
           s5_manifest_3B.json  [id: s5_manifest_3B]
       virtual_classification/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: virtual_classification_3B]
+          manifest_fingerprint={manifest_fingerprint}  [id: virtual_classification_3B]
       virtual_routing_policy/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           virtual_routing_policy_3B.json  [id: virtual_routing_policy_3B]
       virtual_settlement/
         seed={seed}/
-          fingerprint={manifest_fingerprint}  [id: virtual_settlement_3B]
+          manifest_fingerprint={manifest_fingerprint}  [id: virtual_settlement_3B]
       virtual_validation_contract/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           virtual_validation_contract_3B.parquet  [id: virtual_validation_contract_3B]
   layer2/
     5A/
@@ -233,7 +227,7 @@ data/
           scenario_id={scenario_id}/
             class_shape_catalogue_5A.parquet  [id: Layer-2 / 5A base class shape catalogue]
       class_zone_baseline_local/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_id={scenario_id}/
             class_zone_baseline_local_5A.parquet  [id: Layer-2 / 5A class×zone baseline local intensities]
       class_zone_shape/
@@ -241,46 +235,50 @@ data/
           scenario_id={scenario_id}/
             class_zone_shape_5A.parquet  [id: Layer-2 / 5A class×zone weekly shape library, class_zone_shape_5A]
       merchant_class_profile/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           merchant_class_profile_5A.parquet  [id: Layer-2 / 5A merchant class profile]
       merchant_zone_baseline_local/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_id={scenario_id}/
             merchant_zone_baseline_local_5A.parquet  [id: Layer-2 / 5A merchant×zone baseline local intensities, merchant_zone_baseline_local_5A]
       merchant_zone_baseline_utc/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_id={scenario_id}/
             merchant_zone_baseline_utc_5A.parquet  [id: Layer-2 / 5A merchant×zone baseline UTC intensities]
       merchant_zone_overlay_factors/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_id={scenario_id}/
             merchant_zone_overlay_factors_5A.parquet  [id: Layer-2 / 5A merchant×zone overlay factors, merchant_zone_overlay_factors_5A]
       merchant_zone_profile/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           merchant_zone_profile_5A.parquet  [id: Layer-2 / 5A merchant×zone demand profile, merchant_zone_profile_5A]
       merchant_zone_scenario_local/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_id={scenario_id}/
             merchant_zone_scenario_local_5A.parquet  [id: Layer-2 / 5A merchant×zone scenario-adjusted local intensities, merchant_zone_scenario_local_5A]
       merchant_zone_scenario_utc/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_id={scenario_id}/
             merchant_zone_scenario_utc_5A.parquet  [id: Layer-2 / 5A merchant×zone scenario-adjusted UTC intensities, merchant_zone_scenario_utc_5A]
       s0_gate_receipt/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_5A.json  [id: Layer-2 / 5A gate receipt]
+      scenario_calendar/
+        manifest_fingerprint={manifest_fingerprint}/
+          scenario_id={scenario_id}/
+            scenario_calendar_5A.parquet  [id: Layer-2 / 5A scenario calendar]
       scenario_manifest/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           scenario_manifest_5A.parquet  [id: Layer-2 / 5A scenario manifest, scenario_manifest_5A]
       sealed_inputs/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_5A.parquet  [id: Layer-2 / 5A sealed inputs, sealed_inputs_5A]
       shape_grid_definition/
         parameter_hash={parameter_hash}/
           scenario_id={scenario_id}/
             shape_grid_definition_5A.parquet  [id: Layer-2 / 5A local-week shape grid definition, shape_grid_definition_5A]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_5A]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_5A]
           _passed.flag  [id: validation_passed_flag_5A]
           issues/
             validation_issue_table_5A.parquet  [id: Layer-2 / 5A validation issue table]
@@ -288,52 +286,19 @@ data/
             validation_report_5A.json  [id: Layer-2 / 5A validation report]
           validation_bundle_index_5A.json  [id: validation_bundle_index_5A]
     5B/
-      arrival_anomalies/
-        seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            scenario_id={scenario_id}/
-              s4_arrival_anomalies_5B.parquet  [id: s4_arrival_anomalies_5B]
       arrival_events/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             scenario_id={scenario_id}/
-              part-*.parquet  [id: arrival_events_5B]
-      arrival_summary/
-        seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            scenario_id={scenario_id}/
-              s4_arrival_summary_5B.parquet  [id: s4_arrival_summary_5B]
+              part-*.parquet  [id: arrival_events_5B, s1_grouping_5B, s1_time_grid_5B, s2_realised_intensity_5B]
       s0_gate_receipt/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_5B.json  [id: s0_gate_receipt_5B]
-      s1_grouping/
-        fingerprint={manifest_fingerprint}/
-          scenario_id={scenario_id}/
-            s1_grouping_5B.parquet  [id: s1_grouping_5B]
-      s1_time_grid/
-        fingerprint={manifest_fingerprint}/
-          scenario_id={scenario_id}/
-            s1_time_grid_5B.parquet  [id: s1_time_grid_5B]
-      s2_latent_field/
-        seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            scenario_id={scenario_id}/
-              s2_latent_field_5B.parquet  [id: s2_latent_field_5B]
-      s2_realised_intensity/
-        seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            scenario_id={scenario_id}/
-              s2_realised_intensity_5B.parquet  [id: s2_realised_intensity_5B]
-      s3_bucket_counts/
-        seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            scenario_id={scenario_id}/
-              s3_bucket_counts_5B.parquet  [id: s3_bucket_counts_5B]
       sealed_inputs/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_5B.parquet  [id: sealed_inputs_5B]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_5B]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_5B]
           _passed.flag  [id: validation_passed_flag_5B]
           index.json  [id: validation_bundle_index_5B]
           validation_issue_table_5B.parquet  [id: validation_issue_table_5B]
@@ -341,439 +306,500 @@ data/
   layer3/
     6A/
       gate_receipt/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_6A.json  [id: s0_gate_receipt_6A]
       s1_party_base_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s1_party_base_6A.parquet  [id: s1_party_base_6A]
       s1_party_summary_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s1_party_summary_6A.parquet  [id: s1_party_summary_6A]
       s2_account_base_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s2_account_base_6A.parquet  [id: s2_account_base_6A]
       s2_account_summary_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s2_account_summary_6A.parquet  [id: s2_account_summary_6A]
       s2_merchant_account_base_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s2_merchant_account_base_6A.parquet  [id: s2_merchant_account_base_6A]
       s2_party_product_holdings_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s2_party_product_holdings_6A.parquet  [id: s2_party_product_holdings_6A]
       s3_account_instrument_links_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s3_account_instrument_links_6A.parquet  [id: s3_account_instrument_links_6A]
       s3_instrument_base_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s3_instrument_base_6A.parquet  [id: s3_instrument_base_6A]
       s3_instrument_summary_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s3_instrument_summary_6A.parquet  [id: s3_instrument_summary_6A]
       s3_party_instrument_holdings_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s3_party_instrument_holdings_6A.parquet  [id: s3_party_instrument_holdings_6A]
       s4_device_base_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s4_device_base_6A.parquet  [id: s4_device_base_6A]
       s4_device_links_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s4_device_links_6A.parquet  [id: s4_device_links_6A]
       s4_entity_neighbourhoods_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s4_entity_neighbourhoods_6A.parquet  [id: s4_entity_neighbourhoods_6A]
       s4_ip_base_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s4_ip_base_6A.parquet  [id: s4_ip_base_6A]
       s4_ip_links_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s4_ip_links_6A.parquet  [id: s4_ip_links_6A]
       s4_network_summary_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s4_network_summary_6A.parquet  [id: s4_network_summary_6A]
       s5_account_fraud_roles_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s5_account_fraud_roles_6A.parquet  [id: s5_account_fraud_roles_6A]
       s5_device_fraud_roles_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s5_device_fraud_roles_6A.parquet  [id: s5_device_fraud_roles_6A]
       s5_ip_fraud_roles_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s5_ip_fraud_roles_6A.parquet  [id: s5_ip_fraud_roles_6A]
       s5_merchant_fraud_roles_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s5_merchant_fraud_roles_6A.parquet  [id: s5_merchant_fraud_roles_6A]
       s5_party_fraud_roles_6A/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               s5_party_fraud_roles_6A.parquet  [id: s5_party_fraud_roles_6A]
       sealed_inputs/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_6A.parquet  [id: sealed_inputs_6A]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_6A]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_6A]
           _passed.flag  [id: validation_passed_flag_6A]
           s5_issue_table_6A.parquet  [id: s5_issue_table_6A]
           s5_validation_report_6A.json  [id: s5_validation_report_6A]
           validation_bundle_index_6A.json  [id: validation_bundle_index_6A]
     6B/
       gate_receipt/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           s0_gate_receipt_6B.json  [id: s0_gate_receipt_6B]
       s1_arrival_entities_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s1_arrival_entities_6B]
       s1_session_index_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s1_session_index_6B]
       s2_event_stream_baseline_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s2_event_stream_baseline_6B]
       s2_flow_anchor_baseline_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s2_flow_anchor_baseline_6B]
       s3_campaign_catalogue_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 s3_campaign_catalogue_6B.parquet  [id: s3_campaign_catalogue_6B]
       s3_event_stream_with_fraud_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s3_event_stream_with_fraud_6B]
       s3_flow_anchor_with_fraud_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s3_flow_anchor_with_fraud_6B]
       s4_case_timeline_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s4_case_timeline_6B]
       s4_event_labels_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s4_event_labels_6B]
       s4_flow_bank_view_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s4_flow_bank_view_6B]
       s4_flow_truth_labels_6B/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
-            parameter_hash={parameter_hash}/
+          parameter_hash={parameter_hash}/
+            manifest_fingerprint={manifest_fingerprint}/
               scenario_id={scenario_id}/
                 part-*.parquet  [id: s4_flow_truth_labels_6B]
       sealed_inputs/
-        fingerprint={manifest_fingerprint}/
+        manifest_fingerprint={manifest_fingerprint}/
           sealed_inputs_6B.parquet  [id: sealed_inputs_6B]
       validation/
-        fingerprint={manifest_fingerprint}/  [id: validation_bundle_6B]
+        manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_6B]
           _passed.flag  [id: validation_passed_flag_6B]
           index.json  [id: validation_bundle_index_6B]
           s5_issue_table_6B.parquet  [id: s5_issue_table_6B]
           s5_validation_report_6B.json  [id: s5_validation_report_6B]
 logs/
-  edge/
-    seed={seed}/
-      parameter_hash={parameter_hash}/
-        run_id={run_id}/
-          utc_day={utc_day}/
-            s6_edge_log.jsonl  [id: s6_edge_log]
   layer1/
+    2B/
+      edge/
+        seed={seed}/
+          parameter_hash={parameter_hash}/
+            run_id={run_id}/
+              utc_day={utc_day}/
+                s6_edge_log.jsonl  [id: s6_edge_log]
+      rng/
+        audit/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_audit_log.jsonl  [id: rng_audit_log]
+        events/
+          alias_pick_group/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_alias_pick_group]
+          alias_pick_site/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_alias_pick_site]
+          cdn_edge_pick/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_cdn_edge_pick]
+        trace/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_trace_log.jsonl  [id: rng_trace_log]
     3B/
       gamma_draw/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             gamma_draw_log_3B.jsonl  [id: gamma_draw_log_3B]
-  rng/
-    audit/
-      seed={seed}/
-        parameter_hash={parameter_hash}/
-          run_id={run_id}/
-            rng_audit_log.jsonl  [id: rng_audit_log]
-    events/
-      account_allocation_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_account_allocation_sampling]
-      account_attribute_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_account_attribute_sampling]
-      account_count_realisation/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_account_count_realisation]
-      alias_pick_group/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_alias_pick_group]
-      alias_pick_site/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_alias_pick_site]
-      arrival_edge_pick/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_arrival_edge_pick]
-      arrival_lgcp_gaussian/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_arrival_lgcp_gaussian]
-      arrival_site_pick/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_arrival_site_pick]
-      arrival_time_jitter/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_arrival_time_jitter]
-      bank_view_label/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_bank_view_label]
-      cdn_edge_pick/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_cdn_edge_pick]
-      device_allocation_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_device_allocation_sampling]
-      device_attribute_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_device_attribute_sampling]
-      device_count_realisation/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_device_count_realisation]
-      edge_jitter/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_edge_jitter]
-      edge_tile_assign/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_edge_tile_assign]
-      event_stream_baseline/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_event_stream_baseline]
-      flow_anchor_baseline/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_flow_anchor_baseline]
-      fraud_campaign_pick/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_campaign_pick]
-      fraud_overlay_apply/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_overlay_apply]
-      fraud_role_sampling_account/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_role_sampling_account]
-      fraud_role_sampling_device/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_role_sampling_device]
-      fraud_role_sampling_ip/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_role_sampling_ip]
-      fraud_role_sampling_merchant/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_role_sampling_merchant]
-      fraud_role_sampling_party/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_fraud_role_sampling_party]
-      instrument_allocation_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_instrument_allocation_sampling]
-      instrument_attribute_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_instrument_attribute_sampling]
-      instrument_count_realisation/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_instrument_count_realisation]
-      ip_allocation_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_ip_allocation_sampling]
-      ip_attribute_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_ip_attribute_sampling]
-      ip_count_realisation/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_ip_count_realisation]
-      party_attribute_sampling/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_party_attribute_sampling]
-      party_count_realisation/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_party_count_realisation]
-      truth_label/
-        seed={seed}/
-          parameter_hash={parameter_hash}/
-            run_id={run_id}/
-              part-*.jsonl  [id: rng_event_truth_label]
-    trace/
-      seed={seed}/
-        parameter_hash={parameter_hash}/
-          run_id={run_id}/
-            rng_trace_log.jsonl  [id: rng_trace_log]
+      rng/
+        audit/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_audit_log.jsonl  [id: rng_audit_log]
+        events/
+          edge_jitter/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_edge_jitter]
+          edge_tile_assign/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_edge_tile_assign]
+        trace/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_trace_log.jsonl  [id: rng_trace_log]
+  layer2/
+    5B/
+      rng/
+        audit/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_audit_log.jsonl  [id: rng_audit_log]
+        events/
+          arrival_edge_pick/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_arrival_edge_pick]
+          arrival_lgcp_gaussian/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_arrival_lgcp_gaussian]
+          arrival_site_pick/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_arrival_site_pick]
+          arrival_time_jitter/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_arrival_time_jitter]
+        trace/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_trace_log.jsonl  [id: rng_trace_log]
+  layer3/
+    6A/
+      rng/
+        audit/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_audit_log.jsonl  [id: rng_audit_log]
+        events/
+          account_allocation_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_account_allocation_sampling]
+          account_attribute_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_account_attribute_sampling]
+          account_count_realisation/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_account_count_realisation]
+          device_allocation_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_device_allocation_sampling]
+          device_attribute_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_device_attribute_sampling]
+          device_count_realisation/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_device_count_realisation]
+          fraud_role_sampling_account/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_role_sampling_account]
+          fraud_role_sampling_device/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_role_sampling_device]
+          fraud_role_sampling_ip/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_role_sampling_ip]
+          fraud_role_sampling_merchant/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_role_sampling_merchant]
+          fraud_role_sampling_party/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_role_sampling_party]
+          instrument_allocation_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_instrument_allocation_sampling]
+          instrument_attribute_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_instrument_attribute_sampling]
+          instrument_count_realisation/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_instrument_count_realisation]
+          ip_allocation_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_ip_allocation_sampling]
+          ip_attribute_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_ip_attribute_sampling]
+          ip_count_realisation/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_ip_count_realisation]
+          party_attribute_sampling/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_party_attribute_sampling]
+          party_count_realisation/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_party_count_realisation]
+        trace/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_trace_log.jsonl  [id: rng_trace_log]
+    6B/
+      rng/
+        audit/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_audit_log.jsonl  [id: rng_audit_log]
+        events/
+          bank_view_label/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_bank_view_label]
+          event_stream_baseline/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_event_stream_baseline]
+          flow_anchor_baseline/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_flow_anchor_baseline]
+          fraud_campaign_pick/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_campaign_pick]
+          fraud_overlay_apply/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_fraud_overlay_apply]
+          truth_label/
+            seed={seed}/
+              parameter_hash={parameter_hash}/
+                run_id={run_id}/
+                  part-*.jsonl  [id: rng_event_truth_label]
+        trace/
+          seed={seed}/
+            parameter_hash={parameter_hash}/
+              run_id={run_id}/
+                rng_trace_log.jsonl  [id: rng_trace_log]
 reference/
   layer1/
     transaction_schema_merchant_ids/
       {version}  [id: transaction_schema_merchant_ids]
 reports/
-  l1/
+  layer1/
     3B/
-      s1_virtuals/
+      state=S1/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             run_report.json  [id: s1_run_report_3B]
-      s2_edges/
+      state=S2/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             run_report.json  [id: s2_run_report_3B]
-      s3_alias/
+      state=S3/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             run_report.json  [id: s3_run_report_3B]
-      s4_routing/
+      state=S4/
+        manifest_fingerprint={manifest_fingerprint}/
+          s4_run_summary_3B.json  [id: s4_run_summary_3B]
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             run_report.json  [id: s4_run_report_3B]
-      s5_validation/
+      state=S5/
         seed={seed}/
-          fingerprint={manifest_fingerprint}/
+          manifest_fingerprint={manifest_fingerprint}/
             run_report.json  [id: s5_run_report_3B]
-  l2/
+  layer2/
     5A/
-      s1_profiles/
-        fingerprint={manifest_fingerprint}/
+      state=S1/
+        manifest_fingerprint={manifest_fingerprint}/
           run_report.json  [id: s1_run_report_5A]
-      s2_shapes/
-        fingerprint={manifest_fingerprint}/
+      state=S2/
+        manifest_fingerprint={manifest_fingerprint}/
           run_report.json  [id: s2_run_report_5A]
-      s3_baselines/
-        fingerprint={manifest_fingerprint}/
+      state=S3/
+        manifest_fingerprint={manifest_fingerprint}/
           run_report.json  [id: s3_run_report_5A]
-      s4_overlays/
-        fingerprint={manifest_fingerprint}/
+      state=S4/
+        manifest_fingerprint={manifest_fingerprint}/
           run_report.json  [id: s4_run_report_5A]
-      s5_validation/
-        fingerprint={manifest_fingerprint}/
+      state=S5/
+        manifest_fingerprint={manifest_fingerprint}/
           run_report.json  [id: s5_run_report_5A]
-    segment_states/
-      segment_state_runs.jsonl  [id: segment_state_runs]
+    segment_state_runs/
+      segment=5A/
+        utc_day={utc_day}/
+          segment_state_runs.jsonl  [id: segment_state_runs]
+      segment=5B/
+        utc_day={utc_day}/
+          segment_state_runs.jsonl  [id: segment_state_runs]

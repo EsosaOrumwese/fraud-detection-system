@@ -40,7 +40,7 @@ All S4 reads and writes bind to **one** `{seed}`, **one** `{manifest_fingerprint
 **2.3 Sealed inputs (IDs → path/partitions → `$ref`).**
 Resolved via the **Dataset Dictionary** (no literal paths).
 
-* **`s3_requirements`** → `data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **partitions:** `[seed, fingerprint, parameter_hash]` · **schema:** `schemas.1B.yaml#/plan/s3_requirements`. *(Counts source for `n_sites`.)*  
+* **`s3_requirements`** → `data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` · **partitions:** `[seed, fingerprint, parameter_hash]` · **schema:** `schemas.1B.yaml#/plan/s3_requirements`. *(Counts source for `n_sites`.)*  
 * **`tile_weights`** → `…/parameter_hash={parameter_hash}/` · **partitions:** `[parameter_hash]` · **writer sort:** `[country_iso, tile_id]` · **schema:** `schemas.1B.yaml#/prep/tile_weights`. *(Fixed-dp weights authority.)* 
 * **`tile_index`** → `…/parameter_hash={parameter_hash}/` · **partitions:** `[parameter_hash]` · **writer sort:** `[country_iso, tile_id]` · **schema:** `schemas.1B.yaml#/prep/tile_index`. *(Eligible tile universe.)* 
 * **`iso3166_canonical_2024`** → **schema:** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. *(FK domain for `legal_country_iso`.)* 
@@ -118,7 +118,7 @@ S4 **consumes no RNG** and writes **no RNG logs**; it is purely deterministic. *
 Writers **must** resolve via the Dataset Dictionary (no literal paths). The path family is:
 
 ```
-data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 * **Partitions:** `[seed, fingerprint, parameter_hash]` (one publish per identity; write-once).
@@ -233,7 +233,7 @@ S4 binds all reads/writes to exactly one **`{seed, manifest_fingerprint, paramet
 
 **7.2 Partition law (Dictionary-resolved path family).**
 All IO **must** resolve via the Dataset Dictionary (no literal paths). The S4 path family is:
-`data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+`data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
 **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** per identity; no appends/compaction. (Partitioning mirrors the S3 path law and triple identity.)  
 
 **7.3 Writer sort & file-order posture.**

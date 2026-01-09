@@ -187,7 +187,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.3 Path family, format & catalogue authority
 
 * **Dictionary binding (required):**
-  `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   The **Dataset Dictionary** is the sole authority for ID → path/partitions/format; **literal paths are forbidden**.
 * **Storage format:** `parquet` (Dictionary authority).
 * **Shape authority:** `schemas.2B.yaml#/plan/s4_group_weights`.
@@ -292,7 +292,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 ### 6.5 Format & storage (Dictionary authority)
 
 * **ID:** `s4_group_weights`
-* **Path family:** `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+* **Path family:** `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * **Format:** `parquet`
 * **Partitioning:** `[seed, fingerprint]` (no other tokens)
 
@@ -963,12 +963,12 @@ Validator IDs (`V-01`…`V-20`) and canonical codes (`2B-S4-…`) are **reserved
 
   * **S4 output & path family:**
 
-    * `s4_group_weights` → `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (format: parquet; ordering: `[merchant_id, utc_day, tz_group_id]`)
+    * `s4_group_weights` → `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format: parquet; ordering: `[merchant_id, utc_day, tz_group_id]`)
   * **S4 inputs (Dictionary IDs):**
 
-    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (parquet)
-    * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/` (parquet)
-    * `s3_day_effects` → `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/` (parquet)
+    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
+    * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
+    * `s3_day_effects` → `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
 
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
 
@@ -984,22 +984,22 @@ Validator IDs (`V-01`…`V-20`) and canonical codes (`2B-S4-…`) are **reserved
 
 * **Weights table (from S1):**
 
-  * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.2B.yaml#/plan/s1_site_weights`
 * **Site time-zones (from 2A):**
 
-  * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.2A.yaml#/egress/site_timezones`
 * **Day effects (from S3):**
 
-  * `s3_day_effects` → `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `s3_day_effects` → `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.2B.yaml#/plan/s3_day_effects`
 
 ### A.4 Output produced by this state
 
 * **`s4_group_weights`** (Parquet; `[seed, fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s4_group_weights`
-  **Dictionary path:** `data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  **Dictionary path:** `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **PK:** `[merchant_id, utc_day, tz_group_id]`
   **Required fields:** `p_group`, `base_share`, `gamma`, `created_utc` *(plus optional audit fields if exposed by the anchor)*
   **Writer order:** `[merchant_id, utc_day, tz_group_id]`

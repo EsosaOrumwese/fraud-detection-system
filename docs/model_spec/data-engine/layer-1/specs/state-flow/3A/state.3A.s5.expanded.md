@@ -551,7 +551,7 @@ To keep the authority boundaries strict, S5 is explicitly forbidden from:
 * **Consuming RNG or wall-clock**
 
   * MUST NOT draw any RNG;
-  * MUST NOT use system time in hash inputs or field values (timestamps in logs/run-report may be provided by the orchestrator but must not affect any digests).
+  * MUST NOT use system time in hash inputs or field values (timestamps in logs/layer1/3A/run-report may be provided by the orchestrator but must not affect any digests).
 
 * **Reading unsealed external artefacts**
 
@@ -660,7 +660,7 @@ No duplicates of this triple are permitted.
 * Conceptual path template (finalised in the dataset dictionary):
 
   ```text
-  data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/...
+  data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 Binding rules:
@@ -774,7 +774,7 @@ Once `zone_alloc` is written for a given `{seed, manifest_fingerprint}`:
 * Conceptual path template (fingerprint-only case):
 
   ```text
-  data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_universe_hash.json
+  data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_universe_hash.json
   ```
 
 Binding rules:
@@ -1100,7 +1100,7 @@ datasets:
     description: Cross-layer zone allocation egress for routing segment.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.3A.yaml#/egress/zone_alloc
@@ -1129,7 +1129,7 @@ datasets:
     description: Fingerprint-scoped summary tying priors/policies to the published zone allocation.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
@@ -1163,7 +1163,7 @@ For each manifest (`manifest_fingerprint`), the 3A artefact registry MUST regist
   subsegment: "3A"
   type: "dataset"
   category: "plan"
-  path: "data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/"
+  path: "data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/"
   schema: "schemas.3A.yaml#/egress/zone_alloc"
   semver: "1.0.0"
   version: "{seed}.{manifest_fingerprint}"
@@ -1191,7 +1191,7 @@ Binding requirements:
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json"
+  path: "data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json"
   schema: "schemas.3A.yaml#/validation/zone_alloc_universe_hash"
   semver: "1.0.0"
   version: "{manifest_fingerprint}"
@@ -1411,7 +1411,7 @@ This builds an in-memory or streamed representation of the `zone_alloc` rows, wi
 Using the dictionary entry for `zone_alloc`:
 
 * Compute the target directory:
-  `data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/`.
+  `data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 
 * Inside this partition, S5 MUST sort the row set by:
 
@@ -1575,7 +1575,7 @@ S5 MUST NOT include the raw artefact contents themselves; only their digests and
 Using the dictionary entry:
 
 * Path:
-  `data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json`.
+  `data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json`.
 
 Procedure:
 
@@ -1715,7 +1715,7 @@ No duplicates for this triple are allowed.
 As per the dataset dictionary:
 
 ```text
-data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 Binding rules:
@@ -1766,7 +1766,7 @@ The only purpose of the sort is to ensure that:
 **Single snapshot per run**
 
 * There MUST be at most one `zone_alloc` dataset at the path
-  `data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/`.
+  `data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 * Only S5 is authorised to write to this dataset.
 
 **No partial or incremental updates**
@@ -1824,7 +1824,7 @@ No other partition keys (e.g. `parameter_hash`, `seed`, `run_id`) are allowed.
 From the dictionary:
 
 ```text
-data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
 ```
 
 Binding rules:
@@ -2510,7 +2510,7 @@ Because S5 is the **final pack/seal** step for 3A, observability must let you an
 * What is the `routing_universe_hash`, and which priors/policies/artefacts it encapsulates?
 * Are 2B and the validator looking at the same universe?
 
-S5 MUST NOT dump row-level business data (no full `zone_alloc` in logs/metrics); it only reports **summaries and hashes**.
+S5 MUST NOT dump row-level business data (no full `zone_alloc` in logs/layer1/3A/metrics); it only reports **summaries and hashes**.
 
 ---
 
@@ -2762,7 +2762,7 @@ S5’s artefacts must be easy to correlate with upstream and downstream componen
      * read `zone_alloc_universe_hash` for the relevant `manifest_fingerprint`,
      * recompute digests from its own view of priors/policies/zone_alloc (if it has a local copy), and
      * compare `routing_universe_hash` to its own reference value.
-   * S5’s logs/run-report row MUST expose `routing_universe_hash` and component digests so that mismatches can be detected and investigated.
+   * S5’s logs/layer1/3A/run-report row MUST expose `routing_universe_hash` and component digests so that mismatches can be detected and investigated.
 
 ---
 
@@ -3451,7 +3451,7 @@ S5 does not manipulate priors/policies; it only computes digests over them:
 
 * **`zone_alloc_parquet_digest`**
   SHA-256 (hex) over the canonical concatenation of `zone_alloc` data file bytes in ASCII-lex path order under
-  `data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/`.
+  `data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 
 ---
 
@@ -3515,7 +3515,7 @@ S5 does not manipulate priors/policies; it only computes digests over them:
   * `E3A_S5_007_IMMUTABILITY_VIOLATION`
 
 * **`status`**
-  S5 outcome in logs/run-report:
+  S5 outcome in logs/layer1/3A/run-report:
 
   * `"PASS"` — `zone_alloc` and `zone_alloc_universe_hash` are valid and authoritative.
   * `"FAIL"` — the run ended with one of the error codes; S5 outputs MUST NOT be used.

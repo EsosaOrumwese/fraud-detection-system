@@ -937,24 +937,24 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
 ### A.2 Upstream gate (Layer-1 · Segment 1B)
 
-* **PASS bundle (root):** `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`
+* **PASS bundle (root):** `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/`
 
   * **Index shape (hashing law):** `schemas.layer1.yaml#/validation/validation_bundle/index_schema`
   * **Flag format:** `_passed.flag` with single line `sha256_hex = <hex64>`
   * **Flag shape (schema anchor):** `schemas.1B.yaml#/validation/passed_flag`
 * **Egress consumed by 2B:**
 
-  * `site_locations` → `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `site_locations` → `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.1B.yaml#/egress/site_locations`
 
 ### A.3 Required pins (Layer-2 · Segment 2A)
 
-* **`site_timezones`** → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
+* **`site_timezones`** → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **Shape:** `schemas.2A.yaml#/egress/site_timezones`
 
 ### A.4 Optional cache (Layer-2 · Segment 2A)
 
-* **`tz_timetable_cache`** → `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`
+* **`tz_timetable_cache`** → `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`
   **Shape:** `schemas.2A.yaml#/cache/tz_timetable_cache`
 
 ### A.5 Outputs produced by this state (2B.S0)

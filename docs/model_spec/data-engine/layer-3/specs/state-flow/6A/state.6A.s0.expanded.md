@@ -441,7 +441,7 @@ All later 6A states must treat this table as the **closed world of permissible i
 * Shape & location:
 
   * `schema_ref` — JSON-Schema anchor (e.g. `schemas.layer1.yaml#/egress/site_locations`)
-  * `path_template` — canonical path with tokens (e.g. `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/...`)
+  * `path_template` — canonical path with tokens (e.g. `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`)
   * `partition_keys` — ordered list of partition tokens (e.g. `["seed", "fingerprint"]`)
 * Role & scope:
 
@@ -853,7 +853,7 @@ S0 must not attempt to “repair” or reinterpret upstream HashGates; it either
    * Write the sorted row set as a single logical dataset partition under:
 
      ```text
-     data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/...
+     data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/...
      ```
 
    * Use the schema and path defined in `dataset_dictionary.layer3.6A.yaml`.
@@ -874,7 +874,7 @@ S0 must not attempt to “repair” or reinterpret upstream HashGates; it either
    * Write this under:
 
      ```text
-     data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+     data/layer3/6A/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
      ```
 
    * Again, use the schema and path defined in the dictionary/registry.
@@ -975,7 +975,7 @@ Both S0 outputs are **fingerprint-scoped control-plane datasets**.
     * `fingerprint={manifest_fingerprint}`
   * Path template (schematic):
 
-    * `data/layer3/6A/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json`
+    * `data/layer3/6A/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json`
 
 * `sealed_inputs_6A`:
 
@@ -987,7 +987,7 @@ Both S0 outputs are **fingerprint-scoped control-plane datasets**.
     * `fingerprint={manifest_fingerprint}`
   * Path template (schematic):
 
-    * `data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet`
+    * `data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet`
 
 Binding rules:
 

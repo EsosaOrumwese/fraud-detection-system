@@ -1377,7 +1377,7 @@ For each `(manifest_fingerprint, seed)` (for the campaign catalogue) and each `(
    * For the `(seed, fingerprint)` pair, write a single parquet file per spec:
 
      ```text
-     data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+     data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
      ```
 
    * Ensure PK uniqueness and schema validity.

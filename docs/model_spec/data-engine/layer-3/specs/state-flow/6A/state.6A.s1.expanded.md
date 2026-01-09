@@ -937,7 +937,7 @@ Implementation may vectorise draws for performance, but must preserve:
 * Write to:
 
   ```text
-  data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/...
+  data/layer3/6A/s1_party_base_6A/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
   with partitioning and ordering as per the dictionary:

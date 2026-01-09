@@ -1712,7 +1712,7 @@ For each device instance:
 
 3. **Write dataset**
 
-   * To `data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={mf}/...`
+   * To `data/layer3/6A/s4_device_base_6A/seed={seed}/manifest_fingerprint={mf}/...`
    * Using canonical ordering from the dataset dictionary.
    * Validate against `schemas.6A.yaml#/s4/device_base`.
 
@@ -1883,7 +1883,7 @@ S4 uses the same three primary identity axes as S1–S3:
   * Identifies the specific party+account+instrument+device/IP realisation within a world.
   * Different seeds under the same `(mf, ph)` correspond to different device/IP graphs.
 
-`run_id` is used only for logs/run-reporting; it MUST NOT influence S4 business outputs.
+`run_id` is used only for logs/layer3/6A/run-reporting; it MUST NOT influence S4 business outputs.
 
 ---
 
@@ -1960,8 +1960,8 @@ If implemented:
 * Path templates:
 
 ```text
-data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/fingerprint={mf}/...
-data/layer3/6A/s4_network_summary_6A/seed={seed}/fingerprint={mf}/...
+data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/manifest_fingerprint={mf}/...
+data/layer3/6A/s4_network_summary_6A/seed={seed}/manifest_fingerprint={mf}/...
 ```
 
 **Binding rules:**

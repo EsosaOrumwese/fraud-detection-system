@@ -141,7 +141,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 2. **`site_locations` (1B egress; required)**
 
    * **Shape:** `schemas.1B.yaml#/egress/site_locations` (PK & partitions). 
-   * **Catalogue:** path family `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`. 
+   * **Catalogue:** path family `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`. 
    * **Registry:** 1B egress posture (order-free; write-once; atomic publish). 
    * **Boundary:** S1 MAY read only the columns required to map `(lat, lon)` to a provisional `tzid`; it SHALL read **only** the run’s `(seed, fingerprint)` partition; no mutation. 
 
@@ -180,7 +180,7 @@ S1 SHALL NOT: apply policy **overrides** (S2), parse **tzdb rules** (S3), read a
 **Role.** Geometry-only provisional TZ assignment per site for the selected `(seed, manifest_fingerprint)`.
 **Shape (authority).** `schemas.2A.yaml#/plan/s1_tz_lookup` fixes PK, partitions, columns (incl. `tzid_provisional`, optional `nudge_*`). 
 **Catalogue.** Dataset Dictionary binds ID→path/partitions/format and writer order:
-`data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/` with **partitions** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet. 
+`data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet. 
 **Registry.** Registered as a plan dataset; dependencies reference `site_locations` and `tz_world_2025a`; schema anchor as above. 
 
 ### 5.2 Identity & path law
@@ -210,12 +210,12 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 ### 6.1 Output table — `s1_tz_lookup` (plan)
 
 * **ID → Schema:** `schemas.2A.yaml#/plan/s1_tz_lookup` (**columns_strict: true**). The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, fingerprint]`, and writer **sort** `[merchant_id, legal_country_iso, site_order]`. Required columns include site identity, `(lat_deg, lon_deg)`, and `tzid_provisional`; `nudge_lat_deg`/`nudge_lon_deg` are nullable fields that record an applied ε-nudge. 
-* **Dictionary binding:** `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/` with **partitioning** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet. 
+* **Dictionary binding:** `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitioning** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet. 
 * **Registry reference:** Registered as a **plan** dataset; dependencies: `site_locations`, `tz_world_2025a`; schema ref as above. 
 
 ### 6.2 Referenced inputs (read-only in S1)
 
-* **`site_locations` (1B egress):** `schemas.1B.yaml#/egress/site_locations`; Dictionary path `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` with **partitions** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`; **final in layer: true**.
+* **`site_locations` (1B egress):** `schemas.1B.yaml#/egress/site_locations`; Dictionary path `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`; **final in layer: true**.
 * **`tz_world_2025a` (ingress polygons):** `schemas.ingress.layer1.yaml#/tz_world_2025a` (GeoParquet, WGS84). Dictionary lists the canonical path under `reference/spatial/tz_world/2025a/tz_world.parquet`. 
 * **`tz_nudge` (policy config):** `schemas.2A.yaml#/policy/tz_nudge_v1` (ε > 0, units documented); catalogued at `config/timezone/tz_nudge.yml`.
 
@@ -270,7 +270,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 
 ### 7.4 Output emission (identity & immutability)
 
-* Emit **`s1_tz_lookup`** under `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` and writer order `[merchant_id, legal_country_iso, site_order]`. Path↔embed equality **MUST** hold where lineage appears in rows. 
+* Emit **`s1_tz_lookup`** under `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` and writer order `[merchant_id, legal_country_iso, site_order]`. Path↔embed equality **MUST** hold where lineage appears in rows. 
 * **Single-writer, write-once** posture applies; any non-identical re-emit to an existing `(seed, fingerprint)` partition **MUST** abort. 
 
 ### 7.5 Prohibitions (non-behaviours)
@@ -299,7 +299,7 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 
 ### 8.2 Partitions & path family
 
-* **Dataset:** `s1_tz_lookup` → `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/`.
+* **Dataset:** `s1_tz_lookup` → `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 * **Partitions (binding):** `[seed, fingerprint]` (no others). Dictionary is the **catalogue authority** for path/format. 
 * **Registry echo:** Registry lists the same identity family and schema anchor for `s1_tz_lookup`. 
 

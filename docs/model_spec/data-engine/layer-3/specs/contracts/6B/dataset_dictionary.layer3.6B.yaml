@@ -26,8 +26,8 @@ reference_data:
     status: required
     description: Validator outputs for 1A (metrics, plots, diffs).
     version: '{manifest_fingerprint}'
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.1A.yaml#/validation/validation_bundle
     columns_strict: false
@@ -43,8 +43,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 1A validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/passed_flag
     columns_strict: false
@@ -60,8 +60,8 @@ reference_data:
     status: required
     description: Validation bundle for 1B publish (one per manifest_fingerprint).
     version: '{manifest_fingerprint}'
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
     columns_strict: false
@@ -77,8 +77,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 1B validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/passed_flag
     columns_strict: false
@@ -94,8 +94,8 @@ reference_data:
     status: required
     description: Validation bundle for 2A publish (one per fingerprint).
     version: '{manifest_fingerprint}'
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
     columns_strict: false
@@ -111,8 +111,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 2A validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2A.yaml#/validation/passed_flag
     columns_strict: false
@@ -128,8 +128,8 @@ reference_data:
     status: required
     description: Fingerprint-scoped PASS bundle index for Segment 2B.
     version: '{manifest_fingerprint}'
-    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
-    partitioning: [fingerprint]
+    path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     columns_strict: false
@@ -145,8 +145,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 2B validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/passed_flag
     columns_strict: false
@@ -162,8 +162,8 @@ reference_data:
     status: required
     description: Fingerprint-scoped validation bundle for Segment 3A.
     version: '{manifest_fingerprint}'
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
     columns_strict: false
@@ -179,8 +179,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 3A validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
     columns_strict: false
@@ -196,8 +196,8 @@ reference_data:
     status: required
     description: Fingerprint-scoped validation bundle for Segment 3B.
     version: '{manifest_fingerprint}'
-    path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
     columns_strict: false
@@ -213,8 +213,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 3B validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
     columns_strict: false
@@ -230,8 +230,8 @@ reference_data:
     status: required
     description: Directory artefact containing the 5A validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
     columns_strict: false
@@ -247,8 +247,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 5A validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
     columns_strict: false
@@ -264,8 +264,8 @@ reference_data:
     status: required
     description: Directory artefact containing the 5B validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5B
     columns_strict: false
@@ -281,8 +281,8 @@ reference_data:
     status: required
     description: HashGate PASS flag for the 5B validation bundle.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
     columns_strict: false
@@ -301,8 +301,8 @@ reference_data:
       Validation bundle directory for Layer-3 / Segment 6A, containing the
       evidence index and HashGate outputs for this manifest_fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: null
     columns_strict: false
@@ -322,8 +322,8 @@ reference_data:
       HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256
       digest over the validation bundle for this manifest_fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
     columns_strict: true
@@ -342,8 +342,8 @@ reference_data:
     status: required
     description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
-    partitioning: [fingerprint]
+    path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
     columns_strict: false
@@ -359,8 +359,8 @@ reference_data:
     status: required
     description: Inventory of artefacts 5B is allowed to read for a fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
-    partitioning: [fingerprint]
+    path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+    partitioning: [manifest_fingerprint]
     ordering: [owner_segment, artifact_id, role]
     schema_ref: schemas.5B.yaml#/validation/sealed_inputs_5B
     columns_strict: false
@@ -376,8 +376,8 @@ reference_data:
     status: required
     description: Sealed list of all artefacts 6A is allowed to read for a given manifest_fingerprint.
     version: '{manifest_fingerprint}'
-    path: data/layer3/6A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
-    partitioning: [fingerprint]
+    path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.parquet
+    partitioning: [manifest_fingerprint]
     ordering: [owner_layer, owner_segment, manifest_key]
     schema_ref: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
     columns_strict: false
@@ -394,8 +394,8 @@ reference_data:
     status: required
     description: Canonical arrival skeleton stream per scenario and seed.
     version: '{seed}.{manifest_fingerprint}.{scenario_id}'
-    path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, scenario_id]
+    path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, scenario_id]
     ordering: [scenario_id, merchant_id, ts_utc, arrival_seq]
     schema_ref: schemas.5B.yaml#/egress/s4_arrival_events_5B
     columns_strict: false
@@ -414,8 +414,8 @@ reference_data:
       One row per party per (manifest_fingerprint, seed), including type,
       home geography and static segment attributes.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s1_party_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s1_party_base_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s1_party_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_base_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [country_iso, segment_id, party_type, party_id]
     schema_ref: schemas.6A.yaml#/s1/party_base
     columns_strict: true
@@ -440,8 +440,8 @@ reference_data:
       One row per account per (manifest_fingerprint, seed), including owner
       references, account type, currency and static account attributes.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s2_account_base_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s2_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_base_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [country_iso, account_type, owner_party_id, account_id]
     schema_ref: schemas.6A.yaml#/s2/account_base
     columns_strict: true
@@ -466,8 +466,8 @@ reference_data:
       owner account, owner party/merchant (if modelled), instrument type,
       scheme/network, masked identifier, expiry, and static flags.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_instrument_base_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_base_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [account_id, instrument_type, scheme, instrument_id]
     schema_ref: schemas.6A.yaml#/s3/instrument_base
     columns_strict: true
@@ -491,8 +491,8 @@ reference_data:
       either per-instrument or aggregated per-account, per-instrument-type
       views of instrument ownership.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_account_instrument_links_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_account_instrument_links_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [account_id, instrument_type, scheme, instrument_id]
     schema_ref: schemas.6A.yaml#/s3/account_instrument_links
     columns_strict: true
@@ -514,8 +514,8 @@ reference_data:
       (manifest_fingerprint, seed), with device classification, primary
       owner context and static device risk/capability flags.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s4_device_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_base_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s4_device_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_base_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [device_type, primary_party_id, primary_merchant_id, device_id]
     schema_ref: schemas.6A.yaml#/s4/device_base
     columns_strict: true
@@ -537,8 +537,8 @@ reference_data:
       per IP/endpoint per (manifest_fingerprint, seed), including masked
       representation, ip_type, asn_class, geo hints and static risk tags.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s4_ip_base_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_ip_base_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s4_ip_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_base_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [ip_type, asn_class, country_iso, ip_id]
     schema_ref: schemas.6A.yaml#/s4/ip_base
     columns_strict: true
@@ -560,8 +560,8 @@ reference_data:
       device_id to one or more parties/accounts/instruments/merchants
       with a link_role describing the semantics.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s4_device_links_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_device_links_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s4_device_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_links_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [device_id, party_id, account_id, instrument_id, merchant_id, link_role]
     schema_ref: schemas.6A.yaml#/s4/device_links
     columns_strict: true
@@ -582,8 +582,8 @@ reference_data:
       Static fraud posture for parties in Layer-3 / Segment 6A.
       One row per party per (manifest_fingerprint, seed).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_party_fraud_roles_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [party_id]
     schema_ref: schemas.6A.yaml#/s5/party_fraud_roles
     columns_strict: true
@@ -604,8 +604,8 @@ reference_data:
       Static fraud posture for accounts in Layer-3 / Segment 6A.
       One row per account per (manifest_fingerprint, seed).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_account_fraud_roles_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_account_fraud_roles_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [account_id]
     schema_ref: schemas.6A.yaml#/s5/account_fraud_roles
     columns_strict: true
@@ -626,8 +626,8 @@ reference_data:
       Static fraud posture for merchants in Layer-3 / Segment 6A.
       One row per merchant, keyed by merchant_id.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_merchant_fraud_roles_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [merchant_id]
     schema_ref: schemas.6A.yaml#/s5/merchant_fraud_roles
     columns_strict: true
@@ -648,8 +648,8 @@ reference_data:
       Static fraud posture for devices in Layer-3 / Segment 6A.
       One row per device per (manifest_fingerprint, seed).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_device_fraud_roles_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_device_fraud_roles_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [device_id]
     schema_ref: schemas.6A.yaml#/s5/device_fraud_roles
     columns_strict: true
@@ -669,8 +669,8 @@ reference_data:
       Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A.
       One row per ip_id per (manifest_fingerprint, seed).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
-    path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_ip_fraud_roles_6A.parquet
-    partitioning: [seed, fingerprint, parameter_hash]
+    path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_ip_fraud_roles_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
     ordering: [ip_id]
     schema_ref: schemas.6A.yaml#/s5/ip_fraud_roles
     columns_strict: true
@@ -694,8 +694,8 @@ datasets:
       summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer3/6B/gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
-    partitioning: [fingerprint]
+    path: data/layer3/6B/gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+    partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
@@ -712,8 +712,8 @@ datasets:
       manifest_fingerprint, with roles, schema_refs and digests.
     version: '{manifest_fingerprint}'
     format: parquet
-    path: data/layer3/6B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
-    partitioning: [fingerprint]
+    path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.parquet
+    partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]
     ordering: [owner_layer, owner_segment, manifest_key]
     schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B
@@ -1018,7 +1018,7 @@ datasets:
     description: Run-scoped RNG audit envelope for 6B runs.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    path: logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/core/rng_audit_log
@@ -1033,7 +1033,7 @@ datasets:
     description: Aggregated RNG trace log for 6B runs (per event family draws/blocks).
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    path: logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/core/rng_trace_log
@@ -1048,7 +1048,7 @@ datasets:
     description: RNG events for 6B.S2 baseline flow anchor draws.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer3/6B/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/events/flow_anchor_baseline
@@ -1063,7 +1063,7 @@ datasets:
     description: RNG events for 6B.S2 baseline event stream draws.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer3/6B/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/events/event_stream_baseline
@@ -1078,7 +1078,7 @@ datasets:
     description: RNG events for 6B.S3 fraud campaign selection.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer3/6B/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/events/fraud_campaign_pick
@@ -1093,7 +1093,7 @@ datasets:
     description: RNG events for 6B.S3 fraud overlay application.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer3/6B/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/events/fraud_overlay_apply
@@ -1108,7 +1108,7 @@ datasets:
     description: RNG events for 6B.S4 truth-label sampling.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer3/6B/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/events/truth_label
@@ -1123,7 +1123,7 @@ datasets:
     description: RNG events for 6B.S4 bank-view label sampling.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer3/6B/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer3.yaml#/rng/events/bank_view_label
@@ -1141,8 +1141,8 @@ datasets:
       identifiers for Layer-3 behaviour; one row per arrival.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1164,8 +1164,8 @@ datasets:
       relationships and anchor metadata.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s1_session_index_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1188,8 +1188,8 @@ datasets:
       (seed, manifest_fingerprint, scenario_id).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1209,8 +1209,8 @@ datasets:
       Baseline event stream for each flow (auth/clearing/refund/etc.).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1234,8 +1234,8 @@ datasets:
       parameters and the flows affected.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1255,8 +1255,8 @@ datasets:
       Flow anchors after fraud overlays and campaign adjustments are applied.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1277,8 +1277,8 @@ datasets:
       for training/labelling flows.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1301,8 +1301,8 @@ datasets:
       Flow-level ground truth labels used by 4A/4B and model training.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1322,8 +1322,8 @@ datasets:
       Bank-view classification of each flow (what the institution sees / would act on).
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1343,8 +1343,8 @@ datasets:
       Event-level truth and bank-view labels keyed to s3_event_stream_with_fraud_6B.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s4_event_labels_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s4_event_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1365,8 +1365,8 @@ datasets:
       Case timeline events for flows promoted to manual review or automated cases.
     version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'
     format: parquet
-    path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/scenario_id={scenario_id}/part-*.parquet
-    partitioning: [seed, fingerprint, parameter_hash, scenario_id]
+    path: data/layer3/6B/s4_case_timeline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]
     primary_key:
       - seed
       - manifest_fingerprint
@@ -1390,8 +1390,8 @@ datasets:
       the results of S5 checks across S1-S4 artefacts.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
-    partitioning: [fingerprint]
+    path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+    partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer3.yaml#/validation/6B/s5_validation_report
@@ -1407,8 +1407,8 @@ datasets:
       Structured list of validation issues for 6B (one row per failing/warning check).
     version: '{manifest_fingerprint}'
     format: parquet
-    path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
-    partitioning: [fingerprint]
+    path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+    partitioning: [manifest_fingerprint]
     primary_key:
       - manifest_fingerprint
       - check_id
@@ -1428,8 +1428,8 @@ datasets:
       plus index.json and _passed.flag.
     version: '{manifest_fingerprint}'
     format: directory
-    path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: null
@@ -1446,8 +1446,8 @@ datasets:
       and their SHA-256 digests.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
-    partitioning: [fingerprint]
+    path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
@@ -1463,8 +1463,8 @@ datasets:
       Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.
     version: '{manifest_fingerprint}'
     format: text
-    path: data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B

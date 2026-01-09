@@ -111,7 +111,7 @@ S7 is invoked in the context of a 3A run identified by:
 S7 MUST treat these values as **inputs only**:
 
 * It MUST NOT alter or re-derive `parameter_hash`, `manifest_fingerprint`, `seed`, or `run_id`.
-* All bundle paths and artefacts S7 creates are scoped to `fingerprint={manifest_fingerprint}`; `seed` and `run_id` are used for correlation in logs/run-report only.
+* All bundle paths and artefacts S7 creates are scoped to `fingerprint={manifest_fingerprint}`; `seed` and `run_id` are used for correlation in logs/layer1/3A/run-report only.
 
 ---
 
@@ -596,7 +596,7 @@ No other S7 outputs are in scope in this contract version.
 * Path pattern (subject to dictionary in §5):
 
   ```text
-  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+  data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
   ```
 
 Binding rules:
@@ -604,7 +604,7 @@ Binding rules:
 * For a given `manifest_fingerprint = F`, there MUST be at most one directory:
 
   ```text
-  data/layer1/3A/validation/fingerprint=F/
+  data/layer1/3A/validation/manifest_fingerprint=F/
   ```
 
 representing the 3A validation bundle for that manifest.
@@ -746,7 +746,7 @@ If any mismatch is found between `index.json` and the actual artefacts, S7 MUST 
 * Path pattern (conceptual):
 
   ```text
-  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 Per `manifest_fingerprint = F`:
@@ -907,7 +907,7 @@ These anchors define the **logical shape** of the artefacts; the on-disk represe
           * usually the dataset/artefact ID or manifest_key (e.g. `"mlr.3A.s1_escalation_queue"`).
         * `path` — `type: "string"`
 
-          * concrete path to the artefact, e.g. `data/layer1/3A/s1_escalation_queue/seed=.../fingerprint=.../`.
+          * concrete path to the artefact, e.g. `data/layer1/3A/s1_escalation_queue/seed=.../manifest_fingerprint=.../`.
         * `schema_ref` — `type: "string"`
 
           * schema anchor, e.g. `schemas.3A.yaml#/plan/s1_escalation_queue`.
@@ -983,7 +983,7 @@ datasets:
     description: Fingerprint-scoped validation bundle for Segment 3A.
     version: '{manifest_fingerprint}'
     format: dir
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [fingerprint]
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
     ordering: []
@@ -1010,7 +1010,7 @@ Binding points:
     description: HashGate PASS flag accompanying the validation bundle.
     version: '{manifest_fingerprint}'
     format: text
-    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     partitioning: [fingerprint]
     schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
     ordering: []
@@ -1046,7 +1046,7 @@ For each `manifest_fingerprint`, the 3A artefact registry MUST include entries f
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/"
+  path: "data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/"
   schema: "schemas.layer1.yaml#/validation/validation_bundle_index_3A"
   version: "1.0.0"
   digest: "<sha256_hex>"     # SHA-256 of index.json bytes (or a canonical representation)
@@ -1082,7 +1082,7 @@ Binding requirements:
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag"
+  path: "data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag"
   schema: "schemas.layer1.yaml#/validation/passed_flag_3A"
   version: "1.0.0"
   digest: "<sha256_hex>"     # SHA-256 of the _passed.flag file content
@@ -1381,7 +1381,7 @@ S7 MUST then:
 * write it to:
 
   ```text
-  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/index.json
+  data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
   ```
 
 If an `index.json` already exists:
@@ -1434,7 +1434,7 @@ sha256_hex = <bundle_sha256_hex>
 at:
 
 ```text
-data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
 ```
 
 If no flag exists:
@@ -1559,7 +1559,7 @@ Thus:
 * Path pattern (from dictionary):
 
 ```text
-data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 Binding rules:
@@ -1567,7 +1567,7 @@ Binding rules:
 * For a given `F`, there MUST be at most one `validation_bundle_3A` directory located at:
 
 ```text
-data/layer1/3A/validation/fingerprint=F/
+data/layer1/3A/validation/manifest_fingerprint=F/
 ```
 
 * The `index.json` inside that directory MUST have:
@@ -1637,7 +1637,7 @@ Again, key order is not semantically meaningful beyond digest stability.
 * Path pattern:
 
 ```text
-data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
 ```
 
 Binding rules:
@@ -2381,7 +2381,7 @@ Exactly one log event **only if** S7 completes successfully as a state, i.e.:
 **Bundle summary**
 
 * `bundle_member_count` — number of member entries in `index.json`.
-* `bundle_path` — path to `validation_bundle_3A` root (e.g. `data/layer1/3A/validation/fingerprint=…/`).
+* `bundle_path` — path to `validation_bundle_3A` root (e.g. `data/layer1/3A/validation/manifest_fingerprint=…/`).
 * `bundle_sha256_hex` — composite digest written into `_passed.flag`.
 
 **S6 linkage**
@@ -2589,7 +2589,7 @@ Even though S7 artefacts are small and mostly metadata, they control access to 3
   * cross-segment validators,
   * authorised operators and governance tooling.
 
-* S7 logs/run-report MUST NOT expose sensitive internal details beyond what is necessary (e.g. no raw policy bodies, no per-row data; only digests, counts, and statuses).
+* S7 logs/layer1/3A/run-report MUST NOT expose sensitive internal details beyond what is necessary (e.g. no raw policy bodies, no per-row data; only digests, counts, and statuses).
 
 **No bundle content leakage via logging**
 
@@ -3177,7 +3177,7 @@ This appendix records the notation and shorthand used in the 3A.S7 design. It ha
   Structured as:
 
   ```text
-  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+  data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
     ├── index.json
     ├── _passed.flag
     └── (other referenced artefacts or symlinks, per implementation)

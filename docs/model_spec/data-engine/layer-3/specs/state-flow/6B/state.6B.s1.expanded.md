@@ -542,7 +542,7 @@ In the 6B dataset dictionary / artefact registry, this dataset MUST be registere
 * `path` (template):
 
   ```text
-  data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  data/layer3/6B/s1_arrival_entities_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -642,7 +642,7 @@ The session index MUST be registered as:
 * `path` (template):
 
   ```text
-  data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  data/layer3/6B/s1_session_index_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -1030,8 +1030,8 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
    * Write `s1_arrival_entities_6B` and `s1_session_index_6B` to their respective paths:
 
      ```text
-     data/layer3/6B/s1_arrival_entities_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
-     data/layer3/6B/s1_session_index_6B/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s1_arrival_entities_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s1_session_index_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
      ```
 
    * Use the ordering and partitioning specified in §4–§5.

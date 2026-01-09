@@ -1066,11 +1066,11 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
   * **S2 outputs & path families:**
 
-    * `s2_alias_index` → `data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json` (format: json)
-    * `s2_alias_blob`  → `data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin` (format: binary)
+    * `s2_alias_index` → `data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json` (format: json)
+    * `s2_alias_blob`  → `data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin` (format: binary)
   * **S2 inputs (Dictionary IDs):**
 
-    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (format: parquet)
+    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format: parquet)
     * `alias_layout_policy_v1` → `contracts/policy/2B/alias_layout_policy_v1.json` (single file; no partition tokens)
 
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
@@ -1087,7 +1087,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 * **Weights table (from S1):**
 
-  * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.2B.yaml#/plan/s1_site_weights`
 * **Policy (layout & decode law):**
 
@@ -1101,14 +1101,14 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 * **`s2_alias_index`** (JSON; `[seed, fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s2_alias_index`
-  **Dictionary path:** `data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json`
+  **Dictionary path:** `data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json`
   **Header (required):** `layout_version`, `endianness`, `alignment_bytes`, `quantised_bits`, `created_utc`, `policy_id`, `policy_digest`, `blob_sha256`, `blob_size_bytes`, `merchants_count`, `merchants[]`
   **Row (required):** `merchant_id`, `offset`, `length`, `sites`, `quantised_bits`, `checksum`
   **Writer order:** ascending `merchant_id`
 
 * **`s2_alias_blob`** (binary; `[seed, fingerprint]`)
   **Contract:** `schemas.2B.yaml#/binary/s2_alias_blob`
-  **Dictionary path:** `data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin`
+  **Dictionary path:** `data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin`
   **Layout:** `layout_version`, `endianness`, `alignment_bytes` from policy; slices non-overlapping, ordered by `merchant_id`
 
 ### A.5 Identity & token discipline

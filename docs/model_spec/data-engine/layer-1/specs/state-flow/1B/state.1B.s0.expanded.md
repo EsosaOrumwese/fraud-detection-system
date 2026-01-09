@@ -195,9 +195,9 @@ Schema outweighs dictionary on shape; dictionary outweighs any literal path; reg
 
 ## 3.1 Canonical tokens (definitions)
 
-* **`seed`** — 64-bit unsigned master RNG seed. Appears in path partitions for **RNG logs/events** and **egress**. Where embedded (e.g., in event envelopes), it **MUST** equal the path token (see §3.3). 
-* **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle for the run. Partitions **parameter-scoped** datasets and **RNG logs/events**; where embedded, it **MUST** equal the path token. 
-* **`run_id`** — run-scoped identifier (**lowercase 32-hex** by layer schema). Partitions **RNG logs/events**; where embedded, it **MUST** equal the path token.  
+* **`seed`** — 64-bit unsigned master RNG seed. Appears in path partitions for **RNG logs/layer1/1B/events** and **egress**. Where embedded (e.g., in event envelopes), it **MUST** equal the path token (see §3.3). 
+* **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle for the run. Partitions **parameter-scoped** datasets and **RNG logs/layer1/1B/events**; where embedded, it **MUST** equal the path token. 
+* **`run_id`** — run-scoped identifier (**lowercase 32-hex** by layer schema). Partitions **RNG logs/layer1/1B/events**; where embedded, it **MUST** equal the path token.  
 * **`manifest_fingerprint`** (path alias: **`fingerprint`**) — **lowercase hex64** lineage digest for the sealed run. Partitions **egress**; when embedded in rows, **`manifest_fingerprint` MUST equal** the `fingerprint` path token (naming rule). Pattern enforcement (64 lowercase hex) is binding.  
 
 > **Note.** Some 1A surfaces embed a `global_seed`; where present in 1B, it **MUST** equal the `seed` path token (string-equal). 
@@ -216,7 +216,7 @@ S0 fixes the **partition keys** 1B will use (mirroring 1A so consumers get a uni
    *Precedent:* `s3_candidate_set`, `s3_integerised_counts`, etc.  
 
 3. **RNG logs & event streams** → partitions **`[seed, parameter_hash, run_id]`**.
-   *Precedent:* `rng_audit_log`, `rng_trace_log`, and event families under `logs/rng/events/...`. 
+   *Precedent:* `rng_audit_log`, `rng_trace_log`, and event families under `logs/layer1/1B/rng/events/...`. 
 
 **Immutability.** Partitions are **immutable**; file/listing order is **non-authoritative** (PK/UK + partitions define truth). 
 
@@ -232,7 +232,7 @@ Where lineage appears in both the **path** and the **row**, values **MUST be byt
 * **Parameter-scoped tables**:
   `row.parameter_hash == parameter_hash` (path token). **No `seed` in these paths.** 
 
-* **RNG logs/events**:
+* **RNG logs/layer1/1B/events**:
   `row.seed == seed`, `row.parameter_hash == parameter_hash`, `row.run_id == run_id` (all path tokens). Event rows also embed `manifest_fingerprint`, which **MUST** equal the run’s egress fingerprint (synced to the `fingerprint` path used by egress).  
 
 * **Trace nuance (precedent)**: for `rng_trace_log`, embedded envelope fields present (`seed`, `run_id`) equal path tokens; `parameter_hash` may be path-only. 1B follows the same rule. 
@@ -267,7 +267,7 @@ If S0 emits a **`s0_gate_receipt_1B`** (fingerprint-scoped), it **MUST**:
 Given a target `manifest_fingerprint`, S0 **MUST** resolve the 1A validator bundle at:
 
 ```
-data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 This folder is fingerprint-scoped; bundle files embed the same `manifest_fingerprint` as the path token. 
@@ -309,7 +309,7 @@ S0 **MUST** enforce the canonical **no PASS → no read** rule by validating `_p
 On **PASS**, S0 **MAY** open:
 
 ```
-data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 and **MUST** re-assert **path↔embed equality** for rows it touches: `outlet_catalogue.manifest_fingerprint == fingerprint` (path token) and *(if present)* `global_seed == seed`. (Egress remains **order-free** across countries; consumers join S3 for order.)
@@ -345,7 +345,7 @@ S0 **fixes** which upstream datasets 1B is allowed to rely on. Reads of 1A egres
 ## 5.1 Authoritative 1A egress (read **only after** PASS)
 
 * **`outlet_catalogue`** — immutable outlet stubs per `(merchant_id, legal_country_iso, site_order)`; **order-free across countries** (downstreams must join S3 for inter-country order).
-  **Path/partitions:** `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` (**[seed, fingerprint]**).
+  **Path/partitions:** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (**[seed, fingerprint]**).
   **Consumer gate (binding):** read **only if** the co-located `_passed.flag` under `…/validation/fingerprint={manifest_fingerprint}/` **exists** and its content equals **`SHA256(validation_bundle_1A)`** for the same fingerprint (**no PASS → no read**).   
 
 ---
@@ -473,7 +473,7 @@ S0 acts as a **consumer gate**. Until the 1A validation gate passes for the targ
 S0 **MUST** read **only** the fingerprint-scoped validation folder:
 
 ```
-data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 and, inside it, the files required to verify the consumer gate:
@@ -492,7 +492,7 @@ and, inside it, the files required to verify the consumer gate:
 Only **after** `_passed.flag` matches `SHA256(validation_bundle_1A)` for the **same** fingerprint, S0 **MAY** open:
 
 ```
-data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 and **MUST** re-assert path↔embed equality where present:
@@ -543,7 +543,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 **Partition:** `[fingerprint]` (where the path token **equals** the embedded `manifest_fingerprint`). **No `seed` partition here.**  
 
 **Canonical template (Dictionary owns the exact final path):**
-`data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
+`data/layer1/1B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
 *(Dictionary governs the final path/format; this spec fixes the partition to `[fingerprint]` and the equality law.)* 
 
 **Schema anchor:** `schemas.1B.yaml#/validation/s0_gate_receipt`
@@ -551,7 +551,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 **Required fields (non-exhaustive, Binding):**
 
 * `manifest_fingerprint : hex64` — **MUST** byte-equal the `fingerprint` path token.
-* `validation_bundle_path : string` — resolved folder for `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`. 
+* `validation_bundle_path : string` — resolved folder for `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`. 
 * `flag_sha256_hex : hex64` — the exact hex read from `_passed.flag` after recomputation. 
 * `verified_at_utc : RFC-3339 (microseconds)` — observational timestamp (non-semantic).
 * `sealed_inputs : array<object>` — entries S0 authorises for 1B, at minimum:
@@ -572,7 +572,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 ## 8.2 Side-effects on PASS (and only on PASS)
 
 * **Read-authorisation becomes active** for `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` (order-free; consumers must join S3 for inter-country order). S0 may **read** it, but S0 **does not** write to any 1A datasets.  
-* **No RNG logs/events** are written in S0 (S0 consumes no RNG); any audit lines belong to general state audit, not RNG channels. 
+* **No RNG logs/layer1/1B/events** are written in S0 (S0 consumes no RNG); any audit lines belong to general state audit, not RNG channels. 
 
 ---
 
@@ -595,7 +595,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 
 S0 **MUST NOT**:
 
-* write or modify any 1A partition (egress, parameter-scoped tables, RNG logs/events, or the 1A validation bundle); 
+* write or modify any 1A partition (egress, parameter-scoped tables, RNG logs/layer1/1B/events, or the 1A validation bundle); 
 * embed or infer **inter-country order** anywhere; order authority remains **S3 `candidate_rank`** and is only ever obtained by join; 
 * write any seed-partitioned artefact (S0 is fingerprint-scoped only). 
 
@@ -617,7 +617,7 @@ S0 fixes lineage identity and partitioning for everything it **reads** or **writ
 
 **(a) Fingerprint-scoped egress (read by S0 after PASS).**
 **Dataset:** `outlet_catalogue` → **partitions `[seed, fingerprint]`** at
-`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`.
+`data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 **Identity:** `(dataset='outlet_catalogue', seed, manifest_fingerprint)`.
 **Order note:** egress **does not encode** inter-country order; consumers must join S3.  
 
@@ -626,11 +626,11 @@ Examples: `s3_candidate_set`, `s3_integerised_counts`, `s3_site_sequence` → **
 **Identity:** `(dataset_id, parameter_hash)`.  
 
 **(c) RNG logs & event streams (layer law; S0 reads none, but pins the regime).**
-`rng_audit_log`, `rng_trace_log`, and all `rng_event_*` → **partitions `[seed, parameter_hash, run_id]`** at `logs/rng/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
+`rng_audit_log`, `rng_trace_log`, and all `rng_event_*` → **partitions `[seed, parameter_hash, run_id]`** at `logs/layer1/1B/rng/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
 **Identity:** `(stream_name, seed, parameter_hash, run_id)`. 
 
 **(d) Validation bundle (S0 reads to enforce the gate).**
-`validation_bundle_1A/` at `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` → **partition `[fingerprint]`**; `_passed.flag` lives **in the same folder**.
+`validation_bundle_1A/` at `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` → **partition `[fingerprint]`**; `_passed.flag` lives **in the same folder**.
 **Identity:** `(bundle, manifest_fingerprint)`.  
 
 **(e) S0 output (if produced): `s0_gate_receipt_1B`.**
@@ -646,7 +646,7 @@ Where lineage appears in both **path** and **row**, values **MUST byte-equal**:
   `outlet_catalogue.manifest_fingerprint == fingerprint` (path token) and, if present, `global_seed == seed`. Pattern for `manifest_fingerprint`: `^[a-f0-9]{64}$`. 
 * **Parameter-scoped tables:**
   `row.parameter_hash == parameter_hash` (path token). `produced_by_fingerprint` (if present) is **informational only**. 
-* **RNG logs/events (layer law):**
+* **RNG logs/layer1/1B/events (layer law):**
   rows embed `{seed, parameter_hash, run_id}` that **equal** their path tokens; `manifest_fingerprint` embeds the run’s egress fingerprint (not a path token). 
 
 Any violation is **structural FAIL**. 
@@ -673,7 +673,7 @@ Any violation is **structural FAIL**.
 ## 9.5 Writer sort & set semantics
 
 * **Egress writer sort:** `[merchant_id, legal_country_iso, site_order]`; S9 verifies this **within and across files**; do **not** rely on physical file order.  
-* **JSONL logs/events:** treated as **sets**; duplicate identity rows are errors; physical line order across files/parts is **non-semantic**. 
+* **JSONL logs/layer1/1B/events:** treated as **sets**; duplicate identity rows are errors; physical line order across files/parts is **non-semantic**. 
 
 ---
 
@@ -759,7 +759,7 @@ The fingerprint-scoped bundle exists at `…/validation/fingerprint={manifest_fi
 
 **E2. Read authorisation for `outlet_catalogue`.**
 Given **E1**, the egress partition at
-`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` is authorised for read; S0 has re-asserted path↔embed equality where present: `manifest_fingerprint == fingerprint` (path token) and *(if present)* `global_seed == seed`. (Cross-country order is **not** encoded in egress.)  
+`data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` is authorised for read; S0 has re-asserted path↔embed equality where present: `manifest_fingerprint == fingerprint` (path token) and *(if present)* `global_seed == seed`. (Cross-country order is **not** encoded in egress.)  
 
 **E3. Authority boundaries recorded.**
 S0 has pinned that **inter-country order** comes **only** from `s3_candidate_set.candidate_rank` (home rank = 0; total, contiguous). Any ordering needed downstream will be obtained by **join**; egress remains order-free.  
@@ -857,7 +857,7 @@ S0’s observability is **evidence-driven** and minimal: it proves the 1A gate a
 
 ## 13.3 What S0 MUST NOT emit (to keep observability clean)
 
-* **No RNG logs/events** in S0 (S0 consumes no RNG). Coverage of RNG activity is already attested by 1A’s `rng_accounting.json` and core logs listed in the bundle index.  
+* **No RNG logs/layer1/1B/events** in S0 (S0 consumes no RNG). Coverage of RNG activity is already attested by 1A’s `rng_accounting.json` and core logs listed in the bundle index.  
 * **No mutations** to 1A partitions (egress, parameter-scoped tables, RNG logs, or the validation bundle). Observability is read-only until the receipt is published. 
 
 ---
@@ -1057,7 +1057,7 @@ On release, record in governance: `semver`, `effective_date`, `ratified_by`, git
 
   * **Egress:** `[seed, fingerprint]` → `…/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` 
   * **Parameter-scoped:** `[parameter_hash]` → `…/s3_candidate_set/parameter_hash={parameter_hash}/` 
-  * **RNG logs/events:** `[seed, parameter_hash, run_id]` → `…/logs/rng/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` 
+  * **RNG logs/layer1/1B/events:** `[seed, parameter_hash, run_id]` → `…/logs/layer1/1B/rng/.../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` 
 * **Path↔embed equality** — when lineage exists in both places, values **must be byte-equal** (e.g., `row.manifest_fingerprint == fingerprint` path token). 
 
 ## A.6 Naming & formats
@@ -1169,7 +1169,7 @@ Compute SHA-256 over that concatenation → write `_passed.flag` as `sha256_hex 
 ## B.5 Egress path & lineage parity (example)
 
 **Authorised path (on PASS):**
-`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` (partitions **[seed, fingerprint]**; writer sort `[merchant_id, legal_country_iso, site_order]`; **order-free**). 
+`data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (partitions **[seed, fingerprint]**; writer sort `[merchant_id, legal_country_iso, site_order]`; **order-free**). 
 
 **Row snippet (fields abridged):**
 
@@ -1201,7 +1201,7 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
 ```json
 {
   "manifest_fingerprint": "<hex64>",   // MUST equal the fingerprint path token
-  "validation_bundle_path": "data/layer1/1A/validation/fingerprint=<hex64>/",
+  "validation_bundle_path": "data/layer1/1A/validation/manifest_fingerprint=<hex64>/",
   "flag_sha256_hex": "<hex64>",
   "verified_at_utc": "2025-10-16T05:12:34.123456Z",
   "sealed_inputs": [
@@ -1242,7 +1242,7 @@ If the bundle contains `param_digest_log.jsonl`, `fingerprint_artifacts.jsonl`, 
 - id: s0_gate_receipt_1B
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  path: data/layer1/1B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
   partitioning: [fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/s0_gate_receipt

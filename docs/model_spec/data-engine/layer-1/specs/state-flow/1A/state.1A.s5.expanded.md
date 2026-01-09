@@ -667,7 +667,7 @@ data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
 ## 9.7 PASS/FAIL semantics
 
 * **S5 PASS (parameter-scoped):** All checks in §§9.1–9.5 succeed **and** the S5 receipt is present with a valid `_passed.flag` whose hash matches its contents. **Downstream reads additionally require that the `ccy_country_weights_cache` dataset exists for the same `parameter_hash`.**
-* **Layer-wide PASS (unchanged):** For egress reads (e.g., `outlet_catalogue`), consumers MUST verify `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag` matches `validation_bundle_1A` for that fingerprint, per S0. 
+* **Layer-wide PASS (unchanged):** For egress reads (e.g., `outlet_catalogue`), consumers MUST verify `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag` matches `validation_bundle_1A` for that fingerprint, per S0. 
 * **FAIL:** Any breach in §§9.1-9.5, or missing/invalid `_passed.flag`, aborts the run; no partial publishes. Follow S0 abort semantics (write failure sentinel; freeze; exit non-zero). 
 
 ## 9.8 Minimal validator report content (normative fields)
@@ -780,7 +780,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 **11.8 Validation of non-interaction (gate condition)**
 
 * The S5 validator (§9) MUST assert **both**:
-  (a) **Absence** of any new/modified files under `logs/rng/**/seed=*/parameter_hash=*/run_id=*` for the run; and
+  (a) **Absence** of any new/modified files under `logs/layer1/1A/rng/**/seed=*/parameter_hash=*/run_id=*` for the run; and
   (b) **Unchanged** final rows in `rng_trace_log` (per key) vs the **pre-S5 snapshot of `rng_trace_log`** (same `{seed, parameter_hash, run_id}`). Any breach ⇒ `E_RNG_INTERACTION` (hard FAIL). 
     - This validator read is the **only** permitted RNG log read in S5 and is **read-only**.
 

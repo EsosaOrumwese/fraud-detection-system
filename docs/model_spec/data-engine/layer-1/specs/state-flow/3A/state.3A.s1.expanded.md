@@ -463,7 +463,7 @@ Identity and cardinality:
 * Path pattern (conceptual; final form in the dictionary):
 
   ```text
-  data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/...
+  data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 * The embedded `fingerprint` and `seed` columns (see below) MUST equal the corresponding path tokens (path↔embed equality).
@@ -674,7 +674,7 @@ datasets:
     description: Per-merchant escalation decisions and totals.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     ordering: [merchant_id, legal_country_iso]
     schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
@@ -704,7 +704,7 @@ For each `manifest_fingerprint`, the 3A artefact registry MUST include an entry 
 
 ```yaml
 - name: s1_escalation_queue
-  path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+  path: data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
   type: dataset
   category: plan
   semver: '1.0.0'
@@ -893,7 +893,7 @@ S1 MAY precompute a table `country_zone_structure` keyed by `legal_country_iso` 
 Using the dictionary/registry and `sealed_inputs_3A`, S1 resolves:
 
 * dataset ID: `outlet_catalogue`
-* path: `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`
+* path: `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…`
 * `schema_ref: schemas.1A.yaml#/egress/outlet_catalogue`.
 
 S1 MUST:
@@ -1031,7 +1031,7 @@ S1 MUST produce exactly one row per `(m,c)` in `D` and no rows for pairs outside
 Using the dataset dictionary entry for `s1_escalation_queue`:
 
 * Expand path:
-  `data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/…`
+  `data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…`
 
 * Within this partition, S1 MUST sort rows by the declared writer-sort key (e.g.):
 
@@ -1143,7 +1143,7 @@ No additional partition keys (e.g. `parameter_hash`, `run_id`) are allowed for t
 From the dataset dictionary:
 
 ```text
-data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 Binding rules:
@@ -2005,7 +2005,7 @@ At minimum:
 
 Metrics MUST:
 
-* be derivable from the same information recorded in logs/run-report, and
+* be derivable from the same information recorded in logs/layer1/3A/run-report, and
 * contain no raw merchant IDs or paths; labels should be limited to state/segment/status and coarse classes (e.g. error_class).
 
 ---
@@ -2671,7 +2671,7 @@ This appendix records the symbols and shorthand used in the 3A.S1 design. It has
   * `E3A_S1_012_IMMUTABILITY_VIOLATION`
 
 * **`status`**
-  S1 outcome in logs/run-report:
+  S1 outcome in logs/layer1/3A/run-report:
 
   * `"PASS"` — S1 met all acceptance criteria; `s1_escalation_queue` is authoritative.
   * `"FAIL"` — S1 terminated with one of the error codes above; its output (if any) must not be used.

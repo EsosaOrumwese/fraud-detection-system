@@ -149,7 +149,7 @@ validation:
     columns_strict: true
     columns:
       - {name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false, description: 'Lineage fingerprint (MUST byte-equal the `fingerprint` path token).'}
-      - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint (must include `fingerprint=<hex64>`).', pattern: '^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$'}
+      - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint (must include `manifest_fingerprint=<hex64>`).', pattern: '^data/layer1/1A/validation/manifest_fingerprint=[a-f0-9]{64}/?$'}
       - {name: flag_sha256_hex, $ref: '#/$defs/hex64', nullable: false, description: 'Value read from _passed.flag after recomputation.'}
       - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: 'Verification timestamp (observational).'}
       - name: sealed_inputs

@@ -154,7 +154,7 @@ f) **Domains/FK**: ISO codes uppercase and FK-valid to `iso3166_canonical_2024`;
 **Partition law (summary, binding).**
 
 * **Parameter-scoped tables** (S3, S5, optional membership): `…/parameter_hash={parameter_hash}/` and embed the **same** `parameter_hash`.
-* **RNG logs/events** (S4/S6 and core logs): `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
+* **RNG logs/layer1/1A/events** (S4/S6 and core logs): `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
 
 ---
 
@@ -176,7 +176,7 @@ The policy **MUST** define the following keys in the **`defaults`** block, with 
   * **false:** write keys **only for selected candidates**; the validator **MUST** use **counter-replay** in stable iteration order to regenerate the missing keys (§9.3).
 * `max_candidates_cap : int ≥ 0` — default **0** (no cap). If >0, S6 **MUST** truncate the S3 domain to the first **`max_candidates_cap`** countries by **S3 `candidate_rank`** (no re-order).
 * `zero_weight_rule : enum{"exclude","include"}` — default **"exclude"**.
-* `dp_score_print : int ≥ 0` — **optional, diagnostic-only** (formatting for logs/UI). It MUST NOT affect scoring, selection, RNG budgets, or any validator checks.
+* `dp_score_print : int ≥ 0` — **optional, diagnostic-only** (formatting for logs/layer1/1A/UI). It MUST NOT affect scoring, selection, RNG budgets, or any validator checks.
 
   * **"exclude":** candidates with **S5 weight == 0** are **dropped** from the domain (no key written; they do not contribute to selection or event counts).
   * **"include":** zero-weight candidates are **considered for logging** (keys may be written per `log_all_candidates`) but are **not eligible for selection** (`ln(0) = −∞`).
@@ -222,7 +222,7 @@ S6 **produces** the following RNG artefacts; these are the **sole authoritative 
 * **`rng_event.gumbel_key`** — **logging mode:** if `log_all_candidates=true`, one event per **considered** candidate (post-cap, post-policy); if `false`, keys only for **selected** candidates (budgets unchanged; validator uses §9.3 counter-replay).
 
   * **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
-  * **Dictionary entry & path pattern:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+  * **Dictionary entry & path pattern:** `logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
   * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (S5 subset-renormalised)**, the **uniform `u`**, the **Gumbel `key`**, a **`selected`** flag, and optional `selection_order` (**1..K when `selected=true`; omitted otherwise**); plus the standard envelope fields.
     **Budgets:** `draws="1"`, `blocks=1` for each event.
     **Zero-weight rows:** if `weight==0` (allowed only when `zero_weight_rule="include"`), S6 **MUST NOT** emit a numeric key — set `key: null`. Such rows are **diagnostic only** and **never eligible**; `selection_order` MUST be absent.
@@ -632,9 +632,9 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 
 ## 10.5 Canonical path patterns (normative)
 
-* **`rng_event.gumbel_key`** → `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (schema: `schemas.layer1.yaml#/rng/events/gumbel_key`). 
-* **`rng_audit_log`** → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` (schema: core audit). 
-* **`rng_trace_log`** → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema: core trace). 
+* **`rng_event.gumbel_key`** → `logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (schema: `schemas.layer1.yaml#/rng/events/gumbel_key`). 
+* **`rng_audit_log`** → `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` (schema: core audit). 
+* **`rng_trace_log`** → `logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema: core trace). 
 * **S3 input** `s3_candidate_set` → `data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/…` (schema: `schemas.1A.yaml#/s3/candidate_set`). 
 * **S5 input** `ccy_country_weights_cache` → `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/…` with **S5 PASS receipt** co-located. 
 * **S6 receipt (PASS gate)** → `data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json, _passed.flag)` (see §9). 
@@ -1412,10 +1412,10 @@ S6 **fails closed** with these canonical codes; map to S0 failure classes in ops
 
 ## B.5 Path patterns (authoritative excerpts)
 
-* `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` → `schemas.layer1.yaml#/rng/events/gumbel_key`. 
-* `logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` → `schemas.layer1.yaml#/rng/events/ztp_final`. 
-* `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `schemas.layer1.yaml#/rng/core/rng_audit_log`. 
-* `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `schemas.layer1.yaml#/rng/core/rng_trace_log`. 
+* `logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` → `schemas.layer1.yaml#/rng/events/gumbel_key`. 
+* `logs/layer1/1A/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` → `schemas.layer1.yaml#/rng/events/ztp_final`. 
+* `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `schemas.layer1.yaml#/rng/core/rng_audit_log`. 
+* `logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `schemas.layer1.yaml#/rng/core/rng_trace_log`. 
 * `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`. 
 * *(Compat)* `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/` → `schemas.1A.yaml#/alloc/country_set` (**deprecated as order authority**). 
 

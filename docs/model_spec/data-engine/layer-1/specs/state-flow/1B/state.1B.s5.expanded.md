@@ -44,7 +44,7 @@ All S5 reads and writes bind to exactly one **`{seed, manifest_fingerprint, para
 
 * **Substream:** `site_tile_assign` (assignment draws).
 * **Budget:** **exactly one** U(0,1) draw **per assigned site** (i.e., per output row in `s5_site_tile_assignment`).
-* **Partitioning for logs:** `logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+* **Partitioning for logs:** `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
 * **Run ID:** a single `run_id` is minted at job start and used for all S5 RNG events in this publish; it is recorded in the run report.
 * **Shape authority:** the RNG events **must** validate against the canonical layer RNG event anchor for `site_tile_assign`. *(This spec does not restate event fields.)*
 
@@ -116,7 +116,7 @@ If lineage fields are embedded in rows in this or a future revision, their value
 Resolve via the **Dataset Dictionary** only (no literal paths).
 
 ```
-data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 * **Partitions:** `[seed, fingerprint, parameter_hash]` (one publish per identity; write-once).
@@ -127,7 +127,7 @@ data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerp
 Assignment RNG events are published under the layer RNG log space:
 
 ```
-logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
 ```
 
 * **Partitions:** `[seed, parameter_hash, run_id]` (no fingerprint in RNG logs).
@@ -224,7 +224,7 @@ Iterate the sorted tile multiset **`T`** in ascending `tile_id`. For each run of
 **6.7 Emit outputs.**
 a) **Dataset rows:** emit **exactly one** row per site `(merchant_id, legal_country_iso, site_order)` with its assigned `tile_id`.
 b) **Writer sort:** output rows in non-decreasing **`[merchant_id, legal_country_iso, site_order]`**. **File order is non-authoritative**.
-c) **RNG events:** for each emitted row, write the corresponding **one** RNG event (the draw used for that site) under `…/logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+c) **RNG events:** for each emitted row, write the corresponding **one** RNG event (the draw used for that site) under `…/logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
 d) **Budget equality:** total RNG events **equals** total dataset rows for the publish.
 
 **6.8 Universe & FK integrity (during emit).**
@@ -233,7 +233,7 @@ Every `(legal_country_iso, tile_id)` assigned **must exist** in `tile_index` for
 **6.9 Idempotence & identity discipline.**
 Given identical sealed inputs and the same identity triple `{seed, manifest_fingerprint, parameter_hash}`, S5 **must** reproduce **byte-identical** output (dataset) and the **same RNG events** (order/content).
 
-* Publish under `data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
+* Publish under `data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`.
 * **Write-once:** re-publishing to the same identity must be byte-identical (stage → fsync → single atomic move).
 
 **6.10 Prohibitions (fail-closed).**
@@ -255,10 +255,10 @@ Given identical sealed inputs and the same identity triple `{seed, manifest_fing
 **7.2 Partition law & path families (resolve via Dataset Dictionary; no literal paths).**
 
 * **Dataset path family:**
-  `data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** (no appends/compaction).
 * **RNG logs path family:**
-  `logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   **Partitions:** `[seed, parameter_hash, run_id]` · **Append-only during job**, then frozen on success.
 
 **7.3 Writer sort & file-order posture.**
@@ -366,7 +366,7 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 > **Fail-closed posture.** On first detection of any condition below, the writer **MUST** abort the run, emit a failure record, and ensure **no partials** are visible under
 > `…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
 > (write-once; atomic publish). RNG logs are **append-only during the job** under
-> `logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/` and then **frozen** on success.
+> `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/` and then **frozen** on success.
 
 ### E301_NO_PASS_FLAG — S0 gate not proven *(ABORT)*
 
@@ -728,7 +728,7 @@ Under the `site_tile_assign` substream (RNG envelope), draw **one** `u ∈ (0,1)
 (Note the tie on `u=0.37` resolves by ascending `site_order` → `1` before `3`.)
 
 **RNG budget:** 5 events (exactly one per site). Events are written to
-`logs/rng/events/site_tile_assign/seed=42/parameter_hash=3c…9d/run_id=a7e2/…`
+`logs/layer1/1B/rng/events/site_tile_assign/seed=42/parameter_hash=3c…9d/run_id=a7e2/…`
 
 ---
 

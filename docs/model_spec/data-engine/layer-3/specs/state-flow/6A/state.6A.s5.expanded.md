@@ -892,7 +892,7 @@ These artefacts are **fingerprint-scoped**, not seed-scoped. They summarise:
 They live under a fingerprint-partitioned directory, for example:
 
 ```text
-data/layer3/6A/validation/fingerprint={manifest_fingerprint}/...
+data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 #### 4.2.1 S5 validation report & issue table
@@ -984,7 +984,7 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
   * One small text file per `manifest_fingerprint`, stored under the same validation directory, e.g.:
 
     ```text
-    data/layer3/6A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     ```
 
 * **Required content**
@@ -1502,7 +1502,7 @@ For `manifest_fingerprint`:
    * Materialise evidence files under:
 
      ```text
-     data/layer3/6A/validation/fingerprint={manifest_fingerprint}/...
+     data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/...
      ```
 
    * Use schemas anchored in `schemas.layer3.yaml` / `schemas.6A.yaml`.
@@ -3703,7 +3703,7 @@ S5’s validation layer uses:
 ### 13.6 HashGate & bundle symbols
 
 * **`validation_bundle_6A`**
-  Conceptual name for the directory `data/layer3/6A/validation/fingerprint={mf}/` containing:
+  Conceptual name for the directory `data/layer3/6A/validation/manifest_fingerprint={mf}/` containing:
 
   * `s5_validation_report_6A`,
   * `s5_issue_table_6A` (if present),

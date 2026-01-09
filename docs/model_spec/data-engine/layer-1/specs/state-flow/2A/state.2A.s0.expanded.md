@@ -87,13 +87,13 @@ S0 **seals** the following assets into the 2A manifest. Each item MUST be **immu
 
 1. **Upstream 1B PASS artefacts (gate evidence).**
 
-   * `validation_bundle_1B` — Dictionary‑resolved folder under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (**partition:** `[fingerprint]`). Do not assume a subfolder name; Dictionary governs the exact layout.
-   * `validation_passed_flag_1B` — `_passed.flag` under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`.
+   * `validation_bundle_1B` — Dictionary‑resolved folder under `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (**partition:** `[fingerprint]`). Do not assume a subfolder name; Dictionary governs the exact layout.
+   * `validation_passed_flag_1B` — `_passed.flag` under `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/`.
      *Role:* proves eligibility to read any 1B egress for this fingerprint. 
 
 2. **1B egress pointer required by 2A.**
 
-   * `site_locations` — `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` (**partitions:** `[seed, fingerprint]`). Order-free egress; writer sort as per Dictionary. *(Read is permitted only after PASS verification.)*
+   * `site_locations` — `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (**partitions:** `[seed, fingerprint]`). Order-free egress; writer sort as per Dictionary. *(Read is permitted only after PASS verification.)*
 
 3. **Time-zone polygons (tz-world).**
 
@@ -219,13 +219,13 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 * **Partition:** `[fingerprint]` (no `seed`; parameter hash is embedded, not a partition). The path token **MUST** byte-equal the embedded `manifest_fingerprint`. 
 * **Canonical template (Dictionary owns exact path):**
-  `data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
+  `data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
   *(Dictionary governs format/path; this spec fixes partition and equality.)* 
 
 **Required fields (design intent; shape owned by `schemas.2A.yaml#/validation/s0_gate_receipt_v1`).**
 
 * `manifest_fingerprint : hex64` — **equals** the `fingerprint` path token. 
-* `validation_bundle_path : string` — Dictionary‑resolved location of the verified 1B bundle, e.g. `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (no hardcoded subfolder; Dictionary is authority). 
+* `validation_bundle_path : string` — Dictionary‑resolved location of the verified 1B bundle, e.g. `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (no hardcoded subfolder; Dictionary is authority). 
 * `parameter_hash : hex64` — recorded lineage token (not a partition in S0).
 * `flag_sha256_hex : hex64` — value proven against the bundle’s ASCII-lex hash rule. 
 * `verified_at_utc : RFC-3339` — observational timestamp (non-semantic). 
@@ -246,7 +246,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 * **Partition:** `[fingerprint]` (same as the receipt).
 * **Canonical template (Dictionary owns exact path/format):**
-  `data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet`
+  `data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet`
 * **Columns (design intent; shape owned by `schemas.2A.yaml#/manifests/sealed_inputs_v1`):** `asset_id`, `kind`, `basename`, `version_tag`, `schema_ref`, `catalog_path`, `sha256_hex`, `size_bytes`, `license_class`. Authority split mirrors Layer-1 practice (Schema=shape; Dictionary=IDs→paths/partitions; Registry=licence/retention).
 
 ### 5.3 Identity discipline & downstream contract
@@ -289,7 +289,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 **Required columns (design intent; exact types live in the anchor):**
 
 * `manifest_fingerprint` — **hex64** (Layer `$defs`). Path↔embed **MUST** byte-equal. 
-* `validation_bundle_path` — string that **resolves to the 1B validation bundle** for the same fingerprint (Dictionary owns exact path; Registry mirrors provenance). Reference pattern: 1B bundles sit under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`. 
+* `validation_bundle_path` — string that **resolves to the 1B validation bundle** for the same fingerprint (Dictionary owns exact path; Registry mirrors provenance). Reference pattern: 1B bundles sit under `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/`. 
 * `parameter_hash` — **hex64** (Layer `$defs`), recorded lineage token (not a partition in S0).
 * `flag_sha256_hex` — **hex64** of the verified 1B bundle (flag content). 
 * `verified_at_utc` — **rfc3339_micros** (UTC). 
@@ -345,8 +345,8 @@ The receipt’s `sealed_inputs[]` **MUST** point to authoritative anchors for ev
 
 For the two 2A surfaces in §6.2–§6.3, the Dataset Dictionary **SHALL** declare:
 
-* **`s0_gate_receipt_2A`** → path family `data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…` · **partitioning:** `[fingerprint]` · **format:** JSON. *(Dictionary owns exact filenames and retention.)*
-* **`sealed_inputs_v1`** → path family `data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/…` · **partitioning:** `[fingerprint]` · **format:** Parquet.
+* **`s0_gate_receipt_2A`** → path family `data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…` · **partitioning:** `[fingerprint]` · **format:** JSON. *(Dictionary owns exact filenames and retention.)*
+* **`sealed_inputs_v1`** → path family `data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…` · **partitioning:** `[fingerprint]` · **format:** Parquet.
   This mirrors the 1B convention for S0 receipts and keeps the receipt **fingerprint-only**. 
 
 ---

@@ -26,7 +26,7 @@ S6 SHALL treat the following surfaces as authoritative:
 **Segment invariants (Binding).**
 
 * **When S6 triggers.** S6 is a *branch* that runs **only** for arrivals where the merchant is flagged `is_virtual=1`; non-virtual arrivals are fully handled by S5 and **bypass** S6 (no draw, no edge). *(Consistent with S5’s runtime role and layer RNG law.)* 
-* **Run identity (logs/evidence):** RNG **core logs** and **event streams** are always partitioned by **`[seed, parameter_hash, run_id]`**; S6 appends **one** trace row after **each** event append, per the layer law. 
+* **Run identity (logs/layer1/2B/evidence):** RNG **core logs** and **event streams** are always partitioned by **`[seed, parameter_hash, run_id]`**; S6 appends **one** trace row after **each** event append, per the layer law. 
 * **Plan/egress reads:** Any 2B/2A tables S6 references (context) are selected at **`[seed, fingerprint]`** via **Dictionary-only** resolution (no literal paths, no network I/O). *(Same catalogue discipline as S5.)*  
 * **Gate law:** **No PASS → No read.** S6 must see valid S0 receipt + sealed inventory for this fingerprint before any read. 
 
@@ -133,7 +133,7 @@ S6 SHALL read **only** the assets below. Token-less policies are **S0-sealed** (
 
 * Do **not** re-route physical merchants (`is_virtual=0`) or alter S5’s `(tz_group_id, site_id)` decision surface.
 * Do **not** re-encode or modify S2 artefacts; use the index only for integrity echo. 
-* **No literal paths. No network I/O.** Dictionary-only resolution; **write-once** behaviour applies only to S6 logs/events (and any optional S6 diagnostics if later registered). 
+* **No literal paths. No network I/O.** Dictionary-only resolution; **write-once** behaviour applies only to S6 logs/layer1/2B/events (and any optional S6 diagnostics if later registered). 
 
 These boundaries keep S6’s reads **unambiguous, sealed, and replayable**, and its evidence **run-scoped** and consistent with the Layer-1 RNG logging posture. 
 
@@ -148,13 +148,13 @@ S6 is a **runtime branch**. It produces **no mandatory fingerprint-scoped egress
 S6 **MUST** write RNG evidence under the **run-scoped** envelope:
 
 * **Core logs (run identity):**
-  `rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
-  `rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
+  `rng_audit_log` → `logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
+  `rng_trace_log` → `logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
   *(Schema: layer pack core logs; partitions `[seed, parameter_hash, run_id]`.)* 
 
 * **Event family (virtual edge picks):** one **single-uniform** event **per virtual arrival** on the **routing_edge** stream (**family registered in the Layer-1 pack**). Each row carries the **standard RNG envelope** (`before/after`, `blocks=1`, `draws="1"`), is partitioned by `[seed, parameter_hash, run_id]`, and S6 **appends exactly one** `rng_trace_log` row **after each event append**.
 
-*Zero-virtual case:* if a run has no `is_virtual=1` arrivals, S6 writes **no edge-event rows**; core logs/trace remain valid (no new increments).
+*Zero-virtual case:* if a run has no `is_virtual=1` arrivals, S6 writes **no edge-event rows**; core logs/layer1/2B/trace remain valid (no new increments).
 
 **5.3 Optional diagnostic dataset (policy-gated)**
 If diagnostics are enabled and the **Dataset Dictionary registers** an ID, S6 **MAY** emit a per-arrival log:
@@ -170,7 +170,7 @@ If diagnostics are enabled and the **Dataset Dictionary registers** an ID, S6 **
 
 **5.4 Identity & immutability (binding)**
 
-* **Run-scoped evidence only:** all RNG logs/events (and the optional `s6_edge_log`) are **run-scoped** under `[seed, parameter_hash, run_id]`; plan/egress reads remain at `[seed, fingerprint]`.
+* **Run-scoped evidence only:** all RNG logs/layer1/2B/events (and the optional `s6_edge_log`) are **run-scoped** under `[seed, parameter_hash, run_id]`; plan/egress reads remain at `[seed, fingerprint]`.
 * **Write-once + atomic publish:** no partial files; retries must be **byte-identical** or use a **new `run_id`**. Path↔embed equality holds wherever lineage is embedded. 
 
 **5.5 No other persisted outputs**
@@ -288,7 +288,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 Given an arrival `(merchant_id=m, utc_timestamp=t, utc_day=d, tz_group_id, site_id, is_virtual)` from the S5 decision path:
 
 **A) Bypass non-virtual arrivals (no RNG).**
-If `is_virtual = 0` → **bypass**: do **not** pick an edge; **no** RNG draws; **no** S6 logs/events.
+If `is_virtual = 0` → **bypass**: do **not** pick an edge; **no** RNG draws; **no** S6 logs/layer1/2B/events.
 
 **B) Virtual edge pick (exactly one draw).**
 
@@ -351,7 +351,7 @@ If `is_virtual = 0` → **bypass**: do **not** pick an edge; **no** RNG draws; *
 
 **8.1 Lineage tokens & where they live (authoritative)**
 
-* **Run identity (RNG logs/events):** `{ seed, parameter_hash, run_id }`. All RNG **core logs** and **event streams** are partitioned by this triple under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. S6 follows the same envelope and partitions. 
+* **Run identity (RNG logs/layer1/2B/events):** `{ seed, parameter_hash, run_id }`. All RNG **core logs** and **event streams** are partitioned by this triple under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. S6 follows the same envelope and partitions. 
 * **Plan/egress identity (read surfaces):** `{ seed, manifest_fingerprint }`. S6 reads S1/S2/S3/S4 (and 2A `site_timezones` if consulted) strictly at **`[seed, fingerprint]`** per the Dictionary. 
 * **Optional S6 diagnostics:** if `s6_edge_log` is registered, it is **run-scoped** at **`[seed, parameter_hash, run_id, utc_day]`** and includes `manifest_fingerprint` as a **column** (not a partition key). This mirrors S5’s optional selection log.
 
@@ -579,7 +579,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 
 **2B-S6-090 — PROHIBITED_WRITE** · *Abort*
 **Trigger:** Any write to fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`).
-**Detect:** V-14. **Remedy:** S6 writes only run-scoped logs/events (and optional diagnostics). 
+**Detect:** V-14. **Remedy:** S6 writes only run-scoped logs/layer1/2B/events (and optional diagnostics). 
 
 ---
 
@@ -611,7 +611,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 | **V-14 No writes to plan/egress surfaces**          | 2B-S6-090                                  |
 | **V-15 Deterministic replay**                       | 2B-S6-095                                  |
 
-These codes align S6 with your existing **Dictionary** (IDs/partitions), **2B schema pack** (policy anchors), and **Layer-1 RNG envelope** (core logs/events), ensuring sealed reads at `[seed,fingerprint]` and run-scoped evidence at `[seed,parameter_hash,run_id]`.
+These codes align S6 with your existing **Dictionary** (IDs/partitions), **2B schema pack** (policy anchors), and **Layer-1 RNG envelope** (core logs/layer1/2B/events), ensuring sealed reads at `[seed,fingerprint]` and run-scoped evidence at `[seed,parameter_hash,run_id]`.
 
 ---
 
@@ -751,7 +751,7 @@ Then:
 
 ### 12.5 Concurrency & sharding (safe patterns)
 
-* **Partitioning:** RNG core logs/events are **run-scoped** (`[seed, parameter_hash, run_id]`), so sharding is safe **across** `run_id` or by disjoint **utc_day** partitions within the same run—as long as each partition has a **single logical writer** and per-partition arrival order is preserved. 
+* **Partitioning:** RNG core logs/layer1/2B/events are **run-scoped** (`[seed, parameter_hash, run_id]`), so sharding is safe **across** `run_id` or by disjoint **utc_day** partitions within the same run—as long as each partition has a **single logical writer** and per-partition arrival order is preserved. 
 * **Counters:** ensure substreams/counter ranges are disjoint per worker as declared in the routing policy; counters remain strictly monotone and never wrap. 
 
 ### 12.6 Throughput posture
@@ -773,7 +773,7 @@ Then:
 
 * **Memory pressure:** evict `EDGE_ALIAS` entries (LRU by bytes) and rebuild on demand; outcomes unchanged.
 * **Policy parse errors:** fail fast during cold start (policy minima validator) before producing any RNG evidence.
-* **Zero-virtual runs:** skip event emission; core logs/trace remain valid (no increments), keeping reconciliation trivial. 
+* **Zero-virtual runs:** skip event emission; core logs/layer1/2B/trace remain valid (no increments), keeping reconciliation trivial. 
 
 > Summary: S6 achieves **O(1)** steady-state cost for virtual arrivals through deterministic per-merchant alias caches, emits evidence under the **run-scoped layer envelope**, and preserves the same identity/ordering/immutability laws used in S5—so it scales linearly with **virtual** traffic and is operationally predictable.
 

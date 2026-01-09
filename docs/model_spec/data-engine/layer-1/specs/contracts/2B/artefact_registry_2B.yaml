@@ -7,7 +7,7 @@ subsegments:
     artifacts:
       # === 2B.S0 outputs ===
       - name: s0_gate_receipt_2B
-        path: data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+        path: data/layer1/2B/s0_gate_receipt_2B/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
         type: dataset
         category: validation
         semver: '{semver}'
@@ -34,7 +34,7 @@ subsegments:
         notes: null
 
       - name: sealed_inputs_v1
-        path: data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+        path: data/layer1/2B/sealed_inputs_v1/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
         type: dataset
         category: validation
         semver: '{semver}'
@@ -62,7 +62,7 @@ subsegments:
 
       # === Upstream gate (1B) ===
       - name: validation_bundle_1B
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
         type: bundle
         category: validation
         semver: '{semver}'
@@ -82,7 +82,7 @@ subsegments:
           index_schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
 
       - name: validation_passed_flag_1B
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: file
         category: validation
         semver: '{semver}'
@@ -101,7 +101,7 @@ subsegments:
         notes: null
 
       - name: site_locations
-        path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: output
         semver: '{semver}'
@@ -121,7 +121,7 @@ subsegments:
 
       # === Required pins from 2A (read-only; required for 2B v1) ===
       - name: site_timezones
-        path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: output
         semver: '{semver}'
@@ -141,7 +141,7 @@ subsegments:
 
       # === Optional cache from 2A (read-only) ===
       - name: tz_timetable_cache
-        path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
         type: bundle
         category: cache
         semver: '{semver}'
@@ -239,7 +239,7 @@ subsegments:
 
       # === 2B.S1 output ===
       - name: s1_site_weights
-        path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: plan
         semver: '{semver}'
@@ -262,7 +262,7 @@ subsegments:
 
       # === 2B.S2 outputs ===
       - name: s2_alias_index
-        path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json
         type: dataset
         category: plan
         semver: '{semver}'
@@ -284,7 +284,7 @@ subsegments:
         notes: null
 
       - name: s2_alias_blob
-        path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+        path: data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin
         type: dataset
         category: plan
         semver: '{semver}'
@@ -306,7 +306,7 @@ subsegments:
 
       # === 2B.S3 output ===
       - name: s3_day_effects
-        path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: plan
         semver: '{semver}'
@@ -329,7 +329,7 @@ subsegments:
         
       # === 2B.S4 output ===
       - name: s4_group_weights
-        path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
         type: dataset
         category: plan
         semver: '{semver}'
@@ -352,7 +352,7 @@ subsegments:
 
       # === 2B.S6 (optional) edge selection log ===
       - name: s6_edge_log
-        path: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
+        path: logs/layer1/2B/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
         type: dataset
         category: diagnostic
         semver: '{semver}'
@@ -372,7 +372,7 @@ subsegments:
 
       # === 2B RNG logs (run-scoped) ===
       - name: rng_audit_log
-        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        path: logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
         type: log
         category: rng_core
         semver: '{semver}'
@@ -391,7 +391,7 @@ subsegments:
         notes: null
 
       - name: rng_trace_log
-        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        path: logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
         type: log
         category: rng_core
         semver: '{semver}'
@@ -411,7 +411,7 @@ subsegments:
 
       # === 2B RNG event families (run-scoped) ===
       - name: rng_event_alias_pick_group
-        path: logs/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer1/2B/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: '{semver}'
@@ -430,7 +430,7 @@ subsegments:
         notes: null
 
       - name: rng_event_alias_pick_site
-        path: logs/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer1/2B/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: '{semver}'
@@ -449,7 +449,7 @@ subsegments:
         notes: null
 
       - name: rng_event_cdn_edge_pick
-        path: logs/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        path: logs/layer1/2B/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: '{semver}'
@@ -468,7 +468,7 @@ subsegments:
         notes: null
 
       - name: s7_audit_report
-        path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
+        path: data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s7_audit_report.json
         type: dataset
         category: validation
         semver: '{semver}'
@@ -512,7 +512,7 @@ subsegments:
 
       # === 2B.S8 — Validation bundle (authoritative) ===
       - name: validation_bundle_2B
-        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
         type: dataset
         category: validation
         semver: '{semver}'
@@ -531,7 +531,7 @@ subsegments:
         notes: "Write-once; atomic publish; hashing law matches 1A bundle contract."
 
       - name: validation_passed_flag_2B
-        path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         type: file
         category: validation
         semver: '{semver}'

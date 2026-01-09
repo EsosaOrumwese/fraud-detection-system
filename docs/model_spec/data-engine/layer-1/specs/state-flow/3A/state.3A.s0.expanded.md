@@ -390,7 +390,7 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 * Physical layout (contract-aligned pattern):
 
   * Path pattern:
-    `data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
+    `data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
   * Partitioning: **`[fingerprint]`** only.
 * The embedded `manifest_fingerprint` field in the JSON payload MUST equal the `{manifest_fingerprint}` path token (path↔embed equality).
 
@@ -436,7 +436,7 @@ No downstream consumer may treat the **presence** of `s0_gate_receipt_3A` alone 
 * Physical layout (conceptual pattern):
 
   * Path pattern:
-    `data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
+    `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
     (filename and format are implementation details; the path **MUST** include `fingerprint={manifest_fingerprint}` as the only partition key).
   * Partitioning: **`[fingerprint]`** only.
 * Each row MUST contain a `manifest_fingerprint` column whose value equals the path token.
@@ -982,14 +982,14 @@ Both S0 artefacts are **fingerprint-scoped**. They MUST obey the same partitioni
 
    * Partition key set: `["fingerprint"]` only.
    * Physical layout MUST follow the dictionary entry (conceptually):
-     `data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
+     `data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
    * No `seed`, `parameter_hash` or `run_id` partitions are allowed for this dataset.
 
 2. **`sealed_inputs_3A`**
 
    * Partition key set: `["fingerprint"]` only.
    * Physical layout MUST follow the dictionary entry (conceptually):
-     `data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
+     `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet`
    * All rows in a given partition MUST have the same `manifest_fingerprint` value.
 
 **Partitioning invariants:**
@@ -2332,7 +2332,7 @@ This appendix records the symbols, shorthand and abbreviations used in the 3A.S0
   * `E3A_S0_009_IMMUTABILITY_VIOLATION`.
 
 * **`status`**
-  State outcome in logs/run-report:
+  State outcome in logs/layer1/3A/run-report:
 
   * `"PASS"` — S0 met all acceptance criteria in §8.1 and outputs are valid.
   * `"FAIL"` — S0 terminated with one of the canonical error codes.

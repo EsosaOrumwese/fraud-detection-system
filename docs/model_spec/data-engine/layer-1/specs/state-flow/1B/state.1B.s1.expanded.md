@@ -251,7 +251,7 @@ S1 MAY read **only** the sealed ingress references declared in §4:
 
 If a downstream state (not S1) reads 1A egress for `fingerprint = f`:
 
-1. Locate `data/layer1/1A/validation/fingerprint=f/`.
+1. Locate `data/layer1/1A/validation/manifest_fingerprint=f/`.
 2. Read `index.json`; ensure listed files are unique and ASCII-sortable relative paths.
 3. Compute `SHA256(concat(bytes(files in ASCII-lex order of index.path)))`, excluding `_passed.flag`.
 4. Compare to the contents of `_passed.flag` (`sha256_hex = <hex64>`). **Match → PASS; else ABORT.** 

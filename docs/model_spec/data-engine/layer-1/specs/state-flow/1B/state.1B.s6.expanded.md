@@ -113,7 +113,7 @@ S6 SHALL read only these sealed surfaces for the fixed identity `{seed, manifest
 ## 3.5 RNG envelope & invariants
 
 * **Envelope shape:** Every jitter event MUST validate the layer **RNG envelope** (required fields including `draws` **dec-u128 string** and `blocks` **u64**, open-interval U(0,1) deviates). 
-* **Event family/partition law:** Jitter events live under `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **events are per attempt (≥1 per site)**; budget semantics are verified in §9.
+* **Event family/partition law:** Jitter events live under `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **events are per attempt (≥1 per site)**; budget semantics are verified in §9.
 
 ## 3.6 Ordering & non-authoritative file semantics
 
@@ -179,7 +179,7 @@ S6 **SHALL** read **only** the sealed inputs enumerated here: **S5 assignment**,
 ## 5.1 Data table — `s6_site_jitter`
 
 **ID (Dictionary):** `s6_site_jitter` → `schemas.1B.yaml#/plan/s6_site_jitter`. **Path family:**
-`data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` 
+`data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` 
 
 **Identity & partitions (binding).** Partitions are **`[seed, fingerprint, parameter_hash]`**. Primary key `[merchant_id, legal_country_iso, site_order]`. Writer sort `[merchant_id, legal_country_iso, site_order]`. Path token `fingerprint=…` MUST byte-equal the embedded `manifest_fingerprint` column wherever present.  
 
@@ -191,7 +191,7 @@ S6 **SHALL** read **only** the sealed inputs enumerated here: **S5 assignment**,
 ## 5.2 RNG event log — `in_cell_jitter`
 
 **ID (Dictionary):** `rng_event_in_cell_jitter` → `schemas.layer1.yaml#/rng/events/in_cell_jitter`. **Path family:**
-`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` 
+`logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` 
 
 **Identity & partitions (binding).** Partitions are **`[seed, parameter_hash, run_id]`**; **events are per attempt** (**≥1 per site**). Envelope fields are owned by the layer schema (e.g., `draws` as **decimal u128 string**, `blocks` as **u64**, counters before/after, etc.).
 
@@ -228,7 +228,7 @@ This anchor fixes **PK**, **partition keys**, **writer sort**, and **columns_str
 * **Columns (excerpt):** `merchant_id`, `legal_country_iso` (FK to ISO ingress), `site_order`, and **effective** deltas `delta_lat_deg`, `delta_lon_deg` *(bounded guard e.g. [-1,1])*; **columns_strict: true**. 
 
 The **Dictionary** entry for `s6_site_jitter` binds the **path family** and repeats the same **partitions/sort** (write-once, atomic move):
-`data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`. 
+`data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`. 
 
 ## 6.2 RNG event stream (shape authority)
 
@@ -237,7 +237,7 @@ This anchor inherits the **layer RNG envelope** (shared `$defs.rng_envelope`) an
 The **RNG envelope** defines required lineage + accounting fields (`ts_utc` RFC-3339 with exactly 6 fractional digits, `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, counters, `draws` as **dec-u128 string**, `blocks` as **u64**). 
 
 The **Dictionary** entry binds the **path family** and partitions for this stream:
-`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (partitions `[seed, parameter_hash, run_id]`). 
+`logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (partitions `[seed, parameter_hash, run_id]`). 
 
 **Uniform lane note (Binding).** When using the **uniform-in-pixel** lane, implementations **MUST** set `sigma_lat_deg = 0.0` and `sigma_lon_deg = 0.0` in each `in_cell_jitter` event. These fields remain present for schema stability but are **non-authoritative** in this lane; distributional authority is enforced by acceptance (**A606/A607**).
 
@@ -253,7 +253,7 @@ S6 **reads** these shapes and inherits their constraints; this spec does not res
 
 ## 6.4 Resolution & path law (Binding)
 
-Dataset/log **IDs → path/partitions/writer policy** resolve via the **Dataset Dictionary**; implementations MUST NOT hard-code paths. For `s6_site_jitter`, the Dictionary entry matches the schema’s partitions/sort; for `in_cell_jitter`, the Dictionary binds the `[seed, parameter_hash, run_id]` partition law under `logs/rng/events/…`.  
+Dataset/log **IDs → path/partitions/writer policy** resolve via the **Dataset Dictionary**; implementations MUST NOT hard-code paths. For `s6_site_jitter`, the Dictionary entry matches the schema’s partitions/sort; for `in_cell_jitter`, the Dictionary binds the `[seed, parameter_hash, run_id]` partition law under `logs/layer1/1B/rng/events/…`.  
 
 ## 6.5 What this section does **not** assert
 
@@ -308,7 +308,7 @@ delta_lat_deg = lat* − centroid_lat_deg
 ## 7.5 Event emission & dataset write
 
 For each **attempt**, emit one RNG **event** (JSONL) under
-`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
+`logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
 with the layer envelope (including `draws="2"`, `blocks=1`). After an **accepted** attempt:
 
 * **Write exactly one row** to `s6_site_jitter` for that site using the accepted `(delta_lat_deg, delta_lon_deg)`.
@@ -339,9 +339,9 @@ with the layer envelope (including `draws="2"`, `blocks=1`). After an **accepted
 ## 8.1 Identity tokens (one tuple per publish)
 
 * **Dataset identity:** exactly one `{seed, manifest_fingerprint, parameter_hash}` for the entire S6 publish. Mixing identities within a publish is **forbidden**. The Dictionary fixes `s6_site_jitter` under
-  `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with partitions `[seed, fingerprint, parameter_hash]` and writer sort `[merchant_id, legal_country_iso, site_order]`. 
+  `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint, parameter_hash]` and writer sort `[merchant_id, legal_country_iso, site_order]`. 
 * **RNG logs identity:** `{seed, parameter_hash, run_id}` for the `in_cell_jitter` stream under
-  `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. *(“version: {run_id}” in Registry.)*  
+  `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. *(“version: {run_id}” in Registry.)*  
 
 ## 8.2 Partition law & path families (resolve via Dictionary; no literal paths)
 
@@ -445,7 +445,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 ## A610 — Paths & partitions for RNG logs *(Binding)*
 
 **Rule.** RNG events live under
-`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` with **partitions** `[seed, parameter_hash, run_id]`.
+`logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` with **partitions** `[seed, parameter_hash, run_id]`.
 **Detection.** Validate path family and partition equality for every event file. 
 
 ## A611 — Dictionary/Schema coherence *(Binding)*
@@ -543,7 +543,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 ### E611_LOG_PARTITION_LAW — RNG log path/partition mismatch *(ABORT)*
 
 **Trigger:** RNG events not under
-`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+`logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
 **Detection:** Verify path family and partitions `[seed, parameter_hash, run_id]`. 
 
 ### E612_DICT_SCHEMA_MISMATCH — Dictionary vs Schema disagreement *(ABORT)*
@@ -571,11 +571,11 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 ## 11.1 Required logs S6 MUST write/update
 
 * **RNG event stream — `in_cell_jitter`.** One JSONL **event per attempt** under
-  `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   (partitions `[seed, parameter_hash, run_id]`; schema `schemas.layer1.yaml#/rng/events/in_cell_jitter`). Each event carries the **layer RNG envelope** (pre/after 128-bit counters, `blocks` u64, `draws` dec-u128 string).  
 * **RNG core logs (run-scoped):**
-  – **`rng_audit_log`** — one row at run start (if not already present for this `{seed,parameter_hash,run_id}`) under `logs/rng/audit/...` (schema `#/rng/core/rng_audit_log`). 
-  – **`rng_trace_log`** — **append exactly one cumulative row after each RNG event append** under `logs/rng/trace/...` (schema `#/rng/core/rng_trace_log`). Trace rows carry **saturating totals** `{events_total, draws_total, blocks_total}` per `(module, substream_label)` and reconcile counters.  
+  – **`rng_audit_log`** — one row at run start (if not already present for this `{seed,parameter_hash,run_id}`) under `logs/layer1/1B/rng/audit/...` (schema `#/rng/core/rng_audit_log`). 
+  – **`rng_trace_log`** — **append exactly one cumulative row after each RNG event append** under `logs/layer1/1B/rng/trace/...` (schema `#/rng/core/rng_trace_log`). Trace rows carry **saturating totals** `{events_total, draws_total, blocks_total}` per `(module, substream_label)` and reconcile counters.  
 
 **Envelope law (must hold for every S6 event).**
 `blocks == u128(after) − u128(before)`; `draws` is the **actual** uniforms used by that event (decimal u128). For `in_cell_jitter`, the event schema pins **two-uniform family** → `blocks=1`, `draws="2"`.  
@@ -824,10 +824,10 @@ A **MAJOR** bump in any of the above that changes a bound interface requires an 
 ## A.3 Datasets, logs, partitions (dictionary law)
 
 * **S6 dataset ID:** `s6_site_jitter`
-  Path family: `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  Path family: `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
   Partitions: `[seed, fingerprint, parameter_hash]` · Writer sort: `[merchant_id, legal_country_iso, site_order]`. 
 * **RNG events ID:** `rng_event_in_cell_jitter`
-  Path family: `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  Path family: `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   Partitions: `[seed, parameter_hash, run_id]` (no fingerprint in logs). 
 
 ## A.4 Geometry & placement symbols (WGS84 / degrees)

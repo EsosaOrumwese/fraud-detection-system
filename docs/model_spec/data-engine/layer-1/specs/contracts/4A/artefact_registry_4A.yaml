@@ -589,7 +589,7 @@ subsegments:
 
       # Cross-layer reference for site catalogue (used by footfall harness)
   - name: site_catalogue
-    path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/outputs/1B/site_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: input
     semver: '{semver}'

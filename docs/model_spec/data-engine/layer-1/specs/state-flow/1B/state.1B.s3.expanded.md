@@ -110,7 +110,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 The **Dataset Dictionary** MUST declare this path family and writer policy:
 
 ```
-data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
 * **Partitions:** `[seed, fingerprint, parameter_hash]` (one write per identity; write-once). This matches established multi-key partitioning patterns in Layer-1. 
@@ -195,7 +195,7 @@ For the fixed `parameter_hash`, assert that **every country emitted by 6.3 exist
 
 **6.6 Materialise output rows (shape owned by schema).**
 Emit exactly one row per `(merchant_id, legal_country_iso)` with `n_sites ≥ 1` into **`s3_requirements`** under:
-`data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+`data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
 Writer sort: `[merchant_id, legal_country_iso]`. Columns and keys are **exactly** those fixed at `schemas.1B.yaml#/plan/s3_requirements` (no extras). 
 
 **6.7 Immutability & idempotence.**
@@ -223,7 +223,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 **7.2 Partition law (Dictionary-resolved path family).**
 
 * **Path family:**
-  `data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
 * **Partitions:** `[seed, fingerprint, parameter_hash]` (write **once** per identity; no appends; no compaction).
 * **Format:** `parquet` (Dictionary governs format & location; no literal paths in code). 
 

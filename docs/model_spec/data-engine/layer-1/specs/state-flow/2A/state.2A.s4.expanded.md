@@ -84,12 +84,12 @@ S4 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 1. **`site_timezones` (from S2) — partitioned by `[seed, fingerprint]`**
    *Role:* per-site final `tzid` (and provenance fields) to be checked for legality.
-   *Catalogue:* `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`.
+   *Catalogue:* `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
    *Shape:* `schemas.2A.yaml#/egress/site_timezones` (PK `[merchant_id, legal_country_iso, site_order]`).
 
 2. **`tz_timetable_cache` (from S3) — partitioned by `[fingerprint]`**
    *Role:* authoritative per-`tzid` transition series (UTC change instants, offset minutes) used to derive **gap** and **fold** windows.
-   *Catalogue:* `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`.
+   *Catalogue:* `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`.
    *Shape:* `schemas.2A.yaml#/cache/tz_timetable_cache` (manifest with `tzdb_release_tag`, `tz_index_digest`, `rle_cache_bytes`, etc.).
 
 3. **2A.S0 gate receipt (evidence)**
@@ -130,14 +130,14 @@ S4 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 1. **`site_timezones`** *(required; S2 egress)*
 
    * **Shape:** `schemas.2A.yaml#/egress/site_timezones`
-   * **Catalogue:** `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/` *(partitions `[seed, fingerprint]`)*
+   * **Catalogue:** `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` *(partitions `[seed, fingerprint]`)*
    * **Registry:** egress; write-once; final-in-layer
    * **Boundary:** S4 **SHALL** read **exactly** the run’s `(seed, manifest_fingerprint)` partition; columns are used only to obtain the site key and final `tzid`. S4 **SHALL NOT** modify or re-emit this dataset.
 
 2. **`tz_timetable_cache`** *(required; S3 output)*
 
    * **Shape:** `schemas.2A.yaml#/cache/tz_timetable_cache`
-   * **Catalogue:** `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/` *(partition `[fingerprint]`)*
+   * **Catalogue:** `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/` *(partition `[fingerprint]`)*
    * **Registry:** cache; lineage `→ tzdb_release`; write-once
    * **Boundary:** S4 **SHALL** treat the cache as **authoritative** for per-`tzid` transition series (UTC instants, offset minutes). S4 **SHALL NOT** parse raw tzdb or rely on any unsealed source.
 
@@ -185,7 +185,7 @@ S4 **SHALL NOT**:
 * *(optional diagnostics)* `missing_tzids : string[]` (non-empty only on FAIL), `notes : string`
 
 **Catalogue (Dictionary).** Path family (seed + fingerprint):
-`data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json`
+`data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json`
 **Partitions:** `[seed, fingerprint]` · **Format:** JSON. Dictionary governs exact filename/layout.
 
 **Registry (existence/licensing/lineage).** Registered as **validation** evidence; lineage depends on **`site_timezones`** (S2) and **`tz_timetable_cache`** (S3). Write-once/atomic publish posture.
@@ -227,7 +227,7 @@ S4 **SHALL NOT**:
 * **Optional diagnostics (non-identity):**
   `missing_tzids: string[]` (present only when non-zero) · `notes: string`
 * **Dictionary binding (catalogue authority):**
-  Path family `data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json`
+  Path family `data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json`
   **Partitions:** `[seed, fingerprint]` · **Format:** JSON.
 * **Registry posture (existence/licensing/lineage):**
   Class **validation**; lineage **depends on** `site_timezones` (S2) and `tz_timetable_cache` (S3); write-once/atomic publish.
@@ -314,7 +314,7 @@ S4 **SHALL**:
 ### 7.5 Emission & identity discipline
 
 * Emit **`s4_legality_report`** to
-  `data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json`.
+  `data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json`.
 * **Path↔embed equality:** embedded `seed` and `manifest_fingerprint` **MUST** byte-equal path tokens.
 * **Write-once:** re-emitting to an existing `(seed, fingerprint)` partition **MUST** be byte-identical; otherwise **ABORT**.
 * **Atomic publish:** stage → fsync → single atomic move into the partition.
@@ -345,7 +345,7 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
 ### 8.2 Partitions & path family
 
 * **Dataset:** `s4_legality_report` →
-  `data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json`.
+  `data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json`.
 * **Partitions (binding):** **`[seed, fingerprint]` only**; no other partitions are permitted.
 * **Catalogue authority:** exact filename/layout/format are governed by the Dataset Dictionary.
 
@@ -752,7 +752,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 ### A3. S4 output surface
 
 * **Legality report** — `s4_legality_report`: `schemas.2A.yaml#/validation/s4_legality_report` (fields-strict; includes `manifest_fingerprint`, `seed`, `generated_utc`, `status`, and counts).
-* **Catalogue path family** — `data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json` (partitions `[seed,fingerprint]`).
+* **Catalogue path family** — `data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json` (partitions `[seed,fingerprint]`).
 
 ### A4. Dataset Dictionary (catalogue authority)
 

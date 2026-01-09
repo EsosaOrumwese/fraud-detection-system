@@ -100,7 +100,7 @@ For hurdle, $\texttt{draws} \in \{"0","1"\}$.
 S1 emits **exactly one** hurdle record per merchant to:
 
 ```
-logs/rng/events/hurdle_bernoulli/
+logs/layer1/1A/rng/events/hurdle_bernoulli/
   seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
 ```
 
@@ -473,7 +473,7 @@ Emit **one JSONL record per merchant** to the hurdle RNG dataset:
 * **Partitions (path):**
 
   ```
-  logs/rng/events/hurdle_bernoulli/
+  logs/layer1/1A/rng/events/hurdle_bernoulli/
     seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
   ```
 
@@ -949,7 +949,7 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
   "dataset_id": "rng_event_hurdle_bernoulli",
-  "path": "logs/rng/events/hurdle_bernoulli/seed=1234567890123456789/parameter_hash=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/run_id=0123456789abcdef0123456789abcdef/part-0001.jsonl",
+  "path": "logs/layer1/1A/rng/events/hurdle_bernoulli/seed=1234567890123456789/parameter_hash=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/run_id=0123456789abcdef0123456789abcdef/part-0001.jsonl",
   "merchant_id": "184467440737095",
   "detail": {
     "before": {"hi": 42, "lo": 9876543210},
@@ -1031,7 +1031,7 @@ Using the dictionary/registry bindings and schema anchors:
 For every merchant $m\in\mathcal{M}$, S1 writes **exactly one** JSONL record to the hurdle RNG dataset:
 
 ```
-logs/rng/events/hurdle_bernoulli/
+logs/layer1/1A/rng/events/hurdle_bernoulli/
   seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
 ```
 
@@ -1193,7 +1193,7 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
    * **Hurdle events** — dataset id `rng_event_hurdle_bernoulli`, schema `#/rng/events/hurdle_bernoulli`, partitions
 
      ```
-     logs/rng/events/hurdle_bernoulli/
+     logs/layer1/1A/rng/events/hurdle_bernoulli/
        seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
      ```
    * **RNG trace (cumulative)** — dataset id `rng_trace_log`; per (module='1A.hurdle_sampler', substream_label='hurdle_bernoulli') totals (saturating `uint64`) **and** `rng_counter_before/after` for the run (no merchant dimension; append-safe; take the **final** row per key — **selection rule per** `schemas.layer1.yaml#/rng/core/rng_trace_log`).  

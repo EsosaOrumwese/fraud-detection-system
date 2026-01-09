@@ -7,7 +7,7 @@ subsegments:
 
   # ── S0 receipt (gate) ───────────────────────────────────────────────────
   - name: s0_gate_receipt_2A
-    path: data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    path: data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     type: dataset
     category: validation
     semver: '{semver}'
@@ -23,11 +23,11 @@ subsegments:
     environment: [runtime]
     schema: schemas.2A.yaml#/validation/s0_gate_receipt_v1
     cross_layer: false
-    notes: "Partition fingerprint={manifest_fingerprint}; path↔embed equality enforced."
+    notes: "Partition manifest_fingerprint={manifest_fingerprint}; path↔embed equality enforced."
 
   # ── Cross-layer inputs (explicit for single-pane visibility) ────────────
   - name: validation_bundle_1B
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
@@ -47,7 +47,7 @@ subsegments:
     cross_layer: true
 
   - name: validation_passed_flag_1B
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -125,7 +125,7 @@ subsegments:
 
   # Cross-layer pointer to 1B egress consumed by 2A
   - name: site_locations
-    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -223,7 +223,7 @@ subsegments:
 
   # ── 2A datasets ─────────────────────────────────────────────────────────
   - name: s1_tz_lookup
-    path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: plan
     semver: '{semver}'
@@ -242,7 +242,7 @@ subsegments:
     notes: null
 
   - name: site_timezones
-    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -261,7 +261,7 @@ subsegments:
     notes: null
 
   - name: tz_timetable_cache
-    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: cache
     semver: '{semver}'
@@ -280,7 +280,7 @@ subsegments:
     notes: null
 
   - name: s4_legality_report
-    path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+    path: data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
     type: dataset
     category: validation
     semver: '{semver}'
@@ -299,7 +299,7 @@ subsegments:
     notes: null
 
   - name: validation_bundle_2A
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
@@ -319,7 +319,7 @@ subsegments:
     notes: "Hashing law: ASCII-lex order of index.path; hash raw bytes; flag excluded."
 
   - name: validation_passed_flag_2A
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -338,7 +338,7 @@ subsegments:
     notes: null
 
   - name: sealed_inputs_v1
-    path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+    path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
     type: dataset
     category: manifest
     semver: '{semver}'
@@ -354,4 +354,4 @@ subsegments:
     environment: [runtime]
     schema: schemas.2A.yaml#/manifests/sealed_inputs_v1
     cross_layer: false
-    notes: "Partition fingerprint={manifest_fingerprint}; path↔embed equality enforced."
+    notes: "Partition manifest_fingerprint={manifest_fingerprint}; path↔embed equality enforced."

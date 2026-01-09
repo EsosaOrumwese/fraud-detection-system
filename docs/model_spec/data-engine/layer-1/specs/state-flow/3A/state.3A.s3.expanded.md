@@ -620,7 +620,7 @@ There MUST NOT be duplicate rows for a given `(merchant_id, legal_country_iso, t
 * Conceptual path template (final value in dataset dictionary):
 
   ```text
-  data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/...
+  data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 Binding rules:
@@ -951,7 +951,7 @@ datasets:
     description: Dirichlet share draws per merchant×country×zone.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.3A.yaml#/plan/s3_zone_shares
@@ -985,7 +985,7 @@ For each `(seed, manifest_fingerprint)` where S3 runs, the 3A artefact registry 
   subsegment: "3A"
   type: "dataset"
   category: "plan"
-  path: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+  path: data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
   schema: schemas.3A.yaml#/plan/s3_zone_shares
   semver: '1.0.0'
   version: '{seed}.{manifest_fingerprint}'
@@ -1420,7 +1420,7 @@ S3 MUST:
 Using the dataset dictionary entry for `s3_zone_shares`:
 
 * Determine the target path:
-  `data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/...`.
+  `data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`.
 
 * Sort rows (writer-sort) by:
 
@@ -1586,7 +1586,7 @@ No other partition keys (e.g. `parameter_hash`, `run_id`) are allowed for this d
 From the dataset dictionary:
 
 ```text
-data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 Binding rules:
@@ -3391,7 +3391,7 @@ For a given escalated merchant×country pair `(m,c)`:
   * `E3A_S3_011_IMMUTABILITY_VIOLATION`
 
 * **`status`**
-  S3 outcome in logs/run-report:
+  S3 outcome in logs/layer1/3A/run-report:
 
   * `"PASS"` — S3 met all acceptance criteria; `s3_zone_shares` and Dirichlet RNG events are authoritative for this run.
   * `"FAIL"` — S3 terminated with one of the error codes; its outputs for this run MUST NOT be used.

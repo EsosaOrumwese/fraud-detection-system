@@ -303,7 +303,7 @@ S2 **MAY** read **only**:
 
 When a *downstream* 1B state (not S2) reads 1A egress for a `fingerprint=f`:
 
-1. Locate `data/layer1/1A/validation/fingerprint=f/`.
+1. Locate `data/layer1/1A/validation/manifest_fingerprint=f/`.
 2. Read **`index.json`**; list files by **ASCII-lex** `index.path`.
 3. Compute `SHA256(concat(bytes(files in that order)))` (exclude `_passed.flag`).
 4. Compare to `_passed.flag`’s `sha256_hex`. **Match ⇒ PASS; else ABORT.** 

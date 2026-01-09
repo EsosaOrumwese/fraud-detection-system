@@ -673,7 +673,7 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 * **Path template (normative intent):**
 
   ```text
-  data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+  data/layer2/5B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
   ```
 
 * **Mutability:**
@@ -723,7 +723,7 @@ Optional metadata (`notes`, `source_manifest`, `owner_team`, etc.) MAY appear bu
 * **Path template (normative intent):**
 
   ```text
-  data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+  data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
   ```
 
 * **Mutability:**
@@ -1074,7 +1074,7 @@ After all candidates are processed:
    * Materialise `sealed_inputs_rows` to a Parquet (or agreed) file at:
 
      ```text
-     data/layer2/5B/sealed_inputs/fingerprint=mf/sealed_inputs_5B.parquet
+     data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.parquet
      ```
 
    * Enforce:
@@ -1110,7 +1110,7 @@ Construct a single JSON object conforming to `schemas.5B.yaml#/validation/s0_gat
 * Write it as:
 
   ```text
-  data/layer2/5B/s0_gate_receipt/fingerprint=mf/s0_gate_receipt_5B.json
+  data/layer2/5B/s0_gate_receipt/manifest_fingerprint=mf/s0_gate_receipt_5B.json
   ```
 
 ensuring:
@@ -1192,13 +1192,13 @@ Concretely:
 * `s0_gate_receipt_5B`:
 
   ```text
-  data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+  data/layer2/5B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
   ```
 
 * `sealed_inputs_5B`:
 
   ```text
-  data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+  data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
   ```
 
 Binding constraints:
@@ -1348,7 +1348,7 @@ For a given `(parameter_hash = ph, manifest_fingerprint = mf, seed, run_id, scen
    * Exactly one file exists at:
 
      ```text
-     data/layer2/5B/sealed_inputs/fingerprint=mf/sealed_inputs_5B.parquet
+     data/layer2/5B/sealed_inputs/manifest_fingerprint=mf/sealed_inputs_5B.parquet
      ```
 
    * The file:
@@ -1367,7 +1367,7 @@ For a given `(parameter_hash = ph, manifest_fingerprint = mf, seed, run_id, scen
    * Exactly one file exists at:
 
      ```text
-     data/layer2/5B/s0_gate_receipt/fingerprint=mf/s0_gate_receipt_5B.json
+     data/layer2/5B/s0_gate_receipt/manifest_fingerprint=mf/s0_gate_receipt_5B.json
      ```
 
    * The JSON object:

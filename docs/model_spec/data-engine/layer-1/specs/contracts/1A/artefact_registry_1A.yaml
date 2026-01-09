@@ -520,7 +520,7 @@ subsegments:
     environment: [runtime]
     schema:
     cross_layer: true
-    notes: e.g., data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    notes: e.g., data/outputs/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
 
   - name: compression_zstd_level3
     path: config/storage/compression.yaml
@@ -637,7 +637,7 @@ subsegments:
     notes:
 
   - name: rng_audit_schema
-    path: logs/rng/schemas/rng_audit_schema-{semver}.json
+    path: logs/layer1/1A/rng/schemas/rng_audit_schema-{semver}.json
     type: schema
     category: rng
     semver: '{semver}'
@@ -656,7 +656,7 @@ subsegments:
     notes:
 
   - name: rng_event_schema_catalog
-    path: logs/rng/events/schemas/{event_name}-{semver}.json
+    path: logs/layer1/1A/rng/events/schemas/{event_name}-{semver}.json
     type: schema
     category: rng_event
     semver: '{semver}'
@@ -675,7 +675,7 @@ subsegments:
     notes:
 
   - name: rng_audit_log
-    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    path: logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
     type: log
     category: rng
     semver: '{semver}'
@@ -694,7 +694,7 @@ subsegments:
     notes:
 
   - name: rng_trace_log
-    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    path: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
     type: log
     category: rng
     semver: '{semver}'
@@ -713,7 +713,7 @@ subsegments:
     notes:
 
   - name: rng_event_hurdle_bernoulli
-    path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -732,7 +732,7 @@ subsegments:
     notes:
 
   - name: rng_event_gamma_component
-    path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -751,7 +751,7 @@ subsegments:
     notes:
 
   - name: rng_event_poisson_component
-    path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -770,7 +770,7 @@ subsegments:
     notes:
 
   - name: rng_event_nb_final
-    path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -789,7 +789,7 @@ subsegments:
     notes:
 
   - name: rng_event_ztp_rejection
-    path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -808,7 +808,7 @@ subsegments:
     notes:
 
   - name: rng_event_ztp_retry_exhausted
-    path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -827,7 +827,7 @@ subsegments:
     notes:
 
   - name: rng_event_ztp_final
-    path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -846,7 +846,7 @@ subsegments:
     notes: Exactly one per resolved merchant; absent only under cap policy=abort.
 
   - name: rng_event_gumbel_key
-    path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -865,7 +865,7 @@ subsegments:
     notes: Writer policy pinned; ZSTD level 3 (byte-identity across re-runs).
 
   - name: rng_event_normal_box_muller
-    path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -884,7 +884,7 @@ subsegments:
     notes: Budget (blocks=1, draws="2"); library helper; S0 orchestration does not call it.
 
   - name: rng_event_dirichlet_gamma_vector
-    path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -903,7 +903,7 @@ subsegments:
     notes:
 
   - name: rng_event_stream_jump
-    path: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -922,7 +922,7 @@ subsegments:
     notes:
 
   - name: rng_event_sequence_finalize
-    path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -941,7 +941,7 @@ subsegments:
     notes:
 
   - name: rng_event_site_sequence_overflow
-    path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -1112,7 +1112,7 @@ subsegments:
     notes: Produced in S0; consumed in S4. Deterministic, parameter-scoped.
 
   - name: rng_event_residual_rank
-    path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
@@ -1226,7 +1226,7 @@ subsegments:
     notes:
 
   - name: outlet_catalogue
-    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
@@ -1340,7 +1340,7 @@ subsegments:
     notes:
 
   - name: segment_state_runs
-    path: reports/l1/segment_states/segment_state_runs.jsonl
+    path: reports/layer1/segment_state_runs/segment=1A/utc_day={utc_day}/segment_state_runs.jsonl
     type: dataset
     category: ops_telemetry
     semver: '{semver}'
@@ -1379,7 +1379,7 @@ subsegments:
 #        notes: null
 
   - name: validation_bundle_1A
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
     category: validation
     semver: '{semver}'
@@ -1398,7 +1398,7 @@ subsegments:
     notes: Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to SHA256(bundle) for the same `fingerprint`; consumers must verify this prior to reading `outlet_catalogue`.
 
   - name: validation_passed_flag_1A
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
     category: validation
     semver: '{semver}'
@@ -1436,7 +1436,7 @@ subsegments:
 #        notes: null
 
   - name: ieee754_binary64
-    path:
+    path: 
     type: exception
     category: numeric_environment
     semver: '{semver}'
@@ -1455,7 +1455,7 @@ subsegments:
     notes:
 
   - name: fma_disabled
-    path:
+    path: 
     type: exception
     category: numeric_environment
     semver: '{semver}'

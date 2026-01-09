@@ -1932,7 +1932,7 @@ There are two levels of identity:
    * `scenario_id` — the scenario S4 is computing overlays for.
    * `run_id` — identity of this particular S4 execution.
 
-   These belong to the *run* and are reflected in logs/run-report/traces.
+   These belong to the *run* and are reflected in logs/layer2/5A/run-report/traces.
 
 2. **Dataset identity** (storage-level, persistent)
 
@@ -3150,7 +3150,7 @@ The **5A segment-level validation state (S5)** MUST:
 
 Downstream segments (5B, 6A) MUST:
 
-* not use run-report/logs/metrics alone as gates;
+* not use run-report/logs/layer2/5A/metrics alone as gates;
 * instead, rely on:
 
   * data-level checks on S4 outputs, and

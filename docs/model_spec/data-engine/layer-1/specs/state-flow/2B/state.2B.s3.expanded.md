@@ -182,7 +182,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.3 Path family, format & catalogue authority
 
 * **Dictionary binding (required):**
-  `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   (The **Dataset Dictionary** is the sole authority for ID → path/partitions/format.)
 * **Storage format:** `parquet` (Dictionary authority).
 * **Shape authority:** `schemas.2B.yaml#/plan/s3_day_effects` (fields/PK/partitions are owned by the schema anchor).
@@ -285,7 +285,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 ### 6.5 Format & storage (Dictionary authority)
 
 * **ID:** `s3_day_effects`
-* **Path family:** `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`
+* **Path family:** `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * **Format:** `parquet`
 * **Partitioning:** `[seed, fingerprint]` (no other tokens)
 
@@ -1023,11 +1023,11 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
   * **S3 output & path family:**
 
-    * `s3_day_effects` → `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/` (format: parquet)
+    * `s3_day_effects` → `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format: parquet)
   * **S3 inputs (Dictionary IDs):**
 
-    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (parquet)
-    * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/` (parquet)
+    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
+    * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
     * `day_effect_policy_v1` → `contracts/policy/2B/day_effect_policy_v1.json` *(single file; **no partition tokens**; S0-sealed path/digest)*
 
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
@@ -1044,11 +1044,11 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 * **Weights table (from S1):**
 
-  * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.2B.yaml#/plan/s1_site_weights`
 * **Site time-zones (from 2A):**
 
-  * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.2A.yaml#/egress/site_timezones`
 * **Day-effect policy:**
 
@@ -1060,7 +1060,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 * **`s3_day_effects`** (Parquet; `[seed, fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s3_day_effects`
-  **Dictionary path:** `data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`
+  **Dictionary path:** `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **PK:** `[merchant_id, utc_day, tz_group_id]`
   **Required fields:** `gamma`, `log_gamma`, `sigma_gamma`, `rng_stream_id`, `rng_counter_lo`, `rng_counter_hi`, `created_utc`
   **Writer order:** `[merchant_id, utc_day, tz_group_id]`

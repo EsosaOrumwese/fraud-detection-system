@@ -1698,7 +1698,7 @@ Multiple different `manifest_fingerprint` values (different “worlds”) may sa
 * `run_id`:
 
   * MUST NOT be a partition key or column in S2 outputs.
-  * It appears only in logs/run-report/tracing.
+  * It appears only in logs/layer2/5A/run-report/tracing.
 
 Any use of `seed` or `run_id` in S2 data schemas is a spec violation.
 
@@ -2657,7 +2657,7 @@ Dashboards and health checks SHOULD be able to answer, per `(parameter_hash, sce
 * Are there systematic shape issues (e.g. large normalisation errors, too many flat shapes)?
 * Are there recurring S2 failures, and with which canonical error codes?
 
-Downstream states (S3/S4/5B/6A) MUST NOT use logs/metrics alone as gates; they MUST continue to obey:
+Downstream states (S3/S4/5B/6A) MUST NOT use logs/layer2/5A/metrics alone as gates; they MUST continue to obey:
 
 * S0/S1/S2 **data-level gates** (presence/validity of S0, S1, S2 datasets and, eventually, 5A’s `_passed.flag`),
 * and treat observability signals as diagnostic, not authoritative, in deciding whether to run.
@@ -3338,7 +3338,7 @@ For quick reference, the canonical S2 error codes from §9:
 | `S2_IO_WRITE_FAILED`               | I/O failures writing or committing outputs.            |
 | `S2_INTERNAL_INVARIANT_VIOLATION`  | Internal “should never happen” state.                  |
 
-These codes appear in logs/run-report, not in S2 data schemas.
+These codes appear in logs/layer2/5A/run-report, not in S2 data schemas.
 
 ---
 

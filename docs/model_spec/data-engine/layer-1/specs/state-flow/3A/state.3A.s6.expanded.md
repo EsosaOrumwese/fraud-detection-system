@@ -573,7 +573,7 @@ No other persistent artefacts are owned by S6 in this contract version.
 Conceptually:
 
 * Path pattern:
-  `data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json`
+  `data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json`
 * The report is a single JSON object (or single-row table) summarising all checks and aggregate metrics for 3A on this manifest.
 
 #### 4.2.2 Logical content
@@ -644,7 +644,7 @@ It is:
 
 Conceptual path:
 
-* `data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet`
+* `data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet`
 
 #### 4.3.2 Logical content (row-level)
 
@@ -697,7 +697,7 @@ Absence of rows for a given `manifest_fingerprint` is interpreted as “no issue
 
 Conceptual path:
 
-* `data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json`
+* `data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json`
 
 #### 4.4.2 Logical content
 
@@ -1053,7 +1053,7 @@ datasets:
     description: Structural validation report emitted by 3A.S6.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
+    path: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.3A.yaml#/validation/s6_validation_report_3A
@@ -1073,7 +1073,7 @@ datasets:
     description: Per-issue findings emitted by 3A.S6.
     version: '{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
+    path: data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
     partitioning: [fingerprint]
     schema_ref: schemas.3A.yaml#/validation/s6_issue_table_3A
     ordering: [severity, issue_code, merchant_id, legal_country_iso, tzid]
@@ -1093,7 +1093,7 @@ datasets:
     description: Compact validation receipt capturing S6 outcomes.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
+    path: data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
     partitioning: [fingerprint]
     schema_ref: schemas.3A.yaml#/validation/s6_receipt_3A
     ordering: []
@@ -1125,7 +1125,7 @@ For each manifest (`manifest_fingerprint`), the 3A artefact registry MUST includ
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json"
+  path: "data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json"
   schema: "schemas.3A.yaml#/validation/s6_validation_report_3A"
   semver: "1.0.0"
   version: "{manifest_fingerprint}"
@@ -1146,7 +1146,7 @@ For each manifest (`manifest_fingerprint`), the 3A artefact registry MUST includ
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet"
+  path: "data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet"
   schema: "schemas.3A.yaml#/validation/s6_issue_table_3A"
   semver: "1.0.0"
   version: "{manifest_fingerprint}"
@@ -1166,7 +1166,7 @@ For each manifest (`manifest_fingerprint`), the 3A artefact registry MUST includ
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json"
+  path: "data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json"
   schema: "schemas.3A.yaml#/validation/s6_receipt_3A"
   semver: "1.0.0"
   version: "{manifest_fingerprint}"
@@ -1732,7 +1732,7 @@ For all three datasets:
 * **Path pattern (from dictionary):**
 
   ```text
-  data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
+  data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json
   ```
 
 * Inside this directory there MUST be:
@@ -1788,7 +1788,7 @@ No partial or incremental update semantics are permitted.
 * **Path pattern:**
 
   ```text
-  data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
+  data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
   ```
 
 * There MUST be exactly one dataset partition under `fingerprint={manifest_fingerprint}`, even if it contains zero rows.
@@ -1855,7 +1855,7 @@ Ordering exists only for reproducibility and stable digests.
 * **Path pattern:**
 
   ```text
-  data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
+  data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
   ```
 
 * The receipt MUST conform to `#/validation/s6_receipt_3A`.

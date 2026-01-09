@@ -23,8 +23,8 @@ datasets:
     description: Gate receipt attesting upstream verification, identity, and catalogue-only resolution.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
-    partitioning: [fingerprint]
+    path: data/layer1/2B/s0_gate_receipt_2B/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
     lineage:
@@ -41,8 +41,8 @@ datasets:
     description: Authoritative inventory of every asset sealed by 2B.S0 for the manifest.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
-    partitioning: [fingerprint]
+    path: data/layer1/2B/sealed_inputs_v1/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
     lineage:
@@ -60,8 +60,8 @@ datasets:
     description: Fingerprint-scoped PASS bundle for Segment 1B; 2B verifies it before any read.
     version: '{manifest_fingerprint}'
     format: folder
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     lineage:
@@ -78,8 +78,8 @@ datasets:
     description: Companion single-line flag carrying the SHA-256 digest of the 1B validation bundle.
     version: '{manifest_fingerprint}'
     format: text
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/passed_flag
     lineage:
@@ -97,8 +97,8 @@ datasets:
     description: Immutable per-site lon/lat coordinates emitted by Segment 1B.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso, site_order]
     schema_ref: schemas.1B.yaml#/egress/site_locations
     lineage:
@@ -116,8 +116,8 @@ datasets:
     description: Per-site IANA tzid assignments emitted by 2A; REQUIRED input for 2B v1 tz-grouping + day-effects.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso, site_order]
     schema_ref: schemas.2A.yaml#/egress/site_timezones
     lineage:
@@ -135,8 +135,8 @@ datasets:
     description: Fingerprint-scoped cache of tz transitions compiled by 2A.
     version: '{manifest_fingerprint}'
     format: folder
-    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
     lineage:
@@ -227,8 +227,8 @@ datasets:
     description: Frozen per-site probability law emitted by S1 for alias construction.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso, site_order]
     schema_ref: schemas.2B.yaml#/plan/s1_site_weights
     lineage:
@@ -246,8 +246,8 @@ datasets:
     description: JSON index describing alias blob slices, offsets, and digests.
     version: '{seed}.{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id]
     schema_ref: schemas.2B.yaml#/plan/s2_alias_index
     lineage:
@@ -264,8 +264,8 @@ datasets:
     description: Contiguous binary blob containing per-merchant alias tables.
     version: '{seed}.{manifest_fingerprint}'
     format: binary
-    path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin
+    partitioning: [seed, manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
     lineage:
@@ -283,8 +283,8 @@ datasets:
     description: Per-merchant × UTC-day × tz-group gamma multipliers for day-scale co-movement.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, utc_day, tz_group_id]
     schema_ref: schemas.2B.yaml#/plan/s3_day_effects
     lineage:
@@ -302,8 +302,8 @@ datasets:
     description: Per-merchant × UTC-day × tz-group mix used to pick tz-group prior to static alias.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
-    path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, utc_day, tz_group_id]
     schema_ref: schemas.2B.yaml#/plan/s4_group_weights
     lineage:
@@ -339,7 +339,7 @@ datasets:
     description: Per-arrival virtual-edge selections captured as a diagnostic log.
     version: '{seed}.{parameter_hash}.{run_id}'
     format: jsonl
-    path: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
+    path: logs/layer1/2B/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
     partitioning: [seed, parameter_hash, run_id, utc_day]
     ordering: [utc_timestamp]
     schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
@@ -358,7 +358,7 @@ datasets:
     description: RNG run audit (identity/config) - one row at run start for 2B routing runs.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    path: logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
@@ -376,7 +376,7 @@ datasets:
     description: RNG cumulative trace - append exactly one row after each event append for 2B routing runs.
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    path: logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
@@ -395,7 +395,7 @@ datasets:
     description: RNG events for 2B.S5 tz-group selection (single-uniform; Stage A).
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/2B/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/events/alias_pick_group
@@ -413,7 +413,7 @@ datasets:
     description: RNG events for 2B.S5 site selection (single-uniform; Stage B).
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/2B/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/events/alias_pick_site
@@ -431,7 +431,7 @@ datasets:
     description: RNG events for 2B.S6 virtual-edge pick (single-uniform).
     version: '{run_id}'
     format: jsonl
-    path: logs/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/2B/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     partitioning: [seed, parameter_hash, run_id]
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/events/cdn_edge_pick
@@ -450,8 +450,8 @@ datasets:
     description: Deterministic audit report emitted by S7 (validators, evidence, run metadata).
     version: '{seed}.{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
-    partitioning: [seed, fingerprint]
+    path: data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s7_audit_report.json
+    partitioning: [seed, manifest_fingerprint]
     ordering: []
     schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
     lineage:
@@ -469,8 +469,8 @@ datasets:
     description: Fingerprint-scoped PASS bundle index for Segment 2B.
     version: '{manifest_fingerprint}'
     format: json
-    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
-    partitioning: [fingerprint]
+    path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
     lineage:
@@ -487,8 +487,8 @@ datasets:
     description: Companion flag containing the SHA-256 digest of the 2B validation bundle.
     version: '{manifest_fingerprint}'
     format: text
-    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/passed_flag
     lineage:

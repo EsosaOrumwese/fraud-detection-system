@@ -2421,7 +2421,7 @@ Although S2 operates on **parameter-level** data rather than per-merchant/site d
    * S2’s observability surfaces MUST NOT expose:
 
      * raw, full prior pack bodies,
-     * explicit α values per zone for all countries in logs/metrics (unless Layer-1 governance explicitly permits this for internal tooling).
+     * explicit α values per zone for all countries in logs/layer1/3A/metrics (unless Layer-1 governance explicitly permits this for internal tooling).
 
 3. **No row-level leakage via observability**
 
@@ -3035,7 +3035,7 @@ For a row `(c,z)` in `s2_country_zone_priors`:
   * `E3A_S2_011_IMMUTABILITY_VIOLATION`
 
 * **`status`**
-  S2 outcome in logs/run-report:
+  S2 outcome in logs/layer1/3A/run-report:
 
   * `"PASS"` — S2 met all acceptance criteria; `s2_country_zone_priors` is authoritative for this `parameter_hash`.
   * `"FAIL"` — S2 terminated with one of the error codes above; its output (if any) MUST NOT be used.

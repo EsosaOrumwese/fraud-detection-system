@@ -1236,7 +1236,7 @@ Using the allocations and attributes from Phases 4–5:
 * Write to:
 
   ```text
-  data/layer3/6A/s2_account_base_6A/seed={seed}/fingerprint={mf}/...
+  data/layer3/6A/s2_account_base_6A/seed={seed}/manifest_fingerprint={mf}/...
   ```
 
   using the partitioning and ordering specified in the dictionary.
@@ -1425,8 +1425,8 @@ If implemented, both follow the same partition scheme:
 * Path templates:
 
   ```text
-  data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/fingerprint={mf}/...
-  data/layer3/6A/s2_account_summary_6A/seed={seed}/fingerprint={mf}/...
+  data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/manifest_fingerprint={mf}/...
+  data/layer3/6A/s2_account_summary_6A/seed={seed}/manifest_fingerprint={mf}/...
   ```
 
 **Binding rules:**

@@ -98,7 +98,7 @@ S8 **consumes** already-ratified facts and authorities; it does **not** derive t
 
 ## 1.3 What S8 produces
 
-* **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
+* **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
 * **Instrumentation streams:**
   - `rng_event.sequence_finalize` per `(merchant,country)` block with `{site_count,start_sequence,end_sequence}` (for audit and replay accounting).
   - `rng_event.site_sequence_overflow` on overflow (guardrail → merchant-scoped failure).
@@ -135,8 +135,8 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 ## 2.1 Lineage & partition tokens
 
-* **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/events** and appears in their paths. 
-* **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/events; where embedded, bytes **MUST** equal the path token.
+* **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/layer1/1A/events** and appears in their paths. 
+* **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/layer1/1A/events; where embedded, bytes **MUST** equal the path token.
 * **`run_id`** — run-scoped identifier (**lowercase hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`).  
 * **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — **lowercase hex64** lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
 
@@ -288,18 +288,18 @@ This section fixes **what keys partition which artefacts**, how **path tokens mu
 
 **Egress (S8 output).**
 `outlet_catalogue` is **fingerprint-scoped** under
-`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` and writer sort `[merchant_id, legal_country_iso, site_order]`. Schema anchor: `schemas.1A.yaml#/egress/outlet_catalogue`.
+`data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` and writer sort `[merchant_id, legal_country_iso, site_order]`. Schema anchor: `schemas.1A.yaml#/egress/outlet_catalogue`.
 
 **Parameter-scoped inputs (RNG-free; upstream).**
 Examples: `s3_candidate_set`, `s3_integerised_counts`, `s3_site_sequence` when present. These live under `…/parameter_hash={parameter_hash}/` (partition `[parameter_hash]`). Schema anchors: `schemas.1A.yaml#/s3/*`.
 
 **RNG core logs & events (read by validators / instrumentation).**
 All RNG JSONL streams (e.g., `rng_audit_log`, `rng_trace_log`, `rng_event.*` including `sequence_finalize`, `site_sequence_overflow`) are partitioned by `{seed, parameter_hash, run_id}` with canonical paths like
-`logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. Envelope fields are governed by `schemas.layer1.yaml` and **required** on every event row.
+`logs/layer1/1A/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. Envelope fields are governed by `schemas.layer1.yaml` and **required** on every event row.
 
 **Validation bundle & hand-off gate.**
 The 1A validation bundle is **fingerprint-scoped** at
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` and supplies the `_passed.flag` that gates 1B consumption.
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` and supplies the `_passed.flag` that gates 1B consumption.
 
 ## 5.2 Path↔embed equality (must hold)
 
@@ -307,7 +307,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 **Parameter-scoped tables.** Each row **MUST** embed `parameter_hash` and it **MUST equal** the `parameter_hash` path token. If present, `produced_by_fingerprint` is **informational only** (not a partition key nor part of equality).
 
-**RNG logs/events.** Event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** match their path tokens **byte-for-byte**. `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (it is **not** a path token).
+**RNG logs/layer1/1A/events.** Event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** match their path tokens **byte-for-byte**. `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (it is **not** a path token).
 
 ## 5.3 Identity, immutability & atomic publish
 
@@ -414,7 +414,7 @@ This section fixes **exactly what S8 writes**, with schema anchors, partitions, 
 
 **Dataset ID & schema.** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue`. 
 
-**Path & partitions.** `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`. **Writer sort** `[merchant_id, legal_country_iso, site_order]`. **No cross-country order is encoded** in this table. 
+**Path & partitions.** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`. **Writer sort** `[merchant_id, legal_country_iso, site_order]`. **No cross-country order is encoded** in this table. 
 
 **Keys.** **PK** = **UK** = `[merchant_id, legal_country_iso, site_order]`. Rows are immutable within a `(seed,fingerprint)` partition. 
 
@@ -446,7 +446,7 @@ S8 **MUST** write exactly the columns below with the stated domains:
 ## 7.3 Instrumentation events S8 emits (logs)
 
 S8 emits exactly two **rng_event** families, both partitioned at
-`logs/rng/events/<family>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` and validated by `schemas.layer1.yaml`. Gating in the Dictionary ties them to multi-site merchants. 
+`logs/layer1/1A/rng/events/<family>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` and validated by `schemas.layer1.yaml`. Gating in the Dictionary ties them to multi-site merchants. 
 
 1. **`rng_event.sequence_finalize`** — final sequence allocation per `(merchant, country)` block.
    **Schema anchor:** `schemas.layer1.yaml#/rng/events/sequence_finalize` (required fields: `merchant_id, country_iso, site_count, start_sequence, end_sequence`). 
@@ -654,7 +654,7 @@ For each `(merchant, country)` with `final_country_outlet_count = n ≥ 1`:
 
 ## 9.9 Hand-off gate (consumer constraint)
 
-* For a given `fingerprint`, consumers (e.g., 1B) **MUST** verify that the `_passed.flag` in `data/layer1/1A/validation/fingerprint={fingerprint}/` has **content hash equal to `SHA256(validation_bundle_1A)`** for the same fingerprint **before** reading `outlet_catalogue`. **No PASS → no read.** 
+* For a given `fingerprint`, consumers (e.g., 1B) **MUST** verify that the `_passed.flag` in `data/layer1/1A/validation/manifest_fingerprint={fingerprint}/` has **content hash equal to `SHA256(validation_bundle_1A)`** for the same fingerprint **before** reading `outlet_catalogue`. **No PASS → no read.** 
 
 **Status:** Section 9 is **Binding**.
 
@@ -668,7 +668,7 @@ This section fixes **how S8 fails, degrades, or proceeds deterministically**. Al
 
 ## 10.1 Error classes (names, triggers, actions)
 
-Each error has a **Trigger → Emit → Action** triad. “Emit” refers to S8’s own streams (when applicable) or to writing a failure record into the fingerprint’s validation bundle context; all emits must follow the schemas and dictionary paths for logs/validation.
+Each error has a **Trigger → Emit → Action** triad. “Emit” refers to S8’s own streams (when applicable) or to writing a failure record into the fingerprint’s validation bundle context; all emits must follow the schemas and dictionary paths for logs/layer1/1A/validation.
 
 **E_PASS_GATE_MISSING**
 
@@ -864,7 +864,7 @@ Join distinct egress countries back to S3 on `outlet_catalogue.(merchant_id, leg
 ## 11.7 Validator artefacts & PASS gate (fingerprint-scoped)
 
 Write the **validation bundle** under:
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). Bundle contains machine-readable results (e.g., schema checks, counts & sums, membership parity, RNG accounting, FK checks). Compute `_passed.flag` as:
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint partition). Bundle contains machine-readable results (e.g., schema checks, counts & sums, membership parity, RNG accounting, FK checks). Compute `_passed.flag` as:
 
 * Single line: `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over the **ASCII-lexicographic concatenation** of all other bundle files’ bytes (exclude `_passed.flag`). Publish atomically into the fingerprint folder.
 
@@ -958,15 +958,15 @@ This section fixes **what S8 must emit/observe**, **the counters & coverage it m
 
 * **Core RNG logs (run-scoped):**
   **`rng_audit_log`** and **`rng_trace_log`** under
-  `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` and
-  `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`.
+  `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` and
+  `logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`.
   The trace is **per-(module, substream_label)** with saturating totals; **emit exactly one cumulative trace row after each RNG event append**. 
 
 * **S8 instrumentation events (merchant×country blocks):**
   **`rng_event.sequence_finalize`** at
-  `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (final sequence per block), and
+  `logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (final sequence per block), and
   **`rng_event.site_sequence_overflow`** at
-  `logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (guardrail).
+  `logs/layer1/1A/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (guardrail).
   Both families are schema-anchored in `schemas.layer1.yaml` and **gated** to multi-site merchants (`gated_by: rng_event_hurdle_bernoulli; predicate: is_multi==true`).
 
 * **Egress & hand-off context:** `outlet_catalogue` (fingerprint-scoped) and the **validation bundle** folder that gates consumption.
@@ -983,7 +983,7 @@ This section fixes **what S8 must emit/observe**, **the counters & coverage it m
 ## 13.3 Metrics S8 MUST publish (in the validation bundle)
 
 The validator **MUST** write the following artefacts under
-`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`:
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`:
 
 1. **`rng_accounting.json`** — event and trace reconciliation:
 
@@ -1060,18 +1060,18 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 ## A.2 Event family names & canonical paths (S8)
 
 * **`rng_event.sequence_finalize`**
-  Path: `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  Path: `logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   Schema: `schemas.layer1.yaml#/rng/events/sequence_finalize`
   Gating: `gated_by: rng_event_hurdle_bernoulli`, `predicate: is_multi == true`. 
 
 * **`rng_event.site_sequence_overflow`**
-  Path: `logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  Path: `logs/layer1/1A/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   Schema: `schemas.layer1.yaml#/rng/events/site_sequence_overflow`
   Gating: same as above. 
 
 * **Core RNG logs (read by validator):**
-  `rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` (schema `#/rng/core/rng_audit_log`)
-  `rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema `#/rng/core/rng_trace_log`)
+  `rng_audit_log` → `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` (schema `#/rng/core/rng_audit_log`)
+  `rng_trace_log` → `logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema `#/rng/core/rng_trace_log`)
   *(Trace requires exactly one cumulative row after **each** RNG event append.)*
 
 ---
@@ -1080,7 +1080,7 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 
 * **Egress (S8 writes):**
   `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` → `[seed, fingerprint]`
-  Path: `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`.
+  Path: `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
   *(Does **not** encode cross-country order; consumers must join S3 candidate rank.)*
 
 * **Order authority (read):**
@@ -1101,7 +1101,7 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 ## A.4 Gate & bundle identifiers (hand-off)
 
 * **Validation bundle (fingerprint-scoped):** `validation_bundle_1A`
-  Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `schemas.1A.yaml#/validation/validation_bundle`).
+  Path: `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` (schema `schemas.1A.yaml#/validation/validation_bundle`).
 
 * **Consumer gate flag:** `validation_passed_flag_1A` (file: `_passed.flag`)
   Rule: content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint (**no PASS → no read**). 
@@ -1272,9 +1272,9 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.4 Canonical paths & partitions (reminder)
 
-* **Egress (S8):** `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` (Parquet). 
-* **RNG events/logs:** `logs/rng/{audit|trace|events/<family>}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` (JSONL). 
-* **Validation bundle:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`. Gate via `_passed.flag` content hash == `SHA256(bundle)` for the **same** fingerprint. 
+* **Egress (S8):** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` (Parquet). 
+* **RNG events/logs:** `logs/layer1/1A/rng/{audit|trace|events/<family>}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` (JSONL). 
+* **Validation bundle:** `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`. Gate via `_passed.flag` content hash == `SHA256(bundle)` for the **same** fingerprint. 
 
 ---
 

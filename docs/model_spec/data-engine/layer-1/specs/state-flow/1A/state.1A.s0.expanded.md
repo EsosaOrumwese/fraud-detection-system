@@ -2182,9 +2182,9 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 **Naming rule (normative):** Any path segment named `fingerprint={…}` **always** carries the value of `manifest_fingerprint`. The column name is `manifest_fingerprint`; the path label remains `fingerprint=…`.
 
 **RNG logs (normative paths & keys):**
-`rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
-`rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
-`rng_event_*` → `logs/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+`rng_audit_log` → `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
+`rng_trace_log` → `logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
+`rng_event_*` → `logs/layer1/1A/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
 Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset dictionary remains authoritative for any additional fields.
 
 ### Parameter-scoped (partition by `parameter_hash`)
@@ -2206,13 +2206,13 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 ### Fingerprint-scoped (partition by `fingerprint`)
 
 **Directory:** `validation_bundle_1A`
-**Path:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+**Path:** `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`
 **Contents:** §S0.10.5.
 
 ### Log-scoped (RNG)
 
 **Logs:** `rng_audit_log`, `rng_trace_log`, each `rng_event_*`
-**Path template:** `logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+**Path template:** `logs/layer1/1A/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
 > **Authority (normative):** Actual **paths and partition columns** are authoritative in the **dataset dictionary**. Strings shown here are examples to illustrate shape.
 
 > **Physical line order (normative):** For RNG **JSONL** logs, line order is append order **within a file**; there are **no ordering guarantees across files/parts**. Equality is by **row set**; any consumer that depends on physical order is non-conformant.
@@ -2223,7 +2223,7 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 ### Ops telemetry (segment-state run journal)
 
 **Log:** `segment_state_runs`
-**Path:** `reports/l1/segment_states/segment_state_runs.jsonl`
+**Path:** `reports/layer1/segment_state_runs/segment=1A/utc_day={utc_day}/segment_state_runs.jsonl`
 **Schema:** `schemas.layer1.yaml#/run_report/segment_state_run`
 **Scope:** One JSONL row per state invocation across S0-S9; ops-only telemetry (non-gating, not used for determinism).
 ---
@@ -2354,7 +2354,7 @@ function S0_10_emit_outputs_and_bundle(ctx):
   write_text(tmp+"/_passed.flag", "sha256_hex = " + hex64(H) + "\n")
 
   # Atomic publish under fingerprint partition
-  publish_atomic(tmp, "data/layer1/1A/validation/fingerprint="+ctx.fingerprint)
+  publish_atomic(tmp, "data/layer1/1A/validation/manifest_fingerprint="+ctx.fingerprint)
 ```
 
 ---

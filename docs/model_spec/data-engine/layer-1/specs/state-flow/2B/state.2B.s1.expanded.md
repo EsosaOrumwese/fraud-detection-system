@@ -178,7 +178,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.3 Path family, format & authority
 
 * **Dictionary binding (required):**
-  `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   (Dictionary is the **sole** authority for IDs → path/partitions/format.) 
 * **Storage format:** `parquet` (Dictionary authority). 
 
@@ -951,7 +951,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
   * Output ID & path family:
 
-    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (format: parquet)
+    * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format: parquet)
   * Inputs S1 resolves (Dictionary IDs):
 
     * `site_locations` (seed,fingerprint)
@@ -971,7 +971,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
 * **Layer-1 · 1B egress:**
 
-  * `site_locations` → `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `site_locations` → `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   * **Shape:** `schemas.1B.yaml#/egress/site_locations`
 * **2B policy:**
 
@@ -979,16 +979,16 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
   * **Shape:** `schemas.2B.yaml#/policy/alias_layout_policy_v1`
 * **Optional pins (Layer-2 · 2A) — all-or-none:**
 
-  * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
+  * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
     **Shape:** `schemas.2A.yaml#/egress/site_timezones`
-  * `tz_timetable_cache` → `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`
+  * `tz_timetable_cache` → `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`
     **Shape:** `schemas.2A.yaml#/egress/tz_timetable_cache`
 
 ### A.4 Output produced by this state
 
 * **`s1_site_weights`** (Parquet; `[seed, fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s1_site_weights`
-  **Dictionary path:** `data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`
+  **Dictionary path:** `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **PK:** `[merchant_id, legal_country_iso, site_order]`
   **Required provenance (anchor-owned):** `p_weight`, `weight_source`, `quantised_bits`, `floor_applied`, `created_utc`
 

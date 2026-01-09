@@ -355,14 +355,14 @@ They MUST, however, treat `s0_gate_receipt_3B` and `sealed_inputs_3B` as the **o
 4.1.2 The **gate receipt** MUST be written as a single JSON document at a fingerprint-only location:
 
 * Path pattern (normative):
-  `data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`
+  `data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`
 * Schema reference (normative):
   `schemas.3B.yaml#/validation/s0_gate_receipt_3B`.
 
 4.1.3 The **sealed-inputs inventory** MUST be written as a single-columnar dataset (e.g. Parquet) at a fingerprint-only location:
 
 * Path pattern (normative):
-  `data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`
+  `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`
 * Schema reference (normative):
   `schemas.3B.yaml#/validation/sealed_inputs_3B`.
 
@@ -535,7 +535,7 @@ MUST treat this as an S0 failure and MUST NOT proceed with data-plane work for t
 
 * `dataset_id: s0_gate_receipt_3B` (or equivalent stable ID),
 * `schema_ref: schemas.3B.yaml#/validation/s0_gate_receipt_3B`,
-* `path_template: data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`,
+* `path_template: data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`,
 * `partition_keys: ["fingerprint"]`,
 * `writer_sort: []` (single JSON document per fingerprint).
 
@@ -577,7 +577,7 @@ MUST be treated as a **breaking change** and MUST be accompanied by a major vers
 
 * `dataset_id: sealed_inputs_3B`,
 * `schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B`,
-* `path_template: data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`,
+* `path_template: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`,
 * `partition_keys: ["fingerprint"]`,
 * `writer_sort: ["owner_segment", "artefact_kind", "logical_id", "path"]`.
 
@@ -1008,9 +1008,9 @@ These fields MUST be considered **authoritative** identity for downstream 3B sta
 7.2.1 Both S0 outputs are **fingerprint-partitioned only**:
 
 * `s0_gate_receipt_3B` MUST live at
-  `data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`.
+  `data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json`.
 * `sealed_inputs_3B` MUST live at
-  `data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`.
+  `data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet`.
 
 No other partition keys (e.g. `seed`, `parameter_hash`, `run_id`) MAY appear in the on-disk path for these datasets.
 

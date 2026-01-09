@@ -95,7 +95,7 @@ S3 **consumes only** the following inputs. All MUST be resolved **by ID via the 
    *Role:* proves eligibility to read the sealed inputs for the target `manifest_fingerprint`; binds the exact `tzdb_release`/`tz_world` bytes via the S0 manifest/inventory. (Read is verification-only; no re-hash.) 
 
 > *Note:* S3 **does not** read site-level data (`site_locations`, `s1_tz_lookup`, `site_timezones`). Its sole purpose is compiling a fingerprint-scoped cache from `tzdb_release`. The S3 output surface is catalogued at
-> `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`. 
+> `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`. 
 
 ### 3.3 Binding constraints on input use
 
@@ -179,7 +179,7 @@ S3 **SHALL NOT**:
 * `created_utc : rfc3339_micros` *(= S0.receipt.verified_at_utc)*
 
 **Catalogue (Dictionary).** Path family (fingerprint-only):
-`data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`
+`data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`
 Dictionary governs filenames/layout (e.g., manifest filename, cache shard names) and format (`files` + JSON manifest).
 
 **Registry (existence/licensing/lineage).** Registered as a cache artefact with lineage
@@ -220,7 +220,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
   `manifest_fingerprint (hex64)`, `tzdb_release_tag (string)`, `tzdb_archive_sha256 (hex64)`,
   `tz_index_digest (hex64)`, `rle_cache_bytes (uint64)`, `created_utc (rfc3339_micros)`.
 * **Dictionary binding (catalogue authority):**
-  `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/` · **partitioning:** `[fingerprint]` · **format:** files (+ JSON manifest). 
+  `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/` · **partitioning:** `[fingerprint]` · **format:** files (+ JSON manifest). 
 * **Registry (existence/licensing/lineage):** registered as a cache with lineage **`tz_timetable_cache → tzdb_release`**. 
 
 ### 6.2 Referenced inputs (read-only in S3)
@@ -317,7 +317,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 
 ### 8.2 Partitions & path family
 
-* **Dataset:** `tz_timetable_cache` → `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`.
+* **Dataset:** `tz_timetable_cache` → `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`.
 * **Partitions (binding):** **`[fingerprint]` only**; no additional partitions are permitted.
 * **Catalogue authority:** Exact filenames/layout/format are governed by the Dataset Dictionary.
 
@@ -755,7 +755,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 ### A3. S3 output surface
 
 * **Timetable/cache artefact** — `schemas.2A.yaml#/cache/tz_timetable_cache` (manifest with `manifest_fingerprint`, `tzdb_release_tag`, `tzdb_archive_sha256`, `tz_index_digest`, `rle_cache_bytes`, `created_utc`).
-* **Catalogue path family** — `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/` (partition **`[fingerprint]`** only).
+* **Catalogue path family** — `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/` (partition **`[fingerprint]`** only).
 
 ### A4. Dataset Dictionary (catalogue authority)
 

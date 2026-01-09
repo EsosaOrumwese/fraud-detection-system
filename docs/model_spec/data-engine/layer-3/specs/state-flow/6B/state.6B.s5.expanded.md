@@ -26,7 +26,7 @@ S5 does **not** produce any new business data (no flows, no events, no labels). 
 3. **Builds a 6B validation bundle**
 
    * assembles selected validation artefacts (S5 reports, references/digests of critical S0–S4 surfaces, RNG summaries, coverage metrics) into a **validation bundle directory** for the world (`validation_bundle_6B`), under
-     `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/`;
+     `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/`;
    * constructs an `index.json` for that bundle (`validation_bundle_index_6B`), listing each member file and its `sha256_hex` digest with a stable, ASCII-lexical path ordering.
 
 4. **Publishes the 6B HashGate flag**
@@ -634,7 +634,7 @@ Registered in the 6B dictionary/registry as:
 * `path` (template):
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
   ```
 
 * `partitioning: [fingerprint]`
@@ -698,7 +698,7 @@ Registered as:
 * `path` (template):
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
   ```
 
 * `partitioning: [fingerprint]`
@@ -765,7 +765,7 @@ Registered as:
 * `path` (template):
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
   ```
 
 * `partitioning: [fingerprint]`
@@ -784,7 +784,7 @@ The index is a JSON file within the bundle directory:
 * file name (binding):
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/index.json
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
   ```
 
 * Schema anchor (for §5), e.g.:
@@ -859,7 +859,7 @@ Registered as:
 * `path`:
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 * `partitioning: [fingerprint]`
@@ -1290,7 +1290,7 @@ Any mismatched RNG envelope MUST be marked as at least WARN; if policy marks it 
        sha256_hex = <digest>
        ```
 
-     * write `_passed.flag` under `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/`.
+     * write `_passed.flag` under `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/`.
 
    * If `overall_status` is `"WARN"` or `"FAIL"` and policy forbids sealing on WARN, do **not** write `_passed.flag` (or remove it if it existed and policy allows overwrite only on re-run with PASS — see idempotence in §7).
 
@@ -1367,19 +1367,19 @@ All S5 artefacts are partitioned solely by `fingerprint={manifest_fingerprint}`:
 * `s5_validation_report_6B`:
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
   ```
 
 * `s5_issue_table_6B` (optional):
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
   ```
 
 * `validation_bundle_6B` (directory):
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
   ```
 
   (contains `index.json`, the evidence files listed there, plus `_passed.flag`).
@@ -1387,13 +1387,13 @@ All S5 artefacts are partitioned solely by `fingerprint={manifest_fingerprint}`:
 * `_passed.flag`:
 
   ```text
-  data/layer3/6B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 **Path↔embed equality (binding):**
 
 * Wherever `manifest_fingerprint` appears as a field in S5 artefacts, its value MUST equal the `fingerprint={manifest_fingerprint}` path token.
-* S5 MUST NOT write any of its artefacts outside the `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/` directory for that world.
+* S5 MUST NOT write any of its artefacts outside the `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/` directory for that world.
 
 ---
 
@@ -3108,7 +3108,7 @@ This appendix collects shorthand and symbols used in the 6B.S5 spec. It is **inf
 
 * **`VB6B`**
   `validation_bundle_6B` — the directory of validation artefacts for Segment 6B, under
-  `data/layer3/6B/validation/fingerprint={manifest_fingerprint}/`.
+  `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/`.
 
 * **`IDX6B`**
   `validation_bundle_index_6B` — the bundle index (`index.json` or equivalent), listing all bundle members and their digests.

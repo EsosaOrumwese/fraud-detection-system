@@ -778,7 +778,7 @@ Contract authority for 5A.S0 lives in the 5A schema pack (`schemas.5A.yaml`), da
 
 Binding notes:
 
-- Written once per `manifest_fingerprint` at `data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`.
+- Written once per `manifest_fingerprint` at `data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`.
 - Carries the run identity (`parameter_hash`, `manifest_fingerprint`, `run_id`, `scenario_set`) plus the upstream PASS map and `sealed_inputs_digest`; the schema pack is the shape authority.
 - Any rerun with the same `(parameter_hash, manifest_fingerprint, run_id)` must reproduce byte-identical JSON; otherwise treat as a write conflict.
 
@@ -790,7 +790,7 @@ Binding notes:
 
 Binding notes:
 
-- Stored under `data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`; partition key is `manifest_fingerprint` only.
+- Stored under `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`; partition key is `manifest_fingerprint` only.
 - Rows enumerate the whitelist of artefacts 5A may read (owner segment, manifest key, schema_ref, digest, `status`, `read_scope`). Column definitions and enums live solely in the schema pack.
 - Downstream states MUST treat this table as authoritative – no reading artefacts outside the listed rows. Updates require regenerating the manifest and rerunning S0.
 
@@ -803,7 +803,7 @@ Binding notes:
 Binding notes:
 
 - Optional projection of scenario metadata derived from sealed inputs.
-- When produced it must reside at `data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet` and adhere exactly to the schema pack.
+- When produced it must reside at `data/layer2/5A/scenario_manifest/manifest_fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet` and adhere exactly to the schema pack.
 - Absence of this dataset MUST NOT block downstream consumers so long as the gate receipt + sealed inputs are present.
 
 
@@ -1172,9 +1172,9 @@ This digest will be embedded into `s0_gate_receipt_5A` and can be used by downst
 2. **Write to staging locations**
 
    * Write `SEALED_ROWS` to a temporary/staging path, e.g.:
-     `data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/.staging/sealed_inputs_5A.parquet`
+     `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/.staging/sealed_inputs_5A.parquet`
    * Write `RECEIPT` to a temporary/staging path, e.g.:
-     `data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/.staging/s0_gate_receipt_5A.json`
+     `data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/.staging/s0_gate_receipt_5A.json`
 
 3. **Durability checks (optional but recommended)**
 
@@ -1253,19 +1253,19 @@ Both control datasets are **fingerprint-partitioned only**:
 
   * `partition_keys: ["fingerprint"]`
   * Path template:
-    `data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`
+    `data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`
 
 * `sealed_inputs_5A`:
 
   * `partition_keys: ["fingerprint"]`
   * Path template:
-    `data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`
+    `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet`
 
 If `scenario_manifest_5A` is implemented:
 
 * `partition_keys: ["fingerprint"]`
 * Path template:
-  `data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet`
+  `data/layer2/5A/scenario_manifest/manifest_fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet`
 
 #### 7.2.2 Path ↔ embed equality
 
@@ -2786,7 +2786,7 @@ For convenience, the canonical error codes from §9 are listed here:
 | `S0_IO_WRITE_FAILED`              | I/O failure when writing S0 outputs.                          |
 | `S0_INTERNAL_INVARIANT_VIOLATION` | Catch-all for impossible / invariant-breaking states.         |
 
-These codes appear only in logs/run-report, not in `s0_gate_receipt_5A` or `sealed_inputs_5A` schemas.
+These codes appear only in logs/layer2/5A/run-report, not in `s0_gate_receipt_5A` or `sealed_inputs_5A` schemas.
 
 ---
 

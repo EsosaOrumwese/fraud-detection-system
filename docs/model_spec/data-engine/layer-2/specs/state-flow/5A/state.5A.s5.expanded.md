@@ -34,7 +34,7 @@ For a given **world** identified by `manifest_fingerprint` (and, within that wor
 * Produces a **validation artefact bundle and pass flag**:
 
   * `validation_bundle_5A` under
-    `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/…`
+    `data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/…`
   * `_passed.flag` in the same fingerprint partition, containing a digest over the bundle.
 
 5A.S5 is:
@@ -848,7 +848,7 @@ S5 may include additional small evidence files (e.g. per-parameter-pack summarie
 
   ```text
   partition_keys: ["fingerprint"]
-  path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/...
+  path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 This bundle root may contain multiple files and subdirectories, but must respect the dictionary/registry path template.
@@ -1018,7 +1018,7 @@ Within this identity model, S5 provides a clean, verifiable boundary between “
 3. `validation_issue_table_5A` (optional) — `#/validation/validation_issue_table_5A`
 4. `validation_passed_flag_5A` - `#/validation/passed_flag_5A`
 
-Dictionary entries define the exact paths (`data/layer2/5A/validation/fingerprint={manifest_fingerprint}/…`) and lifecycle metadata; the registry lists downstream consumers and dependencies.
+Dictionary entries define the exact paths (`data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/…`) and lifecycle metadata; the registry lists downstream consumers and dependencies.
 
 Binding notes:
 
@@ -1440,7 +1440,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
    * From dictionary/registry:
 
      ```text
-     bundle_root = data/layer2/5A/validation/fingerprint={manifest_fingerprint}/
+     bundle_root = data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
      index_path = bundle_root + "validation_bundle_index_5A.json"
      flag_path  = bundle_root + "_passed.flag"
      ```
@@ -1466,7 +1466,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
    * Write all bundle files (index, report, issues, etc.) to a staging location, e.g.:
 
      ```text
-     data/layer2/5A/validation/fingerprint={manifest_fingerprint}/.staging/...
+     data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/.staging/...
      ```
 
 4. **Validate staging contents**
@@ -1521,7 +1521,7 @@ There are two identity layers:
    * `manifest_fingerprint` — world being validated.
    * `run_id` — execution ID for this S5 run.
 
-   These appear in logs/run-report, not as partitioning keys.
+   These appear in logs/layer2/5A/run-report, not as partitioning keys.
 
 2. **Validation artefact identity** (storage-level, persistent)
 
@@ -1664,7 +1664,7 @@ Binding rules:
 1. **No multi-bundle worlds**
 
    * For a given `manifest_fingerprint`, there MUST NOT be multiple distinct `validation_bundle_5A` directories that S5 considers canonical.
-   * The combination of bundle + flag under `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/` is the **single authoritative validation artefact**.
+   * The combination of bundle + flag under `data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/` is the **single authoritative validation artefact**.
 
 2. **No incremental merge**
 
@@ -1741,7 +1741,7 @@ No S5 artefact may be partitioned or keyed directly on `parameter_hash` or `scen
 
 * `run_id`:
 
-  * MUST NOT appear in S5 artefact schemas; it lives only in logs/run-report/traces.
+  * MUST NOT appear in S5 artefact schemas; it lives only in logs/layer2/5A/run-report/traces.
 
 ---
 
@@ -1857,7 +1857,7 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
    5.1 `validation_bundle_index_5A` exists, is schema-valid, and lives under:
 
    ```text
-   data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+   data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
    ```
 
    5.2 Every bundle evidence file (report, issue table, etc.) is listed in `entries` with:
@@ -1872,7 +1872,7 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
    6.1 `_passed.flag` exists at:
 
    ```text
-   data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+   data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
    ```
 
    6.2 Its format matches the documented schema (JSON or text), and if JSON, `manifest_fingerprint` in the flag equals the partition token.
@@ -2091,7 +2091,7 @@ Raised when S5 encounters I/O/storage failures while **writing** or committing i
   * `_passed.flag`.
 
 * Cannot atomically move staged files to canonical locations under
-  `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/`.
+  `data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/`.
 
 **Effect**
 
