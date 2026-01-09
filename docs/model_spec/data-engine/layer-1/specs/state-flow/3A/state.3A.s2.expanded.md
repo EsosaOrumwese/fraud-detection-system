@@ -78,6 +78,29 @@ Within these boundaries, 3A.S2’s scope is to provide a **clean, stable, parame
 
 ---
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `country_zone_alphas` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `zone_floor_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `iso3166_canonical_2024` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+
+**Authority / ordering:**
+* S2 is the sole authority on parameter-scoped country-zone priors.
+
+**Outputs:**
+* `s2_country_zone_priors` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (sealed policies/refs) MUST appear in `sealed_inputs_3A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 This section fixes **what MUST already hold** before 3A.S2 can run, and which inputs it is explicitly allowed to read. Anything else is out of scope for S2.

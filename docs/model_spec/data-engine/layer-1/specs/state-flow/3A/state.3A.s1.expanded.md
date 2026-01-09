@@ -58,6 +58,30 @@ Within these boundaries, 3A.S1’s scope is to provide a **complete, determinist
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `outlet_catalogue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 1A.S8
+* `zone_mixture_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `iso3166_canonical_2024` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+
+**Authority / ordering:**
+* S1 is the sole authority on escalation decisions and the S1 output order.
+
+**Outputs:**
+* `s1_escalation_queue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* Any external input used by S1 MUST appear in `sealed_inputs_3A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 This section defines **what MUST already hold** before 3A.S1 can execute, and which inputs it is explicitly allowed to read. Anything not listed here is **out of bounds** for S1.

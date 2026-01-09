@@ -96,6 +96,27 @@ Within these boundaries, 3A.S4’s purpose is to provide a **clean, deterministi
 
 ---
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `s1_escalation_queue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S1
+* `s2_country_zone_priors` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash]; source: 3A.S2
+* `s3_zone_shares` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S3
+
+**Authority / ordering:**
+* S4 is the sole authority for deterministic integer zone counts.
+
+**Outputs:**
+* `s4_zone_counts` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* S4 reads only S0 evidence plus S1-S3 outputs; any external policies or references remain sealed by S0.
+
+**Failure posture:**
+* Missing required inputs or count-conservation violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 This section defines **what MUST already hold** before 3A.S4 can run, and which gate artefacts it must honour. Anything outside these constraints is **out of scope** for S4.

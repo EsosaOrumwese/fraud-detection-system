@@ -94,6 +94,29 @@ Within these boundaries, 3A.S3’s scope is to provide a **reproducible, fully l
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `s1_escalation_queue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S1
+* `s2_country_zone_priors` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash]; source: 3A.S2
+
+**Authority / ordering:**
+* S3 is the sole authority for Dirichlet draws and RNG event emission for 3A.
+
+**Outputs:**
+* `s3_zone_shares` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `rng_event_zone_dirichlet` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none (shared append-only log)
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none (shared append-only log)
+
+**Sealing / identity:**
+* S3 reads only S0 evidence plus S1/S2 outputs; any external policies or references remain sealed by S0.
+
+**Failure posture:**
+* Missing required inputs or RNG policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 This section defines **what MUST already hold** before 3A.S3 can run, and which inputs it is explicitly allowed to use. Anything outside these constraints is **out of spec** for S3.

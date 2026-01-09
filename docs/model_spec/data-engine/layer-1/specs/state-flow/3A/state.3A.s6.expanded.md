@@ -76,6 +76,39 @@ Within these bounds, 3A.S6’s sole purpose is to **audit and codify** the healt
 
 ---
 
+### Contract Card (S6) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `s1_escalation_queue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S1
+* `s2_country_zone_priors` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash]; source: 3A.S2
+* `s3_zone_shares` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S3
+* `s4_zone_counts` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S4
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S5
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; source: 3A.S5
+* `rng_event_zone_dirichlet` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3A.S3
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3A.S3
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3A.S3
+* `zone_mixture_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `country_zone_alphas` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `zone_floor_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `day_effect_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S6 is the sole authority for structural validation outcomes and segment audit results.
+
+**Outputs:**
+* `s6_validation_report_3A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `s6_issue_table_3A` - scope: FINGERPRINT_SCOPED; gate emitted: none (optional)
+* `s6_receipt_3A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External policy inputs MUST appear in `sealed_inputs_3A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or invariant violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 This section defines **what MUST already hold** and which artefacts S6 is allowed to use before it performs any validation. Anything outside these constraints is **out of scope** for 3A.S6.

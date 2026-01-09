@@ -49,9 +49,56 @@ Out of scope for 3A.S0:
 * It does **not** read or reason about per-site coordinates or per-arrival routing; those are handled by 1B, 2A, and 2B respectively.
 * It does **not** construct any new authority surfaces beyond the gate receipt and sealed-inputs inventory; all zone-mass and hash surfaces are introduced in later 3A states.
 
-Within these boundaries, 3A.S0’s purpose is to guarantee that any subsequent 3A state operates in a strictly governed, reproducible environment whose inputs and upstream dependencies are explicit, auditable, and fixed for the life of the run.
+Within these boundaries, 3A.S0's purpose is to guarantee that any subsequent 3A state operates in a strictly governed, reproducible environment whose inputs and upstream dependencies are explicit, auditable, and fixed for the life of the run.
 
 ---
+
+### Cross-Layer Inputs (Segment 3A)
+
+**Upstream segments required:** 1A (validation bundle + `_passed.flag`; `outlet_catalogue` egress), 1B (validation bundle + `_passed.flag`), 2A (validation bundle + `_passed.flag`; `site_timezones` egress; optional `tz_timetable_cache` / `s4_legality_report`).
+
+**External references/configs (sealed by S0 and listed in `sealed_inputs_3A`):**
+* `zone_mixture_policy` (3A escalation policy)
+* `country_zone_alphas` (3A country-zone prior pack)
+* `zone_floor_policy` (3A floor/bump policy)
+* `day_effect_policy_v1` (2B day-effect policy used in universe hash)
+* `iso3166_canonical_2024` (ISO country list)
+* `tz_world_2025a` (tz-world polygons)
+
+**Gate expectations:** 1A/1B/2A PASS gates (`validation_bundle_*` + `_passed.flag`) MUST verify before any 1A/2A egress or sealed reference reads for this `manifest_fingerprint`.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2.2 for full list):**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `outlet_catalogue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+* `s4_legality_report` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `iso3166_canonical_2024` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `zone_mixture_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `country_zone_alphas` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `zone_floor_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `day_effect_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (upstream gates, egress, and sealed policies/priors) MUST appear in `sealed_inputs_3A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
 
 ## 2. Preconditions & upstream gates **(Binding)**
 

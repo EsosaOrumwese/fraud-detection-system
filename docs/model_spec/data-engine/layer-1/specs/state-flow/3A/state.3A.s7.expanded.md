@@ -91,6 +91,37 @@ Within these boundaries, S7’s sole purpose is to **seal Segment 3A**: to take 
 
 ---
 
+### Contract Card (S7) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `sealed_inputs_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S0
+* `s1_escalation_queue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S1
+* `s2_country_zone_priors` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash]; source: 3A.S2
+* `s3_zone_shares` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S3
+* `s4_zone_counts` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S4
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S5
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; source: 3A.S5
+* `s6_validation_report_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S6
+* `s6_issue_table_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S6 (optional)
+* `s6_receipt_3A` - scope: FINGERPRINT_SCOPED; source: 3A.S6
+* `rng_event_zone_dirichlet` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3A.S3 (optional)
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3A.S3 (optional)
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3A.S3 (optional)
+
+**Authority / ordering:**
+* S7 is the sole authority for the 3A validation bundle index and PASS flag.
+
+**Outputs:**
+* `validation_bundle_3A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_3A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* All bundled artefacts must match the S0-sealed inventory for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or failed S6 verdict -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 This section defines **what MUST already hold** before `3A.S7 — Segment Validation Bundle & PASS Flag` can execute, and which artefacts it is allowed to touch. Anything outside these conditions is **out of scope** for S7.
