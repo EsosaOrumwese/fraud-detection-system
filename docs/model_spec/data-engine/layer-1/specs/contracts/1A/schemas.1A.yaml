@@ -347,6 +347,42 @@ s3:
 
 # 6) Diagnostics / validation
 validation:
+  s0_gate_receipt_1A:
+    type: table
+    description: "Root sealing receipt for 1A (no upstream gates); records run lineage and sealed input inventory."
+    primary_key: [manifest_fingerprint]
+    partition_keys: [fingerprint]
+    sort_keys: []
+    columns_strict: true
+    columns:
+      - {name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false, description: "MUST byte-equal fingerprint path token (path/embed equality)."}
+      - {name: parameter_hash, $ref: '#/$defs/hex64', nullable: false, description: "Run lineage token recorded for S0 (not a partition in S0)."}
+      - {name: run_id, type: string, nullable: true, description: "Run id if recorded by S0 (log partition key).", pattern: '^[a-f0-9]{32}$'}
+      - name: sealed_inputs
+        type: array
+        nullable: false
+        description: "Every asset sealed by S0 (id, partitions, schema_ref)."
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, partition, schema_ref]
+          properties:
+            id: { type: string, minLength: 1 }
+            partition: { type: array, items: { type: string }, description: 'Partition keys, e.g. ["seed","fingerprint"] or ["parameter_hash"].' }
+            schema_ref: { type: string, minLength: 1 }
+      - { name: notes, type: string, nullable: true }
+
+  validation_bundle_index_1A:
+    type: table
+    description: "Index file for validation_bundle_1A (index.json)."
+    primary_key: [artifact_id]
+    columns:
+    - {name: artifact_id, type: string, nullable: false, description: Unique artifact within bundle.}
+    - {name: kind, type: string, nullable: false, description: Type (plot|table|diff|text|summary).}
+    - {name: path, type: string, nullable: false, description: Relative path inside the bundle.}
+    - {name: mime, type: string, nullable: true, description: MIME type (if known).}
+    - {name: notes, type: string, nullable: true, description: Optional description.}
+
   hurdle_stationarity_tests:
     type: table
     description: Stability checks across vintages for the hurdle model (coefs, tests, thresholds).

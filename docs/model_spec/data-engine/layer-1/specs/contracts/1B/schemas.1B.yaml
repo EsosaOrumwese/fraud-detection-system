@@ -210,6 +210,17 @@ validation:
       - {name: mime, type: string, nullable: true, description: MIME type (if known).}
       - {name: notes, type: string, nullable: true, description: Optional description.}
 
+  validation_bundle_index_1B:
+    type: table
+    description: "Index file for validation_bundle_1B (index.json)."
+    primary_key: [artifact_id]
+    columns:
+    - {name: artifact_id, type: string, nullable: false, description: Unique artifact within bundle.}
+    - {name: kind, type: string, nullable: false, description: Type (plot|table|diff|text|summary).}
+    - {name: path, type: string, nullable: false, description: Relative path inside the bundle.}
+    - {name: mime, type: string, nullable: true, description: MIME type (if known).}
+    - {name: notes, type: string, nullable: true, description: Optional description.}
+
   # Optional summary documents (structure is modest on purpose)
   checks_v1:
     description: "Validation outcomes for a 1B publish."

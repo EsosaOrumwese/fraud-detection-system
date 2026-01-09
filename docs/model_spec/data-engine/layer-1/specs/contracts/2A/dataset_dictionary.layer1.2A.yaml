@@ -330,6 +330,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: validation_bundle_index_2A
+  status: approved
+  owner_subsegment: 2A
+  description: index.json enumerating validation bundle members with hashes.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/validation_bundle_index_2A
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [2B, 3A, 3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: validation_passed_flag_2A
   status: approved
   owner_subsegment: 2A

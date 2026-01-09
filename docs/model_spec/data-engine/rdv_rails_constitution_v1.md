@@ -327,15 +327,15 @@ The governed control-plane artefacts emitted by S0 that define the segment's all
 * `s0_gate_receipt_<SEG>` records the run anchor, upstream gate checks, and the sealed inputs digest.
 * `sealed_inputs_<SEG>` enumerates every artefact the segment may read (manifest keys, path templates, hashes, roles/read_scope).
 
-If a segment does not use S0 sealing (bootstrap/legacy), the Segment RDV Profile MUST declare the equivalent input ledger and its schema anchors.
+If a segment does not use S0 sealing (bootstrap/legacy), a Segment RDV Profile SHOULD declare the equivalent input ledger and its schema anchors. If no profile is published, the segment’s S0 Cross-Layer Inputs + Contract Card act as the binding declaration for that ledger.
 
 ### 3.9 Classification objects for "states and segments differ"
 
 **State Class**
-A normative classification that determines a state's minimum RDV obligations (e.g., RNG-free, RNG-consuming, aggregator/merge, validation-only, finalizer). Every state MUST declare exactly one State Class (or a declared composite class if supported by this constitution).
+A normative classification that determines a state's minimum RDV obligations (e.g., RNG-free, RNG-consuming, aggregator/merge, validation-only, finalizer). Every state SHOULD declare exactly one State Class (or a declared composite class if supported by this constitution). If a state does not declare a class explicitly, it MAY be inferred from its Contract Card (RNG posture, gate outputs, and validation outputs).
 
 **Segment RDV Profile**
-A binding declaration for a segment that:
+An optional binding declaration for a segment (recommended when machine enforcement is required) that:
 
 * lists its states and their State Classes,
 * declares required gates/receipts and their scopes,
@@ -361,9 +361,9 @@ This constitution MUST allow **legitimate RDV differences** across **states** an
 
 Accordingly:
 
-* **Every state MAY differ in RDV posture**, but only by selecting from **declared State Classes** and filling a **declared State RDV Profile**.
-* **Every segment MAY differ in RDV posture**, but only by publishing a **Segment RDV Profile** that enumerates its states, their profiles, and their required gates.
-* Anything not declared by profile is **forbidden**.
+* **Every state MAY differ in RDV posture**, but only by selecting from **declared State Classes** (explicitly declared or inferred from Contract Cards where not declared).
+* **Every segment MAY differ in RDV posture**, but only by publishing a **Segment RDV Profile** or (when no profile exists) by treating the S0 Cross-Layer Inputs + Contract Card as the minimal binding declaration of scopes and gates.
+* Anything not declared by profile (or, if no profile exists, by the S0 Cross-Layer Inputs + Contract Card) is **forbidden**.
 
 This mirrors how 1A already distinguishes parameter-scoped receipts (e.g., S5) from fingerprint-scoped egress gates (S9) while keeping one shared "no PASS -> no read" story. 
 
@@ -448,7 +448,7 @@ This pattern is explicitly used in 1A (e.g., "use membership surface only if its
 
 ### 4.4 State Classes (normative taxonomy)
 
-Every state MUST declare exactly one **State Class**, which determines its minimum RDV obligations. (Details are expanded later in the Determinism/Reproducibility/Validation parts; this section fixes the model and classification.)
+Every state SHOULD declare exactly one **State Class**, which determines its minimum RDV obligations. If a state does not declare a class explicitly, it MAY be inferred from its Contract Card (RNG posture, gate outputs, validation outputs). (Details are expanded later in the Determinism/Reproducibility/Validation parts; this section fixes the model and classification.)
 
 **SC-A: Pure Transform (RNG-free producer)**
 
@@ -481,9 +481,9 @@ Every state MUST declare exactly one **State Class**, which determines its minim
 
 ---
 
-### 4.5 Segment RDV Profile (binding declaration)
+### 4.5 Segment RDV Profile (binding declaration, when used)
 
-Every segment MUST publish a binding **Segment RDV Profile** that (once the profile artefact exists in contracts). Until then, the segment's state-expanded docs MUST include a clearly marked profile section with the same content:
+Every segment SHOULD publish a binding **Segment RDV Profile** when automated enforcement or cross-segment tooling is in scope. Until then, the segment’s S0 Cross-Layer Inputs + Contract Card serve as the minimal binding declaration for scopes and gates; a dedicated profile section in S0 is optional.
 
 1. Enumerates **all states** in the segment and for each state declares:
 
@@ -496,7 +496,7 @@ Every segment MUST publish a binding **Segment RDV Profile** that (once the prof
 3. Declares any **optional convenience surfaces** and their degrade ladders (authoritative substitutes + required receipts if used). 
 4. Declares the segment's **order authorities** (if any) and the prohibition on competing order encoding by other states. 
 
-**Non-negotiable:** The Segment RDV Profile MUST be sufficient for a validator or downstream component to determine:
+**Non-negotiable (when a profile is published):** The Segment RDV Profile MUST be sufficient for a validator or downstream component to determine:
 
 * what can be read,
 * under what evidence,
@@ -874,7 +874,7 @@ Your 1A pattern establishes a crucial convention:
 
 * If an artefact is **fingerprint-scoped**, the address MUST include a single token that carries the run's `manifest_fingerprint` value.
 * New/updated segments SHOULD standardize on the **path label** `fingerprint={manifest_fingerprint}` to avoid drift and cross-segment confusion. 
-* If a segment uses the legacy label `manifest_fingerprint={manifest_fingerprint}` in its Dictionary/Registry, it MUST declare an explicit alias/migration note in its Segment RDV Profile (and MUST still obey Section 7.5 path<->embed equality and Section 7.4 partition matching). 
+* If a segment uses the legacy label `manifest_fingerprint={manifest_fingerprint}` in its Dictionary/Registry, it MUST declare an explicit alias/migration note in its Segment RDV Profile; if no profile is published, the alias note MUST live in the segment’s S0 Cross-Layer Inputs + Contract Card (and MUST still obey Section 7.5 path<->embed equality and Section 7.4 partition matching). 
 
 *(This directly addresses the "S9 consumer text says `fingerprint=...` while some dictionary entries show `manifest_fingerprint=...`" class of drift.)* 
 
@@ -2843,7 +2843,7 @@ A segment MUST classify each validation check as belonging to one (or more) of t
 3. **Segment-scope** (finalizer checks across multiple states and publishes the consumer gate)
 4. **Consumer-scope** (read-time verification: gate + identity verification prior to use)
 
-The Segment RDV Profile MUST declare which scopes exist for that segment and which gates each scope produces/consumes.
+If a Segment RDV Profile is published, it MUST declare which scopes exist for that segment and which gates each scope produces/consumes.
 
 ---
 
@@ -3044,7 +3044,7 @@ The final validation bundle MUST include evidence covering these roles:
 6. **Bundle index** (`index.json`)
 7. **PASS gate** (`_passed.flag` written only on PASS)
 
-Segments MAY choose their own filenames for items (1)-(5), but MUST declare a stable mapping in the Segment RDV Profile if they do not use the default names (see Section 27).
+Segments MAY choose their own filenames for items (1)-(5), but if they do not use the default names they MUST declare a stable mapping in the Segment RDV Profile; if no profile is published, the mapping MUST be stated in the S0 Cross-Layer Inputs + Contract Card (see Section 27).
 
 ---
 
@@ -3126,7 +3126,7 @@ A checksums artefact SHOULD include, for each consumer dataset instance validate
 * `files: [{ path, sha256_hex, size_bytes }, ...]` where `path` is relative to dataset root
 * `composite_sha256_hex` computed as SHA-256 over concatenation of raw bytes of the listed files in ASCII-lexicographic order of `path`
 
-If a segment chooses a different method, it MUST declare it in the Segment RDV Profile and the validator MUST enforce it.
+If a segment chooses a different method, it MUST declare it in the Segment RDV Profile; if no profile is published, the method MUST be stated in the S0 Cross-Layer Inputs + Contract Card, and the validator MUST enforce it.
 
 ---
 
@@ -3818,7 +3818,7 @@ Minimum anchor fields for `sealed_inputs_<SEG>`:
 
 * `{manifest_fingerprint, parameter_hash}` for each row (plus any additional fields required by its schema).
 
-If a segment does not use S0 sealing, the Segment RDV Profile MUST declare the equivalent input ledger and its schema anchors.
+If a segment does not use S0 sealing and a Segment RDV Profile is published, it MUST declare the equivalent input ledger and its schema anchors. If no profile is published, the S0 Cross-Layer Inputs + Contract Card serve as the minimal binding ledger declaration.
 
 **Binding:** `s0_gate_receipt_<SEG>` and `sealed_inputs_<SEG>` are governed artefacts and MUST be canonical-serialized and hashable.
 
@@ -3916,13 +3916,13 @@ A state is non-compliant if any of the following occur:
 
 ---
 
-## 27) Segment RDV Profile Contract (Binding)
+## 27) Segment RDV Profile Contract (Binding when used)
 
 ### 27.1 Purpose (what the profile is for)
 
-Every segment MUST publish a **Segment RDV Profile**: a binding declaration that makes RDV enforceable **without reading the state-expanded prose**.
+Every segment SHOULD publish a **Segment RDV Profile** when automated enforcement is required: a binding declaration that makes RDV enforceable **without reading the state-expanded prose**.
 
-The Segment RDV Profile MUST be sufficient for an automated enforcer (or downstream consumer) to determine, for that segment:
+If a Segment RDV Profile is published, it MUST be sufficient for an automated enforcer (or downstream consumer) to determine, for that segment:
 
 * what each state is (State Class + RNG posture),
 * what outputs exist and what scopes they live under,
@@ -3936,26 +3936,26 @@ This matches how 1A already works in practice: intermediate receipts (e.g., S5 p
 
 ---
 
-### 27.2 Location, format, and pinning (mandatory)
+### 27.2 Location, format, and pinning (mandatory when a profile is published)
 
 **27.2.1 Location**
 
-* The Segment RDV Profile MUST live in the segment's **binding contracts pack** (same authority tier as dictionary/registry/schemas), not in narratives.
+* If a Segment RDV Profile is published, it MUST live in the segment's **binding contracts pack** (same authority tier as dictionary/registry/schemas), not in narratives.
 
 **27.2.2 Format**
 
-* The profile MUST be machine-readable as **YAML or JSON**.
+* If published, the profile MUST be machine-readable as **YAML or JSON**.
 * A JSON-Schema SHOULD exist for it in the segment or layer schema set (so CI can validate it), and the profile MUST validate against that schema when present.
 
 **27.2.3 Pinning**
 
-* The profile MUST be treated as an **opened artefact** (it participates in `manifest_fingerprint` sealing), because changing gates/scopes/order-authority is a reproducibility-relevant change. (Your 1A sealing posture already enumerates sealed assets and derives fingerprints from opened artefacts.) 
+* If published, the profile MUST be treated as an **opened artefact** (it participates in `manifest_fingerprint` sealing), because changing gates/scopes/order-authority is a reproducibility-relevant change. (Your 1A sealing posture already enumerates sealed assets and derives fingerprints from opened artefacts.) 
 
 ---
 
-### 27.3 Required header fields (minimum binding set)
+### 27.3 Required header fields (minimum binding set if a profile is published)
 
-A Segment RDV Profile MUST include:
+If a Segment RDV Profile is published, it MUST include:
 
 * `segment_id` (e.g., `1A`)
 * `profile_semver` (MAJOR.MINOR.PATCH)
@@ -3976,14 +3976,14 @@ A Segment RDV Profile MUST include:
 
 ### 27.3.1 Sealing ledger declaration (required)
 
-If the segment uses S0 sealing, the profile MUST declare:
+If a Segment RDV Profile is published and the segment uses S0 sealing, the profile MUST declare:
 
 * `sealing_ledger.use_s0_sealing: true`
 * `sealing_ledger.s0_gate_receipt_id` (dataset id)
 * `sealing_ledger.sealed_inputs_id` (dataset id)
 * `sealing_ledger.schema_refs` for both artefacts
 
-If the segment does not use S0 sealing, the profile MUST declare:
+If a Segment RDV Profile is published and the segment does not use S0 sealing, the profile MUST declare:
 
 * `sealing_ledger.use_s0_sealing: false`
 * `sealing_ledger.equivalent_input_ledger_id`

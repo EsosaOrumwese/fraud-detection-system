@@ -524,6 +524,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: validation_bundle_index_1B
+  status: approved
+  owner_subsegment: 1B
+  description: index.json enumerating validation bundle members with hashes.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/validation_bundle_index_1B
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: validation_passed_flag_1B
   status: approved
   owner_subsegment: 1B

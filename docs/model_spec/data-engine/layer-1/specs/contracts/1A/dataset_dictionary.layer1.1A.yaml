@@ -578,6 +578,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s0_gate_receipt_1A
+  status: approved
+  owner_subsegment: 1A
+  description: Root sealing receipt for 1A; records run lineage and the sealed input inventory.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/1A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/validation/s0_gate_receipt_1A
+  lineage:
+    produced_by: 1A.S0
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: sealed_inputs_1A
   status: approved
   owner_subsegment: 1A
@@ -606,6 +624,24 @@ datasets:
   partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.1A.yaml#/validation/validation_bundle
+  lineage:
+    produced_by: 1A.validation
+    consumed_by: [release]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_index_1A
+  status: approved
+  owner_subsegment: 1A
+  description: index.json enumerating validation bundle members with hashes.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/validation/validation_bundle_index_1A
   lineage:
     produced_by: 1A.validation
     consumed_by: [release]
@@ -997,7 +1033,7 @@ reports:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256:
-  dataset_count: 50
+  dataset_count: 52
 
 open_questions: []
 

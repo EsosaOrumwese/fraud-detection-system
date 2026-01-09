@@ -1397,6 +1397,25 @@ subsegments:
     cross_layer: false
     notes:
 
+  - name: s0_gate_receipt_1A
+    path: data/layer1/1A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.s0_gate_receipt
+    license: Proprietary-Internal
+    role: Root sealing receipt for 1A; records run lineage and sealed input inventory.
+    dependencies: [sealed_inputs_1A]
+    source: internal
+    owner: {owner_team: "mlr-1a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/validation/s0_gate_receipt_1A
+    cross_layer: false
+    notes:
+
   - name: validation_bundle_1A
     path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     type: dataset
@@ -1416,6 +1435,25 @@ subsegments:
     cross_layer: false
     notes: Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to SHA256(bundle) for the same `fingerprint`; consumers must verify this prior to reading `outlet_catalogue`.
 
+  - name: validation_bundle_index_1A
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.bundle_index
+    license: Proprietary-Internal
+    role: index.json enumerating validation bundle members with hashes.
+    dependencies: [validation_bundle_1A]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema: schemas.1A.yaml#/validation/validation_bundle_index_1A
+    cross_layer: false
+    notes:
+
   - name: validation_passed_flag_1A
     path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
@@ -1426,7 +1464,7 @@ subsegments:
     manifest_key: mlr.1A.validation.passed
     license: Proprietary-Internal
     role: Boolean flag indicating that 1A validation passed for the config hash.
-    dependencies: [validation_bundle_1A]
+    dependencies: [validation_bundle_1A, validation_bundle_index_1A]
     source: internal
     owner: {qa_team: null}
     last_updated: '{iso8601_timestamp}'
