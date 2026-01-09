@@ -249,6 +249,42 @@ Within this scope, 5A.S5 is the **single, deterministic authority** that says â€
 
 ---
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0 (optional)
+* `scenario_metadata` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1
+* `merchant_class_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1 (optional)
+* `shape_grid_definition_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; source: 5A.S2
+* `class_zone_shape_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; source: 5A.S2
+* `merchant_zone_baseline_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S3
+* `class_zone_baseline_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S3
+* `merchant_zone_baseline_utc_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S3
+* `merchant_zone_overlay_factors_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S4
+* `merchant_zone_scenario_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S4
+* `merchant_zone_scenario_utc_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S4
+* `validation_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `spec_compatibility_config_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+
+**Authority / ordering:**
+* S5 is the sole authority for the 5A validation bundle index and PASS flag.
+
+**Outputs:**
+* `validation_bundle_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_report_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_issue_table_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_5A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* All bundled artefacts must match the S0-sealed inventory for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or failed validation checks -> abort; no outputs published.
+
 ## 2. Preconditions & sealed inputs *(Binding)*
 
 This section defines **when 5A.S5 â€” Segment Validation & HashGate** is allowed to run, and what sealed inputs it must have access to. These requirements are **binding**.

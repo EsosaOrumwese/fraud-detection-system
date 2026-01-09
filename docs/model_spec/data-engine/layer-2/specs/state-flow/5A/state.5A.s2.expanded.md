@@ -209,6 +209,33 @@ Within this scope, 5A.S2 cleanly defines the **deterministic, class/zone-level w
 
 ---
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0 (optional)
+* `scenario_metadata` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1
+* `merchant_class_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1 (optional)
+* `shape_library_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `shape_time_grid_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `zone_shape_modifiers_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+
+**Authority / ordering:**
+* S2 is the sole authority for class-zone shapes and the local-week grid.
+
+**Outputs:**
+* `shape_grid_definition_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; gate emitted: none
+* `class_zone_shape_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; gate emitted: none
+* `class_shape_catalogue_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External policy inputs MUST appear in `sealed_inputs_5A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & sealed inputs *(Binding)*
 
 This section defines when **5A.S2 — Weekly Shape Library** is allowed to run, and what sealed inputs it may rely on. All rules here are **binding**.

@@ -252,6 +252,39 @@ Within this scope, 5A.S4 is the **single deterministic bridge** between:
 
 ---
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0 (optional)
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1
+* `merchant_class_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1 (optional)
+* `shape_grid_definition_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; source: 5A.S2
+* `class_zone_shape_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; source: 5A.S2
+* `merchant_zone_baseline_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S3
+* `class_zone_baseline_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S3
+* `merchant_zone_baseline_utc_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5A.S3
+* `scenario_calendar_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; sealed_inputs: required
+* `scenario_horizon_config_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `scenario_overlay_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `overlay_ordering_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `scenario_overlay_validation_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+
+**Authority / ordering:**
+* S4 is the sole authority for scenario overlays and scenario-adjusted intensities.
+
+**Outputs:**
+* `merchant_zone_overlay_factors_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; gate emitted: none
+* `merchant_zone_scenario_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; gate emitted: none
+* `merchant_zone_scenario_utc_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; gate emitted: none
+
+**Sealing / identity:**
+* External policy inputs MUST appear in `sealed_inputs_5A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & sealed inputs *(Binding)*
 
 This section defines when **5A.S4 — Calendar & Scenario Overlays** is allowed to run, and what sealed inputs it may rely on. These requirements are **binding**.

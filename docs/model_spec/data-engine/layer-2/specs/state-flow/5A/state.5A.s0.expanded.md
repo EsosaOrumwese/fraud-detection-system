@@ -134,6 +134,80 @@ Within this scope, 5A.S0 fully defines the **entry conditions** under which Segm
 
 ---
 
+### Cross-Layer Inputs (Segment 5A)
+
+**Upstream segments required:** 1A–3B validation bundles + `_passed.flag` (1A, 1B, 2A, 2B, 3A, 3B), plus Layer-1 egress inputs (`outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, 2B routing surfaces, 3A zone allocation, 3B virtual surfaces).
+
+**External references/configs (sealed by S0 and listed in `sealed_inputs_5A`):**
+* `merchant_class_policy_5A`, `demand_scale_policy_5A`, `baseline_intensity_policy_5A`
+* `shape_library_5A`, `shape_time_grid_policy_5A`, `zone_shape_modifiers_5A` (optional)
+* `scenario_horizon_config_5A`, `scenario_metadata`, `scenario_calendar_5A`
+* `scenario_overlay_policy_5A`, `overlay_ordering_policy_5A` (optional), `scenario_overlay_validation_policy_5A` (optional)
+* `validation_policy_5A` (optional), `spec_compatibility_config_5A` (optional)
+
+**Gate expectations:** 1A–3B PASS gates (`validation_bundle_*` + `_passed.flag`) MUST verify before any 5A read for the target `manifest_fingerprint`.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3B` - scope: FINGERPRINT_SCOPED; gate: required
+* `outlet_catalogue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `s3_day_effects` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `s4_group_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `edge_catalogue_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `edge_alias_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `edge_alias_blob_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `edge_universe_hash_3B` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `merchant_class_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `demand_scale_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `baseline_intensity_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `shape_library_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `shape_time_grid_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `zone_shape_modifiers_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `scenario_horizon_config_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `scenario_metadata` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `scenario_calendar_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; sealed_inputs: required
+* `scenario_overlay_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `overlay_ordering_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `scenario_overlay_validation_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `validation_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `spec_compatibility_config_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External inputs (upstream gates, egress, and sealed policies/refs) MUST appear in `sealed_inputs_5A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
+
 ## 2. Preconditions & upstream validity *(Binding)*
 
 This section defines the conditions under which **5A.S0 — Gate & Sealed Inputs** is permitted to execute, and what “upstream validity” means for Layer-2 / Segment 5A. These requirements are **binding** on any implementation.
@@ -414,7 +488,7 @@ Typical examples include:
 * 3B egress:
 
   * `virtual_classification_3B`, `virtual_settlement_3B`.
-  * `virtual_routing_policy_3B`, `virtual_validation_contract_3B`.
+  * `virtual_routing_policy_3B`, `virtual_validation_contract_3B` (context only; not read by 5A states).
   * `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`.
 
 Rules for 5A.S0:
@@ -1492,7 +1566,7 @@ Even if the general conditions above are satisfied, 5A.S0 MUST additionally enfo
    * 1A: merchant/outlet aggregates (e.g. `outlet_catalogue` or equivalent).
    * 2A: `site_timezones` and `tz_timetable_cache` (unless 5A is explicitly configured to operate without them).
    * 3A: `zone_alloc` and `zone_alloc_universe_hash`.
-   * 3B: `virtual_classification_3B` and `virtual_routing_policy_3B` (if virtual merchants are in scope for the engine configuration).
+   * 3B: `virtual_classification_3B` (and `virtual_settlement_3B` if settlement features are required).
 
 The exact list is defined in the 5A dataset dictionary and artefact registry via `consumed_by: ["5A"]` and `status: "required"`.
 

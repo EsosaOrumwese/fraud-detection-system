@@ -180,6 +180,33 @@ Within this scope, 5A.S1 cleanly defines **who each merchant×zone is** and **ho
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0 (optional)
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S5
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; source: 3A.S5 (optional provenance)
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1 (optional)
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1 (optional)
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2A.S2 (optional)
+* `merchant_class_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `demand_scale_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S1 is the sole authority for merchant-zone classing and scale profiles.
+
+**Outputs:**
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `merchant_class_profile_5A` - scope: FINGERPRINT_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_5A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & sealed inputs *(Binding)*
 
 This section defines the conditions under which **5A.S1 — Merchant & Zone Demand Classification** is permitted to run, and what “sealed inputs” it is allowed to use. These requirements are **binding**.
@@ -280,7 +307,7 @@ S1 MUST be able to resolve, via `sealed_inputs_5A`, the following **required** a
 
      * `virtual_classification_3B` (is_virtual / hybrid flags).
      * Optionally `virtual_settlement_3B` if settlement tzid is needed as a feature.
-     * `virtual_routing_policy_3B` (metadata only), if S1 needs to distinguish virtual-only vs hybrid usage patterns.
+     * `virtual_routing_policy_3B` (context only; not read by 5A states).
 
 3. **Scenario metadata (not full calendar)**
 

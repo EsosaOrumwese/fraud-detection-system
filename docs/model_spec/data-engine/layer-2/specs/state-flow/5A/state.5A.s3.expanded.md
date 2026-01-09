@@ -219,6 +219,33 @@ Within this scope, 5A.S3 cleanly defines **how merchant×zone scale and class sh
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0 (optional)
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1
+* `merchant_class_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1 (optional)
+* `shape_grid_definition_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; source: 5A.S2
+* `class_zone_shape_5A` - scope: PARAMETER_SCOPED; scope_keys: [parameter_hash, scenario_id]; source: 5A.S2
+* `baseline_intensity_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `demand_scale_policy_5A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 is the sole authority for baseline intensity surfaces.
+
+**Outputs:**
+* `merchant_zone_baseline_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; gate emitted: none
+* `class_zone_baseline_local_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; gate emitted: none
+* `merchant_zone_baseline_utc_5A` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; gate emitted: none
+
+**Sealing / identity:**
+* External policy inputs MUST appear in `sealed_inputs_5A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & sealed inputs *(Binding)*
 
 This section defines when **5A.S3 — Baseline Merchant×Zone Weekly Intensities** is allowed to run, and what sealed inputs it may rely on. All rules here are **binding**.
