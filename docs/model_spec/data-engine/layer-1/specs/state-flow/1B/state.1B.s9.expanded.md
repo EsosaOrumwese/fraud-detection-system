@@ -37,6 +37,30 @@ A **MAJOR** in any baseline that changes these bound interfaces requires S9 re-r
 
 ---
 
+### Contract Card (S9) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2-3.3 for full list):**
+* `s7_site_synthesis` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S7
+* `site_locations` - scope: EGRESS_SCOPED; source: 1B.S8
+* `rng_event_site_tile_assign` - scope: LOG_SCOPED; source: 1B.S5
+* `rng_event_in_cell_jitter` - scope: LOG_SCOPED; source: 1B.S6
+* `rng_audit_log` - scope: LOG_SCOPED; source: layer1 RNG core
+* `rng_trace_log` - scope: LOG_SCOPED; source: layer1 RNG core
+
+**Authority / ordering:**
+* Validation bundle index + hash gate is the sole consumer gate for 1B.
+
+**Outputs:**
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Any validation failure -> do not publish `_passed.flag`; bundle records failure evidence.
+
+
 # 2) Purpose & scope **(Binding)**
 
 **Mission.** S9 **validates S0–S8 outputs** and **publishes the 1B validation bundle** for a given fingerprint. It computes egress checksums, reconciles RNG budgets/coverage, and writes a fingerprint-scoped bundle with a **PASS flag** that downstream consumers **MUST** verify before reading 1B egress (**“No PASS → no read”**). The bundle uses the **same hashing/index law** as 1A’s validation bundle.

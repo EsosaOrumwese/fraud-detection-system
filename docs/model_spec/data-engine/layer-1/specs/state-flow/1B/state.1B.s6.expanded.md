@@ -53,6 +53,29 @@ Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note
 
 ---
 
+### Contract Card (S6) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s5_site_tile_assignment` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S5
+* `tile_index` - scope: PARAMETER_SCOPED; source: 1B.S1
+* `world_countries` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `s0_gate_receipt_1B` - scope: FINGERPRINT_SCOPED; source: 1B.S0; gate: required (1A PASS)
+
+**Authority / ordering:**
+* Jitter is uniform-in-pixel with point-in-country; no inter-country order is created.
+
+**Outputs:**
+* `s6_site_jitter` - scope: SEED+FINGERPRINT+PARAMETER; gate emitted: none
+* `rng_event_in_cell_jitter` - scope: LOG_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* Missing required inputs or jitter acceptance failure -> abort; no outputs published.
+
+
 # 2) Purpose & scope **(Binding)**
 
 **Mission.** S6 **produces per-site, effective jitter deltas** `(delta_lat_deg, delta_lon_deg)` so that the realised point is **uniformly distributed inside the assigned raster cell (pixel)** from S5/S1 **and** lies **inside the legal country polygon**. When a sampled point fails the country predicate, S6 performs a **bounded resample**; on exhausting the cap, S6 **ABORTS**.

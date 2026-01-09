@@ -27,6 +27,27 @@ S4 emits a single **integer allocation plan** dataset (ID: **`s4_alloc_plan`**) 
 * `S` — shortfall `n_sites − Σ_i z_i` (# of +1 bumps to assign).
 * `n_sites_tile` — final per-tile integer allocation (emit only when ≥ 1).
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2.4/3 for full list):**
+* `s3_requirements` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S3
+* `tile_weights` - scope: PARAMETER_SCOPED; source: 1B.S2
+* `tile_index` - scope: PARAMETER_SCOPED; source: 1B.S1
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank` (1A is sole order authority).
+
+**Outputs:**
+* `s4_alloc_plan` - scope: SEED+FINGERPRINT+PARAMETER; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or schema violations -> abort; no outputs published.
+
+
 ---
 
 # 2) Preconditions & sealed inputs **(Binding)**

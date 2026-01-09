@@ -58,6 +58,27 @@ This document binds **performance and operational** constraints in **§11** and 
 
 ---
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 4 for full list):**
+* `tile_index` - scope: PARAMETER_SCOPED; source: 1B.S1
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `world_countries` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional (geometry validation)
+* `population_raster_2025` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional (only if basis uses population)
+
+**Authority / ordering:**
+* S2 emits fixed-dp weights; no inter-country order is created or encoded.
+
+**Outputs:**
+* `tile_weights` - scope: PARAMETER_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or schema violations -> abort; no outputs published.
+
+
 # 1. Purpose & scope *(Binding)*
 
 ## 1.1 Purpose *(Binding)*

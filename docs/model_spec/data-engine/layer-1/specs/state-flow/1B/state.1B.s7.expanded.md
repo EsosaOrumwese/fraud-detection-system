@@ -36,6 +36,27 @@ Any MAJOR change to those (e.g., partition keys, writer sort, identity semantics
 
 ---
 
+### Contract Card (S7) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.3 for full list):**
+* `s5_site_tile_assignment` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S5
+* `s6_site_jitter` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S6
+* `tile_bounds` - scope: PARAMETER_SCOPED; source: 1B.S1
+* `outlet_catalogue` - scope: EGRESS_SCOPED; gate: required (coverage parity)
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank` (1A is sole order authority).
+
+**Outputs:**
+* `s7_site_synthesis` - scope: SEED+FINGERPRINT+PARAMETER; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or parity violations -> abort; no outputs published.
+
+
 # 2) Purpose & scope **(Binding)**
 
 **Mission.** S7 **deterministically synthesises per-site records** by stitching **S5** (site→tile) with **S6** (effective in-pixel deltas) and required S1 geometry into a clean, conformed row per site—ready for S8 egress. It MUST ensure **1:1 coverage with `outlet_catalogue`**, **preserve `site_order`**, and **introduce no duplicates**. Inter-country order is **not encoded** in 1B; downstreams join 1A **S3 `candidate_rank`** when order is needed. 

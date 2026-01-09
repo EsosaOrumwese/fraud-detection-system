@@ -18,6 +18,26 @@ e) **Order law:** Inter-country order is **external** to S3 and remains solely o
 **1.4 Deliverable from S3 (named, but not specified here).**
 S3 will emit one deterministic table (ID **`s3_requirements`**) partitioned so it can join S4 cleanly (seed + fingerprint + parameter hash). The exact shape/partitions and validators are defined in later sections of the S3 doc (Schema & Acceptance). This new dataset is **additive** to your pack and does not modify or replace existing 1A/1B artifacts. 
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2.3/3 for full list):**
+* `outlet_catalogue` - scope: EGRESS_SCOPED; gate: required (1A PASS)
+* `tile_weights` - scope: PARAMETER_SCOPED; source: 1B.S2
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank` (1A is sole order authority).
+
+**Outputs:**
+* `s3_requirements` - scope: SEED+FINGERPRINT+PARAMETER; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing 1A gate or required inputs -> abort; no outputs published.
+
+
 ---
 
 # 2) Preconditions & sealed inputs **(Binding)**

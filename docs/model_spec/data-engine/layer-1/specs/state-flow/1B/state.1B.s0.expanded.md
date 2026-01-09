@@ -75,6 +75,32 @@ On ratification, **record**: `semver`, `effective_date`, `ratified_by`, git comm
 
 ---
 
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 8 for the sealed list):**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `outlet_catalogue` - scope: EGRESS_SCOPED; sealed_inputs: required
+* `s3_candidate_set` - scope: PARAMETER_SCOPED; sealed_inputs: required
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `world_countries` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `population_raster_2025` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `tz_world_2025a` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank` (1A is sole order authority).
+
+**Outputs:**
+* `s0_gate_receipt_1B` - scope: FINGERPRINT_SCOPED; gate emitted: 1A consumer gate
+* `sealed_inputs_1B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid 1A gate evidence -> abort; no outputs published.
+
+
 # 1) Purpose & scope **(Binding)**
 
 ## 1.1 Purpose

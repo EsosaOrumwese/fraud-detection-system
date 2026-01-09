@@ -39,6 +39,24 @@ A **MAJOR** change to any of the above (e.g., egress partitions, writer sort, or
 
 Here’s **Section 2 — Purpose & scope (Binding)** for **L1·1B·S8**.
 
+### Contract Card (S8) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s7_site_synthesis` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S7
+
+**Authority / ordering:**
+* Egress is order-free; inter-country order remains outside 1B egress.
+
+**Outputs:**
+* `site_locations` - scope: EGRESS_SCOPED; gate emitted: none (gated by S9 bundle)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or schema violations -> abort; no outputs published.
+
+
 # 2) Purpose & scope **(Binding)**
 
 **Mission.** S8 **publishes** the 1B egress dataset **`site_locations`** by transforming the S7 per-site synthesis into the **egress shape** and writing it under the **order-free** identity **`[seed, fingerprint]`**. S8 is **deterministic** and **RNG-free**; it MUST NOT encode inter-country order (downstreams join 1A S3 when order is required).

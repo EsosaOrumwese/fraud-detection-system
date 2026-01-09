@@ -20,6 +20,28 @@ S5 emits two artefacts for the run identity `{seed, manifest_fingerprint, parame
 a) **Dataset:** a site→tile assignment table with exactly **one row per site** (positives only), writer-sorted, immutable, and byte-stable on re-publish.
 b) **RNG event logs:** a stream under the layer RNG envelope capturing the **assignment draws** (budgeted and validated in S5) to demonstrate that the randomisation is correctly scoped and reproducible.
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2.4/3 for full list):**
+* `s4_alloc_plan` - scope: SEED+FINGERPRINT+PARAMETER; source: 1B.S4
+* `tile_index` - scope: PARAMETER_SCOPED; source: 1B.S1
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* Assignment draws are the sole authority for site->tile selection (one draw per site).
+
+**Outputs:**
+* `s5_site_tile_assignment` - scope: SEED+FINGERPRINT+PARAMETER; gate emitted: none
+* `rng_event_site_tile_assign` - scope: LOG_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* Missing required inputs or RNG event coverage -> abort; no outputs published.
+
+
 ---
 
 # 2) Preconditions & sealed inputs **(Binding)**

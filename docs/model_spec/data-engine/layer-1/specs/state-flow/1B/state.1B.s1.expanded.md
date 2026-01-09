@@ -13,12 +13,12 @@
 
 ## 0.1 Scope of this document *(Binding)*
 
-This specification defines the **behavioural contract** and **data contract** for **S1 — Tile Index**. It enumerates, deterministically and without RNG, the set of **eligible population-raster cells per ISO country** into the dataset **`tile_index`**. It does **not** define implementation or pseudocode; it binds **inputs, outputs, invariants, prohibitions, validation, and non-functional envelopes** for S1.
+This specification defines the **behavioural contract** and **data contract** for **S1 - Tile Index**. It enumerates, deterministically and without RNG, the set of **eligible population-raster cells per ISO country** into the dataset **`tile_index`** and the companion **`tile_bounds`** geometry surface. It does **not** define implementation or pseudocode; it binds **inputs, outputs, invariants, prohibitions, validation, and non-functional envelopes** for S1.
 
 ## 0.2 Authority set and anchors *(Binding)*
 
-* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_index`
-* **Dictionary (ID→path/partition law):** `dataset_dictionary.layer1.1B.yaml#tile_index`
+* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_index` and `schemas.1B.yaml#/prep/tile_bounds`
+* **Dictionary (ID->path/partition law):** `dataset_dictionary.layer1.1B.yaml#tile_index` and `dataset_dictionary.layer1.1B.yaml#tile_bounds`
 * **Ingress (sealed inputs referenced by this state):**
   `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` · `#/world_countries` · `#/population_raster_2025`
   JSON-Schema is the **sole** shape authority. Avro/Parquet encodings are non-authoritative.
@@ -68,11 +68,32 @@ This document binds **performance and operational** constraints in §11 and make
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 4 for full list):**
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `world_countries` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `population_raster_2025` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* S1 emits order-free geometry; inter-country order authority remains `s3_candidate_set.candidate_rank`.
+
+**Outputs:**
+* `tile_index` - scope: PARAMETER_SCOPED; gate emitted: none
+* `tile_bounds` - scope: PARAMETER_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1A egress) MUST appear in `sealed_inputs_1B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing sealed inputs or schema violations -> abort; no outputs published.
+
+
 # 1. Purpose & scope *(Binding)*
 
 ## 1.1 Purpose *(Binding)*
 
-This state defines the **deterministic enumeration of eligible population-raster cells per ISO country** into the dataset **`tile_index`**. Given the sealed reference surfaces named in §2 (ISO codes, country polygons, population raster), S1 **MUST** produce, for every eligible cell, a single row keyed by `(country_iso, tile_id)` and partitioned by `parameter_hash`. S1 is **RNG-free** and is concerned only with **eligibility and geometry**, not weighting or sampling. The normative rules for eligibility, tile identity, coordinates and area are specified in §6; the dataset shape is owned by the schema anchor in §2.
+This state defines the **deterministic enumeration of eligible population-raster cells per ISO country** into the dataset **`tile_index`** and the companion **`tile_bounds`** surface. Given the sealed reference surfaces named in §2 (ISO codes, country polygons, population raster), S1 **MUST** produce, for every eligible cell, a single row keyed by `(country_iso, tile_id)` and partitioned by `parameter_hash`. `tile_bounds` carries the rectangle bounds for each `(country_iso, tile_id)` and shares the same `parameter_hash` partition. S1 is **RNG-free** and is concerned only with **eligibility and geometry**, not weighting or sampling. The normative rules for eligibility, tile identity, coordinates and area are specified in §6; the dataset shapes are owned by the schema anchors in §2.
 
 ## 1.2 Non-goals *(Binding)*
 
@@ -82,13 +103,13 @@ S1 explicitly **does not**:
 * compute spatial **weights**, **footfall**, or any stochastic selection;
 * perform **timezone** legality checks or assignment;
 * alter or repair input geometry beyond what §6 requires (no reprojection policy changes, no topology healing outside the stated tolerances);
-* emit any outputs other than **`tile_index`** and its required audits/metrics (see §9), nor write to paths outside the Dictionary law.
+* emit any outputs other than **`tile_index`**, **`tile_bounds`**, and required audits/metrics (see §9), nor write to paths outside the Dictionary law.
 
 ## 1.3 Success criteria *(Binding)*
 
 S1 is “valid & done” when **all** of the following hold:
 
-* **Shape & anchors:** the emitted dataset complies with **`schemas.1B.yaml#/prep/tile_index`** and is written at the **Dictionary-governed** path for `tile_index` with partitions and sort keys as declared (see §2, §7).
+* **Shape & anchors:** the emitted datasets comply with **`schemas.1B.yaml#/prep/tile_index`** and **`schemas.1B.yaml#/prep/tile_bounds`** and are written at the **Dictionary-governed** paths with partitions and sort keys as declared (see §2, §7).
 * **Determinism & idempotence:** for the same sealed inputs and `parameter_hash`, reruns are **byte-identical**.
 * **Integrity:** `(country_iso, tile_id)` is unique; `country_iso` **MUST** exist in the ISO surface; coordinates are within legal bounds; `pixel_area_m2` is strictly positive; per-country row counts equal the eligibility predicate’s result (see §8).
 * **Prohibitions respected:** no reads of 1A egress; no stochastic behaviour; no writes outside the declared partitions (see §6, §7).
@@ -102,8 +123,8 @@ S1 is “valid & done” when **all** of the following hold:
 
 **JSON-Schema is the sole source of truth for shape, columns, domains, PK/UK/FK and partition keys.** The binding anchors for S1 are:
 
-* **S1 output shape:** `schemas.1B.yaml#/prep/tile_index`. 
-* **Dictionary law (ID → path/partitions/sort):** `dataset_dictionary.layer1.1B.yaml#tile_index` (partitions `[parameter_hash]`, sort `[country_iso, tile_id]`). 
+* **S1 output shapes:** `schemas.1B.yaml#/prep/tile_index` and `schemas.1B.yaml#/prep/tile_bounds`.
+* **Dictionary law (ID -> path/partitions/sort):** `dataset_dictionary.layer1.1B.yaml#tile_index` and `dataset_dictionary.layer1.1B.yaml#tile_bounds` (partitions `[parameter_hash]`, sort `[country_iso, tile_id]`).
 * **Ingress / FK targets (sealed inputs):**
   `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` · `#/world_countries` · `#/population_raster_2025`. (Declared for 1B in the Dictionary.) 
 * **Gate context (read-only, for 1A consumers):** `schemas.1A.yaml#/validation/validation_bundle` (Dictionary entry provided for discoverability; S1 itself does **not** read 1A egress). 
@@ -138,13 +159,13 @@ All dataset and field references in this document MUST be resolved first via the
 
 ## 3.1 Identity tokens & scope
 
-* **Identity for S1 outputs:** `parameter_hash` **only**. S1 emits no `seed`- or `fingerprint`-partitioned artefacts. This follows the Dictionary entry for `tile_index` (partitioning `[parameter_hash]`, version `{parameter_hash}`). 
+* **Identity for S1 outputs:** `parameter_hash` **only**. S1 emits no `seed`- or `fingerprint`-partitioned artefacts. This follows the Dictionary entries for `tile_index` and `tile_bounds` (partitioning `[parameter_hash]`, version `{parameter_hash}`).
 * **No RNG in S1:** S1 is deterministic geometry; it inherits the layer lineage discipline (identity by partitions; publish is atomic; file order non-authoritative) from S0’s law. 
 
-## 3.2 Partition law for `tile_index`
+## 3.2 Partition law for `tile_index` and `tile_bounds`
 
-* **Partition path (Dictionary-owned):** `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/`. Writer **MUST** publish only under this partition for a given run. 
-* **Sort discipline (for merges):** writer sort is `[country_iso, tile_id]` to guarantee stable, deterministic merges across workers. 
+* **Partition path (Dictionary-owned):** `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/` and `data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/`. Writers **MUST** publish only under these partitions for a given run.
+* **Sort discipline (for merges):** writer sort is `[country_iso, tile_id]` to guarantee stable, deterministic merges across workers.
 
 ## 3.3 Keys & uniqueness
 
@@ -319,7 +340,7 @@ S1 determines whether a grid cell **belongs to** a country using an **inclusion 
 
 ## 6.7 Partitioning & write discipline *(Binding)*
 
-* **Partition law:** `tile_index` **must** be written only under `…/parameter_hash={parameter_hash}/` and sorted by `[country_iso, tile_id]`; file order is **non-authoritative** (identity = partitions + keys). Re-publishing to the same partition must be **byte-identical** or is a hard error.  
+* **Partition law:** `tile_index` and `tile_bounds` **must** be written only under their Dictionary paths with `parameter_hash={parameter_hash}` and sorted by `[country_iso, tile_id]`; file order is **non-authoritative** (identity = partitions + keys). Re-publishing to the same partition must be **byte-identical** or is a hard error.
 
 ## 6.8 Prohibitions *(Binding)*
 
@@ -336,27 +357,36 @@ A produced `tile_index` is **non-conformant** if **any** of the following hold:
 * non-deterministic materialisation or sort violation;
 * write outside the Dictionary partition law.   
 
-*These norms bind behaviour only; the **shape** (columns/types/keys) is enforced by `schemas.1B.yaml#/prep/tile_index`, and the **path/partition** law by the Dictionary entry for `tile_index`.*  
+*These norms bind behaviour only; the **shape** (columns/types/keys) is enforced by `schemas.1B.yaml#/prep/tile_index` and `schemas.1B.yaml#/prep/tile_bounds`, and the **path/partition** law by the Dictionary entries for `tile_index` and `tile_bounds`.*
 
 ---
 
-# 7. Output dataset *(Binding)*
+# 7. Output datasets *(Binding)*
 
-## 7.1 Dataset ID & schema anchor
+## 7.1 Dataset IDs & schema anchors
 
 * **ID:** `tile_index`
-* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_index`. *(Companion: `schemas.1B.yaml#/prep/tile_bounds`)*
+* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_index`.
 
   * **Primary key:** `[country_iso, tile_id]`
   * **Partition keys:** `[parameter_hash]`
-  * **Sort keys:** `[country_iso, tile_id]` 
+  * **Sort keys:** `[country_iso, tile_id]`
+* **ID:** `tile_bounds`
+* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_bounds`.
+
+  * **Primary key:** `[country_iso, tile_id]`
+  * **Partition keys:** `[parameter_hash]`
+  * **Sort keys:** `[country_iso, tile_id]`
 
 ## 7.2 Path, partitions, and ordering (Dictionary law)
 
-* **Path family:** `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/`
+* **Path family (tile_index):** `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/`
+* **Path family (tile_bounds):** `data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/`
 * **Partitions:** `[parameter_hash]` (one write per partition; write-once)
 * **Writer sort:** `[country_iso, tile_id]` (stable, deterministic merge order)
-* **Format:** `parquet` (as declared in the Dictionary)  
+* **Format:** `parquet` (as declared in the Dictionary)
+
+**Shared rules:** unless explicitly noted, write discipline, immutability, and observability rules stated for `tile_index` apply equally to `tile_bounds`.
 
 ## 7.3 Immutability & atomic publish
 
