@@ -12,6 +12,7 @@ It exists to add **non-toy heterogeneity across zones** without using `merchant_
 
 * **Artefact ID:** `zone_shape_modifiers_5A`
 * **Path:** `config/layer2/5A/policy/zone_shape_modifiers_5A.v1.yaml`
+* **Schema anchor:** `schemas.5A.yaml#/policy/zone_shape_modifiers_5A`
 * **Token-less:** no timestamps/digests in-file (sealed by S0 inventory). 
 
 ---

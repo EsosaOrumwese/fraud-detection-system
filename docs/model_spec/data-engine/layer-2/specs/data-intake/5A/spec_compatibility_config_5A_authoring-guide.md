@@ -49,6 +49,7 @@ S5 may treat unsupported MAJORs as an invariant violation or a configuration-lev
 
 **Recommended path:** `config/layer2/5A/validation/spec_compatibility_config_5A.v1.yaml`
 (Token-less; no timestamps/digests.)
+**Schema anchor:** `schemas.5A.yaml#/validation/spec_compatibility_config_5A`
 
 Top-level keys MUST be exactly:
 

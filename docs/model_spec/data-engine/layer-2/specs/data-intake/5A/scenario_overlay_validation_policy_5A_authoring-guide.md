@@ -17,6 +17,7 @@ And S4’s run-report can emit `overlay_factor_violations_count` “if such thre
 
 * **Artefact ID:** `scenario_overlay_validation_policy_5A`
 * **Path:** `config/layer2/5A/scenario/scenario_overlay_validation_policy_5A.v1.yaml`
+* **Schema anchor:** `schemas.5A.yaml#/scenario/scenario_overlay_validation_policy_5A`
 * **Token-less posture:** no timestamps/digests in-file; sealing inventory is authoritative.
 
 ---

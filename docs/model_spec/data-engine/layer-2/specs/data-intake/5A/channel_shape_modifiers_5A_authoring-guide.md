@@ -10,6 +10,7 @@
 
 * **Artefact ID:** `channel_shape_modifiers_5A`
 * **Path:** `config/layer2/5A/policy/channel_shape_modifiers_5A.v1.yaml`
+* **Schema anchor:** `schemas.5A.yaml#/policy/channel_shape_modifiers_5A`
 * **Token-less posture:** no timestamps/digests in-file (sealed by S0 inventory). 
 
 ---

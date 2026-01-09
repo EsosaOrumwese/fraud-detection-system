@@ -642,7 +642,7 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: >
-      Shape library for 5A.S2. Defines the local-week time grid and unit-mass shape templates per demand_classxzonexchannel_group.
+      Shape library for 5A.S2. Defines unit-mass shape templates per demand_classxzonexchannel_group (grid lives in shape_time_grid_policy_5A).
     version: 'v1'
     format: yaml
     path: config/layer2/5A/policy/shape_library_5A.v1.yaml
@@ -670,6 +670,26 @@ datasets:
     primary_key: []
     ordering: []
     schema_ref: schemas.5A.yaml#/policy/shape_time_grid_policy_5A
+    lineage:
+      produced_by: []
+      consumed_by: [5A.S0, 5A.S2, 5A.S5]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: zone_shape_modifiers_5A
+    status: optional
+    owner_subsegment: 5A
+    description: >
+      Optional deterministic zone-level modifiers applied after base templates and before normalization in 5A.S2.
+    version: 'v1'
+    format: yaml
+    path: config/layer2/5A/policy/zone_shape_modifiers_5A.v1.yaml
+    partitioning: []
+    primary_key: []
+    ordering: []
+    schema_ref: schemas.5A.yaml#/policy/zone_shape_modifiers_5A
     lineage:
       produced_by: []
       consumed_by: [5A.S0, 5A.S2, 5A.S5]
@@ -749,7 +769,7 @@ datasets:
     partitioning: []
     primary_key: []
     ordering: []
-    schema_ref: schemas.5A.yaml#/scenario/overlay_ordering_policy_5A
+    schema_ref: schemas.5A.yaml#/policy/overlay_ordering_policy_5A
     lineage:
       produced_by: []
       consumed_by: [5A.S0, 5A.S4, 5A.S5]
@@ -793,6 +813,46 @@ datasets:
     lineage:
       produced_by: []
       consumed_by: [5A.S0, 5A.S4, 5A.S5]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: validation_policy_5A
+    status: optional
+    owner_subsegment: 5A
+    description: >
+      Optional S5 validation strictness config (tolerances, warn corridors, blocking rules).
+    version: 'v1'
+    format: yaml
+    path: config/layer2/5A/validation/validation_policy_5A.v1.yaml
+    partitioning: []
+    primary_key: []
+    ordering: []
+    schema_ref: schemas.5A.yaml#/validation/validation_policy_5A
+    lineage:
+      produced_by: []
+      consumed_by: [5A.S0, 5A.S5]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: spec_compatibility_config_5A
+    status: optional
+    owner_subsegment: 5A
+    description: >
+      Optional S5 config declaring compatible S1-S4 spec-version combinations.
+    version: 'v1'
+    format: yaml
+    path: config/layer2/5A/validation/spec_compatibility_config_5A.v1.yaml
+    partitioning: []
+    primary_key: []
+    ordering: []
+    schema_ref: schemas.5A.yaml#/validation/spec_compatibility_config_5A
+    lineage:
+      produced_by: []
+      consumed_by: [5A.S0, 5A.S5]
       final_in_layer: false
     retention_days: 365
     pii: false
