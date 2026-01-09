@@ -2812,3 +2812,1452 @@ Non-compliance if any of the following occur:
 
 ---
 
+# Part IV — Validation Rail (Binding)
+
+## 21) Validation taxonomy (Binding)
+
+### 21.1 Purpose and posture
+
+Validation in this engine is a **deterministic, fail-closed** system of checks that establishes whether governed artefacts are:
+
+* **structurally valid** (schema/placement/keys),
+* **identity-consistent** (anchors, path↔embed equality, hashes),
+* **referentially consistent** (FKs),
+* **deterministically consistent** (ordering, RNG envelopes/traces, replay laws),
+* and (where declared) **realism-acceptable** (corridors/thresholds).
+
+Validation is not a single monolith: segments MAY validate at multiple points (receipts + finalizer), but the *taxonomy* below is shared so that “PASS” means the same kind of thing everywhere. S9’s posture illustrates this sequencing: it completes structural/identity/referential checks **before** RNG accounting or replay checks. 
+
+---
+
+### 21.2 Validation scopes (where checks apply)
+
+A segment MUST classify each validation check as belonging to one (or more) of these scopes:
+
+1. **Artefact-scope** (per dataset/log/bundle instance)
+2. **State-scope** (within a producing state; includes per-state receipts)
+3. **Segment-scope** (finalizer checks across multiple states and publishes the consumer gate)
+4. **Consumer-scope** (read-time verification: gate + identity verification prior to use)
+
+The Segment RDV Profile MUST declare which scopes exist for that segment and which gates each scope produces/consumes.
+
+---
+
+### 21.3 Validation classes (normative taxonomy)
+
+Every segment MUST map its checks (and failure codes) into the classes below. A single check MAY fall into multiple classes, but a segment MUST be able to report failures “by class”.
+
+#### V1 — Schema & domain validity (structural)
+
+**What it asserts:** Each artefact conforms to its authoritative schema: required fields, types, patterns/domains, enums, and per-row structural constraints.
+**Failure posture:** Structural FAIL; no PASS gate.
+**Example failure codes:** `E_SCHEMA_INVALID`. 
+
+#### V2 — Placement, partitions, and path↔embed equality (structural)
+
+**What it asserts:** Artefacts live under the Dictionary path template with declared partition keys, and any duplicated lineage values (path token vs embedded column/field) are byte-identical. 
+**Failure posture:** Structural FAIL; no PASS gate.
+**Example failure codes:** `E_PARTITION_MISPLACED`, `E_PATH_EMBED_MISMATCH`. 
+
+#### V3 — Primary/unique keys and writer sort (structural)
+
+**What it asserts:** Declared PK/UK constraints hold per partition, and declared writer-sort/monotonicity constraints hold where specified (including across file boundaries).
+**Failure posture:** Structural FAIL; no PASS gate.
+**Example failure codes:** `E_DUP_PK`, `E_WRITER_SORT_BROKEN`.
+
+#### V4 — Referential integrity (structural)
+
+**What it asserts:** All declared FKs resolve against their targets (e.g., ISO code tables, seed lists, declared reference sets). 
+**Failure posture:** Structural FAIL; no PASS gate.
+**Example failure codes:** `E_FK_ISO_INVALID` (and any segment-specific FK failures). 
+
+#### V5 — Gate/bundle integrity (structural; “proof-pack validity”)
+
+**What it asserts:** Bundle folders (validation bundles, receipts) satisfy index+hash rules:
+
+* every non-flag file is listed exactly once in `index.json`,
+* paths are relative and ASCII-safe,
+* `_passed.flag` equals the SHA-256 over concatenated raw bytes of indexed files in lexicographic `path` order (flag excluded).
+  **Failure posture:** Structural FAIL; bundle MAY be written for diagnostics but MUST be written **without** `_passed.flag`. 
+
+#### V6 — RNG structural discipline (structural)
+
+**What it asserts:** RNG logs/event families are present where required, conform to schema, obey partition/path rules, and satisfy *structural* coverage requirements (e.g., “trace-after-each-event” presence).
+**Failure posture:** Structural FAIL; no PASS gate.
+**Example failure codes:** `E_TRACE_COVERAGE_MISSING`, plus per-family schema/discipline failures.
+
+#### V7 — RNG accounting and replay consistency (determinism)
+
+**What it asserts:** Envelope arithmetic, totals reconciliation, budget constraints, and replayability requirements (as declared by RNG governance) hold.
+**Failure posture:** Determinism FAIL; no PASS gate.
+**Example failure codes:** `E_RNG_COUNTER_MISMATCH`, `E_TRACE_TOTALS_MISMATCH`, `E_RNG_BUDGET_VIOLATION`, etc. 
+
+#### V8 — Cross-state replay consistency (determinism)
+
+**What it asserts:** Cross-state invariants are satisfied (e.g., outputs can be replay-checked against upstream logs/authorities; order-authority consistency holds).
+**Failure posture:** Determinism FAIL; no PASS gate.
+**Example failure codes:** segment-specific `E_S*_*` codes and `E_ORDER_AUTHORITY_DRIFT`. 
+
+#### V9 — Realism / corridor checks (semantic health; declared by segment)
+
+**What it asserts:** Run/segment outputs fall within declared realism corridors/thresholds (e.g., rates/quantiles/CUSUM). These are **policy-driven** and must fail-closed if policy is missing.
+**Failure posture:** Validation FAIL; MUST NOT write `_passed.flag` for the affected scope. 
+**Notes:** Realism checks MUST NOT run until V1–V4 structure is clean (e.g., duplicates/structure errors block corridor computation). 
+
+---
+
+### 21.4 Validation ordering and short-circuit rules (binding)
+
+Validators/finalizers MUST run checks in this minimum order:
+
+1. **V1–V4 (structural)** first: schema, placement, keys, referential integrity.
+2. **V6 (RNG structural)** next if RNG is present/required.
+3. **V7–V8 (determinism/replay)** next.
+4. **V9 (realism/corridors)** last, and only if structure is clean.
+
+**Short-circuit law:** If any structural class (V1–V6) fails for a scope, the validator MUST treat the scope as failed and MUST NOT proceed to compute “derived” or “health” metrics that assume structural correctness. This is explicitly reflected in the corridor validator posture (structure must be clean before corridors). 
+
+---
+
+### 21.5 Determinism requirements for validators (binding)
+
+All validators/finalizers MUST themselves be deterministic:
+
+* set/rowset semantics must not depend on physical file order,
+* ordering must be driven by declared order authorities and deterministic sorts,
+* numeric rules used in validation must comply with the numeric determinism rail.
+
+(Example: corridor computation uses deterministic merchant ordering and binary64 constraints; S9 treats JSONL streams as sets and flags duplicates as structural errors.)
+
+---
+
+### 21.6 Validation outputs: evidence, decisions, and gates (binding)
+
+For any validated scope, the validator MUST produce:
+
+* **Evidence artefacts** (metrics/reports/diffs as declared),
+* a **decision record** (PASS/FAIL + failure codes),
+* and (on PASS only) the **PASS gate artefact**.
+
+**FAIL rule:** On FAIL, the validator MAY publish a diagnostic bundle, but MUST NOT publish `_passed.flag` (so the scope remains mechanically unreadable).
+
+---
+
+### 21.7 Failure code taxonomy mapping (binding)
+
+Each segment MUST maintain a canonical mapping from its failure codes to these classes. At minimum it MUST distinguish:
+
+* **Structural** (V1–V6),
+* **Lineage/determinism** (V7–V8),
+* **Realism/corridor** (V9).
+
+S9 provides an explicit example of structural vs determinism vs RNG accounting vs cross-state replay codes. 
+
+---
+
+## 22) Validation artefacts and formats (Binding)
+
+> **Binding intent:** Validation outputs are **governed artefacts**. They MUST be deterministic, addressable, schema-described (where applicable), and (when used for gating) hash-verifiable.
+
+### 22.1 Validation artefact classes (what exists)
+
+A segment’s validation outputs MUST be expressible as a combination of:
+
+1. **Evidence artefacts (non-gate, but governed)**
+
+   * summaries (`*_summary.json`, `*_VALIDATION.json`)
+   * diffs (`*.diff`, `*.json`, `*.txt`)
+   * metrics tables (`*.parquet`, `*.csv`, `*.jsonl`)
+   * plots (`*.png`, `*.svg`)
+   * reconciliation artefacts (e.g., RNG accounting, checksums)
+2. **Gate artefacts (read authorization)**
+
+   * PASS gate flag files (`_passed.flag`)
+   * (optionally) scoped receipts (folders) that include a PASS flag
+3. **Proof packs (folders/bundles)**
+
+   * validation bundles (segment finalizer output)
+   * receipt bundles (state-scoped or parameter/seed-scoped gates)
+
+All three classes MUST obey canonical serialization rules (§9), addressing/identity rules (§7), and publication semantics (§8).
+
+---
+
+### 22.2 Two allowed “gated folder” formats (bundles vs receipts)
+
+Segments/states are allowed to gate-read surfaces using either of the following folder formats.
+
+#### 22.2.1 **Indexed bundle folder** (preferred for segment finalizers)
+
+A gated folder MAY be an **indexed bundle** containing:
+
+* `index.json` (complete logical index of all non-flag files)
+* `_passed.flag` (PASS gate; optional on FAIL)
+* any number of evidence artefacts (plots, metrics, diffs, manifests, etc.)
+
+**Binding rules:**
+
+* Every file in the folder **except** `_passed.flag` MUST appear **exactly once** in `index.json`.
+* Every `path` in `index.json` MUST be **relative**, contain no `..`, and be ASCII-normalised.
+* `_passed.flag` MUST be computed from the file set referenced by `index.json` (see §22.4).
+
+This format is the default for **segment egress validation bundles**.
+
+#### 22.2.2 **Unindexed receipt folder** (allowed for small scoped receipts)
+
+A gated folder MAY be an **unindexed receipt** containing:
+
+* one or more evidence files (e.g., `S6_VALIDATION.json`)
+* `_passed.flag` (PASS gate; optional on FAIL)
+
+**Binding rules:**
+
+* The digest used in `_passed.flag` MUST be computed over **all non-flag files** present in the receipt folder using a deterministic file enumeration rule (see §22.4.2).
+* No consumer is allowed to infer semantics from filesystem enumeration order.
+
+This format is allowed for **state-scoped receipts** (e.g., parameter-scoped or seed/parameter-scoped receipts).
+
+---
+
+### 22.3 Validation bundle (segment finalizer output)
+
+If a segment exposes consumer-facing artefacts (egress surfaces), it MUST produce exactly one **final validation bundle** per declared consumer scope (typically fingerprint-scoped).
+
+#### 22.3.1 Location and partitioning
+
+* The bundle MUST live at the canonical dictionary/registry path and MUST be partitioned by the declared scope keys.
+* Recommended standard for fingerprint scope: `…/validation/fingerprint={manifest_fingerprint}/` (path label standard), but the Dataset Dictionary remains authoritative if legacy labels exist.
+
+#### 22.3.2 Minimum required contents (by *role*, not by filename)
+
+The final validation bundle MUST include evidence covering these roles:
+
+1. **Run metadata / run anchors** (what run did this validate?)
+2. **Pinning evidence** (what parameter set and opened artefact set were sealed?)
+3. **Structural validation summary** (schemas, partitions, PK/UK, FK checks)
+4. **Determinism/RNG reconciliation** (if RNG exists in the segment scope)
+5. **Egress identity evidence** (checksums/rowset identity for consumer datasets)
+6. **Bundle index** (`index.json`)
+7. **PASS gate** (`_passed.flag` written only on PASS)
+
+Segments MAY choose their own filenames for items (1)–(5), but MUST declare a stable mapping in the Segment RDV Profile if they do not use the default names (see §27).
+
+---
+
+### 22.4 PASS gate file (`_passed.flag`) format and hashing rules
+
+#### 22.4.1 File format (exact)
+
+`_passed.flag` MUST be a single-line ASCII file with content:
+
+`sha256_hex = <hex64>`
+
+Where `<hex64>` is lower-case hex and MUST match the pattern:
+`^sha256_hex = [a-f0-9]{64}$`
+
+#### 22.4.2 Hash input rule (what bytes are hashed)
+
+The `<hex64>` value MUST be the SHA-256 of the **concatenation of raw bytes** of the governed files in scope, in a deterministic order:
+
+* **If `index.json` exists (indexed bundle):**
+
+  1. Extract the list of `path` entries from `index.json`
+  2. Sort them by ASCII-lexicographic order
+  3. For each path in that order: read the referenced file as raw bytes
+  4. Concatenate those bytes (exclude `_passed.flag`)
+  5. SHA-256 the concatenation → `<hex64>`
+
+* **If `index.json` does not exist (unindexed receipt):**
+
+  1. Enumerate all files in the receipt folder **excluding** `_passed.flag` (and excluding any temp/staging files by rule: temp files MUST NOT be present in a published receipt)
+  2. Compute each file’s relative path from the receipt root
+  3. Sort relative paths by ASCII-lexicographic order
+  4. Concatenate raw bytes of those files in that order
+  5. SHA-256 the concatenation → `<hex64>`
+
+**Binding:** The hashing algorithm and ordering rule are part of the consumer contract. Changing either is a breaking change unless versioned as a new gate surface.
+
+---
+
+### 22.5 `index.json` format (for indexed bundles)
+
+If a gated folder uses `index.json`, then:
+
+#### 22.5.1 Index semantics
+
+* `index.json` is a **logical index** of bundle contents, not merely a directory listing.
+* It MUST include enough information for a consumer/reviewer to understand what each artefact is.
+
+#### 22.5.2 Minimum index schema
+
+At minimum, `index.json` MUST be representable as a table keyed by `artifact_id` with columns:
+
+* `artifact_id` (string, unique within bundle; primary key)
+* `kind` (string; e.g., `plot|table|diff|text|summary`)
+* `path` (string; relative path inside bundle)
+* `mime` (optional string)
+* `notes` (optional string)
+
+Segments MAY extend the index entries with additional optional fields, but MUST preserve:
+
+* uniqueness of `artifact_id`
+* relative path restrictions
+* deterministic hashing rule that uses the `path` list
+
+---
+
+### 22.6 Checksums artefacts (egress identity evidence)
+
+Where a segment publishes consumer datasets (Parquet/JSONL/etc.), the final validation bundle MUST include deterministic identity evidence for those datasets. This MUST be one of:
+
+* **Per-file checksums + composite digest** (recommended), or
+* A declared deterministic **rowset hash** scheme.
+
+#### 22.6.1 Recommended checksums structure (normative shape)
+
+A checksums artefact SHOULD include, for each consumer dataset instance validated:
+
+* dataset identifier (`dataset_id`)
+* scope keys (e.g., `manifest_fingerprint`, optional `seed`)
+* `files: [{ path, sha256_hex, size_bytes }, …]` where `path` is relative to dataset root
+* `composite_sha256_hex` computed as SHA-256 over concatenation of raw bytes of the listed files in ASCII-lexicographic order of `path`
+
+If a segment chooses a different method, it MUST declare it in the Segment RDV Profile and the validator MUST enforce it.
+
+---
+
+### 22.7 RNG accounting/reconciliation artefacts (conditional requirement)
+
+If any state in the segment scope emits RNG events/logs, the final validation bundle MUST include an **RNG accounting** artefact that is sufficient to prove:
+
+* required audit/trace logs exist for each run scope,
+* trace-after-each-event coverage holds,
+* per-family envelope arithmetic is valid,
+* totals reconcile (`events_total`, `draws_total`, `blocks_total`),
+* and any family-specific budgets/caps are respected.
+
+If the segment is RNG-free, this artefact MAY be omitted (and MUST be absent from the bundle index if omitted).
+
+---
+
+### 22.8 Receipts (state-scoped PASS gates)
+
+A segment MAY define intermediate receipts (parameter-scoped, seed/parameter-scoped, etc.) to protect downstream reads of convenience surfaces.
+
+**Binding rules for receipts:**
+
+* Receipt location MUST be canonical (dictionary/registry or explicitly co-located adjacent to the dataset it gates).
+* Receipt MUST include:
+
+  * one deterministic evidence file (at minimum a summary JSON),
+  * and `_passed.flag` written only on PASS.
+* Receipt `_passed.flag` hashing MUST follow §22.4.2 (unindexed receipt rule unless an index is used).
+* Receipt MUST NOT be treated as a substitute for the segment’s final consumer gate unless explicitly declared (and treated as breaking-risk).
+
+---
+
+### 22.9 FAIL outputs and diagnostics (fail-closed)
+
+On validation FAIL:
+
+* Evidence artefacts MAY be published (diagnostics are encouraged),
+* but `_passed.flag` MUST NOT be published for the failed scope.
+
+This makes unreadability mechanical and enforces “no PASS → no read.”
+
+---
+
+### 22.10 Privacy and content restrictions for validation outputs
+
+Validation artefacts MUST avoid embedding row-level sensitive content unless explicitly allowed by the dataset dictionary/registry classification:
+
+* Prefer aggregated counts, hashes, and identifiers over raw payloads.
+* If a segment needs row-level exemplars for debugging, they MUST be:
+
+  * strictly scoped,
+  * explicitly declared and schema-described,
+  * and classified for retention/PII.
+
+---
+
+### 22.11 Conformance checklist for §22 (Binding)
+
+Non-compliance if any of the following are true:
+
+* `_passed.flag` format deviates from the single-line `sha256_hex = <hex64>` rule.
+* `_passed.flag` digest is not computed using the deterministic file-set + lexicographic order rule.
+* An indexed bundle’s `index.json` is incomplete (missing files), contains non-relative/unsafe paths, or has duplicate `artifact_id`.
+* A segment publishes consumer egress surfaces without a final validation bundle + consumer gate.
+* A validator publishes PASS for a scope while required evidence artefacts are missing (e.g., missing pinning evidence or missing RNG accounting when RNG exists).
+* Consumers are able to read governed artefacts without verifying the required PASS gate.
+
+---
+
+## 23) Gate semantics and composition (Binding)
+
+### 23.1 Purpose
+
+Gates are the engine’s **mechanical read-authorization layer**. They ensure:
+
+* **Validation is enforceable** (not advisory),
+* **Consumers cannot accidentally read unverified outputs**, and
+* Reuse/caching is safe (only readable, verified partitions are eligible).
+
+### 23.2 Gate types (normative)
+
+A segment/state MAY emit gates in the following forms:
+
+1. **PASS Flag Gate**
+   A single-file gate (e.g., `_passed.flag`) whose content is a deterministic digest over a declared file set (see §22.4).
+
+   * **Role:** read authorization for a scope.
+   * **Property:** verifiable by bytes; immutable once published.
+
+2. **Receipt Gate (scoped)**
+   A scoped proof folder (often smaller than the final bundle) containing evidence + a PASS flag gate.
+
+   * **Role:** protect downstream reads of an *intermediate or convenience surface*.
+   * **Property:** additive; never a substitute for final consumer gates unless explicitly declared.
+
+3. **Final Consumer Gate (segment egress gate)**
+   The authoritative segment-level gate produced by the segment finalizer (SC-E), typically attached to the segment’s final validation bundle.
+
+   * **Role:** “this segment’s consumer surfaces are safe to read for this scope.”
+   * **Property:** MUST be verifiable without running code (hash + index rules).
+
+### 23.3 Gate scope (what a gate authorizes)
+
+Every gate MUST declare exactly one **scope**:
+
+* **Artefact Instance Scope:** authorizes one dataset/log/bundle instance (one partition tuple).
+* **State Scope:** authorizes a declared set of outputs from a single state invocation (often still partitioned).
+* **Segment Consumer Scope:** authorizes the segment’s declared consumer surfaces for a given segment scope (typically fingerprint-scoped; seed inclusion must be explicit).
+* **Layer/Engine Scope (optional):** only allowed if explicitly introduced by a higher-level interface contract; never implicit.
+
+**Binding:** A consumer MUST NOT infer scope from naming conventions; scope must be determinable from declared paths + profile metadata.
+
+### 23.4 Gate properties (required for all gates)
+
+Every gate MUST satisfy:
+
+1. **Canonical location:** gate path is declared in the Dataset Dictionary / Registry / Segment RDV Profile (no ad-hoc placement).
+2. **Deterministic verification:** verification is purely by declared hashing/identity rules (no “best effort”).
+3. **Immutability:** once written, a gate MUST NOT change. If invalid, remediation is additive (see §20).
+4. **Atomic publication:** a gate MUST only be published after the gated file set is complete (see §8.4).
+5. **Anchor binding:** a gate must be bound to the correct run scope via partition keys (path tokens) and, where applicable, embedded evidence.
+6. **Fail-closed:** missing or invalid gate ⇒ unreadable.
+
+### 23.5 Gate Map (the dependency rule-set)
+
+Every segment MUST publish a **Gate Map** (binding surface) that answers:
+
+* For each **consumer read of dataset X**, **which gates must be verified** first?
+
+The Gate Map MUST be sufficient for automated enforcement and MUST include:
+
+* `consumer_id` (downstream state, segment, or external component),
+* `reads` (dataset_id / artefact kind),
+* `required_gates` (list),
+* `verification_method` per gate (bundle-index method vs unindexed receipt method),
+* `scope_keys` (which anchor keys define the gate scope),
+* `on_missing_or_fail` (must be FAIL).
+
+**Binding:** If a gate requirement is not in the Gate Map, consumers MUST treat it as **unknown** and fail closed (unless the segment marks the artefact as truly optional with a degrade ladder).
+
+### 23.6 Composition semantics (how multiple gates combine)
+
+Gate requirements compose with **AND** semantics by default:
+
+* If `required_gates = [g1, g2, …]`, **all** must verify before read.
+
+**Receipts are additive, not substitutive:**
+
+* A receipt gate MAY be required for reading a specific intermediate/convenience artefact.
+* The existence (or PASS) of a receipt gate MUST NOT be treated as authorizing segment consumer reads unless explicitly declared.
+
+**Final gate does not automatically authorize everything:**
+
+* The segment final consumer gate authorizes only the **consumer surfaces** declared in the segment profile.
+* It does not automatically authorize reading internal intermediate artefacts unless those artefacts are explicitly included as consumer surfaces (or the Gate Map says so).
+
+### 23.7 Optional surfaces and degrade ladders (gate-aware OR semantics)
+
+OR semantics are allowed **only** through an explicit degrade ladder:
+
+Example rule shape:
+
+* Prefer reading `optional_surface` **if** `receipt_gate` verifies; otherwise reconstruct from authoritative sources `A+B` (which themselves require their own gates).
+
+**Binding requirements:**
+
+* The degrade ladder MUST be declared in the segment profile and Gate Map.
+* The fallback path MUST be deterministic and MUST NOT weaken gating (fallback inputs still require PASS gates).
+* “Optional” means “optional to exist”; it does **not** mean “readable without gates.”
+
+### 23.8 Read-time verification protocol (binding for all consumers)
+
+Before reading any governed artefact, a consumer MUST:
+
+1. Resolve the artefact’s canonical path and scope keys (dictionary/registry).
+2. Consult the Gate Map to find required gates.
+3. For each required gate:
+
+   * verify it using its declared method (bundle-index or receipt hashing),
+   * verify scope match (partition keys and path↔embed equality where applicable),
+   * verify the gate is not superseded by a declared revocation record (if your platform implements revocation per §20.6.3).
+4. Record evidence of verification (gate refs + hash values + artefact refs + hashes) in its own state manifest/log.
+5. Only then read the artefact.
+
+**Binding:** If any step fails, the consumer MUST fail closed and MUST NOT proceed with partial reads.
+
+### 23.9 Producer obligations (to make gate enforcement possible)
+
+Any producer state that emits gated outputs MUST:
+
+* Emit validation evidence deterministically,
+* Publish outputs atomically,
+* Publish PASS gates only after validation success,
+* Withhold PASS gates on FAIL (diagnostics may still be published),
+* Ensure the gate’s verification set matches the declared rules (index completeness, file enumeration stability, etc.).
+
+### 23.10 Cross-segment and cross-layer composition
+
+When a state in segment **B** reads an artefact produced by segment **A**:
+
+* Segment B MUST treat segment A as an external producer and MUST follow the Gate Map:
+
+  * verify A’s required gates (typically A’s final consumer gate for that scope),
+  * verify any required receipts if B reads an A-internal convenience surface (rare; should be avoided).
+* Segment B MUST record the verified gate refs/hashes as part of its own provenance.
+
+**Binding:** Cross-segment reads MUST never bypass gates on the assumption that “the orchestrator already validated it.”
+
+### 23.11 Gate failure semantics
+
+On missing/invalid gates:
+
+* The artefact is **unreadable**.
+* Consumers MUST fail closed (no fallback to “partial read”).
+* Producers MUST not attempt to “repair” by overwriting; remediation is additive (new identity / new run / versioned coexistence).
+
+### 23.12 Conformance checklist for §23 (Binding)
+
+Non-compliance if any of the following are true:
+
+* A governed artefact can be read by any consumer without verifying required gates.
+* A receipt gate is treated as a substitute for the final consumer gate without explicit declaration.
+* Gate verification depends on filesystem order, wall-clock, or non-deterministic behavior.
+* PASS gates are published for incomplete/partially-written instances.
+* Gate scope is ambiguous or not determinable from declared paths + profile metadata.
+
+---
+
+## 24) Validator determinism requirements (Binding)
+
+> **Scope:** applies to **all validators** (state-scoped receipt writers **SC-D** and segment finalizers **SC-E**) and to any state that produces **validation evidence** used for gating.
+
+### 24.1 Determinism posture (non-negotiable)
+
+A validator MUST be a deterministic function of:
+
+* the **run anchor** (scope keys only, as declared),
+* the **pinned inputs** it is allowed to read (artefact bytes + content hashes + pinned policies),
+* and the **declared validation policy** for the scope.
+
+A validator MUST NOT depend on:
+
+* wall-clock time,
+* filesystem enumeration order,
+* runtime scheduling order,
+* ambient environment state,
+* or any ambient randomness.
+
+### 24.2 Read model: treat inputs as sets, not “whatever order the OS gives”
+
+Validators MUST read all multi-file/partitioned inputs using a **set-semantics** approach:
+
+* A validator MUST NOT derive meaning from:
+
+  * directory listing order,
+  * glob order,
+  * parquet part numbering,
+  * jsonl shard order,
+  * or event arrival order.
+* If a check requires order, the validator MUST impose a **declared canonical order** (e.g., dictionary `ordering`, declared PK sort, or an explicitly declared “order authority” dataset).
+
+### 24.3 Canonical ordering rules inside validators
+
+When ordering matters, validators MUST:
+
+* Sort using deterministic key order (ASCII / totalOrder rules where floats are present).
+* Use stable tie-breakers (secondary/tertiary keys) so order is fully defined.
+* Apply reductions in deterministic order (and if decision-critical, use the serial fixed-order kernels required by §13).
+
+### 24.4 Sampling rules (by default: forbidden)
+
+Validation MUST be **exhaustive** by default.
+
+If a segment introduces **sampling** for performance, it MUST:
+
+* declare sampling explicitly in the Segment RDV Profile,
+* make sampling **deterministic** (seeded from stable run identity; fixed sample frame; fixed ordering before sampling),
+* and ensure sampled validation cannot produce false PASS for correctness-critical constraints (schema/keys/gates/RNG accounting are never sampleable).
+
+### 24.5 RNG reconciliation checks are deterministic and order-free
+
+If the segment emits RNG logs/event families, validators MUST:
+
+* verify audit/trace presence deterministically,
+* verify trace-after-each-event coverage deterministically,
+* verify envelope arithmetic and totals reconciliation deterministically,
+* and perform replay checks using **envelope counters and declared keys**, never physical ordering.
+
+Validators MUST NOT write RNG logs, mutate RNG state, or “repair” RNG evidence.
+
+### 24.6 Numeric policy compliance inside validation
+
+All validation computations that can affect:
+
+* PASS/FAIL decisions,
+* thresholds/corridors,
+* ordering constraints,
+* or deterministic hashes
+
+MUST comply with the **Numeric Determinism Policy** (§13). Validators MUST fail closed if numeric posture is not attested or if forbidden numeric behavior is detected.
+
+### 24.7 Output determinism: validation evidence must be stable
+
+Validators MUST ensure their outputs are deterministic:
+
+* Any evidence artefact included in a gated bundle/receipt MUST be byte-stable under replay.
+* Validators MUST NOT embed nondeterministic fields inside gated evidence (timestamps, random IDs, environment-specific paths, etc.).
+* If human-readable timestamps/telemetry are desired, they MUST be emitted as **non-gating** artefacts (outside the hashed file set) or under an explicitly “non-gating” classification that is excluded by a declared hashing rule (changing hashing rules is breaking-risk).
+
+### 24.8 Publication rules for validators (must preserve fail-closed gating)
+
+Validators MUST follow the IO rules in §8:
+
+* Stage → validate → publish evidence → publish PASS gate **only on PASS**.
+* On FAIL, evidence MAY be published, but `_passed.flag` MUST NOT be written.
+* Validators MUST be idempotent: rerun under identical scope MUST produce identical evidence/gate results (or deterministic no-op).
+
+### 24.9 Concurrency rules for validators
+
+Validators MAY parallelize only if the parallelism is provably deterministic:
+
+* parallel reads are allowed,
+* parallel per-part checks are allowed,
+* but any merge/reduction into PASS/FAIL decisions MUST be schedule-independent and use deterministic ordering rules.
+* A validator MUST be worker-count invariant: changing worker/shard count MUST NOT change PASS/FAIL, hashes, or gated bundle bytes.
+
+### 24.10 Required diagnostics on failure
+
+On any validation failure, a validator MUST emit deterministic diagnostics that include:
+
+* `segment_id`, `state_id` (validator identity),
+* scope keys (e.g., `manifest_fingerprint`, `parameter_hash`, seed if applicable),
+* failing validation class (V1–V9 taxonomy),
+* failure code(s),
+* and the minimal set of offending artefact refs/hashes.
+
+Diagnostics MUST not include nondeterministic data inside gated evidence.
+
+### 24.11 Conformance checklist for §24 (Binding)
+
+A validator is non-compliant if any of the following are true:
+
+* PASS/FAIL differs across replays with identical pinned inputs.
+* Validation depends on filesystem/glob order or scheduling order.
+* Sampling is used without explicit declaration and deterministic rules.
+* RNG reconciliation relies on physical ordering or validators write RNG logs.
+* Validator outputs included in gates contain nondeterministic fields.
+* PASS gate is published despite missing required evidence or failed checks.
+
+---
+
+## 25) Consumer read rules (Binding)
+
+> **Binding intent:** Reading governed engine artefacts is a **controlled operation**. A consumer (downstream state, downstream segment, or external platform component) MUST treat **gate verification** as a prerequisite to read, and MUST fail closed on any ambiguity.
+
+### 25.1 Who is a “consumer”
+
+A **consumer** is any process that reads governed artefacts, including:
+
+* downstream states inside the same segment,
+* states in other segments/layers,
+* validators/finalizers (readers of producer outputs),
+* and external components (Scenario Runner, Ingestion Gate, Feature Plane, Decision Plane, etc.).
+
+All consumers are subject to the same read rules. “Internal” does not mean “trusted.”
+
+---
+
+### 25.2 Non-negotiable principles
+
+1. **No PASS → no read.** If required gates are missing or invalid, the artefact is unreadable.
+2. **Fail closed.** If a consumer cannot determine what gates are required, how to verify them, or whether scope matches, it MUST fail.
+3. **Scope correctness before content.** Consumers MUST confirm the artefact belongs to the intended run scope (anchors/partition keys) before interpreting content.
+4. **No implicit trust in orchestration.** “The orchestrator already validated it” is not a substitute for local verification.
+5. **Optional does not mean ungated.** Optional surfaces may be absent, but if present and used they are still gated.
+
+---
+
+### 25.3 Authoritative inputs for consumers
+
+Before reading, a consumer MUST use authoritative sources to resolve what it is about to read:
+
+* **Dataset Dictionary / Artefact Registry**: canonical path template, partition keys, schema refs, equality contract, and any stated gate requirements.
+* **Gate Map**: which gates are required for which reads (including receipts vs final gates, and any degrade ladders).
+* **Segment RDV Profile**: segment-level declaration of consumer surfaces, receipts, and gate scopes.
+
+If these sources conflict, the precedence rules in §2 apply.
+
+---
+
+### 25.4 Mandatory pre-read protocol
+
+For every governed artefact read, a consumer MUST perform the following steps **in order**:
+
+1. **Resolve identity intent**
+
+   * Determine the intended scope keys (e.g., `manifest_fingerprint`, `parameter_hash`, optional `seed`) and the target artefact ID/kind.
+2. **Resolve canonical location**
+
+   * Construct the artefact’s canonical address using the dictionary/registry path template and scope keys.
+3. **Consult Gate Map**
+
+   * Determine the required gate set for this consumer and this artefact.
+4. **Verify each required gate**
+
+   * Verify gate file format (`_passed.flag`).
+   * Verify gate digest using the declared method (indexed-bundle vs unindexed-receipt).
+   * Verify gate scope matches the intended scope keys (partition tuple must match).
+5. **Verify scope binding**
+
+   * Where applicable, verify path↔embedded lineage equality (or metadata binding) for the artefact instance.
+6. **Verify compatibility**
+
+   * Confirm rails/contract version compatibility (or fail closed if incompatible/unknown).
+7. **Record read evidence**
+
+   * Persist evidence of what was verified and what was read (see §25.8).
+8. **Only then read**
+
+   * Perform the actual data read/scan.
+
+**Binding:** If any step fails, the consumer MUST NOT read, MUST fail closed, and MUST emit deterministic diagnostics (§25.10).
+
+---
+
+### 25.5 Gate verification methods (binding)
+
+Consumers MUST verify gates using exactly the method declared for that gate:
+
+#### 25.5.1 Indexed bundle gate
+
+* Use `index.json` to enumerate the file set.
+* Hash the concatenation of raw bytes of indexed files in lexicographic `path` order (excluding `_passed.flag`).
+* Compare to `_passed.flag`.
+
+#### 25.5.2 Unindexed receipt gate
+
+* Enumerate all non-flag files in the receipt folder.
+* Hash the concatenation of raw bytes in lexicographic relative-path order.
+* Compare to `_passed.flag`.
+
+**Binding:** A consumer MUST NOT “approximate” verification (e.g., “the flag exists so it’s fine”).
+
+---
+
+### 25.6 What a consumer is allowed to assume after gate verification
+
+Once required gates verify, a consumer MAY assume:
+
+* The artefact instance satisfied the validations covered by those gates (per the segment’s declared gate meaning).
+* The artefact is immutable and therefore will not change after PASS (per §8).
+
+A consumer MUST NOT assume:
+
+* that a receipt gate implies the segment final gate (unless explicitly declared),
+* that a segment final gate authorizes reading internal intermediate artefacts (unless the Gate Map says so),
+* that PASS implies cross-version compatibility (version checks are separate).
+
+---
+
+### 25.7 Optional surfaces and degrade ladders (binding OR semantics)
+
+A consumer MAY follow an OR choice only if an explicit degrade ladder exists:
+
+* **Primary path:** read optional surface **only if** its required receipt gate verifies.
+* **Fallback path:** if optional surface missing or gate fails/missing, reconstruct from declared authoritative inputs **that themselves are gated**.
+
+**Binding:** Fallback MUST be deterministic and MUST NOT weaken “no PASS → no read.”
+
+---
+
+### 25.8 Read evidence requirements (what consumers must record)
+
+Every consumer MUST record a minimal **read evidence record** for each governed artefact it reads.
+
+Minimum required fields:
+
+* consumer identity (`consumer_id`, plus `segment_id/state_id` if applicable),
+* run anchors in scope (`manifest_fingerprint`, `parameter_hash`, optional `seed`, plus attempt lineage if relevant),
+* artefact identity (`artefact_id/kind`, canonical address, partition tuple),
+* verified gate(s):
+
+  * gate address(es),
+  * `_passed.flag` value(s),
+  * verification method used (indexed vs unindexed),
+* (recommended) artefact identity evidence:
+
+  * content hash / composite digest if available,
+  * or a reference to the validation bundle that attested it.
+
+**Binding:** This read evidence MUST be append-only and MUST be sufficient to reproduce “what inputs were read” during replay/forensics.
+
+---
+
+### 25.9 Partial reads, streaming, and “peeking”
+
+* A consumer MUST NOT stream-read an artefact “just to inspect it” before verifying gates, unless it is operating under an explicitly declared **diagnostic mode** that:
+
+  * never influences governed outputs,
+  * never emits PASS gates,
+  * and produces diagnostics only.
+
+If a consumer performs diagnostic peeks, it MUST label them as non-governed and MUST NOT treat them as eligible inputs to any governed computation.
+
+---
+
+### 25.10 Failure behavior and diagnostics (binding)
+
+On any read failure, the consumer MUST:
+
+* fail closed (abort the consuming operation),
+* emit deterministic diagnostics containing at minimum:
+
+  * consumer_id,
+  * artefact id + canonical address,
+  * intended scope keys,
+  * missing/failed gate(s) and verification step that failed,
+  * incompatibility details if versioning mismatch caused failure.
+
+A consumer MUST NOT “warn and continue” for any governed read.
+
+---
+
+### 25.11 Cross-segment / cross-layer reads (binding)
+
+When reading outputs from another segment/layer:
+
+* The consuming segment MUST treat the producing segment as an external producer.
+* The default required gate is the producing segment’s **final consumer gate** for the intended scope.
+* Reading a producing segment’s *intermediate* artefacts is forbidden unless:
+
+  * the producing segment explicitly declares them as consumer surfaces, **or**
+  * the Gate Map explicitly authorizes the read and specifies required receipts.
+
+---
+
+### 25.12 Conformance checklist for §25 (Binding)
+
+A consumer is non-compliant if any of the following occur:
+
+* It reads governed artefacts without verifying all required gates.
+* It proceeds after missing/invalid `_passed.flag` or failed verification.
+* It infers gate requirements without consulting Gate Map/Dictionary/Registry.
+* It treats receipts as substitutes for final consumer gates without explicit declaration.
+* It performs partial reads that influence governed outputs prior to gate verification.
+* It fails to record minimal read evidence for governed reads.
+
+---
+
+# Part V — How segments/states declare compliance (Binding)
+
+## 26) State Execution Contract (Binding)
+
+> **Binding intent:** Every state, in every segment, MUST execute through a common contract so that RDV is enforceable. A state may differ in *domain logic* and *State Class*, but it MUST NOT differ in how it is anchored, how it reads, how it writes, how it validates, and how it emits evidence.
+
+### 26.1 Contract overview (what a “state” MUST look like)
+
+A state execution MUST be representable as:
+
+`StateResult = ExecuteState(StateInputs, StateCapabilities)`
+
+Where:
+
+* **StateInputs** are fully pinned (anchors + policies + input refs + required gates),
+* **StateCapabilities** are constrained engine-provided services (writer, RNG, validator runner, canonical serializers),
+* **StateResult** includes governed outputs + required validation artefacts + gates + a State Manifest.
+
+A state MUST NOT rely on any capability outside **StateCapabilities** to produce governed outputs (e.g., no direct filesystem writes, no ambient RNG, no ad-hoc hashing).
+
+---
+
+### 26.2 Required inputs (StateInputs)
+
+Every state MUST receive, at minimum, the following inputs:
+
+#### 26.2.1 Run Anchor (RunContext)
+
+Must include all fields required by §6 (at minimum `manifest_fingerprint`, `parameter_hash`, seed material, `scenario_id`, `run_id`, plus `engine_build_id` and `rails_versions` where required).
+
+#### 26.2.2 State identity
+
+* `segment_id`
+* `state_id`
+* `state_class` (SC-A..SC-E)
+* `rng_posture` (RNG_NONE / RNG_NONCONSUMING / RNG_CONSUMING)
+
+#### 26.2.3 Resolved policy closure
+
+A state MUST receive (or be able to resolve via pinned references):
+
+* the **resolved policy bundle** for the segment scope (byte-pinned, name-sensitive), and
+* any policy schemas required to validate the policies (schema-first posture per §10).
+
+#### 26.2.4 Declared input artefact refs
+
+A state MUST have an explicit list of inputs it intends to read, each expressed as:
+
+* `artefact_id/kind`
+* canonical address (or resolvable template + scope keys)
+* declared equality contract / expected schema ref (as applicable)
+
+#### 26.2.5 Declared input gate requirements
+
+For each declared input artefact, the state MUST receive or be able to resolve (via the Gate Map):
+
+* the set of required PASS gates to verify before reading that input.
+
+**Binding:** If the state cannot resolve required gates for an input, it MUST fail closed.
+
+---
+
+### 26.3 Allowed capabilities (StateCapabilities)
+
+The runtime MUST provide (and the state MUST use) only the following capabilities for governed work:
+
+1. **Address resolver**
+
+   * resolves canonical addresses from dictionary/registry templates + scope keys.
+
+2. **Immutable writer**
+
+   * stages, writes, and atomically publishes governed outputs (§8),
+   * enforces no-overwrite / idempotence rules.
+
+3. **Canonical serialization utilities**
+
+   * canonical JSON emitter, bundle index emitter, hashing utilities (§9).
+
+4. **Hashing service**
+
+   * computes content hashes and composite digests deterministically (§7, §9).
+
+5. **RNG service** (only used if `rng_posture != RNG_NONE`)
+
+   * provides scoped streams and enforces envelope/trace duties (§12).
+
+6. **Validation runner**
+
+   * runs schema/invariant checks deterministically,
+   * writes validation evidence artefacts and (on PASS) the correct gate artefacts (§21–§24).
+
+7. **Read-gate verifier**
+
+   * verifies required gates for inputs (indexed-bundle vs receipt hashing) (§25).
+
+8. **Diagnostics logger**
+
+   * may emit non-gating operational logs; MUST NOT influence governed outputs (§15).
+
+**Binding:** Direct filesystem writes to governed locations, direct RNG instantiation, ad-hoc gate computation, and bypassing canonical emitters are forbidden.
+
+---
+
+### 26.4 Required outputs (StateResult)
+
+Every state MUST produce:
+
+#### 26.4.1 Governed outputs (0..N)
+
+Any datasets/logs/bundles the state is responsible for, written only to canonical locations, with deterministic identity evidence (hashes) recorded.
+
+#### 26.4.2 Validation evidence (required for governed outputs)
+
+For each governed output scope produced, the state MUST produce validation evidence appropriate to its State Class:
+
+* SC-A/SC-B/SC-C producers MUST produce at least schema/placement/key evidence for their outputs (either directly or via a declared receipt/finalizer path).
+* SC-D/SC-E validators MUST produce validation bundles/receipts in the required formats (§22).
+
+#### 26.4.3 PASS gates (only on PASS)
+
+If the state is responsible for emitting a gate (SC-D receipt or SC-E final bundle gate), it MUST:
+
+* publish `_passed.flag` **only** on PASS,
+* withhold `_passed.flag` on FAIL.
+
+#### 26.4.4 State Manifest (mandatory, governed)
+
+Every state MUST emit a **State Manifest** that records, at minimum:
+
+* identity: `{segment_id, state_id, state_class, rng_posture}`
+* run anchors: `{manifest_fingerprint, parameter_hash, seed material id/hash, scenario_id, run_id, engine_build_id, rails_versions}`
+* inputs consumed:
+
+  * artefact refs + hashes (or verified bundle gate digests)
+  * gates verified for each input (gate ref + `_passed.flag` value)
+* policies used:
+
+  * policy file basenames + digests (or a resolved bundle ref)
+* RNG usage (if applicable):
+
+  * stream keys/purpose tags summary
+  * event families emitted
+  * required accounting evidence pointers (audit/trace/event logs)
+* outputs produced:
+
+  * artefact refs + hashes
+  * validation evidence refs
+  * gates emitted (if any) and their digest values
+* decision flags:
+
+  * `computed` vs `reused` per output (reuse decisions must be recorded)
+
+**Binding:** The State Manifest itself is a governed artefact: it MUST be canonical-serialized and hashable.
+
+---
+
+### 26.5 Mandatory execution protocol (the state “lifecycle”)
+
+Every state MUST follow this protocol:
+
+1. **Preflight**
+
+   * verify Run Anchor presence + rails versions,
+   * verify numeric policy attestation if required before decision-critical work (§13),
+   * resolve canonical addresses for all declared inputs/outputs.
+
+2. **Input gate verification**
+
+   * consult Gate Map requirements,
+   * verify required gates for each input (§25),
+   * fail closed if any required gate is missing/invalid.
+
+3. **Reuse decision (optional)**
+
+   * if the state supports reuse, apply the Reuse Eligibility Predicate (§19.3),
+   * if reused: record `REUSED` in State Manifest and skip compute for that instance.
+
+4. **Compute**
+
+   * execute deterministic logic under numeric policy,
+   * if RNG is used: obtain streams via RNG service only; emit envelopes/events/traces per §12.
+
+5. **Stage writes**
+
+   * write outputs to staging locations using the immutable writer (§8),
+   * compute required content hashes and/or composite digests.
+
+6. **Validate**
+
+   * run deterministic validations required for the output scope (§21–§24),
+   * generate evidence artefacts.
+
+7. **Publish**
+
+   * atomically publish outputs and evidence (§8),
+   * publish PASS gates only on PASS (§22–§23).
+
+8. **Finalize State Manifest**
+
+   * write the State Manifest after outputs/evidence/gates are in their final state,
+   * publish it atomically.
+
+---
+
+### 26.6 Failure semantics (fail-closed, deterministic)
+
+On any failure (missing gate, schema violation, RNG reconciliation failure, IO integrity error, nondeterminism detection):
+
+* the state MUST fail closed,
+* MUST NOT publish PASS gates for the affected scope,
+* MAY publish diagnostics evidence (deterministically) provided it does not masquerade as PASS,
+* MUST emit deterministic error codes and include scope identity in diagnostics:
+
+  * `{segment_id, state_id, manifest_fingerprint, parameter_hash, seed (if applicable), run_id}`.
+
+If any governed outputs were staged but not published, staging MUST be cleaned or deterministically quarantined so that retries cannot observe partial outputs (§8.6).
+
+---
+
+### 26.7 Idempotence and retry behavior (binding)
+
+For identical reproduction keys and intended output scope:
+
+* if outputs already exist and are readable, the state MUST either:
+
+  * no-op and record reuse, or
+  * recompute into a new identity scope (only if the scope keys legitimately changed, e.g., new fingerprint).
+
+The state MUST NOT overwrite published governed instances.
+
+Retries MUST NOT “stitch” partial outputs unless an append-only/resume-safe declaration exists (§19.5).
+
+---
+
+### 26.8 Conformance checklist for §26 (Binding)
+
+A state is non-compliant if any of the following occur:
+
+* it reads inputs without verifying required gates,
+* it writes governed outputs without using the immutable writer / atomic publish,
+* it instantiates its own RNG or bypasses RNG governance,
+* it emits PASS gates on FAIL or without required evidence,
+* it fails to emit a complete State Manifest,
+* it allows wall-clock/FS order/env to influence governed outputs,
+* it overwrites governed instances or publishes partial instances.
+
+---
+
+## 27) Segment RDV Profile Contract (Binding)
+
+### 27.1 Purpose (what the profile is for)
+
+Every segment MUST publish a **Segment RDV Profile**: a binding declaration that makes RDV enforceable **without reading the state-expanded prose**.
+
+The Segment RDV Profile MUST be sufficient for an automated enforcer (or downstream consumer) to determine, for that segment:
+
+* what each state is (State Class + RNG posture),
+* what outputs exist and what scopes they live under,
+* what gates/receipts exist and what they authorize,
+* what must be verified before any read (“no PASS → no read”),
+* what order authorities exist (so no competing ordering is invented),
+* what optional surfaces exist and what the degrade ladders are.
+
+This matches how 1A already works in practice: intermediate receipts (e.g., S5 parameter-scoped receipt) are explicitly separate from the segment’s final consumer gate (S9 fingerprint-scoped bundle + `_passed.flag`).  
+
+---
+
+### 27.2 Location, format, and pinning (mandatory)
+
+**27.2.1 Location**
+
+* The Segment RDV Profile MUST live in the segment’s **binding contracts pack** (same authority tier as dictionary/registry/schemas), not in narratives.
+
+**27.2.2 Format**
+
+* The profile MUST be machine-readable as **YAML or JSON**.
+* A JSON-Schema SHOULD exist for it in the segment or layer schema set (so CI can validate it), and the profile MUST validate against that schema when present.
+
+**27.2.3 Pinning**
+
+* The profile MUST be treated as an **opened artefact** (it participates in `manifest_fingerprint` sealing), because changing gates/scopes/order-authority is a reproducibility-relevant change. (Your 1A sealing posture already enumerates sealed assets and derives fingerprints from opened artefacts.)  
+
+---
+
+### 27.3 Required header fields (minimum binding set)
+
+A Segment RDV Profile MUST include:
+
+* `segment_id` (e.g., `1A`)
+* `profile_semver` (MAJOR.MINOR.PATCH)
+* `effective_date` (YYYY-MM-DD)
+* `authorities`:
+
+  * `dataset_dictionary_id` (or file ref)
+  * `artefact_registry_id` (or file ref)
+  * `schema_set_id` (or file ref)
+* `token_conventions`:
+
+  * fingerprint path label in use (e.g., `fingerprint=` vs `manifest_fingerprint=`) and any declared aliases
+    *(because your 1A ecosystem currently contains both label styles across docs and consumers must not guess)*  
+* `consumer_gate` (declared explicitly; see §27.6)
+
+---
+
+### 27.4 State table (every state must be declared)
+
+The profile MUST declare a complete ordered list of states:
+
+For each `state` entry, the profile MUST include:
+
+* `state_id` (e.g., `S5`)
+* `state_class` ∈ {SC-A, SC-B, SC-C, SC-D, SC-E} (from §16)
+* `rng_posture` ∈ {RNG_NONE, RNG_NONCONSUMING, RNG_CONSUMING}
+* `inputs` (list of **dataset ids / artefact names** read)
+* `input_gates` (for each input, which gate(s) MUST be verified prior to read)
+* `outputs` (list of dataset ids / artefact names produced)
+* `output_scopes` (PARAMETER_SCOPED / LOG_SCOPED / FINGERPRINT_SCOPED / EGRESS_SCOPED)
+* `produces_gates` (list of gates this state emits, if any)
+* `order_authority`:
+
+  * either `none`, or the specific dataset(s) that are authoritative for ordering, plus the domain they order.
+
+**Binding:** Any dataset/log/bundle produced or consumed by the segment that is present in the Dictionary/Registry MUST appear in at least one state’s `outputs` or `inputs` list.
+
+*(Example of “order authority” in 1A: S3 candidate ranks are the single inter-country ordering authority and downstream states must not invent competing order; this is repeated in S5 and the dictionary entry for `s3_candidate_set`.)  
+
+---
+
+### 27.5 Gate declarations (receipts + final gates)
+
+The profile MUST contain a `gates:` section that declares every gate the segment emits and how it is verified.
+
+Each gate declaration MUST include:
+
+* `gate_id` (stable identifier)
+* `gate_type` ∈ {receipt, final_bundle_gate, other_flag_gate}
+* `scope_keys` (exact partition keys that scope the gate)
+* `path` (canonical location; dictionary/registry must agree)
+* `verification_method` ∈ {indexed_bundle, unindexed_receipt}
+* `file_set_rule`:
+
+  * for indexed bundles: “hash bytes of files listed in `index.json` (excluding `_passed.flag`) in ASCII-lexicographic order of `path`”
+  * for unindexed receipts: “hash bytes of all non-flag files in folder in ASCII-lexicographic relative-path order”
+* `authorizes_reads_of` (dataset ids / surfaces this gate permits reading)
+
+This matches your existing patterns:
+
+* **S5 receipt** is parameter-scoped, unindexed, and hashes `S5_VALIDATION.json` (excluding `_passed.flag`) in ASCII order. 
+* **S9 consumer gate** is fingerprint-scoped, indexed by `index.json`, and hashes files listed in `index.json` in lexicographic `path` order.  
+
+---
+
+### 27.6 Consumer surfaces and the segment consumer gate (mandatory)
+
+If a segment publishes **consumer-facing outputs** (egress surfaces), the profile MUST declare:
+
+* `consumer_surfaces:` list of dataset ids (e.g., `outlet_catalogue`)
+* `consumer_gate:` a single authoritative final gate that must be verified before any read of those surfaces
+
+**Binding:** The profile MUST treat receipts as **additive**, not substitutes for the consumer gate (unless explicitly declared as an exception). This is explicitly stated in S5 and S9: S5 PASS is not a substitute for the fingerprint-scoped egress gate.  
+
+Where the dataset dictionary/registry already states consumer obligations, the profile MUST match them (no contradictions). Example: the `outlet_catalogue` dictionary entry explicitly repeats the consumer duty to verify the segment’s `_passed.flag` prior to reading.  
+
+---
+
+### 27.7 Optional surfaces and degrade ladders (mandatory when optionality exists)
+
+If any dataset is optional (may be absent or may be bypassed), the profile MUST declare a degrade ladder:
+
+For each optional surface:
+
+* `surface_id`
+* `when_present_required_gate` (often a receipt gate)
+* `fallback_sources` (authoritative sources to reconstruct from)
+* `fallback_required_gates` (gates required to read fallback inputs)
+* `determinism_notes` (e.g., “reconstruct uses order authority X; file order irrelevant”)
+
+This matches your 1A posture: if `s6_membership` is used, the S6 receipt MUST be verified before reading it; otherwise the system can fall back to event-based reconstruction paths.  
+
+---
+
+### 27.8 Cross-segment reads (explicitly declared)
+
+If the segment reads artefacts produced by other segments/layers, the profile MUST declare:
+
+* `external_inputs:` list of `{producer_segment, dataset_id, required_gate}`
+
+This makes cross-layer integration mechanically safe: downstream segments don’t guess; they verify. (Your dictionaries already model “consumed_by” relationships; the RDV profile makes the **gate obligations** explicit.)  
+
+---
+
+### 27.9 Exceptions and compatibility window (rare, explicit)
+
+The profile MAY declare:
+
+* `exceptions:` list of explicitly approved deviations from this constitution (must reference §2.5 exception rules)
+* `compatibility_window:` (if you adopt windows; otherwise omit and remain strict)
+
+When version lines are pinned (schemas/dictionaries/registry), the profile MUST name them as compatibility assumptions. S9 explicitly documents the “v1.* line” assumptions for its dependent contract artefacts. 
+
+---
+
+### 27.10 Minimal illustrative shape (informative; not a template you must follow)
+
+```yaml
+segment_id: "1A"
+profile_semver: "1.0.0"
+effective_date: "2026-01-09"
+authorities:
+  dataset_dictionary: "dataset_dictionary.layer1.1A.yaml"
+  artefact_registry: "artefact_registry_1A.yaml"
+  schema_set: "schemas.1A.yaml + schemas.layer1.yaml"
+token_conventions:
+  fingerprint_path_label: "manifest_fingerprint"   # or "fingerprint"
+states:
+  - state_id: "S5"
+    state_class: "SC-D"
+    rng_posture: "RNG_NONE"
+    inputs: ["settlement_shares_2024Q4", "ccy_country_shares_2024Q4"]
+    input_gates: []
+    outputs: ["ccy_country_weights_cache"]
+    output_scopes: {ccy_country_weights_cache: "PARAMETER_SCOPED"}
+    produces_gates: ["s5_receipt_gate"]
+gates:
+  - gate_id: "s5_receipt_gate"
+    gate_type: "receipt"
+    scope_keys: ["parameter_hash"]
+    verification_method: "unindexed_receipt"
+    authorizes_reads_of: ["ccy_country_weights_cache"]
+consumer_surfaces: ["outlet_catalogue"]
+consumer_gate: "validation_passed_flag_1A"
+```
+
+---
+
+### 27.11 Conformance checklist for §27 (Binding)
+
+A segment is non-compliant if any of the following are true:
+
+* It has no Segment RDV Profile (or it is not machine-readable / not schema-valid when a schema exists).
+* Any state is missing from the profile, or a state’s declared `state_class` / `rng_posture` contradicts actual behavior.
+* Any produced/consumed governed dataset in the Dictionary/Registry is absent from the profile’s state IO declarations.
+* Any read dependency lacks an explicit gate requirement (or relies on “implicit trust”).
+* Optional surfaces exist without an explicit degrade ladder and required receipts.
+* Receipts are treated as substitutes for the segment consumer gate without an explicit exception.
+* The profile contradicts the Dictionary/Registry’s canonical paths, partitions, or consumer obligations.
+
+---
+
+## 28) Cross-layer integration posture (Informative → Binding if you want it strict)
+
+### 28.1 Cross-layer integration is “by surfaced artefacts + gates”, not by internal logic
+
+Across layers/segments, integration is achieved by treating each segment as a **producer** that publishes:
+
+* **Declared consumer surfaces** (datasets/logs/bundles that downstream is allowed to read), and
+* **Declared readiness evidence** (PASS gates / validation bundles) that authorize reads.
+
+Downstream segments/layers must *never* depend on upstream internal procedures, intermediate scratch artefacts, or “how the upstream code does it”. They depend only on:
+
+* the **output catalogue** (what exists + where), and
+* the **gate map** (what must be verified before reading).
+
+This is what makes layers composable: L2/L3 can safely consume L1 outputs without importing L1 mechanics.
+
+---
+
+### 28.2 Output catalogue: what upstream promises downstream can read
+
+Each segment SHOULD publish (and the engine interface pack SHOULD consolidate) an **Output Catalogue** that enumerates:
+
+* **Consumer dataset IDs** (egress surfaces)
+* **Canonical paths + partition keys**
+* **Schema refs**
+* **Equality contract** (byte / bundle-gate / rowset)
+* **Declared ordering (writer sort)** if meaningful
+* **Required gate(s)** for readability
+
+**Informative example (shape, not a mandate):**
+
+* Segment `1A` exposes an egress dataset like `outlet_catalogue` (seed + fingerprint scope).
+* The catalogue indicates its required gate is the segment’s final validation PASS flag (produced by S9) for that same fingerprint scope.
+
+The catalogue is the *single place* downstream looks to answer: “What can I read and where is it?”
+
+---
+
+### 28.3 Gate map: readiness as a first-class interface
+
+Alongside the catalogue, there SHOULD be an engine-wide **Gate Map** (or per-segment gate map entries) that states:
+
+* **Consumer** (downstream state/segment/component)
+* **Artefact being read**
+* **Required gates** (final gate + any receipts if the artefact is optional/convenience)
+* **Verification method** (indexed bundle vs receipt hashing)
+* **Failure behavior** (always fail-closed)
+
+This turns “no PASS → no read” into an enforceable *interface rule* rather than a narrative convention.
+
+---
+
+### 28.4 Cross-layer “contract handshake”
+
+Cross-layer reads follow a simple handshake:
+
+1. **Discover** the artefact via the output catalogue (ID → path template → partition keys).
+2. **Verify readiness** via the gate map (which gate(s) must PASS).
+3. **Verify identity** (scope keys + path↔embed equality where applicable + gate hash verification).
+4. **Record evidence** (what was read and what gates/hashes were verified).
+5. **Consume**.
+
+This handshake is identical whether the consumer is:
+
+* a downstream **engine segment**,
+* an external component like **Scenario Runner**, **Ingestion Gate**, **Feature Plane**, etc.
+
+---
+
+### 28.5 Segment boundaries are “read-only by default”
+
+To keep the engine modular:
+
+* Downstream segments SHOULD treat upstream segments as **read-only producers**:
+
+  * downstream does not “repair” upstream artefacts,
+  * downstream does not emit upstream gates,
+  * downstream does not reinterpret upstream internal logs as authoritative inputs unless explicitly catalogued as consumer surfaces.
+
+If a downstream segment needs something, the upstream segment should expose it explicitly as a consumer surface (with gates), or the downstream should reconstruct deterministically from upstream consumer surfaces (also gated).
+
+---
+
+### 28.6 Optional convenience surfaces across layers
+
+Some segments may publish optional surfaces (caches, membership tables, precomputed joins) to speed downstream.
+
+Cross-layer rule-of-thumb:
+
+* Optional surfaces are **never trusted by presence alone**.
+* If used, they require a **receipt gate** (and the receipt must be declared in the gate map).
+* If absent or un-gated, downstream must have a deterministic fallback path that uses authoritative gated inputs.
+
+This prevents “silent performance optimizations” from turning into correctness dependencies.
+
+---
+
+### 28.7 Reuse/caching at cross-layer boundaries
+
+Cross-layer reuse is safe only when:
+
+* The consumer scope keys match (fingerprint/parameter/seed as declared),
+* The required PASS gates verify for that scope,
+* The contracts/rails versions are compatible (or explicitly proven compatible),
+* And the equality contract holds.
+
+In practice: downstream should prefer **whole-segment reuse** (“final gate already PASS, so skip recompute”) rather than reusing random intermediate artefacts.
+
+---
+
+### 28.8 Anti-patterns to avoid (informative)
+
+* **Bypassing gates because “the orchestrator ran validation”**
+  → breaks replay safety and makes consumer behavior non-auditable.
+* **Reading intermediate artefacts across segments**
+  → creates hidden coupling and breaks modularity when upstream refactors.
+* **Treating logs as model inputs without explicit surfacing**
+  → logs are typically attempt-scoped; importing them as inputs makes outputs attempt-dependent.
+* **Letting path conventions drift per segment**
+  → breaks discoverability and makes cross-layer tooling brittle (solve via profile-declared token conventions + catalogue + gate map).
+
+---
+
+### 28.9 Minimal cross-layer integration checklist (informative)
+
+For every segment that will be consumed by another layer/component:
+
+* [ ] Consumer surfaces listed in the output catalogue
+* [ ] Canonical addressing + partition keys declared
+* [ ] Required gate(s) declared and verifiable
+* [ ] Gate map entry exists for each consumer read
+* [ ] Consumer read protocol implemented (verify → record → read)
+* [ ] Optional surfaces have receipts + fallback path
+* [ ] Conformance tests include “consumer fails closed when gate missing”
+
+---
+
+# Part VI — Conformance and Definition of Done (Binding)
