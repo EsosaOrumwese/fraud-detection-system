@@ -35,6 +35,21 @@
 
 ---
 
+### Cross-Layer Inputs (Segment 2A)
+
+**Upstream segments required:** 1B (validation bundle + PASS flag; `site_locations` egress).
+
+**External references/configs (sealed by S0 and listed in `sealed_inputs_2A`):**
+* `tz_world_2025a` (tz-world polygons)
+* `tzdb_release` (IANA tzdb archive + release tag)
+* `tz_overrides` (override policy)
+* `tz_nudge` (border-nudge policy)
+* `iso3166_canonical_2024` (ISO country list; optional)
+* `world_countries` (country polygons; optional)
+* `merchant_mcc_map` (merchant→MCC mapping; optional, MCC overrides only)
+
+**Gate expectations:** 1B PASS gate (`validation_bundle_1B` + `_passed.flag`) MUST verify before any 1B egress read; all sealed inputs are enumerated in `sealed_inputs_2A` and referenced by `s0_gate_receipt_2A`.
+
 ### Contract Card (S0) - inputs/outputs/authorities
 
 **Inputs (authoritative; see Section 3.2 for the sealed list):**

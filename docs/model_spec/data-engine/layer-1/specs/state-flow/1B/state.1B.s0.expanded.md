@@ -71,9 +71,21 @@ On ratification, **record**: `semver`, `effective_date`, `ratified_by`, git comm
 
 ---
 
-> **Binding summary:** S0’s change control mirrors 1A’s S5–S9 practice; it locks gate semantics, authority order, and lineage law up front so later 1B states can proceed deterministically against a verified, reproducible base. 
+> **Binding summary:** S0's change control mirrors 1A's S5-S9 practice; it locks gate semantics, authority order, and lineage law up front so later 1B states can proceed deterministically against a verified, reproducible base. 
 
 ---
+
+### Cross-Layer Inputs (Segment 1B)
+
+**Upstream segments required:** 1A (validation bundle + PASS flag; `outlet_catalogue`; `s3_candidate_set` order authority).
+
+**External references (sealed by S0 and listed in `sealed_inputs_1B`):**
+* `iso3166_canonical_2024` (ISO country list)
+* `world_countries` (country polygons)
+* `population_raster_2025` (population raster)
+* `tz_world_2025a` (tz-world polygons)
+
+**Gate expectations:** 1A PASS gate (`validation_bundle_1A` + `_passed.flag`) MUST verify before any 1A egress read; all sealed inputs are enumerated in `sealed_inputs_1B` and referenced by `s0_gate_receipt_1B`.
 
 ### Contract Card (S0) - inputs/outputs/authorities
 
