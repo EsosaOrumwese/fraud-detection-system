@@ -112,6 +112,42 @@ If S5 is implemented according to this specification, then for each world:
 
 ---
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
+* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
+* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
+* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
+* `s3_campaign_catalogue_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
+* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
+* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
+* `s4_flow_truth_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
+* `s4_flow_bank_view_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
+* `s4_event_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
+* `s4_case_timeline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
+* `segment_validation_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Authority / ordering:**
+* S5 is the sole authority for the 6B validation bundle index and PASS flag.
+
+**Outputs:**
+* `s5_validation_report_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint]
+* `s5_issue_table_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint]
+* `validation_bundle_6B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_6B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_6B` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* All bundled artefacts must match the S0-sealed inventory for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or failed validation checks -> abort; no outputs published.
+
 ## 2. Preconditions & upstream gates *(Binding)*
 
 This section defines **what must already be true** before 6B.S5 is allowed to run, and which upstream gates it **MUST** honour.

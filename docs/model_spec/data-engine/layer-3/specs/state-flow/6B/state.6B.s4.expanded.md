@@ -126,6 +126,38 @@ If S4 is implemented as specified here, then for each world/run/scenario:
 
 ---
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
+* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
+* `truth_labelling_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `bank_view_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `delay_models_6B` - scope: UNPARTITIONED (sealed model); sealed_inputs: required
+* `case_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `label_rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S4 is the sole authority for truth labels and bank-view outcomes.
+
+**Outputs:**
+* `s4_flow_truth_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s4_flow_bank_view_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s4_event_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s4_case_timeline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `rng_event_truth_label` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_bank_view_label` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & upstream gates *(Binding)*
 
 This section defines **what must already be true** before 6B.S4 is allowed to run, and which upstream gates it **MUST** honour.

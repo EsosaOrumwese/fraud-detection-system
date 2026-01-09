@@ -127,6 +127,40 @@ If S3 is implemented according to this specification:
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
+* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
+* `s5_party_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5
+* `s5_account_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5
+* `s5_merchant_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5 (optional)
+* `s5_device_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5
+* `s5_ip_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5
+* `fraud_campaign_catalogue_config_6B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `fraud_overlay_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `fraud_rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 is the sole authority for fraud/abuse campaign overlays.
+
+**Outputs:**
+* `s3_campaign_catalogue_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `rng_event_fraud_campaign_pick` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_fraud_overlay_apply` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & upstream gates *(Binding)*
 
 This section defines **what must already be true** before 6B.S3 is allowed to run, and which upstream gates it **MUST** honour.

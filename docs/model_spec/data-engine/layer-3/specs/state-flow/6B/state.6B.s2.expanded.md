@@ -124,6 +124,37 @@ If S2 is implemented according to this specification:
 
 ---
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
+* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
+* `behaviour_config_6B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `behaviour_prior_pack_6B` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `flow_shape_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `amount_model_6B` - scope: UNPARTITIONED (sealed model); sealed_inputs: required
+* `timing_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `flow_rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S2 is the sole authority for baseline flow anchors and event streams.
+
+**Outputs:**
+* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `rng_event_flow_anchor_baseline` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_event_stream_baseline` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & upstream gates *(Binding)*
 
 This section defines **what must already be true** before 6B.S2 is allowed to run, and which upstream gates it **MUST** honour.

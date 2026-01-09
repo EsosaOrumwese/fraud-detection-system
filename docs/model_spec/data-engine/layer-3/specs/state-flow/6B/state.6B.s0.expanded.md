@@ -51,6 +51,95 @@ If 6B.S0 is implemented as specified, then for each `manifest_fingerprint`:
 
 ---
 
+### Cross-Layer Inputs (Segment 6B)
+
+**Upstream segments required:** 1A-3B + 5A-5B + 6A validation bundles + `_passed.flag` (1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A) for the target `manifest_fingerprint`.
+
+**Upstream data surfaces (sealed by S0 and listed in `sealed_inputs_6B`):**
+* Layer-2 arrivals: `arrival_events_5B` (and `sealed_inputs_5B`)
+* Layer-3 entities/graph/posture: `s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`, `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`
+* Layer-3 fraud posture: `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_merchant_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A`
+* Upstream sealed inventories: `sealed_inputs_5A`, `sealed_inputs_5B`, `sealed_inputs_6A`
+
+**6B policy/config packs (sealed by S0):**
+* Attachment/sessionisation: `attachment_policy_6B`, `sessionisation_policy_6B`, `behaviour_config_6B`, `behaviour_prior_pack_6B`
+* Flow synthesis: `flow_shape_policy_6B`, `amount_model_6B`, `timing_policy_6B`, `flow_rng_policy_6B`
+* Fraud overlays: `fraud_campaign_catalogue_config_6B`, `fraud_overlay_policy_6B`, `fraud_rng_policy_6B`
+* Labels/cases: `truth_labelling_policy_6B`, `bank_view_policy_6B`, `delay_models_6B`, `case_policy_6B`, `label_rng_policy_6B`
+* Validation and RNG environment: `segment_validation_policy_6B`, `rng_profile_layer3`, `rng_policy_6B`
+
+**Gate expectations:** upstream PASS evidence (validation_bundle_* + `_passed.flag`) for 1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A MUST verify before any 6B read.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_5A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_5A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_5B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_5B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_6A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_6A` - scope: FINGERPRINT_SCOPED; gate: required
+* `sealed_inputs_5A` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `sealed_inputs_5B` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `arrival_events_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; sealed_inputs: required
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s2_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s3_instrument_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s3_account_instrument_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s4_device_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s4_ip_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s4_device_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s5_party_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s5_account_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s5_merchant_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s5_device_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `s5_ip_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; sealed_inputs: required
+* `attachment_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `sessionisation_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `behaviour_config_6B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `behaviour_prior_pack_6B` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `rng_profile_layer3` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `flow_shape_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `amount_model_6B` - scope: UNPARTITIONED (sealed model); sealed_inputs: required
+* `timing_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `flow_rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `fraud_campaign_catalogue_config_6B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `fraud_overlay_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `fraud_rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `truth_labelling_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `bank_view_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `delay_models_6B` - scope: UNPARTITIONED (sealed model); sealed_inputs: required
+* `case_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `label_rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `segment_validation_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
+
 ## 2. Preconditions & upstream gates *(Binding)*
 
 This section defines **what must already be true** before 6B.S0 is allowed to run, and which upstream HashGates it is required to honour.

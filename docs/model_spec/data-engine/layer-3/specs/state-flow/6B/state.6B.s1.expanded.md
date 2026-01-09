@@ -102,6 +102,41 @@ As a result, if S1 is implemented according to this specification:
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
+* `arrival_events_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S4
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S1
+* `s2_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2
+* `s3_instrument_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S3
+* `s3_account_instrument_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S3
+* `s4_device_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `s4_ip_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `s4_device_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `attachment_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `sessionisation_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `behaviour_config_6B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `behaviour_prior_pack_6B` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `rng_profile_layer3` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `rng_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S1 is the sole authority for arrival-to-entity attachment and sessionisation.
+
+**Outputs:**
+* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & upstream gates *(Binding)*
 
 This section defines **what must already be true** before 6B.S1 is allowed to run, and what upstream gates it **MUST** honour. If any precondition in this section is not satisfied for the target `manifest_fingerprint`, then S1 **MUST NOT** execute its attachment or sessionisation logic and **MUST** fail fast with a precondition error.
