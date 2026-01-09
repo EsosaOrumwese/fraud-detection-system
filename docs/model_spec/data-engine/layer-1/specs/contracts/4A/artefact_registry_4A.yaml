@@ -44,7 +44,7 @@ subsegments:
     notes:
 
   - name: validate_container_hash
-    path: config/ci/validate_container_hash.yml
+    path: config/layer1/4A/ci/validate_container_hash.yml
     type: ci_test
     category: reproducibility
     semver: '{semver}'
@@ -90,7 +90,7 @@ subsegments:
 
       # 2 REGISTRY SCHEMA & LIVE INSTANCE
   - name: artefact_registry_schema
-    path: config/registry/artefact_registry.schema.json
+    path: config/layer1/4A/registry/artefact_registry.schema.json
     type: schema
     category: registry
     semver: '{semver}'
@@ -109,7 +109,7 @@ subsegments:
     notes:
 
   - name: artefact_registry
-    path: config/registry/artefact_registry.yaml
+    path: config/layer1/4A/registry/artefact_registry.yaml
     type: config
     category: registry
     semver: '{semver}'
@@ -230,7 +230,7 @@ subsegments:
 
       # 5 RNG LOGGING & REPLAY INFRA
   - name: rng_logging_policy
-    path: config/rng/rng_logging.yml
+    path: config/shared/rng/rng_logging.yml
     type: config
     category: rng_policy
     semver: '{semver}'
@@ -287,7 +287,7 @@ subsegments:
     notes:
 
   - name: zoneinfo_version_yml
-    path: config/runtime/zoneinfo_version.yml
+    path: config/layer1/4A/runtime/zoneinfo_version.yml
     type: config
     category: runtime_environment
     semver: '{semver}'
@@ -307,7 +307,7 @@ subsegments:
 
       # 6 INFRA-HARDENING & SECURITY POLICIES
   - name: firewall_rules
-    path: config/infra/firewall.yml
+    path: config/layer1/4A/infra/firewall.yml
     type: config
     category: infra_security
     semver: '{semver}'
@@ -387,7 +387,7 @@ subsegments:
 
       # 8 DATA-SCIENCE HARNESS & MODEL COEFFICIENTS
   - name: hurdle_coefficients_yaml
-    path: config/models/hurdle_coefficients.yaml
+    path: config/layer1/4A/models/hurdle_coefficients.yaml
     type: config
     category: model_params
     semver: '{semver}'
@@ -406,7 +406,7 @@ subsegments:
     notes:
 
   - name: footfall_coefficients_yaml
-    path: config/spatial/footfall_coefficients.yaml
+    path: config/layer1/4A/spatial/footfall_coefficients.yaml
     type: config
     category: model_params
     semver: '{semver}'
@@ -568,7 +568,7 @@ subsegments:
     notes:
 
   - name: block_merge_yaml
-    path: config/ci/block_merge.yaml
+    path: config/layer1/4A/ci/block_merge.yaml
     type: config
     category: release
     semver: '{semver}'

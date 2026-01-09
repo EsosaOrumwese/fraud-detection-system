@@ -789,7 +789,7 @@ For traceability, S3 **MUST** echo an `id_map` array of the exact Dictionary-res
 id_map: [
   { id: "s1_site_weights",    path: "<…/s1_site_weights/seed=…/fingerprint=…/>" },
   { id: "site_timezones",     path: "<…/site_timezones/seed=…/fingerprint=…/>" },
-  { id: "day_effect_policy_v1", path: "<…/contracts/policy/2B/day_effect_policy_v1.json>" },
+  { id: "day_effect_policy_v1", path: "<…/config/layer1/2B/policy/day_effect_policy_v1.json>" },
   { id: "s3_day_effects",     path: "<…/s3_day_effects/seed=…/fingerprint=…/>" }
 ]
 ```
@@ -1028,7 +1028,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
     * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
     * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (parquet)
-    * `day_effect_policy_v1` → `contracts/policy/2B/day_effect_policy_v1.json` *(single file; **no partition tokens**; S0-sealed path/digest)*
+    * `day_effect_policy_v1` → `config/layer1/2B/policy/day_effect_policy_v1.json` *(single file; **no partition tokens**; S0-sealed path/digest)*
 
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
 
@@ -1052,7 +1052,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
   * **Shape:** `schemas.2A.yaml#/egress/site_timezones`
 * **Day-effect policy:**
 
-  * `day_effect_policy_v1` → `contracts/policy/2B/day_effect_policy_v1.json`
+  * `day_effect_policy_v1` → `config/layer1/2B/policy/day_effect_policy_v1.json`
   * **Shape:** `schemas.2B.yaml#/policy/day_effect_policy_v1`
   * **Selection:** token-less; use the **exact S0-sealed path/digest** for this fingerprint.
 

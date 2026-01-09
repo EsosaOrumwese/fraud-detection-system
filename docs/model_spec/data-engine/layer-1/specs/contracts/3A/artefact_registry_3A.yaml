@@ -7,7 +7,7 @@ subsegments:
       # GOVERNED POLICIES & PRIORS
       # ---------------------------
   - name: zone_mixture_policy
-    path: config/policy/3A/zone_mixture_policy.yaml
+    path: config/layer1/3A/policy/zone_mixture_policy.yaml
     type: policy
     category: escalation
     semver: '1.0.0'
@@ -26,7 +26,7 @@ subsegments:
     notes:
 
   - name: country_zone_alphas
-    path: config/allocation/country_zone_alphas.yaml
+    path: config/layer1/3A/allocation/country_zone_alphas.yaml
     type: policy
     category: priors
     semver: '1.0.0'
@@ -45,7 +45,7 @@ subsegments:
     notes:
 
   - name: zone_floor_policy
-    path: config/allocation/zone_floor_policy.yaml
+    path: config/layer1/3A/allocation/zone_floor_policy.yaml
     type: policy
     category: priors
     semver: '1.0.0'
@@ -342,7 +342,7 @@ subsegments:
     notes: null
 
   - name: day_effect_policy_v1
-    path: contracts/policy/2B/day_effect_policy_v1.json
+    path: config/layer1/2B/policy/day_effect_policy_v1.json
     type: policy
     category: config
     semver: '{semver}'

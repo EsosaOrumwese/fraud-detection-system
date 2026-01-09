@@ -145,7 +145,7 @@ subsegments:
 
   # ── Policy/config sealed by S0 ──────────────────────────────────────────
   - name: tz_overrides
-    path: config/timezone/tz_overrides.yaml
+    path: config/layer1/2A/timezone/tz_overrides.yaml
     type: config
     category: policy
     semver: '{semver}'
@@ -164,7 +164,7 @@ subsegments:
     notes: null
 
   - name: tz_nudge
-    path: config/timezone/tz_nudge.yml
+    path: config/layer1/2A/timezone/tz_nudge.yml
     type: config
     category: policy
     semver: '{semver}'

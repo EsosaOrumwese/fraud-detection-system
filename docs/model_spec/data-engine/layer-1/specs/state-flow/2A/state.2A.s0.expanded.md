@@ -105,11 +105,11 @@ S0 **seals** the following assets into the 2A manifest. Each item MUST be **immu
 
 5. **Override registry (policy).**
 
-   * `config/timezone/tz_overrides.yaml` — governed list of overrides with `semver`, `sha256_digest`, and per-entry fields (`scope`, `tzid`, `evidence_url`, `expiry_yyyy_mm_dd`). Empty file is allowed; if present, it is sealed and later applied by 2A (precedence is defined downstream). 
+   * `config/layer1/2A/timezone/tz_overrides.yaml` — governed list of overrides with `semver`, `sha256_digest`, and per-entry fields (`scope`, `tzid`, `evidence_url`, `expiry_yyyy_mm_dd`). Empty file is allowed; if present, it is sealed and later applied by 2A (precedence is defined downstream). 
 
 6. **Border-nudge constant (policy).**
 
-   * `config/timezone/tz_nudge.yml` — carries ε and its digest; sealed for reproducibility (used later for deterministic tie-breaks at polygon borders). 
+   * `config/layer1/2A/timezone/tz_nudge.yml` — carries ε and its digest; sealed for reproducibility (used later for deterministic tie-breaks at polygon borders). 
 
 7. **Auxiliary reference tables actually used by 2A (if referenced).**
 

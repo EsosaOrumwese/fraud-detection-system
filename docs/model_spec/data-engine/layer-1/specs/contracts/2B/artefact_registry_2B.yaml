@@ -161,7 +161,7 @@ subsegments:
 
       # === 2B policy packs captured by S0 ===
       - name: route_rng_policy_v1
-        path: contracts/policy/2B/route_rng_policy_v1.json
+        path: config/layer1/2B/policy/route_rng_policy_v1.json
         type: policy
         category: config
         semver: '{semver}'
@@ -180,7 +180,7 @@ subsegments:
         notes: null
 
       - name: alias_layout_policy_v1
-        path: contracts/policy/2B/alias_layout_policy_v1.json
+        path: config/layer1/2B/policy/alias_layout_policy_v1.json
         type: policy
         category: config
         semver: '{semver}'
@@ -199,7 +199,7 @@ subsegments:
         notes: null
 
       - name: day_effect_policy_v1
-        path: contracts/policy/2B/day_effect_policy_v1.json
+        path: config/layer1/2B/policy/day_effect_policy_v1.json
         type: policy
         category: config
         semver: '{semver}'
@@ -219,7 +219,7 @@ subsegments:
 
       # === 2B policies (token-less; S0-sealed) ===
       - name: virtual_edge_policy_v1
-        path: contracts/policy/2B/virtual_edge_policy_v1.json
+        path: config/layer1/2B/policy/virtual_edge_policy_v1.json
         type: policy
         category: config
         semver: '{semver}'

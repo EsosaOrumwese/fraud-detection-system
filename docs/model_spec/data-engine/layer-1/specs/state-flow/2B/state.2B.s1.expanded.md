@@ -736,7 +736,7 @@ For traceability, S1 **MUST** echo an `id_map` array of the exact Dictionary-res
 ```
 id_map: [
   { id: "site_locations",        path: "<…/site_locations/seed=…/fingerprint=…/>" },
-  { id: "alias_layout_policy_v1", path: "<…/contracts/policy/2B/alias_layout_policy_v1.json>" },
+  { id: "alias_layout_policy_v1", path: "<…/config/layer1/2B/policy/alias_layout_policy_v1.json>" },
   { id: "s1_site_weights",        path: "<…/s1_site_weights/seed=…/fingerprint=…/>" }
 ]
 ```
@@ -975,7 +975,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
   * **Shape:** `schemas.1B.yaml#/egress/site_locations`
 * **2B policy:**
 
-  * `alias_layout_policy_v1` → `contracts/policy/2B/alias_layout_policy_v1.json`
+  * `alias_layout_policy_v1` → `config/layer1/2B/policy/alias_layout_policy_v1.json`
   * **Shape:** `schemas.2B.yaml#/policy/alias_layout_policy_v1`
 * **Optional pins (Layer-2 · 2A) — all-or-none:**
 

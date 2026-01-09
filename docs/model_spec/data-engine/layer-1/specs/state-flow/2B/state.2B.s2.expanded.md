@@ -826,7 +826,7 @@ For traceability, S2 **MUST** echo an `id_map` array of the exact Dictionary-res
 ```
 id_map: [
   { id: "s1_site_weights",      path: "<…/s1_site_weights/seed=…/fingerprint=…/>" },
-  { id: "alias_layout_policy_v1", path: "<…/contracts/policy/2B/alias_layout_policy_v1.json>" },
+  { id: "alias_layout_policy_v1", path: "<…/config/layer1/2B/policy/alias_layout_policy_v1.json>" },
   { id: "s2_alias_index",         path: "<…/s2_alias_index/seed=…/fingerprint=…/index.json>" },
   { id: "s2_alias_blob",          path: "<…/s2_alias_blob/seed=…/fingerprint=…/alias.bin>" }
 ]
@@ -1071,7 +1071,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
   * **S2 inputs (Dictionary IDs):**
 
     * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format: parquet)
-    * `alias_layout_policy_v1` → `contracts/policy/2B/alias_layout_policy_v1.json` (single file; no partition tokens)
+    * `alias_layout_policy_v1` → `config/layer1/2B/policy/alias_layout_policy_v1.json` (single file; no partition tokens)
 
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
 
@@ -1091,7 +1091,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
   * **Shape:** `schemas.2B.yaml#/plan/s1_site_weights`
 * **Policy (layout & decode law):**
 
-  * `alias_layout_policy_v1` → `contracts/policy/2B/alias_layout_policy_v1.json`
+  * `alias_layout_policy_v1` → `config/layer1/2B/policy/alias_layout_policy_v1.json`
   * **Shape:** `schemas.2B.yaml#/policy/alias_layout_policy_v1`
   * **Selection:** single file, **no partition tokens**; use the **exact S0-sealed path/digest** for this fingerprint.
 

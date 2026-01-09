@@ -531,7 +531,7 @@ policies:
   description: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class. Not consumed by 1B v1 uniform lane.
   version: '{policy_version}'
   format: yaml
-  path: config/policy/1B.jitter.yaml
+  path: config/layer1/1B/policy/1B.jitter.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.1B.yaml#/policy/jitter_policy

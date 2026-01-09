@@ -294,7 +294,7 @@ subsegments:
 
       # 2 VIRTUAL MERCHANT CLASSIFICATION RULES
       - name: mcc_channel_rules
-        path: config/virtual/mcc_channel_rules.yaml
+        path: config/layer1/3B/virtual/mcc_channel_rules.yaml
         type: config
         category: virtual_classification
         semver: "{semver}"
@@ -333,7 +333,7 @@ subsegments:
         notes: null
 
       - name: cdn_country_weights
-        path: config/virtual/cdn_country_weights.yaml
+        path: config/layer1/3B/virtual/cdn_country_weights.yaml
         type: config
         category: virtual_routing
         semver: "{semver}"
@@ -430,7 +430,7 @@ subsegments:
 
       # 6 GOVERNING VALIDATION & LOGGING POLICIES
       - name: virtual_validation_policy
-        path: config/virtual/virtual_validation.yml
+        path: config/layer1/3B/virtual/virtual_validation.yml
         type: config
         category: validation
         semver: "{semver}"
@@ -449,7 +449,7 @@ subsegments:
         notes: null
 
       - name: virtual_logging_policy
-        path: config/logging/virtual_logging.yml
+        path: config/layer1/3B/logging/virtual_logging.yml
         type: config
         category: logging
         semver: "{semver}"
@@ -877,7 +877,7 @@ subsegments:
         notes: null
 
       - name: day_effect_policy_v1
-        path: contracts/policy/2B/day_effect_policy_v1.json
+        path: config/layer1/2B/policy/day_effect_policy_v1.json
         type: policy
         category: policy
         semver: "{semver}"
@@ -895,7 +895,7 @@ subsegments:
         cross_layer: true
         notes: null
       - name: alias_layout_policy_v1
-        path: contracts/policy/2B/alias_layout_policy_v1.json
+        path: config/layer1/2B/policy/alias_layout_policy_v1.json
         type: policy
         category: policy
         semver: "{semver}"
@@ -1016,7 +1016,7 @@ subsegments:
 
       # 10 PROCESS & RECOVERY LOGS
       - name: route_rng_policy_v1
-        path: contracts/policy/2B/route_rng_policy_v1.json
+        path: config/layer1/2B/policy/route_rng_policy_v1.json
         type: policy
         category: policy
         semver: "{semver}"
@@ -1035,7 +1035,7 @@ subsegments:
         notes: null
 
       - name: cdn_key_digest
-        path: config/virtual/cdn_key_digest.yaml
+        path: config/layer1/3B/virtual/cdn_key_digest.yaml
         type: config
         category: policy
         semver: "{semver}"

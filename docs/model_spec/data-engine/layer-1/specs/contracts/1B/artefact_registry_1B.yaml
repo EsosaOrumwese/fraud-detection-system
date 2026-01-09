@@ -217,7 +217,7 @@ subsegments:
     notes:
 
   - name: jitter_policy
-    path: config/policy/1B.jitter.yaml
+    path: config/layer1/1B/policy/1B.jitter.yaml
     type: policy
     category: policy
     semver: '{semver}'

@@ -154,7 +154,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 4. **`tz_nudge` policy (required)**
 
    * **Shape:** `schemas.2A.yaml#/policy/tz_nudge_v1`.
-   * **Catalogue:** `config/timezone/tz_nudge.yml`. 
+   * **Catalogue:** `config/layer1/2A/timezone/tz_nudge.yml`. 
    * **Registry:** policy/config entry with digest & semver. 
    * **Boundary:** S1 SHALL read only the ε parameter (strictly > 0) and units; S1 applies at most one deterministic nudge per ambiguous site and MUST record the nudged coordinates when used.
 
@@ -217,7 +217,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 
 * **`site_locations` (1B egress):** `schemas.1B.yaml#/egress/site_locations`; Dictionary path `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`; **final in layer: true**.
 * **`tz_world_2025a` (ingress polygons):** `schemas.ingress.layer1.yaml#/tz_world_2025a` (GeoParquet, WGS84). Dictionary lists the canonical path under `reference/spatial/tz_world/2025a/tz_world.parquet`. 
-* **`tz_nudge` (policy config):** `schemas.2A.yaml#/policy/tz_nudge_v1` (ε > 0, units documented); catalogued at `config/timezone/tz_nudge.yml`.
+* **`tz_nudge` (policy config):** `schemas.2A.yaml#/policy/tz_nudge_v1` (ε > 0, units documented); catalogued at `config/layer1/2A/timezone/tz_nudge.yml`.
 
 ### 6.3 Identity & partition posture (binding)
 

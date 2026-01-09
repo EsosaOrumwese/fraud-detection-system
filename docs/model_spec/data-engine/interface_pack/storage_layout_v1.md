@@ -19,7 +19,23 @@ No other top-level roots are used (e.g., `control/` is folded into `reports/`).
 - Engine may read only from `reference/`, `artefacts/`, `config/`, and upstream `data/` outputs that are sealed in `sealed_inputs_*`.
 - Large pinned assets (e.g., HRSL, Pelias, tzdata) are read in place and sealed by digest; they are not copied per run.
 
-## 3) Produced artefacts are segment-scoped
+## 3) Config layout (layer + segment scoped)
+
+Segment-scoped config MUST live under a layer + segment prefix:
+
+```
+config/layer1/{SEG}/{domain}/<files>
+config/layer2/{SEG}/{domain}/<files>
+config/layer3/{SEG}/{domain}/<files>
+```
+
+Engine-wide config MAY live under a shared bucket when it is not segment-owned:
+
+```
+config/shared/{domain}/<files>
+```
+
+## 4) Produced artefacts are segment-scoped
 
 All produced artefacts include layer + segment in their path.
 
@@ -43,13 +59,13 @@ reports/layer{1,2,3}/{SEG}/state=S#/parameter_hash={parameter_hash}/run_report.j
 reports/layer{1,2,3}/segment_state_runs/segment={SEG}/utc_day={utc_day}/segment_state_runs.jsonl
 ```
 
-## 4) Token naming + order
+## 5) Token naming + order
 
 Use only these token names: `seed`, `parameter_hash`, `manifest_fingerprint`, `scenario_id`, `run_id`, `utc_day`.
 
 Order when multiple tokens apply:
-`seed → parameter_hash → manifest_fingerprint → scenario_id → run_id → utc_day`.
+`seed -> parameter_hash -> manifest_fingerprint -> scenario_id -> run_id -> utc_day`.
 
-## 5) Config data policy
+## 6) Config data policy
 
 `config/` contains YAML/JSON only. Any parquet table is a dataset and belongs under `data/`.

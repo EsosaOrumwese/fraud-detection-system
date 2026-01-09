@@ -7,7 +7,7 @@ subsegments:
       # MODEL COEFFICIENTS & PARAMS
       # ---------------------------
   - name: hurdle_coefficients
-    path: config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml
+    path: config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml
     type: config
     category: hurdle_model
     semver: '{semver}'
@@ -26,7 +26,7 @@ subsegments:
     notes:
 
   - name: nb_dispersion_coefficients
-    path: config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml
+    path: config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml
     type: config
     category: hurdle_model
     semver: '{semver}'
@@ -45,7 +45,7 @@ subsegments:
     notes:
 
   - name: crossborder_hyperparams
-    path: config/policy/crossborder_hyperparams.yaml
+    path: config/layer1/1A/policy/crossborder_hyperparams.yaml
     type: config
     category: allocation
     semver: '{semver}'
@@ -64,7 +64,7 @@ subsegments:
     notes:
 
   - name: policy.s3.rule_ladder.yaml
-    path: config/policy/s3.rule_ladder.yaml
+    path: config/layer1/1A/policy/s3.rule_ladder.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -83,7 +83,7 @@ subsegments:
     notes:
 
   - name: policy.s3.base_weight.yaml
-    path: config/policy/s3.base_weight.yaml
+    path: config/layer1/1A/policy/s3.base_weight.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -102,7 +102,7 @@ subsegments:
     notes: Optional; only if priors are enabled.
 
   - name: policy.s3.thresholds.yaml
-    path: config/policy/s3.thresholds.yaml
+    path: config/layer1/1A/policy/s3.thresholds.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -121,7 +121,7 @@ subsegments:
     notes: Optional; only if bounds are enabled.
 
   - name: validation_policy
-    path: config/policy/validation_policy.yaml
+    path: config/layer1/1A/policy/validation_policy.yaml
     type: policy
     category: validation
     semver: '{semver}'
@@ -140,7 +140,7 @@ subsegments:
     notes:
 
   - name: s6_selection_policy
-    path: config/policy.s6.selection.yaml
+    path: config/layer1/1A/policy.s6.selection.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -162,7 +162,7 @@ subsegments:
       # EXTERNAL & REFERENCE DATA
       # ---------------------------
   - name: dirichlet_alpha_policy
-    path: config/models/allocation/dirichlet_alpha_policy.yaml
+    path: config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml
     type: config
     category: allocation_policy
     semver: '{semver}'
@@ -276,7 +276,7 @@ subsegments:
     notes:
 
   - name: gdp_bucket_map_semver
-    path: config/versioning/gdp_bucket_map.semver
+    path: config/layer1/1A/versioning/gdp_bucket_map.semver
     type: config
     category: versioning
     semver: '{semver}'
@@ -295,7 +295,7 @@ subsegments:
     notes:
 
   - name: gdp_bucket_map_digest
-    path: config/versioning/gdp_bucket_map.digest
+    path: config/layer1/1A/versioning/gdp_bucket_map.digest
     type: config
     category: versioning
     semver: '{semver}'
@@ -333,7 +333,7 @@ subsegments:
     notes:
 
   - name: hurdle_stationarity_semver
-    path: config/versioning/hurdle_stationarity.semver
+    path: config/layer1/1A/versioning/hurdle_stationarity.semver
     type: config
     category: versioning
     semver: '{semver}'
@@ -352,7 +352,7 @@ subsegments:
     notes:
 
   - name: hurdle_stationarity_digest
-    path: config/versioning/hurdle_stationarity.digest
+    path: config/layer1/1A/versioning/hurdle_stationarity.digest
     type: config
     category: versioning
     semver: '{semver}'
@@ -447,7 +447,7 @@ subsegments:
     notes:
 
   - name: ccy_smoothing_params
-    path: config/allocation/ccy_smoothing_params.yaml
+    path: config/layer1/1A/allocation/ccy_smoothing_params.yaml
     type: config
     category: allocation
     semver: '{semver}'
@@ -504,7 +504,7 @@ subsegments:
     notes:
 
   - name: storage_path_pattern
-    path: config/storage/storage_path_pattern.yaml
+    path: config/layer1/1A/storage/storage_path_pattern.yaml
     type: config
     category: storage
     semver: '{semver}'
@@ -523,7 +523,7 @@ subsegments:
     notes: e.g., data/outputs/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
 
   - name: compression_zstd_level3
-    path: config/storage/compression.yaml
+    path: config/layer1/1A/storage/compression.yaml
     type: config
     category: storage
     semver: '{semver}'
@@ -561,7 +561,7 @@ subsegments:
     notes:
 
   - name: run_seed
-    path: config/rng/run_seed.yaml
+    path: config/layer1/1A/rng/run_seed.yaml
     type: config
     category: rng
     semver: '{semver}'
@@ -979,7 +979,7 @@ subsegments:
     notes:
 
   - name: transaction_schema_merchant_ids_bootstrap_policy
-    path: config/ingress/transaction_schema_merchant_ids.bootstrap.yaml
+    path: config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -1474,7 +1474,7 @@ subsegments:
     notes:
 
   - name: residual_quantisation_policy
-    path: config/numeric/residual_quantisation.yaml
+    path: config/layer1/1A/numeric/residual_quantisation.yaml
     type: config
     category: numeric_environment
     semver: '{semver}'
@@ -1531,7 +1531,7 @@ subsegments:
     notes:
 
   - name: dataset_registry_connection
-    path: config/registry/dataset_registry_connection.yaml
+    path: config/layer1/1A/registry/dataset_registry_connection.yaml
     type: config
     category: registry
     semver: '{semver}'
@@ -1626,7 +1626,7 @@ subsegments:
     notes:
 
   - name: crossborder_eligibility_rules
-    path: config/allocation/crossborder_eligibility_rules.yaml
+    path: config/layer1/1A/allocation/crossborder_eligibility_rules.yaml
     type: config
     category: allocation
     semver: {semver: null}

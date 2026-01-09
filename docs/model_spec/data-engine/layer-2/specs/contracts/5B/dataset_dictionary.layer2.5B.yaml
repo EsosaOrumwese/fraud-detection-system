@@ -768,7 +768,7 @@ reference_data:
     description: Philox sub-stream layout & RNG budgets for routing states.
     version: '{policy_version}'
     format: json
-    path: contracts/policy/2B/route_rng_policy_v1.json
+    path: config/layer1/2B/policy/route_rng_policy_v1.json
     partitioning: []
     ordering: []
     schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
@@ -786,7 +786,7 @@ reference_data:
     description: Alias table byte layout, alignment, and decode invariants.
     version: '{policy_version}'
     format: json
-    path: contracts/policy/2B/alias_layout_policy_v1.json
+    path: config/layer1/2B/policy/alias_layout_policy_v1.json
     partitioning: []
     ordering: []
     schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1

@@ -755,7 +755,7 @@ subsegments:
         name: route_rng_policy_v1
         type: policy
         category: config
-        path: contracts/policy/2B/route_rng_policy_v1.json
+        path: config/layer1/2B/policy/route_rng_policy_v1.json
         schema: schemas.2B.yaml#/policy/route_rng_policy_v1
         semver: '{semver}'
         version: '{policy_version}'
@@ -772,7 +772,7 @@ subsegments:
         name: alias_layout_policy_v1
         type: policy
         category: config
-        path: contracts/policy/2B/alias_layout_policy_v1.json
+        path: config/layer1/2B/policy/alias_layout_policy_v1.json
         schema: schemas.2B.yaml#/policy/alias_layout_policy_v1
         semver: '{semver}'
         version: '{policy_version}'

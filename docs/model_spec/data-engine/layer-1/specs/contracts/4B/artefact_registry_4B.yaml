@@ -103,7 +103,7 @@ subsegments:
     notes:
 
   - name: validation_conf_yml
-    path: config/validation/validation_conf.yml
+    path: config/layer1/4B/validation/validation_conf.yml
     type: config
     category: validator_config
     semver: '{semver}'
@@ -122,7 +122,7 @@ subsegments:
     notes:
 
   - name: barcode_bounds_yml
-    path: config/validation/barcode_bounds.yml
+    path: config/layer1/4B/validation/barcode_bounds.yml
     type: config
     category: barcode_validation
     semver: '{semver}'
@@ -429,7 +429,7 @@ subsegments:
     notes:
 
   - name: expected_metrics_yaml
-    path: config/validation/expected_metrics.yaml
+    path: config/layer1/4B/validation/expected_metrics.yaml
     type: config
     category: validation
     semver: '{semver}'
@@ -588,7 +588,7 @@ subsegments:
 
       # cross layer
   - name: rng_logging_policy
-    path: config/rng/rng_logging.yml
+    path: config/shared/rng/rng_logging.yml
     type: config
     category: rng_policy
     semver: '{semver}'
