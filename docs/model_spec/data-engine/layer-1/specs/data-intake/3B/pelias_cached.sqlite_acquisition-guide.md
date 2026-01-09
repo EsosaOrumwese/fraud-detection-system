@@ -4,12 +4,18 @@
 
 `pelias_cached.sqlite` is the **offline geocode bundle** 3B uses to sanity-check / validate **settlement evidence** (e.g., place-name derived from evidence URLs) without calling external services. It must be **global**, **non-toy**, and stable enough to be sealed in 3B.S0.
 
-In 3B contracts this is the ingress dataset:
+In 3B contracts this is the ingress dataset pair:
 
-* **dataset_id:** `pelias_cached_bundle`
+* **dataset_id:** `pelias_cached_sqlite`
 * **path:** `artefacts/geocode/pelias_cached.sqlite`
 * **version token:** `{pelias_version}`
 * **license posture:** CC-BY-4.0 (GeoNames-compatible) ([download.geonames.org][1])
+* **schema anchor:** `schemas.3B.yaml#/reference/pelias_cached_sqlite_v1`
+
+* **dataset_id:** `pelias_cached_bundle`
+* **path:** `artefacts/geocode/pelias_cached_bundle.json`
+* **version token:** `{pelias_version}`
+* **schema anchor:** `schemas.3B.yaml#/reference/pelias_cached_bundle_v1`
 
 ---
 
@@ -185,7 +191,7 @@ JSON object:
 }
 ```
 
-This aligns with the contract shape that requires `{version, sha256_hex}` and allows `tile_span/licence/notes`. ([download.geonames.org][1])
+This aligns with the contract shape at `schemas.3B.yaml#/reference/pelias_cached_bundle_v1`. ([download.geonames.org][1])
 
 ---
 

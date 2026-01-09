@@ -285,6 +285,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: virtual_logging_policy
+  status: draft
+  owner_subsegment: 3B
+  description: Run-log rotation and retention policy for virtual processing.
+  version: '{policy_version}'
+  format: yaml
+  path: config/logging/virtual_logging.yml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/policy/virtual_logging_policy_v1
+  lineage:
+    produced_by: 3B.governance
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
 - id: hrsl_raster
   status: approved
   owner_subsegment: ingress
@@ -328,6 +346,24 @@ reference_data:
   version: '{pelias_version}'
   format: sqlite
   path: artefacts/geocode/pelias_cached.sqlite
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/reference/pelias_cached_sqlite_v1
+  lineage:
+    produced_by: data_governance
+    consumed_by: [3B.S1]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: CC-BY-4.0
+
+- id: pelias_cached_bundle
+  status: approved
+  owner_subsegment: ingress
+  description: Metadata contract for the Pelias SQLite bundle (version + sha256).
+  version: '{pelias_version}'
+  format: json
+  path: artefacts/geocode/pelias_cached_bundle.json
   partitioning: []
   ordering: []
   schema_ref: schemas.3B.yaml#/reference/pelias_cached_bundle_v1

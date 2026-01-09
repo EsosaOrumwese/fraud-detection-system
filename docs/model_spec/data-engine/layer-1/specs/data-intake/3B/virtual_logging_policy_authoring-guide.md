@@ -16,6 +16,7 @@ It’s sealed by 3B.S0 as a token-less config, so it must be **stable**, **non-t
 * **Artefact name:** `virtual_logging_policy`
 * **Path:** `config/logging/virtual_logging.yml`
 * **Format:** YAML (UTF-8, LF newlines)
+* **Schema authority:** `schemas.3B.yaml#/policy/virtual_logging_policy_v1`
 * **Digest posture:** **do not** embed any digest field in-file (S0 sealing inventory records file digest)
 
 ---

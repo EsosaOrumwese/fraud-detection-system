@@ -385,12 +385,31 @@ subsegments:
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
+        schema: schemas.3B.yaml#/reference/pelias_cached_sqlite_v1
+        cross_layer: true
+        notes: null
+
+      - name: pelias_cached_bundle
+        path: artefacts/geocode/pelias_cached_bundle.json
+        type: manifest
+        category: geocode_bundle
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.pelias_bundle_meta
+        license: CC-BY-4.0
+        role: Metadata for the Pelias SQLite bundle (version + sha256).
+        dependencies: [ pelias_cached_sqlite ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: schemas.3B.yaml#/reference/pelias_cached_bundle_v1
         cross_layer: true
         notes: null
 
-      # 5 POPULATION RASTER FOR EDGE SAMPLING
-      - name: hrsl_raster
+        # 5 POPULATION RASTER FOR EDGE SAMPLING
+        - name: hrsl_raster
         path: artefacts/rasters/hrsl_100m.tif
         type: reference
         category: population_raster
@@ -426,6 +445,23 @@ subsegments:
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: schemas.3B.yaml#/policy/virtual_validation_policy_v1
+        cross_layer: false
+        notes: null
+
+      - name: virtual_logging_policy
+        path: config/logging/virtual_logging.yml
+        type: config
+        category: logging
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_logging
+        license: Proprietary-Internal
+        role: Log rotation and retention policy for virtual run logs.
+        dependencies: []
+        source: internal
+        owner: { ops_team }
+        schema: schemas.3B.yaml#/policy/virtual_logging_policy_v1
         cross_layer: false
         notes: null
 

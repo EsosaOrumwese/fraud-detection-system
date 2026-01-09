@@ -11,7 +11,7 @@ Because a public “Akamai SOTI country weights YAML” isn’t reliably availab
 ### 1) Output identity (MUST)
 
 * **Artefact name:** `cdn_weights_ext_yaml`
-* **Path:** `artefacts/external/cdn_country_weights.yaml`
+* **Path:** `artefacts/external/cdn_weights_ext.yaml`
 * **Format:** YAML (UTF-8, LF)
 * **Version token:** `{vintage}` (provided by intake manifest; MUST NOT infer “latest”)
 
