@@ -321,14 +321,13 @@ A consumer MUST NOT read or act upon governed artefacts unless all required PASS
 **State**
 A named, versioned transformation unit within a segment that consumes pinned inputs/policies (and optionally RNG streams) and produces governed outputs + required validation evidence.
 
-**State Manifest (a.k.a. Output Manifest)**
-A governed record emitted by a state that records governed inputs/outputs and determinism evidence. If a Segment RDV Profile declares a State Manifest for a state, it is **MUST**. Otherwise it is **SHOULD** (recommended for auditability). It enumerates:
+**S0 sealing outputs (s0_gate_receipt + sealed_inputs)**
+The governed control-plane artefacts emitted by S0 that define the segment's allowed input universe and run identity:
 
-* inputs consumed (ArtefactRefs + hashes),
-* policies/configs used (content-hash pins),
-* RNG streams used (if any) and required accounting evidence,
-* outputs produced (ArtefactRefs + hashes),
-* validation bundles and PASS gates produced.
+* `s0_gate_receipt_<SEG>` records the run anchor, upstream gate checks, and the sealed inputs digest.
+* `sealed_inputs_<SEG>` enumerates every artefact the segment may read (manifest keys, path templates, hashes, roles/read_scope).
+
+If a segment does not use S0 sealing (bootstrap/legacy), the Segment RDV Profile MUST declare the equivalent input ledger and its schema anchors.
 
 ### 3.9 Classification objects for "states and segments differ"
 
@@ -522,7 +521,7 @@ Every segment MUST publish a binding **Segment RDV Profile** that (once the prof
 
 1. **Contracts are authoritative:** For any governed artefact, the authoritative definition of shape/fields is its declared **schema contract**. Any secondary format (e.g., generated Avro) MUST be treated as non-authoritative unless explicitly elevated by contract.
 2. **Policies are authoritative when pinned:** Behavioural parameters MUST come only from the **resolved policy bundle** identified by `parameter_hash` (or segment-equivalent), not from implicit defaults or ambient config.
-3. **No undeclared dependencies:** A state MUST NOT read any input (file, dataset, config, env var) that is not declared in its State Manifest (when required) or a segment-approved equivalent input ledger, and pinned by content identity.
+3. **No undeclared dependencies:** A state MUST NOT read any input (file, dataset, config, env var) that is not declared in the segment's sealed inputs ledger (`sealed_inputs_<SEG>`) or a segment-approved equivalent input ledger, and pinned by content identity.
 
 ### 5.2 Run anchoring and identity propagation
 
@@ -695,7 +694,7 @@ This ensures that a retry produces the same stochastic outcomes (and only differ
 
 If a segment/state truly requires attempt-unique randomness (uncommon for governed outputs), it MUST:
 
-* declare this explicitly in its Segment RDV Profile / State Manifest,
+* declare this explicitly in its Segment RDV Profile / sealing ledger,
 * declare which artefacts become attempt-unique,
 * treat this as breaking-risk for reproducibility guarantees.
 
@@ -703,14 +702,16 @@ If a segment/state truly requires attempt-unique randomness (uncommon for govern
 
 ### 6.5 Anchor propagation requirements (what must carry what)
 
-#### 6.5.1 State Manifest records full anchor (when required)
+#### 6.5.1 S0 sealing outputs record full anchor (when required)
 
-If a Segment RDV Profile requires a State Manifest, it MUST record the **full Run Anchor** used for execution. If a state emits a State Manifest voluntarily, it SHOULD record the full anchor, including:
+If a segment uses S0 sealing, `s0_gate_receipt_<SEG>` MUST record the **full Run Anchor** used for execution. The receipt SHOULD record, at minimum:
 
 * `manifest_fingerprint`, `parameter_hash`
 * `scenario_id`, `run_id` (if provided by orchestration)
 * `seed_material` (or a hash of it, if sensitive/large, but the derivation inputs must remain verifiable)
 * `engine_build_id`, `rails_versions`
+
+`sealed_inputs_<SEG>` MUST record at least `manifest_fingerprint` and `parameter_hash` for each row (and any additional anchor fields required by its schema).
 
 #### 6.5.2 Governed artefacts MUST be anchor-verifiable
 
@@ -922,7 +923,7 @@ A governed artefact's identity MUST be representable as:
 * partition key tuple (values for the Dictionary's `partitioning` list)
 * one or more deterministic **checksums** (see Section 7.7)
 
-If a State Manifest is required or emitted, the state MUST record this identity there (and validators MUST use it during gate creation).
+The state MUST record this identity in its validation bundle index or receipt evidence (and validators MUST use it during gate creation). Input identities are recorded in `sealed_inputs_<SEG>`.
 
 ---
 
@@ -1983,7 +1984,7 @@ All states MUST:
 3. **Be numeric-policy compliant:** decision/order-critical math MUST comply with Section 13; violations abort.
 4. **Be concurrency-invariant:** if parallelism exists, worker/shard count MUST NOT change outcomes (Section 14).
 5. **Be IO-deterministic:** atomic publish, no overwrite, idempotent reruns (Section 8), and canonical serialization (Section 9).
-6. **Emit determinism evidence:** State Manifest MUST (when required) record inputs (refs+hashes), outputs (refs+hashes), and the determinism posture (state class + RNG posture + any declared order authority used).
+6. **Emit determinism evidence:** sealed inputs ledger records input refs+hashes; validation bundles/receipts record output refs+hashes and gate evidence; RNG logs/trace record RNG usage; run-reports capture reuse decisions where supported.
 
 ---
 
@@ -2012,7 +2013,7 @@ All states MUST:
 
 **SC-A determinism evidence (minimum):**
 
-* State Manifest lists: input refs+hashes, output refs+hashes, ordering rules used, and an explicit statement `rng_posture=RNG_NONE`.
+* Sealed inputs ledger lists input refs+hashes; validation bundle/index (or receipt/finalizer path) lists output refs+hashes; ordering rules are declared; `rng_posture=RNG_NONE`.
 
 ---
 
@@ -2046,7 +2047,7 @@ All states MUST:
 
 **SC-B determinism evidence (minimum):**
 
-* State Manifest lists: stream keys/purpose tags used (or a verifiable summary), families emitted, and the expected envelope/trace invariants that validators will enforce.
+* RNG audit/trace/event logs + validation bundle/index identify emitted families and enforce envelope/trace invariants; sealed inputs ledger binds inputs.
 
 ---
 
@@ -2081,7 +2082,7 @@ All states MUST:
 
 **SC-C determinism evidence (minimum):**
 
-* State Manifest records: upstream instances consumed (refs+hashes), merge/reduction rules version, and any authoritative order sources used.
+* Sealed inputs ledger records upstream instances consumed (refs+hashes); validation bundle/index records outputs; merge/reduction rules version is pinned in the policy bundle or run-report.
 
 ---
 
@@ -2111,7 +2112,7 @@ All states MUST:
 
 **SC-D determinism evidence (minimum):**
 
-* Receipt bundle includes deterministic index + hash gate; State Manifest records what was validated and which receipt was emitted.
+* Receipt bundle includes deterministic index + hash gate; the index records what was validated and which receipt was emitted.
 
 ---
 
@@ -2577,7 +2578,7 @@ A state/segment MUST NOT reuse an artefact instance unless **all** checks below 
 When a state considers reuse, it MUST execute this protocol:
 
 1. **Check eligibility** using Section 19.3.
-2. If eligible: **no-op** (do not rewrite), and emit a State Manifest entry (when required) indicating:
+2. If eligible: **no-op** (do not rewrite), and emit a reuse record in the run-report (or receipt/bundle evidence if emitted) indicating:
 
   * `decision = REUSED`,
   * the artefact refs + content hashes observed,
@@ -3692,7 +3693,7 @@ Where:
 
 * **StateInputs** are fully pinned (anchors + policies + input refs + required gates),
 * **StateCapabilities** are constrained engine-provided services (writer, RNG, validator runner, canonical serializers),
-* **StateResult** includes governed outputs + required validation artefacts + gates + a State Manifest when required by the Segment RDV Profile.
+* **StateResult** includes governed outputs + required validation artefacts + gates; segment sealing outputs (`s0_gate_receipt_<SEG>` + `sealed_inputs_<SEG>`) are emitted by S0 when declared in the Segment RDV Profile.
 
 A state MUST NOT rely on any capability outside **StateCapabilities** to produce governed outputs (e.g., no direct filesystem writes, no ambient RNG, no ad-hoc hashing).
 
@@ -3802,34 +3803,24 @@ If the state is responsible for emitting a gate (SC-D receipt or SC-E final bund
 * publish `_passed.flag` **only** on PASS,
 * withhold `_passed.flag` on FAIL.
 
-#### 26.4.4 State Manifest (governed; required when declared)
+#### 26.4.4 S0 sealing outputs (s0_gate_receipt + sealed_inputs; required when declared)
 
-Every state SHOULD emit a **State Manifest**; if required by the Segment RDV Profile, it MUST record, at minimum:
+If the Segment RDV Profile declares S0 sealing, the segment MUST emit the paired control-plane artefacts:
 
-* identity: `{segment_id, state_id, state_class, rng_posture}`
-* run anchors: `{manifest_fingerprint, parameter_hash, seed material id/hash, scenario_id (if provided), run_id (if provided), engine_build_id, rails_versions}`
-* inputs consumed:
+* **`s0_gate_receipt_<SEG>`** - records segment/state identity (S0), run anchors, upstream gate verification, and the sealed inputs digest.
+* **`sealed_inputs_<SEG>`** - enumerates every artefact the segment may read (artefact id, manifest key, path template, digest/hash, role/read_scope, owner layer/segment).
 
-  * artefact refs + hashes (or verified bundle gate digests)
-  * gates verified for each input (gate ref + `_passed.flag` value)
-* policies used:
+Minimum anchor fields for `s0_gate_receipt_<SEG>`:
 
-  * policy file basenames + digests (or a resolved bundle ref)
-* RNG usage (if applicable):
+* `{manifest_fingerprint, parameter_hash, seed material id/hash, scenario_id (if provided), run_id (if provided), engine_build_id, rails_versions}`
 
-  * stream keys/purpose tags summary
-  * event families emitted
-  * required accounting evidence pointers (audit/trace/event logs)
-* outputs produced:
+Minimum anchor fields for `sealed_inputs_<SEG>`:
 
-  * artefact refs + hashes
-  * validation evidence refs
-  * gates emitted (if any) and their digest values
-* decision flags:
+* `{manifest_fingerprint, parameter_hash}` for each row (plus any additional fields required by its schema).
 
-  * `computed` vs `reused` per output (reuse decisions must be recorded)
+If a segment does not use S0 sealing, the Segment RDV Profile MUST declare the equivalent input ledger and its schema anchors.
 
-**Binding:** If a State Manifest is emitted, it is a governed artefact and MUST be canonical-serialized and hashable.
+**Binding:** `s0_gate_receipt_<SEG>` and `sealed_inputs_<SEG>` are governed artefacts and MUST be canonical-serialized and hashable.
 
 ---
 
@@ -3852,7 +3843,7 @@ Every state MUST follow this protocol:
 3. **Reuse decision (optional)**
 
   * if the state supports reuse, apply the Reuse Eligibility Predicate (Section 19.3),
-  * if reused: record `REUSED` in State Manifest (when required or emitted) and skip compute for that instance.
+  * if reused: record `REUSED` in the run-report (and any receipt/bundle evidence if emitted) and skip compute for that instance.
 
 4. **Compute**
 
@@ -3874,10 +3865,10 @@ Every state MUST follow this protocol:
   * atomically publish outputs and evidence (Section 8),
   * publish PASS gates only on PASS (Section 22-Section 23).
 
-8. **Finalize State Manifest (when required or emitted)**
+8. **Finalize evidence indices (when emitted)**
 
-  * write the State Manifest after outputs/evidence/gates are in their final state,
-  * publish it atomically.
+  * write bundle/receipt indices after outputs/evidence/gates are in their final state,
+  * publish them atomically.
 
 ---
 
@@ -3919,7 +3910,7 @@ A state is non-compliant if any of the following occur:
 * it writes governed outputs without using the immutable writer / atomic publish,
 * it instantiates its own RNG or bypasses RNG governance,
 * it emits PASS gates on FAIL or without required evidence,
-* it fails to emit a complete State Manifest when required,
+* it fails to emit required sealing outputs (S0) or required validation bundles/receipts,
 * it allows wall-clock/FS order/env to influence governed outputs,
 * it overwrites governed instances or publishes partial instances.
 
@@ -3935,6 +3926,7 @@ The Segment RDV Profile MUST be sufficient for an automated enforcer (or downstr
 
 * what each state is (State Class + RNG posture),
 * what outputs exist and what scopes they live under,
+* whether the segment uses S0 sealing and which ledger IDs/schemas are authoritative,
 * what gates/receipts exist and what they authorize,
 * what must be verified before any read ("no PASS -> no read"),
 * what order authorities exist (so no competing ordering is invented),
@@ -3978,6 +3970,26 @@ A Segment RDV Profile MUST include:
   * fingerprint path label in use (e.g., `fingerprint=` vs `manifest_fingerprint=`) and any declared aliases
  *(because your 1A ecosystem currently contains both label styles across docs and consumers must not guess)* 
 * `consumer_gate` (declared explicitly; see Section 27.6)
+* `sealing_ledger` (declared explicitly; see Section 27.3.1)
+
+---
+
+### 27.3.1 Sealing ledger declaration (required)
+
+If the segment uses S0 sealing, the profile MUST declare:
+
+* `sealing_ledger.use_s0_sealing: true`
+* `sealing_ledger.s0_gate_receipt_id` (dataset id)
+* `sealing_ledger.sealed_inputs_id` (dataset id)
+* `sealing_ledger.schema_refs` for both artefacts
+
+If the segment does not use S0 sealing, the profile MUST declare:
+
+* `sealing_ledger.use_s0_sealing: false`
+* `sealing_ledger.equivalent_input_ledger_id`
+* `sealing_ledger.equivalent_schema_ref`
+
+**Binding:** Tooling MUST treat the declared sealing ledger as the sole authority for input closure for that segment.
 
 ---
 
@@ -4089,6 +4101,13 @@ authorities:
  dataset_dictionary: "dataset_dictionary.layer1.1A.yaml"
  artefact_registry: "artefact_registry_1A.yaml"
  schema_set: "schemas.1A.yaml + schemas.layer1.yaml"
+sealing_ledger:
+ use_s0_sealing: true
+ s0_gate_receipt_id: "s0_gate_receipt_1A"
+ sealed_inputs_id: "sealed_inputs_1A"
+ schema_refs:
+  s0_gate_receipt: "schemas.1A.yaml#/validation/s0_gate_receipt_1A"
+  sealed_inputs: "schemas.1A.yaml#/validation/sealed_inputs_1A"
 token_conventions:
  fingerprint_path_label: "manifest_fingerprint" # or "fingerprint"
 states:
@@ -4387,7 +4406,7 @@ A segment is not shippable if any of these are missing:
 
 * [ ] Segment RDV Profile exists, machine-readable, pinned, and complete
 * [ ] All artefacts appear in dictionary + registry (no undeclared opens)
-* [ ] Every state emits a State Manifest (or the segment provides an equivalent audited ledger)
+* [ ] Segment sealing ledger exists (`s0_gate_receipt_<SEG>` + `sealed_inputs_<SEG>` or declared equivalent)
 * [ ] Atomic publish + immutability enforced; no overwrite paths exist
 * [ ] All required validations run deterministically
 * [ ] Receipts (if any) exist and are verifiable
@@ -4635,7 +4654,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
   * numeric policy (if any decision/order critical math occurs),
   * worker-count invariance (parallel map allowed only if merge is deterministic).
 * Publish outputs using **atomic publish** and **immutability** rules.
-* Emit a complete **State Manifest** (when required) (inputs + gates verified + outputs + hashes).
+* Emit required validation evidence (bundle/receipt/index) with input/output hashes as declared; rely on the sealed inputs ledger for the input closure.
 
 **MUST NOT**
 
@@ -4646,7 +4665,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
 
 * Output artefact(s) + content hash identity evidence
 * Validation evidence for produced artefacts (either immediate or via a declared receipt/finalizer path)
-* State Manifest
+* Validation bundle/index or receipt evidence (as declared)
 
 ---
 
@@ -4671,7 +4690,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
 
   * stream keying should include concurrency-unit identifiers where needed,
   * iteration order over domains must come from an authoritative order source (not schedule/file order).
-* Emit State Manifest (when required) including RNG usage summary and pointers to audit/trace/event logs.
+* Emit RNG usage evidence (audit/trace/event logs) and reference it in validation bundle/receipt evidence as declared.
 
 **MUST NOT**
 
@@ -4683,7 +4702,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
 * RNG audit + trace logs
 * RNG event family logs
 * Any derived datasets produced by the state (governed + hashed)
-* State Manifest
+* Validation bundle/index or receipt evidence (as declared)
 
 ---
 
@@ -4709,7 +4728,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
   * tie-breaks for "pick one" logic,
   * reduction order.
 * Be **worker-count invariant** across partitioning, merging, and publishing.
-* Publish outputs atomically + immutable; emit State Manifest (when required) with:
+* Publish outputs atomically + immutable; record merge/reduction evidence in validation bundle/index or run-report with:
 
   * exact upstream partitions consumed,
   * hashes/digests relied upon,
@@ -4724,7 +4743,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
 
 * Aggregated output(s) + deterministic identity evidence
 * Validation evidence (structural + ordering)
-* State Manifest
+* Validation bundle/index or receipt evidence (as declared)
 
 ---
 
@@ -4747,7 +4766,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
   * evidence file(s),
   * `_passed.flag` written **only on PASS**.
 * Ensure receipt outputs are **byte-stable** under replay (no timestamps/random IDs inside gated evidence).
-* Emit State Manifest (when required) including what was validated, what gates were verified, and what receipt gate was emitted.
+* Ensure receipt evidence (index + hashes) records what was validated, what gates were verified, and what receipt gate was emitted.
 
 **MUST NOT**
 
@@ -4758,7 +4777,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
 
 * Receipt folder + `_passed.flag` (PASS only)
 * Deterministic validation summary evidence
-* State Manifest
+* Receipt index/evidence (as declared)
 
 ---
 
@@ -4783,7 +4802,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
   * `_passed.flag` only on PASS,
   * bundle hash computed exactly by the declared rule.
 * Ensure the final gate is sufficient for downstream to enforce "no PASS -> no read" without knowing internal state logic.
-* Emit State Manifest (when required) with:
+* Ensure the final validation bundle index records:
 
   * list of validated artefacts (refs + hashes),
   * validations executed + outcome codes,
@@ -4799,7 +4818,7 @@ sha256_hex = 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
 * Final validation bundle (indexed)
 * `_passed.flag` (PASS only)
 * Checksums / identity evidence for consumer datasets
-* State Manifest
+* Final validation bundle index + receipt evidence (as declared)
 
 ---
 
@@ -5308,8 +5327,8 @@ Normative state taxonomy: Pure transform, RNG emitter, aggregator/join, receipt 
 **Segment RDV Profile**
 Binding per-segment declaration of states, their classes, scopes, gates, order authorities, optional surfaces and degrade ladders.
 
-**State Manifest**
-Per-state governed record enumerating inputs (and gates verified), policies used, RNG usage (if any), outputs produced, evidence emitted, and reuse decisions.
+**Sealed inputs ledger (s0_gate_receipt + sealed_inputs)**
+Segment control-plane outputs emitted by S0 that enumerate allowed inputs and run identity (or a segment-declared equivalent ledger).
 
 **Unindexed receipt**
 A receipt folder without `index.json`; `_passed.flag` hashes all non-flag files in lexicographic relative-path order.
