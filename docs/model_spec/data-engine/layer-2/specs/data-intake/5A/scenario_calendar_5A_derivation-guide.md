@@ -17,6 +17,7 @@
 
 * **Artefact ID:** `scenario_calendar_5A`
 * **Format:** Parquet
+* **Schema anchor:** `schemas.5A.yaml#/scenario/scenario_calendar_5A` *(permissive; this guide pins the real contract)*
 * **Path template:**
   `config/layer2/5A/scenario/calendar/fingerprint={manifest_fingerprint}/scenario={scenario_id}/scenario_calendar_5A.parquet`
 * **Partition keys:** `manifest_fingerprint`, `scenario_id`

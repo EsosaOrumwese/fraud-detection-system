@@ -135,16 +135,490 @@ validation:
 policy:
   merchant_class_policy_5A:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - demand_class_catalog
+      - mcc_sector_map
+      - channel_group_map
+      - decision_tree_v1
+      - realism_targets
+    properties:
+      policy_id: { const: merchant_class_policy_5A }
+      version: { type: string, minLength: 1 }
+      demand_class_catalog:
+        type: array
+        minItems: 10
+        items:
+          type: object
+          additionalProperties: false
+          required: [demand_class, description, intended_shape_family]
+          properties:
+            demand_class:
+              type: string
+              pattern: "^[a-z][a-z0-9_]{2,31}$"
+            description: { type: string, minLength: 1 }
+            intended_shape_family: { type: string, minLength: 1 }
+            notes: { type: string }
+      mcc_sector_map:
+        type: object
+        additionalProperties: false
+        patternProperties:
+          "^[0-9]{4}$":
+            type: string
+            enum:
+              - digital_services
+              - general_retail
+              - grocery_pharmacy
+              - fuel_auto
+              - travel_hospitality
+              - dining_entertainment
+              - cash_fin_services
+              - utilities_bills
+              - government_education
+              - other
+      channel_group_map:
+        type: object
+        minProperties: 1
+        additionalProperties:
+          type: string
+          enum: [card_present, card_not_present, mixed]
+      decision_tree_v1:
+        type: object
+        additionalProperties: false
+        required: [virtual_branch, nonvirtual_branch, default_class, subclass_rules]
+        properties:
+          virtual_branch:
+            type: object
+            additionalProperties: false
+            required: [virtual_only_class, hybrid_class]
+            properties:
+              virtual_only_class: { type: string, minLength: 1 }
+              hybrid_class: { type: string, minLength: 1 }
+          nonvirtual_branch:
+            type: object
+            additionalProperties: false
+            required: [by_channel_group]
+            properties:
+              by_channel_group:
+                type: object
+                additionalProperties: false
+                required: [card_present, card_not_present, mixed]
+                properties:
+                  card_present:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - digital_services
+                      - general_retail
+                      - grocery_pharmacy
+                      - fuel_auto
+                      - travel_hospitality
+                      - dining_entertainment
+                      - cash_fin_services
+                      - utilities_bills
+                      - government_education
+                      - other
+                    properties:
+                      digital_services: { type: string, minLength: 1 }
+                      general_retail: { type: string, minLength: 1 }
+                      grocery_pharmacy: { type: string, minLength: 1 }
+                      fuel_auto: { type: string, minLength: 1 }
+                      travel_hospitality: { type: string, minLength: 1 }
+                      dining_entertainment: { type: string, minLength: 1 }
+                      cash_fin_services: { type: string, minLength: 1 }
+                      utilities_bills: { type: string, minLength: 1 }
+                      government_education: { type: string, minLength: 1 }
+                      other: { type: string, minLength: 1 }
+                  card_not_present:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - digital_services
+                      - general_retail
+                      - grocery_pharmacy
+                      - fuel_auto
+                      - travel_hospitality
+                      - dining_entertainment
+                      - cash_fin_services
+                      - utilities_bills
+                      - government_education
+                      - other
+                    properties:
+                      digital_services: { type: string, minLength: 1 }
+                      general_retail: { type: string, minLength: 1 }
+                      grocery_pharmacy: { type: string, minLength: 1 }
+                      fuel_auto: { type: string, minLength: 1 }
+                      travel_hospitality: { type: string, minLength: 1 }
+                      dining_entertainment: { type: string, minLength: 1 }
+                      cash_fin_services: { type: string, minLength: 1 }
+                      utilities_bills: { type: string, minLength: 1 }
+                      government_education: { type: string, minLength: 1 }
+                      other: { type: string, minLength: 1 }
+                  mixed:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - digital_services
+                      - general_retail
+                      - grocery_pharmacy
+                      - fuel_auto
+                      - travel_hospitality
+                      - dining_entertainment
+                      - cash_fin_services
+                      - utilities_bills
+                      - government_education
+                      - other
+                    properties:
+                      digital_services: { type: string, minLength: 1 }
+                      general_retail: { type: string, minLength: 1 }
+                      grocery_pharmacy: { type: string, minLength: 1 }
+                      fuel_auto: { type: string, minLength: 1 }
+                      travel_hospitality: { type: string, minLength: 1 }
+                      dining_entertainment: { type: string, minLength: 1 }
+                      cash_fin_services: { type: string, minLength: 1 }
+                      utilities_bills: { type: string, minLength: 1 }
+                      government_education: { type: string, minLength: 1 }
+                      other: { type: string, minLength: 1 }
+          default_class: { type: string, minLength: 1 }
+          subclass_rules:
+            type: object
+            additionalProperties: false
+            required: [zone_role]
+            properties:
+              zone_role:
+                type: object
+                additionalProperties: false
+                required: [primary_share_ge, tail_share_le]
+                properties:
+                  primary_share_ge: { type: number }
+                  tail_share_le: { type: number }
+      realism_targets:
+        type: object
+        additionalProperties: false
+        required:
+          - max_class_share
+          - min_nontrivial_classes
+          - min_class_share_for_nontrivial
+          - min_virtual_share_if_virtual_present
+          - max_single_country_share_within_class
+        properties:
+          max_class_share: { type: number }
+          min_nontrivial_classes: { type: integer, minimum: 1 }
+          min_class_share_for_nontrivial: { type: number }
+          min_virtual_share_if_virtual_present: { type: number }
+          max_single_country_share_within_class: { type: number }
+
   demand_scale_policy_5A:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - weekly_volume_unit
+      - global_multiplier
+      - brand_size_exponent
+      - zone_role_multipliers
+      - virtual_mode_multipliers
+      - channel_group_multipliers
+      - class_params
+      - thresholds
+      - realism_targets
+    properties:
+      policy_id: { const: demand_scale_policy_5A }
+      version: { type: string, minLength: 1 }
+      weekly_volume_unit: { const: arrivals_per_local_week }
+      global_multiplier: { type: number, exclusiveMinimum: 0 }
+      brand_size_exponent: { type: number, minimum: 0.0, maximum: 0.20 }
+      zone_role_multipliers:
+        type: object
+        additionalProperties: false
+        required: [primary_zone, secondary_zone, tail_zone]
+        properties:
+          primary_zone: { type: number, minimum: 0 }
+          secondary_zone: { type: number, minimum: 0 }
+          tail_zone: { type: number, minimum: 0 }
+      virtual_mode_multipliers:
+        type: object
+        additionalProperties: false
+        required: [NON_VIRTUAL, HYBRID, VIRTUAL_ONLY]
+        properties:
+          NON_VIRTUAL: { type: number, minimum: 0 }
+          HYBRID: { type: number, minimum: 0 }
+          VIRTUAL_ONLY: { type: number, minimum: 0 }
+      channel_group_multipliers:
+        type: object
+        additionalProperties: false
+        required: [card_present, card_not_present, mixed]
+        properties:
+          card_present: { type: number, minimum: 0 }
+          card_not_present: { type: number, minimum: 0 }
+          mixed: { type: number, minimum: 0 }
+      class_params:
+        type: array
+        minItems: 10
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - demand_class
+            - median_per_site_weekly
+            - pareto_alpha
+            - clip_max_per_site_weekly
+            - ref_per_site_weekly
+            - high_variability_flag
+          properties:
+            demand_class: { type: string, minLength: 1 }
+            median_per_site_weekly: { type: number, exclusiveMinimum: 0 }
+            pareto_alpha: { type: number, minimum: 1.1, maximum: 3.5 }
+            clip_max_per_site_weekly: { type: number, exclusiveMinimum: 0 }
+            ref_per_site_weekly: { type: number, exclusiveMinimum: 0 }
+            high_variability_flag: { type: boolean }
+      thresholds:
+        type: object
+        additionalProperties: false
+        required: [low_volume_weekly_lt]
+        properties:
+          low_volume_weekly_lt: { type: number, minimum: 0 }
+          high_volume_weekly_ge: { type: number, minimum: 0 }
+      realism_targets:
+        type: object
+        additionalProperties: false
+        required:
+          - target_mean_per_site_weekly
+          - mean_per_site_bounds
+          - p99_p50_ratio_min
+          - max_class_volume_share
+          - max_weekly_volume_expected
+        properties:
+          target_mean_per_site_weekly: { type: number, exclusiveMinimum: 0 }
+          mean_per_site_bounds:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number, minimum: 0 }
+          p99_p50_ratio_min: { type: number, minimum: 0 }
+          max_class_volume_share: { type: number, minimum: 0 }
+          max_weekly_volume_expected: { type: number, exclusiveMinimum: 0 }
+
   baseline_intensity_policy_5A:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - scale_source_field
+      - scale_units
+      - lambda_units_local
+      - shape_sum_abs_tol
+      - weekly_sum_rel_tol
+      - clip_mode
+      - hard_limits
+      - utc_projection
+    properties:
+      policy_id: { const: baseline_intensity_policy_5A }
+      version: { type: string, minLength: 1 }
+      scale_source_field: { const: weekly_volume_expected }
+      scale_units: { const: arrivals_per_local_week }
+      lambda_units_local: { const: expected_arrivals_per_local_week_bucket }
+      shape_sum_abs_tol: { type: number }
+      weekly_sum_rel_tol: { type: number }
+      clip_mode: { enum: [hard_fail] }
+      hard_limits:
+        type: object
+        additionalProperties: false
+        required: [max_lambda_per_bucket, max_weekly_volume_expected]
+        properties:
+          max_lambda_per_bucket: { type: number, exclusiveMinimum: 0 }
+          max_weekly_volume_expected: { type: number, exclusiveMinimum: 0 }
+      utc_projection:
+        type: object
+        additionalProperties: false
+        required: [emit_utc_baseline]
+        properties:
+          emit_utc_baseline: { type: boolean }
+
   shape_library_5A:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - scenario_mode
+      - grid
+      - channel_groups
+      - zone_group_mode
+      - templates
+      - template_resolution
+      - constraints
+      - realism_floors
+    properties:
+      policy_id: { const: shape_library_5A }
+      version: { type: string, minLength: 1 }
+      scenario_mode: { const: scenario_agnostic }
+      grid:
+        type: object
+        additionalProperties: false
+        required:
+          - bucket_duration_minutes
+          - week_start
+          - day_of_week_encoding
+          - minutes_per_day
+          - days_per_week
+          - T_week
+          - bucket_index_law
+          - derived_flags
+        properties:
+          bucket_duration_minutes: { type: integer, enum: [15, 30, 60] }
+          week_start: { const: monday_00_00_local }
+          day_of_week_encoding: { const: "1=Mon,...,7=Sun" }
+          minutes_per_day: { const: 1440 }
+          days_per_week: { const: 7 }
+          T_week: { type: integer, minimum: 1 }
+          bucket_index_law: { const: "k=(dow-1)*T_day + floor(minute/bucket_minutes)" }
+          derived_flags:
+            type: object
+            additionalProperties: false
+            required: [weekend_days, is_weekend_law]
+            properties:
+              weekend_days:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: integer, minimum: 1, maximum: 7 }
+              is_weekend_law: { const: "dow in weekend_days" }
+      channel_groups:
+        type: array
+        minItems: 3
+        items: { enum: [card_present, card_not_present, mixed] }
+      zone_group_mode:
+        type: object
+        additionalProperties: false
+        required: [mode, buckets, zone_group_id_prefix]
+        properties:
+          mode: { const: tzid_hash_bucket_v1 }
+          buckets: { type: integer, minimum: 1 }
+          zone_group_id_prefix: { type: string, minLength: 1 }
+      templates:
+        type: array
+        minItems: 40
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - template_id
+            - demand_class
+            - channel_group
+            - shape_kind
+            - dow_weights
+            - daily_components
+            - baseline_floor
+            - power
+            - notes
+          properties:
+            template_id:
+              type: string
+              pattern: "^[a-z][a-z0-9_.-]{2,63}$"
+            demand_class: { type: string, minLength: 1 }
+            channel_group: { enum: [card_present, card_not_present, mixed] }
+            shape_kind: { const: daily_gaussian_mixture }
+            dow_weights:
+              type: array
+              minItems: 7
+              maxItems: 7
+              items: { type: number, exclusiveMinimum: 0 }
+            daily_components:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [kind, center_min, sigma_min, amplitude]
+                properties:
+                  kind: { const: gaussian_peak }
+                  center_min: { type: integer, minimum: 0, maximum: 1439 }
+                  sigma_min: { type: number, minimum: 20, maximum: 240 }
+                  amplitude: { type: number, exclusiveMinimum: 0 }
+            baseline_floor: { type: number, minimum: 0 }
+            power: { type: number, minimum: 0.6, maximum: 2.0 }
+            notes: { type: string, minLength: 1 }
+      template_resolution:
+        type: object
+        additionalProperties: false
+        required: [mode, default_template_id, rules]
+        properties:
+          mode: { const: deterministic_choice_by_tzid_v1 }
+          default_template_id: { type: string, minLength: 1 }
+          rules:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              additionalProperties: false
+              required:
+                - demand_class
+                - channel_group
+                - candidate_template_ids
+                - selection_law
+              properties:
+                demand_class: { type: string, minLength: 1 }
+                channel_group: { enum: [card_present, card_not_present, mixed] }
+                candidate_template_ids:
+                  type: array
+                  minItems: 2
+                  items: { type: string, minLength: 1 }
+                selection_law: { const: u_det_pick_index_v1 }
+      constraints:
+        type: object
+        additionalProperties: false
+        required:
+          - min_mass_night
+          - night_window_minutes
+          - min_weekend_mass_for_weekend_classes
+          - office_hours_window
+          - shape_nonflat_ratio_min
+        properties:
+          min_mass_night: { type: number, minimum: 0 }
+          night_window_minutes:
+            type: object
+            additionalProperties: false
+            required: [start_min, end_min]
+            properties:
+              start_min: { type: integer, minimum: 0, maximum: 1440 }
+              end_min: { type: integer, minimum: 0, maximum: 1440 }
+          min_weekend_mass_for_weekend_classes: { type: number, minimum: 0 }
+          office_hours_window:
+            type: object
+            additionalProperties: false
+            required: [weekday_start_min, weekday_end_min, min_weekday_office_mass]
+            properties:
+              weekday_start_min: { type: integer, minimum: 0, maximum: 1440 }
+              weekday_end_min: { type: integer, minimum: 0, maximum: 1440 }
+              min_weekday_office_mass: { type: number, minimum: 0 }
+          shape_nonflat_ratio_min: { type: number, minimum: 0 }
+      realism_floors:
+        type: object
+        additionalProperties: false
+        required:
+          - min_total_templates
+          - min_templates_per_class_per_channel
+          - require_all_classes_present
+          - require_all_channel_groups_present
+          - min_nonflat_templates_fraction
+          - min_night_mass_online24h
+          - min_weekend_mass_evening_weekend
+          - min_weekday_mass_office_hours
+        properties:
+          min_total_templates: { type: integer, minimum: 1 }
+          min_templates_per_class_per_channel: { type: integer, minimum: 1 }
+          require_all_classes_present: { type: boolean }
+          require_all_channel_groups_present: { type: boolean }
+          min_nonflat_templates_fraction: { type: number, minimum: 0 }
+          min_night_mass_online24h: { type: number, minimum: 0 }
+          min_weekend_mass_evening_weekend: { type: number, minimum: 0 }
+          min_weekday_mass_office_hours: { type: number, minimum: 0 }
+
   shape_time_grid_policy_5A:
     type: object
     additionalProperties: true
@@ -152,21 +626,243 @@ policy:
 scenario:
   scenario_horizon_config_5A:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required: [version, scenarios]
+    properties:
+      version: { type: string, minLength: 1 }
+      scenarios:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - scenario_id
+            - scenario_version
+            - is_baseline
+            - is_stress
+            - labels
+            - horizon_start_utc
+            - horizon_end_utc
+            - bucket_duration_minutes
+            - emit_utc_intensities
+          properties:
+            scenario_id:
+              type: string
+              pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"
+            scenario_version: { type: string, minLength: 1 }
+            is_baseline: { type: boolean }
+            is_stress: { type: boolean }
+            labels:
+              type: array
+              items: { type: string }
+            horizon_start_utc: { $ref: '#/$defs/rfc3339_micros' }
+            horizon_end_utc: { $ref: '#/$defs/rfc3339_micros' }
+            bucket_duration_minutes: { type: integer, enum: [15, 30, 60] }
+            emit_utc_intensities: { type: boolean }
+            notes: { type: string }
+          allOf:
+            - oneOf:
+                - properties:
+                    is_baseline: { const: true }
+                    is_stress: { const: false }
+                - properties:
+                    is_baseline: { const: false }
+                    is_stress: { const: true }
+
   scenario_metadata:
     type: object
     additionalProperties: true
+
   scenario_calendar_5A:
     type: array
     items:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required:
+        - manifest_fingerprint
+        - scenario_id
+        - event_id
+        - event_type
+        - start_utc
+        - end_utc
+        - shape_kind
+        - scope_global
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        event_id: { type: string }
+        event_type: { enum: [HOLIDAY, PAYDAY, CAMPAIGN, OUTAGE, STRESS] }
+        start_utc: { $ref: '#/$defs/rfc3339_micros' }
+        end_utc: { $ref: '#/$defs/rfc3339_micros' }
+        shape_kind: { enum: [constant, ramp] }
+        amplitude:
+          type: [number, "null"]
+        amplitude_peak:
+          type: [number, "null"]
+        ramp_in_buckets:
+          type: [integer, "null"]
+          minimum: 0
+        ramp_out_buckets:
+          type: [integer, "null"]
+          minimum: 0
+        scope_global: { type: boolean }
+        country_iso:
+          oneOf:
+            - $ref: '#/$defs/iso2'
+            - type: "null"
+        tzid:
+          oneOf:
+            - $ref: '#/$defs/iana_tzid'
+            - type: "null"
+        demand_class:
+          type: [string, "null"]
+        merchant_id:
+          oneOf:
+            - $ref: '#/$defs/id64'
+            - type: "null"
+        notes:
+          type: [string, "null"]
+
   scenario_overlay_policy_5A:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - event_types
+      - scope_rules
+      - combination
+      - shape_kinds
+      - calendar_validation
+    properties:
+      policy_id: { const: scenario_overlay_policy_5A }
+      version: { type: string, minLength: 1 }
+      event_types:
+        type: object
+        additionalProperties: false
+        required: [HOLIDAY, PAYDAY, CAMPAIGN, OUTAGE, STRESS]
+        properties:
+          HOLIDAY: &event_type_def
+            type: object
+            additionalProperties: false
+            required:
+              - default_shape_kind
+              - default_amplitude
+              - amplitude_bounds
+              - allowed_scope_kinds
+            properties:
+              default_shape_kind: { enum: [constant, ramp] }
+              default_amplitude: { type: number }
+              amplitude_bounds:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number }
+              allowed_scope_kinds:
+                type: array
+                minItems: 1
+                items: { enum: [global, country, tzid, demand_class, merchant] }
+          PAYDAY: *event_type_def
+          CAMPAIGN: *event_type_def
+          OUTAGE: *event_type_def
+          STRESS: *event_type_def
+      scope_rules:
+        type: object
+        additionalProperties: false
+        required: [allowed_scope_kinds, predicate_schema, rules]
+        properties:
+          allowed_scope_kinds:
+            type: array
+            minItems: 1
+            items: { enum: [global, country, tzid, demand_class, merchant] }
+          predicate_schema:
+            type: object
+            additionalProperties: false
+            properties:
+              global: { type: boolean }
+              country_iso: { $ref: '#/$defs/iso2' }
+              tzid: { $ref: '#/$defs/iana_tzid' }
+              demand_class: { type: string }
+              merchant_id: { $ref: '#/$defs/id64' }
+          rules:
+            type: object
+            additionalProperties: false
+            required:
+              - require_at_least_one_predicate
+              - global_cannot_combine
+              - merchant_scope_is_exclusive
+            properties:
+              require_at_least_one_predicate: { type: boolean }
+              global_cannot_combine: { type: boolean }
+              merchant_scope_is_exclusive: { type: boolean }
+      combination:
+        type: object
+        additionalProperties: false
+        required: [mode, min_factor, max_factor, apply_clamp_after_product]
+        properties:
+          mode: { const: multiplicative_product_v1 }
+          min_factor: { type: number, minimum: 0 }
+          max_factor: { type: number, exclusiveMinimum: 0 }
+          apply_clamp_after_product: { type: boolean }
+      shape_kinds:
+        type: object
+        additionalProperties: false
+        required: [constant, ramp]
+        properties:
+          constant:
+            type: object
+            additionalProperties: false
+            required: [required_params, amplitude_min, amplitude_max]
+            properties:
+              required_params:
+                type: array
+                minItems: 1
+                items: { const: amplitude }
+              amplitude_min: { type: number, minimum: 0 }
+              amplitude_max: { type: number, minimum: 0 }
+          ramp:
+            type: object
+            additionalProperties: false
+            required:
+              - required_params
+              - amplitude_peak_min
+              - amplitude_peak_max
+              - ramp_in_buckets_max
+              - ramp_out_buckets_max
+            properties:
+              required_params:
+                type: array
+                minItems: 3
+                items: { enum: [amplitude_peak, ramp_in_buckets, ramp_out_buckets] }
+              amplitude_peak_min: { type: number, minimum: 0 }
+              amplitude_peak_max: { type: number, minimum: 0 }
+              ramp_in_buckets_max: { type: integer, minimum: 0 }
+              ramp_out_buckets_max: { type: integer, minimum: 0 }
+      calendar_validation:
+        type: object
+        additionalProperties: false
+        required:
+          - require_event_type_in_vocab
+          - require_scope_valid
+          - require_time_within_horizon
+          - disallow_empty_scope
+          - disallow_unknown_fields
+          - max_events_per_scenario
+          - max_overlap_events_per_row_bucket
+        properties:
+          require_event_type_in_vocab: { type: boolean }
+          require_scope_valid: { type: boolean }
+          require_time_within_horizon: { type: boolean }
+          disallow_empty_scope: { type: boolean }
+          disallow_unknown_fields: { type: boolean }
+          max_events_per_scenario: { type: integer, minimum: 1 }
+          max_overlap_events_per_row_bucket: { type: integer, minimum: 1 }
+
   overlay_ordering_policy_5A:
     type: object
     additionalProperties: true
+
   scenario_overlay_validation_policy_5A:
     type: object
     additionalProperties: true
