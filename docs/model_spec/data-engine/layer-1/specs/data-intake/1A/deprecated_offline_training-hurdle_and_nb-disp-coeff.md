@@ -6,20 +6,20 @@ Purpose
 This is a concrete, file-referenced walkthrough of how the offline training pipeline
 materializes the coefficient bundles that the data engine consumes for 1A. This might soon be deprecated but it reflects the build as at 25th December 2025:
 
-- `config/models/hurdle/exports/version=.../hurdle_coefficients.yaml`
-- `config/models/hurdle/exports/version=.../nb_dispersion_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=.../hurdle_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=.../nb_dispersion_coefficients.yaml`
 
 This is based on the actual code and the real manifest produced by a training run.
 
 What gets produced (and where it lands)
 ---------------------------------------
 1) Hurdle + NB-mean coefficients:
-   - `config/models/hurdle/exports/version=2025-10-09/20251009T120000Z/hurdle_coefficients.yaml`
-   - `config/models/hurdle/exports/version=2025-10-24/20251024T234923Z/hurdle_coefficients.yaml`
+   - `config/layer1/1A/models/hurdle/exports/version=2025-10-09/20251009T120000Z/hurdle_coefficients.yaml`
+   - `config/layer1/1A/models/hurdle/exports/version=2025-10-24/20251024T234923Z/hurdle_coefficients.yaml`
 
 2) NB dispersion coefficients:
-   - `config/models/hurdle/exports/version=2025-10-09/20251009T120000Z/nb_dispersion_coefficients.yaml`
-   - `config/models/hurdle/exports/version=2025-10-24/20251024T234923Z/nb_dispersion_coefficients.yaml`
+   - `config/layer1/1A/models/hurdle/exports/version=2025-10-09/20251009T120000Z/nb_dispersion_coefficients.yaml`
+   - `config/layer1/1A/models/hurdle/exports/version=2025-10-24/20251024T234923Z/nb_dispersion_coefficients.yaml`
 
 Each output embeds a pointer to the exact simulation manifest used to generate it:
 `metadata.simulation_manifest` inside the YAML file.
@@ -56,7 +56,7 @@ Universe sources:
 The exact simulation config file
 --------------------------------
 The offline training config used by the simulation is:
-`config/models/hurdle/hurdle_simulation.priors.yaml`
+`config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
 
 This is confirmed by the real manifest:
 `artefacts/training/1A/hurdle_sim/simulation_version=2025-10-09/seed=9248923/20251009T120000Z/manifest.json`
@@ -69,7 +69,7 @@ simulation_config.config_path = "config\\models\\hurdle\\hurdle_simulation.prior
 Step-by-step walkthrough (what actually happens)
 ------------------------------------------------
 1) Load the simulation priors
-   - File: `config/models/hurdle/hurdle_simulation.priors.yaml`
+   - File: `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
    - Loader: `packages/engine/src/engine/training/hurdle/config.py`
    - This config defines the RNG seed, priors, and simulation settings used to
      create a synthetic training corpus.
@@ -125,7 +125,7 @@ Step-by-step walkthrough (what actually happens)
      - `hurdle_coefficients.yaml` (beta + beta_mu + dicts + metadata)
      - `nb_dispersion_coefficients.yaml` (beta_phi + design order + dicts + metadata)
    - Output location:
-     `config/models/hurdle/exports/version=<date>/<timestamp>/`
+     `config/layer1/1A/models/hurdle/exports/version=<date>/<timestamp>/`
 
    Each YAML includes:
    - `metadata.simulation_manifest` (link to the simulation manifest)
@@ -150,9 +150,9 @@ YAML bundles, which are produced offline by the training pipeline above.
 
 Quick map (single-line summary)
 -------------------------------
-`config/models/hurdle/hurdle_simulation.priors.yaml`
+`config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
 -> `materialise_simulated_corpus(...)`
 -> `build_design_matrices(...)`
 -> `fit_hurdle_coefficients(...)`
--> `config/models/hurdle/exports/version=.../{hurdle_coefficients.yaml,nb_dispersion_coefficients.yaml}`
+-> `config/layer1/1A/models/hurdle/exports/version=.../{hurdle_coefficients.yaml,nb_dispersion_coefficients.yaml}`
 -> consumed by 1A S0/S1/S2.

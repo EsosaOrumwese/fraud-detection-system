@@ -7,7 +7,7 @@ This policy is the **only authority** for **S3.1 (rule ladder)** and drives **S3
 ## 1) File identity (binding)
 
 * **Registry id:** `policy.s3.rule_ladder.yaml`
-* **Path:** `config/policy/s3.rule_ladder.yaml` 
+* **Path:** `config/layer1/1A/policy/s3.rule_ladder.yaml` 
 * **Governance:** must be opened atomically with other S3 authorities and must be part of the run's sealed inputs; changing bytes must be treated as a policy change (new lineage). 
 
 ---
@@ -155,7 +155,7 @@ All operations must be evaluated deterministically; numeric comparisons follow t
 > **Note:** this minimal file is sufficient for plumbing/validation, but it is **not** a production-realistic country policy. Treat it as a starter template and expand the country sets + rules for realism before you rely on synthetic outputs.
 
 ```yaml
-# config/policy/s3.rule_ladder.yaml
+# config/layer1/1A/policy/s3.rule_ladder.yaml
 # Authority: S3.1 rule ladder + S3.2 candidate admission + S3.3 ordering-key reconstruction (deterministic).
 #
 # Provenance / vintages

@@ -14,7 +14,7 @@ This is not a toy config: it must look like a real CDN distribution (heavy-taile
 ## 1) File identity (MUST)
 
 * **Dataset ID:** `cdn_country_weights`
-* **Path:** `config/virtual/cdn_country_weights.yaml`
+* **Path:** `config/layer1/3B/virtual/cdn_country_weights.yaml`
 * **Schema authority:** `schemas.3B.yaml#/policy/cdn_country_weights_v1`
 * **Token-less posture:** **do not embed any digest in-file**. The digest is recorded by 3B.S0 sealing inventory.
 

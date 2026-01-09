@@ -9,7 +9,7 @@ It exists for **rare, explicit corrections** (border ambiguity, known polygon mi
 ## 1) File identity (binding)
 
 * **Policy id:** `tz_overrides`
-* **Path:** `config/timezone/tz_overrides.yaml`
+* **Path:** `config/layer1/2A/timezone/tz_overrides.yaml`
 * **Schema authority:** `schemas.2A.yaml#/policy/tz_overrides_v1`
 * **Sealed input:** yes (2A.S0 records digest + version tag; bytes changing ⇒ new lineage)
 

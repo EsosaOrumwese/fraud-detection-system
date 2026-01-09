@@ -12,7 +12,7 @@ It is sealed in **2B.S0** (token-less, selected by exact path + digest), and val
 ## 1) File identity (binding)
 
 * **Dictionary ID:** `route_rng_policy_v1`
-* **Path:** `contracts/policy/2B/route_rng_policy_v1.json`
+* **Path:** `config/layer1/2B/policy/route_rng_policy_v1.json`
 * **Format:** JSON
 * **Schema anchor:** `schemas.2B.yaml#/policy/route_rng_policy_v1` *(intentionally permissive; this guide pins the real contract)*
 

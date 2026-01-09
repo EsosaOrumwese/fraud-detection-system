@@ -15,7 +15,7 @@ All other corridor thresholds (e.g., overall rejection-rate bound, Q0.99 bound) 
 
 ## 1) Identity & location
 
-* **Path:** `config/policy/validation_policy.yaml`
+* **Path:** `config/layer1/1A/policy/validation_policy.yaml`
 * **Type:** authored governance policy (not hunted)
 * **Consumption:** read by validation logic (corridor validator / S9 validator)
 * **Lineage rule:** because this can change PASS/FAIL outcomes, it MUST be treated as a **sealed governance input** (changing this file must change the run’s validation lineage).

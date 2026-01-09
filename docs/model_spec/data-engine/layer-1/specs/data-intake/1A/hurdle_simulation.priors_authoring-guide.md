@@ -18,7 +18,7 @@ It must be:
 
 `hurdle_simulation.priors.yaml` is an **offline training input**, not a sealed engine artefact.
 
-* **Pinned path:** `config/models/hurdle/hurdle_simulation.priors.yaml`
+* **Pinned path:** `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
 * **Contract note:** do **not** register this file as a runtime sealed input; it exists only to build the training corpus and coefficient bundles.
 
 ---
@@ -252,7 +252,7 @@ These bounds are corridor-safe and avoid “ridiculous chains” or “infinite 
 This is an example to be built open and tuned by Codex to my current data
 
 ```yaml
-# config/models/hurdle/hurdle_simulation.priors.yaml
+# config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml
 # Training-only input (offline corpus priors). Not a sealed runtime artefact. 
 #
 # Semantics:
@@ -419,7 +419,7 @@ This prior:
 
 Update the offline-training routes so they explicitly say:
 
-* “The training corpus is generated using `config/models/hurdle/hurdle_simulation.priors.yaml` as a sealed input.”
+* “The training corpus is generated using `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml` as a sealed input.”
 * “This prior file must include calibration/noise/clamps and range-based MCC effects.”
 
 ---
@@ -433,7 +433,7 @@ subsegments:
   artifacts:
 
   - name: hurdle_simulation_priors
-    path: config/models/hurdle/hurdle_simulation.priors.yaml
+    path: config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml
     type: config
     category: training_priors
     semver: '{semver}'
@@ -769,7 +769,7 @@ This is the **file Codex writes per training run** at:
   },
 
   "simulation_config": {
-    "config_path": "config/models/hurdle/hurdle_simulation.priors.yaml",
+    "config_path": "config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml",
     "sha256": "{sha256_priors}",
     "semver": "{priors_semver}",
     "version": "{priors_version}"

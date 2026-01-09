@@ -12,7 +12,7 @@ It is **not** a “downloaded dataset”. It is authored, versioned, and pinned.
 ## 1) Identity and location
 
 * **Basename:** `crossborder_hyperparams.yaml`
-* **Path (per artefact registry):** `config/policy/crossborder_hyperparams.yaml`
+* **Path (per artefact registry):** `config/layer1/1A/policy/crossborder_hyperparams.yaml`
 * **Type:** config (allocation)
 * **Governance:** exact bytes participate in `parameter_hash` (so changing this file changes run partitions for parameter-scoped outputs and logs)
 
@@ -190,7 +190,7 @@ So: avoid “pretty YAML tricks” (anchors, comments-as-data). Keep the structu
 ## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
-# config/policy/crossborder_hyperparams.yaml
+# config/layer1/1A/policy/crossborder_hyperparams.yaml
 # source=authored; vintage=2025-12-31
 # Governs: 1A.S0.6 eligibility + 1A.S4 ZTP link/exhaustion (participates in parameter_hash)
 

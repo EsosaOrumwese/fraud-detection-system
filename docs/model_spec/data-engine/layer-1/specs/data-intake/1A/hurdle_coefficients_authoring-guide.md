@@ -29,7 +29,7 @@ This is an authored external, but **not** hand-authored numbers. Codex MUST:
 
 From your artefact registry, the export path is:
 
-`config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml`
+`config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml`
 
 Where:
 
@@ -140,7 +140,7 @@ Design vector order is fixed:
 
 ### Step A — Load simulation priors
 
-* Config file: `config/models/hurdle/hurdle_simulation.priors.yaml`
+* Config file: `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
 * This file defines:
 
   * the seed
@@ -198,7 +198,7 @@ From the sealed corpus + reference tables:
 
 Write:
 
-`config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml`
+`config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml`
 
 Include:
 

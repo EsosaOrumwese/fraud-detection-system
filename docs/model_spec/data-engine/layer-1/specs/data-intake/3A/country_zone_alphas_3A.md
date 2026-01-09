@@ -15,7 +15,7 @@
 ## 1) File identity (MUST)
 
 * **Artefact name (registry):** `country_zone_alphas`
-* **Path:** `config/allocation/country_zone_alphas.yaml`
+* **Path:** `config/layer1/3A/allocation/country_zone_alphas.yaml`
 * **Schema authority:** `schemas.3A.yaml#/policy/country_zone_alphas_v1`
 * **Digest posture:** do **not** embed any digest field; S0 sealing inventory records SHA-256 of the exact bytes.
 

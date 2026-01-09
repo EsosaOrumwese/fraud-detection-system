@@ -9,7 +9,7 @@ This guide is written so Codex can author a **production-plausible** policy (not
 ## 1) File identity (binding)
 
 * **Dictionary ID:** `alias_layout_policy_v1`
-* **Path (Dictionary/Registry):** `contracts/policy/2B/alias_layout_policy_v1.json`
+* **Path (Dictionary/Registry):** `config/layer1/2B/policy/alias_layout_policy_v1.json`
 * **Format:** JSON
 * **Schema anchor (shape authority):** `schemas.2B.yaml#/policy/alias_layout_policy_v1`
   *(Note: the schema anchor is intentionally permissive; this guide is what pins the real contract.)*

@@ -62,7 +62,7 @@ This dataset is best treated as an **Ingress Authoring artefact** owned by the *
 When using Route B (closed-world authored ingress), Codex MUST NOT “implement the guide” by inventing defaults.
 Instead, Route B MUST be driven by a **governed bootstrap config artefact**:
 
-* **Config path (binding):** `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml`
+* **Config path (binding):** `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml`
 * **Role:** pins scale + distributions + correlations + determinism seed rules for authoring the merchant universe
 * **Rule:** if this config file is missing or fails schema validation → FAIL CLOSED (do not guess).
 
@@ -109,7 +109,7 @@ You explicitly **author** the merchant universe as a governed input, using the b
 
 **Binding rule (MUST; decision-free):**
 
-* Read `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml` and apply its pinned policy exactly:
+* Read `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml` and apply its pinned policy exactly:
   * merchant count `N`
   * deterministic seed derivation
   * `home_country_iso` weighting/spine constraints
@@ -234,7 +234,7 @@ MUST record alongside the snapshot:
    * `{version}`
    * upstream source identifiers (or “closed-world authored”)
    * **bootstrap config reference (Route B):**
-     * config path: `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml`
+     * config path: `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml`
      * sha256 of the config bytes actually used
      * config `version`/`semver` fields (if present)
    * rule-set identifier (channel mapping, conflict resolution policy)

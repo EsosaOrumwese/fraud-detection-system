@@ -86,7 +86,7 @@ Use one section per artefact:
 - deprecated_path: none
 - new_path: reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.parquet
 - realism_checks:
-  - Closed-world authored using bootstrap config `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml` (Philox RNG).
+  - Closed-world authored using bootstrap config `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml` (Philox RNG).
   - Ensured min distinct home countries (>=50) and MCCs (>=200) with channel mix per MCC rules.
   - Provenance recorded at `reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.provenance.json` with config sha256 and counts.
 
@@ -109,24 +109,24 @@ Use one section per artefact:
 
 ## validation_policy_2024-12-31
 - artefact_id: validation_policy
-- deprecated_path: config/policy/deprecated_validation_policy_2024-12-31.yaml
-- new_path: config/policy/validation_policy.yaml
+- deprecated_path: config/layer1/1A/policy/deprecated_validation_policy_2024-12-31.yaml
+- new_path: config/layer1/1A/policy/validation_policy.yaml
 - realism_checks:
   - CUSUM parameters set to reference_k=0.45, threshold_h=9.0 for a 50k-merchant universe (sustained drift sensitivity without hypersensitivity).
   - File is a sealed governance input; missing policy fails closed by spec.
 
 ## residual_quantisation_policy_2024-12-31
 - artefact_id: residual_quantisation_policy
-- deprecated_path: config/numeric/deprecated_residual_quantisation_2024-12-31.yaml
-- new_path: config/numeric/residual_quantisation.yaml
+- deprecated_path: config/layer1/1A/numeric/deprecated_residual_quantisation_2024-12-31.yaml
+- new_path: config/layer1/1A/numeric/residual_quantisation.yaml
 - realism_checks:
   - dp_resid=7 chosen to preserve minimum ccy_country_shares precision while keeping deterministic largest-remainder behaviour.
   - Stable residual sort with deterministic tiebreaks (country_iso, merchant_id).
 
 ## policy_s3_thresholds_2024-12-31
 - artefact_id: policy.s3.thresholds.yaml
-- deprecated_path: config/policy/deprecated_s3.thresholds_2024-12-31.yaml
-- new_path: config/policy/s3.thresholds.yaml
+- deprecated_path: config/layer1/1A/policy/deprecated_s3.thresholds_2024-12-31.yaml
+- new_path: config/layer1/1A/policy/s3.thresholds.yaml
 - realism_checks:
   - Bounded Hamilton thresholds enforce home minimum and at least one foreign when foreigns exist, without forcing one-per-country.
   - Parameters aligned to current N distribution (median 1, q90 5 from hurdle sim).
@@ -151,8 +151,8 @@ Use one section per artefact:
 
 ## dirichlet_alpha_policy_2024-12-31
 - artefact_id: dirichlet_alpha_policy
-- deprecated_path: config/models/allocation/deprecated_dirichlet_alpha_policy_2024-12-31.yaml
-- new_path: config/models/allocation/dirichlet_alpha_policy.yaml
+- deprecated_path: config/layer1/1A/models/allocation/deprecated_dirichlet_alpha_policy_2024-12-31.yaml
+- new_path: config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml
 - realism_checks:
   - Scaled base-share Dirichlet with total_concentration=24 and home_boost_multiplier=1.25 to keep home bias without collapsing foreign mass.
   - Alpha clamps tightened (min 0.03, max 150) to limit extreme draws while keeping randomness.
@@ -169,7 +169,7 @@ Use one section per artefact:
 
 ## hurdle_simulation_priors_2025-12-31
 - artefact_id: hurdle_simulation_priors
-- new_path: config/models/hurdle/hurdle_simulation.priors.yaml
+- new_path: config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml
 - realism_checks:
   - Semver 1.2.0 calibrated to the current 50k merchant universe (mean_pi_target=0.16, mean_mu_target_multi=6.5, median_phi_target=45.0).
   - MCC offsets aligned to the top observed merchant MCCs (54xx grocery, 58xx dining, 55xx auto) with negative offsets for digital/high-risk codes.
@@ -177,22 +177,22 @@ Use one section per artefact:
 
 ## hurdle_coefficients_2025-12-31
 - artefact_id: hurdle_coefficients
-- new_path: config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/hurdle_coefficients.yaml
+- new_path: config/layer1/1A/models/hurdle/exports/version=2025-12-31/20251231T134200Z/hurdle_coefficients.yaml
 - realism_checks:
   - Offline simulation + deterministic design + ridge IRLS fit via `scripts/build_hurdle_exports.py`.
   - Training manifest recorded at `artefacts/training/1A/hurdle_sim/simulation_version=2025-12-31/seed=9248923/20251231T134200Z/manifest.json`.
-  - Belt-and-braces selfcheck recorded at `config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/bundle_selfcheck.json`.
+  - Belt-and-braces selfcheck recorded at `config/layer1/1A/models/hurdle/exports/version=2025-12-31/20251231T134200Z/bundle_selfcheck.json`.
 
 ## nb_dispersion_coefficients_2025-12-31
 - artefact_id: nb_dispersion_coefficients
-- new_path: config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/nb_dispersion_coefficients.yaml
+- new_path: config/layer1/1A/models/hurdle/exports/version=2025-12-31/20251231T134200Z/nb_dispersion_coefficients.yaml
 - realism_checks:
   - MOM phi targets computed with pooling thresholds from priors; dict_mcc/dict_ch aligned with hurdle export.
   - Selfcheck bundle recorded alongside hurdle export for deterministic validation.
 
 ## policy_s3_rule_ladder_2025-12-31
 - artefact_id: policy.s3.rule_ladder.yaml
-- new_path: config/policy/s3.rule_ladder.yaml
+- new_path: config/layer1/1A/policy/s3.rule_ladder.yaml
 - realism_checks:
   - Channel enums aligned to `card_present`/`card_not_present` to match ingress schema.
   - High-risk CNP deny list expanded to include digital goods MCCs and cash-like categories.
@@ -200,28 +200,28 @@ Use one section per artefact:
 
 ## policy_s3_base_weight_2025-12-31
 - artefact_id: policy.s3.base_weight.yaml
-- new_path: config/policy/s3.base_weight.yaml
+- new_path: config/layer1/1A/policy/s3.base_weight.yaml
 - realism_checks:
   - Semver 1.2.0 with beta_home=1.25 and beta_rank=-0.10 to keep home competitive while preserving foreign tail mass.
   - Quantisation dp=7 with w_min=1e-7 to avoid zeroing weights after rounding.
 
 ## crossborder_hyperparams_2025-12-31
 - artefact_id: crossborder_hyperparams
-- new_path: config/policy/crossborder_hyperparams.yaml
+- new_path: config/layer1/1A/policy/crossborder_hyperparams.yaml
 - realism_checks:
   - Eligibility rules deny sanctioned homes and high-risk CNP MCCs, allow travel/transport and CNP retail, and whitelist major hub home countries.
   - ZTP link uses ordered coefficients with clamp01 feature transform and deterministic exhaustion policy.
 
 ## ccy_smoothing_params_2025-12-31
 - artefact_id: ccy_smoothing_params
-- new_path: config/allocation/ccy_smoothing_params.yaml
+- new_path: config/layer1/1A/allocation/ccy_smoothing_params.yaml
 - realism_checks:
   - Defaults blend ccy-country and settlement shares with light alpha smoothing and dp=7 output precision.
   - Per-currency overrides tuned for EUR/USD and currency unions (XOF/XAF/XCD/XPF) to prevent uniform artifacts.
 
 ## s6_selection_policy_2025-12-31
 - artefact_id: s6_selection_policy
-- new_path: config/policy.s6.selection.yaml
+- new_path: config/layer1/1A/policy.s6.selection.yaml
 - realism_checks:
   - Default cap 25 preserves non-trivial candidate sets; EUR override allows the full union candidate set.
   - Membership emission and full logging enabled for deterministic replay.
@@ -236,34 +236,34 @@ Use one section per artefact:
 
 ## tz_nudge_2025-12-31
 - artefact_id: tz_nudge
-- new_path: config/timezone/tz_nudge.yml
+- new_path: config/layer1/2A/timezone/tz_nudge.yml
 - realism_checks:
   - epsilon_degrees set to 0.000005 (~0.55m) to break border ties without relocating sites materially.
   - sha256_digest computed from the semver+epsilon payload per the guide and recorded in the policy file.
 
 ## tz_overrides_2025-12-31
 - artefact_id: tz_overrides
-- new_path: config/timezone/tz_overrides.yaml
+- new_path: config/layer1/2A/timezone/tz_overrides.yaml
 - realism_checks:
   - Empty override list to avoid unverified tzid pins; no MCC-scope overrides enabled without a sealed merchant_mcc_map.
 
 ## zone_mixture_policy_3A
 - artefact_id: zone_mixture_policy
-- new_path: config/policy/3A/zone_mixture_policy.yaml
+- new_path: config/layer1/3A/policy/zone_mixture_policy.yaml
 - realism_checks:
   - Deterministic escalation mix with theta_mix=0.35 and rule ladder guarding tiny site counts and single-zone countries.
   - Forced escalation triggers at zone_count_country>=4 or site_count>=35 for large, multi-zone merchants.
 
 ## zone_floor_policy_3A
 - artefact_id: zone_floor_policy
-- new_path: config/allocation/zone_floor_policy.yaml
+- new_path: config/layer1/3A/allocation/zone_floor_policy.yaml
 - realism_checks:
   - Derived from tz_world_2025a tzid presence counts; 100% tzid coverage with mixed bump_thresholds (>=10% at 0.60, >=50% at 0.00).
   - floor_value mapped from log1p presence score with sqrt shaping; >=200 tzids have positive floors and >=50 tzids >=0.05.
 
 ## country_zone_alphas_3A
 - artefact_id: country_zone_alphas
-- new_path: config/allocation/country_zone_alphas.yaml
+- new_path: config/layer1/3A/allocation/country_zone_alphas.yaml
 - realism_checks:
   - Derived from tz_world_2025a country×tzid geometries and population_raster_2025; eps smoothing ensures strictly positive shares.
   - Area fallback used only where population mass is missing for the majority of zones; per-country notes record fallback usage.
@@ -278,28 +278,28 @@ Use one section per artefact:
   - Non-degenerate spread (p5 ≈ 0.02, p50 ≈ 0.17, p95 ≈ 0.34) with openness clamped in [0,1].
 ## route_rng_policy_v1
 - artefact_id: route_rng_policy_v1
-- new_path: contracts/policy/2B/route_rng_policy_v1.json
+- new_path: config/layer1/2B/policy/route_rng_policy_v1.json
 - realism_checks:
   - Philox2x64-10 with `routing_selection` and `routing_edge` streams; event budgets are single-uniform per arrival (2 for S5, 1 for S6).
   - Stream IDs are namespaced (`2B.routing`, `2B.routing_edge`) and key_basis is `[seed, parameter_hash, run_id]`.
 
 ## alias_layout_policy_v1
 - artefact_id: alias_layout_policy_v1
-- new_path: contracts/policy/2B/alias_layout_policy_v1.json
+- new_path: config/layer1/2B/policy/alias_layout_policy_v1.json
 - realism_checks:
   - Quantised_bits=24, prob_qbits=32, and `walker_vose_q0_32` decode law pinned; deterministic residual adjustment rules included.
   - Floor_spec uses absolute floor 1e-12 with uniform fallback and normalisation_epsilon=1e-9 to keep alias weights stable.
 
 ## day_effect_policy_v1
 - artefact_id: day_effect_policy_v1
-- new_path: contracts/policy/2B/day_effect_policy_v1.json
+- new_path: config/layer1/2B/policy/day_effect_policy_v1.json
 - realism_checks:
   - Day range is 2024-01-01 through 2025-12-31 (inclusive), meeting the multi-year volume floor.
   - Sigma_gamma=0.32 with Philox2x64-10 and deterministic key/counter derivation; sha256_hex computed per canonical JSON rules.
 
 ## virtual_edge_policy_v1
 - artefact_id: virtual_edge_policy_v1
-- new_path: contracts/policy/2B/virtual_edge_policy_v1.json
+- new_path: config/layer1/2B/policy/virtual_edge_policy_v1.json
 - realism_checks:
   - 2000 edges with deterministic ip_country/edge_id ordering and weights normalized to sum=1; heavy-tail check passes via top-5% mass ≥30%.
   - Edge catalogue derived from iso3166_canonical_2024 + world_countries + population_raster_2025 with POP fallback for raster gaps and synthetic candidate grids for countries with insufficient raster cells (e.g., Antarctica).
@@ -315,14 +315,14 @@ Use one section per artefact:
 
 ## mcc_channel_rules_v1
 - artefact_id: mcc_channel_rules
-- new_path: config/virtual/mcc_channel_rules.yaml
+- new_path: config/layer1/3B/virtual/mcc_channel_rules.yaml
 - realism_checks:
   - Derived from mcc_canonical_2025-12-31 + transaction_schema_merchant_ids (2025-12-31) using keyword scores; 290 MCCs produce 580 rules.
   - CNP virtual share = 0.1217 (target 0.12, corridor 0.04-0.20); overall virtual share = 0.02998.
 
 ## cdn_country_weights_v1
 - artefact_id: cdn_country_weights
-- new_path: config/virtual/cdn_country_weights.yaml
+- new_path: config/layer1/3B/virtual/cdn_country_weights.yaml
 - realism_checks:
   - Built from cdn_weights_ext_yaml (WDI 2024) and iso3166/world_countries intersection; 235 countries with polygons.
   - Tail mass applied to 23 missing ext weights; edge_scale=500; heavy-tail check top5=0.4848, top10=0.5776.
@@ -330,19 +330,19 @@ Use one section per artefact:
 
 ## virtual_validation_policy_v1
 - artefact_id: virtual_validation_policy
-- new_path: config/virtual/virtual_validation.yml
+- new_path: config/layer1/3B/virtual/virtual_validation.yml
 - realism_checks:
   - ip_country_tolerance=0.010000 derived from edge_scale=500; cutoff_tolerance_seconds=1800.
 
 ## cdn_key_digest_v1
 - artefact_id: cdn_key_digest
-- new_path: config/virtual/cdn_key_digest.yaml
+- new_path: config/layer1/3B/virtual/cdn_key_digest.yaml
 - realism_checks:
   - Semantic digest computed from cdn_country_weights v1.0.0 with canonical 12dp weights and edge_scale=500.
 
 ## virtual_logging_policy_v1
 - artefact_id: virtual_logging_policy
-- new_path: config/logging/virtual_logging.yml
+- new_path: config/layer1/3B/logging/virtual_logging.yml
 - realism_checks:
   - v1 retention and rotation limits set per guide (16 MiB edge_progress, 256 MiB audit, 365-day retention, 200-run minimum).
 

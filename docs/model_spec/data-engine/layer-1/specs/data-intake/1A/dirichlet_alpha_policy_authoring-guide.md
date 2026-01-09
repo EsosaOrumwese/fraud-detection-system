@@ -1,4 +1,4 @@
-## Authoring Guide — `config/models/allocation/dirichlet_alpha_policy.yaml` (Dirichlet α policy for country-share sampling)
+## Authoring Guide — `config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml` (Dirichlet α policy for country-share sampling)
 
 ### 0) Purpose (Binding)
 
@@ -16,7 +16,7 @@ If the Dirichlet lane is disabled, this policy may be present but is **not consu
 
 ## 1) Identity & location (Binding)
 
-* **Path:** `config/models/allocation/dirichlet_alpha_policy.yaml`
+* **Path:** `config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml`
 * **Type:** authored policy/config (not hunted)
 * **Lineage:** bytes MUST participate in `parameter_hash` whenever this file is **opened**. The engine MUST only open/consume this file when `enabled=true`; if `enabled=false`, the lane is disabled and this file must not be opened/claimed as consumed.
 

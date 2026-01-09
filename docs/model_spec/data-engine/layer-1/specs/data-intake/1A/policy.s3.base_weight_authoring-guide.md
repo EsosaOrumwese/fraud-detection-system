@@ -9,7 +9,7 @@ These priors are **deterministic scores (not probabilities)** and are **quantise
 ## 1) File identity (binding)
 
 * **Name:** `policy.s3.base_weight.yaml`
-* **Path:** `config/policy/s3.base_weight.yaml` 
+* **Path:** `config/layer1/1A/policy/s3.base_weight.yaml` 
 * **Governance:** treated as a sealed policy input; changing bytes is a policy change (new lineage).
 * **If present, it must be opened** when S3 computes priors; missing/invalid policy causes S3.4 to fail with `ERR_S3_WEIGHT_CONFIG`. 
 
@@ -109,7 +109,7 @@ Recommended v1 bounds:
 ## 6) EXAMPLE ONLY - MUST re-derive from current inputs; DO NOT COPY/SHIP
 
 ```yaml
-# config/policy/s3.base_weight.yaml
+# config/layer1/1A/policy/s3.base_weight.yaml
 # Deterministic base-weight prior coefficients + fixed-dp quantisation for 1A.S3.4. 
 
 version: "1.0.0"
@@ -141,7 +141,7 @@ This is sufficient for S3.4 to compute and emit `s3_base_weight_priors` with `ba
 
 ## 7) Acceptance checklist (Codex must enforce)
 
-* File exists at `config/policy/s3.base_weight.yaml`. 
+* File exists at `config/layer1/1A/policy/s3.base_weight.yaml`. 
 * `version` is non-empty semver string.
 * `dp` exists, integer `0..255`. (Missing `dp` ⇒ S3.4 must fail `ERR_S3_WEIGHT_CONFIG`.) 
 * `model.kind == "loglinear_rank_home"` and `coeffs` contains exactly `beta0`, `beta_home`, `beta_rank`.

@@ -1,4 +1,4 @@
-## Authoring Guide — `config/numeric/residual_quantisation.yaml` (Residual quantisation & tie-break policy)
+## Authoring Guide — `config/layer1/1A/numeric/residual_quantisation.yaml` (Residual quantisation & tie-break policy)
 
 ### 0) Purpose (Binding)
 
@@ -14,7 +14,7 @@ This policy is **not** about model RNG; it is about **RNG-free determinism**.
 
 ## 1) Identity & location (Binding)
 
-* **Path:** `config/numeric/residual_quantisation.yaml`
+* **Path:** `config/layer1/1A/numeric/residual_quantisation.yaml`
 * **Type:** authored numeric policy/config
 * **Lineage:** bytes MUST participate in `parameter_hash` whenever any consumer state uses residual sorting / largest-remainder allocation.
 

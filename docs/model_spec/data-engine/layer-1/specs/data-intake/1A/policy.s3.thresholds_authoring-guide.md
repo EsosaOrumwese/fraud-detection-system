@@ -9,7 +9,7 @@ If this file is absent **or** `enabled: false`, the engine uses the **unbounded*
 ## 1) File identity (binding)
 
 * **Name:** `policy.s3.thresholds.yaml`
-* **Path:** `config/policy/s3.thresholds.yaml`
+* **Path:** `config/layer1/1A/policy/s3.thresholds.yaml`
 * **Role:** deterministic lower/upper integer bounds `(L_i, U_i)` and feasibility behaviour for integerisation.
 * **Dependencies:** `iso3166_canonical_2024` (only if you later add per-ISO overrides; v1 does not require overrides).
 

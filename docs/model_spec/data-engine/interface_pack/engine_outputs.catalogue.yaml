@@ -1027,7 +1027,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 1B
-  path_template: config/policy/1B.jitter.yaml
+  path_template: config/layer1/1B/policy/1B.jitter.yaml
   partitions: []
   schema_ref: schemas.1B.yaml#/policy/jitter_policy
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#jitter_policy
@@ -1116,7 +1116,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 2A
-  path_template: config/timezone/tz_overrides.yaml
+  path_template: config/layer1/2A/timezone/tz_overrides.yaml
   partitions: []
   schema_ref: schemas.2A.yaml#/policy/tz_overrides_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tz_overrides
@@ -1131,7 +1131,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 2A
-  path_template: config/timezone/tz_nudge.yml
+  path_template: config/layer1/2A/timezone/tz_nudge.yml
   partitions: []
   schema_ref: schemas.2A.yaml#/policy/tz_nudge_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tz_nudge
@@ -1333,7 +1333,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 2B
-  path_template: contracts/policy/2B/route_rng_policy_v1.json
+  path_template: config/layer1/2B/policy/route_rng_policy_v1.json
   partitions: []
   schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#route_rng_policy_v1
@@ -1348,7 +1348,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 2B
-  path_template: contracts/policy/2B/virtual_edge_policy_v1.json
+  path_template: config/layer1/2B/policy/virtual_edge_policy_v1.json
   partitions: []
   schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#virtual_edge_policy_v1
@@ -1363,7 +1363,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 2B
-  path_template: contracts/policy/2B/alias_layout_policy_v1.json
+  path_template: config/layer1/2B/policy/alias_layout_policy_v1.json
   partitions: []
   schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#alias_layout_policy_v1
@@ -1378,7 +1378,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 2B
-  path_template: contracts/policy/2B/day_effect_policy_v1.json
+  path_template: config/layer1/2B/policy/day_effect_policy_v1.json
   partitions: []
   schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#day_effect_policy_v1
@@ -1592,7 +1592,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 3A
-  path_template: config/policy/3A/zone_mixture_policy.yaml
+  path_template: config/layer1/3A/policy/zone_mixture_policy.yaml
   partitions: []
   schema_ref: schemas.3A.yaml#/policy/zone_mixture_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#zone_mixture_policy
@@ -1607,7 +1607,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 3A
-  path_template: config/allocation/country_zone_alphas.yaml
+  path_template: config/layer1/3A/allocation/country_zone_alphas.yaml
   partitions: []
   schema_ref: schemas.3A.yaml#/policy/country_zone_alphas_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#country_zone_alphas
@@ -1622,7 +1622,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 3A
-  path_template: config/allocation/zone_floor_policy.yaml
+  path_template: config/layer1/3A/allocation/zone_floor_policy.yaml
   partitions: []
   schema_ref: schemas.3A.yaml#/policy/zone_floor_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#zone_floor_policy
@@ -2024,7 +2024,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 3B
-  path_template: config/virtual/mcc_channel_rules.yaml
+  path_template: config/layer1/3B/virtual/mcc_channel_rules.yaml
   partitions: []
   schema_ref: schemas.3B.yaml#/policy/virtual_rules_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#mcc_channel_rules
@@ -2056,7 +2056,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 3B
-  path_template: config/virtual/cdn_country_weights.yaml
+  path_template: config/layer1/3B/virtual/cdn_country_weights.yaml
   partitions: []
   schema_ref: schemas.3B.yaml#/policy/cdn_country_weights_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#cdn_country_weights
@@ -2071,7 +2071,7 @@ outputs:
   exposure: internal
   scope: scope_global
   owner_segment: 3B
-  path_template: config/virtual/virtual_validation.yml
+  path_template: config/layer1/3B/virtual/virtual_validation.yml
   partitions: []
   schema_ref: schemas.3B.yaml#/policy/virtual_validation_policy_v1
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#virtual_validation_policy

@@ -1,4 +1,4 @@
-# Authoring Guide — `config/allocation/ccy_smoothing_params.yaml` (S5 blending + smoothing + fixed-dp output)
+# Authoring Guide — `config/layer1/1A/allocation/ccy_smoothing_params.yaml` (S5 blending + smoothing + fixed-dp output)
 
 This file is **required** by **1A.S5**. It governs how the two ingress share surfaces:
 
@@ -27,7 +27,7 @@ This policy controls whether currency-to-country weights look like the real worl
 ## 1) File identity
 
 * **Artefact id:** `ccy_smoothing_params`
-* **Path:** `config/allocation/ccy_smoothing_params.yaml`
+* **Path:** `config/layer1/1A/allocation/ccy_smoothing_params.yaml`
 * **Type:** policy/config (authored; not hunted)
 * **Hashing:** SHA-256 over exact bytes (no YAML normalisation)
 

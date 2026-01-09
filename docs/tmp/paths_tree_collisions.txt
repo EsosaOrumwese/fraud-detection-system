@@ -4,8 +4,6 @@ PATH COLLISIONS REPORT (ALL SEGMENTS COMBINED)
 REGISTRY COLLISIONS
 -------------------
 - LICENSES/  [ids: license_files, licenses_directory, virtual_licenses_dir]
-- data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet  [ids: Layer-2 / 5A merchant×zone demand profile, merchant_zone_profile_5A]
-- data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet  [ids: Layer-2 / 5A sealed inputs, sealed_inputs_5A]
 
 DICTIONARY COLLISIONS
 ---------------------
@@ -13,6 +11,8 @@ None
 
 EXPECTED DUPLICATES
 -------------------
+- data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet  [ids: Layer-2 / 5A merchant×zone demand profile, merchant_zone_profile_5A]
+- data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet  [ids: Layer-2 / 5A sealed inputs, sealed_inputs_5A]
 - rng_audit_log
   - logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
   - logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl

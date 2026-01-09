@@ -4,7 +4,7 @@
       - transaction_schema_merchant_ids
             · cols: merchant_id, mcc, channel, home_country_iso
             · (optional but necessary if using closed-world Route B)
-            - config/ingress/transaction_schema_merchant_ids.bootstrap.yaml  (binding bootstrap policy)
+            - config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml  (binding bootstrap policy)
 
       [R] Reference artefacts
       - iso3166_canonical_2024
@@ -26,12 +26,12 @@
       - policy.s3.rule_ladder.yaml
       - (opt) policy.s3.base_weight.yaml
       - (opt) policy.s3.thresholds.yaml
-      - config/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
-      - s6_selection_policy @ config/policy.s6.selection.yaml
+      - config/layer1/1A/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
+      - s6_selection_policy @ config/layer1/1A/policy.s6.selection.yaml
 
       - (recommended / present in 1A contracts; include to stay “complete”)
-            - config/models/allocation/dirichlet_alpha_policy.yaml     (used if Dirichlet lane enabled)
-            - config/numeric/residual_quantisation.yaml                (pins residual rounding before rank)
+            - config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml     (used if Dirichlet lane enabled)
+            - config/layer1/1A/numeric/residual_quantisation.yaml                (pins residual rounding before rank)
 
       - (optional; only if any policy references it)
             - static.currency_to_country.map.json
@@ -98,15 +98,15 @@
 * Layer-1 Segment 3B
 	[Ingress / external artefacts S0 must seal for 3B]
 		- Virtual classification rules:
-			· mcc_channel_rules @ config/virtual/mcc_channel_rules.yaml
+			· mcc_channel_rules @ config/layer1/3B/virtual/mcc_channel_rules.yaml
 				(logical_id ≈ "virtual_rules" / manifest_key mlr.3B.config.virtual_rules)
 		- Virtual settlement coordinate sources:
 			· virtual_settlement_coords @ artefacts/virtual/virtual_settlement_coords.csv (or parquet)
 		- CDN country mix policy:
-			· cdn_country_weights @ config/virtual/cdn_country_weights.yaml
+			· cdn_country_weights @ config/layer1/3B/virtual/cdn_country_weights.yaml
 				+ external base weights cdn_weights_ext_yaml
 		- Validation policy packs:
-			· virtual_validation_config @ config/virtual/virtual_validation.yaml
+			· virtual_validation_config @ config/layer1/3B/virtual/virtual_validation.yml
 				(tolerances for virtual/CDN behaviour)
 		- Geospatial & tz assets (transitively used by S1–S3):
 			· hrsl_raster (HRSL population tiles),

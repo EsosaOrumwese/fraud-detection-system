@@ -7,7 +7,7 @@ This policy is the **sealed catalogue** that 2B.S6 uses to pick a **network edge
 ## 1) File identity (binding)
 
 * **Dictionary ID:** `virtual_edge_policy_v1`
-* **Path:** `contracts/policy/2B/virtual_edge_policy_v1.json`
+* **Path:** `config/layer1/2B/policy/virtual_edge_policy_v1.json`
 * **Format:** JSON
 * **Schema anchor:** `schemas.2B.yaml#/policy/virtual_edge_policy_v1`
 * **Token-less:** yes (S0 seals by exact bytes; selection is by S0-sealed `path + sha256`)

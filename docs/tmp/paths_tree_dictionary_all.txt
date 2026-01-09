@@ -1,5 +1,5 @@
 DICTIONARY PATH TREE (ALL SEGMENTS COMBINED)
-===========================================
+============================================
 
 artefacts/
   external/

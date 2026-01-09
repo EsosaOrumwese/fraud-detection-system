@@ -9,7 +9,7 @@ When 2A.S1 does point-in-polygon and gets a **non-unique** result (border / over
 ## 1) File identity (binding)
 
 * **Artefact id:** `tz_nudge`
-* **Path:** `config/timezone/tz_nudge.yml`
+* **Path:** `config/layer1/2A/timezone/tz_nudge.yml`
 * **Schema authority:** `schemas.2A.yaml#/policy/tz_nudge_v1`
 * **Sealed in:** `2A.S0` (bytes change ⇒ new lineage / new `manifest_fingerprint`)
 

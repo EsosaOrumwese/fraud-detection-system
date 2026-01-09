@@ -18,7 +18,7 @@ This file is produced **offline** and consumed **read-only** at runtime by 1A.S2
 
 The simulation config used to build the corpus is **not** a sealed engine input.
 
-* **Training-only path:** `config/models/hurdle/hurdle_simulation.priors.yaml`
+* **Training-only path:** `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
 * **Contract note:** do **not** register the simulation config as a runtime sealed artefact; only the exported coefficients bundle is sealed.
 
 ### 0.2 Realism bar (MUST)
@@ -34,7 +34,7 @@ Before sealing an export, enforce at minimum:
 
 # 1) Where it must land (binding path)
 
-`config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml`
+`config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml`
 
 Same `version={config_version}` and `{iso8601_timestamp}` scheme as the hurdle export bundle.
 
@@ -67,7 +67,7 @@ The training run MUST write a `manifest.json` and this YAML must point to it via
 
 That manifest must record (at minimum):
 
-* simulation config path (`config/models/hurdle/hurdle_simulation.priors.yaml`)
+* simulation config path (`config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`)
 * RNG seed
 * resolved input references used to build the training corpus:
 
@@ -124,7 +124,7 @@ This mirrors your existing pipeline, with the dispersion-specific details made e
 
 ### Step A — Load simulation priors
 
-* `config/models/hurdle/hurdle_simulation.priors.yaml`
+* `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
 * This config pins:
 
   * corpus scale and priors
@@ -207,7 +207,7 @@ using:
 ### Step F — Export the YAML bundle (atomic write)
 
 Write:
-`config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml`
+`config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml`
 
 Include:
 
@@ -423,7 +423,7 @@ Compute:
 
 Codex must write an artefact next to the export bundle, e.g.:
 
-`config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/bundle_selfcheck.json`
+`config/layer1/1A/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/bundle_selfcheck.json`
 
 Containing:
 

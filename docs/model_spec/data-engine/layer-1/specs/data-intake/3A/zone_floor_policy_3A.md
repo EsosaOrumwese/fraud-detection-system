@@ -11,7 +11,7 @@ This policy exists to prevent pathological “vanishing zones” outcomes (e.g.,
 ## 1) File identity (MUST)
 
 * **Artefact name (registry):** `zone_floor_policy`
-* **Path:** `config/allocation/zone_floor_policy.yaml`
+* **Path:** `config/layer1/3A/allocation/zone_floor_policy.yaml`
 * **Schema authority:** `schemas.3A.yaml#/policy/zone_floor_policy_v1`
 * **Token-less posture:** do **not** embed any digest in the file; digest is tracked by **3A.S0 sealing inventory**.
 

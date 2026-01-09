@@ -14,7 +14,7 @@ This is a **v1 “exact-match table”** (no wildcards, no priorities, no overri
 ## 1) File identity (MUST)
 
 * **Dataset ID:** `mcc_channel_rules`
-* **Path:** `config/virtual/mcc_channel_rules.yaml`
+* **Path:** `config/layer1/3B/virtual/mcc_channel_rules.yaml`
 * **Schema authority:** `schemas.3B.yaml#/policy/virtual_rules_policy_v1`
 * **Token-less posture:** do **not** embed any digest in-file; digest is tracked by 3B.S0 sealing inventory.
 

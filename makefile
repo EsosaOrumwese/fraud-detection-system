@@ -64,36 +64,36 @@ GDP_TABLE ?= reference/economic/world_bank_gdp_per_capita/$(GDP_VERSION)/gdp.par
 BUCKET_TABLE ?= reference/economic/gdp_bucket_map/$(BUCKET_VERSION)/gdp_bucket_map.parquet
 NUMERIC_POLICY ?= reference/governance/numeric_policy/$(NUMERIC_POLICY_VERSION)/numeric_policy.json
 MATH_PROFILE ?= reference/governance/math_profile/$(MATH_PROFILE_VERSION)/math_profile_manifest.json
-VALIDATION_POLICY ?= config/policy/validation_policy.yaml
+VALIDATION_POLICY ?= config/layer1/1A/policy/validation_policy.yaml
 
-S3_RULE_LADDER_POLICY ?= config/policy/s3.rule_ladder.yaml
-S3_BASE_WEIGHT_POLICY ?= config/policy/s3.base_weight.yaml
-S3_THRESHOLDS_POLICY ?= config/policy/s3.thresholds.yaml
+S3_RULE_LADDER_POLICY ?= config/layer1/1A/policy/s3.rule_ladder.yaml
+S3_BASE_WEIGHT_POLICY ?= config/layer1/1A/policy/s3.base_weight.yaml
+S3_THRESHOLDS_POLICY ?= config/layer1/1A/policy/s3.thresholds.yaml
 S3_BOUNDS_POLICY ?= contracts/policies/l1/seg_1A/policy.s3.bounds.yaml
-CROSSBORDER_HYPERPARAMS ?= config/policy/crossborder_hyperparams.yaml
-CCY_SMOOTHING_PARAMS ?= config/allocation/ccy_smoothing_params.yaml
-S6_SELECTION_POLICY ?= config/policy.s6.selection.yaml
+CROSSBORDER_HYPERPARAMS ?= config/layer1/1A/policy/crossborder_hyperparams.yaml
+CCY_SMOOTHING_PARAMS ?= config/layer1/1A/allocation/ccy_smoothing_params.yaml
+S6_SELECTION_POLICY ?= config/layer1/1A/policy.s6.selection.yaml
 HURDLE_EXPORT_VERSION ?= 2026-01-03
 HURDLE_EXPORT_RUN ?= 20260103T184840Z
-HURDLE_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
-NB_DISPERSION_COEFFS ?= config/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/nb_dispersion_coefficients.yaml
+HURDLE_COEFFS ?= config/layer1/1A/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
+NB_DISPERSION_COEFFS ?= config/layer1/1A/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/nb_dispersion_coefficients.yaml
 
 # Segment 2B policies
-ALIAS_LAYOUT_POLICY_V1 ?= contracts/policy/2B/alias_layout_policy_v1.json
-DAY_EFFECT_POLICY_V1 ?= contracts/policy/2B/day_effect_policy_v1.json
-ROUTE_RNG_POLICY_V1 ?= contracts/policy/2B/route_rng_policy_v1.json
-VIRTUAL_EDGE_POLICY_V1 ?= contracts/policy/2B/virtual_edge_policy_v1.json
+ALIAS_LAYOUT_POLICY_V1 ?= config/layer1/2B/policy/alias_layout_policy_v1.json
+DAY_EFFECT_POLICY_V1 ?= config/layer1/2B/policy/day_effect_policy_v1.json
+ROUTE_RNG_POLICY_V1 ?= config/layer1/2B/policy/route_rng_policy_v1.json
+VIRTUAL_EDGE_POLICY_V1 ?= config/layer1/2B/policy/virtual_edge_policy_v1.json
 VIRTUAL_RULES_POLICY_V1 ?= contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
 
 # Segment 3A policies
-ZONE_MIXTURE_POLICY ?= config/policy/3A/zone_mixture_policy.yaml
-COUNTRY_ZONE_ALPHAS ?= config/allocation/country_zone_alphas.yaml
-ZONE_FLOOR_POLICY ?= config/allocation/zone_floor_policy.yaml
+ZONE_MIXTURE_POLICY ?= config/layer1/3A/policy/zone_mixture_policy.yaml
+COUNTRY_ZONE_ALPHAS ?= config/layer1/3A/allocation/country_zone_alphas.yaml
+ZONE_FLOOR_POLICY ?= config/layer1/3A/allocation/zone_floor_policy.yaml
 
 # Segment 3B policies
-MCC_CHANNEL_RULES ?= config/virtual/mcc_channel_rules.yaml
-CDN_COUNTRY_WEIGHTS ?= config/virtual/cdn_country_weights.yaml
-VIRTUAL_VALIDATION_POLICY ?= config/virtual/virtual_validation.yml
+MCC_CHANNEL_RULES ?= config/layer1/3B/virtual/mcc_channel_rules.yaml
+CDN_COUNTRY_WEIGHTS ?= config/layer1/3B/virtual/cdn_country_weights.yaml
+VIRTUAL_VALIDATION_POLICY ?= config/layer1/3B/virtual/virtual_validation.yml
 
 # Segment 5A policies
 BASELINE_INTENSITY_POLICY_5A ?= config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml
@@ -281,10 +281,10 @@ SEG2A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml
 SEG2A_TZDB_RELEASE ?= 2025a
 SEG2A_EXTRA ?=
 SEG2A_TZDATA_ROOT ?= artefacts/priors/tzdata
-SEG2A_TZ_CONFIG_ROOT ?= config/timezone
+SEG2A_TZ_CONFIG_ROOT ?= config/layer1/2A/timezone
 SEG2A_CANONICAL_TZDATA = $(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)
 SEG2A_RUN_TZDATA = $(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)
-SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/timezone
+SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/layer1/2A/timezone
 SEG2A_S1_CHUNK_SIZE ?= 250000
 SEG2A_S1_RESUME ?= 0
 
@@ -1242,11 +1242,14 @@ receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', re
 	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_5B="$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=$$SEG5B_MANIFEST_FINGERPRINT"; \
 	 VALIDATION_BUNDLE_6A="$(RUN_ROOT)/data/layer3/6A/validation/fingerprint=$$SEG6A_MANIFEST_FINGERPRINT"; \
-	 if [ -n "$(LOG)" ]; then \
+	if [ -n "$(LOG)" ]; then \
 		($(SEG6B_CMD)) 2>&1 | tee -a "$(LOG)"; \
-	 else \
+	else \
 		$(SEG6B_CMD); \
-	 fi
+	fi
+
+paths-tree:
+	@$(PY_SCRIPT) scripts/build_paths_tree.py
 
 profile-all:
 	$(PY_ENGINE) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)

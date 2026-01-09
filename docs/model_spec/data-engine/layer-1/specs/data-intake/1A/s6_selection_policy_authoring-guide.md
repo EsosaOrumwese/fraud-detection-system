@@ -1,4 +1,4 @@
-# Authoring Guide - `config/policy.s6.selection.yaml` (S6 membership selection policy)
+# Authoring Guide - `config/layer1/1A/policy.s6.selection.yaml` (S6 membership selection policy)
 
 This file governs **1A.S6** policy knobs for *membership selection* behaviour and logging, given:
 
@@ -13,7 +13,7 @@ This file governs **1A.S6** policy knobs for *membership selection* behaviour an
 ## 1) File identity
 
 * **Artefact id:** `s6_selection_policy`
-* **Path (per artefact registry):** `config/policy.s6.selection.yaml`
+* **Path (per artefact registry):** `config/layer1/1A/policy.s6.selection.yaml`
 * **Governance:** sealed policy input -> affects `parameter_hash`
 
 ---

@@ -14,7 +14,7 @@ This file is **token-less** and must be authored deterministically. The file MUS
 ## 1) File identity (MUST)
 
 * **Dataset ID:** `virtual_validation_policy`
-* **Path:** `config/virtual/virtual_validation.yml`
+* **Path:** `config/layer1/3B/virtual/virtual_validation.yml`
 * **Schema authority:** `schemas.3B.yaml#/policy/virtual_validation_policy_v1`
 * **Digest posture:** do **not** embed any file digest in-file; the SHA-256 is recorded by 3B.S0 sealing inventory.
 
@@ -74,7 +74,7 @@ This prevents false fails caused by seconds-level rounding or boundary jitter wh
 
 Codex MUST read:
 
-* `config/virtual/cdn_country_weights.yaml` (to obtain `edge_scale`)
+* `config/layer1/3B/virtual/cdn_country_weights.yaml` (to obtain `edge_scale`)
 
 If missing → **FAIL CLOSED**.
 

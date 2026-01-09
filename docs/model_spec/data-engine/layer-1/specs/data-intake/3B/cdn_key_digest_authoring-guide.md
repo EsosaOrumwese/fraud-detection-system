@@ -17,7 +17,7 @@ This file is **small**, but must be **non-toy** by being derived from the full p
 ## 1) File identity (MUST)
 
 * **Artefact ID:** `cdn_key_digest`
-* **Path:** `config/virtual/cdn_key_digest.yaml`
+* **Path:** `config/layer1/3B/virtual/cdn_key_digest.yaml`
 * **Token-less posture:** do **not** embed the file’s SHA-256 inside the file (that digest is tracked by 3B.S0 sealing inventory).
   The field named `cdn_key_digest` below is **semantic key material**, not a file digest.
 
@@ -49,7 +49,7 @@ Top-level YAML object with **exactly** these keys (no extras):
 
 Codex MUST have:
 
-* `config/virtual/cdn_country_weights.yaml` (authored by the `cdn_country_weights` guide)
+* `config/layer1/3B/virtual/cdn_country_weights.yaml` (authored by the `cdn_country_weights` guide)
 
 If missing → **FAIL CLOSED**.
 
@@ -104,7 +104,7 @@ Where `<W>` is the weight formatted deterministically as:
 
 ## 5) Emission (MUST)
 
-Write `config/virtual/cdn_key_digest.yaml` as UTF-8, LF newlines, with the pinned key order (§2), e.g.:
+Write `config/layer1/3B/virtual/cdn_key_digest.yaml` as UTF-8, LF newlines, with the pinned key order (§2), e.g.:
 
 ```yaml
 version: v1.0.0
