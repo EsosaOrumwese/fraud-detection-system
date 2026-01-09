@@ -1739,12 +1739,12 @@
   - 3A: `zone_alloc`, `zone_alloc_universe_hash`
   - 3B: `virtual_classification_3B`, `virtual_settlement_3B`, `virtual_routing_policy_3B`, `virtual_validation_contract_3B`, `edge_catalogue_3B`, `edge_alias_index_3B`, `edge_alias_blob_3B`, `edge_universe_hash_3B`
 - Scenario configs (Layer-2):
-  - `scenario_calendar`
+  - `scenario_calendar_5A`
   - `scenario_metadata`
 - 5A policies:
   - `merchant_class_policy_5A`
   - `shape_library_5A`
-  - `calendar_overlay_policy_5A`
+  - `scenario_overlay_policy_5A`
   - additional Layer-2 knobs (default scale factors, clipping thresholds)
 
 ## Outputs / datasets
@@ -1813,7 +1813,7 @@
 - Time-grid config:
   - `shape_time_grid_policy_5A` (bucket size, `T_week`, mapping rules)
 - Shape library policy/config:
-  - `shape_library_policy_5A`
+  - `shape_library_5A`
   - optional class-to-template mapping tables and region/tz hint tables
 - Scenario metadata (if scenario-sensitive shapes are enabled)
 - Optional reference inputs (weekend patterns, zone overrides, diagnostics)
@@ -2307,13 +2307,35 @@
   - `schemas.6A.yaml`
   - `dataset_dictionary.layer3.6A.yaml`
   - `artefact_registry_6A.yaml`
-- 6A prior/config packs (as referenced by the 6A registry):
-  - population priors
-  - segmentation priors
-  - product mix priors
-  - device/IP priors
-  - fraud-role priors
-  - taxonomy/enumeration packs
+- 6A prior/config packs (schema ids):
+  - `population_priors_6A`
+  - `segmentation_priors_6A`
+  - `account_per_party_priors_6A`
+  - `product_mix_priors_6A`
+  - `instrument_per_account_priors_6A`
+  - `instrument_mix_priors_6A`
+  - `device_count_priors_6A`
+  - `ip_count_priors_6A`
+  - `party_role_priors_6A`
+  - `account_role_priors_6A`
+  - `merchant_role_priors_6A`
+  - `device_role_priors_6A`
+  - `ip_role_priors_6A`
+- 6A taxonomy packs (schema ids):
+  - `party_taxonomy_6A`
+  - `account_taxonomy_6A`
+  - `instrument_taxonomy_6A`
+  - `device_taxonomy_6A`
+  - `ip_taxonomy_6A`
+  - `fraud_role_taxonomy_6A`
+- 6A linkage/eligibility policies (schema ids):
+  - `graph_linkage_rules_6A`
+  - `device_linkage_rules_6A`
+  - `product_linkage_rules_6A`
+  - `product_eligibility_config_6A`
+  - `instrument_linkage_rules_6A`
+- 6A validation policy:
+  - `validation_policy_6A`
 - Upstream egress candidates for sealing (metadata-only at S0):
   - 1A: `outlet_catalogue`
   - 1B: `site_locations`
@@ -2354,9 +2376,9 @@
   - `sealed_inputs_6A` (whitelisted artefacts + `read_scope`)
   - latest 6A.S0 run-report must be `PASS`
 - Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
-  - `POPULATION_PRIOR` artefacts (population scale + regional splits)
-  - `SEGMENT_PRIOR` artefacts (segment mix per region/type)
-  - `TAXONOMY` artefacts (party types, segments, region codes)
+  - `population_priors_6A` (population scale + regional splits)
+  - `segmentation_priors_6A` (segment mix per region/type)
+  - `party_taxonomy_6A` (party types, segments, region codes)
 - 6A contracts (METADATA_ONLY):
   - `schemas.layer3.yaml`
   - `schemas.6A.yaml`
@@ -2407,9 +2429,10 @@
   - latest 6A.S1 run-report must be `PASS`
   - `s1_party_base_6A` (schema `schemas.6A.yaml#/s1/party_base`)
 - Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
-  - `PRODUCT_PRIOR` artefacts (product mix, account-per-party distributions)
-  - product linkage/eligibility rules (e.g. `PRODUCT_LINKAGE_RULES`, `PRODUCT_ELIGIBILITY_CONFIG`)
-  - `TAXONOMY` artefacts (account types, product families, enums)
+  - `account_per_party_priors_6A` (accounts per party)
+  - `product_mix_priors_6A` (product mix distributions)
+  - `product_linkage_rules_6A`, `product_eligibility_config_6A`
+  - `account_taxonomy_6A` (account types, product families, enums)
 - 6A contracts (METADATA_ONLY):
   - `schemas.layer3.yaml`
   - `schemas.6A.yaml`
@@ -2469,9 +2492,10 @@
   - `s2_account_base_6A` (schema `schemas.6A.yaml#/s2/account_base`)
   - `s2_party_product_holdings_6A` (schema `schemas.6A.yaml#/s2/party_product_holdings`)
 - Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
-  - instrument mix priors (`PRODUCT_PRIOR` / `INSTRUMENT_PRIOR`)
-  - instrument linkage/eligibility rules (`INSTRUMENT_LINKAGE_RULES` / `PRODUCT_LINKAGE_RULES`)
-  - `TAXONOMY` artefacts (instrument types, schemes, brands, token types)
+  - `instrument_per_account_priors_6A`
+  - `instrument_mix_priors_6A`
+  - `instrument_linkage_rules_6A`, `product_linkage_rules_6A`
+  - `instrument_taxonomy_6A` (instrument types, schemes, brands, token types)
 - 6A contracts (METADATA_ONLY):
   - `schemas.layer3.yaml`
   - `schemas.6A.yaml`
@@ -2535,10 +2559,10 @@
   - `s3_instrument_base_6A` (schema `schemas.6A.yaml#/s3/instrument_base`)
   - `s3_account_instrument_links_6A` (schema `schemas.6A.yaml#/s3/account_instrument_links`)
 - Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
-  - `DEVICE_PRIOR` artefacts (device counts + device-type mix)
-  - `IP_PRIOR` / `ENDPOINT_PRIOR` artefacts (IP counts + IP-type mix)
-  - graph/linkage rules (`GRAPH_LINKAGE_RULES` / `DEVICE_LINKAGE_RULES`)
-  - `TAXONOMY` artefacts (device_type, os_family, ip_type, asn_class, risk tags)
+  - `device_count_priors_6A` (device counts + device-type mix)
+  - `ip_count_priors_6A` (IP counts + IP-type mix)
+  - `graph_linkage_rules_6A`, `device_linkage_rules_6A`
+  - `device_taxonomy_6A`, `ip_taxonomy_6A` (device_type, os_family, ip_type, asn_class, risk tags)
 - 6A contracts (METADATA_ONLY):
   - `schemas.layer3.yaml`
   - `schemas.6A.yaml`
@@ -2604,9 +2628,10 @@
   - `s3_instrument_base_6A`, `s3_account_instrument_links_6A`
   - `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A`
 - Required priors/taxonomies (ROW_LEVEL; `status=REQUIRED`):
-  - fraud-role priors (`FRAUD_ROLE_PRIOR` / `FRAUD_PRIOR`)
-  - fraud taxonomies (`TAXONOMY` for party/account/merchant/device/ip roles, risk tiers)
-  - validation policy/checklist (`VALIDATION_POLICY_6A` / `SEGMENT_CHECKLIST_6A`)
+  - `party_role_priors_6A`, `account_role_priors_6A`, `merchant_role_priors_6A`
+  - `device_role_priors_6A`, `ip_role_priors_6A`
+  - `fraud_role_taxonomy_6A` (party/account/merchant/device/ip roles, risk tiers)
+  - `validation_policy_6A`
 - 6A contracts (METADATA_ONLY):
   - `schemas.layer3.yaml`
   - `schemas.6A.yaml`
@@ -2672,9 +2697,9 @@
   - dataset dictionaries + artefact registries for 1A-3B, 5A-5B, 6A
 - 6B config/policy packs (sealed, schema-valid):
   - behaviour priors (e.g. `behaviour_prior_pack_6B`)
-  - campaign config (e.g. `campaign_catalogue_config_6B`)
-  - labelling policy (e.g. `labelling_policy_6B`)
-  - validation policy (e.g. `validation_policy_6B`)
+  - campaign config (e.g. `fraud_campaign_catalogue_config_6B`)
+  - labelling policy (e.g. `truth_labelling_policy_6B`)
+  - validation policy (e.g. `segment_validation_policy_6B`)
 
 ## Outputs / datasets
 - `s0_gate_receipt_6B` (gate receipt; schema `schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B`)
@@ -2727,8 +2752,8 @@
 - 6B behaviour configs/policies (ROW_LEVEL):
   - `behaviour_prior_pack_6B`
   - `sessionisation_policy_6B` (may be embedded in behaviour pack)
-  - `entity_attachment_policy_6B` (if separate)
-  - `rng_policy_6B_S1` (if separate from layer RNG config)
+  - `attachment_policy_6B` (if separate)
+  - `rng_policy_6B` (if separate from layer RNG config)
 - Layer-3 RNG/numeric policy (metadata-only):
   - Layer-3 RNG envelope/event family definitions
   - numeric policy / math profile for probabilities (sealed via contracts)
@@ -3016,7 +3041,7 @@
   - Layer-3 run-report entries for S4_cases (per seed)
 - Required S5 policy packs:
   - `segment_validation_policy_6B`
-  - `segment_validation_rng_policy_6B` (if non-trivial; S5 typically RNG-free)
+  - `rng_policy_6B` (if non-trivial; S5 typically RNG-free)
 - Contract files / dictionaries / registries:
   - `schemas.layer1.yaml`, `schemas.layer2.yaml`, `schemas.layer3.yaml`
   - `schemas.1A.yaml` .. `schemas.3B.yaml`, `schemas.5A.yaml`, `schemas.5B.yaml`, `schemas.6A.yaml`, `schemas.6B.yaml`
@@ -3045,4 +3070,4 @@
 - `segment_validation_policy_6B` is the sole authority for S5 check selection and severity
 - S5 is the sole authority to emit `validation_bundle_6B` and `validation_passed_flag_6B`
 - Hashing law: bundle index paths sorted ASCII-lex; SHA-256 over raw bytes of listed files; `_passed.flag` excluded from index
-- RNG-free by default; if RNG is configured, must follow `segment_validation_rng_policy_6B`
+- RNG-free by default; if RNG is configured, must follow `rng_policy_6B`
