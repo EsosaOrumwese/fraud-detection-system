@@ -156,6 +156,33 @@
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3 for full list):**
+* `s0_gate_receipt_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `sealed_inputs_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `edge_catalogue_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S2
+* `edge_catalogue_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S2
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1 (optional checks)
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1 (optional checks)
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `cdn_country_weights` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 is the sole authority for alias-table representation and the virtual edge universe hash.
+
+**Outputs:**
+* `edge_alias_blob_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `edge_alias_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `edge_universe_hash_3B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `gamma_draw_log_3B` - scope: LOG_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External policy inputs MUST appear in `sealed_inputs_3B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or alias integrity violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 2.1 **Execution context & identity**

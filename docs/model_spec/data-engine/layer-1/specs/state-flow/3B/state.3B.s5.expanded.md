@@ -147,6 +147,41 @@ to decide whether the entire Layer-1 run is acceptable. S5’s role is to provid
 
 ---
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3 for full list):**
+* `s0_gate_receipt_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `sealed_inputs_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1
+* `edge_catalogue_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S2
+* `edge_catalogue_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S2
+* `edge_alias_blob_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S3
+* `edge_alias_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S3
+* `edge_universe_hash_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S3
+* `virtual_routing_policy_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S4
+* `virtual_validation_contract_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S4
+* `s4_run_summary_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S4 (optional)
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3B.S2 (optional)
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3B.S2 (optional)
+* `rng_event_edge_tile_assign` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3B.S2 (optional)
+* `rng_event_edge_jitter` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; source: 3B.S2 (optional)
+
+**Authority / ordering:**
+* S5 is the sole authority for the 3B validation bundle index and PASS flag.
+
+**Outputs:**
+* `validation_bundle_3B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_3B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_3B` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+* `s5_manifest_3B` - scope: FINGERPRINT_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* All bundled artefacts must match the S0-sealed inventory for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or failed validation checks -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 2.1 **Execution context & identity**

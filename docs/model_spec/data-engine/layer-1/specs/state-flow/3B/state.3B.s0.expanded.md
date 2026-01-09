@@ -58,6 +58,72 @@
 
 ---
 
+### Cross-Layer Inputs (Segment 3B)
+
+**Upstream segments required:** 1A (validation bundle + `_passed.flag`; `outlet_catalogue`), 1B (validation bundle + `_passed.flag`; `site_locations`), 2A (validation bundle + `_passed.flag`; `site_timezones`, optional `tz_timetable_cache`), 3A (validation bundle + `_passed.flag`; `zone_alloc`, `zone_alloc_universe_hash`).
+
+**External references/configs (sealed by S0 and listed in `sealed_inputs_3B`):**
+* `transaction_schema_merchant_ids` (merchant reference universe)
+* `mcc_channel_rules` (virtual classification policy)
+* `virtual_settlement_coords` (settlement evidence)
+* `cdn_weights_ext_yaml` (raw external weights)
+* `cdn_country_weights` (edge budget policy)
+* `cdn_key_digest` (CDN key digest policy)
+* `virtual_validation_policy` (validation test policy)
+* `virtual_logging_policy` (logging/retention policy)
+* `route_rng_policy_v1` (routing RNG policy)
+* `alias_layout_policy_v1` (alias layout policy)
+* `day_effect_policy_v1` (routing day-effect policy)
+* `hrsl_raster` (spatial raster)
+* `pelias_cached_sqlite` + `pelias_cached_bundle` (geocode bundle)
+
+**Gate expectations:** 1A/1B/2A/3A PASS gates (`validation_bundle_*` + `_passed.flag`) MUST verify before any downstream 3B read for the target `manifest_fingerprint`.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `outlet_catalogue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `transaction_schema_merchant_ids` - scope: VERSION_SCOPED; scope_keys: [version]; sealed_inputs: required
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `day_effect_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `cdn_key_digest` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `mcc_channel_rules` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `cdn_country_weights` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_validation_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_logging_policy` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_settlement_coords` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `cdn_weights_ext_yaml` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `hrsl_raster` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `pelias_cached_sqlite` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `pelias_cached_bundle` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_3B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_3B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (upstream gates, egress, and sealed policies/refs) MUST appear in `sealed_inputs_3B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 2.1 **Execution context & identity**

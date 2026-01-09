@@ -102,6 +102,35 @@ Its sole mandate is to **classify merchants** and to construct a **single, legal
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3 for full list):**
+* `s0_gate_receipt_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `sealed_inputs_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `transaction_schema_merchant_ids` - scope: VERSION_SCOPED; scope_keys: [version]; sealed_inputs: required
+* `mcc_channel_rules` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_settlement_coords` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `cdn_weights_ext_yaml` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `pelias_cached_sqlite` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `pelias_cached_bundle` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `outlet_catalogue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+
+**Authority / ordering:**
+* S1 is the sole authority on virtual classification and settlement nodes.
+
+**Outputs:**
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_3B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 2.1 **Execution context & identity**

@@ -143,6 +143,36 @@ S2 MUST treat all these upstream artefacts as **read-only** and MUST NOT modify 
 
 ---
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `sealed_inputs_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S0
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1
+* `cdn_country_weights` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `hrsl_raster` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+
+**Authority / ordering:**
+* S2 is the sole authority on edge catalogue construction and S2 RNG evidence.
+
+**Outputs:**
+* `edge_catalogue_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `edge_catalogue_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `rng_event_edge_tile_assign` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none
+* `rng_event_edge_jitter` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none (shared append-only log)
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]; gate emitted: none (shared append-only log)
+
+**Sealing / identity:**
+* External policy/ref inputs MUST appear in `sealed_inputs_3B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG envelope violations -> abort; no outputs published.
+
 ## 2. Preconditions & gated inputs *(Binding)*
 
 2.1 **Execution context & identity**

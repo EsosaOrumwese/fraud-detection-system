@@ -375,6 +375,151 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+# (Optional, read-only discoverability; resolves via Dictionary as well as Registry)
+- id: validation_bundle_1A
+  status: approved
+  owner_subsegment: 1A
+  description: 1A validation bundle required before 3B consumes outlet_catalogue.
+  version: '{manifest_fingerprint}'
+  format: folder
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/validation/validation_bundle
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1A
+  status: approved
+  owner_subsegment: 1A
+  description: 1A PASS gate flag used by 3B.S0 before any read of outlet_catalogue.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 1B validation bundle required before 3B consumes site_locations.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 1B PASS gate flag used by 3B.S0 before any read of site_locations.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_2A
+  status: approved
+  owner_subsegment: 2A
+  description: 2A validation bundle required before 3B consumes 2A outputs.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_2A
+  status: approved
+  owner_subsegment: 2A
+  description: 2A PASS gate flag used by 3B.S0 before any read of 2A outputs.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_3A
+  status: approved
+  owner_subsegment: 3A
+  description: 3A validation bundle required before 3B consumes zone_alloc outputs.
+  version: '{manifest_fingerprint}'
+  format: folder
+  path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_3A
+  status: approved
+  owner_subsegment: 3A
+  description: 3A PASS gate flag used by 3B.S0 before any read of zone_alloc outputs.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 
 datasets:
 - id: s0_gate_receipt_3B
