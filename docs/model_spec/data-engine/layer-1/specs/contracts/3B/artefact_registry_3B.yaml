@@ -410,23 +410,23 @@ subsegments:
 
         # 5 POPULATION RASTER FOR EDGE SAMPLING
         - name: hrsl_raster
-        path: artefacts/rasters/hrsl_100m.tif
-        type: reference
-        category: population_raster
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{sha256}"
-        manifest_key: mlr.3B.ref.hrsl_raster
-        license: CC-BY-4.0
-        role: 100 m HRSL raster used for edge coordinate sampling.
-        dependencies: []
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.ingress.layer1.yaml#/population_raster
-        cross_layer: true
-        notes: null
+          path: artefacts/rasters/hrsl_100m.tif
+          type: reference
+          category: population_raster
+          semver: "{semver}"
+          version: "{vintage}"
+          digest: "{sha256}"
+          manifest_key: mlr.3B.ref.hrsl_raster
+          license: CC-BY-4.0
+          role: 100 m HRSL raster used for edge coordinate sampling.
+          dependencies: []
+          source: external
+          owner: { data_governance_team }
+          last_updated: "{iso8601_timestamp}"
+          environment: [ runtime ]
+          schema: schemas.ingress.layer1.yaml#/population_raster
+          cross_layer: true
+          notes: null
 
       # 6 GOVERNING VALIDATION & LOGGING POLICIES
       - name: virtual_validation_policy

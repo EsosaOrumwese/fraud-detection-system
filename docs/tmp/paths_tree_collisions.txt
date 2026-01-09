@@ -1,0 +1,19 @@
+PATH COLLISIONS REPORT (ALL SEGMENTS COMBINED)
+=============================================
+
+REGISTRY COLLISIONS
+-------------------
+None
+
+DICTIONARY COLLISIONS
+---------------------
+None
+
+EXPECTED DUPLICATES
+-------------------
+- sealed_inputs_v1
+  - data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+  - data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+- segment_state_runs
+  - reports/l1/segment_states/segment_state_runs.jsonl
+  - reports/l2/segment_states/segment_state_runs.jsonl
