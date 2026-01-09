@@ -29,9 +29,37 @@ Schema packs are the **sole shape authorities**; the **Dataset Dictionary** gove
 * **RNG posture:** **RNG-free.** If S5/S6 logs are present, S7 *reads* Layer-1 RNG evidence (events/trace) but emits **no** RNG. (Event families and envelope live in the Layer-1 pack.)
 * **Output identity:** S7 produces a single authoritative audit JSON `s7_audit_report` at **`[seed,fingerprint]`** (shape anchor in the 2B pack; see §6), **write-once** with path↔embed equality and idempotent re-emit (byte-identical). *(Dictionary governs its path family; Registry carries ownership/retention.)* 
 
-> With this header, S7 is anchored to the same authorities and identity rails as S0–S6, and all cross-references to S2/S3/S4/policies/logs are explicit and Dictionary-resolvable.
+> With this header, S7 is anchored to the same authorities and identity rails as S0-S6, and all cross-references to S2/S3/S4/policies/logs are explicit and Dictionary-resolvable.
 
 ---
+
+### Contract Card (S7) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s3_day_effects` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S3
+* `s4_group_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S4
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_edge_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `s5_selection_log` - scope: LOG_SCOPED; source: 2B.S5 (optional)
+* `s6_edge_log` - scope: LOG_SCOPED; source: 2B.S6 (optional)
+* `rng_audit_log` - scope: LOG_SCOPED; source: layer1 RNG core (optional, if logs present)
+* `rng_trace_log` - scope: LOG_SCOPED; source: layer1 RNG core (optional, if logs present)
+
+**Authority / ordering:**
+* S7 is audit-only; no new order authority is created.
+
+**Outputs:**
+* `s7_audit_report` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Validation failures -> emit `s7_audit_report` with FAIL status; S8 MUST NOT publish `_passed.flag`.
 
 ## 2. **Purpose & scope (Binding)**
 

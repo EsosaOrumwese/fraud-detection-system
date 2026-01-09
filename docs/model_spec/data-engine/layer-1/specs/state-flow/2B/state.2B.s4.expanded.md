@@ -35,6 +35,26 @@
 
 ---
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S1
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `s3_day_effects` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S3
+
+**Authority / ordering:**
+* S4 emits order-free group mixes; no new order authority is created.
+
+**Outputs:**
+* `s4_group_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (2A egress) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or schema violations -> abort; no outputs published.
+
 ## 2. **Purpose & scope (Binding)**
 
 **Purpose.** Produce the **per-merchant, per-UTC-day** routing **mix across tz-groups** by combining S1 **base shares** (aggregated by tzid) with S3 **γ(d, tz_group)** and **renormalising across groups** so each merchant’s day total sums to **1.0**. The step is **RNG-free** and deterministic; with S3’s `E[γ]=1`, the long-run expectation of each group’s share remains the S1 base share.

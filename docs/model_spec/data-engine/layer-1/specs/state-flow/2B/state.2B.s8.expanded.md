@@ -41,6 +41,34 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 ---
 
+### Contract Card (S8) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.4 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `sealed_inputs_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `s7_audit_report` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S7
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s3_day_effects` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S3
+* `s4_group_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S4
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_edge_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* Bundle index + hash gate is the sole consumer gate for 2B.
+
+**Outputs:**
+* `validation_bundle_2B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_2B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_2B` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* External inputs (token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Any audit failure or missing evidence -> do not publish `_passed.flag`; bundle records failure evidence.
+
 ## 2. **Purpose & scope (Binding)**
 
 **Purpose.** Publish the **authoritative PASS evidence** for **Layer-1 · 2B** at a given `manifest_fingerprint`. S8 is **RNG-free** and **fingerprint-scoped**. It **does not re-audit**; it **packages** already-sealed evidence into a deterministic **validation bundle** and emits the canonical **`_passed.flag`**. **No PASS → No read** for any 2B consumer remains in force.

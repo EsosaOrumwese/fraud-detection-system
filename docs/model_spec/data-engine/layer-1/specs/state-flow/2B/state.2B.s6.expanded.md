@@ -30,9 +30,33 @@ S6 SHALL treat the following surfaces as authoritative:
 * **Plan/egress reads:** Any 2B/2A tables S6 references (context) are selected at **`[seed, fingerprint]`** via **Dictionary-only** resolution (no literal paths, no network I/O). *(Same catalogue discipline as S5.)*  
 * **Gate law:** **No PASS → No read.** S6 must see valid S0 receipt + sealed inventory for this fingerprint before any read. 
 
-> With this header, S6 is anchored to the same authorities and identity rails as S0–S5: schemas govern **shape**, the Dictionary governs **selection & partitions**, the Registry governs **metadata**, and the **layer RNG envelope** governs evidence and counters.
+> With this header, S6 is anchored to the same authorities and identity rails as S0-S5: schemas govern **shape**, the Dictionary governs **selection & partitions**, the Registry governs **metadata**, and the **layer RNG envelope** governs evidence and counters.
 
 ---
+
+### Contract Card (S6) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_edge_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2 (optional integrity echo)
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2 (optional integrity echo)
+
+**Authority / ordering:**
+* Routing RNG envelopes + virtual edge policy are the sole authorities for S6 picks.
+
+**Outputs:**
+* `rng_event_cdn_edge_pick` - scope: LOG_SCOPED; gate emitted: none
+* `rng_audit_log` - scope: LOG_SCOPED; gate emitted: none (shared append-only log)
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (shared append-only log)
+* `s6_edge_log` - scope: LOG_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External inputs (token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
 
 ## 2. **Purpose & scope (Binding)**
 

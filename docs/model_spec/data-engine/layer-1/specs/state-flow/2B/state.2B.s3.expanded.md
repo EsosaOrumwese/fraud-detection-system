@@ -33,6 +33,26 @@
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S1
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `day_effect_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 emits per-day factors; no new order authority is created.
+
+**Outputs:**
+* `s3_day_effects` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (2A egress + token-less policy pack) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. **Purpose & scope (Binding)**
 
 **Purpose.** Introduce **short-run, zone-level co-movement** in routing by generating **per-merchant, per-UTC-day, per-tz-group** multiplicative factors **γ(d, tz_group)** that **do not change long-run shares**. Factors are **log-normal** with policy-declared variance and are drawn with **counter-based Philox** under a governed RNG policy. S3 **emits the factors only**; application/renormalisation is handled downstream.

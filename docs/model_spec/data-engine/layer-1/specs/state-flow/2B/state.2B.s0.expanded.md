@@ -28,6 +28,44 @@
 
 ---
 
+### Cross-Layer Inputs (Segment 2B)
+
+**Upstream segments required:** 1B (validation bundle + `_passed.flag`; `site_locations` egress), 2A (`site_timezones` egress; optional `tz_timetable_cache`).
+
+**External references/configs (sealed by S0 and listed in `sealed_inputs_2B`):**
+* `route_rng_policy_v1` (routing RNG streams/budgets)
+* `alias_layout_policy_v1` (alias layout/encoding policy)
+* `day_effect_policy_v1` (day-effect RNG cadence/variance)
+* `virtual_edge_policy_v1` (virtual edge catalogue + weights/attrs)
+
+**Gate expectations:** 1B PASS gate (`validation_bundle_1B` + `_passed.flag`) MUST verify before any 1B egress read. 2A egress is sealed and referenced by S0 per the Dictionary/Registry for this fingerprint.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for the sealed list):**
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `day_effect_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `virtual_edge_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_2B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (1B/2A egress and token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
+
 ## 2. **Purpose & scope (Binding)**
 
 **Purpose.** Establish **read authority** and **run identity** for Segment 2B by verifying upstream gates, sealing the minimum input set, and fixing the deterministic context that all downstream 2B states rely on.

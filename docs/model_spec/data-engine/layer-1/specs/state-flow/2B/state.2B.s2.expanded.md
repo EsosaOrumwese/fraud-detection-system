@@ -31,6 +31,26 @@
 
 ---
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S1
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S2 emits deterministic alias artefacts; no new order authority is created.
+
+**Outputs:**
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2 Purpose & scope (Binding)
 
 **Purpose.** Construct **deterministic O(1) sampling artefacts** (alias structures) per merchant from `s1_site_weights`, so downstream routing can pick a site in **constant time** without recomputing probabilities. S2 serialises these tables into a **binary blob** with a matching **index**, both byte-stable and reproducible.

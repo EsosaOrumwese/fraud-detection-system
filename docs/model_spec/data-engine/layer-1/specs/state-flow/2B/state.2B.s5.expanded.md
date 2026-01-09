@@ -31,9 +31,37 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 * **RNG posture:** **RNG-bounded, reproducible** — counter-based **Philox** with governed sub-streams per `route_rng_policy_v1`; reconciliation against the programme’s RNG trace/audit posture (events → trace totals) follows the layer-1 logs convention.
 * **Numeric discipline:** binary64, round-to-nearest-even; stable serial reductions (as in S3/S4).
 
-> With this header in place, S5 is anchored to the same authorities and identity/gate rails as S0–S4, and all cross-refs point to already-ratified surfaces and anchors.
+> With this header in place, S5 is anchored to the same authorities and identity/gate rails as S0-S4, and all cross-refs point to already-ratified surfaces and anchors.
 
 ---
+
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `s4_group_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S4
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S1
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* Routing RNG envelopes + alias policy are the sole decode authorities for S5.
+
+**Outputs:**
+* `rng_event_alias_pick_group` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_alias_pick_site` - scope: LOG_SCOPED; gate emitted: none
+* `rng_audit_log` - scope: LOG_SCOPED; gate emitted: none (shared append-only log)
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (shared append-only log)
+* `s5_selection_log` - scope: LOG_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External inputs (2A egress + token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG envelope violations -> abort; no outputs published.
 
 ## 2. **Purpose & scope (Binding)**
 

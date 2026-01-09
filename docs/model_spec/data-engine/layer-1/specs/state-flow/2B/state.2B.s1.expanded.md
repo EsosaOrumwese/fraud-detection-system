@@ -32,6 +32,27 @@
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2B` - scope: FINGERPRINT_SCOPED; source: 2B.S0
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional (paired with cache)
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional (paired with timezones)
+
+**Authority / ordering:**
+* S1 emits order-free weights; no new order authority is created.
+
+**Outputs:**
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (1B/2A egress + token-less policy packs) MUST appear in `sealed_inputs_2B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. **Purpose & scope (Binding)**
 
 **Purpose.** Freeze a **deterministic probability law** over sites for each merchant, derived from sealed inputs, and publish it as a byte-stable table for downstream routing. The result fixes long-run outlet shares and is the **only** weight source S2–S6 may use.
