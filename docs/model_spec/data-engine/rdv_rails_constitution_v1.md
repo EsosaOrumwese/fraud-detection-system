@@ -1365,3 +1365,1450 @@ Non-compliance if any of the following occur:
 * Policy validation is permissive in a way that allows unknown keys to silently change semantics (unless explicitly declared as an allowed extension surface).
 
 ---
+
+# Part II — Determinism Rail (Binding)
+
+## 12) RNG governance (Binding)
+
+> This section defines the engine’s **single RNG constitution**. Segments/states MAY differ in *which event families they emit* and *how many draws they consume*, but they MUST do so under the shared rules below.
+
+### 12.1 Non-negotiables (applies to every segment/state)
+
+1. **No ambient RNG:** a state MUST NOT instantiate its own PRNG. All randomness MUST be obtained via the engine RNG Service under this governance.
+2. **Replay is mandatory:** given identical run anchors + pinned policies, RNG-consuming states MUST reproduce identical RNG event logs (or deterministically fail).
+3. **Accounting is mandatory:** every RNG event MUST carry a valid envelope (`before/after/blocks/draws`) and MUST be reconciled by trace totals.  
+4. **Logs are set-semantic:** physical line/file order MUST NOT be used for meaning; pairing/replay uses envelope counters and declared keys only.  
+
+---
+
+### 12.2 RNG engine and version pinning
+
+**12.2.1 Engine (binding default)**
+
+* The engine RNG algorithm is **Philox 2×64-10** with a **monotonically advancing 128-bit counter** per derived substream. 
+* Any change to RNG algorithm, counter semantics, lane policy, or uniform mapping is a **rails version change** and MUST be pinned via `rails_versions` (see §6). 
+
+**12.2.2 Counter representation (binding)**
+
+* RNG event envelopes MUST carry counter fields as two u64 halves (`*_hi`, `*_lo`) for both `before` and `after`. Producers and validators MUST interpret the u128 counter as `(hi<<64) | lo`. 
+
+---
+
+### 12.3 Stream derivation and scoping (no cross-state contamination)
+
+**12.3.1 Stream Key (binding)**
+Every RNG draw MUST be attributable to a deterministic **Stream Key** derived from:
+
+* run stable identity (`manifest_fingerprint`, `parameter_hash`, seed root/material),
+* `segment_id`, `state_id`,
+* a **purpose tag** (event family / sampler context),
+* and any declared per-event IDs (e.g., merchant, country) as required by that family.
+
+**12.3.2 Keyed substreams (binding)**
+
+* RNG-consuming families MUST use **keyed substreams**: all draws for an event are drawn from `PHILOX(k(stream_key, ids), counter)` with a monotonically advancing counter.  
+* The exact IDs used to key a family (e.g., `(merchant_id, country_iso)` for a keyed selection family) MUST be specified by the family schema/profile and MUST be stable. 
+
+**12.3.3 Scope isolation (binding)**
+
+* A state MUST write only the RNG families it owns and MUST NOT write into other states’ families. Validators MAY read for reconciliation but MUST NOT write RNG logs.  
+
+---
+
+### 12.4 Uniform mapping and lane policy
+
+**12.4.1 Open-interval U(0,1) (binding)**
+
+* Any uniform used for stochastic decisions MUST satisfy **strict open interval**: `0 < u < 1`. Exact `0.0` and `1.0` are forbidden.  
+
+**12.4.2 Lane policy (binding)**
+
+* Philox emits two 64-bit words per counter step (“block”).
+* For **single-uniform** events, the state MUST consume the **low lane** and discard the high lane, so one counter increment corresponds to one uniform (`blocks=1`, `draws="1"`).  
+* For multi-uniform samplers, the segment MUST declare how many uniforms are consumed and how blocks/lanes are used, and MUST account for it via `draws` and `blocks` (see §12.6). 
+
+---
+
+### 12.5 RNG log partitions and path discipline
+
+**12.5.1 Canonical partitions (binding)**
+
+* Core RNG logs and RNG event families are **run-scoped** and MUST be partitioned by `{seed, parameter_hash, run_id}` unless a segment profile explicitly extends the partition keys (rare).  
+
+**12.5.2 Path ↔ embed equality (binding)**
+
+* For event streams, embedded `{seed, parameter_hash, run_id}` fields (when present) MUST byte-equal the partition tokens in the path.  
+* `rng_trace_log` MAY omit lineage fields by design; in that case, lineage is enforced by the partition path keys. 
+
+**12.5.3 Physical order is non-authoritative (binding)**
+
+* There are no ordering guarantees across files/parts. Any consumer depending on file order is non-conformant; reconciliation and replay MUST use envelope counters and declared keys only.  
+
+---
+
+### 12.6 Envelope model (before/after/blocks/draws)
+
+**12.6.1 Required envelope fields (binding)**
+Every RNG event record MUST include:
+
+* `rng_counter_before_{hi,lo}`
+* `rng_counter_after_{hi,lo}`
+* `blocks`
+* `draws` (decimal u128 string)  
+
+**12.6.2 Envelope arithmetic (binding)**
+
+* `blocks := u128(after) − u128(before)` (unsigned 128-bit delta).  
+* `draws` MUST equal the **actual number of U(0,1)** values consumed by the event’s sampler(s). `draws` is independent of the counter delta and MUST be recorded even when `draws ≠ blocks`.  
+
+**12.6.3 Deterministic / non-consuming events (binding)**
+
+* If an event is deterministic (no random draw), it MUST record `draws="0"`, `blocks=0`, and `after == before`. 
+* Non-consuming markers (diagnostics) MUST follow the same `before==after`, `blocks=0`, `draws="0"` rule. 
+
+---
+
+### 12.7 Core RNG logs (audit + trace)
+
+**12.7.1 `rng_audit_log` (binding)**
+
+* For each `{seed, parameter_hash, run_id}` partition that emits any RNG events, an **audit row MUST exist** and MUST be emitted **before** the first event in that partition.  
+
+**12.7.2 `rng_trace_log` (binding: trace-after-each-event)**
+
+* After **each** RNG event append, the producer MUST append **exactly one** cumulative trace row for the relevant `(module, substream_label)` key.  
+* Validators reconcile totals on the final trace row per key:
+
+  * `events_total` equals number of events,
+  * `draws_total == Σ parse_u128(draws)`,
+  * `blocks_total == Σ blocks`.  
+
+**12.7.3 Label hygiene (binding)**
+
+* Each RNG event row and trace row MUST carry stable identifiers:
+
+  * `module`
+  * `substream_label`
+  * and when applicable: `context` (family-specific).
+    These literals MUST be registry/profile controlled (not ad-hoc per run).  
+
+---
+
+### 12.8 RNG event families (schema-governed, profile-declared)
+
+**12.8.1 Family registration (binding)**
+
+* Every RNG event family MUST have:
+
+  * a schema reference (layer schema catalog),
+  * a dictionary/registry entry with canonical path + partitions,
+  * and a declared owning state.  
+
+**12.8.2 Family payload + envelope (binding)**
+
+* Event records are **single flat JSON objects**; “envelope vs payload” is conceptual only. 
+* The envelope fields defined in §12.6 are mandatory for all consuming families.
+
+---
+
+### 12.9 Deterministic concurrency posture for RNG-consuming states
+
+**12.9.1 Concurrency units (binding)**
+
+* If a state parallelises work, it MUST define a deterministic concurrency unit (e.g., “per merchant”) and MUST NOT interleave the same unit across workers. 
+
+**12.9.2 Shard-count invariance (binding)**
+
+* Changing thread/shard count MUST NOT change:
+
+  * which draws occur,
+  * the order in which per-unit draws are consumed,
+  * the resulting selected sets/outcomes,
+  * or any PASS receipt/hash evidence. 
+
+**12.9.3 Stable iteration order (binding)**
+
+* When an RNG family consumes a series of draws over a domain (e.g., iterating candidates), the iteration order MUST be defined by an authoritative order artefact (not by hash order, file order, or concurrency).  
+
+---
+
+### 12.10 Validator obligations for RNG governance
+
+A validator/finalizer MUST be able to prove, for each run partition:
+
+1. **Presence:** required audit and trace logs exist. 
+2. **Coverage:** trace-after-each-event holds (no gaps). 
+3. **Accounting:** envelope arithmetic is valid; totals reconcile.  
+4. **Isolation:** only allowed families were written by each owning state. 
+5. **Replay correctness:** re-derivation uses envelope counters and declared iteration order (never file order).  
+
+---
+
+### 12.11 Conformance checklist for §12 (Binding)
+
+A segment/state is non-compliant if any of the following are true:
+
+* It uses ambient RNG or an unpinned RNG engine.
+* It emits an RNG event without valid `before/after/blocks/draws` fields or violates envelope arithmetic. 
+* It emits `u` values with `u ≤ 0` or `u ≥ 1` where a uniform is required. 
+* It fails to append exactly one trace row after each event append, or trace totals do not reconcile.  
+* It relies on physical file/line order for meaning or replay. 
+* It writes RNG families outside its declared ownership, or validators write RNG logs. 
+
+---
+
+## 13) Numeric determinism policy (Binding)
+
+> **Binding intent:** Any computation that can affect a **branch**, **accept/reject**, **sort/order**, **integerisation**, **threshold/regime selection**, or any other decision-critical output MUST be **bit-stable** across machines, compilers, and permitted parallelism.
+
+### 13.1 Policy artefacts and pinning (required)
+
+The numeric determinism rail is defined by **pinned artefacts** that MUST be opened and included in the run’s opened-artefact set (and therefore participate in `manifest_fingerprint`):
+
+* `numeric_policy.json` — declares FP environment, compiler/runtime constraints, and kernel policies.
+* `math_profile_manifest.json` — pins the deterministic libm/profile (function set + digests).
+* `numeric_policy_attest.json` — runtime attestation output proving the environment and self-tests passed.
+
+A run MUST NOT proceed into any RNG draw or decision-critical computation unless these artefacts are present and the attestation passes.  
+
+---
+
+### 13.2 Floating-point environment (must hold)
+
+For all decision/order-critical computations:
+
+* **Format:** IEEE-754 **binary64** (`f64`) is mandatory. Diagnostics may downcast only if the producing state explicitly allows it. 
+* **Rounding mode:** **Round-to-nearest, ties-to-even (RNE)** MUST be set and verified. 
+* **FMA:** fused multiply-add MUST be **disabled** on decision/order-critical paths (no contraction). 
+* **Subnormals:** MUST be honoured; **FTZ/DAZ MUST be off**. 
+* **NaN/Inf:** Any NaN/Inf produced in model computations is a **hard error**. 
+* **Decision-critical constants:** MUST be encoded as **binary64 hex literals** (no recomputation like `2*pi`). 
+
+---
+
+### 13.3 Deterministic math profile (libm pin)
+
+Decision-critical calls to math functions MUST be executed under a **deterministic libm profile** pinned by `math_profile_manifest.json`.
+
+* The profile MUST guarantee bit-identical results across supported platforms for the declared function set (e.g., `exp/log/log1p/expm1/sqrt/sin/cos/atan2/pow/tanh/lgamma` as needed).  
+* Toolchains MUST NOT substitute host/system libm for pinned calls in decision-critical code paths. 
+
+---
+
+### 13.4 Build/runtime constraints (fast-math forbidden)
+
+Implementations MUST enforce a build/runtime posture that prevents numeric drift:
+
+* **No fast-math / unsafe FP optimizations**; **`fp_contract=off`** on guarded kernels; no algebraic reassociation on decision-critical paths. 
+* If the implementation uses managed runtimes (Python/NumPy/JVM), decision-critical reductions MUST use the engine’s deterministic scalar kernels; BLAS thread counts (if present) MUST be pinned to avoid nondeterministic reductions. 
+* Offloading decision-critical kernels to GPU is forbidden unless a deterministic math profile and non-fused posture are pinned and attested. 
+
+All effective flags and relevant environment variables MUST be recorded in `numeric_policy_attest.json`.  
+
+---
+
+### 13.5 Reductions, accumulations, and linear algebra (fixed order)
+
+* Any sum/dot/reduction feeding a decision or order MUST use a **serial, fixed-iteration-order** kernel with **Neumaier compensation** (or an equivalent pinned kernel) and MUST NOT be parallel-reduced.  
+* External BLAS/LAPACK MUST NOT be used on decision-critical paths unless a deterministic backend is pinned as part of the math profile. 
+* Evaluation order is normative: formulas must be executed in the **spelled order**; no reordering or fusion. 
+
+---
+
+### 13.6 Sorting, comparisons, and float total order
+
+Where floats participate in sorting/keys:
+
+* Use IEEE-754 **`totalOrder` semantics** for non-NaN floats; **NaNs are forbidden** (hard error). 
+* `-0.0` MUST sort before `+0.0`. 
+* Ties MUST be broken by deterministic secondary keys (e.g., ISO code then merchant_id), and sorts MUST be stable when keys compare equal.  
+* “Epsilon-fudging” is forbidden for model decisions; ULP-based checks are reserved for self-tests.  
+
+---
+
+### 13.7 Quantisation and numeric serialization rules
+
+* Quantisation/downcasting is **forbidden by default**. If a state requires it (e.g., persisting float32 diagnostics), it MUST explicitly declare:
+
+  * the target type,
+  * the rounding rule (default: **RNE**), and
+  * the comparison rule used for validation.  
+* For JSON emission of `f64`, emit numeric values using **shortest round-trip formatting** (no locale dependence). 
+* Where a state uses fixed-dp quantisation for outputs, the dp, rounding mode (e.g., half-even), and any tie-break rules MUST be fully specified and deterministic.  
+
+---
+
+### 13.8 Determinism under concurrency
+
+* Any computation that feeds a branch/order MUST execute in a **single-threaded fixed-order** kernel. 
+* Map-style parallelism is allowed only when results are per-row and do not affect ordering/branching without passing through the serial kernel. 
+
+---
+
+### 13.9 Self-tests and attestation (must run before S1 / before first RNG draw)
+
+The runtime MUST run numeric self-tests after sealing/pinning and before any RNG draw:
+
+1. Verify rounding mode is RNE and FTZ/DAZ are off (subnormal preserved). 
+2. Verify FMA contraction is disabled on guarded kernels. 
+3. Verify deterministic libm profile via a fixed regression suite with expected bit patterns. 
+4. Verify deterministic Neumaier kernel on adversarial sequences. 
+5. Verify float total-order behavior on crafted arrays. 
+
+On success, write `numeric_policy_attest.json` and include its digest in the opened-artefact enumeration. 
+
+---
+
+### 13.10 Failure semantics (abort)
+
+Violations of numeric determinism controls MUST abort the run with deterministic error codes (examples include: FMA detected, FTZ/DAZ detected, non-RNE rounding mode, libm profile mismatch, NaN/Inf produced, decision-critical parallel reduction, NaN encountered in total-order key). 
+
+---
+
+### 13.11 Conformance checklist for §13 (Binding)
+
+Non-compliance if any of the following are true:
+
+* Decision-critical computations are not binary64/RNE or allow FMA/FTZ/DAZ. 
+* Deterministic libm is not pinned/attested or host libm substitution is possible. 
+* Decision-critical reductions are parallel or order-unstable.  
+* Float sorting does not follow totalOrder semantics or permits NaNs. 
+* Required self-tests/attestation are missing or occur after RNG has begun.  
+
+---
+
+## 14) Concurrency and parallelism rules (Binding)
+
+### 14.1 Purpose
+
+Concurrency is permitted only to improve throughput. It MUST NOT change:
+
+* any governed output values,
+* any governed output row-sets or declared ordering,
+* any RNG consumption / envelopes / traces,
+* any receipts, bundles, or PASS gates,
+* any content hashes.
+
+In other words: **worker-count invariance is a requirement**, not a best effort.
+
+---
+
+### 14.2 Where parallelism is allowed (normative scope)
+
+A state MAY introduce parallelism at these boundaries only:
+
+1. **Inter-state parallelism (orchestration-level)**
+   States MAY run concurrently only if:
+
+   * the dependency DAG says they are independent, and
+   * they do not write to the same governed instance paths, and
+   * required input gates for each are satisfied.
+
+2. **Intra-state data parallelism (state-level)**
+   A state MAY parallelize work across *independent concurrency units* (defined in §14.3).
+
+3. **IO parallelism (writer-level)**
+   A state MAY write multiple independent partitions concurrently, subject to **single-writer-per-instance** (see §14.7).
+
+Any other parallelism model is forbidden unless explicitly added as a new allowed pattern in this constitution.
+
+---
+
+### 14.3 Concurrency unit (mandatory declaration)
+
+If a state uses intra-state parallelism, it MUST declare a **concurrency unit**:
+
+* A concurrency unit is the smallest entity that is processed **atomically** (not split across workers).
+* The unit MUST have a stable **unit_id** (e.g., `merchant_id`, `country_iso`, `(merchant_id,country_iso)`).
+* The state MUST define:
+
+  * `unit_id` schema/type,
+  * how units are enumerated (must be deterministic; no hash-map iteration),
+  * how units map to shards/workers (any mapping is allowed **only if** worker-count invariance holds).
+
+**Binding rule:** the same unit MUST NOT be processed by more than one worker in the same state invocation.
+
+---
+
+### 14.4 Worker-count invariance (required)
+
+For any state that is parallel-capable:
+
+* Changing the number of workers, shards, batch sizes, or scheduling strategy **MUST NOT** change outputs or gates.
+* This MUST hold even if:
+
+  * unit→worker assignment changes,
+  * work completion order changes,
+  * output part file counts differ (physical layout may vary), **as long as** the dataset’s declared equality rule is satisfied (row-set and declared ordering constraints).
+
+**Decision-critical computations:** if a computation affects branching, acceptance/rejection, ordering, or gate outcomes, it MUST satisfy the stricter numeric determinism constraints in §13 (including fixed-order reductions).
+
+---
+
+### 14.5 Deterministic merge/join/reduction rules
+
+Any state that merges work products from multiple units/workers MUST implement deterministic merge rules:
+
+1. **Canonical merge key:** the state MUST define the exact key(s) used to merge/union results.
+2. **No schedule dependence:** merge results MUST NOT depend on worker completion order.
+3. **Ordering constraints:** if the Dataset Dictionary declares `ordering: [...]`, the merged output MUST satisfy it globally (not “per shard”).
+4. **Reductions:** reductions MUST be performed in a deterministic order.
+
+   * If a reduction is decision-critical, it MUST be serial fixed-order per §13.
+   * If a reduction is not decision-critical but influences outputs, the reduction order must still be fixed and declared (no “parallel reduce and hope”).
+
+---
+
+### 14.6 Concurrency rules when RNG is involved
+
+If a state is RNG-consuming (or emits RNG envelopes/events):
+
+1. **No shared stream contention:** two workers MUST NOT interleave draws for the same `(stream key)` without a deterministic rule that preserves the same counter/evidence as single-thread execution.
+2. **Preferred pattern:** RNG is keyed at the concurrency unit level (unit_id participates in the stream key), so each unit’s draws are independent of scheduling.
+3. **Stable iteration order inside a unit:** if a unit iterates over a set (e.g., candidates), the iteration order MUST be defined by an authoritative order source, not by file enumeration or hash order.
+4. **Event/trace coupling must hold under parallelism:** trace-after-each-event invariants remain mandatory (see §12). Parallel execution MUST still produce valid envelopes and reconcilable totals.
+
+---
+
+### 14.7 Single-writer-per-instance (hard IO rule)
+
+Even under parallelism:
+
+* For any governed dataset partition or bundle instance (the dictionary’s partition tuple), there MUST be at most **one** publisher.
+* Parallel workers MAY write different instances, but MUST NOT write the same instance path.
+* If concurrency makes collisions possible, the runtime MUST enforce a deterministic **claim/lock** mechanism (or orchestration-level mutual exclusion).
+
+This complements §8’s atomic publish and immutability laws.
+
+---
+
+### 14.8 Forbidden concurrency patterns (explicit MUST NOT)
+
+A state MUST NOT:
+
+* rely on map/dict/set iteration order as an implicit scheduling or ordering mechanism,
+* rely on filesystem listing order (files/parts) for meaning,
+* use “work stealing” outcomes as a hidden input (e.g., “first N wins” based on completion),
+* parallel-reduce decision-critical floating-point quantities,
+* publish partial outputs and “finish later,”
+* let retries reuse partially written outputs without deterministic cleanup and re-stage.
+
+---
+
+### 14.9 Failure and retry semantics under concurrency
+
+If any worker fails:
+
+* the state MUST fail closed,
+* MUST NOT publish partial governed instances,
+* MAY retry only after ensuring staged outputs are removed or deterministically quarantined (so the retry cannot observe inconsistent leftovers),
+* retries MUST preserve the same run anchors and must not silently change scope tokens (except where explicitly allowed for attempt lineage artefacts).
+
+---
+
+### 14.10 Validator/finalizer obligations related to concurrency
+
+Validators/finalizers MUST include checks sufficient to detect concurrency-induced nondeterminism, including at minimum:
+
+* duplicate record identities in set-semantic logs,
+* violations of declared writer sort / ordering constraints,
+* missing/extra RNG events relative to trace totals,
+* multiple “finalize” events where uniqueness is required by family schema,
+* mismatched hashes or mismatched path↔embed lineage.
+
+---
+
+### 14.11 Conformance checklist for §14 (Binding)
+
+Non-compliance if any of the following are true:
+
+* outputs differ when worker count / shard count changes,
+* RNG envelopes/traces differ across worker counts for identical anchors,
+* merge/reduction results depend on scheduling order,
+* more than one writer publishes the same governed instance,
+* any forbidden concurrency pattern in §14.8 is observed.
+
+---
+
+## 15) Forbidden nondeterminism sources (Binding)
+
+> **Binding rule:** A state MUST NOT allow any of the sources below to influence **governed outputs**, **RNG envelopes/logs**, **validation outcomes**, **gates**, or **content hashes**. If a forbidden source is observed, the state MUST fail closed with a deterministic error code.
+
+### 15.1 Wall-clock time and time-adjacent sources — MUST NOT
+
+A state MUST NOT depend on:
+
+* `now()` / wall-clock timestamps,
+* timezone / locale time rules (DST),
+* file mtime/ctime as an input,
+* “current day” unless it is a pinned policy input.
+
+**Allowed:** timestamps for **observability only**, provided they do not affect control flow or outputs (and are never part of a hashed identity surface). This is explicitly enforced in 1A (timestamps are observational; replay is by counters/order rules, not time). 
+
+### 15.2 Filesystem enumeration order — MUST NOT
+
+A state MUST NOT derive meaning from:
+
+* directory listing order,
+* glob order,
+* “first file seen” semantics,
+* part-file numbering or creation order.
+
+Where a state reads a set of inputs, it MUST treat them as a set and apply explicit deterministic ordering/keys if order matters. 1A calls this out directly: file order is non-authoritative for certain reads. 
+
+### 15.3 Unordered iteration in language runtimes — MUST NOT
+
+A state MUST NOT rely on:
+
+* hash-map / dict / set iteration order,
+* randomized hash seeds,
+* pointer-address ordering.
+
+If iteration order can affect results, the state MUST define a canonical sort order (using declared order authorities such as `candidate_rank` where applicable). In 1A, S3 is RNG-free and is the sole inter-country ordering authority via `candidate_rank` (downstream joins must use it, not “incidental” order).  
+
+### 15.4 Ambient randomness and OS entropy — MUST NOT
+
+A state MUST NOT use:
+
+* `random()` / default PRNGs,
+* `/dev/urandom`,
+* UUIDs as “randomness” affecting outputs,
+* nondeterministic sampling.
+
+All randomness MUST come from the shared RNG Service under §12, with proper envelope accounting and trace coverage.
+
+### 15.5 Environment / machine identity — MUST NOT
+
+A state MUST NOT allow outputs to vary based on:
+
+* hostname, PID, thread IDs,
+* CPU feature flags unless explicitly governed by the numeric policy,
+* number of cores, scheduling order, system load.
+
+Worker-count invariance is mandatory (see §14).
+
+### 15.6 Locale/collation/formatting defaults — MUST NOT
+
+A state MUST NOT depend on:
+
+* locale decimal separators,
+* locale-aware string collation,
+* platform-dependent unicode normalization,
+* implicit timezone/locale formatting.
+
+All formatting that affects persisted bytes must use the canonical serialization rules (§9).
+
+### 15.7 Unpinned external reads — MUST NOT
+
+A state MUST NOT read from:
+
+* the network,
+* “latest” datasets,
+* mutable shared folders,
+* environment variables (except those explicitly sealed/pinned and recorded).
+
+All physical locations MUST be resolved via the Dataset Dictionary / Registry (dictionary bypass is forbidden). 
+
+### 15.8 Nondeterministic parallel reductions — MUST NOT
+
+A state MUST NOT:
+
+* parallel-reduce decision-critical floats,
+* rely on nondeterministic BLAS/GPU kernels for decision paths,
+* allow race conditions to determine “winner” selections.
+
+If parallelism exists, the merge/reduction order must be fixed and declared (§14), and decision-critical reductions must obey §13.
+
+### 15.9 Serialization nondeterminism — MUST NOT
+
+A state MUST NOT emit hashed/compared artefacts using:
+
+* non-deterministic JSON key order,
+* YAML parse→dump round trips,
+* platform-dependent compression settings (unless pinned),
+* variable chunking/part-splitting **as a semantic input**.
+
+If physical layouts may vary, identity must be based on declared rowset + ordering constraints and/or deterministic composite digests (§9).
+
+### 15.10 Instrumentation affecting semantics — MUST NOT
+
+Metrics, counters, debug logs, and profiling MUST NOT affect control flow or outputs (no “if debug then change behavior”). 1A enforces this explicitly: metrics update after events but do not affect control flow. 
+
+### 15.11 Hidden state across runs — MUST NOT
+
+A state MUST NOT allow persisted or in-memory caches to change outputs unless:
+
+* the cache is fully derivable from pinned inputs, and
+* its use is deterministic, and
+* it is either recomputed or validated as equivalent (hash/manifest) on reuse.
+
+### 15.12 Validator nondeterminism — MUST NOT
+
+Validators/finalizers MUST NOT:
+
+* use random sampling unless deterministically seeded and declared,
+* depend on file order,
+* depend on wall-clock time.
+
+S9’s replay posture is explicitly read-only and deterministic, issuing PASS/FAIL solely from pinned inputs + declared laws and emitting the gate by deterministic hashing rules. 
+
+### 15.13 Required failure posture
+
+If any forbidden source is detected (or cannot be ruled out), the state MUST:
+
+* fail closed,
+* emit deterministic diagnostics (state/segment IDs + anchor scope),
+* and MUST NOT publish a PASS gate for the affected scope.
+
+---
+
+## 16) Determinism obligations by State Class (Binding)
+
+> **Rule:** Every state MUST declare exactly one **State Class** (SC-A…SC-E) and one **RNG Posture** (RNG_NONE / RNG_NONCONSUMING / RNG_CONSUMING).
+> A state’s determinism obligations are the **union** of:
+>
+> * the **global determinism laws** (§5, §12–§15),
+> * the obligations for its **State Class** (this section),
+> * and (if RNG posture ≠ RNG_NONE) the RNG governance obligations in **§12**.
+
+### 16.1 Common determinism obligations (apply to all State Classes)
+
+All states MUST:
+
+1. **Be anchor-pure:** consume only pinned inputs under the Run Anchor; no undeclared reads (§6, §10).
+2. **Be order-explicit:** if any ordering affects outputs, the ordering and tie-breakers MUST be spelled out; never rely on incidental iteration/file order (§14–§15).
+3. **Be numeric-policy compliant:** decision/order-critical math MUST comply with §13; violations abort.
+4. **Be concurrency-invariant:** if parallelism exists, worker/shard count MUST NOT change outcomes (§14).
+5. **Be IO-deterministic:** atomic publish, no overwrite, idempotent reruns (§8), and canonical serialization (§9).
+6. **Emit determinism evidence:** State Manifest MUST record inputs (refs+hashes), outputs (refs+hashes), and the determinism posture (state class + RNG posture + any declared order authority used).
+
+---
+
+### 16.2 SC-A — Pure Transform (RNG-free producer)
+
+**Intent:** deterministic transformation producing governed artefacts without consuming randomness.
+
+**SC-A MUST:**
+
+* Declare **RNG_NONE** and MUST NOT instantiate or call any PRNGs.
+* MUST NOT write or mutate RNG logs/event families. If RNG logs exist in the run scope, SC-A MUST treat them as read-only audit evidence.
+* Define any ordering it introduces:
+
+  * If output ordering is contractually meaningful (dictionary `ordering`), output MUST satisfy it globally.
+  * If ordering is not meaningful, output MUST still be deterministic (stable writer sort or explicitly “unordered rowset” with deterministic identity evidence).
+* Ensure all merges/joins are deterministic:
+
+  * define join keys,
+  * define duplicate handling (error vs deterministic collapse),
+  * define stable tie-breakers for any “pick one” logic.
+* Ensure outputs are worker-count invariant (parallel map allowed only if merge rules are deterministic and do not depend on scheduling).
+
+**SC-A MUST NOT:**
+
+* depend on wall-clock, locale, file order, hash iteration, or ambient env settings (§15).
+
+**SC-A determinism evidence (minimum):**
+
+* State Manifest lists: input refs+hashes, output refs+hashes, ordering rules used, and an explicit statement `rng_posture=RNG_NONE`.
+
+---
+
+### 16.3 SC-B — RNG Emitter (event-family producer)
+
+**Intent:** produce stochastic outcomes and the auditable evidence of stochastic consumption.
+
+**SC-B MUST (in addition to §12):**
+
+* Declare RNG posture as **RNG_CONSUMING** or **RNG_NONCONSUMING**.
+* Obtain randomness **only** via RNG Service streams derived from deterministic keys (run anchors + segment/state + purpose tag).
+* Emit RNG event families as declared (schemas + registry/dictionary paths), and obey:
+
+  * strict open-interval uniform rule,
+  * envelope correctness (`before/after/blocks/draws`),
+  * trace coverage (“trace-after-each-event”),
+  * totals reconciliation.
+* Define deterministic iteration order for any loop that consumes RNG:
+
+  * candidate iteration MUST be based on an authoritative order artefact (or explicitly defined stable order),
+  * never based on concurrency scheduling or input file enumeration.
+* Be worker-count invariant:
+
+  * if parallelized, concurrency unit MUST be declared,
+  * stream keys SHOULD include concurrency unit identifiers to prevent cross-worker interleaving,
+  * event emission MUST be schedule-independent (no “first N completed”).
+
+**SC-B MUST NOT:**
+
+* interleave draws for the same stream key across workers unless the interleaving rule is explicitly deterministic and produces identical envelopes/traces as single-thread.
+
+**SC-B determinism evidence (minimum):**
+
+* State Manifest lists: stream keys/purpose tags used (or a verifiable summary), families emitted, and the expected envelope/trace invariants that validators will enforce.
+
+---
+
+### 16.4 SC-C — Aggregator / Reduction / Join state
+
+**Intent:** combine multiple upstream artefacts into derived artefacts; determinism risk is dominated by ordering and reductions.
+
+**SC-C MUST:**
+
+* Declare canonical merge semantics:
+
+  * input set definition (which partitions and which gates must be present),
+  * merge keys,
+  * duplicate identity policy (fail vs deterministic resolution),
+  * stable tie-breakers.
+* Declare reduction semantics:
+
+  * explicit evaluation order for reductions,
+  * if decision-critical: serial fixed-order kernel per §13,
+  * if not decision-critical but affects outputs: still fixed, declared order (no nondeterministic parallel reduce).
+* Enforce worker-count invariance:
+
+  * partitioning and merging MUST not depend on completion order,
+  * global ordering constraints MUST be satisfied regardless of shard count.
+* If RNG posture ≠ RNG_NONE (rare but allowed by the variability model):
+
+  * SC-C MUST also satisfy SC-B’s RNG determinism constraints for the RNG-consuming part (no schedule dependence, envelope/trace correctness).
+
+**SC-C MUST NOT:**
+
+* infer semantics from filesystem ordering, dictionary iteration order, or “natural” arrival order of records.
+
+**SC-C determinism evidence (minimum):**
+
+* State Manifest records: upstream instances consumed (refs+hashes), merge/reduction rules version, and any authoritative order sources used.
+
+---
+
+### 16.5 SC-D — Receipt Writer (scoped validation + deterministic gate)
+
+**Intent:** produce a **scoped PASS receipt** that downstream states may rely on, without weakening determinism.
+
+**SC-D MUST:**
+
+* Be **RNG_NONE** (default) unless explicitly declared otherwise in the segment profile (rare; treated as high risk).
+* Be **read-only w.r.t. governed model outputs**: it validates and emits evidence; it must not “repair” data in-place.
+* Compute receipts deterministically:
+
+  * receipt scope MUST be explicit (e.g., parameter-scoped),
+  * receipt content MUST be a deterministic function of validated artefact bytes/hashes and declared policy versions,
+  * any bundle/index hashing MUST follow §7/§9 canonical rules.
+* Enforce gating preconditions:
+
+  * if receipt depends on upstream receipts, SC-D MUST require them (no PASS → no read).
+* Be idempotent:
+
+  * rerun under same scope MUST produce byte-identical receipt bundle (or deterministic no-op).
+
+**SC-D MUST NOT:**
+
+* include nondeterministic diagnostics (timestamps, random IDs) inside hashed receipt contents.
+
+**SC-D determinism evidence (minimum):**
+
+* Receipt bundle includes deterministic index + hash gate; State Manifest records what was validated and which receipt was emitted.
+
+---
+
+### 16.6 SC-E — Finalizer / Segment Egress Gate Publisher
+
+**Intent:** deterministically certify the segment’s produced surfaces and publish the consumer-facing PASS gate.
+
+**SC-E MUST:**
+
+* Be **RNG_NONE**. Finalizers MUST NOT consume randomness.
+* Be **read-only** over upstream artefacts: it verifies, reconciles, and gates; it does not mutate producers’ outputs.
+* Re-derive deterministically:
+
+  * replay-critical validations (including RNG reconciliation) MUST not depend on file order,
+  * any re-derivation that depends on an order must use declared order authorities.
+* Produce the segment’s **final validation bundle** deterministically:
+
+  * bundle contents must be stable under replay,
+  * `index.json` is complete and deterministic,
+  * PASS flag hash rule is exactly as declared.
+* Enforce “no PASS → no read” at the segment boundary:
+
+  * SC-E defines the segment’s consumer gate; consumers MUST be able to verify it purely from declared rules and bytes.
+
+**SC-E MUST NOT:**
+
+* publish PASS if any determinism check fails (missing inputs, hash mismatch, envelope/trace mismatch, ordering violations, etc.).
+* rely on “best effort” or partial evidence.
+
+**SC-E determinism evidence (minimum):**
+
+* Final bundle enumerates all validated artefacts (refs+hashes), includes pinning evidence, includes reconciliation outputs, and emits the final PASS gate deterministically.
+
+---
+
+### 16.7 Cross-class forbidden shortcuts (binding)
+
+Regardless of class, a state MUST NOT:
+
+* “fix up” outputs to make validation pass,
+* backfill missing gates by assumption,
+* treat any optional convenience surface as authoritative unless its declared receipt/gate is verified,
+* treat a receipt as a substitute for the segment’s final consumer gate.
+
+---
+
+### 16.8 State-class determinism checklist (binding)
+
+A state is non-compliant if any apply:
+
+* State Class / RNG posture not declared or inconsistent with behavior.
+* Outputs or logs vary under identical anchors when worker/shard count changes.
+* Any ordering-affecting logic lacks explicit ordering + tie-break rules.
+* RNG-consuming states violate envelope/trace invariants or depend on schedule/file order.
+* Receipt/finalizer bundles are not byte-stable under replay or do not follow index+hash rules.
+* Any forbidden nondeterminism source in §15 is present.
+
+---
+
+# Part III — Reproducibility Rail (Binding)
+
+## 17) Reproducibility definition (Binding)
+
+### 17.1 What “reproducible” means in this engine
+
+A run (or any sub-scope of a run) is **reproducible** iff, for the same **declared reproduction keys** and the same **opened/pinned inputs**, the engine can re-execute and obtain **equal governed artefacts** under the segment’s declared **equality contract**, or deterministically fail with diagnostics and **without** publishing PASS gates.  
+
+Reproducibility is therefore a contract over:
+
+* **Inputs:** pinned by content bytes (policy/config pinning and opened-artefact sealing),
+* **Execution regime:** numeric policy + RNG governance + allowed concurrency posture,
+* **Outputs:** governed artefacts + their identity evidence (hashes, manifests, gates),
+* **Equality:** defined per artefact class (byte vs canonical vs row-set).
+
+---
+
+### 17.2 Reproduction keys (what must be held constant)
+
+Unless a Segment RDV Profile explicitly declares otherwise, the reproduction keys are:
+
+1. **Stable identity keys (MUST be held constant):**
+
+   * `manifest_fingerprint` (opened-artefact closure),
+   * `parameter_hash` (policy/config closure),
+   * `seed` / seed material used for modelling (when the artefact is seed-scoped).  
+
+2. **Execution regime pins (MUST be held constant):**
+
+   * Numeric policy regime (binary64/RNE/no-FMA/no-FTZ/DAZ + pinned math profile) and its attestation artefacts, which participate in the fingerprint closure.  
+   * RNG governance (algorithm/version + stream derivation policy), likewise pinned via rails versions and/or opened artefacts.
+
+3. **Attempt identity keys (MUST NOT be required for reproduction of governed model outputs):**
+
+   * `run_id` and `scenario_id` are *attempt lineage* and by default are not allowed to change governed model outputs. They may partition logs only.  
+
+**Binding rule:** A segment MUST declare for each artefact which subset of the above keys constitutes its identity scope (see §4 output scope classes). The default scopes in 1A demonstrate this separation: parameter-scoped outputs by `parameter_hash`, egress/validation by `manifest_fingerprint` (often with `seed`), and RNG logs by `{seed, parameter_hash, run_id}`.  
+
+---
+
+### 17.3 Equality contracts (what “equal” means)
+
+Every governed artefact MUST have exactly one declared **equality contract**. Allowed contracts are:
+
+1. **BYTE_EQUALITY (strongest):** exact byte equality of the artefact bytes.
+
+   * Required for: flags, single-file JSON/JSONL when used as gates or identity evidence, and any artefact whose digest is used directly.
+
+2. **BUNDLE_GATE_EQUALITY:** equality is defined by the bundle hashing rule and its gate:
+
+   * `index.json` completeness and relative paths,
+   * `_passed.flag` equals SHA-256 over concatenated raw bytes of indexed files in deterministic order.  
+     If the bundle-gate equality holds, the bundle is considered equal even if non-authoritative filesystem metadata differs.
+
+3. **ROWSET_EQUALITY:** equality is by set/multiset of rows under a declared primary key (duplicates forbidden), optionally plus declared writer-sort constraints.
+
+   * Required for: Parquet datasets whose physical row/row-group order is out-of-contract (row-set equality is normative). 
+   * JSONL event/log streams that are declared set-semantic (physical order across parts is non-authoritative; consumers must not depend on it). 
+
+4. **CANONICAL_FORM_EQUALITY:** equality after applying the engine’s canonical serialization emitter (only permitted where canonicalization is explicitly defined and pinned).
+
+5. **QUANTISED_VALUE_EQUALITY (rare):** equality after applying an explicitly declared quantisation policy (must be declared and validated; never implicit).
+
+**Binding default:** If an artefact participates in a consumer gate or is included in a validation bundle index, it MUST be at least bundle-gate-equal or byte-equal under replay; otherwise PASS gating is meaningless. 
+
+---
+
+### 17.4 Idempotence as the operational form of reproducibility
+
+For any governed artefact instance at its canonical dictionary/registry address:
+
+* **Immutability:** the instance is immutable once published.
+* **Idempotent rerun:** rerunning the producing state under identical reproduction keys MUST either:
+
+  * no-op, or
+  * publish an instance that is equal under the artefact’s equality contract (byte, bundle-gate, or rowset).  
+* If an existing instance is present but not equal under the equality contract, the state MUST fail closed (integrity violation) and MUST NOT publish any PASS gate for that scope. 
+
+---
+
+### 17.5 What may vary without breaking reproducibility (explicit allowances)
+
+The following are permitted to vary without violating reproducibility, provided the equality contract still holds:
+
+* **`run_id` differences** across retries (logs are attempt-scoped; model outputs must not depend on `run_id`). 
+* **Physical file layout** of partitioned datasets (part counts, file names) *only* when the artefact equality contract is rowset-based and writer-sort constraints (if any) still hold. 
+* **Ops telemetry timestamps** and non-gating run reports, provided they do not enter hashed identity surfaces.
+
+Any other variance MUST be declared (e.g., explicit attempt-unique artefacts).
+
+---
+
+### 17.6 Reproducibility obligations for validators/finalizers
+
+Finalizers (segment egress validators) MUST:
+
+* treat producers’ artefacts as read-only,
+* check reproducibility-relevant invariants (lineage equality, hash evidence, RNG accounting reconciliation),
+* and publish the consumer gate only when the declared equality contracts are satisfied.  
+
+---
+
+### 17.7 Reproducibility failure posture (fail-closed)
+
+On any reproducibility breach (hash mismatch, lineage mismatch, missing pinned input evidence, equality contract violation):
+
+* the run/segment MUST fail closed,
+* MUST emit deterministic diagnostics identifying scope and offending artefacts,
+* and MUST NOT emit PASS gates for the affected scope. 
+
+---
+
+## 18) Versioning and compatibility (Binding)
+
+### 18.1 Purpose
+
+Versioning exists to make two things simultaneously true:
+
+1. **Replays are meaningful**: “same anchors ⇒ same outputs” is only defensible if the *execution regime* and *inputs* are pinned and discoverable.
+2. **Evolution is safe**: segments can improve over time without silently breaking consumers or corrupting cache/reuse behavior.
+
+This section defines what must be versioned/pinned, what counts as a breaking change, and how compatibility is managed.
+
+---
+
+### 18.2 The three version domains (normative split)
+
+Every run MUST record (and final bundles MUST expose) version identity across three domains:
+
+#### 18.2.1 Engine implementation version
+
+* **`engine_build_id`** MUST identify the exact engine build (e.g., git commit + build hash).
+* If engine code changes, reproducibility across time is not claimed unless the change is proven behavior-preserving under the conformance suite.
+
+#### 18.2.2 Rails versions (RDV constitution dependencies)
+
+* **`rails_versions`** MUST include at least:
+
+  * `rng_policy_version`
+  * `numeric_policy_version`
+  * `validation_policy_version` (or content hash of the bundle)
+  * `addressing_rules_version` (if addressing templates are versioned separately)
+
+Any change to rails semantics is a compatibility-relevant change and MUST be recorded.
+
+#### 18.2.3 Segment contract versions
+
+For each segment involved in a run, the segment MUST have identifiable versions for:
+
+* schema set (schema catalog version/content hash),
+* dataset dictionary version/content hash,
+* artefact registry version/content hash,
+* segment RDV profile version/content hash.
+
+These MUST be part of the opened-artefact closure (and thus fingerprinted) so that drift is impossible to hide.
+
+---
+
+### 18.3 Compatibility promises (what consumers may rely on)
+
+A consumer MAY rely on the following surfaces being stable within a declared compatibility window:
+
+1. **Run anchors** (`manifest_fingerprint`, `parameter_hash`, seed semantics, run/scenario IDs as attempt lineage).
+2. **Canonical addressing templates** declared in dictionaries/registries.
+3. **Artefact identity rules** (hashing, canonical serialization, equality contracts).
+4. **Validation and gate semantics** (“no PASS → no read”; bundle hashing rules; gate map semantics).
+5. **Schema stability** for consumer-facing artefacts (within semver rules below).
+
+Anything not declared on these surfaces is *not* a compatibility promise.
+
+---
+
+### 18.4 Semantic versioning rules (binding)
+
+This constitution uses SemVer principles for compatibility, applied to three kinds of things:
+
+#### 18.4.1 Rails constitution semver
+
+* **MAJOR**: any breaking change to:
+
+  * run anchor required fields,
+  * RNG engine/stream derivation/envelope semantics,
+  * numeric determinism posture,
+  * gate hashing rules / “no PASS → no read” mechanics,
+  * required conformance tests.
+* **MINOR**: additive constraints that do not break existing compliant producers/consumers (e.g., new optional fields with defaults, new state class type if backward compatible).
+* **PATCH**: clarifications/typos/no-behavior changes.
+
+#### 18.4.2 Schema semver (per dataset / per artefact kind)
+
+A schema change is:
+
+* **MAJOR** if it:
+
+  * removes/renames fields,
+  * changes field meaning,
+  * tightens constraints such that previously valid data becomes invalid (unless explicitly declared as a bug fix requiring migration),
+  * changes primary key / identity semantics.
+* **MINOR** if it:
+
+  * adds optional fields,
+  * adds new enum values that consumers can safely ignore (only if consumers are required to treat unknowns as “ignore” or “fail” consistently).
+* **PATCH** if it:
+
+  * fixes descriptions or clarifies constraints without changing accept/reject behavior.
+
+#### 18.4.3 Addressing/dictionary semver
+
+A dictionary change is:
+
+* **MAJOR** if it:
+
+  * changes dataset_id,
+  * changes path template,
+  * changes partitioning keys or their order,
+  * changes declared equality contract or ordering requirements.
+* **MINOR** if it:
+
+  * adds new datasets,
+  * adds non-breaking metadata (notes, descriptions),
+  * adds new optional convenience surfaces with explicit degrade ladders.
+* **PATCH** for comments/typos only.
+
+---
+
+### 18.5 Compatibility windows and pinning rules
+
+#### 18.5.1 Default: strict pinning
+
+By default, runs are strictly pinned:
+
+* exact `engine_build_id`,
+* exact rails versions,
+* exact contract versions/content hashes.
+
+A replay that changes any of these is not a “replay” — it is a different run and must produce a different fingerprint.
+
+#### 18.5.2 Declared compatibility window (optional)
+
+If you choose to allow a compatibility window (e.g., “any PATCH within MAJOR.MINOR”), the segment MUST:
+
+* declare the window explicitly in its Segment RDV Profile,
+* publish compatibility tests proving equivalence under the equality contracts for consumer surfaces,
+* and record the actual resolved versions used in the run evidence.
+
+Without such proof, “windows” are forbidden.
+
+---
+
+### 18.6 Migration and coexistence (when breaking changes are necessary)
+
+When a MAJOR change occurs that affects consumer surfaces, the engine MUST support one of:
+
+1. **Parallel versioned surfaces**
+
+   * New outputs written under a new dataset_id or versioned path segment,
+   * Old outputs remain readable (and gated) for their version.
+
+2. **Explicit migration tooling**
+
+   * A deterministic migration job that reads old gated outputs and writes new gated outputs under new identity rules,
+   * Migration must itself comply with RDV rails.
+
+3. **Hard cutover with invalidation** (least preferred)
+
+   * Explicitly mark older outputs as incompatible/unreadable by consumers that require newer semantics (gate map evolves).
+
+Regardless of strategy, the change MUST be logged and the gate maps updated.
+
+---
+
+### 18.7 Backward compatibility rules for consumers
+
+Consumers MUST:
+
+* verify gates and hashes for the version they are reading,
+* respect schema semver (if they claim compatibility),
+* and fail closed when encountering:
+
+  * incompatible major versions,
+  * missing required fields,
+  * changed equality contracts.
+
+Consumers MUST NOT “best effort” parse incompatible outputs and proceed silently.
+
+---
+
+### 18.8 Cache/reuse safety across versions
+
+Reuse is allowed only when all of these match for the scope:
+
+* `manifest_fingerprint`
+* `parameter_hash`
+* relevant seed scope (if applicable)
+* equality contract and ordering contract
+* and the consumer gate for the partition
+
+If any versioned surface differs (engine build, rails version, schema/dictionary identity), then reuse MUST be treated as unsafe unless an explicit compatibility proof exists.
+
+---
+
+### 18.9 Breaking change checklist (binding)
+
+A change MUST be treated as breaking-risk (MAJOR unless proven otherwise) if it changes any of:
+
+* required run anchor fields or their meaning,
+* RNG algorithm, stream derivation, envelope fields, or trace rules,
+* numeric determinism posture,
+* canonical serialization rules that affect hashes,
+* gate hashing rules or bundle index rules,
+* dataset_id/path/partitioning keys,
+* equality contract (byte/bundle/rowset),
+* consumer “no PASS → no read” obligations.
+
+---
+
+### 18.10 Required evidence in validation bundles
+
+Every segment final validation bundle MUST record:
+
+* engine build id,
+* rails versions,
+* contract identities (schema/dictionary/registry/profile content hashes),
+* and any declared compatibility window (if used).
+
+This makes consumer verification and forensic replay unambiguous.
+
+---
+
+## 19) Reuse and caching rules (Binding)
+
+### 19.1 Definitions (normative)
+
+* **Reuse:** A state/segment chooses **not to recompute** an artefact because an **eligible existing instance** already exists at its canonical address (or within a declared cache surface) and is **readable** under the Gate Map.
+* **Caching:** Persisting artefacts so that future executions may reuse them (either within the same run, across retries, or across separate runs that share the required identity keys).
+* **Eligible existing instance:** An instance that passes the **Reuse Eligibility Predicate** (§19.3).
+* **Readable:** Published **and** all required PASS gates verify (“no PASS → no read”).
+* **Resume:** Continuing a partially completed write. **Forbidden** unless the artefact is explicitly declared **append-only/resume-safe** under §8 and §19.5.
+
+---
+
+### 19.2 Allowed reuse levels (what the engine MAY reuse)
+
+Reuse is allowed only at these levels, and only when eligibility (§19.3) holds:
+
+**19.2.1 Whole-segment reuse (preferred at boundaries)**
+A consumer (including an orchestrator) MAY treat a segment as complete without recomputation if the segment’s **final consumer gate** for the relevant scope is present and verifies.
+
+**19.2.2 Per-state reuse (internal)**
+A state MAY skip its work if all of its declared outputs for the relevant scope are already present and readable under the state/segment Gate Map.
+
+**19.2.3 Sub-output reuse (only if explicitly declared)**
+A state MAY reuse a subset of its outputs only if:
+
+* the state declares that subset as independently readable (separate gate/receipt), and
+* downstream dependencies do not require the missing outputs.
+
+**19.2.4 In-run memoization (non-persisted)**
+In-memory caches (e.g., “read a reference table once”) are allowed if they are:
+
+* derived solely from pinned inputs, and
+* never used as an implicit source of truth (i.e., they do not replace provenance or gating).
+
+---
+
+### 19.3 Reuse Eligibility Predicate (mandatory checks)
+
+A state/segment MUST NOT reuse an artefact instance unless **all** checks below pass:
+
+**(A) Addressing + scope match**
+
+* The instance address MUST match the Dictionary/Registry canonical path for that artefact.
+* The instance MUST match the artefact’s declared **partition keys** (names + order).
+* Any duplicated lineage token (path ↔ embedded) MUST be byte-identical.
+
+**(B) Version / compatibility match**
+
+* The instance MUST be produced under compatible versions:
+
+  * rails versions (RNG/numeric/validation/addressing),
+  * contract identities (schema/dictionary/registry/profile),
+  * and any declared compatibility window (if used).
+* If compatibility cannot be proven, reuse is forbidden.
+
+**(C) Gate verification**
+
+* All required PASS gates for reading that artefact (per the Gate Map) MUST be present and MUST verify according to their hashing rules.
+* If a bundle exists but the PASS flag is missing/invalid, the instance is **not readable** and MUST NOT be reused.
+
+**(D) Equality contract satisfied**
+
+* The instance MUST satisfy its declared equality contract:
+
+  * byte equality (for single-file identities),
+  * bundle-gate equality (for proof packs/receipts),
+  * rowset equality + ordering constraints (for partitioned tables/logs),
+  * or any explicitly declared alternative.
+* If the state cannot verify equality deterministically, it MUST NOT reuse.
+
+---
+
+### 19.4 Reuse decision protocol (what producers MUST do)
+
+When a state considers reuse, it MUST execute this protocol:
+
+1. **Check eligibility** using §19.3.
+2. If eligible: **no-op** (do not rewrite), and emit a State Manifest entry indicating:
+
+   * `decision = REUSED`,
+   * the artefact refs + content hashes observed,
+   * the gate refs verified (what PASS evidence was checked),
+   * and the version identities relied upon.
+3. If not eligible:
+
+   * either **recompute from authoritative inputs**, or
+   * **fail closed** if recomputation would violate immutability (e.g., an unreadable conflicting instance exists).
+
+A state MUST NOT “half reuse” by reading from an instance that is not readable.
+
+---
+
+### 19.5 Append-only / resume-safe caches (rare; strictly governed)
+
+Some artefacts may be designed as **append-only caches** (e.g., per-unit blocks added over time). This is allowed only if the Dictionary/Registry and segment profile explicitly declare:
+
+* **Append law:** what is appended, what is immutable, and what constitutes “already present”.
+* **Record identity:** a deterministic primary key (or block key) that prevents duplicates.
+* **Skip-if-final rule:** if the target identity already exists:
+
+  * if bytes/equality match → skip/no-op,
+  * if mismatch → fail closed (idempotence violation).
+* **Atomicity unit:** the smallest publish unit (e.g., “per block” or “per merchant”) and how atomic publish is enforced.
+* **Validation posture:** how appended content is validated and what gate(s) make it readable.
+
+If these declarations do not exist, “resume” and “append to an existing instance” are forbidden.
+
+---
+
+### 19.6 Cache invalidation and drift handling (fail-closed)
+
+If a would-be reusable instance exists but fails any eligibility check:
+
+* The instance MUST be treated as **unreadable**.
+* Producers/consumers MUST fail closed unless the segment explicitly provides a deterministic remediation mode.
+
+**Hard prohibitions:**
+
+* A producer MUST NOT overwrite an existing published instance to “fix” drift.
+* A consumer MUST NOT fall back to “best effort read” when PASS verification fails.
+
+Where cleanup is supported, it MUST be deterministic and auditable (record what was quarantined and why).
+
+---
+
+### 19.7 Interaction with attempt identity (`run_id`, retries)
+
+* **Attempt-scoped artefacts (LOG_SCOPED)** MAY be reused only within the same `{seed, parameter_hash, run_id}` scope unless explicitly declared otherwise.
+* **Model outputs** MUST NOT depend on `run_id` by default and therefore may be reused across retries if their required gates and identity checks pass.
+* A retry MUST NOT “stitch together” partial outputs from multiple attempts unless the artefact is declared append-only/resume-safe (§19.5).
+
+---
+
+### 19.8 Consumer-side caching of verification (allowed, but cannot weaken gates)
+
+Consumers MAY cache *verification results* (e.g., “I already verified this PASS gate and these hashes”) provided:
+
+* the cached decision is keyed by the same identity tuple used for verification (anchors + artefact refs + content hashes + gate hash),
+* the cache is invalidated if any of those keys change,
+* and the consumer still enforces “no PASS → no read”.
+
+Optional external indices (e.g., a HashGate metadata service) MAY accelerate discovery, but they MUST NOT override local on-disk gate verification.
+
+---
+
+### 19.9 Conformance checklist for §19 (Binding)
+
+Non-compliance if any of the following occur:
+
+* An artefact is reused without verifying required PASS gates.
+* A producer overwrites an existing published instance.
+* A consumer reads an instance that is published but not readable (missing/invalid PASS).
+* Reuse occurs across incompatible rails/contracts/versions without an explicit compatibility proof.
+* Resume/append behavior is used without an explicit append-only declaration and deterministic skip-if-final/idempotence rules.
+
+---
+
+## 20) Drift detection and remediation (Binding)
+
+### 20.1 Definition of “drift” (normative)
+
+**Drift** is any condition where a governed artefact instance (or its proof/gate) is no longer consistent with the identity, determinism, validation, and pinning rules of this constitution.
+
+Drift includes (non-exhaustive):
+
+* **Identity drift:** recomputed `parameter_hash` / `manifest_fingerprint` differs from recorded values.
+* **Gate drift:** a PASS gate is missing, malformed, or no longer verifies (e.g., `_passed.flag` hash mismatch).
+* **Content drift:** bytes/rowsets differ from the equality contract under identical reproduction keys.
+* **Contract drift:** schema/dictionary/registry/profile versions differ from what the run claims, or consumers interpret with a different contract set.
+* **Determinism drift:** RNG accounting/trace coverage breaks, writer-sort breaks, ordering authority changes, or concurrency changes outputs.
+
+S9 explicitly treats these as FAIL classes using canonical codes (e.g., `E_LINEAGE_RECOMPUTE_MISMATCH`, `E_WRITER_SORT_BROKEN`, `E_TRACE_TOTALS_MISMATCH`, etc.). 
+
+---
+
+### 20.2 Drift surfaces (where drift is detected)
+
+Drift MUST be detectable at three layers:
+
+1. **Producer-time (state writes):** structural/path/partition violations, forbidden nondeterminism sources, atomicity breaches.
+2. **Validator/finalizer-time (segment gate):** re-derivation checks, hash checks, writer-sort checks, RNG envelope/trace reconciliation, lineage equality checks.  
+3. **Consumer-time (read-time):** gate verification + identity checks prior to reading (the last line of defense). For 1A egress this is explicitly the `_passed.flag` verification against `index.json` ordering rules.  
+
+---
+
+### 20.3 Required drift detectors (binding minimum set)
+
+A conformant engine MUST implement and enforce at least the detectors below.
+
+#### 20.3.1 Gate verification drift
+
+* A partition is **not readable** unless the required gate exists and verifies.
+* For bundle-style gates, `_passed.flag` MUST match the SHA-256 over the raw bytes of all files listed in `index.json` (excluding the flag), in ASCII-lexicographic order of `path`.  
+* If the bundle exists but `_passed.flag` is missing or mismatches, consumers MUST refuse reads (“no PASS → no read”).  
+
+#### 20.3.2 Lineage drift (path ↔ embedded equality)
+
+* Where lineage tokens exist in both path and embedded fields, **byte equality is mandatory**.
+* Any mismatch is FAIL (`E_PATH_EMBED_MISMATCH` class).  
+
+#### 20.3.3 Partition law drift
+
+* Instances MUST be written under dictionary-declared partition keys (names + order). Misplaced partitions are FAIL (`E_PARTITION_MISPLACED`). 
+
+#### 20.3.4 Pinning drift (hash recomputation mismatch)
+
+* Validators MUST be able to recompute `parameter_hash` / `manifest_fingerprint` from sealed inputs and detect mismatches as FAIL (`E_LINEAGE_RECOMPUTE_MISMATCH`). 
+
+#### 20.3.5 Ordering drift (writer sort + order authority)
+
+* Where dictionary declares writer sort (e.g., `outlet_catalogue`), validators MUST enforce it within and across file boundaries; violations are FAIL (`E_WRITER_SORT_BROKEN`).  
+* Order-authority drift (e.g., competing inter-country ordering) MUST be detected as FAIL (`E_ORDER_AUTHORITY_DRIFT`). 
+
+#### 20.3.6 RNG drift (envelope + trace)
+
+* For RNG-consuming families: per-event envelope arithmetic and trace-after-each-event coverage MUST reconcile; mismatches are FAIL (`E_RNG_COUNTER_MISMATCH`, `E_TRACE_TOTALS_MISMATCH`, `E_TRACE_COVERAGE_MISSING`, etc.).  
+
+#### 20.3.7 Set-semantic log drift
+
+* For set-semantic JSONL streams, duplicate identity rows are structural errors (FAIL), and physical order is non-authoritative. 
+
+---
+
+### 20.4 Fail-closed publication rule (binding)
+
+On any detected drift that affects a governed scope:
+
+* The engine MUST **fail closed** for that scope.
+* The engine MUST NOT publish a PASS gate for that scope.
+* If a bundle/proof-pack is written on FAIL, it MUST be written **without** `_passed.flag` so the partition is mechanically non-readable.  
+
+This is the canonical remediation-by-design: “bundle may exist for diagnostics; PASS gate is the only read authorization.” 
+
+---
+
+### 20.5 Remediation principles (binding)
+
+Remediation MUST obey these principles:
+
+1. **No in-place fixing of governed instances.** Published governed artefacts are immutable; remediation MUST NOT overwrite or mutate them.
+2. **Gates are authoritative.** If gate verification fails, the instance is treated as unreadable regardless of what “looks correct.”
+3. **Remediation is additive.** Fixes occur by producing new governed outputs under new identity (new `manifest_fingerprint`, new dataset_id/versioned path, or new semver surface), not by editing existing partitions.
+4. **Forensics preserved.** When drift is detected, sufficient diagnostics MUST be retained to explain what failed (e.g., S9 bundle contents and failure codes).  
+
+---
+
+### 20.6 Remediation mechanisms (normative options)
+
+A compliant platform MUST support at least one of the following remediation mechanisms; it MAY support more than one.
+
+#### 20.6.1 Recompute under new identity (default)
+
+* Fix the root cause (policy, code, data, numeric posture), then rerun.
+* The rerun MUST naturally produce a new `manifest_fingerprint` when any opened artefact changes, and therefore produce a new fingerprint-scoped bundle/gate.
+
+#### 20.6.2 Versioned coexistence
+
+* Introduce new dataset_ids or versioned path segments for breaking changes.
+* Consumers choose via contract version and gate map; old outputs remain intact but may be considered incompatible.
+
+#### 20.6.3 Revocation record (post-PASS drift response)
+
+If a previously PASSed partition is later detected as invalid (e.g., `_passed.flag` mismatch at read time), the system MUST support a **revocation record** that:
+
+* is written **outside** the governed bundle folder (so it does not mutate the bundle),
+* identifies the revoked scope (`manifest_fingerprint`, dataset_id, optional seed),
+* records the reason (failure code taxonomy),
+* and is itself governed (hashed + gateable) for audit.
+
+*(Optional)* A central HashGate-like metadata service may mirror revocations, but cannot override local gate verification. 
+
+---
+
+### 20.7 Consumer obligations under drift (binding)
+
+When a consumer detects drift (at minimum: missing/mismatching gates):
+
+* It MUST treat the partition as **failed** and MUST refuse reads.
+* It MUST NOT “best-effort” read or “fallback” to partial evidence.
+* It SHOULD emit a deterministic diagnostic referencing the scope and offending gate.
+
+For 1A egress this is explicitly: verify the fingerprint-scoped `_passed.flag` before reading `outlet_catalogue`; on mismatch/missing, abort the read.  
+
+---
+
+### 20.8 Drift workflows (binding behavior)
+
+#### 20.8.1 Drift detected before PASS (validator failure)
+
+* Validator publishes diagnostics (bundle) but withholds `_passed.flag`. 
+* Remediation is “fix + rerun,” producing a new readable partition only when PASS succeeds.
+
+#### 20.8.2 Drift detected after PASS (consumer-time gate mismatch)
+
+* Treat as **compromised/unreadable** immediately (no PASS → no read).
+* Emit revocation record and quarantine/investigate (without mutating original).
+* Only remediation path is recompute under a new identity (or versioned coexistence).
+
+#### 20.8.3 Drift due to optional surfaces
+
+Optional convenience surfaces MAY be absent without failing if the segment declares a replay path (e.g., derive membership from events). Using an optional surface requires its own receipt gate where declared.  
+
+---
+
+### 20.9 Conformance checklist for §20 (Binding)
+
+Non-compliance if any of the following occur:
+
+* A consumer reads governed data without verifying required gates (or continues after gate mismatch). 
+* A producer/validator overwrites or mutates a published governed instance as “remediation.”
+* Drift is detected but PASS gates are still emitted for the affected scope. 
+* Drift is “handled” by silent fallback to partial/optional evidence without an explicit degrade ladder and required receipts. 
+
+---
+
