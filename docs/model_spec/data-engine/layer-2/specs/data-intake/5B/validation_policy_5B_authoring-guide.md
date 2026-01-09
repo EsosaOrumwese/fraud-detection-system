@@ -22,7 +22,7 @@ S5 MUST treat this as the only authority for validations (no ad-hoc checks).
 
 * **Artefact ID:** `validation_policy_5B`
 * **Path:** `config/layer2/5B/validation_policy_5B.yaml`
-* **Schema anchor:** `schemas.5B.yaml#/policy/validation_policy_5B` *(permissive; this guide pins real structure)*
+* **Schema anchor:** `schemas.5B.yaml#/config/validation_policy_5B` *(permissive; this guide pins real structure)*
 * **Token-less posture:** do **not** embed digests/timestamps; S0 sealing inventory handles digests.
 
 ---

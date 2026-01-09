@@ -333,28 +333,787 @@ diagnostics:
 config:
   time_grid_policy_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - bucket_duration_seconds
+      - alignment_mode
+      - bucket_index_base
+      - bucket_index_origin
+      - carry_scenario_fields
+      - local_annotations
+      - guardrails
+    properties:
+      policy_id: { const: time_grid_policy_5B }
+      version: { type: string, minLength: 1 }
+      bucket_duration_seconds: { type: integer, enum: [900, 1800, 3600] }
+      alignment_mode: { const: require_aligned_v1 }
+      bucket_index_base: { const: 0 }
+      bucket_index_origin: { const: horizon_start_utc }
+      carry_scenario_fields:
+        type: object
+        additionalProperties: false
+        required: [required, optional]
+        properties:
+          required:
+            type: array
+            items: { enum: [scenario_is_baseline, scenario_is_stress] }
+          optional:
+            type: array
+            items: { enum: [scenario_labels] }
+      local_annotations:
+        type: object
+        additionalProperties: false
+        required: [emit, reference_tzid, day_of_week_encoding, weekend_days]
+        properties:
+          emit: { type: boolean }
+          reference_tzid: { const: Etc/UTC }
+          day_of_week_encoding: { const: "1=Mon,...,7=Sun" }
+          weekend_days:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: integer, minimum: 1, maximum: 7 }
+      guardrails:
+        type: object
+        additionalProperties: false
+        required:
+          - min_horizon_days
+          - max_horizon_days
+          - max_buckets_per_scenario
+        properties:
+          min_horizon_days: { type: integer, minimum: 1 }
+          max_horizon_days: { type: integer, minimum: 1 }
+          max_buckets_per_scenario: { type: integer, minimum: 1 }
   grouping_policy_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - mode
+      - zone_group_buckets
+      - in_stratum_buckets
+      - scenario_band_law
+      - virtual_band_law
+      - stratum_fields
+      - group_id_format
+      - realism_targets
+    properties:
+      policy_id: { const: grouping_policy_5B }
+      version: { type: string, minLength: 1 }
+      mode: { const: stratified_bucket_hash_v1 }
+      zone_group_buckets: { const: 16 }
+      in_stratum_buckets: { const: 32 }
+      scenario_band_law: { const: baseline_if_is_baseline_else_stress }
+      virtual_band_law: { const: virtual_if_virtual_mode_not_NON_VIRTUAL_else_physical }
+      stratum_fields:
+        type: array
+        items: { enum: [scenario_band, demand_class, channel_group, virtual_band, zone_group_id] }
+      group_id_format:
+        const: "g|{scenario_band}|{demand_class}|{channel_group}|{virtual_band}|{zone_group_id}|b{b:02d}"
+      realism_targets:
+        type: object
+        additionalProperties: false
+        required:
+          - min_groups_per_scenario
+          - max_groups_per_scenario
+          - min_group_members_median
+          - max_single_group_share
+        properties:
+          min_groups_per_scenario: { type: integer, minimum: 1 }
+          max_groups_per_scenario: { type: integer, minimum: 1 }
+          min_group_members_median: { type: integer, minimum: 1 }
+          max_single_group_share: { type: number, minimum: 0 }
   arrival_lgcp_config_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - latent_model_id
+      - normal_method
+      - latent_dims_mode
+      - kernel
+      - hyperparam_law
+      - latent_transform
+      - clipping
+      - diagnostics
+      - realism_floors
+    properties:
+      policy_id: { const: arrival_lgcp_config_5B }
+      version: { type: string, minLength: 1 }
+      latent_model_id: { enum: [none, log_gaussian_ou_v1, log_gaussian_iid_v1] }
+      normal_method: { const: box_muller_u2 }
+      latent_dims_mode: { const: horizon_buckets_H }
+      kernel:
+        type: object
+        additionalProperties: false
+        required: [kind, length_scale_buckets_bounds]
+        properties:
+          kind: { enum: [ou_ar1_buckets_v1, iid_v1] }
+          length_scale_buckets_bounds:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number, exclusiveMinimum: 0 }
+      hyperparam_law:
+        type: object
+        additionalProperties: false
+        required: [group_feature_sources, sigma, length_scale_buckets]
+        properties:
+          group_feature_sources:
+            type: object
+            additionalProperties: false
+            required:
+              - scenario_band
+              - demand_class
+              - channel_group
+              - virtual_band
+              - zone_group_id
+            properties:
+              scenario_band: { type: string }
+              demand_class: { type: string }
+              channel_group: { type: string }
+              virtual_band: { type: string }
+              zone_group_id: { type: string }
+          sigma:
+            type: object
+            additionalProperties: false
+            required:
+              - base_by_scenario_band
+              - class_multipliers
+              - channel_multipliers
+              - virtual_multipliers
+              - sigma_bounds
+            properties:
+              base_by_scenario_band:
+                type: object
+                additionalProperties: false
+                required: [baseline, stress]
+                properties:
+                  baseline: { type: number, minimum: 0 }
+                  stress: { type: number, minimum: 0 }
+              class_multipliers:
+                type: object
+                additionalProperties: { type: number }
+              channel_multipliers:
+                type: object
+                additionalProperties: false
+                required: [card_present, card_not_present, mixed]
+                properties:
+                  card_present: { type: number, minimum: 0 }
+                  card_not_present: { type: number, minimum: 0 }
+                  mixed: { type: number, minimum: 0 }
+              virtual_multipliers:
+                type: object
+                additionalProperties: false
+                required: [physical, virtual]
+                properties:
+                  physical: { type: number, minimum: 0 }
+                  virtual: { type: number, minimum: 0 }
+              sigma_bounds:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number, exclusiveMinimum: 0 }
+          length_scale_buckets:
+            type: object
+            additionalProperties: false
+            required:
+              - base_by_scenario_band
+              - class_multipliers
+              - length_scale_bounds
+            properties:
+              base_by_scenario_band:
+                type: object
+                additionalProperties: false
+                required: [baseline, stress]
+                properties:
+                  baseline: { type: number, minimum: 0 }
+                  stress: { type: number, minimum: 0 }
+              class_multipliers:
+                type: object
+                additionalProperties: { type: number }
+              length_scale_bounds:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number, exclusiveMinimum: 0 }
+      latent_transform:
+        type: object
+        additionalProperties: false
+        required: [kind, mean_correction]
+        properties:
+          kind: { const: exp_mean_one_v1 }
+          mean_correction: { const: subtract_half_sigma2 }
+      clipping:
+        type: object
+        additionalProperties: false
+        required: [min_factor, max_factor, lambda_max_enabled, lambda_max]
+        properties:
+          min_factor: { type: number, minimum: 0 }
+          max_factor: { type: number, exclusiveMinimum: 0 }
+          lambda_max_enabled: { type: boolean }
+          lambda_max: { type: number, minimum: 0 }
+      diagnostics:
+        type: object
+        additionalProperties: false
+        required: [emit_latent_field_diagnostic]
+        properties:
+          emit_latent_field_diagnostic: { type: boolean }
+      realism_floors:
+        type: object
+        additionalProperties: false
+        required:
+          - require_sigma_distinct_values_min
+          - require_stress_sigma_ge_fraction
+          - require_baseline_median_L_bounds
+          - require_transform_kind
+        properties:
+          require_sigma_distinct_values_min: { type: integer, minimum: 1 }
+          require_stress_sigma_ge_fraction: { type: number, minimum: 0 }
+          require_baseline_median_L_bounds:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number, exclusiveMinimum: 0 }
+          require_transform_kind: { const: exp_mean_one_v1 }
   arrival_count_config_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - count_law_id
+      - lambda_zero_eps
+      - max_count_per_bucket
+      - poisson_sampler
+      - realism_floors
+    properties:
+      policy_id: { const: arrival_count_config_5B }
+      version: { type: string, minLength: 1 }
+      count_law_id: { enum: [poisson, nb2] }
+      lambda_zero_eps: { type: number, minimum: 0 }
+      max_count_per_bucket: { type: integer, minimum: 1 }
+      poisson_sampler:
+        type: object
+        additionalProperties: false
+        required:
+          - kind
+          - p0_law
+          - recurrence
+          - poisson_exact_lambda_max
+          - poisson_n_cap_exact
+          - normal_icdf
+        properties:
+          kind: { const: cdf_inversion_one_u_bounded_v1 }
+          p0_law: { const: exp_minus_lambda }
+          recurrence: { const: "p_next = p * lambda / (n+1)" }
+          poisson_exact_lambda_max: { type: number, exclusiveMinimum: 0 }
+          poisson_n_cap_exact: { type: integer, minimum: 1 }
+          normal_icdf: { const: erfinv_v1 }
+      nb2:
+        type: object
+        additionalProperties: false
+        required: [kappa_law, gamma_sampler, poisson_on_gamma]
+        properties:
+          kappa_law:
+            type: object
+            additionalProperties: false
+            required: [base_by_scenario_band, class_multipliers, kappa_bounds]
+            properties:
+              base_by_scenario_band:
+                type: object
+                additionalProperties: false
+                required: [baseline, stress]
+                properties:
+                  baseline: { type: number, minimum: 0 }
+                  stress: { type: number, minimum: 0 }
+              class_multipliers:
+                type: object
+                additionalProperties: { type: number }
+              kappa_bounds:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number, exclusiveMinimum: 0 }
+          gamma_sampler:
+            type: object
+            additionalProperties: false
+            required: [kind, shape, rate]
+            properties:
+              kind: { const: gamma_one_u_approx_v1 }
+              shape: { const: kappa }
+              rate: { const: kappa_over_mu }
+          poisson_on_gamma:
+            type: object
+            additionalProperties: false
+            required: [kind]
+            properties:
+              kind: { const: cdf_inversion_reuse_u2_v1 }
+      realism_floors:
+        type: object
+        additionalProperties: false
+        required:
+          - max_count_per_bucket_min
+          - lambda_zero_eps_max
+          - require_kappa_distinct_values_min
+        properties:
+          max_count_per_bucket_min: { type: integer, minimum: 1 }
+          lambda_zero_eps_max: { type: number, minimum: 0 }
+          require_kappa_distinct_values_min: { type: integer, minimum: 1 }
+    allOf:
+      - if:
+          properties:
+            count_law_id: { const: nb2 }
+        then:
+          required: [nb2]
   arrival_time_placement_policy_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - placement_kind
+      - interval_semantics
+      - timestamp_precision
+      - draws_per_arrival
+      - u_mapping
+      - offset_quantisation
+      - ordering
+      - guardrails
+    properties:
+      policy_id: { const: arrival_time_placement_policy_5B }
+      version: { type: string, minLength: 1 }
+      placement_kind: { const: uniform_within_bucket_v1 }
+      interval_semantics: { const: "[start,end)" }
+      timestamp_precision: { const: microsecond }
+      draws_per_arrival: { const: 1 }
+      u_mapping:
+        type: object
+        additionalProperties: false
+        required: [uniform_law, u_from_u64]
+        properties:
+          uniform_law: { const: open_interval_u64 }
+          u_from_u64: { const: "(x+0.5)/2^64" }
+      offset_quantisation:
+        type: object
+        additionalProperties: false
+        required: [unit, law, clamp_end_exclusive]
+        properties:
+          unit: { const: microsecond }
+          law: { const: "floor(u * D_seconds * 1_000_000)" }
+          clamp_end_exclusive: { const: true }
+      ordering:
+        type: object
+        additionalProperties: false
+        required: [sort_by, stable]
+        properties:
+          sort_by:
+            type: array
+            items: { enum: [timestamp_utc, arrival_seq] }
+          stable: { type: boolean }
+      guardrails:
+        type: object
+        additionalProperties: false
+        required: [max_arrivals_per_bucket, max_bucket_duration_seconds]
+        properties:
+          max_arrivals_per_bucket: { type: integer, minimum: 1 }
+          max_bucket_duration_seconds: { type: integer, minimum: 1 }
   arrival_routing_policy_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - virtual_mode_source
+      - hybrid_policy
+      - physical_router
+      - virtual_router
+      - fail_closed_rules
+      - realism_floors
+    properties:
+      policy_id: { const: arrival_routing_policy_5B }
+      version: { type: string, minLength: 1 }
+      virtual_mode_source: { const: virtual_classification_3B }
+      hybrid_policy:
+        type: object
+        additionalProperties: false
+        required: [p_virtual_hybrid, coin_source]
+        properties:
+          p_virtual_hybrid: { type: number, minimum: 0, maximum: 1 }
+          coin_source: { const: arrival_site_pick.first_uniform }
+      physical_router:
+        type: object
+        additionalProperties: false
+        required:
+          - zone_representation
+          - router_key_fields
+          - use_group_weights
+          - rng_source
+          - draws_required_u64
+        properties:
+          zone_representation: { const: tzid }
+          router_key_fields:
+            type: array
+            items: { enum: [merchant_id, tzid, bucket_index] }
+          use_group_weights: { type: boolean }
+          rng_source: { const: arrival_site_pick }
+          draws_required_u64: { const: 2 }
+      virtual_router:
+        type: object
+        additionalProperties: false
+        required:
+          - edge_key_fields
+          - rng_source
+          - draws_required_u64
+          - require_virtual_routing_policy_3B
+        properties:
+          edge_key_fields:
+            type: array
+            items: { enum: [merchant_id, bucket_index] }
+          rng_source: { const: arrival_edge_pick }
+          draws_required_u64: { const: 1 }
+          require_virtual_routing_policy_3B: { type: boolean }
+      fail_closed_rules:
+        type: object
+        additionalProperties: false
+        required:
+          - require_2B_pass
+          - require_3B_pass_for_virtual
+          - require_site_alias_tables_for_physical
+          - require_edge_alias_tables_for_virtual
+          - forbid_missing_router_rows
+          - require_site_pick_event_for_hybrid_coin
+        properties:
+          require_2B_pass: { type: boolean }
+          require_3B_pass_for_virtual: { type: boolean }
+          require_site_alias_tables_for_physical: { type: boolean }
+          require_edge_alias_tables_for_virtual: { type: boolean }
+          forbid_missing_router_rows: { type: boolean }
+          require_site_pick_event_for_hybrid_coin: { type: boolean }
+      realism_floors:
+        type: object
+        additionalProperties: false
+        required:
+          - hybrid_p_virtual_bounds
+          - require_existing_rng_coin
+          - require_pass_gates
+        properties:
+          hybrid_p_virtual_bounds:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number, minimum: 0, maximum: 1 }
+          require_existing_rng_coin: { type: boolean }
+          require_pass_gates: { type: boolean }
   arrival_rng_policy_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - rng_engine
+      - block_outputs_u64
+      - uniform_law
+      - counter_width_bits
+      - wrap_policy
+      - encoding
+      - families
+      - derivation
+    properties:
+      policy_id: { const: arrival_rng_policy_5B }
+      version: { type: string, minLength: 1 }
+      rng_engine: { const: philox2x64-10 }
+      block_outputs_u64: { const: 2 }
+      uniform_law: { const: open_interval_u64 }
+      counter_width_bits: { const: 128 }
+      wrap_policy: { const: abort_on_wrap }
+      encoding:
+        type: object
+        additionalProperties: false
+        required:
+          - string_encoding
+          - uer
+          - seed_encoding
+          - hash
+          - key_bytes
+          - counter_hi_bytes
+          - counter_lo_bytes
+        properties:
+          string_encoding: { const: UTF-8 }
+          uer: { const: u32be_len_prefix }
+          seed_encoding: { const: LE64 }
+          hash: { const: SHA256 }
+          key_bytes:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: integer, minimum: 0 }
+          counter_hi_bytes:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: integer, minimum: 0 }
+          counter_lo_bytes:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: integer, minimum: 0 }
+      families:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [family_id, module, substream_label, domain_key_law, draws_u64_law]
+          properties:
+            family_id: { type: string, minLength: 1 }
+            module: { enum: [5B.S2, 5B.S3, 5B.S4] }
+            substream_label:
+              enum: [latent_vector, bucket_count, arrival_time_jitter, arrival_site_pick, arrival_edge_pick]
+            domain_key_law: { enum: [group_id, merchant_zone_bucket, arrival_identity] }
+            draws_u64_law:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [kind, uniforms_per_standard_normal, latent_dims]
+                  properties:
+                    kind: { const: box_muller_u2_vector }
+                    uniforms_per_standard_normal: { const: 2 }
+                    latent_dims: { const: horizon_buckets_H }
+                - type: object
+                  additionalProperties: false
+                  required: [kind, when_lambda_zero, laws]
+                  properties:
+                    kind: { const: by_count_law }
+                    when_lambda_zero: { const: 0 }
+                    laws:
+                      type: object
+                      additionalProperties: false
+                      required: [poisson, nb2]
+                      properties:
+                        poisson: { const: 1 }
+                        nb2: { const: 2 }
+                - type: object
+                  additionalProperties: false
+                  required: [kind, draws_u64]
+                  properties:
+                    kind: { const: fixed }
+                    draws_u64: { type: integer, minimum: 0 }
+      derivation:
+        type: object
+        additionalProperties: false
+        required: [domain_sep, required_inputs, forbid_inputs]
+        properties:
+          domain_sep: { const: 5B.rng.v1 }
+          required_inputs:
+            const: [manifest_fingerprint, parameter_hash, seed, scenario_id, family_id, domain_key]
+          forbid_inputs: { const: [run_id] }
   validation_policy_5B:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version
+      - require_upstream_pass
+      - structural_checks
+      - rng_accounting_checks
+      - realism_checks
+      - failure_policy
+    properties:
+      policy_id: { const: validation_policy_5B }
+      version: { type: string, minLength: 1 }
+      require_upstream_pass:
+        type: object
+        additionalProperties: false
+        required: [layer1_required, layer2_required, optional]
+        properties:
+          layer1_required:
+            type: array
+            items: { type: string }
+          layer2_required:
+            type: array
+            items: { type: string }
+          optional:
+            type: array
+            items: { type: string }
+      structural_checks:
+        type: object
+        additionalProperties: false
+        required: [s1_time_grid, s2_realised_intensity, s3_bucket_counts, s4_arrival_events]
+        properties:
+          s1_time_grid:
+            type: object
+            additionalProperties: false
+            required:
+              - require_bucket_index_contiguous
+              - require_half_open_intervals
+              - require_duration_seconds_matches_policy
+              - max_buckets_per_scenario
+            properties:
+              require_bucket_index_contiguous: { type: boolean }
+              require_half_open_intervals: { type: boolean }
+              require_duration_seconds_matches_policy: { type: boolean }
+              max_buckets_per_scenario: { type: integer, minimum: 1 }
+          s2_realised_intensity:
+            type: object
+            additionalProperties: false
+            required:
+              - require_nonnegative_lambda
+              - require_finite_lambda
+              - require_lambda_zero_implies_count_zero
+              - max_lambda_realised
+            properties:
+              require_nonnegative_lambda: { type: boolean }
+              require_finite_lambda: { type: boolean }
+              require_lambda_zero_implies_count_zero: { type: boolean }
+              max_lambda_realised: { type: number, minimum: 0 }
+          s3_bucket_counts:
+            type: object
+            additionalProperties: false
+            required:
+              - require_integer_counts
+              - require_counts_nonnegative
+              - max_count_per_bucket
+              - require_no_rng_event_when_lambda_zero
+            properties:
+              require_integer_counts: { type: boolean }
+              require_counts_nonnegative: { type: boolean }
+              max_count_per_bucket: { type: integer, minimum: 1 }
+              require_no_rng_event_when_lambda_zero: { type: boolean }
+          s4_arrival_events:
+            type: object
+            additionalProperties: false
+            required:
+              - require_event_time_in_bucket
+              - require_time_half_open
+              - require_sorted_within_bucket
+              - require_exactly_N_events_per_bucket
+              - require_routing_keys_present
+            properties:
+              require_event_time_in_bucket: { type: boolean }
+              require_time_half_open: { type: boolean }
+              require_sorted_within_bucket: { type: boolean }
+              require_exactly_N_events_per_bucket: { type: boolean }
+              require_routing_keys_present: { type: boolean }
+      rng_accounting_checks:
+        type: object
+        additionalProperties: false
+        required: [streams, budgets, trace]
+        properties:
+          streams:
+            type: object
+            additionalProperties: false
+            required:
+              - require_monotonic_counters
+              - require_next_before_equals_prev_after
+              - forbid_counter_overlap
+              - abort_on_wrap
+            properties:
+              require_monotonic_counters: { type: boolean }
+              require_next_before_equals_prev_after: { type: boolean }
+              forbid_counter_overlap: { type: boolean }
+              abort_on_wrap: { type: boolean }
+          budgets:
+            type: object
+            additionalProperties: false
+            required:
+              - s2_latent_vector
+              - s3_bucket_count
+              - s4_time_jitter_draws_u64
+              - s4_site_pick_draws_u64
+              - s4_edge_pick_draws_u64
+            properties:
+              s2_latent_vector:
+                type: object
+                additionalProperties: false
+                required: [require_one_event_per_group_when_enabled, draws_u64_expected]
+                properties:
+                  require_one_event_per_group_when_enabled: { type: boolean }
+                  draws_u64_expected: { const: "2H" }
+              s3_bucket_count:
+                type: object
+                additionalProperties: false
+                required: [poisson_draws_u64, nb2_draws_u64, require_no_event_when_deterministic_zero]
+                properties:
+                  poisson_draws_u64: { const: 1 }
+                  nb2_draws_u64: { const: 2 }
+                  require_no_event_when_deterministic_zero: { type: boolean }
+              s4_time_jitter_draws_u64: { const: 1 }
+              s4_site_pick_draws_u64: { const: 2 }
+              s4_edge_pick_draws_u64: { const: 1 }
+          trace:
+            type: object
+            additionalProperties: false
+            required: [require_trace_row_per_rng_event, require_append_after_each_event]
+            properties:
+              require_trace_row_per_rng_event: { type: boolean }
+              require_append_after_each_event: { type: boolean }
+      realism_checks:
+        type: object
+        additionalProperties: false
+        required: [lgcp_realism, count_realism, time_realism, routing_realism]
+        properties:
+          lgcp_realism:
+            type: object
+            additionalProperties: false
+            required:
+              - require_mean_factor_near_one
+              - mean_factor_abs_tol
+              - require_factor_bounds_respected
+              - min_factor
+              - max_factor
+            properties:
+              require_mean_factor_near_one: { type: boolean }
+              mean_factor_abs_tol: { type: number, minimum: 0 }
+              require_factor_bounds_respected: { type: boolean }
+              min_factor: { type: number, minimum: 0 }
+              max_factor: { type: number, exclusiveMinimum: 0 }
+          count_realism:
+            type: object
+            additionalProperties: false
+            required:
+              - require_nontrivial_nonzero_fraction
+              - min_nonzero_bucket_fraction
+              - require_heavy_tail
+              - p99_p50_ratio_min
+            properties:
+              require_nontrivial_nonzero_fraction: { type: boolean }
+              min_nonzero_bucket_fraction: { type: number, minimum: 0 }
+              require_heavy_tail: { type: boolean }
+              p99_p50_ratio_min: { type: number, minimum: 0 }
+          time_realism:
+            type: object
+            additionalProperties: false
+            required: [require_not_all_at_bucket_start, min_distinct_offsets_per_1000_events]
+            properties:
+              require_not_all_at_bucket_start: { type: boolean }
+              min_distinct_offsets_per_1000_events: { type: integer, minimum: 0 }
+          routing_realism:
+            type: object
+            additionalProperties: false
+            required:
+              - require_2B_pass_if_physical_present
+              - require_physical_and_virtual_coverage_when_present
+              - require_no_missing_alias_rows
+              - require_country_mix_close_if_virtual
+              - ip_country_max_abs_dev
+            properties:
+              require_2B_pass_if_physical_present: { type: boolean }
+              require_physical_and_virtual_coverage_when_present: { type: boolean }
+              require_no_missing_alias_rows: { type: boolean }
+              require_country_mix_close_if_virtual: { type: boolean }
+              ip_country_max_abs_dev: { type: number, minimum: 0 }
+      failure_policy:
+        type: object
+        additionalProperties: false
+        required: [mode, max_warnings]
+        properties:
+          mode: { const: fail_closed }
+          max_warnings: { type: integer, minimum: 0 }
   bundle_layout_policy_5B:
     type: object
     additionalProperties: true

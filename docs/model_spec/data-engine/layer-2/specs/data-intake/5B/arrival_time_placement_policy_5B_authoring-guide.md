@@ -21,7 +21,7 @@ This prevents “toy” timestamping (e.g., all events at bucket start) and prev
 
 * **Artefact ID:** `arrival_time_placement_policy_5B`
 * **Path:** `config/layer2/5B/arrival_time_placement_policy_5B.yaml`
-* **Schema anchor:** `schemas.5B.yaml#/policy/arrival_time_placement_policy_5B` *(permissive; this guide pins real structure)*
+* **Schema anchor:** `schemas.5B.yaml#/config/arrival_time_placement_policy_5B` *(permissive; this guide pins real structure)*
 * **Token-less posture:** do **not** embed file digests/timestamps (S0 sealing inventory handles digest).
 
 ---

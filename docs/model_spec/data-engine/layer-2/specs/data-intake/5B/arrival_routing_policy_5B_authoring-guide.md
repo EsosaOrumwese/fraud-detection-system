@@ -17,7 +17,7 @@ This prevents S4 from inventing “routing logic” beyond what 2B/3B already de
 
 * **Artefact ID:** `arrival_routing_policy_5B`
 * **Path:** `config/layer2/5B/arrival_routing_policy_5B.yaml`
-* **Schema anchor:** `schemas.5B.yaml#/policy/arrival_routing_policy_5B` *(permissive; this guide pins real structure)*
+* **Schema anchor:** `schemas.5B.yaml#/config/arrival_routing_policy_5B` *(permissive; this guide pins real structure)*
 * **Token-less posture:** do **not** embed digests/timestamps in-file (S0 sealing inventory records digests).
 
 ---
