@@ -57,6 +57,30 @@
 
 * **Numeric environment attestation:** successful S0.8 self-tests are a **precondition**; S6 assumes the environment and math profile in effect. 
 
+### Contract Card (S6) - inputs/outputs/authorities
+
+**Inputs (authoritative; see 0.5 for full list):**
+* `s3_candidate_set` - scope: PARAMETER_SCOPED; sealed_inputs: required
+* `rng_event_ztp_final` - scope: LOG_SCOPED; sealed_inputs: required
+* `ccy_country_weights_cache` - scope: PARAMETER_SCOPED; sealed_inputs: required
+* `merchant_currency` - scope: PARAMETER_SCOPED; sealed_inputs: optional
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank`.
+
+**Outputs:**
+* `rng_event_gumbel_key` - scope: LOG_SCOPED; gate emitted: none
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (append-only)
+* `s6_membership` - scope: PARAMETER_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* Missing `rng_event_ztp_final` or candidate set -> abort for that merchant; no outputs emitted.
+
 ---
 
 # 1. Intent, scope, and non-goals **(Binding)**

@@ -5,6 +5,27 @@
 S1 evaluates a **logistic hurdle** per merchant and emits a **Bernoulli outcome** (“single vs multi”). Here we pin **inputs**, **context/lineage**, and **write targets** required to do that deterministically. The logistic, RNG use, and payload specifics are defined in **S1.2–S1.4**.
 S1 does **not** specify downstream sampling (NB, ZTP, Dirichlet, etc.) nor CI/monitoring; those live in their respective state specs and the validation harness.
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (all MUST be resolvable via dictionaries/registry + sealed inputs):**
+* `hurdle_design_matrix` - scope: PARAMETER_SCOPED; source: S0.5; sealed_inputs: required
+* `hurdle_coefficients` - scope: PARAMETER_SCOPED; source: policy pack; sealed_inputs: required
+* `hurdle_pi_probs` - scope: PARAMETER_SCOPED; source: S0.7; sealed_inputs: optional (diagnostic only)
+
+**Authority / ordering:**
+* S1 hurdle events are the sole branch gate for the multi-site path.
+
+**Outputs:**
+* `rng_event_hurdle_bernoulli` - scope: LOG_SCOPED; gate emitted: none
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (append-only)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* Coefficient/design-matrix mismatch or missing RNG audit row -> abort; no events emitted.
+
 ---
 
 ## Inputs (available at S1 entry)

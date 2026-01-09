@@ -5,6 +5,31 @@
 S2 generates the **total pre-split multi-site outlet count** $N_m$ for merchants that passed the hurdle as **multi-site** in S1. It is a *stochastic* state (NB via Poisson–Gamma), but **S2.1 itself** is deterministic: it gates who enters S2 and assembles the numeric inputs needed for S2.2–S2.5. Only merchants with `is_multi=1` (per S1’s authoritative event) may enter S2; single-site merchants bypass S2 entirely.
 Note that examples are informative; behaviour is defined by the normative rules in this spec
 
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (all MUST be resolvable via dictionaries/registry + sealed inputs):**
+* `rng_event_hurdle_bernoulli` - scope: LOG_SCOPED; gate: `is_multi == true`; source: 1A.S1; sealed_inputs: required
+* `hurdle_coefficients` - scope: PARAMETER_SCOPED; source: policy pack; sealed_inputs: required
+* `nb_dispersion_coefficients` - scope: PARAMETER_SCOPED; source: policy pack; sealed_inputs: required
+* `world_bank_gdp_per_capita_20250415` - scope: FINGERPRINT_SCOPED; source: reference; sealed_inputs: required
+* `transaction_schema_merchant_ids` - scope: FINGERPRINT_SCOPED; source: ingress; sealed_inputs: required
+
+**Authority / ordering:**
+* S1 hurdle events gate entry; S2 outputs are RNG-log authorities for downstream states.
+
+**Outputs:**
+* `rng_event_gamma_component` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_poisson_component` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_nb_final` - scope: LOG_SCOPED; gate emitted: none
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (append-only)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* If `is_multi == false` or the hurdle event is missing, S2 MUST NOT emit outputs for that merchant.
+
 ---
 
 ## 2) Entry preconditions (MUST)

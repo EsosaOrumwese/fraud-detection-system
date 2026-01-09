@@ -2,7 +2,42 @@
 
 ## Purpose & scope
 
-S0.1 establishes the **canonical universe** (merchant rows and reference datasets) and the **schema authority** for subsegment 1A. Its job is to make the rest of S0–S9 reproducible by fixing the domain symbols and where their truth comes from. **No RNG is consumed here.**
+S0.1 establishes the **canonical universe** (merchant rows and reference datasets) and the **schema authority** for subsegment 1A. Its job is to make the rest of S0-S9 reproducible by fixing the domain symbols and where their truth comes from. **No RNG is consumed here.**
+
+### Cross-Layer Inputs (Segment 1A)
+
+**Upstream segments required:** none (1A is the layer-1 root segment).
+
+**External references (sealed by S0 and listed in `sealed_inputs_1A`):**
+* `transaction_schema_merchant_ids` (ingress merchant universe)
+* `iso3166_canonical_2024` (ISO country list)
+* `world_bank_gdp_per_capita_20250415` (GDP per-capita vintage)
+* `gdp_bucket_map_2024` (Jenks bucket map for GDP)
+
+**Gate expectations:** no upstream segment gates; all required external artefacts are sealed by `s0_gate_receipt_1A` and enumerated in `sealed_inputs_1A`.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see S0.1/S0.2 for full list):**
+* `transaction_schema_merchant_ids` - scope: FINGERPRINT_SCOPED; source: ingress; sealed_inputs: required
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; source: reference; sealed_inputs: required
+* `world_bank_gdp_per_capita_20250415` - scope: FINGERPRINT_SCOPED; source: reference; sealed_inputs: required
+* `gdp_bucket_map_2024` - scope: FINGERPRINT_SCOPED; source: reference; sealed_inputs: required
+
+**Authority / ordering:**
+* JSON-Schema contracts in `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, and `schemas.layer1.yaml` are authoritative.
+* Inter-country order authority is `s3_candidate_set.candidate_rank` (S3 owns order).
+
+**Outputs:**
+* `s0_gate_receipt_1A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_1A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* `s0_gate_receipt_1A` records `manifest_fingerprint` and `parameter_hash` (and run identity if present).
+* `sealed_inputs_1A` is the sole whitelist for downstream 1A reads under a fingerprint.
+
+**Failure posture:**
+* Missing/invalid ingress or reference artefacts -> abort (no `s0_gate_receipt_1A` / `sealed_inputs_1A` published).
 
 **S0.1 freezes for the run**
 

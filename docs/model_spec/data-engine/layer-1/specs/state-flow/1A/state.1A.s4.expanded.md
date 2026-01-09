@@ -21,6 +21,30 @@
 
 **Branch purity (gates owned upstream).** S4 runs **only** for merchants with **S1 `is_multi=true`** and **S3 `is_eligible=true`**; singles and ineligible merchants produce **no S4 events**.
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (all MUST be resolvable via dictionaries/registry + sealed inputs):**
+* `rng_event_hurdle_bernoulli` - scope: LOG_SCOPED; gate: `is_multi == true`; source: 1A.S1; sealed_inputs: required
+* `rng_event_nb_final` - scope: LOG_SCOPED; source: 1A.S2; sealed_inputs: required
+* `s3_candidate_set` - scope: PARAMETER_SCOPED; source: 1A.S3; sealed_inputs: required
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank`.
+
+**Outputs:**
+* `rng_event_poisson_component` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_ztp_rejection` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_ztp_retry_exhausted` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_ztp_final` - scope: LOG_SCOPED; gate emitted: none
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (append-only)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* If S1/S3 gates fail or admissible set is empty, S4 emits only the appropriate non-consuming final event.
+
 ---
 
 ## 0A) One-page quick map (for implementers)

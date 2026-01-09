@@ -56,6 +56,28 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 * **Status:** `planning → beta → stable`. Publication on `stable` requires Section 9 PASS on a representative run and dictionary/schema lint clean for all `$ref`s noted above. 
 * **Change control:** governed by §16 (semver triggers, deprecation, rollback); S5 remains **Binding** for the `v1.*` family of S0-S4 contracts cited in **0.4**.
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see 0.5 for full list):**
+* `settlement_shares_2024Q4` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `ccy_country_shares_2024Q4` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+
+**Authority / ordering:**
+* Currency and country weight derivations are authoritative for downstream S6/S7.
+
+**Outputs:**
+* `ccy_country_weights_cache` - scope: PARAMETER_SCOPED; gate emitted: none
+* `merchant_currency` - scope: PARAMETER_SCOPED; gate emitted: none
+* `sparse_flag` - scope: PARAMETER_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* `parameter_hash` must match path tokens for all S5 outputs.
+
+**Failure posture:**
+* Missing ingress references or schema violations -> abort; no outputs published.
+
 ---
 
 # 1. Intent, scope, and non-goals

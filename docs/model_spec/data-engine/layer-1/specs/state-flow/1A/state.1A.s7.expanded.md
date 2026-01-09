@@ -31,6 +31,32 @@ This spec uses RFC 2119/8174 terms (**MUST/SHALL/SHOULD/MAY**) with their normat
 
 *(IDs and `$ref` anchors read/written by S7 are enumerated in §3; this section only freezes identity, authority, compatibility, and lineage law.)*
 
+### Contract Card (S7) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 1 and 3 for full list):**
+* `rng_event_nb_final` - scope: LOG_SCOPED; sealed_inputs: required
+* `rng_event_ztp_final` - scope: LOG_SCOPED; sealed_inputs: required
+* `s3_candidate_set` - scope: PARAMETER_SCOPED; sealed_inputs: required
+* `ccy_country_weights_cache` - scope: PARAMETER_SCOPED; sealed_inputs: required
+* `s6_membership` - scope: PARAMETER_SCOPED; sealed_inputs: optional
+* `rng_event_gumbel_key` - scope: LOG_SCOPED; sealed_inputs: required when `s6_membership` is absent
+* `merchant_currency` - scope: PARAMETER_SCOPED; sealed_inputs: optional
+
+**Authority / ordering:**
+* Inter-country order authority remains `s3_candidate_set.candidate_rank`.
+
+**Outputs:**
+* `rng_event_residual_rank` - scope: LOG_SCOPED; gate emitted: none
+* `rng_event_dirichlet_gamma_vector` - scope: LOG_SCOPED; gate emitted: none (optional lane)
+* `rng_trace_log` - scope: LOG_SCOPED; gate emitted: none (append-only)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* Event lineage `{seed, parameter_hash, run_id}` must match path tokens.
+
+**Failure posture:**
+* Any violation of deterministic allocation or lineage equality -> FAIL; do not emit final outputs for that merchant.
+
 ---
 
 # 1) Intent, scope, non-goals **(Binding)**

@@ -4,6 +4,32 @@
 
 Given a gated **multi-site** merchant with accepted outlet count **N** from S2, **S3 deterministically builds the cross-border candidate country universe and its total order** (an ordered list with reasons/tags and, if enabled, deterministic base-weight priors). **S3 uses no RNG.** If your design keeps integerisation in S3, it converts priors to **integer per-country counts** that sum to **N** using the fixed largest-remainder discipline.
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (all MUST be resolvable via dictionaries/registry + sealed inputs):**
+* `rng_event_hurdle_bernoulli` - scope: LOG_SCOPED; gate: `is_multi == true`; source: 1A.S1; sealed_inputs: required
+* `rng_event_nb_final` - scope: LOG_SCOPED; gate: `n_outlets >= 2`; source: 1A.S2; sealed_inputs: required
+* `transaction_schema_merchant_ids` - scope: FINGERPRINT_SCOPED; source: ingress; sealed_inputs: required
+* `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; source: reference; sealed_inputs: required
+* `static.currency_to_country.map.json` - scope: FINGERPRINT_SCOPED; source: reference; sealed_inputs: optional (only if policy references it)
+* `policy.s3.rule_ladder.yaml` - scope: PARAMETER_SCOPED; source: policy pack; sealed_inputs: required
+* `policy.s3.base_weight.yaml` - scope: PARAMETER_SCOPED; source: policy pack; sealed_inputs: optional (only if priors are enabled)
+
+**Authority / ordering:**
+* Inter-country order authority is `s3_candidate_set.candidate_rank` (total, contiguous, `candidate_rank(home)=0`).
+
+**Outputs:**
+* `s3_candidate_set` - scope: PARAMETER_SCOPED; gate emitted: none
+* `s3_base_weight_priors` - scope: PARAMETER_SCOPED; gate emitted: none (optional)
+* `s3_integerised_counts` - scope: PARAMETER_SCOPED; gate emitted: none (optional)
+
+**Sealing / identity:**
+* External inputs (ingress/reference/policy) MUST appear in `sealed_inputs_1A` for the target `manifest_fingerprint`.
+* Embedded lineage must match path tokens for S1/S2 event logs.
+
+**Failure posture:**
+* Missing S1/S2 events or `is_multi != true` -> do not emit outputs; treat as FAIL per `ERR_S3_*`.
+
 ---
 
 ## 0.2 Inputs → Outputs (at a glance)

@@ -45,6 +45,26 @@ S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before runn
 * **Source of truth:** JSON-Schema (layer/segment/ingress) and the Dataset Dictionary remain the sole schema and path authorities; this S9 spec binds validator behaviour **under** those authorities. Any PR that changes Binding parts of S9 **MUST**:
   (a) bump SemVer per §0.1; (b) update anchors in the Dictionary/Registry where applicable; (c) attach the updated bundle schema entry; (d) re-ratify the consumer gate in CI.  
 
+### Contract Card (S9) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 1+ for full list):**
+* `outlet_catalogue` - scope: EGRESS_SCOPED; sealed_inputs: required
+* `rng_audit_log`, `rng_trace_log`, and required RNG event families - scope: LOG_SCOPED; sealed_inputs: required
+* Validation evidence inputs from S0-S8 (schemas and dictionary refs are authoritative).
+
+**Authority / ordering:**
+* Validation bundle index + hash gate is the sole consumer gate for 1A.
+
+**Outputs:**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* Validation bundle partitioned by `manifest_fingerprint`; `_passed.flag` hashes the bundle index.
+
+**Failure posture:**
+* Any validation failure -> do not publish `_passed.flag`; bundle records failure evidence.
+
 ---
 
 # 1) Purpose, scope, non-goals **(Binding)**
