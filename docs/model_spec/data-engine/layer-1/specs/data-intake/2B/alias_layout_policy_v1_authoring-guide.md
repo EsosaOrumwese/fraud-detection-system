@@ -56,7 +56,7 @@ The JSON object MUST contain these keys (unknown top-level keys are allowed only
 * `layout_version` (string) — semantic binary layout identifier (e.g., `"2B.alias.blob.v1"`)
 * `endianness` (enum) — `"little"` or `"big"` (recommend `"little"`)
 * `alignment_bytes` (int ≥ 1) — slice alignment for merchant starts
-* `padding_rule` (object) — padding byte + inclusion rules
+* `padding_rule` (object) - padding byte + inclusion rules
 
 ### 3.3 Quantisation + tolerance keys (MUST)
 
@@ -144,7 +144,7 @@ No other fields are permitted in v1 payload.
 
 ### 5.3 Padding rule (MUST)
 
-* `padding_rule.pad_byte` is a single byte value (recommend `0x00`)
+* `padding_rule.pad_byte_hex` is a single byte value encoded as hex (recommend `"00"`)
 * padding bytes MAY be written only between slices to satisfy alignment
 * padding bytes are NOT included in per-merchant checksum scope (unless policy explicitly says otherwise)
 

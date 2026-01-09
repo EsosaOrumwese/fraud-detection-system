@@ -16,6 +16,7 @@ The goal is “**real deal**”: this policy must not allow Codex to emit a tiny
 * **Dictionary ID:** `day_effect_policy_v1`
 * **Path:** `contracts/policy/2B/day_effect_policy_v1.json`
 * **Format:** JSON
+* **Schema anchor:** `schemas.2B.yaml#/policy/day_effect_policy_v1`
 * **Tokens:** **none** (fingerprint-sealed by S0; selected by **exact path + sha256**)
 
 ---

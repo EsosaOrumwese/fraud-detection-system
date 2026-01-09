@@ -184,13 +184,258 @@ validation:
 policy:
   route_rng_policy_v1:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required: [policy_id, version_tag, rng_engine, streams]
+    properties:
+      policy_id:   { const: route_rng_policy_v1 }
+      version_tag: { type: string, minLength: 1 }
+      rng_engine:  { const: philox2x64-10 }
+      streams:
+        type: object
+        additionalProperties: false
+        required: [routing_selection, routing_edge]
+        properties:
+          routing_selection:
+            type: object
+            additionalProperties: false
+            required: [rng_stream_id, basis, event_families, draws_per_unit]
+            properties:
+              rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
+              basis:
+                type: object
+                additionalProperties: false
+                required: [key_basis, counter_start, counter_step_per_event, counter_wrap_policy]
+                properties:
+                  key_basis: { const: ["seed", "parameter_hash", "run_id"] }
+                  counter_start:
+                    type: object
+                    additionalProperties: false
+                    required: [hi, lo]
+                    properties:
+                      hi: { $ref: "schemas.layer1.yaml#/$defs/uint64" }
+                      lo: { $ref: "schemas.layer1.yaml#/$defs/uint64" }
+                  counter_step_per_event: { const: 1 }
+                  counter_wrap_policy: { const: abort_on_wrap }
+              event_families:
+                type: object
+                additionalProperties: false
+                required: [alias_pick_group, alias_pick_site]
+                properties:
+                  alias_pick_group:
+                    type: object
+                    additionalProperties: false
+                    required: [substream_label, blocks, draws]
+                    properties:
+                      substream_label: { const: alias_pick_group }
+                      blocks: { const: 1 }
+                      draws: { const: "1" }
+                  alias_pick_site:
+                    type: object
+                    additionalProperties: false
+                    required: [substream_label, blocks, draws]
+                    properties:
+                      substream_label: { const: alias_pick_site }
+                      blocks: { const: 1 }
+                      draws: { const: "1" }
+              draws_per_unit:
+                type: object
+                additionalProperties: false
+                required: [draws_per_selection]
+                properties:
+                  draws_per_selection: { const: 2 }
+          routing_edge:
+            type: object
+            additionalProperties: false
+            required: [rng_stream_id, basis, event_families, draws_per_unit]
+            properties:
+              rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
+              basis:
+                type: object
+                additionalProperties: false
+                required: [key_basis, counter_start, counter_step_per_event, counter_wrap_policy]
+                properties:
+                  key_basis: { const: ["seed", "parameter_hash", "run_id"] }
+                  counter_start:
+                    type: object
+                    additionalProperties: false
+                    required: [hi, lo]
+                    properties:
+                      hi: { $ref: "schemas.layer1.yaml#/$defs/uint64" }
+                      lo: { $ref: "schemas.layer1.yaml#/$defs/uint64" }
+                  counter_step_per_event: { const: 1 }
+                  counter_wrap_policy: { const: abort_on_wrap }
+              event_families:
+                type: object
+                additionalProperties: false
+                required: [cdn_edge_pick]
+                properties:
+                  cdn_edge_pick:
+                    type: object
+                    additionalProperties: false
+                    required: [substream_label, blocks, draws]
+                    properties:
+                      substream_label: { const: cdn_edge_pick }
+                      blocks: { const: 1 }
+                      draws: { const: "1" }
+              draws_per_unit:
+                type: object
+                additionalProperties: false
+                required: [draws_per_virtual]
+                properties:
+                  draws_per_virtual: { const: 1 }
+      extensions:
+        type: object
+        additionalProperties: true
+
   alias_layout_policy_v1:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version_tag
+      - layout_version
+      - endianness
+      - alignment_bytes
+      - padding_rule
+      - quantised_bits
+      - normalisation_epsilon
+      - quantisation_epsilon
+      - weight_source
+      - floor_spec
+      - fallback
+      - required_s1_provenance
+      - encode_spec
+      - decode_law
+      - record_layout
+      - checksum
+      - blob_digest
+      - required_index_fields
+    properties:
+      policy_id:   { const: alias_layout_policy_v1 }
+      version_tag: { type: string, minLength: 1 }
+      layout_version: { type: string, minLength: 1 }
+      endianness: { type: string, enum: [little, big] }
+      alignment_bytes: { type: integer, minimum: 1 }
+      padding_rule:
+        type: object
+        additionalProperties: false
+        required: [pad_byte_hex]
+        properties:
+          pad_byte_hex: { type: string, pattern: "^[A-Fa-f0-9]{2}$" }
+          pad_included_in_slice_length: { type: boolean }
+      quantised_bits: { type: integer, minimum: 1 }
+      normalisation_epsilon: { type: number, exclusiveMinimum: 0.0 }
+      quantisation_epsilon: { type: number, exclusiveMinimum: 0.0 }
+      weight_source:
+        type: object
+        additionalProperties: true
+      floor_spec:
+        type: object
+        additionalProperties: true
+      fallback:
+        type: object
+        additionalProperties: true
+      required_s1_provenance:
+        type: object
+        additionalProperties: true
+      encode_spec:
+        type: object
+        additionalProperties: true
+      decode_law: { type: string, minLength: 1 }
+      record_layout:
+        type: object
+        additionalProperties: true
+        required: [prob_qbits]
+        properties:
+          prob_qbits: { type: integer, minimum: 1 }
+      checksum:
+        type: object
+        additionalProperties: false
+        required: [algorithm, scope, encoding]
+        properties:
+          algorithm: { type: string, minLength: 1 }
+          scope: { type: string, minLength: 1 }
+          encoding: { type: string, minLength: 1 }
+      blob_digest:
+        type: object
+        additionalProperties: false
+        required: [algorithm, scope, encoding]
+        properties:
+          algorithm: { type: string, minLength: 1 }
+          scope: { type: string, minLength: 1 }
+          encoding: { type: string, minLength: 1 }
+      required_index_fields:
+        type: object
+        additionalProperties: false
+        required: [header, merchant_row]
+        properties:
+          header:
+            type: array
+            minItems: 1
+            items: { type: string, minLength: 1 }
+          merchant_row:
+            type: array
+            minItems: 1
+            items: { type: string, minLength: 1 }
+      extensions:
+        type: object
+        additionalProperties: true
+
   day_effect_policy_v1:
     type: object
-    additionalProperties: true
+    additionalProperties: false
+    required:
+      - policy_id
+      - version_tag
+      - rng_engine
+      - rng_stream_id
+      - draws_per_row
+      - sigma_gamma
+      - day_range
+      - rng_derivation
+      - record_fields
+      - created_utc_policy_echo
+      - sha256_hex
+    properties:
+      policy_id:   { const: day_effect_policy_v1 }
+      version_tag: { type: string, minLength: 1 }
+      rng_engine:  { const: philox2x64-10 }
+      rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
+      draws_per_row: { const: 1 }
+      sigma_gamma: { type: number, exclusiveMinimum: 0.0 }
+      day_range:
+        type: object
+        additionalProperties: false
+        required: [start_day, end_day]
+        properties:
+          start_day: { type: string, format: date }
+          end_day: { type: string, format: date }
+      rng_derivation:
+        type: object
+        additionalProperties: false
+        required:
+          - domain_master
+          - domain_stream
+          - low64_rule
+          - counter_split_rule
+          - key_basis
+          - base_counter_basis
+        properties:
+          domain_master: { type: string, minLength: 1 }
+          domain_stream: { type: string, minLength: 1 }
+          low64_rule: { const: LE64_tail_bytes_24_31 }
+          counter_split_rule: { const: BE64_bytes_16_23_and_24_31 }
+          key_basis: { const: ["manifest_fingerprint_bytes", "seed_u64", "rng_stream_id"] }
+          base_counter_basis: { const: ["manifest_fingerprint_bytes", "seed_u64", "rng_stream_id"] }
+      record_fields:
+        type: array
+        minItems: 1
+        items: { type: string, minLength: 1 }
+      created_utc_policy_echo: { type: boolean }
+      extensions:
+        type: object
+        additionalProperties: true
+      sha256_hex: { $ref: "#/$defs/hex64" }
   virtual_edge_policy_v1:
     type: object
     additionalProperties: false
