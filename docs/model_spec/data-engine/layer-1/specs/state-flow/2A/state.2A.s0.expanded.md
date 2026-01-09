@@ -31,9 +31,36 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` — Initial spec for 2A.S0 (Gate & Sealed Inputs). Subsequent edits follow semver and the segment’s Change-Control section.
+* `v1.0.0-alpha` - Initial spec for 2A.S0 (Gate & Sealed Inputs). Subsequent edits follow semver and the segment's Change-Control section.
 
 ---
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for the sealed list):**
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `site_locations` - scope: EGRESS_SCOPED; sealed_inputs: required
+* `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tzdb_release` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_overrides` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `tz_nudge` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `iso3166_canonical_2024` - scope: UNPARTITIONED (sealed reference); sealed_inputs: optional
+* `world_countries` - scope: UNPARTITIONED (sealed reference); sealed_inputs: optional
+* `merchant_mcc_map` - scope: VERSION_SCOPED (sealed reference); sealed_inputs: optional (MCC overrides only)
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_2A` - scope: FINGERPRINT_SCOPED; gate emitted: 1B consumer gate
+* `sealed_inputs_2A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1B egress/2A policy) MUST appear in `sealed_inputs_2A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
 
 ## 2. Purpose & scope **(Binding)**
 

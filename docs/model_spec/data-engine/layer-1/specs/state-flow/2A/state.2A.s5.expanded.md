@@ -34,9 +34,30 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` — Initial specification for 2A.S5 (fingerprint-scoped validation bundle + PASS flag sealing S2–S4 evidence). Subsequent edits follow §13 Change Control.
+* `v1.0.0-alpha` - Initial specification for 2A.S5 (fingerprint-scoped validation bundle + PASS flag sealing S2-S4 evidence). Subsequent edits follow §13 Change Control.
 
 ---
+
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2A` - scope: FINGERPRINT_SCOPED; source: 2A.S0
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; source: 2A.S3
+* `site_timezones` - scope: SEED+FINGERPRINT; source: 2A.S2
+* `s4_legality_report` - scope: SEED+FINGERPRINT; source: 2A.S4
+
+**Authority / ordering:**
+* Validation bundle index + hash gate is the sole consumer gate for 2A.
+
+**Outputs:**
+* `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1B egress/2A policy) MUST appear in `sealed_inputs_2A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Any validation failure -> do not publish `_passed.flag`; bundle records failure evidence.
 
 ## 2. Purpose & scope **(Binding)**
 

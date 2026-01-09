@@ -28,9 +28,28 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` — Initial specification for 2A.S4 (Legality report using S2 `site_timezones` + S3 `tz_timetable_cache`). Subsequent edits follow §13 Change Control.
+* `v1.0.0-alpha` - Initial specification for 2A.S4 (Legality report using S2 `site_timezones` + S3 `tz_timetable_cache`). Subsequent edits follow §13 Change Control.
 
 ---
+
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2A` - scope: FINGERPRINT_SCOPED; source: 2A.S0
+* `site_timezones` - scope: SEED+FINGERPRINT; source: 2A.S2
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; source: 2A.S3
+
+**Authority / ordering:**
+* S4 emits a report only; no new order authority is created.
+
+**Outputs:**
+* `s4_legality_report` - scope: SEED+FINGERPRINT; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1B egress/2A policy) MUST appear in `sealed_inputs_2A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or schema violations -> abort; no outputs published.
 
 ## 2. Purpose & scope **(Binding)**
 

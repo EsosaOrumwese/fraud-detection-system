@@ -28,9 +28,29 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` — Initial specification for 2A.S1 (Provisional TZ lookup). Subsequent edits follow §13 Change Control.
+* `v1.0.0-alpha` - Initial specification for 2A.S1 (Provisional TZ lookup). Subsequent edits follow §13 Change Control.
 
 ---
+
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2A` - scope: FINGERPRINT_SCOPED; source: 2A.S0
+* `site_locations` - scope: EGRESS_SCOPED; sealed_inputs: required
+* `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_nudge` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+
+**Authority / ordering:**
+* S1 emits order-free provisional assignments; no new order authority is created.
+
+**Outputs:**
+* `s1_tz_lookup` - scope: SEED+FINGERPRINT; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1B egress/2A policy) MUST appear in `sealed_inputs_2A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or schema violations -> abort; no outputs published.
 
 ## 2. Purpose & scope **(Binding)**
 

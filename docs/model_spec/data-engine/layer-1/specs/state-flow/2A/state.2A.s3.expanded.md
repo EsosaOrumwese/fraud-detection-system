@@ -28,9 +28,28 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` — Initial specification for 2A.S3 (compile tzdb into fingerprint-scoped `tz_timetable_cache`). Subsequent edits follow §13 Change Control.
+* `v1.0.0-alpha` - Initial specification for 2A.S3 (compile tzdb into fingerprint-scoped `tz_timetable_cache`). Subsequent edits follow §13 Change Control.
 
 ---
+
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 3.2 for full list):**
+* `s0_gate_receipt_2A` - scope: FINGERPRINT_SCOPED; source: 2A.S0
+* `tzdb_release` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+* `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 compiles a fingerprint-scoped cache; no order authority is created.
+
+**Outputs:**
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs (ingress/reference/1B egress/2A policy) MUST appear in `sealed_inputs_2A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required sealed inputs or schema violations -> abort; no outputs published.
 
 ## 2. Purpose & scope **(Binding)**
 
