@@ -184,6 +184,37 @@ Within this scope, **5B.S1** provides a deterministic, RNG-free foundation for t
 
 ---
 
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `sealed_inputs_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `scenario_manifest_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S0
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S1
+* `shape_grid_definition_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S2
+* `class_zone_shape_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S3
+* `merchant_zone_scenario_local_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S4
+* `merchant_zone_scenario_utc_5A` - scope: FINGERPRINT_SCOPED; source: 5A.S4
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3A.S5
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; source: 3A.S5
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2A.S2
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; source: 2A.S3 (optional)
+* `time_grid_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `grouping_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S1 is the sole authority for 5B time-grid and grouping plans.
+
+**Outputs:**
+* `s1_time_grid_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]
+* `s1_grouping_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_5B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & dependencies *(Binding)*
 
 This section defines **when 5B.S1 is allowed to run** and **what it may depend on**. If any precondition fails, S1 MUST NOT produce outputs and MUST be treated as FAIL for that run.

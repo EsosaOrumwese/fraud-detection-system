@@ -186,6 +186,31 @@ Within this scope, **5B.S3** is the unique, well-defined step that converts **re
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `sealed_inputs_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `s1_time_grid_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5B.S1
+* `s1_grouping_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5B.S1 (optional)
+* `s2_realised_intensity_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S2
+* `arrival_count_config_5B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
+* `arrival_rng_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 is the sole authority for bucket-level count draws for 5B.
+
+**Outputs:**
+* `s3_bucket_counts_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_5B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & dependencies *(Binding)*
 
 This section defines **when 5B.S3 — Bucket-level arrival counts** is allowed to run and **what it depends on**. If any precondition fails, S3 MUST NOT produce outputs and MUST be treated as FAIL for that `(parameter_hash, manifest_fingerprint, seed)`.

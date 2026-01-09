@@ -79,6 +79,44 @@ This section binds S5 to that narrow but critical role: it is the final arbiter 
 
 ---
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `sealed_inputs_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `s1_time_grid_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5B.S1
+* `s1_grouping_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5B.S1
+* `s2_realised_intensity_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S2
+* `s2_latent_field_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S2 (optional evidence)
+* `s3_bucket_counts_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S3
+* `arrival_events_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S4
+* `s4_arrival_summary_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S4
+* `s4_arrival_anomalies_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S4
+* `rng_event_arrival_lgcp_gaussian` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id] (optional evidence)
+* `rng_event_arrival_time_jitter` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id] (optional evidence)
+* `rng_event_arrival_site_pick` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id] (optional evidence)
+* `rng_event_arrival_edge_pick` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id] (optional evidence)
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `validation_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+* `bundle_layout_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: optional
+
+**Authority / ordering:**
+* S5 is the sole authority for the 5B validation bundle index and PASS flag.
+
+**Outputs:**
+* `validation_bundle_5B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_5B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_report_5B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_issue_table_5B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_5B` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+
+**Sealing / identity:**
+* All bundled artefacts must match the S0-sealed inventory for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or failed validation checks -> abort; no outputs published.
+
 ## 2. Preconditions & dependencies *(Binding)*
 
 2.1 **Scope of an S5 run**

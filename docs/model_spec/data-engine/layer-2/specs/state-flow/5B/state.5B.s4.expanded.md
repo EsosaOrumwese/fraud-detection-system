@@ -84,6 +84,54 @@ This section binds S4 to that role: it is the **only** state that may generate L
 
 ---
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `sealed_inputs_5B` - scope: FINGERPRINT_SCOPED; source: 5B.S0
+* `s1_time_grid_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5B.S1
+* `s1_grouping_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [manifest_fingerprint, scenario_id]; source: 5B.S1
+* `s3_bucket_counts_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S3
+* `s2_realised_intensity_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 5B.S2 (optional)
+* `arrival_time_placement_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `arrival_routing_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `arrival_rng_policy_5B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 1B.S8
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2A.S2
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; source: 2A.S3
+* `s1_site_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S1
+* `s2_alias_index` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
+* `s4_group_weights` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S4
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S1
+* `edge_catalogue_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S2
+* `edge_catalogue_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S2
+* `edge_alias_blob_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S3
+* `edge_alias_index_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 3B.S3
+* `edge_universe_hash_3B` - scope: FINGERPRINT_SCOPED; source: 3B.S4
+* `virtual_routing_policy_3B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S4 is the sole authority for per-arrival timestamps and routing outcomes.
+
+**Outputs:**
+* `arrival_events_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s4_arrival_summary_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s4_arrival_anomalies_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `rng_event_arrival_time_jitter` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_arrival_site_pick` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_arrival_edge_pick` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_5B` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or routing/RNG policy violations -> abort; no outputs published.
+
 ## 2. Preconditions & dependencies *(Binding)*
 
 2.1 **Run identity & scope**
