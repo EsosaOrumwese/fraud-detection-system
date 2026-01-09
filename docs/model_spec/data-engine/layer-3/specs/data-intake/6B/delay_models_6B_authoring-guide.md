@@ -18,7 +18,7 @@ S4 explicitly treats `delay_models_6B` as a required policy pack and uses it tog
 Your S4 spec notes the *names are indicative and must match your contract files*, so wire these to whatever your `contracts_6B` says; the recommended convention is:
 
 * **Path:** `config/layer3/6B/delay_models_6B.yaml`
-* **Schema anchor:** `schemas.6B.yaml#/policy/delay_models_6B` *(add anchor when you flesh out policy schemas)*
+* **Schema anchor:** `schemas.6B.yaml#/policy/delay_models_6B`
 * **Sealing:** must be listed in `sealed_inputs_6B` with `status="REQUIRED"` and `sha256_hex` before S4 reads any data rows.
 
 ---

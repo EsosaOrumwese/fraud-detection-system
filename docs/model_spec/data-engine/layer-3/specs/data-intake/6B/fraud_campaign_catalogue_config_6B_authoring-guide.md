@@ -19,6 +19,8 @@ S3 treats this pack as **the authority** for campaign “what/when/how much”. 
 
 If this pack is marked `REQUIRED` and is missing or invalid, **S3 MUST fail preconditions**. 
 
+* **schema_ref:** `schemas.6B.yaml#/policy/fraud_campaign_catalogue_config_6B`
+
 > If you haven’t yet registered this artefact in your 6B registry/dictionary, author the guide + file now, then register it as a control-plane artefact so S0 can seal it as required.
 
 ---

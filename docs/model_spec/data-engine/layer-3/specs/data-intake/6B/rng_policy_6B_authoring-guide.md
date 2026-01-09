@@ -16,7 +16,7 @@ S1 is required to restrict itself to a small, fixed set of families (explicitly 
 Mirror the conventions used by your other authoring guides (token-less YAML in `config/...`):
 
 * **Path:** `config/layer3/6B/rng_policy_6B.yaml`
-* **Schema anchor (recommended):** `schemas.6B.yaml#/policy/rng_policy_6B` *(may be permissive/stub; this guide pins semantics)*
+* **Schema anchor:** `schemas.6B.yaml#/policy/rng_policy_6B`
 * **Sealing:** 6B.S0 MUST list this file in `sealed_inputs_6B` with an appropriate role and `sha256_hex` (token-less file; digest comes from sealing, not in-file).
 
 Recommended `sealed_inputs_6B` role metadata:
