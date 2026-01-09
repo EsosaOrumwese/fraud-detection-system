@@ -36,9 +36,98 @@ S0 is a **hard precondition** for the rest of 6A:
 * All later 6A states **MUST** read `s0_gate_receipt_6A` and `sealed_inputs_6A`, verify the sealed-inputs digest, and refuse to run if S0 is missing or not PASS.
 * 6B and downstream consumers **MAY** use S0’s gate receipt (together with the eventual 6A segment HashGate) to assert that any 6A entity/graph artefact was produced under a well-defined, sealed upstream universe.
 
-Anything outside this scope — entity generation, assignment of products, construction of the device/IP graph, or static fraud posture — is **out of scope for S0** and belongs to later 6A states.
+Anything outside this scope - entity generation, assignment of products, construction of the device/IP graph, or static fraud posture - is **out of scope for S0** and belongs to later 6A states.
 
 ---
+
+### Cross-Layer Inputs (Segment 6A)
+
+**Upstream segments required:** 1A-3B + 5A-5B validation bundles + `_passed.flag` (1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B) for the target `manifest_fingerprint`.
+
+**Upstream data surfaces (sealed by S0 and listed in `sealed_inputs_6A`):**
+* Layer-1 egress: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_timetable_cache`, `zone_alloc`, `zone_alloc_universe_hash`, `virtual_classification_3B`, `virtual_settlement_3B`, `edge_universe_hash_3B`, `virtual_routing_policy_3B`
+* Layer-2 egress: `merchant_zone_profile_5A`, `arrival_events_5B`
+
+**Layer-3 / 6A priors, taxonomies, and policies (sealed by S0):**
+* Population/segmentation: `prior_population_6A`, `prior_segmentation_6A`, `taxonomy_party_6A`
+* Accounts/products: `prior_account_per_party_6A`, `prior_product_mix_6A`, `taxonomy_account_types_6A`
+* Instruments: `prior_instrument_per_account_6A`, `prior_instrument_mix_6A`, `taxonomy_instrument_types_6A`
+* Devices/IPs: `prior_device_counts_6A`, `taxonomy_devices_6A`, `prior_ip_counts_6A`, `taxonomy_ips_6A`
+* Fraud roles: `prior_party_roles_6A`, `prior_account_roles_6A`, `prior_merchant_roles_6A`, `prior_device_roles_6A`, `prior_ip_roles_6A`, `taxonomy_fraud_roles_6A`
+* Linkage and constraints: `graph_linkage_rules_6A`, `device_linkage_rules_6A`, `product_linkage_rules_6A`, `product_eligibility_config_6A`, `instrument_linkage_rules_6A`
+* Validation: `validation_policy_6A`
+
+**Gate expectations:** upstream PASS evidence (validation_bundle_* + `_passed.flag`) for 1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B MUST verify before any 6A read.
+
+### Contract Card (S0) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_2B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_2B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_3B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_3B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_5A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_5A` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_bundle_5B` - scope: FINGERPRINT_SCOPED; gate: required
+* `validation_passed_flag_5B` - scope: FINGERPRINT_SCOPED; gate: required
+* `outlet_catalogue` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_locations` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `site_timezones` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional
+* `zone_alloc` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `zone_alloc_universe_hash` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `virtual_classification_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: required
+* `virtual_settlement_3B` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; sealed_inputs: optional
+* `edge_universe_hash_3B` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `virtual_routing_policy_3B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `merchant_zone_profile_5A` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `arrival_events_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; sealed_inputs: required
+* `prior_population_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_segmentation_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_party_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `prior_account_per_party_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_product_mix_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_account_types_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `prior_instrument_per_account_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_instrument_mix_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_instrument_types_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `prior_device_counts_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_devices_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `prior_ip_counts_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_ips_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `prior_party_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_account_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_merchant_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_device_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_ip_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_fraud_roles_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `graph_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `device_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `product_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `product_eligibility_config_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `instrument_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `validation_policy_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S0 defines no data ordering; it only seals inputs and verifies upstream gate evidence.
+
+**Outputs:**
+* `s0_gate_receipt_6A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing/invalid gate evidence or required sealed inputs -> abort; no outputs published.
 
 ## 2. Preconditions, upstream gates & sealed inputs *(Binding)*
 

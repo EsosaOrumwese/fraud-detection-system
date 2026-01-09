@@ -34,9 +34,35 @@ Within 6A, S1 sits directly downstream of S0:
 * It only runs for worlds where 6A.S0 is PASS and has sealed the input universe via `sealed_inputs_6A` and `s0_gate_receipt_6A`.
 * It uses the **6A population and segmentation priors** (and, where configured, coarse upstream context such as region surfaces) to realise an integer population per world+seed, subject to the constraints and RNG discipline defined later in this state’s spec.
 
-All downstream 6A states (accounts/products, instruments, devices/IPs, fraud posture) and 6B’s flow/fraud logic must treat S1’s party base as **read-only ground truth** for the identity and segmentation of parties in the synthetic bank.
+All downstream 6A states (accounts/products, instruments, devices/IPs, fraud posture) and 6B's flow/fraud logic must treat S1's party base as **read-only ground truth** for the identity and segmentation of parties in the synthetic bank.
 
 ---
+
+### Contract Card (S1) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `prior_population_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_segmentation_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_party_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+
+**Authority / ordering:**
+* S1 is the sole authority for the party base and static party segmentation.
+
+**Outputs:**
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s1_party_summary_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash] (optional)
+* `rng_event_party_count_realisation` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_party_attribute_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
 
 ## 2. Preconditions, upstream gates & sealed inputs *(Binding)*
 

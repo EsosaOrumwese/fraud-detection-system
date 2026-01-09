@@ -66,6 +66,41 @@ within the synthetic bank for that `(manifest_fingerprint, seed)`.
 
 ---
 
+### Contract Card (S3) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S1
+* `s2_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2
+* `s2_party_product_holdings_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2 (optional)
+* `prior_instrument_per_account_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_instrument_mix_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_instrument_types_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `product_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `instrument_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `product_eligibility_config_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S3 is the sole authority for instrument creation and account-instrument links.
+
+**Outputs:**
+* `s3_instrument_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s3_account_instrument_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s3_party_instrument_holdings_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s3_instrument_summary_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash] (optional)
+* `rng_event_instrument_count_realisation` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_instrument_allocation_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_instrument_attribute_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions, upstream gates & sealed inputs *(Binding)*
 
 6A.S3 only runs where **Layer-1, Layer-2, 6A.S0, 6A.S1 and 6A.S2 are already sealed** for the relevant world and seed. This section fixes those preconditions and the **minimum sealed inputs** S3 expects to see.

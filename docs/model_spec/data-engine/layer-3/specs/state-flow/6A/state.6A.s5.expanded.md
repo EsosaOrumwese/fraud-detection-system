@@ -105,6 +105,56 @@ All later components (6B, enterprise shell) must treat S5’s fraud-role surface
 
 ---
 
+### Contract Card (S5) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S1
+* `s2_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2
+* `s2_merchant_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2 (optional)
+* `s3_instrument_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S3
+* `s3_account_instrument_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S3
+* `s4_device_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `s4_ip_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `s4_device_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `s4_ip_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S4
+* `prior_party_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_account_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_merchant_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_device_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_ip_roles_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_fraud_roles_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `validation_policy_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S5 is the sole authority for fraud-role assignment and the 6A validation bundle/flag.
+
+**Outputs:**
+* `s5_party_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s5_account_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s5_merchant_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s5_device_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s5_ip_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s5_validation_report_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s5_issue_table_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `validation_bundle_6A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_6A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_passed_flag_6A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
+* `rng_event_fraud_role_sampling_party` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_fraud_role_sampling_account` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_fraud_role_sampling_merchant` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_fraud_role_sampling_device` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_fraud_role_sampling_ip` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* All bundled artefacts must match the S0-sealed inventory for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or failed validation checks -> abort; no outputs published.
+
 ## 2. Preconditions, upstream gates & sealed inputs *(Binding)*
 
 6A.S5 only runs when **everything upstream of it is already sealed and trusted** for the relevant world and seed, and when the **S5-specific priors/configs** have been sealed into `sealed_inputs_6A`.

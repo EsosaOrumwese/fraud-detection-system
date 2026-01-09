@@ -42,9 +42,41 @@ Within 6A, S2 sits **downstream of S0 and S1**:
 * It runs only when S0 has sealed the input universe and S1 has successfully created the party base for the same `(manifest_fingerprint, seed)`.
 * It uses 6A **product-mix priors**, **account taxonomies**, and any configured linkage rules to realise per-cell account counts and then allocate those accounts to parties/merchants in a way that is consistent with S1’s segmentation and the upstream world.
 
-All later 6A states (instruments, devices/IPs, fraud posture) and 6B’s flow/fraud logic must treat S2’s account base as **read-only ground truth** for “what accounts/products exist and who owns them” in the synthetic bank.
+All later 6A states (instruments, devices/IPs, fraud posture) and 6B's flow/fraud logic must treat S2's account base as **read-only ground truth** for "what accounts/products exist and who owns them" in the synthetic bank.
 
 ---
+
+### Contract Card (S2) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S1
+* `prior_account_per_party_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `prior_product_mix_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_account_types_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `product_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `product_eligibility_config_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S2 is the sole authority for account creation and party-product holdings.
+
+**Outputs:**
+* `s2_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s2_party_product_holdings_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s2_merchant_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash] (optional)
+* `s2_account_summary_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash] (optional)
+* `rng_event_account_count_realisation` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_account_allocation_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_account_attribute_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
 
 ## 2. Preconditions, upstream gates & sealed inputs *(Binding)*
 

@@ -65,6 +65,48 @@ for that `(manifest_fingerprint, seed)`.
 
 ---
 
+### Contract Card (S4) - inputs/outputs/authorities
+
+**Inputs (authoritative; see Section 2 for full list):**
+* `s0_gate_receipt_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `sealed_inputs_6A` - scope: FINGERPRINT_SCOPED; source: 6A.S0
+* `s1_party_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S1
+* `s2_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2
+* `s2_merchant_account_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S2 (optional)
+* `s3_instrument_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S3
+* `s3_account_instrument_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S3
+* `prior_device_counts_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_devices_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `prior_ip_counts_6A` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
+* `taxonomy_ips_6A` - scope: UNPARTITIONED (sealed taxonomy); sealed_inputs: required
+* `graph_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `device_linkage_rules_6A` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+
+**Authority / ordering:**
+* S4 is the sole authority for device/IP creation and graph linkage surfaces in 6A.
+
+**Outputs:**
+* `s4_device_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s4_ip_base_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s4_device_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s4_ip_links_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s4_entity_neighbourhoods_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]
+* `s4_network_summary_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash] (optional)
+* `rng_event_device_count_realisation` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_device_allocation_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_device_attribute_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_ip_count_realisation` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_ip_allocation_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_event_ip_attribute_sampling` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+
+**Sealing / identity:**
+* External inputs MUST appear in `sealed_inputs_6A` for the target `manifest_fingerprint`.
+
+**Failure posture:**
+* Missing required inputs or RNG/policy violations -> abort; no outputs published.
+
 ## 2. Preconditions, upstream gates & sealed inputs *(Binding)*
 
 6A.S4 only runs where **Layer-1, Layer-2, 6A.S0, 6A.S1, 6A.S2 and 6A.S3 are already sealed** for the relevant world and seed, and where the **S4-specific priors/configs** have been sealed into `sealed_inputs_6A`.
