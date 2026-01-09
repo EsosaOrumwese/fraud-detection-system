@@ -20,6 +20,7 @@ This taxonomy is **vocabulary + compatibility**, not a distribution. **Counts/sh
 * **Role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL)
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.ips.v1.yaml`
 * **Format:** YAML (UTF-8, LF)
+* **Schema anchor:** `schemas.6A.yaml#/taxonomy/ip_taxonomy_6A`
 * **Digest posture:** **token-less**; do **not** embed digests or timestamps in-file. 6A.S0 sealing records exact-bytes `sha256_hex`.
 
 ---

@@ -29,6 +29,7 @@ This artefact MUST be:
 * **Role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL)
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.instrument_types.v1.yaml`
 * **Format:** YAML (UTF-8, LF)
+* **Schema anchor:** `schemas.6A.yaml#/taxonomy/instrument_taxonomy_6A`
 * **Digest posture:** token-less; do **not** embed digests. 6A.S0 seals exact bytes via `sha256_hex`.
 
 **Dependencies:** authored after `taxonomy.party` and `taxonomy.account_types` because this taxonomy references:

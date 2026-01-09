@@ -21,7 +21,8 @@ This taxonomy is a **vocabulary + compatibility contract**, not a distribution. 
 * **Role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL) 
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.devices.v1.yaml`
 * **Format:** YAML (UTF-8, LF line endings)
-* **Digest posture:** **token-less**; do **not** embed digests/timestamps in-file. 6A.S0 sealing records the file’s `sha256_hex`.
+* **Schema anchor:** `schemas.6A.yaml#/taxonomy/device_taxonomy_6A`
+* **Digest posture:** **token-less**; do **not** embed digests/timestamps in-file. 6A.S0 sealing records the file's `sha256_hex`.
 
 ---
 

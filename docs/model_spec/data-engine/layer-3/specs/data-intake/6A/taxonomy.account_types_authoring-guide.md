@@ -24,6 +24,7 @@ This artefact MUST be:
 * **Intended role in `sealed_inputs_6A`:** `TAXONOMY` (ROW_LEVEL) 
 * **Path:** `config/layer3/6A/taxonomy/taxonomy.account_types.v1.yaml`
 * **Format:** YAML (UTF-8, LF)
+* **Schema anchor:** `schemas.6A.yaml#/taxonomy/account_taxonomy_6A`
 * **Digest posture:** token-less; do **not** embed any digest fields. 6A.S0 seals by exact bytes.
 
 **Dependency:** authored after `taxonomy.party`, because this file references `party_type` codes (`RETAIL`, `BUSINESS`, `OTHER`).
