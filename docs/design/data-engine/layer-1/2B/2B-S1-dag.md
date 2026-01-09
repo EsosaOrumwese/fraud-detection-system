@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S1 entry)
       · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · binds: { seed, manifest_fingerprint, parameter_hash } for this 2B run
       · records: catalogue_resolution (dictionary/registry versions), determinism_receipt (engine + policy digests)
-    - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
+    - sealed_inputs_2B @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…
       · inventory of all artefacts S0 authorised for 2B under this fingerprint
       · S1 MUST treat its read set as a subset of this inventory (no new inputs)
 
@@ -63,7 +63,7 @@ DAG — 2B.S1 (site_locations → frozen per-merchant probability law)  [NO RNG]
                     - Load s0_gate_receipt_2B for this manifest_fingerprint:
                         · verify schema, signature fields, and that it references this {seed, manifest_fingerprint}.
                         · treat s0_gate_receipt_2B as the sole attestation that 1B PASSED for this fingerprint.
-                    - Load sealed_inputs_v1 for this manifest_fingerprint:
+                    - Load sealed_inputs_2B for this manifest_fingerprint:
                         · build an in-memory set of sealed asset IDs + partitions + digests.
                     - Fix run identity:
                         · {seed, manifest_fingerprint} is fixed for all of S1,
@@ -83,9 +83,9 @@ DAG — 2B.S1 (site_locations → frozen per-merchant probability law)  [NO RNG]
                     - Resolve, via Dataset Dictionary only:
                         · site_locations @ data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
                         · alias_layout_policy_v1 @ contracts/policy/2B/alias_layout_policy_v1.json
-                        · optional pins site_timezones/tz_timetable_cache iff BOTH are present in sealed_inputs_v1.
+                        · optional pins site_timezones/tz_timetable_cache iff BOTH are present in sealed_inputs_2B.
                     - Enforce **subset-of-S0**:
-                        · every resolved artefact MUST appear in sealed_inputs_v1 for this fingerprint.
+                        · every resolved artefact MUST appear in sealed_inputs_2B for this fingerprint.
                     - Validate alias_layout_policy_v1:
                         · required keys present: weight_source, floor_spec, normalisation_epsilon,
                                                  quantised_bits, quantisation_epsilon, provenance flags.

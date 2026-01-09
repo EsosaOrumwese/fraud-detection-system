@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S6 entry)
       · proves: 2B.S0 ran for this manifest_fingerprint and verified upstream 1B PASS
       · binds: { seed, manifest_fingerprint, parameter_hash } for this edge-routing run
       · provides: canonical created_utc = verified_at_utc (echoed into s6_edge_log if enabled)
-    - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
+    - sealed_inputs_2B @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…
       · sealed inventory of cross-layer/policy artefacts S0 authorised
       · S6 MUST treat any cross-layer/policy read as a subset of this inventory (subset-of-S0 rule)
 
@@ -78,7 +78,7 @@ Authoritative inputs (read-only at S6 entry)
         · uniforms u ∈ (0,1), mapped from counters by the layer law; counters strictly increasing, no wrap
     - Catalogue discipline:
         · all reads resolved by Dictionary ID; no literal paths; no network I/O
-        · cross-layer/policy inputs MUST appear in sealed_inputs_v1 for this fingerprint
+        · cross-layer/policy inputs MUST appear in sealed_inputs_2B for this fingerprint
     - Authority boundaries:
         · S6 SHALL NOT read or mutate fingerprint-scoped plan/egress surfaces (s4_group_weights, s1_site_weights, site_locations, etc.)
         · S6 SHALL NOT decode or derive anything from s2_alias_blob (context-only; S2 remains alias authority)
@@ -90,7 +90,7 @@ DAG — 2B.S6 (Virtual-merchant edge routing branch)  [RNG-BOUNDED]
 [S0 Gate & Identity],
 [Schema+Dict]
                 ->  (S6.1) Verify S0 evidence & fix run identity
-                    - Resolve s0_gate_receipt_2B and sealed_inputs_v1 for manifest_fingerprint via Dictionary.
+                    - Resolve s0_gate_receipt_2B and sealed_inputs_2B for manifest_fingerprint via Dictionary.
                     - Validate both against their schema anchors; abort on any shape or fingerprint mismatch.
                     - Fix run identity for S6:
                         · plan identity:   {seed, manifest_fingerprint} (used only for echo in logs)
@@ -114,8 +114,8 @@ s2_alias_blob?
                         · optionally s2_alias_index / s2_alias_blob @ seed={seed}/fingerprint={manifest_fingerprint}
                           (if S0 sealed them; integrity echo only).
                     - S0-evidence rule:
-                        · route_rng_policy_v1 and virtual_edge_policy_v1 MUST appear in sealed_inputs_v1 for this fingerprint.
-                        · any context artefacts S6 reads (e.g. S2 alias surfaces) MUST also appear in sealed_inputs_v1.
+                        · route_rng_policy_v1 and virtual_edge_policy_v1 MUST appear in sealed_inputs_2B for this fingerprint.
+                        · any context artefacts S6 reads (e.g. S2 alias surfaces) MUST also appear in sealed_inputs_2B.
                     - Validate virtual_edge_policy_v1:
                         · policy_id == "virtual_edge_policy_v1",
                         · edges[] non-empty; each edge row:

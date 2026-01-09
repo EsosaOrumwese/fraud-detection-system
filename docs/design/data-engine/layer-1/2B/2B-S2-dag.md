@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S2 entry)
       · proves: 1B PASS already verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · binds this run identity: { seed, manifest_fingerprint, parameter_hash } for 2B
       · carries: catalogue_resolution, determinism_receipt (engine + alias policy IDs/digests)
-    - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
+    - sealed_inputs_2B @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…
       · canonical inventory of every cross-layer/policy artefact S0 sealed for 2B under this fingerprint
       · For cross-layer or policy artefacts, S2 MUST treat its read set as a subset of this inventory (subset-of-S0 rule);
         within-segment datasets (e.g. `s1_site_weights`) are not S0-sealed but must be read at the exact
@@ -43,7 +43,7 @@ Authoritative inputs (read-only at S2 entry)
 [Explicit prohibitions & scope fences]
     - Inputs:
         · S2 MAY NOT read 2A pins (`site_timezones`, `tz_timetable_cache`) or any other artefacts.
-        · Every cross-layer or policy input S2 resolves (here: `alias_layout_policy_v1`) MUST appear in `sealed_inputs_v1`
+        · Every cross-layer or policy input S2 resolves (here: `alias_layout_policy_v1`) MUST appear in `sealed_inputs_2B`
           for this fingerprint; within-segment datasets (here: `s1_site_weights`) MUST be read at the exact
           `[seed, fingerprint]` partition but are not S0-sealed.
     - Behaviours:
@@ -69,7 +69,7 @@ DAG — 2B.S2 (s1_site_weights → alias blob + index)  [NO RNG]
 [S0 Gate & Identity],
 [Schema+Dict]
                 ->  (S2.1) Verify S0 evidence & fix run identity
-                    - Resolve s0_gate_receipt_2B and sealed_inputs_v1 for manifest_fingerprint via Dictionary.
+                    - Resolve s0_gate_receipt_2B and sealed_inputs_2B for manifest_fingerprint via Dictionary.
                     - Validate both against schemas.2B.yaml anchors (structure, required fields).
                     - Fix run identity:
                         · {seed, manifest_fingerprint, parameter_hash} ← s0_gate_receipt_2B.
@@ -89,7 +89,7 @@ alias_layout_policy_v1
                         · schema matches schemas.2B.yaml#/plan/s1_site_weights,
                         · PK [merchant_id, legal_country_iso, site_order] is unique.
                     - Resolve alias_layout_policy_v1 via the exact path/digest sealed by S0:
-                        · confirm it appears in sealed_inputs_v1 (policy row),
+                        · confirm it appears in sealed_inputs_2B (policy row),
                         · load policy minima: {layout_version, endianness, alignment_bytes,
                                               quantised_bits=b, encode_spec, decode_law, checksum, required_index_fields}.
                         · Abort if any required field is missing or invalid (b < 1, alignment_bytes < 1, etc.).
@@ -199,7 +199,7 @@ s1_site_weights (ordered per merchant)
                             - quantised_bits  ← policy.quantised_bits (b)
                             - created_utc     ← created_utc_S0
                             - policy_id       ← "alias_layout_policy_v1"
-                            - policy_digest   ← digest recorded for alias_layout_policy_v1 in sealed_inputs_v1
+                            - policy_digest   ← digest recorded for alias_layout_policy_v1 in sealed_inputs_2B
                         21. Compute blob_sha256 as SHA-256 of the **raw blob bytes** just serialised.
                         22. Counts & bounds:
                             - blob_size_bytes ← total length of blob,

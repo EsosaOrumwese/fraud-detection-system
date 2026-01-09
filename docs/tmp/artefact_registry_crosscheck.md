@@ -90,7 +90,7 @@
 
 ### Present in dictionary + registry (datasets/logs)
 - Upstream 1B surfaces: `validation_bundle_1B`, `validation_passed_flag_1B`, `site_locations`
-- 2A control-plane: `s0_gate_receipt_2A`, `sealed_inputs_v1`
+- 2A control-plane: `s0_gate_receipt_2A`, `sealed_inputs_2A`
 - 2A data-plane: `tz_nudge`, `s1_tz_lookup`, `tz_overrides`, `site_timezones`, `tzdb_release`, `tz_timetable_cache`, `s4_legality_report`
 - 2A validation: `validation_bundle_2A`, `validation_passed_flag_2A`
 
@@ -115,7 +115,7 @@
 
 ### Present in dictionary + registry (datasets/logs)
 - Upstream surfaces: `validation_bundle_1B`, `site_locations`, `site_timezones`, `tz_timetable_cache`
-- 2B control-plane: `s0_gate_receipt_2B`, `sealed_inputs_v1`
+- 2B control-plane: `s0_gate_receipt_2B`, `sealed_inputs_2B`
 - 2B outputs: `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`, `s5_selection_log`, `s6_edge_log`, `s7_audit_report`
 - 2B policies: `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`
 
@@ -148,7 +148,7 @@
 - `zone_mixture_policy.yml`, `country_zone_alphas.yaml`, `zone_floor.yml` -> example filenames; dictionary/registry ids are `zone_mixture_policy`, `country_zone_alphas`, `zone_floor_policy`
 - `day_effect_policy_v1.json` -> policy id `day_effect_policy_v1` (governed in 2B; referenced by 3A)
 - `tz_world` -> placeholder in spec; dictionary pins `tz_world_2025a`
-- `sealed_inputs_v1` -> schema alias mentioned in spec; dataset id is `sealed_inputs_3A`
+- `sealed_inputs_3A` -> schema alias mentioned in spec; dataset id is `sealed_inputs_3A`
 - `dataset_dictionary.layer1.1A.yaml` .. `dataset_dictionary.layer1.3A.yaml`, `artefact_registry_1A.yaml` .. `artefact_registry_3A.yaml` -> doc references, not artefact ids
 
 ### Run-report or field tokens (not artefact ids)

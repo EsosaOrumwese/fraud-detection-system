@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S7 entry)
       · proves: 2B.S0 ran for this fingerprint and verified 1B PASS
       · binds: { seed, manifest_fingerprint, parameter_hash } for Segment 2B
       · provides: verified_at_utc (canonical created_utc for S7)
-    - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
+    - sealed_inputs_2B @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…
       · sealed inventory of cross-layer and policy artefacts S0 authorised
       · all cross-layer/policy inputs S7 reads MUST appear here (subset-of-S0 rule)
 
@@ -76,7 +76,7 @@ Authoritative inputs (read-only at S7 entry)
         · deterministic, serial reductions; Σ=1 checks use fixed tolerances from upstream specs
     - Catalogue discipline:
         · all inputs resolved by Dataset Dictionary ID + partition; **no literal paths**, **no network I/O**
-        · cross-layer/policy assets MUST appear in sealed_inputs_v1 for this fingerprint
+        · cross-layer/policy assets MUST appear in sealed_inputs_2B for this fingerprint
     - Write discipline:
         · s7_audit_report is write-once per (seed,fingerprint), published via staging→fsync→atomic move
         · idempotent re-emit allowed only if bytes are bit-identical
@@ -88,7 +88,7 @@ DAG — 2B.S7 (S2/S3/S4 audits + optional S5/S6 evidence → s7_audit_report)  [
 [S0 Gate & Identity],
 [Schema+Dict]
                 ->  (S7.1) Verify S0 gate & fix run identity
-                    - Resolve s0_gate_receipt_2B and sealed_inputs_v1 for this manifest_fingerprint via Dictionary.
+                    - Resolve s0_gate_receipt_2B and sealed_inputs_2B for this manifest_fingerprint via Dictionary.
                     - Check:
                         · both exist, are schema-valid,
                         · manifest_fingerprint in receipt equals path token,
@@ -117,9 +117,9 @@ alias_layout_policy_v1
                         · (optional) s1_site_weights@seed={seed}/fingerprint={manifest_fingerprint}
                         · alias_layout_policy_v1 (token-less; S0-sealed path+digest)
                     - Enforce S0-evidence:
-                        · alias_layout_policy_v1 MUST appear in sealed_inputs_v1 (with matching path+sha256_hex).
+                        · alias_layout_policy_v1 MUST appear in sealed_inputs_2B (with matching path+sha256_hex).
                         · any cross-layer assets S7 reads (e.g. site_timezones, selection/edge logs, RNG core logs)
-                          MUST appear in sealed_inputs_v1.
+                          MUST appear in sealed_inputs_2B.
                     - Validate shapes of S2/S3/S4 (and optional S1) against their schema anchors.
                     - Partition sanity:
                         · S2/S3/S4 (and optional S1) MUST be read at exactly [seed,fingerprint] (no extra keys).
@@ -128,7 +128,7 @@ alias_layout_policy_v1
                         · require s2_alias_index.header.policy_digest matches sealed alias_layout_policy_v1 digest.
                     - Prepare inputs_digest skeleton:
                         · initialise an in-memory map of {asset_id → {version_tag, sha256_hex, path, partition, schema_ref}}
-                          for S2/S3/S4 + policies, derived from sealed_inputs_v1.
+                          for S2/S3/S4 + policies, derived from sealed_inputs_2B.
 
 ----------------------------------------------------------------------
 A. Alias mechanics (S2) — index & blob coherence + decode round-trip  [NO RNG]
@@ -208,9 +208,9 @@ B. Day effects & mixes (S3/S4) — grid equality, γ echo, normalisation  [NO RN
 C. Router evidence (S5/S6) — only if logs + RNG evidence are present  [NO RNG]
 
 [Schema+Dict],
-sealed_inputs_v1
+sealed_inputs_2B
                 ->  (S7.C0) Discover whether router evidence is in scope
-                    - From sealed_inputs_v1, determine if S5/S6 logs and RNG core logs are registered:
+                    - From sealed_inputs_2B, determine if S5/S6 logs and RNG core logs are registered:
                         · s5_selection_log family present?
                         · s6_edge_log family present?
                         · rng_audit_log and rng_trace_log present for this {seed, parameter_hash, run_id}?
@@ -268,12 +268,12 @@ D. Report assembly & publish (authoritative, RNG-free)  [NO RNG]
 (S7.A1–A4 results),
 (S7.B1–B3 results),
 (S7.C0–C3 results),
-[s0_gate_receipt_2B, sealed_inputs_v1, catalogue_resolution]
+[s0_gate_receipt_2B, sealed_inputs_2B, catalogue_resolution]
                 ->  (S7.D1) Assemble checks[], metrics, summary, inputs_digest
                     - Build inputs_digest:
                         · for each of {s2_alias_index, s2_alias_blob, s3_day_effects, s4_group_weights,
                                        alias_layout_policy_v1, route_rng_policy_v1, virtual_edge_policy_v1}:
-                            - look up ID in sealed_inputs_v1,
+                            - look up ID in sealed_inputs_2B,
                             - copy {version_tag, sha256_hex, path, partition, schema_ref} into inputs_digest under that ID.
                     - Build checks[]:
                         · one entry per logical check group:

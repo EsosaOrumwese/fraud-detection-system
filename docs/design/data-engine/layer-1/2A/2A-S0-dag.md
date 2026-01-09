@@ -6,10 +6,10 @@ Authoritative inputs (read-only at S0 entry)
 [Schema+Dict] Schema & catalogue authority:
     - schemas.layer1.yaml                (layer-wide RNG/log/core schemas)
     - schemas.1B.yaml                    (1B egress + validation bundle shapes)
-    - schemas.2A.yaml                    (2A shapes incl. s0_gate_receipt_2A & sealed_inputs_v1)
+    - schemas.2A.yaml                    (2A shapes incl. s0_gate_receipt_2A & sealed_inputs_2A)
     - schemas.ingress.layer1.yaml        (ISO / geo / TZ / tzdb authorities)
     - dataset_dictionary.layer1.1B.yaml  (IDs/paths/partitions for 1B datasets, incl. site_locations, 1B validation bundle)
-    - dataset_dictionary.layer1.2A.yaml  (IDs/paths/partitions for 2A surfaces incl. s0_gate_receipt_2A, sealed_inputs_v1)
+    - dataset_dictionary.layer1.2A.yaml  (IDs/paths/partitions for 2A surfaces incl. s0_gate_receipt_2A, sealed_inputs_2A)
     - artefact_registry_2A.yaml          (bindings for tzdb_release, tz_world_2025a, tz_overrides, tz_nudge, 2A S0 outputs)
 
 [1B Gate Artefacts] (fingerprint-scoped; S0’s primary subject):
@@ -119,9 +119,9 @@ Authoritative inputs (read-only at S0 entry)
 
 (S0.3–S0.5),
 [Schema+Dict]
-                ->  (S0.6) Materialise sealed_inputs_v1 (fingerprint-scoped inventory)
-                    - Write `sealed_inputs_v1` (Parquet) under:
-                        · data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+                ->  (S0.6) Materialise sealed_inputs_2A (fingerprint-scoped inventory)
+                    - Write `sealed_inputs_2A` (JSON) under:
+                        · data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
                         · partition: [fingerprint]; writer sort by (asset_kind, asset_id, or similar per schema).
                     - Emit one row per sealed asset:
                         · asset_id, schema_ref, catalogue_path_template,
@@ -131,14 +131,14 @@ Authoritative inputs (read-only at S0 entry)
 
 (S0.*)      ->  (S0.7) Exit posture, observability & downstream contract
                     - On **PASS**:
-                        · s0_gate_receipt_2A and sealed_inputs_v1 exist, validate, and together define the 2A sealed-input universe
+                        · s0_gate_receipt_2A and sealed_inputs_2A exist, validate, and together define the 2A sealed-input universe
                           for this fingerprint and its `parameter_hash`.
                         · Downstream 2A states (S1–S5) MUST:
                             · locate the fingerprint partition,
                             · validate the receipt against its schema,
-                            · restrict reads to the asset IDs listed in sealed_inputs_v1 (plus their Dictionary-declared partitions).
+                            · restrict reads to the asset IDs listed in sealed_inputs_2A (plus their Dictionary-declared partitions).
                     - On any 2A.S0 error:
-                        · no 2A outputs are published for this fingerprint (no receipt, no sealed_inputs_v1),
+                        · no 2A outputs are published for this fingerprint (no receipt, no sealed_inputs_2A),
                         · 1B’s “No PASS → No Read” on `site_locations` remains the only valid gate.
                     - S0 remains RNG-free, performs no tz assignment, and never mutates 1B datasets or RNG logs.
 
@@ -148,7 +148,7 @@ Downstream touchpoints
     - MUST treat `s0_gate_receipt_2A` as the **single gate** for 2A:
         · proves 1B PASS for this fingerprint (via 1B bundle + `_passed.flag`),
         · enumerates the exact 2A ingress + policy assets they’re allowed to read.
-    - MUST resolve all inputs via IDs + schema_refs in sealed_inputs_v1 / Dictionary; no new surfaces.
+    - MUST resolve all inputs via IDs + schema_refs in sealed_inputs_2A / Dictionary; no new surfaces.
 - **2A.S5 (2A validation bundle & PASS flag)**:
     - Treats the same sealed_inputs set as the **supply-chain manifest** when building the 2A validation bundle for this fingerprint.
     - Reuses the same fingerprint-partition + ASCII-lex index + SHA-256 `_passed.flag` law as 1A/1B for its own gate.

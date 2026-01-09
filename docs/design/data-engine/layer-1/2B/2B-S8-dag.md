@@ -9,8 +9,8 @@ Authoritative inputs (read-only at S8 entry)
       · proves: 2B.S0 ran for this fingerprint and verified 1B PASS
       · binds: { manifest_fingerprint, seed, parameter_hash } for this 2B pack
       · provides: verified_at_utc (canonical created_utc for 2B)
-    - sealed_inputs_v1
-      @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    - sealed_inputs_2B
+      @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json
       · sealed inventory of cross-layer/policy assets (IDs → {path, partition, sha256_hex, schema_ref})
       · S8 MUST use this for policy parity and provenance; no rewrites
 
@@ -79,7 +79,7 @@ DAG — 2B.S8 (S7 PASS set → validation_bundle_2B + `_passed.flag`)  [NO RNG]
 [S0 Gate & Identity],
 [Schema+Dict]
                 ->  (S8.1) Resolve S0 evidence & fix fingerprint identity
-                    - Resolve s0_gate_receipt_2B and sealed_inputs_v1 for this manifest_fingerprint via Dictionary.
+                    - Resolve s0_gate_receipt_2B and sealed_inputs_2B for this manifest_fingerprint via Dictionary.
                     - Validate both against their schema anchors.
                     - Path↔embed:
                         · embedded manifest_fingerprint in s0_gate_receipt_2B MUST equal the fingerprint path token.
@@ -113,7 +113,7 @@ DAG — 2B.S8 (S7 PASS set → validation_bundle_2B + `_passed.flag`)  [NO RNG]
 [S8.1],
 [Schema+Dict],
 s7_audit_report,
-sealed_inputs_v1,
+sealed_inputs_2B,
 (alias_layout_policy_v1, route_rng_policy_v1, virtual_edge_policy_v1)
                 ->  (S8.3) Verify S7 coverage & policy parity (no re-audit)
                     - For each seed ∈ Seeds_required:
@@ -126,12 +126,12 @@ sealed_inputs_v1,
                         · WARN-level checks in S7 are permitted unless governance policy forbids.
                     - Policy parity (token-less policies only):
                         · for each of {alias_layout_policy_v1, route_rng_policy_v1, virtual_edge_policy_v1}:
-                            - locate its `(path, sha256_hex)` entry in sealed_inputs_v1 (partition = `{}`),
+                            - locate its `(path, sha256_hex)` entry in sealed_inputs_2B (partition = `{}`),
                             - resolve the actual file by that exact path,
-                            - recompute SHA-256 over raw bytes and require equality with sealed_inputs_v1.sha256_hex.
+                            - recompute SHA-256 over raw bytes and require equality with sealed_inputs_2B.sha256_hex.
                     - Within-segment plan surfaces (S2/S3/S4):
                         · S8 selects them strictly by Dataset Dictionary ID at `[seed,fingerprint]`,
-                          but does **not** require sealed_inputs_v1 parity for them
+                          but does **not** require sealed_inputs_2B parity for them
                           (they are validated by S7; S8 uses them only for provenance echo).
                     - If any S7 report is missing or FAIL, or policy parity fails → Abort (no bundle, no flag).
 
@@ -139,7 +139,7 @@ sealed_inputs_v1,
 [Schema+Dict],
 s7_audit_report,
 s0_gate_receipt_2B,
-sealed_inputs_v1,
+sealed_inputs_2B,
 (s2_alias_index, s2_alias_blob, s3_day_effects, s4_group_weights as provenance)
                 ->  (S8.4) Stage bundle workspace (RNG-free; bytes unchanged)
                     - Create a temporary workspace directory on the local filesystem; root not equal to final publish path.
@@ -148,7 +148,7 @@ sealed_inputs_v1,
                             - copy s7_audit_report.json → `reports/seed={seed}/s7_audit_report.json`
                         · S0 evidence:
                             - copy s0_gate_receipt_2B.json → `evidence/s0/s0_gate_receipt_2B.json`
-                            - copy sealed_inputs_v1.json   → `evidence/s0/sealed_inputs_v1.json`
+                            - copy sealed_inputs_2B.json   → `evidence/s0/sealed_inputs_2B.json`
                         · Optional provenance snapshots (if implementation chooses to include them):
                             - policies → `evidence/refs/policies/…`
                             - S2/S3/S4 manifests/digests → `evidence/refs/{s2|s3|s4}/…`

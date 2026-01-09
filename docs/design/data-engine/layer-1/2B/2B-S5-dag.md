@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S5 entry)
       · proves: 2B.S0 ran for this manifest_fingerprint and verified 1B PASS
       · binds run identity: { seed, manifest_fingerprint, parameter_hash } for routing
       · provides canonical created_utc = verified_at_utc (echoed into logs)
-    - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
+    - sealed_inputs_2B @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…
       · sealed inventory of cross-layer/policy artefacts for this fingerprint
       · S5 MUST ensure every cross-layer/policy read is present here
 
@@ -78,7 +78,7 @@ Authoritative inputs (read-only at S5 entry)
         · rng_trace_log updated once after each event append (cumulative totals)
     - Catalogue:
         · all reads by Dataset Dictionary ID and declared partitions
-        · cross-layer/policy inputs MUST appear in sealed_inputs_v1
+        · cross-layer/policy inputs MUST appear in sealed_inputs_2B
 
 
 ----------------------------------------------------------------------
@@ -87,7 +87,7 @@ DAG — 2B.S5 (Per-arrival router: group → site, with RNG evidence)  [RNG-BOUN
 [S0 Gate & Identity],
 [Schema+Dict]
                 ->  (S5.1) Trust S0, fix run identity & logging scope
-                    - Resolve s0_gate_receipt_2B and sealed_inputs_v1 for manifest_fingerprint via Dictionary.
+                    - Resolve s0_gate_receipt_2B and sealed_inputs_2B for manifest_fingerprint via Dictionary.
                     - Verify:
                         · receipt + inventory schema-valid,
                         · manifest_fingerprint in receipt equals path token,
@@ -117,7 +117,7 @@ alias_layout_policy_v1
                         · route_rng_policy_v1, alias_layout_policy_v1 (token-less; S0-sealed path+digest)
                     - S0-evidence rule:
                         · route_rng_policy_v1, alias_layout_policy_v1, site_timezones, s2_alias_index,
-                          and s2_alias_blob MUST appear in sealed_inputs_v1 for this fingerprint.
+                          and s2_alias_blob MUST appear in sealed_inputs_2B for this fingerprint.
                     - Validate shapes against schemas.2B.yaml/schemas.2A.yaml anchors.
                     - Alias parity (once per run):
                         · assert s2_alias_index.header.policy_digest == digest(alias_layout_policy_v1),

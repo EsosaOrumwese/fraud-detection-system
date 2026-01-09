@@ -8,7 +8,7 @@ Authoritative inputs (read-only at S4 entry)
       · proves: a valid 2B.S0 gate exists for this manifest_fingerprint
       · binds: { seed, manifest_fingerprint } for this S4 run
       · provides: canonical created_utc = verified_at_utc
-    - sealed_inputs_v1 @ data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/…
+    - sealed_inputs_2B @ data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…
       · inventory of all cross-layer/policy artefacts S0 sealed for this fingerprint
       · S4 MUST ensure cross-layer inputs it reads (e.g. site_timezones) appear here
 
@@ -32,7 +32,7 @@ Authoritative inputs (read-only at S4 entry)
         · partition: seed={seed} / fingerprint={manifest_fingerprint}
         · PK: [merchant_id, legal_country_iso, site_order]
         · columns (min): merchant_id, legal_country_iso, site_order, tzid
-        · role: provides tz_group_id = tzid for grouping sites; MUST appear in sealed_inputs_v1
+        · role: provides tz_group_id = tzid for grouping sites; MUST appear in sealed_inputs_2B
     - s3_day_effects
         · producer: 2B.S3
         · partition: seed={seed} / fingerprint={manifest_fingerprint}
@@ -57,7 +57,7 @@ Authoritative inputs (read-only at S4 entry)
         · programme-constant tolerance ε for “sum ≈ 1” checks and tiny-negative guards
     - Catalogue discipline:
         · all reads via Dataset Dictionary IDs; literal paths and network I/O are forbidden
-        · cross-layer assets MUST appear in sealed_inputs_v1 for this fingerprint
+        · cross-layer assets MUST appear in sealed_inputs_2B for this fingerprint
 
 
 ----------------------------------------------------------------------
@@ -71,7 +71,7 @@ DAG — 2B.S4 (s1_site_weights × site_timezones × s3_day_effects → s4_group_
                         · receipt exists and is schema-valid,
                         · manifest_fingerprint in receipt matches the partition token,
                         · seed from receipt matches the run’s seed.
-                    - Resolve sealed_inputs_v1 for this fingerprint; build in-memory set of sealed IDs.
+                    - Resolve sealed_inputs_2B for this fingerprint; build in-memory set of sealed IDs.
                     - Fix run identity:
                         · {seed, manifest_fingerprint} is fixed for all S4 steps.
                     - Derive created_utc_S0 ← s0_gate_receipt_2B.verified_at_utc;
@@ -88,10 +88,10 @@ s3_day_effects
                         · site_timezones@seed={seed}/fingerprint={manifest_fingerprint}
                         · s3_day_effects@seed={seed}/fingerprint={manifest_fingerprint}
                     - Enforce S0-evidence rule:
-                        · site_timezones MUST appear in sealed_inputs_v1 for this fingerprint
+                        · site_timezones MUST appear in sealed_inputs_2B for this fingerprint
                           (cross-layer asset).
                         · s1_site_weights and s3_day_effects are within-segment and are not
-                          required to appear in sealed_inputs_v1 but MUST use the exact
+                          required to appear in sealed_inputs_2B but MUST use the exact
                           {seed,fingerprint} partition.
                     - Validate shapes:
                         · s1 and site_timezones share PK [merchant_id, legal_country_iso, site_order],
@@ -233,7 +233,7 @@ day grid D
                               - require |Σ_group p_group − 1| ≤ ε.
                     - Environment guards:
                         · confirm that only s1_site_weights, site_timezones, s3_day_effects
-                          (plus S0 receipt and sealed_inputs_v1) were read,
+                          (plus S0 receipt and sealed_inputs_2B) were read,
                           and that no RNG or network I/O was used.
                     - Run-report:
                         · emit one structured JSON run-report for this state, including:

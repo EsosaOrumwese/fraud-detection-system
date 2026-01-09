@@ -50,7 +50,7 @@ DAG
                             · proves 1B PASS
                             · records 2A’s sealed_inputs[] for this fingerprint
                             · carries parameter_hash + verified_at_utc
-                        * sealed_inputs_v1        @ [fingerprint]
+                        * sealed_inputs_2A        @ [fingerprint]
                             · tabular inventory of all 2A inputs (ids, paths, schema_refs, sha256, licence, retention)
                     - S0 consumes **no RNG**; it gates & seals; does not read 1B row data or tzdb internals
 

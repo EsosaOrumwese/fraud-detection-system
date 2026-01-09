@@ -54,11 +54,11 @@ DAG
                         * parameter_hash carried for run-scoped RNG logs (S5/S6)
                     - Emit fingerprint-scoped proof artefacts:
                         * s0_gate_receipt_2B      @ [fingerprint]   (gate receipt: identity, catalogue_resolution)
-                        * sealed_inputs_v1        @ [fingerprint]   (inventory of sealed assets: IDs, paths, partitions, sha256) 
+                        * sealed_inputs_2B        @ [fingerprint]   (inventory of sealed assets: IDs, paths, partitions, sha256) 
                     - S0 is RNG-free; it gates & seals; it does not read 2B plan rows or decode alias/tzdb
 
                                       |
-                                      | s0_gate_receipt_2B, sealed_inputs_v1 (gate & sealed inputs)
+                                      | s0_gate_receipt_2B, sealed_inputs_2B (gate & sealed inputs)
                                       v
 
              (S1) Per-merchant weight freezing — static site law      [NO RNG]
@@ -180,7 +180,7 @@ DAG
                                       v
 
              (S7) Audits & CI gate — per-seed audit report            [NO RNG]
-                inputs: s0_gate_receipt_2B, sealed_inputs_v1        @ [fingerprint],
+                inputs: s0_gate_receipt_2B, sealed_inputs_2B        @ [fingerprint],
                         s2_alias_index/s2_alias_blob                @ [seed, fingerprint],
                         s3_day_effects, s4_group_weights            @ [seed, fingerprint],
                         alias_layout_policy_v1, route_rng_policy_v1, virtual_edge_policy_v1,
@@ -209,7 +209,7 @@ DAG
                                       v
 
              (S8) Validation bundle & PASS flag for 2B (fingerprint-scoped)  [NO RNG]
-                inputs: s0_gate_receipt_2B, sealed_inputs_v1       @ [fingerprint],
+                inputs: s0_gate_receipt_2B, sealed_inputs_2B       @ [fingerprint],
                         s7_audit_report                            @ [seed, fingerprint] for all Seeds_required,
                         policies alias_layout/route_rng/virtual_edge,
                         provenance of s2_alias_index/blob, s3_day_effects, s4_group_weights         
@@ -217,7 +217,7 @@ DAG
                      - Discover Seeds_required = intersection of seeds that have S2/S3/S4 for this fingerprint.
                      - Require one PASS s7_audit_report per seed ∈ Seeds_required.
                      - Stage a bundle workspace under a temp root:
-                         · copy S0 evidence + sealed_inputs_v1 + all s7_audit_report[seed] (+ optional provenance snapshots).
+                         · copy S0 evidence + sealed_inputs_2B + all s7_audit_report[seed] (+ optional provenance snapshots).
                      - Build index.json (bundle index):
                          · one row per non-flag file: {path, sha256_hex}, path relative; ASCII-lex by path; no duplicates;
                            every file exists; `_passed.flag` excluded.

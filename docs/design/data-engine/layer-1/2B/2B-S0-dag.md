@@ -7,11 +7,11 @@ Authoritative inputs (read-only at S0 entry)
     - schemas.layer1.yaml                (layer-wide RNG/log/core schemas; hashing & bundle index law)
     - schemas.1B.yaml                    (1B egress + validation bundle shapes)
     - schemas.2A.yaml                    (2A shapes for optional pins: site_timezones, tz_timetable_cache)
-    - schemas.2B.yaml                    (2B shapes incl. s0_gate_receipt_2B & sealed_inputs_v1)
+    - schemas.2B.yaml                    (2B shapes incl. s0_gate_receipt_2B & sealed_inputs_2B)
     - schemas.ingress.layer1.yaml        (global layer ingress / common validation shapes)
     - dataset_dictionary.layer1.1B.yaml  (IDs/paths/partitions for 1B datasets incl. validation bundle + site_locations)
     - dataset_dictionary.layer1.2A.yaml  (IDs/paths/partitions for 2A egress/cache if pinned)
-    - dataset_dictionary.layer1.2B.yaml  (IDs/paths/partitions for 2B datasets incl. s0_gate_receipt_2B, sealed_inputs_v1)
+    - dataset_dictionary.layer1.2B.yaml  (IDs/paths/partitions for 2B datasets incl. s0_gate_receipt_2B, sealed_inputs_2B)
     - artefact_registry_2B.yaml          (bindings for 2B S0 outputs + referenced upstream artefacts)
 
 [1B Gate Artefacts] (fingerprint-scoped; S0’s primary subject):
@@ -86,7 +86,7 @@ DAG — 2B.S0 (Upstream 1B gate → sealed inputs inventory → 2B gate receipt)
                         · capture its **partition** object (e.g. `{seed, fingerprint}` or `{fingerprint}`),
                         · attach the governing `schema_ref` from the Dictionary,
                         · determine a `version_tag` from the catalogue (e.g. producer’s semver or `{seed}.{fingerprint}` as declared).
-                    - For each asset, compute / obtain a `sha256_hex` digest for `sealed_inputs_v1`:
+                    - For each asset, compute / obtain a `sha256_hex` digest for `sealed_inputs_2B`:
                         · prefer a published canonical digest from the producing segment’s manifest, if available,
                         · otherwise, hash the raw bytes of the asset (dataset or bundle) at the resolved path,
                           excluding transient control files like `_passed.flag`.
@@ -123,18 +123,18 @@ DAG — 2B.S0 (Upstream 1B gate → sealed inputs inventory → 2B gate receipt)
                         · `catalogue_resolution{dictionary_version, registry_version}`,
                         · `determinism_receipt{engine_commit?, python_version?, platform?, policy_ids?, policy_digests?}`.
                     - Ensure that policy packs listed in `determinism_receipt.policy_ids` correspond exactly to
-                      sealed policy rows in `sealed_inputs_v1`.
+                      sealed policy rows in `sealed_inputs_2B`.
                     - Enforce **path↔embed equality**:
                         · embedded `manifest_fingerprint` MUST equal `fingerprint={manifest_fingerprint}` in the output path.
 
 (S0.5 receipt),
 (S0.3–S0.4 sealed set),
 [Schema+Dict]
-                ->  (S0.6) Materialise sealed_inputs_v1 (inventory) & publish atomically
-                    - Construct `sealed_inputs_v1` as a JSON table:
+                ->  (S0.6) Materialise sealed_inputs_2B (inventory) & publish atomically
+                    - Construct `sealed_inputs_2B` as a JSON table:
                         · one row per sealed asset with `{asset_id=id, version_tag, sha256_hex, path, partition, schema_ref}`.
                     - Sort rows deterministically by `asset_id`, then `path` to make inventory order stable.
-                    - Validate both `s0_gate_receipt_2B` and `sealed_inputs_v1` against their schema anchors.
+                    - Validate both `s0_gate_receipt_2B` and `sealed_inputs_2B` against their schema anchors.
                     - Check immutability:
                         · target partitions for both outputs (`fingerprint={manifest_fingerprint}`) MUST be empty,
                           or contain **byte-identical** prior outputs from an identical sealed set.
@@ -151,12 +151,12 @@ Downstream touchpoints
     - MUST treat `s0_gate_receipt_2B` as the **segment gate**:
         · proves 1B PASS for this fingerprint (via 1B bundle + `_passed.flag`),
         · enumerates the exact ingress + policy assets they may read (site_locations, 2B policy packs, optional 2A pins).
-    - MUST resolve all inputs via IDs and partitions listed in `sealed_inputs_v1`; no new surfaces or literals.
+    - MUST resolve all inputs via IDs and partitions listed in `sealed_inputs_2B`; no new surfaces or literals.
 - **2B.S5–S6 (runtime routing & virtual-edge logs):**
     - Inherit `{seed, manifest_fingerprint}` and RNG policy from the sealed S0 environment.
     - MUST NOT introduce new upstream dependencies outside the sealed inputs for this fingerprint.
 - **2B.S7–S8 (audit & validation bundle):**
-    - Use `sealed_inputs_v1` as the **supply-chain manifest** for what 2B relied on when building routing plans.
+    - Use `sealed_inputs_2B` as the **supply-chain manifest** for what 2B relied on when building routing plans.
     - Build the 2B validation bundle and `_passed.flag` using the same ASCII-lex index + SHA-256 hashing law as S0 used
       when verifying the upstream 1B bundle.
 ```

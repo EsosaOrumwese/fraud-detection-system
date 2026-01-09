@@ -740,7 +740,7 @@
 
 ## Outputs / datasets
 - `s0_gate_receipt_2A` (schema `schemas.2A.yaml#/validation/s0_gate_receipt_v1`)
-- `sealed_inputs_v1` inventory (schema `schemas.2A.yaml#/manifests/sealed_inputs_v1`)
+- `sealed_inputs_2A` inventory (schema `schemas.2A.yaml#/manifests/sealed_inputs_2A`)
 
 ## Deliverables / reports
 - S0 run-report JSON (single object; fields include upstream gate results, sealed input counts/digests, tz asset summary, determinism receipt)
@@ -911,7 +911,7 @@
 
 ## Outputs / datasets
 - `s0_gate_receipt_2B` (schema `schemas.2B.yaml#/validation/s0_gate_receipt_v1`)
-- `sealed_inputs_v1` inventory (schema `schemas.2B.yaml#/validation/sealed_inputs_v1`)
+- `sealed_inputs_2B` inventory (schema `schemas.2B.yaml#/validation/sealed_inputs_2B`)
 
 ## Deliverables / reports
 - S0 run-report JSON (stdout; gate verification, inventory summary, validators)
@@ -930,7 +930,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required inputs:
   - `site_locations` (schema `schemas.1B.yaml#/egress/site_locations`)
   - `alias_layout_policy_v1` (schema `schemas.2B.yaml#/policy/alias_layout_policy_v1`)
@@ -959,7 +959,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required inputs:
   - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
   - `alias_layout_policy_v1` (schema `schemas.2B.yaml#/policy/alias_layout_policy_v1`)
@@ -986,7 +986,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required inputs:
   - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
   - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
@@ -1013,7 +1013,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required inputs:
   - `s1_site_weights` (schema `schemas.2B.yaml#/plan/s1_site_weights`)
   - `site_timezones` (schema `schemas.2A.yaml#/egress/site_timezones`)
@@ -1041,7 +1041,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Upstream reference:
   - `s3_day_effects` (day effects surface)
 - Required inputs:
@@ -1079,7 +1079,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required policies (token-less, S0-sealed):
   - `route_rng_policy_v1` (schema `schemas.2B.yaml#/policy/route_rng_policy_v1`)
   - `virtual_edge_policy_v1` (schema `schemas.2B.yaml#/policy/virtual_edge_policy_v1`)
@@ -1112,7 +1112,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required inputs:
   - `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
   - `s2_alias_blob` (schema `schemas.2B.yaml#/binary/s2_alias_blob`)
@@ -1149,7 +1149,7 @@
 ## Inputs / references
 - Gate evidence:
   - `s0_gate_receipt_2B`
-  - `sealed_inputs_v1`
+  - `sealed_inputs_2B`
 - Required inputs:
   - `s7_audit_report` (schema `schemas.2B.yaml#/validation/s7_audit_report_v1`)
   - `s2_alias_index` (schema `schemas.2B.yaml#/plan/s2_alias_index`)
