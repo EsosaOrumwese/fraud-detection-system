@@ -366,6 +366,7 @@ Preconditions:
 Authority:
 
 * These policies are the **only authority** for how weekly shapes are constructed.
+* `shape_time_grid_policy_5A` is the sole grid authority; `shape_library_5A` MUST NOT redefine time-grid parameters.
 * S2 MUST NOT embed its own alternate shape rules; it MUST implement what these policies describe.
 
 #### 2.4.4 Scenario metadata (if shapes vary by scenario)

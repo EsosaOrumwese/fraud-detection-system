@@ -1,10 +1,9 @@
-# Authoring Guide — `shape_library_5A` (5A.S2 weekly grid + template library + template resolution)
+# Authoring Guide - `shape_library_5A` (5A.S2 template library + template resolution)
 
 ## 0) Purpose
 
-`shape_library_5A` is the **sealed authority** for the entire “weekly shape” side of 5A:
+`shape_library_5A` is the **sealed authority** for the "weekly shape template" side of 5A:
 
-* defines the **local-week grid** (bucket size, `T_week`, and the canonical `k → (day_of_week, minutes_since_midnight)` mapping),
 * defines a **library of weekly templates** (unnormalised preference curves over the grid),
 * defines **template resolution** (how `(demand_class, channel_group, tzid[, scenario_profile]) → template_id` is chosen deterministically, without merchant-level logic).
 
@@ -26,58 +25,30 @@ It is **token-less** and sealed by **5A.S0**. Do **not** embed file digests or t
 * **S2 is the only weekly-shape authority.** S3/S4 MUST NOT invent weekly shape logic.
 * `shape_library_5A` is the **only authority** for:
 
-  * the local-week grid,
   * the available templates,
   * the template-selection rule.
+* The **local-week grid** is defined exclusively by `shape_time_grid_policy_5A`. This file MUST NOT redefine grid parameters.
 * This file MUST NOT depend on `merchant_id` or per-merchant exceptions.
 * Scenario-specific shape changes are **not** done here in v1 (scenario effects belong to S4 overlays). If you later want scenario-dependent templates, that’s a v2 policy.
 
 ---
 
 ## 3) Required top-level structure (fields-strict as authored)
-
 Top-level YAML object with **exactly** these keys (no extras):
 
 1. `policy_id` (MUST be `shape_library_5A`)
 2. `version` (non-placeholder, e.g. `v1.0.0`)
 3. `scenario_mode` (MUST be `scenario_agnostic` in v1)
-4. `grid` (object; §4)
-5. `channel_groups` (list; §5)
-6. `zone_group_mode` (object; §6)
-7. `templates` (list; §7)
-8. `template_resolution` (object; §8)
-9. `constraints` (object; §9)
-10. `realism_floors` (object; §10)
+4. `channel_groups` (list; 4)
+5. `zone_group_mode` (object; 5)
+6. `templates` (list; 6)
+7. `template_resolution` (object; 7)
+8. `constraints` (object; 8)
+9. `realism_floors` (object; 9)
 
 ---
 
-## 4) `grid` (local-week discretisation) — MUST
-
-### 4.1 Required keys
-
-`grid` MUST contain:
-
-* `bucket_duration_minutes` (int) — MUST be one of `{15, 30, 60}`
-* `week_start` (string) — MUST be `monday_00_00_local` (v1 pinned)
-* `day_of_week_encoding` (string) — MUST be `1=Mon,...,7=Sun` (v1 pinned)
-* `minutes_per_day` (int) — MUST be `1440`
-* `days_per_week` (int) — MUST be `7`
-* `T_week` (int) — MUST equal `7 * 1440 / bucket_duration_minutes`
-* `bucket_index_law` (string) — MUST be `k=(dow-1)*T_day + floor(minute/bucket_minutes)` (v1 pinned)
-* `derived_flags` (object)
-
-  * `weekend_days` (list of ints) — v1 pinned: `[6,7]` (Sat/Sun)
-  * `is_weekend_law` (string) — MUST be `dow in weekend_days`
-
-### 4.2 Grid invariants (MUST)
-
-* `1440 % bucket_duration_minutes == 0`
-* `T_week` must be an integer and match the formula exactly.
-* The mapping must cover exactly one full local week: `k ∈ [0..T_week-1]`.
-
----
-
-## 5) `channel_groups` — MUST
+## 4) `channel_groups` — MUST
 
 A list containing **exactly** these three strings (v1 pinned):
 
@@ -89,7 +60,7 @@ This keeps S2 template resolution compatible with S1 classing.
 
 ---
 
-## 6) `zone_group_mode` — MUST
+## 5) `zone_group_mode` — MUST
 
 v1 keeps zone variation simple and deterministic:
 
@@ -102,27 +73,27 @@ zone_group_mode:
 
 Pinned meaning:
 
-* For each `tzid`, compute a deterministic `zone_group_id ∈ {zg0..zg7}` using the pinned hash law in §8.3.
+* For each `tzid`, compute a deterministic `zone_group_id ∈ {zg0..zg7}` using the pinned hash law in §7.3.
 * Templates may vary across zone groups (this gives you non-toy heterogeneity without using merchant_id).
 
 ---
 
-## 7) `templates` — MUST (template library)
+## 6) `templates` — MUST (template library)
 
-### 7.1 Template count realism
+### 6.1 Template count realism
 
 Templates must be **numerous** and class-diverse:
 
 * Minimum total templates: **≥ 40**
 * Minimum templates per demand_class: **≥ 3** (and ≥ 2 per channel group via resolution rules)
 
-### 7.2 Template object shape (fields-strict)
+### 6.2 Template object shape (fields-strict)
 
 Each template entry MUST have:
 
 * `template_id` (string; unique; pattern `^[a-z][a-z0-9_.-]{2,63}$`)
 * `demand_class` (string; must match class catalog from `merchant_class_policy_5A`)
-* `channel_group` (enum from §5)
+* `channel_group` (enum from §4)
 * `shape_kind` (enum; v1 pinned to `daily_gaussian_mixture`)
 * `dow_weights` (list of 7 numbers; all >0)
 * `daily_components` (list; ≥ 1 component)
@@ -130,7 +101,7 @@ Each template entry MUST have:
 * `power` (number; in `[0.6, 2.0]`)
 * `notes` (string; non-empty; no timestamps)
 
-### 7.3 `daily_components` component shape
+### 6.3 `daily_components` component shape
 
 Each component MUST be an object with:
 
@@ -141,11 +112,11 @@ Each component MUST be an object with:
 
 ---
 
-## 8) Template evaluation + resolution (decision-free)
+## 7) Template evaluation + resolution (decision-free)
 
-### 8.1 How S2 evaluates a template into an unnormalised week vector
+### 7.1 How S2 evaluates a template into an unnormalised week vector
 
-Given `template` and bucket index `k`:
+Given `template` and bucket index `k`, using grid parameters from `shape_time_grid_policy_5A`:
 
 1. Derive:
 
@@ -169,7 +140,7 @@ S2 then normalises:
 * `shape(k) = v(k) / Σ_k v(k)`
   and MUST validate the sum-to-1 tolerance in `baseline_intensity_policy_5A` / S2 rules.
 
-### 8.2 `template_resolution` structure (fields-strict)
+### 7.2 `template_resolution` structure (fields-strict)
 
 `template_resolution` MUST contain:
 
@@ -186,7 +157,7 @@ Each rule MUST have:
 
 Rules MUST cover **every** `(demand_class, channel_group)` pair; otherwise FAIL CLOSED.
 
-### 8.3 Pinned deterministic selector (`u_det`) for choosing among candidate templates
+### 7.3 Pinned deterministic selector (`u_det`) for choosing among candidate templates
 
 This is used to select a template **per tzid** (no merchant_id):
 
@@ -197,13 +168,13 @@ This is used to select a template **per tzid** (no merchant_id):
 * `idx = floor(u_det * K)` where `K = len(candidate_template_ids)`
 * pick `candidate_template_ids[idx]`
 
-Zone group id (for §6) uses the same hash source:
+Zone group id (for §5) uses the same hash source:
 
 * `zg = x % buckets` → `zone_group_id = zone_group_id_prefix + str(zg)`
 
 ---
 
-## 9) `constraints` (must-stop-toy checks used by S2)
+## 8) `constraints` (must-stop-toy checks used by S2)
 
 `constraints` MUST include:
 
@@ -224,12 +195,12 @@ Zone group id (for §6) uses the same hash source:
 Pinned interpretations:
 
 * “Night mass” = sum of normalised shape(k) over buckets whose `minute` is in `[start_min, end_min)`.
-* “Weekend mass” = sum over `dow ∈ weekend_days`.
+* "Weekend mass" = sum over `dow ? weekend_days` from `shape_time_grid_policy_5A`.
 * “Office hours weekday mass” = sum over Mon–Fri and `minute ∈ [weekday_start_min, weekday_end_min)`.
 
 ---
 
-## 10) `realism_floors` (authoring-time fail-closed requirements)
+## 9) `realism_floors` (authoring-time fail-closed requirements)
 
 This section prevents Codex from outputting a “sample policy”.
 
@@ -249,12 +220,12 @@ realism_floors:
 
 ---
 
-## 11) Deterministic authoring algorithm (Codex-no-input)
+## 10) Deterministic authoring algorithm (Codex-no-input)
 
 Codex authors `shape_library_5A` by:
 
 1. **Read** `merchant_class_policy_5A` and extract demand classes (must cover all).
-2. Set `grid.bucket_duration_minutes` to match the scenario horizon bucket (15/30/60); default v1 is `60`.
+2. Resolve `shape_time_grid_policy_5A` and read its `bucket_duration_minutes`, `T_week`, and `weekend_days`.
 3. For each `(demand_class, channel_group)` generate **≥ 3** template variants with different peak timings and weekend weights, using a fixed parameter table per class family (below).
 4. Write `template_resolution.rules` so each `(demand_class, channel_group)` has ≥2 candidates.
 5. Validate all constraints + realism floors against the generated templates (by compiling and normalising them over the grid). If any fail → abort authoring.
@@ -276,10 +247,10 @@ Examples of what Codex should encode as templates (illustrative; the policy must
 
 ---
 
-## 12) Acceptance checklist (Codex MUST enforce)
+## 11) Acceptance checklist (Codex MUST enforce)
 
 1. YAML parses; no duplicate keys; top-level keys exactly as §3.
-2. `grid` invariants hold; `T_week` correct; bucket duration ∈ {15,30,60}.
+2. `shape_time_grid_policy_5A` is present in `sealed_inputs_5A` and provides grid parameters for template evaluation.
 3. All templates validate:
 
    * non-negative, finite,
@@ -302,7 +273,7 @@ Examples of what Codex should encode as templates (illustrative; the policy must
 ## Placeholder resolution (MUST)
 
 - Replace `policy_id` and `version` with final identifiers.
-- Set `grid.bucket_duration_minutes`, `grid.T_week`, and `zone_group_mode.buckets` to the final grid.
+- Set `zone_group_mode.buckets` to the final grid bucket count and ensure `shape_time_grid_policy_5A` is sealed.
 - Populate `templates` and `template_resolution` with the final library and mapping rules.
 - Set `constraints` and `realism_floors` to final values (no placeholders).
 
