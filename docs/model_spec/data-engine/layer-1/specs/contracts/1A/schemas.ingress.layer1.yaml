@@ -61,6 +61,30 @@ merchant_ids:
   - Processed, column-normalized snapshot (not a raw export).
   - Channel standardized to two values used by 1A hurdle modelling.
 
+# -- Merchant MCC map (programme-derived) ----------------------------------
+merchant_mcc_map:
+  type: table
+  primary_key: [merchant_id]
+  partition_keys: [version]       # matches path: .../{version}/
+  description: Programme-derived merchant-to-MCC mapping for 2A MCC-scope overrides.
+  columns:
+  - name: merchant_id
+    type: int64
+    nullable: false
+    description: Synthetic merchant identifier.
+    minimum: 1
+  - name: mcc
+    type: int32
+    nullable: false
+    description: Merchant Category Code.
+    minimum: 0
+    maximum: 9999
+  constraints:
+  - type: unique
+    columns: [merchant_id]
+  notes:
+  - Derived deterministically from transaction_schema_merchant_ids (merchant_id, mcc only).
+
 # -- World Bank GDP-per-capita (constant 2015 USD) -------------------------
 world_bank_gdp_per_capita:
   type: table

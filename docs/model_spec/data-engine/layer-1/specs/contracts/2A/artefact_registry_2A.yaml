@@ -104,6 +104,25 @@ subsegments:
     cross_layer: true
     notes: null
 
+  - name: merchant_mcc_map
+    path: reference/layer1/merchant_mcc_map/{version}/
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '{version}'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.merchant_mcc_map
+    license: Proprietary-Internal
+    role: "Programme-derived merchant->MCC mapping for MCC-scope overrides."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/merchant_mcc_map
+    cross_layer: true
+    notes: null
+
   # Cross-layer pointer to 1B egress consumed by 2A
   - name: site_locations
     path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/

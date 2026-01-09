@@ -105,7 +105,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 4. **(Optional) Merchant→MCC mapping (if programme uses MCC-scope overrides)**
    *Role:* authoritative mapping to evaluate `mcc`-scope overrides.
-   *Catalogue/Shape:* programme-specific; MUST be present in the sealed manifest if MCC overrides are to be applied in this run. *(No fixed anchor in 2A; omit if not used.)*
+   *Catalogue/Shape:* `merchant_mcc_map` (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); MUST be present in the sealed manifest if MCC overrides are to be applied in this run.
 
 > *Context for downstream:* S2 emits **`site_timezones`** as egress under `[seed, fingerprint]` (catalogue and anchor already defined), but this is an **output**, not a precondition.
 
@@ -165,7 +165,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 5. **(Optional) Merchant→MCC mapping** *(only if MCC-scope overrides are in use)*
 
-   * **Shape/Catalogue:** programme-specific; MUST be present in the sealed manifest if MCC overrides are to be evaluated; otherwise MCC-scope entries are not active in this run.
+   * **Shape/Catalogue:** `merchant_mcc_map` (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); MUST be present in the sealed manifest if MCC overrides are to be evaluated; otherwise MCC-scope entries are not active in this run.
 
 > *Note:* `site_timezones` is the **output** of S2, not an input; its anchor and catalogue family are fixed for downstream.
 
@@ -236,7 +236,7 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
   `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/`. Registry classifies it as a **plan** dataset.
 * **`tz_overrides` (policy):** `schemas.2A.yaml#/policy/tz_overrides_v1` (scope∈{site,mcc,country}, `tzid`, optional expiry). Catalogue path `config/timezone/tz_overrides.yaml`; registry lists it under **policy/config**.
 * **`tz_world_<release>` (ingress tz polygons; read-only membership source):** `schemas.ingress.layer1.yaml#/tz_world_2025a`. Catalogue path `reference/spatial/tz_world/<release>/tz_world.parquet`.
-* **(Optional, for programme where needed) Merchant→MCC mapping:** programme-specific shape; MUST be present in the sealed manifest if MCC-scope overrides are to be evaluated; otherwise MCC-scope entries are treated as not active. *(No fixed 2A anchor.)*
+* **(Optional, for programme where needed) Merchant→MCC mapping:** `merchant_mcc_map` dataset (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); MUST be present in the sealed manifest if MCC-scope overrides are to be evaluated; otherwise MCC-scope entries are treated as not active.
 
 ### 6.3 Identity & partition posture (binding)
 
@@ -759,7 +759,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 * **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped, catalogue path family `…/s0_gate_receipt/fingerprint={manifest_fingerprint}/…`).
 * **S1 output** — `s1_tz_lookup`: `schemas.2A.yaml#/plan/s1_tz_lookup`; Dictionary path `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/` (partitions `[seed,fingerprint]`).
 * **Policy overrides** — `tz_overrides`: `schemas.2A.yaml#/policy/tz_overrides_v1`; Dictionary path `config/timezone/tz_overrides.yaml` (precedence site » mcc » country).
-* **(Optional) Merchant→MCC mapping** — programme-specific dataset (if MCC-scope overrides are used); must be sealed and enumerated in the S0 manifest for the run.
+* **(Optional) Merchant→MCC mapping** — `merchant_mcc_map` dataset (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); must be sealed and enumerated in the S0 manifest for the run.
 
 ### A3. S2 egress (this state)
 

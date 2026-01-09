@@ -75,7 +75,7 @@
 
 	[Optional] Merchant → MCC mapping
 		- merchant_mcc_map (only if sealed in S0)
-			· schema: schemas.ingress.layer1.yaml#/merchant_mcc_map_…
+			· schema: schemas.ingress.layer1.yaml#/merchant_mcc_map
 			· role: map merchant_id → mcc for MCC-scope overrides
 			· if not sealed: MCC-scope overrides are unusable; using them MUST fail'
 

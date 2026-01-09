@@ -108,6 +108,25 @@ reference_data:
   pii: false
   licence: Public-Domain
 
+# Optional merchant-to-MCC map (sealed when MCC overrides are in use)
+- id: merchant_mcc_map
+  status: approved
+  owner_subsegment: ingress
+  description: "Programme-derived merchant->MCC mapping for MCC-scope overrides."
+  version: '{version}'
+  format: parquet
+  path: reference/layer1/merchant_mcc_map/{version}/
+  partitioning: [version]
+  ordering: [merchant_id]
+  schema_ref: schemas.ingress.layer1.yaml#/merchant_mcc_map
+  lineage:
+    produced_by:
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: world_countries
   status: approved
   owner_subsegment: ingress

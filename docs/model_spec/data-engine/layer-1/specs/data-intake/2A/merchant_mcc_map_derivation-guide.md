@@ -40,7 +40,7 @@ Hard constraints:
 * `merchant_id` unique, min 1
 * `mcc ∈ [0,9999]`
 
-> Note: In your current contract bundle, this mapping is described as **programme-specific** (not yet listed as a standard Dictionary ID). Until you formalise it, treat this guide as the **normative definition** of `merchant_mcc_map` v1.
+**Schema authority:** `schemas.ingress.layer1.yaml#/merchant_mcc_map`
 
 ---
 
