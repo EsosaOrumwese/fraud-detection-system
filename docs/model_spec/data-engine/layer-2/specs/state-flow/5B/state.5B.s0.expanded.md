@@ -688,7 +688,7 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 **Schema & anchors**
 
 * MUST conform to a tabular JSON-Schema anchor under the 5B schema pack, e.g.:
-  `schemas.5B.yaml#/control/sealed_inputs_5B`
+  `schemas.5B.yaml#/validation/sealed_inputs_5B`
 * The dataset dictionary MUST reference that anchor and classify this dataset as `role: control`.
 
 **Row-level content (high-level)**
