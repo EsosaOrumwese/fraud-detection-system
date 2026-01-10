@@ -158,28 +158,52 @@ allocation:
     retention_days: 365
 
 validation:
+  merchant_abort_log:
+    description: Merchant-scoped abort log for soft failures (does not replace run aborts).
+    format: parquet
+    path: data/layer1/1A/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/merchant_abort_log
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+  s0_gate_receipt_1A:
+    description: Root sealing receipt for 1A (lineage + sealed input inventory).
+    format: json
+    path: data/layer1/1A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    schema_ref: schemas.1A.yaml#/validation/s0_gate_receipt_1A
+    partitioning: [manifest_fingerprint]
+    owner: 1A
+    retention_days: 365
+  sealed_inputs_1A:
+    description: Authoritative inventory of every asset sealed by 1A.S0.
+    format: json
+    path: data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json
+    schema_ref: schemas.1A.yaml#/validation/sealed_inputs_1A
+    partitioning: [manifest_fingerprint]
+    owner: 1A
+    retention_days: 365
   validation_bundle:
-    description: Fingerprint-scoped validation pack emitted at the end of S0.
+    description: Manifest-fingerprint-scoped validation pack emitted at the end of S0.
     format: directory
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     owner: 1A
     retention_days: 365
   validation_bundle_1A:
-    description: Fingerprint-scoped validation pack emitted at the end of S0.
+    description: Manifest-fingerprint-scoped validation pack emitted at the end of S0.
     format: directory
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
     schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     owner: 1A
     retention_days: 365
   validation_passed_flag_1A:
     description: HashGate PASS flag for the 1A validation bundle.
     format: text
-    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
     schema_ref: schemas.layer1.yaml#/validation/passed_flag
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     owner: 1A
     retention_days: 365
   s6_validation_receipt:
@@ -195,7 +219,7 @@ rng_logs:
   rng_audit_log:
     description: Run-scoped RNG audit envelope.
     format: jsonl
-    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    path: logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/core/rng_audit_log/record
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -204,7 +228,7 @@ rng_logs:
   rng_trace_log:
     description: Cumulative RNG trace by module/substream.
     format: jsonl
-    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    path: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/core/rng_trace_log/record
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -213,7 +237,7 @@ rng_logs:
   rng_event_anchor:
     description: Anchor event emitted once per run to prove stream availability.
     format: jsonl
-    path: logs/rng/events/core/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/core/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/anchor
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -222,7 +246,7 @@ rng_logs:
   rng_event_hurdle_bernoulli:
     description: Merchant-keyed Bernoulli draws that decide single vs multi-site (S1 output).
     format: jsonl
-    path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/hurdle_bernoulli
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -231,7 +255,7 @@ rng_logs:
   rng_event_gamma_component:
     description: Gamma draws used by the NB sampler for multi-site merchants.
     format: jsonl
-    path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/gamma_component
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -243,7 +267,7 @@ rng_logs:
   rng_event_poisson_component:
     description: Poisson draws used in NB composition (context="nb") and S4 ZTP sampling (context="ztp").
     format: jsonl
-    path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/poisson_component
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -256,7 +280,7 @@ rng_logs:
   rng_event_nb_final:
     description: Final Negative Binomial outlet counts (accepted draws).
     format: jsonl
-    path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/nb_final
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -268,7 +292,7 @@ rng_logs:
   rng_event_ztp_rejection:
     description: Zero rejection markers emitted by the S4 ZTP sampler.
     format: jsonl
-    path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_rejection
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -280,7 +304,7 @@ rng_logs:
   rng_event_ztp_retry_exhausted:
     description: Retry exhaustion markers emitted when S4 hits the governed zero-attempt cap.
     format: jsonl
-    path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -292,7 +316,7 @@ rng_logs:
   rng_event_ztp_final:
     description: Non-consuming finaliser emitted by the S4 ZTP sampler (fixes K_target and regime).
     format: jsonl
-    path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_final
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -303,7 +327,7 @@ rng_logs:
   rng_event_gumbel_key:
     description: Gumbel-key draws emitted by S6 foreign-set selection (considered vs selected logging per policy).
     format: jsonl
-    path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/gumbel_key
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -311,7 +335,7 @@ rng_logs:
   rng_event_residual_rank:
     description: Non-consuming residual ranking records emitted by S7 integer allocation (one per domain country).
     format: jsonl
-    path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/residual_rank
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -319,7 +343,7 @@ rng_logs:
   rng_event_dirichlet_gamma_vector:
     description: Optional Dirichlet gamma vector draws emitted by S7 when the feature lane is enabled.
     format: jsonl
-    path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -327,7 +351,7 @@ rng_logs:
   'rng_event.sequence_finalize':
     description: Non-consuming sequence-finalise events emitted by S8 per (merchant, country) block.
     format: jsonl
-    path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/sequence_finalize
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -338,7 +362,7 @@ rng_logs:
   'rng_event.site_sequence_overflow':
     description: Guardrail events triggered when S8 would exceed six-digit sequence space.
     format: jsonl
-    path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    path: logs/layer1/1A/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/site_sequence_overflow
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
@@ -401,8 +425,8 @@ egress:
   outlet_catalogue:
     description: Immutable outlet catalogue emitted by S8 (within-country sequencing only).
     format: parquet
-    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/part-*.parquet
     schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
-    partitioning: [seed, fingerprint]
+    partitioning: [seed, manifest_fingerprint]
     owner: 1A
     retention_days: 365

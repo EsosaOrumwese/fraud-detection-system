@@ -58,8 +58,12 @@ class NBEventWriter:
 
     def __post_init__(self) -> None:
         self.base_path = self.base_path.resolve()
-        self._events_root = self.base_path / "logs" / "rng" / "events"
-        self._trace_root = self.base_path / "logs" / "rng" / "trace"
+        self._events_root = (
+            self.base_path / "logs" / "layer1" / "1A" / "rng" / "events"
+        )
+        self._trace_root = (
+            self.base_path / "logs" / "layer1" / "1A" / "rng" / "trace"
+        )
         self._trace_totals = {}
 
     @property

@@ -13,6 +13,7 @@ import time
 import polars as pl
 
 from ..s0_foundations.exceptions import err
+from ..shared.dictionary import load_dictionary, resolve_dataset_path
 from ..shared.passed_flag import format_passed_flag
 from . import constants as c
 from .contexts import S9DeterministicContext, S9ValidationResult
@@ -36,14 +37,28 @@ def write_validation_bundle(
 ) -> tuple[Path, Path | None]:
     """Materialise the validation bundle and optional `_passed.flag`."""
 
-    bundle_root = (
-        config.base_path
-        / "data"
-        / "layer1"
-        / "1A"
-        / "validation"
-        / f"fingerprint={config.manifest_fingerprint}"
-    ).resolve()
+    dictionary = load_dictionary()
+    bundle_root: Path | None = None
+    for dataset_id in ("validation_bundle_1A", "validation_bundle"):
+        try:
+            bundle_root = resolve_dataset_path(
+                dataset_id,
+                base_path=config.base_path,
+                template_args={"manifest_fingerprint": config.manifest_fingerprint},
+                dictionary=dictionary,
+            )
+            break
+        except Exception:
+            continue
+    if bundle_root is None:
+        bundle_root = (
+            config.base_path
+            / "data"
+            / "layer1"
+            / "1A"
+            / "validation"
+            / f"manifest_fingerprint={config.manifest_fingerprint}"
+        ).resolve()
     bundle_root.parent.mkdir(parents=True, exist_ok=True)
 
     staging_dir = bundle_root.parent / f"_tmp.{uuid.uuid4().hex}"

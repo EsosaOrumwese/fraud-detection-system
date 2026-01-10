@@ -98,10 +98,10 @@ def _assert_partition_tokens(
         raise S8ValidationError(
             f"catalogue partition missing expected seed token 'seed={seed}'"
         )
-    if f"fingerprint={manifest_fingerprint}" not in parents:
+    if f"manifest_fingerprint={manifest_fingerprint}" not in parents:
         raise S8ValidationError(
-            f"catalogue partition missing expected fingerprint token "
-            f"'fingerprint={manifest_fingerprint}'"
+            "catalogue partition missing expected manifest_fingerprint token "
+            f"'manifest_fingerprint={manifest_fingerprint}'"
         )
 
 

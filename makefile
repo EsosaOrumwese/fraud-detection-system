@@ -41,6 +41,47 @@ SKIP_SEG6B ?= 0
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
 # ---------------------------------------------------------------------------
+# Derived run paths
+# ---------------------------------------------------------------------------
+RUN_DATA_L1 ?= $(RUN_ROOT)/data/layer1
+RUN_DATA_L2 ?= $(RUN_ROOT)/data/layer2
+RUN_DATA_L3 ?= $(RUN_ROOT)/data/layer3
+RUN_LOGS_L1 ?= $(RUN_ROOT)/logs/layer1
+RUN_LOGS_L2 ?= $(RUN_ROOT)/logs/layer2
+RUN_LOGS_L3 ?= $(RUN_ROOT)/logs/layer3
+RUN_ARTEFACTS ?= $(RUN_ROOT)/artefacts
+RUN_CONFIG ?= $(RUN_ROOT)/config
+
+define L1_VALIDATION_BUNDLE
+$(RUN_DATA_L1)/$(1)/validation/manifest_fingerprint=$(2)
+endef
+
+define L2_VALIDATION_BUNDLE
+$(RUN_DATA_L2)/$(1)/validation/manifest_fingerprint=$(2)
+endef
+
+define L3_VALIDATION_BUNDLE
+$(RUN_DATA_L3)/$(1)/validation/manifest_fingerprint=$(2)
+endef
+
+# ---------------------------------------------------------------------------
+# Preflight helpers
+# ---------------------------------------------------------------------------
+define REQUIRE_FILE
+	@if [ ! -f "$(1)" ]; then \
+		echo "Missing required file: $(1)" >&2; \
+		exit 1; \
+	fi
+endef
+
+define REQUIRE_DIR
+	@if [ ! -d "$(1)" ]; then \
+		echo "Missing required directory: $(1)" >&2; \
+		exit 1; \
+	fi
+endef
+
+# ---------------------------------------------------------------------------
 # Contracts pack defaults
 # ---------------------------------------------------------------------------
 CONTRACTS_PACK_TAG ?= latest
@@ -168,87 +209,101 @@ SEG1B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml
 # Segment 1A
 SEG1A_EXTRA ?=
 
+SEG1A_REQUIRED_REFS = \
+	$(MERCHANT_TABLE) \
+	$(ISO_TABLE) \
+	$(GDP_TABLE) \
+	$(BUCKET_TABLE) \
+	$(NUMERIC_POLICY) \
+	$(MATH_PROFILE) \
+	$(VALIDATION_POLICY)
+
+SEG1A_PARAM_PAIRS = \
+	policy.s3.rule_ladder.yaml=$(S3_RULE_LADDER_POLICY) \
+	policy.s3.base_weight.yaml=$(S3_BASE_WEIGHT_POLICY) \
+	policy.s3.thresholds.yaml=$(S3_THRESHOLDS_POLICY) \
+	policy.s3.bounds.yaml=$(S3_BOUNDS_POLICY) \
+	crossborder_hyperparams.yaml=$(CROSSBORDER_HYPERPARAMS) \
+	hurdle_coefficients.yaml=$(HURDLE_COEFFS) \
+	nb_dispersion_coefficients.yaml=$(NB_DISPERSION_COEFFS) \
+	ccy_smoothing_params.yaml=$(CCY_SMOOTHING_PARAMS) \
+	s6_selection_policy.yaml=$(S6_SELECTION_POLICY) \
+	alias_layout_policy_v1.json=$(ALIAS_LAYOUT_POLICY_V1) \
+	day_effect_policy_v1.json=$(DAY_EFFECT_POLICY_V1) \
+	route_rng_policy_v1.json=$(ROUTE_RNG_POLICY_V1) \
+	virtual_edge_policy_v1.json=$(VIRTUAL_EDGE_POLICY_V1) \
+	virtual_rules_policy_v1.json=$(VIRTUAL_RULES_POLICY_V1) \
+	zone_mixture_policy.yaml=$(ZONE_MIXTURE_POLICY) \
+	country_zone_alphas.yaml=$(COUNTRY_ZONE_ALPHAS) \
+	zone_floor_policy.yaml=$(ZONE_FLOOR_POLICY) \
+	mcc_channel_rules.yaml=$(MCC_CHANNEL_RULES) \
+	cdn_country_weights.yaml=$(CDN_COUNTRY_WEIGHTS) \
+	virtual_validation.yml=$(VIRTUAL_VALIDATION_POLICY) \
+	baseline_intensity_policy_5A.v1.yaml=$(BASELINE_INTENSITY_POLICY_5A) \
+	demand_scale_policy_5A.v1.yaml=$(DEMAND_SCALE_POLICY_5A) \
+	merchant_class_policy_5A.v1.yaml=$(MERCHANT_CLASS_POLICY_5A) \
+	shape_library_5A.v1.yaml=$(SHAPE_LIBRARY_5A) \
+	scenario_horizon_config_5A.v1.yaml=$(SCENARIO_HORIZON_CONFIG_5A) \
+	scenario_overlay_policy_5A.v1.yaml=$(SCENARIO_OVERLAY_POLICY_5A) \
+	arrival_count_config_5B.yaml=$(ARRIVAL_COUNT_CONFIG_5B) \
+	arrival_lgcp_config_5B.yaml=$(ARRIVAL_LGCP_CONFIG_5B) \
+	arrival_rng_policy_5B.yaml=$(ARRIVAL_RNG_POLICY_5B) \
+	arrival_routing_policy_5B.yaml=$(ARRIVAL_ROUTING_POLICY_5B) \
+	arrival_time_placement_policy_5B.yaml=$(ARRIVAL_TIME_PLACEMENT_POLICY_5B) \
+	grouping_policy_5B.yaml=$(GROUPING_POLICY_5B) \
+	time_grid_policy_5B.yaml=$(TIME_GRID_POLICY_5B) \
+	validation_policy_5B.yaml=$(VALIDATION_POLICY_5B) \
+	device_linkage_rules_6A.v1.yaml=$(DEVICE_LINKAGE_RULES_6A) \
+	graph_linkage_rules_6A.v1.yaml=$(GRAPH_LINKAGE_RULES_6A) \
+	validation_policy_6A.v1.yaml=$(VALIDATION_POLICY_6A) \
+	account_taxonomy_6A.v1.yaml=$(ACCOUNT_TAXONOMY_6A) \
+	device_taxonomy_6A.v1.yaml=$(DEVICE_TAXONOMY_6A) \
+	fraud_role_taxonomy_6A.v1.yaml=$(FRAUD_ROLE_TAXONOMY_6A) \
+	instrument_taxonomy_6A.v1.yaml=$(INSTRUMENT_TAXONOMY_6A) \
+	ip_taxonomy_6A.v1.yaml=$(IP_TAXONOMY_6A) \
+	party_taxonomy_6A.v1.yaml=$(PARTY_TAXONOMY_6A) \
+	account_per_party_priors_6A.v1.yaml=$(ACCOUNT_PER_PARTY_PRIORS_6A) \
+	account_role_priors_6A.v1.yaml=$(ACCOUNT_ROLE_PRIORS_6A) \
+	device_count_priors_6A.v1.yaml=$(DEVICE_COUNT_PRIORS_6A) \
+	device_role_priors_6A.v1.yaml=$(DEVICE_ROLE_PRIORS_6A) \
+	instrument_mix_priors_6A.v1.yaml=$(INSTRUMENT_MIX_PRIORS_6A) \
+	instrument_per_account_priors_6A.v1.yaml=$(INSTRUMENT_PER_ACCOUNT_PRIORS_6A) \
+	ip_count_priors_6A.v1.yaml=$(IP_COUNT_PRIORS_6A) \
+	ip_role_priors_6A.v1.yaml=$(IP_ROLE_PRIORS_6A) \
+	merchant_role_priors_6A.v1.yaml=$(MERCHANT_ROLE_PRIORS_6A) \
+	party_role_priors_6A.v1.yaml=$(PARTY_ROLE_PRIORS_6A) \
+	population_priors_6A.v1.yaml=$(POPULATION_PRIORS_6A) \
+	product_mix_priors_6A.v1.yaml=$(PRODUCT_MIX_PRIORS_6A) \
+	segmentation_priors_6A.v1.yaml=$(SEGMENTATION_PRIORS_6A) \
+	amount_model_6B.yaml=$(AMOUNT_MODEL_6B) \
+	attachment_policy_6B.yaml=$(ATTACHMENT_POLICY_6B) \
+	bank_view_policy_6B.yaml=$(BANK_VIEW_POLICY_6B) \
+	behaviour_config_6B.yaml=$(BEHAVIOUR_CONFIG_6B) \
+	behaviour_prior_pack_6B.yaml=$(BEHAVIOUR_PRIOR_PACK_6B) \
+	case_policy_6B.yaml=$(CASE_POLICY_6B) \
+	delay_models_6B.yaml=$(DELAY_MODELS_6B) \
+	flow_rng_policy_6B.yaml=$(FLOW_RNG_POLICY_6B) \
+	flow_shape_policy_6B.yaml=$(FLOW_SHAPE_POLICY_6B) \
+	fraud_campaign_catalogue_config_6B.yaml=$(FRAUD_CAMPAIGN_CATALOGUE_6B) \
+	fraud_overlay_policy_6B.yaml=$(FRAUD_OVERLAY_POLICY_6B) \
+	fraud_rng_policy_6B.yaml=$(FRAUD_RNG_POLICY_6B) \
+	label_rng_policy_6B.yaml=$(LABEL_RNG_POLICY_6B) \
+	rng_policy_6B.yaml=$(RNG_POLICY_6B) \
+	rng_profile_layer3.yaml=$(RNG_PROFILE_LAYER3) \
+	segment_validation_policy_6B.yaml=$(SEGMENT_VALIDATION_POLICY_6B) \
+	sessionisation_policy_6B.yaml=$(SESSIONISATION_POLICY_6B) \
+	timing_policy_6B.yaml=$(TIMING_POLICY_6B) \
+	truth_labelling_policy_6B.yaml=$(TRUTH_LABELLING_POLICY_6B)
+
+SEG1A_PARAM_ARGS = $(foreach pair,$(SEG1A_PARAM_PAIRS),--param $(pair))
+
 SEG1A_ARGS = \
 	--output-dir $(RUN_ROOT) \
 	--merchant-table $(MERCHANT_TABLE) \
 	--iso-table $(ISO_TABLE) \
 	--gdp-table $(GDP_TABLE) \
 	--bucket-table $(BUCKET_TABLE) \
-	--param policy.s3.rule_ladder.yaml=$(S3_RULE_LADDER_POLICY) \
-	--param policy.s3.base_weight.yaml=$(S3_BASE_WEIGHT_POLICY) \
-	--param policy.s3.thresholds.yaml=$(S3_THRESHOLDS_POLICY) \
-	--param policy.s3.bounds.yaml=$(S3_BOUNDS_POLICY) \
-	--param crossborder_hyperparams.yaml=$(CROSSBORDER_HYPERPARAMS) \
-	--param hurdle_coefficients.yaml=$(HURDLE_COEFFS) \
-	--param nb_dispersion_coefficients.yaml=$(NB_DISPERSION_COEFFS) \
-	--param ccy_smoothing_params.yaml=$(CCY_SMOOTHING_PARAMS) \
-	--param s6_selection_policy.yaml=$(S6_SELECTION_POLICY) \
-	--param alias_layout_policy_v1.json=$(ALIAS_LAYOUT_POLICY_V1) \
-	--param day_effect_policy_v1.json=$(DAY_EFFECT_POLICY_V1) \
-	--param route_rng_policy_v1.json=$(ROUTE_RNG_POLICY_V1) \
-	--param virtual_edge_policy_v1.json=$(VIRTUAL_EDGE_POLICY_V1) \
-	--param virtual_rules_policy_v1.json=$(VIRTUAL_RULES_POLICY_V1) \
-	--param zone_mixture_policy.yaml=$(ZONE_MIXTURE_POLICY) \
-	--param country_zone_alphas.yaml=$(COUNTRY_ZONE_ALPHAS) \
-	--param zone_floor_policy.yaml=$(ZONE_FLOOR_POLICY) \
-	--param mcc_channel_rules.yaml=$(MCC_CHANNEL_RULES) \
-	--param cdn_country_weights.yaml=$(CDN_COUNTRY_WEIGHTS) \
-	--param virtual_validation.yml=$(VIRTUAL_VALIDATION_POLICY) \
-	--param baseline_intensity_policy_5A.v1.yaml=$(BASELINE_INTENSITY_POLICY_5A) \
-	--param demand_scale_policy_5A.v1.yaml=$(DEMAND_SCALE_POLICY_5A) \
-	--param merchant_class_policy_5A.v1.yaml=$(MERCHANT_CLASS_POLICY_5A) \
-	--param shape_library_5A.v1.yaml=$(SHAPE_LIBRARY_5A) \
-	--param scenario_horizon_config_5A.v1.yaml=$(SCENARIO_HORIZON_CONFIG_5A) \
-	--param scenario_overlay_policy_5A.v1.yaml=$(SCENARIO_OVERLAY_POLICY_5A) \
-	--param arrival_count_config_5B.yaml=$(ARRIVAL_COUNT_CONFIG_5B) \
-	--param arrival_lgcp_config_5B.yaml=$(ARRIVAL_LGCP_CONFIG_5B) \
-	--param arrival_rng_policy_5B.yaml=$(ARRIVAL_RNG_POLICY_5B) \
-	--param arrival_routing_policy_5B.yaml=$(ARRIVAL_ROUTING_POLICY_5B) \
-	--param arrival_time_placement_policy_5B.yaml=$(ARRIVAL_TIME_PLACEMENT_POLICY_5B) \
-	--param grouping_policy_5B.yaml=$(GROUPING_POLICY_5B) \
-	--param time_grid_policy_5B.yaml=$(TIME_GRID_POLICY_5B) \
-	--param validation_policy_5B.yaml=$(VALIDATION_POLICY_5B) \
-	--param device_linkage_rules_6A.v1.yaml=$(DEVICE_LINKAGE_RULES_6A) \
-	--param graph_linkage_rules_6A.v1.yaml=$(GRAPH_LINKAGE_RULES_6A) \
-	--param validation_policy_6A.v1.yaml=$(VALIDATION_POLICY_6A) \
-	--param account_taxonomy_6A.v1.yaml=$(ACCOUNT_TAXONOMY_6A) \
-	--param device_taxonomy_6A.v1.yaml=$(DEVICE_TAXONOMY_6A) \
-	--param fraud_role_taxonomy_6A.v1.yaml=$(FRAUD_ROLE_TAXONOMY_6A) \
-	--param instrument_taxonomy_6A.v1.yaml=$(INSTRUMENT_TAXONOMY_6A) \
-	--param ip_taxonomy_6A.v1.yaml=$(IP_TAXONOMY_6A) \
-	--param party_taxonomy_6A.v1.yaml=$(PARTY_TAXONOMY_6A) \
-	--param account_per_party_priors_6A.v1.yaml=$(ACCOUNT_PER_PARTY_PRIORS_6A) \
-	--param account_role_priors_6A.v1.yaml=$(ACCOUNT_ROLE_PRIORS_6A) \
-	--param device_count_priors_6A.v1.yaml=$(DEVICE_COUNT_PRIORS_6A) \
-	--param device_role_priors_6A.v1.yaml=$(DEVICE_ROLE_PRIORS_6A) \
-	--param instrument_mix_priors_6A.v1.yaml=$(INSTRUMENT_MIX_PRIORS_6A) \
-	--param instrument_per_account_priors_6A.v1.yaml=$(INSTRUMENT_PER_ACCOUNT_PRIORS_6A) \
-	--param ip_count_priors_6A.v1.yaml=$(IP_COUNT_PRIORS_6A) \
-	--param ip_role_priors_6A.v1.yaml=$(IP_ROLE_PRIORS_6A) \
-	--param merchant_role_priors_6A.v1.yaml=$(MERCHANT_ROLE_PRIORS_6A) \
-	--param party_role_priors_6A.v1.yaml=$(PARTY_ROLE_PRIORS_6A) \
-	--param population_priors_6A.v1.yaml=$(POPULATION_PRIORS_6A) \
-	--param product_mix_priors_6A.v1.yaml=$(PRODUCT_MIX_PRIORS_6A) \
-	--param segmentation_priors_6A.v1.yaml=$(SEGMENTATION_PRIORS_6A) \
-	--param amount_model_6B.yaml=$(AMOUNT_MODEL_6B) \
-	--param attachment_policy_6B.yaml=$(ATTACHMENT_POLICY_6B) \
-	--param bank_view_policy_6B.yaml=$(BANK_VIEW_POLICY_6B) \
-	--param behaviour_config_6B.yaml=$(BEHAVIOUR_CONFIG_6B) \
-	--param behaviour_prior_pack_6B.yaml=$(BEHAVIOUR_PRIOR_PACK_6B) \
-	--param case_policy_6B.yaml=$(CASE_POLICY_6B) \
-	--param delay_models_6B.yaml=$(DELAY_MODELS_6B) \
-	--param flow_rng_policy_6B.yaml=$(FLOW_RNG_POLICY_6B) \
-	--param flow_shape_policy_6B.yaml=$(FLOW_SHAPE_POLICY_6B) \
-	--param fraud_campaign_catalogue_config_6B.yaml=$(FRAUD_CAMPAIGN_CATALOGUE_6B) \
-	--param fraud_overlay_policy_6B.yaml=$(FRAUD_OVERLAY_POLICY_6B) \
-	--param fraud_rng_policy_6B.yaml=$(FRAUD_RNG_POLICY_6B) \
-	--param label_rng_policy_6B.yaml=$(LABEL_RNG_POLICY_6B) \
-	--param rng_policy_6B.yaml=$(RNG_POLICY_6B) \
-	--param rng_profile_layer3.yaml=$(RNG_PROFILE_LAYER3) \
-	--param segment_validation_policy_6B.yaml=$(SEGMENT_VALIDATION_POLICY_6B) \
-	--param sessionisation_policy_6B.yaml=$(SESSIONISATION_POLICY_6B) \
-	--param timing_policy_6B.yaml=$(TIMING_POLICY_6B) \
-	--param truth_labelling_policy_6B.yaml=$(TRUTH_LABELLING_POLICY_6B) \
+	$(SEG1A_PARAM_ARGS) \
 	--git-commit $(GIT_COMMIT) \
 	--seed $(SEED) \
 	--numeric-policy $(NUMERIC_POLICY) \
@@ -288,8 +343,8 @@ SEG2A_EXTRA ?=
 SEG2A_TZDATA_ROOT ?= artefacts/priors/tzdata
 SEG2A_TZ_CONFIG_ROOT ?= config/layer1/2A/timezone
 SEG2A_CANONICAL_TZDATA = $(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)
-SEG2A_RUN_TZDATA = $(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)
-SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/layer1/2A/timezone
+SEG2A_RUN_TZDATA = $(RUN_ARTEFACTS)/priors/tzdata/$(SEG2A_TZDB_RELEASE)
+SEG2A_RUN_TZCFG = $(RUN_CONFIG)/layer1/2A/timezone
 SEG2A_S1_CHUNK_SIZE ?= 250000
 SEG2A_S1_RESUME ?= 0
 
@@ -648,7 +703,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
@@ -706,13 +761,13 @@ scenario_calendar_5a:
 		fi; \
 		manifest=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	fi; \
-	zone_alloc_dir="$$run_root/data/layer1/3A/zone_alloc/seed=$(SEED)/fingerprint=$$manifest"; \
+	zone_alloc_dir="$$run_root/data/layer1/3A/zone_alloc/seed=$(SEED)/manifest_fingerprint=$$manifest"; \
 	zone_alloc_path=$$(ls "$$zone_alloc_dir"/part-*.parquet 2>/dev/null | head -n 1); \
 	if [ -z "$$zone_alloc_path" ]; then \
 		echo "zone_alloc parquet not found under $$zone_alloc_dir" >&2; \
 		exit 1; \
 	fi; \
-	echo "Building 5A scenario_calendar_5A (fingerprint $$manifest)"; \
+	echo "Building 5A scenario_calendar_5A (manifest_fingerprint $$manifest)"; \
 	$(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint "$$manifest" --zone-alloc-path "$$zone_alloc_path"
 
 policies_5a: merchant_class_policy_5a demand_scale_policy_5a shape_library_5a
@@ -750,7 +805,25 @@ virtual_settlement_coords:
 	@echo "Building 3B virtual_settlement_coords"
 	$(VIRTUAL_SETTLEMENT_CMD)
 
-segment1a:
+preflight-seg1a:
+	@echo "Preflight Segment 1A inputs"
+	$(call REQUIRE_DIR,reference)
+	$(call REQUIRE_DIR,config)
+	@for path in $(SEG1A_REQUIRED_REFS); do \
+		if [ ! -f "$$path" ]; then \
+			echo "Missing required Segment 1A input: $$path" >&2; \
+			exit 1; \
+		fi; \
+	done
+	@for param in $(SEG1A_PARAM_PAIRS); do \
+		path="$${param#*=}"; \
+		if [ ! -f "$$path" ]; then \
+			echo "Missing SEG1A param file: $$path (from $$param)" >&2; \
+			exit 1; \
+		fi; \
+	done
+
+segment1a: preflight-seg1a
 	@echo "Running Segment 1A (S0-S9)"
 	@if [ "$(SKIP_SEG1A)" = "1" ]; then \
 		if [ ! -f "$(RESULT_JSON)" ]; then \
@@ -776,8 +849,8 @@ segment1b:
 			echo "SKIP_SEG1B=1 but summary '$(SEG1B_RESULT_JSON)' is missing. Run 'make segment1b' first." >&2; \
 			exit 1; \
 		fi; \
-		if [ ! -d "$(RUN_ROOT)/data/layer1/1B" ]; then \
-			echo "SKIP_SEG1B=1 but outputs missing under '$(RUN_ROOT)/data/layer1/1B'. Run 'make segment1b' first." >&2; \
+		if [ ! -d "$(RUN_DATA_L1)/1B" ]; then \
+			echo "SKIP_SEG1B=1 but outputs missing under '$(RUN_DATA_L1)/1B'. Run 'make segment1b' first." >&2; \
 			exit 1; \
 		fi; \
 		echo "Skipping Segment 1B (SKIP_SEG1B=1)"; \
@@ -815,13 +888,13 @@ segment2a:
 		exit 1; \
 	fi
 	@mkdir -p "$(SUMMARY_DIR)"
-	@if [ ! -d "$(RUN_ROOT)/data/layer1/1B" ]; then \
-		echo "Segment 1B outputs not found under '$(RUN_ROOT)/data/layer1/1B'. Run 'make segment1b' first." >&2; \
+	@if [ ! -d "$(RUN_DATA_L1)/1B" ]; then \
+		echo "Segment 1B outputs not found under '$(RUN_DATA_L1)/1B'. Run 'make segment1b' first." >&2; \
 		exit 1; \
 	fi
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE="$(call L1_VALIDATION_BUNDLE,1B,$$MANIFEST_FINGERPRINT)"; \
 	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
 		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
 		exit 1; \
@@ -920,9 +993,9 @@ segment3a:
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG2A_RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 UPSTREAM_MANIFEST_FINGERPRINT=$$SEG2A_MANIFEST_FINGERPRINT; \
-	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1A="$(call L1_VALIDATION_BUNDLE,1A,$$MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_1B="$(call L1_VALIDATION_BUNDLE,1B,$$MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2A="$(call L1_VALIDATION_BUNDLE,2A,$$SEG2A_MANIFEST_FINGERPRINT)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG3A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -964,13 +1037,13 @@ segment3b:
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG2A_RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG2B_RESULT_JSON)'))['manifest_fingerprint'])"); \
-	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1A="$(call L1_VALIDATION_BUNDLE,1A,$$MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_1B="$(call L1_VALIDATION_BUNDLE,1B,$$MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2A="$(call L1_VALIDATION_BUNDLE,2A,$$SEG2A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2B="$(call L1_VALIDATION_BUNDLE,2B,$$SEG2B_MANIFEST_FINGERPRINT)"; \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 UPSTREAM_MANIFEST_FINGERPRINT=$$SEG3A_MANIFEST_FINGERPRINT; \
-	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_3A="$(call L1_VALIDATION_BUNDLE,3A,$$SEG3A_MANIFEST_FINGERPRINT)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG3B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -1020,17 +1093,17 @@ segment5a:
 	 UPSTREAM_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG3B_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
-receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
+receipt=data.get('s0_receipt',''); m=re.search(r'(?:manifest_fingerprint|fingerprint)=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1A="$(call L1_VALIDATION_BUNDLE,1A,$$SEG1A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_1B="$(call L1_VALIDATION_BUNDLE,1B,$$SEG1B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2A="$(call L1_VALIDATION_BUNDLE,2A,$$SEG2A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2B="$(call L1_VALIDATION_BUNDLE,2B,$$SEG2B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3A="$(call L1_VALIDATION_BUNDLE,3A,$$SEG3A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3B="$(call L1_VALIDATION_BUNDLE,3B,$$SEG3B_MANIFEST_FINGERPRINT)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG5A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -1084,19 +1157,19 @@ segment5b:
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
-receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
+receipt=data.get('s0_receipt',''); m=re.search(r'(?:manifest_fingerprint|fingerprint)=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG5A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1A="$(call L1_VALIDATION_BUNDLE,1A,$$SEG1A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_1B="$(call L1_VALIDATION_BUNDLE,1B,$$SEG1B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2A="$(call L1_VALIDATION_BUNDLE,2A,$$SEG2A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2B="$(call L1_VALIDATION_BUNDLE,2B,$$SEG2B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3A="$(call L1_VALIDATION_BUNDLE,3A,$$SEG3A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3B="$(call L1_VALIDATION_BUNDLE,3B,$$SEG3B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_5A="$(call L2_VALIDATION_BUNDLE,5A,$$SEG5A_MANIFEST_FINGERPRINT)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG5B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -1154,21 +1227,21 @@ segment6a:
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG5B_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
-receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
+receipt=data.get('s0_receipt',''); m=re.search(r'(?:manifest_fingerprint|fingerprint)=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG5A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG5B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_5B="$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=$$SEG5B_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1A="$(call L1_VALIDATION_BUNDLE,1A,$$SEG1A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_1B="$(call L1_VALIDATION_BUNDLE,1B,$$SEG1B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2A="$(call L1_VALIDATION_BUNDLE,2A,$$SEG2A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2B="$(call L1_VALIDATION_BUNDLE,2B,$$SEG2B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3A="$(call L1_VALIDATION_BUNDLE,3A,$$SEG3A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3B="$(call L1_VALIDATION_BUNDLE,3B,$$SEG3B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_5A="$(call L2_VALIDATION_BUNDLE,5A,$$SEG5A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_5B="$(call L2_VALIDATION_BUNDLE,5B,$$SEG5B_MANIFEST_FINGERPRINT)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG6A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -1230,7 +1303,7 @@ segment6b:
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(SEG6A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	 SEG1A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG1B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json, re; data=json.load(open('$(SEG1B_RESULT_JSON)')); mf=data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or ''; \
-receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
+receipt=data.get('s0_receipt',''); m=re.search(r'(?:manifest_fingerprint|fingerprint)=([a-f0-9]{64})', receipt); mf=mf or (m.group(1) if m else ''); print(mf)"); \
 	 SEG2A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG2B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG2B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG3A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG3A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
@@ -1238,15 +1311,15 @@ receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', re
 	 SEG5A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG5B_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG5B_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
 	 SEG6A_MANIFEST_FINGERPRINT=$$($(PY) -c "import json; data=json.load(open('$(SEG6A_RESULT_JSON)')); print(data.get('manifest_fingerprint') or data.get('s0',{}).get('manifest_fingerprint') or '')"); \
-	 VALIDATION_BUNDLE_1A="$(RUN_ROOT)/data/layer1/1A/validation/fingerprint=$$SEG1A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_1B="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$SEG1B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2A="$(RUN_ROOT)/data/layer1/2A/validation/fingerprint=$$SEG2A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_2B="$(RUN_ROOT)/data/layer1/2B/validation/fingerprint=$$SEG2B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3A="$(RUN_ROOT)/data/layer1/3A/validation/fingerprint=$$SEG3A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_3B="$(RUN_ROOT)/data/layer1/3B/validation/fingerprint=$$SEG3B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_5A="$(RUN_ROOT)/data/layer2/5A/validation/fingerprint=$$SEG5A_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_5B="$(RUN_ROOT)/data/layer2/5B/validation/fingerprint=$$SEG5B_MANIFEST_FINGERPRINT"; \
-	 VALIDATION_BUNDLE_6A="$(RUN_ROOT)/data/layer3/6A/validation/fingerprint=$$SEG6A_MANIFEST_FINGERPRINT"; \
+	 VALIDATION_BUNDLE_1A="$(call L1_VALIDATION_BUNDLE,1A,$$SEG1A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_1B="$(call L1_VALIDATION_BUNDLE,1B,$$SEG1B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2A="$(call L1_VALIDATION_BUNDLE,2A,$$SEG2A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_2B="$(call L1_VALIDATION_BUNDLE,2B,$$SEG2B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3A="$(call L1_VALIDATION_BUNDLE,3A,$$SEG3A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_3B="$(call L1_VALIDATION_BUNDLE,3B,$$SEG3B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_5A="$(call L2_VALIDATION_BUNDLE,5A,$$SEG5A_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_5B="$(call L2_VALIDATION_BUNDLE,5B,$$SEG5B_MANIFEST_FINGERPRINT)"; \
+	 VALIDATION_BUNDLE_6A="$(call L3_VALIDATION_BUNDLE,6A,$$SEG6A_MANIFEST_FINGERPRINT)"; \
 	if [ -n "$(LOG)" ]; then \
 		($(SEG6B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	else \

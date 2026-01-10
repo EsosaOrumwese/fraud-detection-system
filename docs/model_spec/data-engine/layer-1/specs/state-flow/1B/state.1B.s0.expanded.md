@@ -433,7 +433,7 @@ Where lineage fields appear both in **path** and **rows**, values **MUST byte-eq
 * **Deterministic libm profile:** pin an approved math profile for `exp/log/log1p/expm1/sqrt/sin/cos/atan2/pow/tanh/erf/lgamma`; results are **bit-deterministic** under the pinned profile; `sqrt` must be correctly rounded. 
 * **Constants:** decision-critical constants **MUST** be encoded as **binary64 hex literals** (not decimal recomputation). 
 * **Serial kernels:** reductions/sorts that influence decisions **MUST** execute in fixed order; parallel “fast-math”/contraction are **forbidden** on decision paths. 
-* **Artefactisation:** `numeric_policy.json` and `math_profile_manifest.json` are part of the sealed set; changing either flips the **`manifest_fingerprint`**. 
+* **Artefactisation:** `numeric_policy_profile` and `math_profile_manifest` are part of the sealed set; changing either flips the **`manifest_fingerprint`**. 
 
 ## 6.2 RNG algorithm & scope (must hold)
 

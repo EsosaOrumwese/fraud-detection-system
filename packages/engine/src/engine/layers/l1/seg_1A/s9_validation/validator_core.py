@@ -184,7 +184,10 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
     safe_call(
         lambda: _validate_partition_tokens(
             context.source_paths.get(c.DATASET_OUTLET_CATALOGUE, ()),
-            {"seed": str(context.seed), "fingerprint": context.manifest_fingerprint},
+            {
+                "seed": str(context.seed),
+                "manifest_fingerprint": context.manifest_fingerprint,
+            },
             dataset=c.DATASET_OUTLET_CATALOGUE,
         )
     )

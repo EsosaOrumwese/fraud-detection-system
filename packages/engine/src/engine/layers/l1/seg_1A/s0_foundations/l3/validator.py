@@ -284,7 +284,7 @@ def validate_outputs(
     ):
         raise err("E_VALIDATION_MISMATCH", "rng audit lineage mismatch")
 
-    events_root = base_path / "logs" / "rng" / "events"
+    events_root = base_path / "logs" / "layer1" / "1A" / "rng" / "events"
     event_exists = any(events_root.rglob("part-00000.jsonl"))
     if not event_exists:
         raise err("E_VALIDATION_MISMATCH", "rng event logs missing")

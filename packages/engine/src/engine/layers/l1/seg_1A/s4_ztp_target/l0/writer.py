@@ -102,7 +102,7 @@ class ZTPEventWriter:
 
     def __post_init__(self) -> None:
         self.base_path = self.base_path.resolve()
-        rng_root = self.base_path / "logs" / "rng"
+        rng_root = self.base_path / "logs" / "layer1" / "1A" / "rng"
         self._events_root = rng_root / "events"
         self._trace_root = rng_root / "trace"
         self._trace_totals = {}

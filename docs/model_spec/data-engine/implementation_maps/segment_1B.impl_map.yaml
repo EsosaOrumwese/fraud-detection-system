@@ -7,16 +7,16 @@ segment:
 generated_at_utc: '2026-01-10T08:00:07Z'
 sources:
   state_expanded_docs:
-  - state.1B.s0.expanded.txt
-  - state.1B.s1.expanded.txt
-  - state.1B.s2.expanded.txt
-  - state.1B.s3.expanded.txt
-  - state.1B.s4.expanded.txt
-  - state.1B.s5.expanded.txt
-  - state.1B.s6.expanded.txt
-  - state.1B.s7.expanded.txt
-  - state.1B.s8.expanded.txt
-  - state.1B.s9.expanded.txt
+  - state.1B.s0.expanded.md
+  - state.1B.s1.expanded.md
+  - state.1B.s2.expanded.md
+  - state.1B.s3.expanded.md
+  - state.1B.s4.expanded.md
+  - state.1B.s5.expanded.md
+  - state.1B.s6.expanded.md
+  - state.1B.s7.expanded.md
+  - state.1B.s8.expanded.md
+  - state.1B.s9.expanded.md
   dataset_dictionary:
   - dataset_dictionary.layer1.1B.yaml
   artefact_registry:
@@ -39,26 +39,26 @@ source_fingerprints:
     sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
   schemas.1A.yaml:
     sha256: 83891933b7b0cd63697c5b3b2b446382d7676448ebdae5875bea09555f0e3bf0
-  state.1B.s0.expanded.txt:
-    sha256: 706fd970699d0182262e9dc218bfb5867fe62003e29861a1cdb5d569820702d0
-  state.1B.s1.expanded.txt:
-    sha256: 37c6e67f08fa14fc1c12473806fc66626396984f336c23f6667345eca0c13775
-  state.1B.s2.expanded.txt:
-    sha256: 3a18383d1b63a4316f60ba08916457d1636205d77114cf6be69fe4a12f35f77f
-  state.1B.s3.expanded.txt:
-    sha256: f8a6ff5e46222fc7d58fcaf26b7239bbbe7f00b58e32f37b86b7e6e9e59c208b
-  state.1B.s4.expanded.txt:
-    sha256: b2c3e7829226035fa5a29442944be6f32172a39922991d72b9a47e7123552d3a
-  state.1B.s5.expanded.txt:
-    sha256: 722f368b61d4d5b932151a4b7b95b82d976554ac1fc079984940e88767085e69
-  state.1B.s6.expanded.txt:
-    sha256: 7d3fbeebf4de502c4d1c4bbfa38a313aff142aabbfe4a44102d21cf0bb2d700d
-  state.1B.s7.expanded.txt:
-    sha256: 80cf3a133250c0339dbe14d95d68f760bf206c1c212f3c01892fcc429d92c823
-  state.1B.s8.expanded.txt:
-    sha256: 8e431f2fa74ac4a17663201579cad033f3f2481ffd197b9b0381ca5d51d41af2
-  state.1B.s9.expanded.txt:
-    sha256: 7e937aaf6095f280d63afd647982a125f163a8aca74f6047f4bf52f17f1761e8
+  state.1B.s0.expanded.md:
+    sha256: 777cf4709a2154eccafb4aa4448e2ec8712d57c9b55a2fb33f81e84a3bd440b2
+  state.1B.s1.expanded.md:
+    sha256: db2463762a05165a75d779ccbfe3d21cfbc5d82274aaef0320111279f5d74eb4
+  state.1B.s2.expanded.md:
+    sha256: 44a53af1095c55ef03fc59054c6d9abbf1bd80d916eafbee20288c81f8e04f5d
+  state.1B.s3.expanded.md:
+    sha256: 2856b536f06276c77e3df59752b7a96ff90e008d7d7e7970c52ac70397b2cfae
+  state.1B.s4.expanded.md:
+    sha256: 856dfa7a8440cee23dd42b6057d980b7f1531e76453923ceecbb3566e3bf7137
+  state.1B.s5.expanded.md:
+    sha256: 4ad08d4ff4d953a88c42e91bc24c1646d54f3b9b78714036c4fe074c5d1ca8a3
+  state.1B.s6.expanded.md:
+    sha256: 19718b05ad4f5b8125e4103d0923df4ebb65db6f88aab7142bfc0102c2e148a6
+  state.1B.s7.expanded.md:
+    sha256: 10ad8701ab8e6759dca8ea97ec1fe3ef068ad365e161cdc7be2c62ddbd92273b
+  state.1B.s8.expanded.md:
+    sha256: f62aea682c1e19d85a1b02d8dd95d31db60e6ae030e335fece6cc5cc4c6e6e30
+  state.1B.s9.expanded.md:
+    sha256: bf858b71ec3f9794500debc0d6ad187e66dec5d21f998ed95d5392a17a2d9eb9
 path_tokens:
   parameter_hash: parameter_hash
   manifest_fingerprint: manifest_fingerprint
@@ -223,7 +223,9 @@ states:
       scope_keys:
       - manifest_fingerprint
       address_template: data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json
-      ordering: []
+      ordering:
+      - asset_id
+      - path
       equality: ordered
       optional: false
     gates_in:
@@ -292,7 +294,7 @@ states:
     - dataset_id: s1_run_report
       scope_keys:
       - parameter_hash
-      address_template: data/layer1/1B/reports/s1_run_report/parameter_hash={parameter_hash}/s1_run_report.json
+      address_template: reports/layer1/1B/state=S1/parameter_hash={parameter_hash}/s1_run_report.json
       ordering: []
       equality: ordered
       optional: false
@@ -352,7 +354,7 @@ states:
     - dataset_id: s2_run_report
       scope_keys:
       - parameter_hash
-      address_template: data/layer1/1B/reports/s2_run_report/parameter_hash={parameter_hash}/s2_run_report.json
+      address_template: reports/layer1/1B/state=S2/parameter_hash={parameter_hash}/s2_run_report.json
       ordering: []
       equality: ordered
       optional: false
@@ -418,7 +420,7 @@ states:
       - seed
       - manifest_fingerprint
       - parameter_hash
-      address_template: data/layer1/1B/reports/s3_run_report/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_run_report.json
+      address_template: reports/layer1/1B/state=S3/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_run_report.json
       ordering: []
       equality: ordered
       optional: false
@@ -484,7 +486,7 @@ states:
       - seed
       - manifest_fingerprint
       - parameter_hash
-      address_template: data/layer1/1B/reports/s4_run_report/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_run_report.json
+      address_template: reports/layer1/1B/state=S4/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_run_report.json
       ordering: []
       equality: ordered
       optional: false
@@ -580,7 +582,7 @@ states:
       - seed
       - manifest_fingerprint
       - parameter_hash
-      address_template: data/layer1/1B/reports/s5_run_report/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_run_report.json
+      address_template: reports/layer1/1B/state=S5/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_run_report.json
       ordering: []
       equality: ordered
       optional: false
@@ -691,7 +693,7 @@ states:
       - seed
       - manifest_fingerprint
       - parameter_hash
-      address_template: data/layer1/1B/reports/s6_run_report/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s6_run_report.json
+      address_template: reports/layer1/1B/state=S6/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s6_run_report.json
       ordering: []
       equality: ordered
       optional: false
@@ -772,7 +774,7 @@ states:
       - seed
       - manifest_fingerprint
       - parameter_hash
-      address_template: data/layer1/1B/reports/s7_run_summary/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s7_run_summary.json
+      address_template: reports/layer1/1B/state=S7/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s7_run_summary.json
       ordering: []
       equality: ordered
       optional: false
@@ -827,7 +829,7 @@ states:
       scope_keys:
       - seed
       - manifest_fingerprint
-      address_template: data/layer1/1B/reports/s8_run_summary/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s8_run_summary.json
+      address_template: reports/layer1/1B/state=S8/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s8_run_summary.json
       ordering: []
       equality: ordered
       optional: false

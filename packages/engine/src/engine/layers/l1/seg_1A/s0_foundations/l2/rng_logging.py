@@ -49,7 +49,7 @@ class RNGLogWriter:
     summary_filename: str = "rng_totals.json"
 
     def __post_init__(self) -> None:  # pragma: no cover - simple validation
-        rng_root = (self.base_path / "logs" / "rng").resolve()
+        rng_root = (self.base_path / "logs" / "layer1" / "1A" / "rng").resolve()
         self._events_root = rng_root / "events"
         self._trace_root = rng_root / "trace"
         self._ensure_dir(self._events_root)

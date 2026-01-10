@@ -43,7 +43,7 @@ def _resolve_validation_bundle_dir(
         / "layer1"
         / "1A"
         / "validation"
-        / f"fingerprint={manifest_fingerprint}"
+        / f"manifest_fingerprint={manifest_fingerprint}"
     )
     candidates.append(fallback)
     if fallback.exists():

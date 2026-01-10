@@ -62,75 +62,10 @@ _REQUIRED_PARAMETER_FILES = (
     "ccy_smoothing_params.yaml",
     "s6_selection_policy.yaml",
     "policy.s3.rule_ladder.yaml",
+)
+_OPTIONAL_PARAMETER_FILES = (
     "policy.s3.base_weight.yaml",
     "policy.s3.thresholds.yaml",
-    "policy.s3.bounds.yaml",
-    "alias_layout_policy_v1.json",
-    "day_effect_policy_v1.json",
-    "route_rng_policy_v1.json",
-    "virtual_edge_policy_v1.json",
-    "virtual_rules_policy_v1.json",
-    "zone_mixture_policy.yaml",
-    "country_zone_alphas.yaml",
-    "zone_floor_policy.yaml",
-    "mcc_channel_rules.yaml",
-    "cdn_country_weights.yaml",
-    "virtual_validation.yml",
-    "baseline_intensity_policy_5A.v1.yaml",
-    "demand_scale_policy_5A.v1.yaml",
-    "merchant_class_policy_5A.v1.yaml",
-    "shape_library_5A.v1.yaml",
-    "scenario_horizon_config_5A.v1.yaml",
-    "scenario_overlay_policy_5A.v1.yaml",
-    "arrival_count_config_5B.yaml",
-    "arrival_lgcp_config_5B.yaml",
-    "arrival_rng_policy_5B.yaml",
-    "arrival_routing_policy_5B.yaml",
-    "arrival_time_placement_policy_5B.yaml",
-    "grouping_policy_5B.yaml",
-    "time_grid_policy_5B.yaml",
-    "validation_policy_5B.yaml",
-    "device_linkage_rules_6A.v1.yaml",
-    "graph_linkage_rules_6A.v1.yaml",
-    "validation_policy_6A.v1.yaml",
-    "account_taxonomy_6A.v1.yaml",
-    "device_taxonomy_6A.v1.yaml",
-    "fraud_role_taxonomy_6A.v1.yaml",
-    "instrument_taxonomy_6A.v1.yaml",
-    "ip_taxonomy_6A.v1.yaml",
-    "party_taxonomy_6A.v1.yaml",
-    "account_per_party_priors_6A.v1.yaml",
-    "account_role_priors_6A.v1.yaml",
-    "device_count_priors_6A.v1.yaml",
-    "device_role_priors_6A.v1.yaml",
-    "instrument_mix_priors_6A.v1.yaml",
-    "instrument_per_account_priors_6A.v1.yaml",
-    "ip_count_priors_6A.v1.yaml",
-    "ip_role_priors_6A.v1.yaml",
-    "merchant_role_priors_6A.v1.yaml",
-    "party_role_priors_6A.v1.yaml",
-    "population_priors_6A.v1.yaml",
-    "product_mix_priors_6A.v1.yaml",
-    "segmentation_priors_6A.v1.yaml",
-    "amount_model_6B.yaml",
-    "attachment_policy_6B.yaml",
-    "bank_view_policy_6B.yaml",
-    "behaviour_config_6B.yaml",
-    "behaviour_prior_pack_6B.yaml",
-    "case_policy_6B.yaml",
-    "delay_models_6B.yaml",
-    "flow_rng_policy_6B.yaml",
-    "flow_shape_policy_6B.yaml",
-    "fraud_campaign_catalogue_config_6B.yaml",
-    "fraud_overlay_policy_6B.yaml",
-    "fraud_rng_policy_6B.yaml",
-    "label_rng_policy_6B.yaml",
-    "rng_policy_6B.yaml",
-    "rng_profile_layer3.yaml",
-    "segment_validation_policy_6B.yaml",
-    "sessionisation_policy_6B.yaml",
-    "timing_policy_6B.yaml",
-    "truth_labelling_policy_6B.yaml",
 )
 
 logger = logging.getLogger(__name__)
@@ -353,6 +288,10 @@ class S0FoundationsRunner:
         )
 
         param_paths = [normalized_params[name] for name in _REQUIRED_PARAMETER_FILES]
+        for name in _OPTIONAL_PARAMETER_FILES:
+            optional_path = normalized_params.get(name)
+            if optional_path is not None:
+                param_paths.append(optional_path)
         parameter_digests = hash_artifacts(param_paths, error_prefix="E_PARAM")
         parameter_hash = compute_parameter_hash(parameter_digests)
 
@@ -626,6 +565,8 @@ class S0FoundationsRunner:
         audit_root = (
             base_path
             / "logs"
+            / "layer1"
+            / "1A"
             / "rng"
             / "audit"
             / f"seed={seed}"
@@ -711,7 +652,7 @@ class S0FoundationsRunner:
         except S0Error as failure:
             emit_failure_record(
                 base_path=base_path,
-                fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+                manifest_fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
                 seed=seed,
                 run_id=run_id,
                 failure=failure,

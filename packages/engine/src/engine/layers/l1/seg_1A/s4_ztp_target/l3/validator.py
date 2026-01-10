@@ -42,7 +42,17 @@ def _partition_path(
         / f"parameter_hash={parameter_hash}"
         / f"run_id={run_id}"
     )
-    return root / "logs" / "rng" / "events" / stream / partition / "part-00000.jsonl"
+    return (
+        root
+        / "logs"
+        / "layer1"
+        / "1A"
+        / "rng"
+        / "events"
+        / stream
+        / partition
+        / "part-00000.jsonl"
+    )
 
 
 def _trace_path(root: Path, *, seed: int, parameter_hash: str, run_id: str) -> Path:
@@ -51,7 +61,16 @@ def _trace_path(root: Path, *, seed: int, parameter_hash: str, run_id: str) -> P
         / f"parameter_hash={parameter_hash}"
         / f"run_id={run_id}"
     )
-    return root / "logs" / "rng" / "trace" / partition / "rng_trace_log.jsonl"
+    return (
+        root
+        / "logs"
+        / "layer1"
+        / "1A"
+        / "rng"
+        / "trace"
+        / partition
+        / "rng_trace_log.jsonl"
+    )
 
 
 def _group_attempts(records: Iterable[dict]) -> MutableMapping[int, list[dict]]:

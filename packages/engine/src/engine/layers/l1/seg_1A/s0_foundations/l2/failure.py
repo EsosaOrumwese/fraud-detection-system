@@ -24,7 +24,7 @@ def _write_json(path: Path, payload: Mapping[str, object]) -> None:
 def emit_failure_record(
     *,
     base_path: Path,
-    fingerprint: str,
+    manifest_fingerprint: str,
     seed: int,
     run_id: str,
     failure: S0Error,
@@ -42,7 +42,7 @@ def emit_failure_record(
 
     final_dir = (
         failures_root
-        / f"fingerprint={fingerprint}"
+        / f"manifest_fingerprint={manifest_fingerprint}"
         / f"seed={seed}"
         / f"run_id={run_id}"
     )
@@ -62,7 +62,7 @@ def emit_failure_record(
             "dataset_id": dataset_id,
             "merchant_id": merchant_id,
             "parameter_hash": parameter_hash,
-            "manifest_fingerprint": fingerprint,
+            "manifest_fingerprint": manifest_fingerprint,
             "seed": seed,
             "run_id": run_id,
             "ts_utc": time.time_ns(),

@@ -91,7 +91,7 @@ class S1HurdleRunner:
         self._ensure_audit_exists(base_path, seed, parameter_hash, run_id)
         engine = PhiloxEngine(seed=seed, manifest_fingerprint=manifest_fingerprint)
         writer = HurdleEventWriter(
-            base_path=base_path / "logs" / "rng",
+            base_path=base_path / "logs" / "layer1" / "1A" / "rng",
             seed=seed,
             parameter_hash=parameter_hash,
             manifest_fingerprint=manifest_fingerprint,
@@ -221,6 +221,8 @@ class S1HurdleRunner:
         audit_path = (
             root
             / "logs"
+            / "layer1"
+            / "1A"
             / "rng"
             / "audit"
             / f"seed={seed}"

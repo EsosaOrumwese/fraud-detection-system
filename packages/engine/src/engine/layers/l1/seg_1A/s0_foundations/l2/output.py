@@ -8,17 +8,20 @@ logging to this module.
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
+import re
 import shutil
 import time
 import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Optional, TYPE_CHECKING
+from typing import Iterable, Mapping, Optional, Sequence, TYPE_CHECKING
 
 import polars as pl
+import yaml
 
 from ..exceptions import err
 from ..l1.context import RunContext
@@ -30,6 +33,8 @@ from ...shared.passed_flag import format_passed_flag
 
 if TYPE_CHECKING:
     from ..l2.runner import SealedFoundations
+
+_UNKNOWN_SCHEMA_REF = "unknown"
 
 
 @dataclass(frozen=True)
@@ -76,6 +81,151 @@ def _relative_or_absolute_path(path: Path) -> str:
         return resolved.relative_to(repo_root).as_posix()
     except ValueError:
         return str(resolved)
+
+
+def _load_registry_index() -> dict[str, Mapping[str, object]]:
+    repo_root = get_repo_root()
+    registry_path = (
+        repo_root
+        / "docs"
+        / "model_spec"
+        / "data-engine"
+        / "layer-1"
+        / "specs"
+        / "contracts"
+        / "1A"
+        / "artefact_registry_1A.yaml"
+    )
+    if not registry_path.exists():
+        return {}
+    payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+    index: dict[str, Mapping[str, object]] = {}
+    for block in payload.get("subsegments", []):
+        if not isinstance(block, Mapping):
+            continue
+        artifacts = block.get("artifacts") or []
+        if not isinstance(artifacts, Iterable):
+            continue
+        for artifact in artifacts:
+            if not isinstance(artifact, Mapping):
+                continue
+            name = artifact.get("name")
+            if isinstance(name, str) and name not in index:
+                index[name] = artifact
+    return index
+
+
+def _template_to_glob(template: str) -> str:
+    normalized = template.replace("\\", "/").strip()
+    normalized = re.sub(r"\{[^}]+\}", "*", normalized)
+    if normalized.endswith("/"):
+        normalized = normalized.rstrip("/") + "/**"
+    return normalized
+
+
+def _template_to_regex(template: str) -> re.Pattern[str]:
+    normalized = template.replace("\\", "/").strip()
+    trailing = normalized.endswith("/")
+    normalized = normalized.rstrip("/")
+    escaped = re.escape(normalized)
+    pattern = re.sub(r"\\{([^}]+)\\}", r"(?P<\1>[^/]+)", escaped)
+    if trailing:
+        pattern = f"{pattern}(?:/.*)?"
+    return re.compile(f"^{pattern}$")
+
+
+def _match_registry_entry(
+    rel_path: str, registry_index: Mapping[str, Mapping[str, object]]
+) -> tuple[str | None, Mapping[str, object] | None, Mapping[str, str]]:
+    for name in sorted(registry_index):
+        artifact = registry_index[name]
+        template = artifact.get("path")
+        if not isinstance(template, str) or not template.strip():
+            continue
+        glob_pattern = _template_to_glob(template)
+        if not fnmatch.fnmatch(rel_path, glob_pattern):
+            continue
+        match = _template_to_regex(template).match(rel_path)
+        token_map = match.groupdict() if match else {}
+        return name, artifact, token_map
+    return None, None, {}
+
+
+def _resolve_version_tag(
+    *,
+    token_map: Mapping[str, str],
+    artifact: Mapping[str, object] | None,
+    fallback: str,
+) -> str:
+    for key in ("version", "config_version", "policy_version"):
+        if key in token_map:
+            return str(token_map[key])
+    if artifact is not None:
+        for key in ("version", "semver"):
+            value = artifact.get(key)
+            if isinstance(value, str) and value.strip() and "{" not in value:
+                return value.strip()
+    return fallback
+
+
+def _resolve_schema_ref(artifact: Mapping[str, object] | None) -> str | None:
+    if artifact is None:
+        return None
+    for key in ("schema_ref", "schema"):
+        value = artifact.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _build_sealed_inputs(sealed: "SealedFoundations") -> list[Mapping[str, object]]:
+    repo_root = get_repo_root()
+    registry_index = _load_registry_index()
+    rows: list[Mapping[str, object]] = []
+    for digest in sealed.manifest_fingerprint.artefacts:
+        resolved = digest.path.resolve()
+        try:
+            rel_path = resolved.relative_to(repo_root).as_posix()
+        except ValueError:
+            rel_path = resolved.as_posix()
+        name, artifact, token_map = _match_registry_entry(rel_path, registry_index)
+        asset_id = name or digest.basename
+        version_tag = _resolve_version_tag(
+            token_map=token_map, artifact=artifact, fallback=digest.basename
+        )
+        schema_ref = _resolve_schema_ref(artifact)
+        entry: dict[str, object] = {
+            "asset_id": asset_id,
+            "version_tag": version_tag,
+            "sha256_hex": digest.sha256_hex,
+            "path": _relative_or_absolute_path(resolved),
+            "partition": {key: str(value) for key, value in token_map.items()},
+        }
+        if schema_ref:
+            entry["schema_ref"] = schema_ref
+        rows.append(entry)
+    rows.sort(key=lambda row: (row.get("asset_id", ""), row.get("path", "")))
+    return rows
+
+
+def _build_sealed_inputs_receipt(
+    sealed_inputs: Sequence[Mapping[str, object]],
+) -> list[Mapping[str, object]]:
+    receipt: list[Mapping[str, object]] = []
+    for entry in sealed_inputs:
+        partition = entry.get("partition")
+        partition_keys: list[str] = []
+        if isinstance(partition, Mapping):
+            partition_keys = sorted(str(key) for key in partition.keys())
+        schema_ref = entry.get("schema_ref") or _UNKNOWN_SCHEMA_REF
+        receipt.append(
+            {
+                "id": entry.get("asset_id", ""),
+                "partition": partition_keys,
+                "schema_ref": schema_ref,
+            }
+        )
+    return receipt
 
 
 def _utc_timestamp() -> str:
@@ -351,6 +501,52 @@ def write_outputs(
                 dataset="hurdle_pi_probs",
             )
         _write_parquet(outputs.diagnostics, diag_path)
+
+    abort_log_path = resolve_dataset_path(
+        "merchant_abort_log",
+        base_path=base_path,
+        template_args={"parameter_hash": parameter_hash},
+        dictionary=dictionary,
+    )
+    abort_log_path.parent.mkdir(parents=True, exist_ok=True)
+    abort_log_schema = {
+        "merchant_id": pl.Int64,
+        "state": pl.String,
+        "module": pl.String,
+        "reason": pl.String,
+        "ts_utc": pl.String,
+    }
+    _write_parquet(pl.DataFrame(schema=abort_log_schema), abort_log_path)
+
+    sealed_inputs = _build_sealed_inputs(sealed)
+    sealed_inputs_path = resolve_dataset_path(
+        "sealed_inputs_1A",
+        base_path=base_path,
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
+    )
+    sealed_inputs_path.parent.mkdir(parents=True, exist_ok=True)
+    sealed_inputs_path.write_text(
+        json.dumps(sealed_inputs, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    gate_receipt_path = resolve_dataset_path(
+        "s0_gate_receipt_1A",
+        base_path=base_path,
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
+    )
+    gate_receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        {
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+            "sealed_inputs": _build_sealed_inputs_receipt(sealed_inputs),
+        },
+        gate_receipt_path,
+    )
 
     validation_summary = {
         "parameter_hash": parameter_hash,
