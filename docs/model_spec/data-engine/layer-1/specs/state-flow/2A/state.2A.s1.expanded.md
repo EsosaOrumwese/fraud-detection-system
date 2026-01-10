@@ -123,7 +123,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 
 ### 3.3 Binding constraints on input use
 
-* **Same-fingerprint constraint.** All fingerprinted inputs S1 reads (e.g., `site_locations`) **MUST** match the S0 `manifest_fingerprint`.
+* **Same-manifest_fingerprint constraint.** All fingerprinted inputs S1 reads (e.g., `site_locations`) **MUST** match the S0 `manifest_fingerprint`.
 * **Partition discipline.** For `site_locations`, the selected partition **MUST** be exactly the run’s `(seed, manifest_fingerprint)`; reading across seeds or fingerprints is **forbidden**.
 * **Dictionary-only resolution.** Inputs **MUST** be resolved by **ID → path/partitions/format** via the Dataset Dictionary; literal/ad-hoc paths are **forbidden**.
 * **Shape authority.** The JSON-Schema anchors for each input are the **sole** shape authority; S1 SHALL not assume undeclared columns or tolerances.
@@ -154,8 +154,8 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 1. **2A.S0 gate receipt (evidence)**
 
    * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
-   * **Catalogue:** `s0_gate_receipt_2A` (fingerprint-scoped). 
-   * **Registry:** validation receipt entry (fingerprint partition). 
+   * **Catalogue:** `s0_gate_receipt_2A` (manifest_fingerprint-scoped). 
+   * **Registry:** validation receipt entry (manifest_fingerprint partition). 
    * **Boundary:** S1 SHALL only verify presence + schema validity for the **same** `manifest_fingerprint`; no re-hash, no joins. 
 
 2. **`site_locations` (1B egress; required)**
@@ -163,7 +163,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
    * **Shape:** `schemas.1B.yaml#/egress/site_locations` (PK & partitions). 
    * **Catalogue:** path family `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]`. 
    * **Registry:** 1B egress posture (order-free; write-once; atomic publish). 
-   * **Boundary:** S1 MAY read only the columns required to map `(lat, lon)` to a provisional `tzid`; it SHALL read **only** the run’s `(seed, fingerprint)` partition; no mutation. 
+   * **Boundary:** S1 MAY read only the columns required to map `(lat, lon)` to a provisional `tzid`; it SHALL read **only** the run’s `(seed, manifest_fingerprint)` partition; no mutation. 
 
 3. **`tz_world` polygons (ingress; required)**
 
@@ -182,7 +182,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 
 ### 4.3 Validation responsibilities (S1 scope)
 
-* **Receipt presence & fingerprint match** (same `manifest_fingerprint`). 
+* **Receipt presence & manifest_fingerprint match** (same `manifest_fingerprint`). 
 * **Dictionary resolution** succeeds for each input; no literal paths. 
 * **Partition discipline:** `site_locations` read strictly under the run’s `[seed, manifest_fingerprint]`. 
 * **Ingress minima:** `tz_world` validates (WGS84, non-empty); `tz_nudge` ε > 0.
@@ -207,7 +207,7 @@ S1 SHALL NOT: apply policy **overrides** (S2), parse **tzdb rules** (S3), read a
 
 * **Partition set:** `[seed, manifest_fingerprint]` (no additional partitions). 
 * **Path↔embed equality:** Where lineage appears both in **path tokens** and **row fields**, values **MUST** byte-equal (Layer-1 Identity & Path Law).
-* **Single-writer & immutability:** One successful publish per `(seed, fingerprint)`; re-emitting MUST be **byte-identical** or **ABORT**. (Registry posture mirrors other 2A datasets.) 
+* **Single-writer & immutability:** One successful publish per `(seed, manifest_fingerprint)`; re-emitting MUST be **byte-identical** or **ABORT**. (Registry posture mirrors other 2A datasets.) 
 * **Writer order:** Files **SHOULD** be written in the catalogue order `[merchant_id, legal_country_iso, site_order]`; file order is non-authoritative. 
 
 ### 5.3 No additional S1 outputs
@@ -242,7 +242,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 ### 6.3 Identity & partition posture (binding)
 
 * **Output partitions:** `s1_tz_lookup` is partitioned by **`[seed, manifest_fingerprint]`**; path tokens are governed by the Dataset Dictionary and **MUST** match any embedded lineage fields (path↔embed equality). 
-* **Single-writer & immutability:** One successful publish per `(seed, fingerprint)`; re-emits must be **byte-identical** or abort (Registry posture). 
+* **Single-writer & immutability:** One successful publish per `(seed, manifest_fingerprint)`; re-emits must be **byte-identical** or abort (Registry posture). 
 
 ### 6.4 Binding constraints (shape-level, S1)
 
@@ -265,7 +265,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 
 ### 7.2 Gate → resolve → assign (canonical order)
 
-1. **Verify gate.** Assert presence & schema validity of the **2A.S0 gate receipt** for the target fingerprint. *(S1 may proceed only if valid.)* 
+1. **Verify gate.** Assert presence & schema validity of the **2A.S0 gate receipt** for the target manifest_fingerprint. *(S1 may proceed only if valid.)* 
 2. **Resolve inputs.**
 
    * Select `site_locations` **exactly** at `[seed, manifest_fingerprint]` for this run.
@@ -291,7 +291,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 ### 7.4 Output emission (identity & immutability)
 
 * Emit **`s1_tz_lookup`** under `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]` and writer order `[merchant_id, legal_country_iso, site_order]`. Path↔embed equality **MUST** hold where lineage appears in rows. 
-* **Single-writer, write-once** posture applies; any non-identical re-emit to an existing `(seed, fingerprint)` partition **MUST** abort. 
+* **Single-writer, write-once** posture applies; any non-identical re-emit to an existing `(seed, manifest_fingerprint)` partition **MUST** abort. 
 
 ### 7.5 Prohibitions (non-behaviours)
 
@@ -335,12 +335,12 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 
 ### 8.5 Merge & immutability
 
-* **Write-once per `(seed, fingerprint)`** identity. A re-emit into an existing partition **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Write-once per `(seed, manifest_fingerprint)`** identity. A re-emit into an existing partition **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
 * **Publish posture:** stage → fsync → **single atomic move** into the identity partition. 
 
 ### 8.6 Concurrency & conflict detection
 
-* **Single-writer per identity.** Concurrent writes targeting the same `(seed, fingerprint)` are not permitted; the presence of existing artefacts under that partition constitutes a **conflict** and S1 **MUST** abort. (Global posture mirrored from Layer-1 egress conventions.) 
+* **Single-writer per identity.** Concurrent writes targeting the same `(seed, manifest_fingerprint)` are not permitted; the presence of existing artefacts under that partition constitutes a **conflict** and S1 **MUST** abort. (Global posture mirrored from Layer-1 egress conventions.) 
 
 ### 8.7 Discovery & selection (downstream contract)
 
@@ -351,7 +351,7 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 * **Retention/TTL** and licence class are governed by Dictionary/Registry (typical retention: 365 days).
 * **Relocation** that preserves the Dictionary path family and partitioning is non-breaking; changes that affect partition keys or path tokens are **breaking** and out of scope for S1.
 
-**Effect.** These constraints make `s1_tz_lookup` uniquely addressable by `(seed, fingerprint)`, immutable once published, and safely consumable without ambiguity, with Schema as **shape authority**, Dictionary as **catalogue authority**, and Registry as **existence/licensing authority**.
+**Effect.** These constraints make `s1_tz_lookup` uniquely addressable by `(seed, manifest_fingerprint)`, immutable once published, and safely consumable without ambiguity, with Schema as **shape authority**, Dictionary as **catalogue authority**, and Registry as **existence/licensing authority**.
 
 ---
 
@@ -375,7 +375,7 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 
 **V-06 — Schema validity (Abort).** The emitted `s1_tz_lookup` table validates against `schemas.2A.yaml#/plan/s1_tz_lookup` (**columns_strict: true**). 
 **V-07 — Path↔embed equality (Abort).** Output partition tokens `[seed, manifest_fingerprint]` **byte-equal** any embedded lineage fields, per Layer-1 identity law; dataset is written under `…/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`. 
-**V-08 — Write-once semantics (Abort).** If the target `(seed, fingerprint)` partition already exists, newly written bytes MUST be **byte-identical**; otherwise **ABORT**. 
+**V-08 — Write-once semantics (Abort).** If the target `(seed, manifest_fingerprint)` partition already exists, newly written bytes MUST be **byte-identical**; otherwise **ABORT**. 
 
 ### 9.4 Coverage, uniqueness & assignment (mandatory)
 
@@ -446,9 +446,9 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 
 * **2A-S1-030 OUTPUT_SCHEMA_INVALID (Abort)** — `s1_tz_lookup` fails the schema anchor (columns_strict/PK/types).
   *Remediation:* emit schema-valid rows only.
-* **2A-S1-040 PATH_EMBED_MISMATCH (Abort)** — Any embedded lineage token does not byte-equal the `seed`/`fingerprint` path tokens.
+* **2A-S1-040 PATH_EMBED_MISMATCH (Abort)** — Any embedded lineage token does not byte-equal the `seed`/`manifest_fingerprint` path tokens.
   *Remediation:* correct identity fields or path; rerun.
-* **2A-S1-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, fingerprint)` partition.
+* **2A-S1-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, manifest_fingerprint)` partition.
   *Remediation:* either produce byte-identical output or use a new identity.
 
 ### 10.4 Coverage, uniqueness & assignment
@@ -508,7 +508,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 
 * `s0.receipt_path : string` — Dictionary path to the verified 2A.S0 receipt
 * `s0.verified_at_utc : rfc3339_micros`
-* `inputs.site_locations.path : string` — Dictionary path for the selected `(seed,fingerprint)` partition
+* `inputs.site_locations.path : string` — Dictionary path for the selected `(seed, manifest_fingerprint)` partition
 * `inputs.tz_world.id : string` — release ID (e.g., `tz_world_2025a`)
 * `inputs.tz_world.license : string`
 * `inputs.tz_nudge.semver : string`
@@ -669,8 +669,8 @@ Require a MAJOR bump and downstream coordination:
 
 ### 13.6 Co-existence & migration
 
-* **Dual-anchor window.** When evolving `s1_tz_lookup`, publish a new anchor (e.g., `s1_tz_lookup_v2`) and allow both in Dictionary for a grace period; downstream selects by **anchor version** while still keying identity by `(seed, fingerprint)`.
-* **Re-fingerprinting is upstream.** Changing `tz_world` or `tz_nudge` happens in S0 and yields a **new `manifest_fingerprint`**; S1 recomputes for that fingerprint without spec change.
+* **Dual-anchor window.** When evolving `s1_tz_lookup`, publish a new anchor (e.g., `s1_tz_lookup_v2`) and allow both in Dictionary for a grace period; downstream selects by **anchor version** while still keying identity by `(seed, manifest_fingerprint)`.
+* **Re-fingerprinting is upstream.** Changing `tz_world` or `tz_nudge` happens in S0 and yields a **new `manifest_fingerprint`**; S1 recomputes for that manifest_fingerprint without spec change.
 * **Idempotent re-runs.** Re-running with unchanged inputs must reproduce identical bytes.
 
 ### 13.7 Reserved extension points
@@ -681,7 +681,7 @@ Require a MAJOR bump and downstream coordination:
 ### 13.8 External dependency evolution
 
 * **`tz_world` release churn** is **not** a spec change; it changes only sealed bytes → `manifest_fingerprint` (handled by S0).
-* **`tz_nudge` policy** version bumps (semver) are sealed by S0 and likewise flow through via fingerprint; S1’s law (single ε-nudge, record when applied) remains invariant.
+* **`tz_nudge` policy** version bumps (semver) are sealed by S0 and likewise flow through via manifest_fingerprint; S1’s law (single ε-nudge, record when applied) remains invariant.
 
 ### 13.9 Governance & change process
 
@@ -702,12 +702,12 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 ### A1. Layer-1 governance (global rails)
 
 * **Closed-world & gates:** JSON-Schema is the only shape authority; runs are sealed by `{parameter_hash, manifest_fingerprint}`; downstream reads enforce **No PASS → No Read**.
-* **Bundle/index/flag law:** PASS flag = SHA-256 over raw bytes of files listed in `index.json` (ASCII-lex order, flag excluded); bundles are fingerprint-scoped and write-once/atomic.
+* **Bundle/index/flag law:** PASS flag = SHA-256 over raw bytes of files listed in `index.json` (ASCII-lex order, flag excluded); bundles are manifest_fingerprint-scoped and write-once/atomic.
 * **Layer primitives used by S1:** `id64`, `iso2`, `iana_tzid`, `rfc3339_micros` in the layer schema pack. 
 
 ### A2. Upstream receipt and sealed inputs used by S1
 
-* **2A.S0 gate receipt** (`s0_gate_receipt_2A`) — Dictionary path family (fingerprint-scoped) and schema anchor in the 2A pack. *(S1 verifies presence/validity; does not re-hash bundles.)* 
+* **2A.S0 gate receipt** (`s0_gate_receipt_2A`) — Dictionary path family (manifest_fingerprint-scoped) and schema anchor in the 2A pack. *(S1 verifies presence/validity; does not re-hash bundles.)* 
 * **`site_locations`** (1B egress) — Schema anchor, path/partitions `[seed, manifest_fingerprint]`, writer sort `[merchant_id, legal_country_iso, site_order]`; final-in-layer; order-free.
 * **`tz_world_2025a`** (ingress polygons) — Dictionary entry (GeoParquet, WGS84) and Registry cross-layer pointer; ingress anchor referenced.
 * **`tz_nudge`** (policy) — Dictionary entry and schema anchor (`schemas.2A.yaml#/policy/tz_nudge_v1`).

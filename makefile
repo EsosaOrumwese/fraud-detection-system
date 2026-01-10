@@ -1332,7 +1332,10 @@ receipt=data.get('s0_receipt',''); m=re.search(r'(?:manifest_fingerprint|fingerp
 paths-tree:
 	@$(PY_SCRIPT) scripts/build_paths_tree.py
 
-contracts-pack:
+contracts-sync:
+	@$(PY_SCRIPT) tools/sync_contracts_from_model_spec.py --force
+
+contracts-pack: contracts-sync
 	@$(PY_SCRIPT) tools/build_contracts_pack.py --tag "$(CONTRACTS_PACK_TAG)" --force
 
 profile-all:

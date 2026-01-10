@@ -107,11 +107,18 @@ class S7SiteSynthesisValidator:
         self._validate_geometry(dataset, jitter.frame, tile_bounds)
         pruned_outlets, coverage_ok = self._validate_coverage(dataset, outlet.frame)
 
-        run_summary_path = (
-            config.run_summary_path
-            if config.run_summary_path is not None
-            else dataset_path.parent / "s7_run_summary.json"
-        )
+        run_summary_path = config.run_summary_path
+        if run_summary_path is None:
+            run_summary_path = resolve_dataset_path(
+                "s7_run_summary",
+                base_path=config.data_root,
+                template_args={
+                    "seed": config.seed,
+                    "manifest_fingerprint": config.manifest_fingerprint,
+                    "parameter_hash": config.parameter_hash,
+                },
+                dictionary=dictionary,
+            )
         self._validate_run_summary(
             run_summary_path=run_summary_path,
             dataset=dataset,

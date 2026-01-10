@@ -45,7 +45,7 @@ def materialise_site_locations(
 
     dictionary = prepared.dictionary
     dataset_path = resolve_site_locations_path(
-    base_path=prepared.data_root,
+        base_path=prepared.data_root,
         seed=prepared.seed,
         manifest_fingerprint=prepared.manifest_fingerprint,
         dictionary=dictionary,
@@ -75,7 +75,12 @@ def materialise_site_locations(
             "sha256_hex": staged_digest,
         }
 
-    run_summary_path = dataset_path.parent / "s8_run_summary.json"
+    run_summary_path = _resolve_s8_run_summary_path(
+        base_path=prepared.data_root,
+        seed=prepared.seed,
+        manifest_fingerprint=prepared.manifest_fingerprint,
+        dictionary=dictionary,
+    )
     run_summary_path.parent.mkdir(parents=True, exist_ok=True)
 
     run_summary = _build_run_summary(
@@ -146,6 +151,26 @@ def _build_run_summary(
         iso: stats.to_dict()
         for iso, stats in sorted(outcome.by_country.items(), key=lambda item: item[0])
     }
+
+
+def _resolve_s8_run_summary_path(
+    *,
+    base_path: Path,
+    seed: str,
+    manifest_fingerprint: str,
+    dictionary: Mapping[str, object],
+) -> Path:
+    from ...shared.dictionary import resolve_dataset_path
+
+    return resolve_dataset_path(
+        "s8_run_summary",
+        base_path=base_path,
+        template_args={
+            "seed": seed,
+            "manifest_fingerprint": manifest_fingerprint,
+        },
+        dictionary=dictionary,
+    )
     return {
         "identity": {
             "seed": prepared.seed,

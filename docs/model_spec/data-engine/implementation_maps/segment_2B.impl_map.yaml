@@ -8,15 +8,15 @@ segment:
 generated_at_utc: '2026-01-10T10:31:39.494355Z'
 sources:
   state_expanded_docs:
-  - state.2B.s0.expanded.txt
-  - state.2B.s1.expanded.txt
-  - state.2B.s2.expanded.txt
-  - state.2B.s3.expanded.txt
-  - state.2B.s4.expanded.txt
-  - state.2B.s5.expanded.txt
-  - state.2B.s6.expanded.txt
-  - state.2B.s7.expanded.txt
-  - state.2B.s8.expanded.txt
+  - state.2B.s0.expanded.md
+  - state.2B.s1.expanded.md
+  - state.2B.s2.expanded.md
+  - state.2B.s3.expanded.md
+  - state.2B.s4.expanded.md
+  - state.2B.s5.expanded.md
+  - state.2B.s6.expanded.md
+  - state.2B.s7.expanded.md
+  - state.2B.s8.expanded.md
   dataset_dictionary:
   - dataset_dictionary.layer1.2B.yaml
   artefact_registry:
@@ -33,33 +33,33 @@ source_fingerprints:
   artefact_registry_2B.yaml:
     sha256: 513a8c01c2fc4b79f37359ae09d81e27bfaecd1d70a482901c9ec5d387ade781
   schemas.2B.yaml:
-    sha256: 3e55f2767c16492be0eec6a2c47e9c9092748fbf38965edf0aa1bcffd5253e77
+    sha256: 85e18b528507f0c4746927739fbc1b18edb96ab7c5a1f974bed7d919038f4715
   schemas.layer1.yaml:
     sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
   schemas.ingress.layer1.yaml:
     sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
   schemas.1B.yaml:
-    sha256: 92283b986add164492a997f62ffd9265adb48c75370565576ffd14cb46b96b35
+    sha256: 31dee670d9dc0f4a304e123cc6e44236547a28c2795f7383cdfd62112dae8296
   schemas.2A.yaml:
-    sha256: 480503ff5963fc10cb7f354d3ae6bef181b48bace150bb877bf3701d31cc6192
-  state.2B.s0.expanded.txt:
-    sha256: 19e88f93c368c16fc4135f7cc7ec29a109f81305ac1686451b9f85312b468a10
-  state.2B.s1.expanded.txt:
-    sha256: dd48577bcf40d5e360d27965bc51e563ea5b2cfff825b4c8acc64302e08ef04e
-  state.2B.s2.expanded.txt:
-    sha256: 4dc91d00c6f2ebb14cec5655bbbe1a85b5b8c9956399c8ed44566bba8d264642
-  state.2B.s3.expanded.txt:
-    sha256: 9473e121edbce0f81cf4101ac427c482b0dd3a04122d05bad6c4317d2aaafec8
-  state.2B.s4.expanded.txt:
-    sha256: 4bd82f48f6c644941ed2902e563a747082e545fa73df42c2fc74c10a916a872b
-  state.2B.s5.expanded.txt:
-    sha256: 3b816fa2305e494b7f19633d2736cdfda8a7a778af004a6bd70553a1d4fdec36
-  state.2B.s6.expanded.txt:
-    sha256: a556b3201454b24d56622586113de2526578229d50a4af2e26cf44888c63a09f
-  state.2B.s7.expanded.txt:
-    sha256: bd657c237aaadf33d68f197265058beac13eff28c5686873c01059da5592bad5
-  state.2B.s8.expanded.txt:
-    sha256: 6a0774ea5930b86799a4b2685e98ab4886c08d7231aaf59555b6ebf3d47c617e
+    sha256: fef10e7cdd8c018929b848b082675f583256392ceae921a3cc595255f165e7b0
+  state.2B.s0.expanded.md:
+    sha256: c93c4fca63f285698896699f4a194ed99b244ddbaed81fda9f356df82f334c69
+  state.2B.s1.expanded.md:
+    sha256: 07fc2fe347c470c70f3276c4737bff2d49910c2c95137ff133f9d6a9a034c8b4
+  state.2B.s2.expanded.md:
+    sha256: bfe4d3122c06119d8692a5e48dbcd3d1b5bdad25a058b1d694a4e039ec098f53
+  state.2B.s3.expanded.md:
+    sha256: ec10434ab876961d439bb5d74922b013ab84ee3161f3d653a61da6dff91a7585
+  state.2B.s4.expanded.md:
+    sha256: 97f4be76344f6afe0899087e80a65afa09a5823e11848a33fb94a6c563df455c
+  state.2B.s5.expanded.md:
+    sha256: 78029c8da1e08f56cc44fa6e5d02c459e291ddc7e02d486d4e7f772c04395b81
+  state.2B.s6.expanded.md:
+    sha256: eb14b60b2656f74704efda454c22f6ae6840c5c96a6a623c1c5644a483d5537f
+  state.2B.s7.expanded.md:
+    sha256: 3a3b339e32f6ca5b7a664a6a99f9c5f87fd0d69a076165eee0eef45bf734f0d6
+  state.2B.s8.expanded.md:
+    sha256: 66231b71449a907a1139b2b41b5de57e0aa2c862f8e30fed0bfe1284a62e7a82
 path_tokens:
   parameter_hash: parameter_hash
   manifest_fingerprint: manifest_fingerprint
@@ -166,7 +166,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
   s2_alias_blob:
     dataset_id: s2_alias_blob
@@ -180,7 +180,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
   s3_day_effects:
     dataset_id: s3_day_effects
@@ -197,7 +197,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
   s4_group_weights:
     dataset_id: s4_group_weights
@@ -214,7 +214,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
 states:
   S0:
@@ -240,7 +240,7 @@ states:
       kind: egress
       required_gates: []
       notes:
-      - Sealed input from 2A (seed+fingerprint).
+      - Sealed input from 2A (seed+manifest_fingerprint).
     - dataset_id: tz_timetable_cache
       kind: cache
       required_gates: []
@@ -289,13 +289,13 @@ states:
       - s0_gate_receipt_2B
       - sealed_inputs_2B
     frozen_surfaces:
-    - 'No PASS → no read: S0 MUST verify 1B.final.bundle_gate before reading any 1B egress (site_locations).'
+    - 'No PASS -> no read: S0 MUST verify 1B.final.bundle_gate before reading any 1B egress (site_locations).'
     - S0 seals the minimum pinned input set (site_locations, site_timezones, required policy packs) and records it in
       sealed_inputs_2B; downstream MUST fail-closed if receipt missing.
     - Resolution by ID only: do not embed literal file paths as authorities; dictionary/registry IDs are authoritative.
     - Deterministic verified_at_utc reuse on rerun (idempotent reuse for same manifest_fingerprint) to keep derived outputs
       byte-stable.
-    - Path↔embed equality for manifest_fingerprint in fingerprint-scoped receipts/manifests.
+    - Path<->embed equality for manifest_fingerprint in manifest_fingerprint-scoped receipts/manifests.
     flexible_choices:
     - Streaming verification of upstream bundle digest is allowed so long as it matches the indexed_bundle hashing law
       exactly.
@@ -306,7 +306,7 @@ states:
     - Stream hashing and avoid materializing large evidence files in memory.
     do_not_optimize:
     - Do not skip or weaken upstream gate verification.
-    - Do not admit unpinned inputs into sealed set (no “latest”).
+    - Do not admit unpinned inputs into sealed set (no "latest").
     debug_hooks:
     - s0_gate_receipt_2B must record resolved upstream bundle root path and verified _passed.flag digest.
     - sealed_inputs_2B must enumerate every opened policy/input with digests and schema_refs (drift-localization anchor).
@@ -378,7 +378,7 @@ states:
     do_not_optimize:
     - Do not alter quantisation/tie-break law; do not depend on hash-map iteration order.
     debug_hooks:
-    - Emit per-merchant Σp_weight≈1 diagnostics (in logs/audit report inputs) and floor_applied counts.
+    - Emit per-merchant sump_weight~=1 diagnostics (in logs/audit report inputs) and floor_applied counts.
   S2:
     impl_map_key: segment=2B.state=S2
     state_class: SC-C
@@ -511,7 +511,7 @@ states:
     - Vectorized gamma/lognormal math permitted if deterministic and respects numeric discipline.
     - Computation may be factored per merchant or per tz_group as long as row order and counter assignment laws are preserved.
     perf_hotspots:
-    - Large surface generation across merchants × days × tz_groups.
+    - Large surface generation across merchants x days x tz_groups.
     safe_optimization_levers:
     - Generate per merchant with deterministic day loops; avoid hash-based group ordering.
     do_not_optimize:
@@ -559,8 +559,8 @@ states:
     rng: null
     validation:
       performed_here:
-      - Compute per-merchant × UTC-day tz-group mix p_group using base shares and gamma multipliers; enforce normalisation
-        (Σ p_group = 1).
+      - Compute per-merchant x UTC-day tz-group mix p_group using base shares and gamma multipliers; enforce normalisation
+        (sum p_group = 1).
       - created_utc must equal S0 verified_at_utc.
       deferred_to_finalizer:
       - Audits in S7; final gate in S8.
@@ -578,7 +578,7 @@ states:
     do_not_optimize:
     - Do not introduce nondeterministic tz_group ordering (e.g., unordered sets).
     debug_hooks:
-    - Emit per (merchant, utc_day) Σp_group diagnostics and min/max p_group summaries (for S7 audit).
+    - Emit per (merchant, utc_day) sump_group diagnostics and min/max p_group summaries (for S7 audit).
   S5:
     impl_map_key: segment=2B.state=S5
     state_class: SC-B
@@ -682,7 +682,7 @@ states:
         wrap within a run.
       audit_trace_obligations:
       - Append rng_audit_log and rng_trace_log per layer rules (trace-after-each-event).
-      - Trace reconciliation: rng_trace_log.total_draws == 2 × (#arrivals_routed) and equals sum over both families.
+      - Trace reconciliation: rng_trace_log.total_draws == 2 x (#arrivals_routed) and equals sum over both families.
     validation:
       performed_here:
       - Treat s2_alias_index as decode authority; verify blob_sha256 against raw s2_alias_blob bytes before use.
@@ -1053,4 +1053,4 @@ review_flags:
   summary: 'Assumed resolved: standardize on manifest_fingerprint everywhere (paths, partition keys, examples) to match dictionaries.'
 - flag_id: 2B.RF.layer_label_text
   severity: info
-  summary: 'Assumed resolved: any textual references calling 2A “Layer-2” are corrected to Layer-1 to avoid reviewer/implementer confusion.'
+  summary: 'Assumed resolved: any textual references calling 2A "Layer-2" are corrected to Layer-1 to avoid reviewer/implementer confusion.'

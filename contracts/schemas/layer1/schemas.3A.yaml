@@ -47,7 +47,7 @@ validation:
             required: [bundle_id, bundle_path, flag_path, sha256_hex, status]
             properties:
               bundle_id:  { type: string }
-              bundle_path: { type: string }
+              bundle_path:{ type: string }
               flag_path:  { type: string }
               sha256_hex: { $ref: '#/$defs/hex64' }
               status:     { type: string, enum: [PASS] }
@@ -93,7 +93,7 @@ validation:
       sha256_hex:    { $ref: '#/$defs/hex64' }
       role:          { type: string }
       license_class: { type: string }
-      experiment_tag: { type: string }
+      experiment_tag:{ type: string }
       notes:         { type: string }
 
   zone_alloc_universe_hash:
@@ -215,12 +215,12 @@ plan:
     type: table
     description: "Per-merchant escalation decisions prior to zone sampling."
     primary_key: [merchant_id, legal_country_iso]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: site_count,          type: integer, minimum: 1,       nullable: false }
@@ -261,12 +261,12 @@ plan:
     type: table
     description: "Dirichlet share draws per merchant×country×zone."
     primary_key: [merchant_id, legal_country_iso, tzid]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, tzid]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: tzid,                $ref: '#/$defs/iana_tzid',       nullable: false }
@@ -287,12 +287,12 @@ plan:
     type: table
     description: "Integer outlet counts per merchant×country×zone after floors/bump."
     primary_key: [merchant_id, legal_country_iso, tzid]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, tzid]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: tzid,                $ref: '#/$defs/iana_tzid',       nullable: false }
@@ -313,12 +313,12 @@ egress:
     type: table
     description: "Cross-layer zone allocation egress per merchant×country×zone."
     primary_key: [merchant_id, legal_country_iso, tzid]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, tzid]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: tzid,                $ref: '#/$defs/iana_tzid',       nullable: false }
@@ -338,25 +338,30 @@ egress:
       - { name: notes,               type: string,                    nullable: true }
 
 policy:
-  zone_mixture_policy_v1:
-    type: object
-    additionalProperties: false
-    required: [policy_id, version, theta_mix]
-    properties:
-      policy_id: { type: string }
-      version:   { type: string }
-      theta_mix: { type: number, minimum: 0.0, maximum: 1.0 }
-      rules:
-        type: array
-        items:
-          type: object
-          additionalProperties: false
-          required: [metric, threshold, decision_reason]
-          properties:
-            metric:          { type: string }
-            threshold:       { type: number }
-            decision_reason: { type: string }
-            bucket:          { type: string }
+    zone_mixture_policy_v1:
+      type: object
+      additionalProperties: false
+      required: [policy_id, version, theta_mix, rules]
+      properties:
+        policy_id: { const: zone_mixture_policy_3A }
+        version:   { type: string, minLength: 1 }
+        theta_mix: { type: number, minimum: 0.0, maximum: 1.0 }
+        rules:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [metric, threshold, decision_reason]
+            properties:
+              metric:
+                type: string
+                enum: [site_count_lt, zone_count_country_le, site_count_ge, zone_count_country_ge]
+              threshold:       { type: number }
+              decision_reason:
+                type: string
+                enum: [forced_monolithic, below_min_sites, legacy_default, forced_escalation, default_escalation]
+              bucket:          { type: string }
 
   country_zone_alphas_v1:
     type: object
@@ -375,12 +380,12 @@ policy:
               type: array
               minItems: 1
               items:
-                type: object
-                additionalProperties: false
-                required: [tzid, alpha]
-                properties:
-                  tzid:  { $ref: '#/$defs/iana_tzid' }
-                  alpha: { type: number, minimum: 0.0 }
+                    type: object
+                    additionalProperties: false
+                    required: [tzid, alpha]
+                    properties:
+                      tzid:  { $ref: '#/$defs/iana_tzid' }
+                      alpha: { type: number, exclusiveMinimum: 0.0 }
             notes: { type: string }
 
   zone_floor_policy_v1:

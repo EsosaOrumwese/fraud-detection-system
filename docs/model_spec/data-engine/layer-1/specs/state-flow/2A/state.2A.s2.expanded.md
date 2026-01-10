@@ -75,7 +75,7 @@
 **In scope.**
 
 * Deterministic selection and application of a single highest-precedence **active** override per site.
-* 1:1 row coverage with `s1_tz_lookup` for the same `(seed, fingerprint)`.
+* 1:1 row coverage with `s1_tz_lookup` for the same `(seed, manifest_fingerprint)`.
 * Provenance capture (`tzid_source`, `override_scope`) and conformance checks for override `tzid`.
 
 **Out of scope.**
@@ -164,7 +164,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
    * **Shape:** `schemas.2A.yaml#/plan/s1_tz_lookup` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, manifest_fingerprint]`). 
    * **Catalogue:** `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format Parquet; writer order `[merchant_id, legal_country_iso, site_order]`). 
    * **Registry:** plan dataset; depends on `site_locations`, `tz_world_2025a`, and `tz_nudge`. 
-   * **Boundary:** S2 SHALL read exactly the run’s `(seed, fingerprint)` partition; it SHALL NOT mutate or re-write S1. 
+   * **Boundary:** S2 SHALL read exactly the run’s `(seed, manifest_fingerprint)` partition; it SHALL NOT mutate or re-write S1. 
 
 2. **`tz_overrides` policy (required)**
 
@@ -181,8 +181,8 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 4. **2A.S0 gate receipt (evidence)**
 
    * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
-   * **Catalogue:** fingerprint-scoped receipt under `…/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…`.
-   * **Boundary:** S2 SHALL only verify presence and fingerprint match; it SHALL NOT re-compute bundle hashes. 
+   * **Catalogue:** manifest_fingerprint-scoped receipt under `…/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…`.
+   * **Boundary:** S2 SHALL only verify presence and manifest_fingerprint match; it SHALL NOT re-compute bundle hashes. 
 
 5. **(Optional) Merchant→MCC mapping** *(only if MCC-scope overrides are in use)*
 
@@ -194,7 +194,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 * **Receipt check:** S0 receipt exists and matches the target `manifest_fingerprint`. 
 * **Dictionary resolution:** IDs for `s1_tz_lookup` and `tz_overrides` resolve to canonical paths/partitions/format; S2 MUST NOT use literal paths.
-* **Partition discipline:** Only the run’s `(seed, fingerprint)` is read from S1. 
+* **Partition discipline:** Only the run’s `(seed, manifest_fingerprint)` is read from S1. 
 * **Policy minima:** `tz_overrides` schema-valid; precedence enforced; expiry semantics honoured; any applied `tzid` conforms to `iana_tzid` **and belongs to the sealed `tz_world` release’s tzid domain** (membership check; read-only). 
 
 ### 4.4 Prohibitions
@@ -225,7 +225,7 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 
 * **Selection identity:** exactly one `(seed, manifest_fingerprint)` per publish.
 * **Path↔embed equality:** where lineage appears in both **path tokens** and **row fields**, values **MUST** byte-equal (Layer-1 Identity & Path Law).
-* **Single-writer & immutability:** one successful publish per `(seed, fingerprint)`; any re-emit **MUST** be byte-identical or **ABORT**. (Registry posture mirrors other 2A datasets.) 
+* **Single-writer & immutability:** one successful publish per `(seed, manifest_fingerprint)`; any re-emit **MUST** be byte-identical or **ABORT**. (Registry posture mirrors other 2A datasets.) 
 
 ### 5.3 Writer discipline
 
@@ -262,7 +262,7 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 ### 6.3 Identity & partition posture (binding)
 
 * **Output partitions:** `site_timezones` is partitioned by **`[seed, manifest_fingerprint]`**; the **Dataset Dictionary** governs the path family; **path↔embed equality** MUST hold where lineage appears in rows. 
-* **Single-writer & immutability:** One successful publish per `(seed, fingerprint)`; re-emits must be **byte-identical** or abort (registry posture). 
+* **Single-writer & immutability:** One successful publish per `(seed, manifest_fingerprint)`; re-emits must be **byte-identical** or abort (registry posture). 
 
 ### 6.4 Binding constraints (shape-level, S2)
 
@@ -326,7 +326,7 @@ f) **Finalise assignment & provenance.**
 
 * Emit **`site_timezones`** to `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]`.
 * **Path↔embed equality** MUST hold wherever lineage appears in rows.
-* **Single-writer, write-once** posture: re-emitting to an existing `(seed, fingerprint)` **MUST** be byte-identical; otherwise **ABORT**.
+* **Single-writer, write-once** posture: re-emitting to an existing `(seed, manifest_fingerprint)` **MUST** be byte-identical; otherwise **ABORT**.
 
 ### 7.5 Prohibitions (non-behaviours)
 
@@ -363,7 +363,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 ### 8.3 Keys, uniqueness & coverage
 
 * **Primary key (shape authority):** `[merchant_id, legal_country_iso, site_order]` (per schema anchor). 
-* **Uniqueness & coverage:** exactly one output row per input site key from `s1_tz_lookup` in the selected `(seed, fingerprint)`; no duplicates, no omissions (validators enforce in §9). 
+* **Uniqueness & coverage:** exactly one output row per input site key from `s1_tz_lookup` in the selected `(seed, manifest_fingerprint)`; no duplicates, no omissions (validators enforce in §9). 
 
 ### 8.4 Writer order (discipline)
 
@@ -372,12 +372,12 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 
 ### 8.5 Merge & immutability
 
-* **Write-once per `(seed, fingerprint)`.** Re-emitting into an existing partition **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Write-once per `(seed, manifest_fingerprint)`.** Re-emitting into an existing partition **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
 * **Publish posture:** stage → fsync → single **atomic move** into the identity partition (mirrors Layer-1 egress posture). 
 
 ### 8.6 Concurrency & conflict detection
 
-* **Single-writer per identity.** Concurrent writes targeting the same `(seed, fingerprint)` are not permitted; the presence of any artefact under that partition constitutes a **conflict** and S2 **MUST** abort. (Registry classifies `site_timezones` as an egress with write-once semantics.) 
+* **Single-writer per identity.** Concurrent writes targeting the same `(seed, manifest_fingerprint)` are not permitted; the presence of any artefact under that partition constitutes a **conflict** and S2 **MUST** abort. (Registry classifies `site_timezones` as an egress with write-once semantics.) 
 
 ### 8.7 Discovery & selection (downstream contract)
 
@@ -388,7 +388,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 * **Retention/TTL & licence** are governed by Dictionary/Registry (typical retention: 365 days; Proprietary-Internal). 
 * **Relocation** that preserves the Dictionary path family and partitioning is non-breaking; any change that alters partition keys or path tokens is **breaking** and out of scope for S2.
 
-**Effect.** These constraints make `site_timezones` uniquely addressable by `(seed, fingerprint)`, immutable once published, and safely consumable without ambiguity—**Schema** as shape authority, **Dictionary** as catalogue authority, **Registry** for existence/licensing/retention.
+**Effect.** These constraints make `site_timezones` uniquely addressable by `(seed, manifest_fingerprint)`, immutable once published, and safely consumable without ambiguity—**Schema** as shape authority, **Dictionary** as catalogue authority, **Registry** for existence/licensing/retention.
 
 ---
 
@@ -413,12 +413,12 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 
 **V-08 — Schema validity (Abort).** `site_timezones` validates against `schemas.2A.yaml#/egress/site_timezones` (**columns_strict: true**).
 **V-09 — Path↔embed equality (Abort).** Output partition tokens `[seed, manifest_fingerprint]` **byte-equal** any embedded lineage fields.
-**V-10 — Write-once semantics (Abort).** If the target `(seed, fingerprint)` partition already exists, newly written bytes MUST be **byte-identical**; otherwise **ABORT**.
+**V-10 — Write-once semantics (Abort).** If the target `(seed, manifest_fingerprint)` partition already exists, newly written bytes MUST be **byte-identical**; otherwise **ABORT**.
 **V-11 — Deterministic `created_utc` (Abort).** `created_utc` equals **`S0.receipt.verified_at_utc`** in every emitted row.
 
 ### 9.4 Coverage, uniqueness, provenance & value checks (mandatory)
 
-**V-12 — 1:1 coverage (Abort).** Exactly one `site_timezones` row exists for each `s1_tz_lookup` row in the selected `(seed, fingerprint)`; no drops/extras.
+**V-12 — 1:1 coverage (Abort).** Exactly one `site_timezones` row exists for each `s1_tz_lookup` row in the selected `(seed, manifest_fingerprint)`; no drops/extras.
 **V-13 — PK uniqueness (Abort).** No duplicate `[merchant_id, legal_country_iso, site_order]` in `site_timezones`.
 **V-14 — Non-null tzid (Abort).** Every output row has non-null `tzid`.
 **V-15 — tzid domain (Abort).** Every `tzid` conforms to the layer-wide **`iana_tzid`** domain.
@@ -501,16 +501,16 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 
 * **2A-S2-030 OUTPUT_SCHEMA_INVALID (Abort)** — `site_timezones` fails its schema (columns_strict, PK/types/enums).
   *Remediation:* emit schema-valid rows only.
-* **2A-S2-040 PATH_EMBED_MISMATCH (Abort)** — Embedded lineage tokens don’t byte-equal the `seed`/`fingerprint` path tokens.
+* **2A-S2-040 PATH_EMBED_MISMATCH (Abort)** — Embedded lineage tokens don’t byte-equal the `seed`/`manifest_fingerprint` path tokens.
   *Remediation:* correct identity fields or path; rerun.
-* **2A-S2-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, fingerprint)` partition.
+* **2A-S2-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, manifest_fingerprint)` partition.
   *Remediation:* either reproduce byte-identical output or target a new identity.
 * **2A-S2-042 CREATED_UTC_NONDETERMINISTIC (Abort)** — `created_utc` not equal to **S0.receipt.verified_at_utc**.
   *Remediation:* set to the receipt timestamp; rerun.
 
 ### 10.4 Coverage, uniqueness, provenance & value checks
 
-* **2A-S2-050 COVERAGE_MISMATCH (Abort)** — Not **exactly one** output row per `s1_tz_lookup` row for the selected `(seed, fingerprint)` (missing or extra rows).
+* **2A-S2-050 COVERAGE_MISMATCH (Abort)** — Not **exactly one** output row per `s1_tz_lookup` row for the selected `(seed, manifest_fingerprint)` (missing or extra rows).
   *Remediation:* ensure 1:1 projection; rerun.
 * **2A-S2-051 PRIMARY_KEY_DUPLICATE (Abort)** — Duplicate `[merchant_id, legal_country_iso, site_order]` in `site_timezones`.
   *Remediation:* deduplicate; rerun.
@@ -518,7 +518,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
   *Remediation:* retain polygon result or provide a valid override; rerun.
 * **2A-S2-053 UNKNOWN_TZID (Abort)** — `tzid` fails the layer `iana_tzid` domain.
   *Remediation:* correct the tzid; rerun.
-* **2A-S2-057 TZID_NOT_IN_TZ_WORLD (Abort)** — `tzid` not found in the sealed `tz_world` domain for this fingerprint.
+* **2A-S2-057 TZID_NOT_IN_TZ_WORLD (Abort)** — `tzid` not found in the sealed `tz_world` domain for this manifest_fingerprint.
   *Remediation:* correct tzid or update the sealed `tz_world` release; rerun.
 * **2A-S2-054 PROVENANCE_INVALID (Abort)** — Inconsistent provenance:
   `tzid_source="override"` but `override_scope ∉ {site,mcc,country}`, or
@@ -571,7 +571,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 
 * `s0.receipt_path : string` — Dictionary path to verified 2A.S0 receipt
 * `s0.verified_at_utc : rfc3339_micros`
-* `inputs.s1_tz_lookup.path : string` — Dictionary path for the selected `(seed,fingerprint)`
+* `inputs.s1_tz_lookup.path : string` — Dictionary path for the selected `(seed, manifest_fingerprint)`
 * `inputs.tz_overrides.semver : string`
 * `inputs.tz_overrides.sha256_digest : hex64`
 * `inputs.mcc_mapping.id : string|null` — present iff MCC overrides are active
@@ -668,14 +668,14 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 ### 12.7 Scalability knobs (programme-level)
 
 * **Batch size** for site streaming;
-* **Index build policy** for overrides/MCC (e.g., precomputed maps per fingerprint);
+* **Index build policy** for overrides/MCC (e.g., precomputed maps per manifest_fingerprint);
 * **Writer buffer size** / target row group size for Parquet;
 * **Advisory thresholds** for `override_no_effect`, duplicate `(scope,target)`, and expired-skipped counts (warn-only).
 
 ### 12.8 Re-run & churn costs
 
-* **Fingerprint churn:** Changing **`tz_overrides`** (or MCC mapping, if sealed) produces a **new S0 `manifest_fingerprint`**, requiring S2 recomputation for all seeds selecting that fingerprint.
-* **Idempotent re-runs:** With unchanged inputs for the same `(seed, fingerprint)`, S2 reproduces bytes exactly (write-once partition).
+* **Fingerprint churn:** Changing **`tz_overrides`** (or MCC mapping, if sealed) produces a **new S0 `manifest_fingerprint`**, requiring S2 recomputation for all seeds selecting that manifest_fingerprint.
+* **Idempotent re-runs:** With unchanged inputs for the same `(seed, manifest_fingerprint)`, S2 reproduces bytes exactly (write-once partition).
 
 ### 12.9 Typical envelopes (order-of-magnitude)
 
@@ -702,7 +702,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 3. **Shape/keys:** PK = `[merchant_id, legal_country_iso, site_order]`; required columns include `tzid`, `tzid_source ∈ {polygon, override}`; `override_scope ∈ {site,mcc,country|null}`; `nudge_*` carry-through; `created_utc` present.
 4. **Determinism:** `created_utc` **= S0.receipt.verified_at_utc**; S2 is RNG-free.
 5. **Precedence & activity law:** exactly **one** active override at most, with precedence **site » mcc » country**; “active” means `expiry_yyyy_mm_dd` is **null** or **≥** S0 receipt **date** (no wall clock).
-6. **Coverage:** 1:1 from `s1_tz_lookup` rows (same `(seed,fingerprint)`) to `site_timezones` rows; no drops/extras.
+6. **Coverage:** 1:1 from `s1_tz_lookup` rows (same `(seed, manifest_fingerprint)`) to `site_timezones` rows; no drops/extras.
 7. **Catalogue posture:** **Dictionary** is authority for IDs→paths/partitions/format; **Registry** for existence/licence/retention; **Schema** is sole shape authority.
 8. **Validator & code semantics:** §9 validators and §10 error codes retain their meanings.
 
@@ -738,8 +738,8 @@ Require a MAJOR bump and downstream coordination:
 
 ### 13.6 Co-existence & migration
 
-* **Dual-anchor window.** Evolving `site_timezones` uses a new anchor (e.g., `…/site_timezones_v2`) while the old one remains valid; Dictionary may list both; identity remains `(seed,fingerprint)`.
-* **Re-fingerprinting is upstream.** Changes to `tz_overrides` (or MCC mapping) are sealed in S0 and yield a new **`manifest_fingerprint`**; S2 recomputes for that fingerprint without spec change.
+* **Dual-anchor window.** Evolving `site_timezones` uses a new anchor (e.g., `…/site_timezones_v2`) while the old one remains valid; Dictionary may list both; identity remains `(seed, manifest_fingerprint)`.
+* **Re-fingerprinting is upstream.** Changes to `tz_overrides` (or MCC mapping) are sealed in S0 and yield a new **`manifest_fingerprint`**; S2 recomputes for that manifest_fingerprint without spec change.
 * **Idempotent re-runs.** Reruns with unchanged inputs reproduce bytes exactly (write-once partition).
 
 ### 13.7 Reserved extension points
@@ -777,7 +777,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 ### A2. Upstream receipts & inputs used by S2
 
-* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped, catalogue path family `…/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…`).
+* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (manifest_fingerprint-scoped, catalogue path family `…/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…`).
 * **S1 output** — `s1_tz_lookup`: `schemas.2A.yaml#/plan/s1_tz_lookup`; Dictionary path `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (partitions `[seed, manifest_fingerprint]`).
 * **Policy overrides** — `tz_overrides`: `schemas.2A.yaml#/policy/tz_overrides_v1`; Dictionary path `config/layer1/2A/timezone/tz_overrides.yaml` (precedence site » mcc » country).
 * **(Optional) Merchant→MCC mapping** — `merchant_mcc_map` dataset (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); must be sealed and enumerated in the S0 manifest for the run.
@@ -796,14 +796,14 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 * **Inputs:** `s1_tz_lookup` (plan; `[seed, manifest_fingerprint]`), `tz_overrides` (policy file), *(optional)* MCC mapping (if used).
 * **Output:** `site_timezones` (egress; `[seed, manifest_fingerprint]`; Parquet; writer order `[merchant_id, legal_country_iso, site_order]`).
-* **Evidence:** 2A.S0 receipt (fingerprint-scoped).
+* **Evidence:** 2A.S0 receipt (manifest_fingerprint-scoped).
 
 ### A6. Artefact Registry entries (existence/licensing posture)
 
 * **`s1_tz_lookup`** — plan dataset; depends on `site_locations`, `tz_world_<release>`, `tz_nudge`.
 * **`tz_overrides`** — policy/config (precedence and retention recorded).
 * **`site_timezones`** — egress (write-once; atomic publish; final-in-layer).
-* **2A validation bundle/flag (S5)** — fingerprint-scoped gate for 2A egress (enforced downstream; noted here for programme continuity).
+* **2A validation bundle/flag (S5)** — manifest_fingerprint-scoped gate for 2A egress (enforced downstream; noted here for programme continuity).
 
 ### A7. Segment-level context
 

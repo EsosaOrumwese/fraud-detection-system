@@ -1,0 +1,1054 @@
+subsegments:
+  - id: "3B"
+    name: "Special Treatment for Purely Virtual Merchants"
+    artifacts:
+
+      # 0 UPSTREAM HASHGATE ARTEFACTS (No PASS → No read)
+      - name: validation_bundle_1A
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.validation.bundle
+        license: Proprietary-Internal
+        role: Fingerprint-scoped PASS bundle for Segment 1A; S0 recomputes hash before any read.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema:
+          index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+        cross_layer: true
+        notes: "Hashing law: ASCII-lex order on index entries; `_passed.flag` excluded."
+
+      - name: validation_passed_flag_1A
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.validation.passed
+        license: Proprietary-Internal
+        role: Companion flag carrying the validation bundle digest; 3B refuses to read if missing.
+        dependencies: [ validation_bundle_1A ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_1B
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.validation.bundle
+        license: Proprietary-Internal
+        role: Segment 1B PASS bundle; S0 enforces No PASS → No read before touching site-level data.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema:
+          index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+        cross_layer: true
+        notes: null
+
+      - name: validation_passed_flag_1B
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.validation.passed
+        license: Proprietary-Internal
+        role: Single-line digest for validation_bundle_1B.
+        dependencies: [ validation_bundle_1B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1B.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_2A
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.validation.bundle
+        license: Proprietary-Internal
+        role: Segment 2A PASS bundle establishing sealed tz assets; referenced for provenance.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        cross_layer: true
+        notes: null
+
+      - name: validation_passed_flag_2A
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.validation.passed
+        license: Proprietary-Internal
+        role: Companion flag for validation_bundle_2A.
+        dependencies: [ validation_bundle_2A ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2A.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_3A
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.validation.bundle
+        license: Proprietary-Internal
+        role: Segment 3A PASS bundle; 3B honours the same HashGate before consuming zone artefacts.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        cross_layer: true
+        notes: null
+
+      - name: validation_passed_flag_3A
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.validation.passed
+        license: Proprietary-Internal
+        role: "`_passed.flag` for the 3A bundle; mandatory before any 3B read."
+        dependencies: [ validation_bundle_3A ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/passed_flag_3A
+        cross_layer: true
+        notes: null
+
+      # 1 CROSS-LAYER INPUT
+      - name: site_locations
+        path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.egress.site_locations
+        license: Proprietary-Internal
+        role: Immutable site geometry from 1B (3B joins by merchant but MUST NOT mutate 1B rows).
+        dependencies: []
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1B.yaml#/egress/site_locations
+        cross_layer: true
+        notes: null
+
+      - name: outlet_catalogue
+        path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.output.outlet_catalogue
+        license: Proprietary-Internal
+        role: Immutable outlet stubs from 1A used by 3B for virtual overlays.
+        dependencies: []
+        source: internal
+        owner: { owner_team: "mlr-1a-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1A.yaml#/egress/outlet_catalogue
+        cross_layer: true
+        notes: null
+
+      - name: site_timezones
+        path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.egress.site_timezones
+        license: Proprietary-Internal
+        role: Per-site tzid assignments from 2A for routing governance.
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2a-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2A.yaml#/egress/site_timezones
+        cross_layer: true
+        notes: null
+
+      - name: tz_timetable_cache
+        path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: cache
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.cache.tz_timetable
+        license: Proprietary-Internal
+        role: Fingerprint-scoped civil-time cache manifest compiled by 2A.
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2a-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2A.yaml#/cache/tz_timetable_cache
+        cross_layer: true
+        notes: null
+
+      - name: zone_alloc
+        path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.zone_alloc
+        license: Proprietary-Internal
+        role: Cross-layer zone allocation egress from 3A used by 3B.
+        dependencies: []
+        source: internal
+        owner: { owner_team: "mlr-3a-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3A.yaml#/egress/zone_alloc
+        cross_layer: true
+        notes: null
+
+      - name: zone_alloc_universe_hash
+        path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.zone_alloc_universe_hash
+        license: Proprietary-Internal
+        role: Digest summary tying priors, policies, and allocation outputs for zone allocation.
+        dependencies: []
+        source: internal
+        owner: { owner_team: "mlr-3a-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+        cross_layer: true
+        notes: null
+
+      - name: transaction_schema_merchant_ids
+        path: reference/layer1/transaction_schema_merchant_ids/{version}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{version}"
+        digest: "{sha256}"
+        manifest_key: mlr.input.transaction_schema.merchant_ids
+        license: Proprietary-Internal
+        role: Authoritative merchant ID seed list derived from transaction schema.
+        dependencies: []
+        source: external
+        owner: { owner_team: null }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.ingress.layer1.yaml#/merchant_ids
+        cross_layer: true
+        notes: null
+
+      # 2 VIRTUAL MERCHANT CLASSIFICATION RULES
+      - name: mcc_channel_rules
+        path: config/layer1/3B/virtual/mcc_channel_rules.yaml
+        type: config
+        category: virtual_classification
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_rules
+        license: Proprietary-Internal
+        role: "MCC + channel rules driving `is_virtual` derivation."
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/policy/virtual_rules_policy_v1
+        cross_layer: true
+        notes: null
+
+      # split external weights vs internal wrapper (licensing clarity)
+      - name: cdn_weights_ext_yaml
+        path: artefacts/external/cdn_weights_ext.yaml
+        type: dataset
+        category: reference
+        semver: "{semver}"
+        version: "{data_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.ref.cdn_weights_ext_yaml
+        license: CC-BY-4.0
+        role: Raw external CDN weights YAML (frozen bytes) used to derive `cdn_country_weights`.
+        dependencies: []
+        source: external
+        owner: { owner_team: "data-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/reference/cdn_weights_ext_yaml_v1
+        cross_layer: false
+        notes: null
+
+      - name: cdn_country_weights
+        path: config/layer1/3B/virtual/cdn_country_weights.yaml
+        type: config
+        category: virtual_routing
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.cdn_country_weights
+        license: Proprietary-Internal
+        role: Thin wrapper mapping/selection over external weights; edge_scale=500.
+        dependencies: [ cdn_weights_ext_yaml ]
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/policy/cdn_country_weights_v1
+        cross_layer: true
+        notes: null
+
+      - name: virtual_settlement_coords
+        path: artefacts/virtual/virtual_settlement_coords.csv
+        type: dataset
+        category: virtual_geocode
+        semver: "{semver}"
+        version: "{coordinate_batch}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.settlement_coords
+        license: Proprietary-Internal
+        role: "`merchant_id → (lat, lon, evidence_url)` for settlement node."
+        dependencies: []
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/reference/virtual_settlement_coords_v1
+        cross_layer: true
+        notes: null
+
+      - name: pelias_cached_sqlite
+        path: artefacts/geocode/pelias_cached.sqlite
+        type: dataset
+        category: geocode_bundle
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.pelias_bundle
+        license: CC-BY-4.0
+        role: Offline Pelias bundle for evidence-URL geocoding.
+        dependencies: []
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/reference/pelias_cached_sqlite_v1
+        cross_layer: true
+        notes: null
+
+      - name: pelias_cached_bundle
+        path: artefacts/geocode/pelias_cached_bundle.json
+        type: manifest
+        category: geocode_bundle
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.pelias_bundle_meta
+        license: CC-BY-4.0
+        role: Metadata for the Pelias SQLite bundle (version + sha256).
+        dependencies: [ pelias_cached_sqlite ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/reference/pelias_cached_bundle_v1
+        cross_layer: true
+        notes: null
+
+        # 5 POPULATION RASTER FOR EDGE SAMPLING
+        - name: hrsl_raster
+          path: artefacts/rasters/hrsl_100m.tif
+          type: reference
+          category: population_raster
+          semver: "{semver}"
+          version: "{vintage}"
+          digest: "{sha256}"
+          manifest_key: mlr.3B.ref.hrsl_raster
+          license: CC-BY-4.0
+          role: 100 m HRSL raster used for edge coordinate sampling.
+          dependencies: []
+          source: external
+          owner: { data_governance_team }
+          last_updated: "{iso8601_timestamp}"
+          environment: [ runtime ]
+          schema: schemas.ingress.layer1.yaml#/population_raster
+          cross_layer: true
+          notes: null
+
+      # 6 GOVERNING VALIDATION & LOGGING POLICIES
+      - name: virtual_validation_policy
+        path: config/layer1/3B/virtual/virtual_validation.yml
+        type: config
+        category: validation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_validation
+        license: Proprietary-Internal
+        role: Tolerances for country-share & settlement cut-off checks.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/policy/virtual_validation_policy_v1
+        cross_layer: false
+        notes: null
+
+      - name: virtual_logging_policy
+        path: config/layer1/3B/logging/virtual_logging.yml
+        type: config
+        category: logging
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_logging
+        license: Proprietary-Internal
+        role: Log rotation and retention policy for virtual run logs.
+        dependencies: []
+        source: internal
+        owner: { ops_team }
+        schema: schemas.3B.yaml#/policy/virtual_logging_policy_v1
+        cross_layer: false
+        notes: null
+
+      - name: virtual_routing_policy_3B
+        path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+        type: dataset
+        category: virtual_routing
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.virtual.routing_policy
+        license: Proprietary-Internal
+        role: Dual-TZ routing contract consumed by 2B to replay virtual edge selection deterministically.
+        dependencies:
+          - edge_catalogue_index_3B
+          - edge_alias_blob_3B
+          - edge_alias_index_3B
+          - edge_universe_hash_3B
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+        cross_layer: true
+        notes: null
+
+      - name: virtual_validation_contract_3B
+        path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.virtual.validation_contract
+        license: Proprietary-Internal
+        role: Declarative manifest-scoped test contract listing IP-country, cut-off, and edge-health checks.
+        dependencies: [ virtual_validation_policy, virtual_routing_policy_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/egress/virtual_validation_contract_3B
+        cross_layer: true
+        notes: null
+
+      - name: s0_gate_receipt_3B
+        path: data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s0_gate_receipt
+        license: Proprietary-Internal
+        role: Gate receipt capturing upstream PASS status, sealed policy set, and authoritative digests.
+        dependencies:
+          - validation_bundle_1A
+          - validation_passed_flag_1A
+          - validation_bundle_1B
+          - validation_passed_flag_1B
+          - validation_bundle_2A
+          - validation_passed_flag_2A
+          - validation_bundle_3A
+          - validation_passed_flag_3A
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s0_gate_receipt_3B
+        cross_layer: false
+        notes: null
+
+    - name: sealed_inputs_3B
+      path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.sealed_inputs
+        license: Proprietary-Internal
+        role: Inventory of every artefact authorised for the manifest.
+        dependencies: [ s0_gate_receipt_3B ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/sealed_inputs_3B
+        cross_layer: false
+        notes: null
+
+      - name: virtual_classification_3B
+        path: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: plan
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.s1.virtual_classification
+        license: Proprietary-Internal
+        role: Merchant-level classification surface with closed vocabulary reason codes.
+        dependencies: [ mcc_channel_rules, virtual_settlement_coords ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/plan/virtual_classification_3B
+        cross_layer: false
+        notes: null
+
+      - name: virtual_settlement_3B
+        path: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: plan
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.s1.virtual_settlement
+        license: Proprietary-Internal
+        role: One settlement node per virtual merchant with tzid semantics and evidence URLs.
+        dependencies: [ virtual_settlement_coords, pelias_cached_sqlite ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/plan/virtual_settlement_3B
+        cross_layer: false
+        notes: null
+
+      - name: edge_catalogue_3B
+        path: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: plan
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.s2.edge_catalogue
+        license: Proprietary-Internal
+        role: Per-edge geometry, tz semantics and weights for all virtual merchants.
+        dependencies: [ cdn_country_weights, virtual_settlement_3B, hrsl_raster ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/plan/edge_catalogue_3B
+        cross_layer: false
+        notes: null
+
+      - name: edge_catalogue_index_3B
+        path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+        type: dataset
+        category: plan
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.s2.edge_catalogue_index
+        license: Proprietary-Internal
+        role: Digest summary and per-merchant counts for the edge catalogue.
+        dependencies: [ edge_catalogue_3B ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/plan/edge_catalogue_index_3B
+        cross_layer: false
+        notes: null
+
+      - name: edge_alias_blob_3B
+        path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+        type: dataset
+        category: plan
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.s3.edge_alias_blob
+        license: Proprietary-Internal
+        role: Alias table blob for virtual edge selection.
+        dependencies: [ edge_catalogue_3B, alias_layout_policy_v1 ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/binary/edge_alias_blob_3B
+        cross_layer: false
+        notes: null
+
+      - name: edge_alias_index_3B
+        path: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+        type: dataset
+        category: plan
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.s3.edge_alias_index
+        license: Proprietary-Internal
+        role: Index describing alias blob slices, offsets, and digests.
+        dependencies: [ edge_alias_blob_3B ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/plan/edge_alias_index_3B
+        cross_layer: false
+        notes: null
+
+      - name: edge_universe_hash_3B
+        path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.edge_universe_hash
+        license: Proprietary-Internal
+        role: Fingerprint-scoped hash tying CDN weights, edge catalogue/index and alias outputs.
+        dependencies: [ edge_catalogue_index_3B, edge_alias_index_3B, cdn_key_digest ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/edge_universe_hash_3B
+        cross_layer: false
+        notes: null
+
+      - name: s4_run_summary_3B
+        path: reports/layer1/3B/state=S4/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s4_run_summary
+        license: Proprietary-Internal
+        role: Summary of S4 routing policy compilation checks.
+        dependencies: [ virtual_routing_policy_3B, edge_universe_hash_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s4_run_summary_3B
+        cross_layer: false
+        notes: null
+
+      - name: s1_run_report_3B
+        path: reports/layer1/3B/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+        type: dataset
+        category: report
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.run_report.s1
+        license: Proprietary-Internal
+        role: Run report for 3B.S1 virtual classification.
+        dependencies: [ virtual_classification_3B ]
+        source: internal
+        owner: { ops_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/run_report/segment_state_run
+        cross_layer: false
+        notes: null
+
+      - name: s2_run_report_3B
+        path: reports/layer1/3B/state=S2/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+        type: dataset
+        category: report
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.run_report.s2
+        license: Proprietary-Internal
+        role: Run report for 3B.S2 edge catalogue.
+        dependencies: [ edge_catalogue_3B ]
+        source: internal
+        owner: { ops_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/run_report/segment_state_run
+        cross_layer: false
+        notes: null
+
+      - name: s3_run_report_3B
+        path: reports/layer1/3B/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+        type: dataset
+        category: report
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.run_report.s3
+        license: Proprietary-Internal
+        role: Run report for 3B.S3 alias packaging.
+        dependencies: [ edge_alias_index_3B ]
+        source: internal
+        owner: { ops_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/run_report/segment_state_run
+        cross_layer: false
+        notes: null
+
+      - name: s4_run_report_3B
+        path: reports/layer1/3B/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+        type: dataset
+        category: report
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.run_report.s4
+        license: Proprietary-Internal
+        role: Run report for 3B.S4 routing policy compilation.
+        dependencies: [ virtual_routing_policy_3B ]
+        source: internal
+        owner: { ops_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/run_report/segment_state_run
+        cross_layer: false
+        notes: null
+
+      - name: s5_run_report_3B
+        path: reports/layer1/3B/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+        type: dataset
+        category: report
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.run_report.s5
+        license: Proprietary-Internal
+        role: Run report for 3B.S5 validation bundle.
+        dependencies: [ validation_bundle_3B ]
+        source: internal
+        owner: { ops_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/run_report/segment_state_run
+        cross_layer: false
+        notes: null
+
+      - name: rng_audit_log
+        path: logs/layer1/3B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        type: log
+        category: rng_core
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.rng.core.3B.audit
+        license: Proprietary-Internal
+        role: Run-scoped audit envelope for Segment 3B RNG usage (seed, parameters, build metadata).
+        dependencies: [ route_rng_policy_v1 ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+        cross_layer: false
+        notes: null
+
+      - name: rng_trace_log
+        path: logs/layer1/3B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        type: log
+        category: rng_core
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.rng.core.3B.trace
+        license: Proprietary-Internal
+        role: Cumulative RNG trace for Segment 3B substreams; append exactly one row after each event.
+        dependencies: [ route_rng_policy_v1, rng_audit_log ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+        cross_layer: false
+        notes: null
+
+      - name: rng_event_edge_tile_assign
+        path: logs/layer1/3B/rng/events/edge_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.rng.events.3B.edge_tile_assign
+        license: Proprietary-Internal
+        role: RNG events for S2 edge tile assignment (one per expanded edge slot).
+        dependencies: [ edge_catalogue_3B ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/rng/events/edge_tile_assign
+        cross_layer: false
+        notes: null
+
+      - name: rng_event_edge_jitter
+        path: logs/layer1/3B/rng/events/edge_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.rng.events.3B.edge_jitter
+        license: Proprietary-Internal
+        role: RNG events for S2 edge jitter attempts (one per attempt).
+        dependencies: [ edge_catalogue_3B ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/rng/events/edge_jitter
+        cross_layer: false
+        notes: null
+
+      - name: day_effect_policy_v1
+        path: config/layer1/2B/policy/day_effect_policy_v1.json
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.policy.day_effect_v1
+        license: Proprietary-Internal
+        role: Daily modulation cadence/variance/clipping (shared policy; used by 3B gamma/day-effect draws).
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2B.yaml#/policy/day_effect_policy_v1
+        cross_layer: true
+        notes: null
+      - name: alias_layout_policy_v1
+        path: config/layer1/2B/policy/alias_layout_policy_v1.json
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.policy.alias_layout_v1
+        license: Proprietary-Internal
+        role: Alias table byte layout, endianness & alignment (shared policy; used by 3B edge alias blob/index).
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2B.yaml#/policy/alias_layout_policy_v1
+        cross_layer: true
+        notes: null
+
+      - name: gamma_draw_log_3B
+        path: logs/layer1/3B/gamma_draw/seed={seed}/manifest_fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{seed}.{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.log.gamma_draw_3B
+        license: Proprietary-Internal
+        role: Structured Philox audit for gamma draws in the virtual pipeline.
+        dependencies: [ day_effect_policy_v1 ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B
+        cross_layer: true
+        notes: null
+
+      # 3B SCHEMA FOR CDN ALIAS CONTAINER
+      - name: validation_bundle_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.bundle
+        license: Proprietary-Internal
+        role: Fingerprint-scoped evidence bundle for 3B; contains validation reports, digests, and manifests.
+        dependencies:
+          - virtual_manifest
+          - virtual_routing_policy_3B
+          - virtual_validation_contract_3B
+          - edge_universe_hash_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_index_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.bundle_index
+        license: Proprietary-Internal
+        role: Canonical index.json enumerating bundle evidence and SHA-256 digests.
+        dependencies: [ validation_bundle_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        cross_layer: true
+        notes: null
+
+      - name: validation_passed_flag_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.passed
+        license: Proprietary-Internal
+        role: Single-line digest that downstream segments verify before reading 3B outputs (No PASS → No read).
+        dependencies: [ validation_bundle_index_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/passed_flag_3B
+        cross_layer: true
+        notes: null
+
+      - name: s5_manifest_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s5_manifest
+        license: Proprietary-Internal
+        role: Summary manifest emitted by 3B.S5 (identity, digests, check outcomes); included in the bundle.
+        dependencies:
+          - validation_bundle_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s5_manifest_3B
+        cross_layer: false
+        notes: null
+
+      # 10 PROCESS & RECOVERY LOGS
+      - name: route_rng_policy_v1
+        path: config/layer1/2B/policy/route_rng_policy_v1.json
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.policy.route_rng_v1
+        license: Proprietary-Internal
+        role: Philox sub-stream layout & budgets for routing + CDN alias streams (shared policy).
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2B.yaml#/policy/route_rng_policy_v1
+        cross_layer: true
+        notes: null
+
+      - name: cdn_key_digest
+        path: config/layer1/3B/virtual/cdn_key_digest.yaml
+        type: config
+        category: policy
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.cdn_key_digest
+        license: Proprietary-Internal
+        role: Key-material digest used for virtual edge RNG domain separation; sealed by 3B.S0.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/policy/cdn_key_digest_v1
+        cross_layer: false
+        notes: null

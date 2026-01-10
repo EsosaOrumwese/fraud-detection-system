@@ -28,7 +28,7 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` - Initial specification for 2A.S3 (compile tzdb into fingerprint-scoped `tz_timetable_cache`). Subsequent edits follow §13 Change Control.
+* `v1.0.0-alpha` - Initial specification for 2A.S3 (compile tzdb into manifest_fingerprint-scoped `tz_timetable_cache`). Subsequent edits follow §13 Change Control.
 
 ---
 
@@ -40,7 +40,7 @@
 * `tz_world_2025a` - scope: UNPARTITIONED (sealed reference); sealed_inputs: required
 
 **Authority / ordering:**
-* S3 compiles a fingerprint-scoped cache; no order authority is created.
+* S3 compiles a manifest_fingerprint-scoped cache; no order authority is created.
 
 **Outputs:**
 * `tz_timetable_cache` - scope: FINGERPRINT_SCOPED; gate emitted: none
@@ -53,7 +53,7 @@
 
 ## 2. Purpose & scope **(Binding)**
 
-**Intent.** Transform the sealed **IANA tzdb release** into a **fingerprint-scoped transition cache** for all relevant `tzid`s, suitable for fast, deterministic civil-time lookups in downstream states.
+**Intent.** Transform the sealed **IANA tzdb release** into a **manifest_fingerprint-scoped transition cache** for all relevant `tzid`s, suitable for fast, deterministic civil-time lookups in downstream states.
 
 **Objectives (normative).** 2A.S3 SHALL:
 
@@ -79,9 +79,9 @@
 **Interfaces (design relationship).**
 
 * **Upstream:** Consumes S0 receipt (gate), `tzdb_release` (required), and `tz_world` (coverage domain), all for the target `manifest_fingerprint`.
-* **Downstream:** S4 (legality) and other consumers read **`tz_timetable_cache`** by `fingerprint` to evaluate gaps/folds and legal times; S5 will gate 2A egress using the standard bundle/flag.
+* **Downstream:** S4 (legality) and other consumers read **`tz_timetable_cache`** by `manifest_fingerprint` to evaluate gaps/folds and legal times; S5 will gate 2A egress using the standard bundle/flag.
 
-**Completion semantics.** S3 is complete when **`tz_timetable_cache`** is written under the correct `fingerprint` partition, the manifest schema-validates, **path↔embed equality** holds, `created_utc` is deterministic as specified, and the compiled index passes coverage and integrity checks.
+**Completion semantics.** S3 is complete when **`tz_timetable_cache`** is written under the correct `manifest_fingerprint` partition, the manifest schema-validates, **path↔embed equality** holds, `created_utc` is deterministic as specified, and the compiled index passes coverage and integrity checks.
 
 ---
 
@@ -92,13 +92,13 @@
 S3 SHALL begin only when:
 
 * **Gate verified.** A valid **2A.S0 gate receipt** exists and schema-validates for the target `manifest_fingerprint`. S3 relies on this receipt for read permission and sealed-input identity; it does not re-hash upstream bundles.
-* **Run identity fixed.** The **`manifest_fingerprint`** is selected and constant for the run; S3 is fingerprint-scoped (no `seed`). The Dictionary lists the S3 output under a fingerprint-only path. 
+* **Run identity fixed.** The **`manifest_fingerprint`** is selected and constant for the run; S3 is manifest_fingerprint-scoped (no `seed`). The Dictionary lists the S3 output under a manifest_fingerprint-only path. 
 * **Authorities addressable.** The 2A schema pack, Dataset Dictionary, and Artefact Registry entries required below resolve without placeholders (Schema=shape, Dictionary=IDs→paths/partitions/format, Registry=existence/licence/retention).
 * **Posture.** S3 is **RNG-free** and deterministic; observational fields are derived from sealed inputs (cf. `created_utc`). 
 
 ### 3.2 Sealed inputs (consumed in S3)
 
-S3 **consumes only** the following inputs. All MUST be resolved **by ID via the Dataset Dictionary** (no literal paths) and be authorised by the Registry. Where an input is not fingerprint-partitioned, its **bytes and version tag are fixed by the S0 sealed manifest** for this `manifest_fingerprint`. 
+S3 **consumes only** the following inputs. All MUST be resolved **by ID via the Dataset Dictionary** (no literal paths) and be authorised by the Registry. Where an input is not manifest_fingerprint-partitioned, its **bytes and version tag are fixed by the S0 sealed manifest** for this `manifest_fingerprint`. 
 
 1. **`tzdb_release` (required)**
    *Role:* authoritative IANA tzdata archive and release tag used to compile the transition index.
@@ -113,19 +113,19 @@ S3 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 3. **2A.S0 gate receipt (evidence)**
    *Role:* proves eligibility to read the sealed inputs for the target `manifest_fingerprint`; binds the exact `tzdb_release`/`tz_world` bytes via the S0 manifest/inventory. (Read is verification-only; no re-hash.) 
 
-> *Note:* S3 **does not** read site-level data (`site_locations`, `s1_tz_lookup`, `site_timezones`). Its sole purpose is compiling a fingerprint-scoped cache from `tzdb_release`. The S3 output surface is catalogued at
+> *Note:* S3 **does not** read site-level data (`site_locations`, `s1_tz_lookup`, `site_timezones`). Its sole purpose is compiling a manifest_fingerprint-scoped cache from `tzdb_release`. The S3 output surface is catalogued at
 > `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`. 
 
 ### 3.3 Binding constraints on input use
 
-* **Same-fingerprint constraint.** All fingerprinted references and sealed input identities **MUST** match the S0 `manifest_fingerprint`. S3 SHALL use only the assets sealed for that fingerprint in the S0 manifest. 
+* **Same-manifest_fingerprint constraint.** All fingerprinted references and sealed input identities **MUST** match the S0 `manifest_fingerprint`. S3 SHALL use only the assets sealed for that manifest_fingerprint in the S0 manifest. 
 * **Dictionary-only resolution.** Inputs SHALL be resolved by **ID → path/format** via the Dataset Dictionary; literal/relative paths are **forbidden**. 
 * **Shape authority.** JSON-Schema anchors are the **sole** shape authority; S3 SHALL NOT assume undeclared fields or relax declared domains. 
 * **Non-mutation.** S3 SHALL NOT mutate or persist any input datasets; it emits only `tz_timetable_cache`. 
 
 ### 3.4 Null/empty allowances
 
-* **None.** Both `tzdb_release` and `tz_world_<release>` MUST be present as sealed inputs for the target fingerprint. Absence or unreadability is a hard failure and shall be surfaced by S3 validators (see §9/§10).
+* **None.** Both `tzdb_release` and `tz_world_<release>` MUST be present as sealed inputs for the target manifest_fingerprint. Absence or unreadability is a hard failure and shall be surfaced by S3 validators (see §9/§10).
 
 ---
 
@@ -158,7 +158,7 @@ S3 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
 * **Catalogue:** Fingerprint-scoped receipt.
-* **Boundary:** S3 **SHALL** verify presence and **fingerprint match**; it **SHALL NOT** re-compute any bundle hash or depend on site-level datasets.
+* **Boundary:** S3 **SHALL** verify presence and **manifest_fingerprint match**; it **SHALL NOT** re-compute any bundle hash or depend on site-level datasets.
 
 > **Out of scope inputs:** S3 **MUST NOT** read site data (`site_locations`, `s1_tz_lookup`, `site_timezones`) or policy assets (`tz_overrides`, `tz_nudge`).
 
@@ -178,7 +178,7 @@ S3 **SHALL NOT**:
 * read or rely on any site-level datasets;
 * mutate, subset, or rewrite `tzdb_release`/`tz_world`;
 * introduce RNG or wall-clock time (observational fields derive from sealed inputs);
-* emit anything other than `tz_timetable_cache` under the fingerprint partition.
+* emit anything other than `tz_timetable_cache` under the manifest_fingerprint partition.
 
 ---
 
@@ -197,7 +197,7 @@ S3 **SHALL NOT**:
 * `rle_cache_bytes : uint64` *(total bytes of emitted cache payloads)*
 * `created_utc : rfc3339_micros` *(= S0.receipt.verified_at_utc)*
 
-**Catalogue (Dictionary).** Path family (fingerprint-only):
+**Catalogue (Dictionary).** Path family (manifest_fingerprint-only):
 `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`
 Dictionary governs filenames/layout (e.g., manifest filename, cache shard names) and format (`files` + JSON manifest).
 
@@ -207,13 +207,13 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 ### 5.2 Identity & path law
 
 * **Partitions (binding):** `[manifest_fingerprint]` only (no `seed`).
-* **Path↔embed equality (binding):** Embedded `manifest_fingerprint` in the manifest **MUST** byte-equal the `fingerprint` path token.
-* **Deterministic timestamp:** `created_utc` **MUST** equal `S0.receipt.verified_at_utc` for the target fingerprint.
+* **Path↔embed equality (binding):** Embedded `manifest_fingerprint` in the manifest **MUST** byte-equal the `manifest_fingerprint` path token.
+* **Deterministic timestamp:** `created_utc` **MUST** equal `S0.receipt.verified_at_utc` for the target manifest_fingerprint.
 
 ### 5.3 Write posture & merge discipline
 
-* **Single-writer, write-once per fingerprint.** If any artefact already exists under the target fingerprint, a re-emit **MUST** be byte-identical; otherwise **ABORT**.
-* **Atomic publish.** Stage → fsync → single atomic move into the fingerprint partition.
+* **Single-writer, write-once per manifest_fingerprint.** If any artefact already exists under the target manifest_fingerprint, a re-emit **MUST** be byte-identical; otherwise **ABORT**.
+* **Atomic publish.** Stage → fsync → single atomic move into the manifest_fingerprint partition.
 * **File order non-authoritative.** No consumer may infer semantics from file ordering; the manifest is the sole authority for cache contents.
 
 ### 5.4 Format, licensing & retention (by catalogue/registry)
@@ -232,7 +232,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 * **Output:** `schemas.2A.yaml#/cache/tz_timetable_cache`.
 * **Inputs:** `schemas.2A.yaml#/ingress/tzdb_release_v1` and `schemas.ingress.layer1.yaml#/tz_world_2025a` (tzid coverage domain).
 
-### 6.1 Output artefact — `tz_timetable_cache` (fingerprint-scoped cache)
+### 6.1 Output artefact — `tz_timetable_cache` (manifest_fingerprint-scoped cache)
 
 * **ID → Schema:** `schemas.2A.yaml#/cache/tz_timetable_cache` (**object manifest; strict fields**).
   **Manifest fields (minimum):**
@@ -251,7 +251,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 ### 6.3 Identity & partition posture (binding)
 
 * **Output partitions:** `[manifest_fingerprint]` **only** (no `seed`). **Path↔embed equality** MUST hold: the embedded `manifest_fingerprint` in the manifest **byte-equals** the partition token. 
-* **Write posture:** single-writer, write-once per fingerprint; any re-emit must be **byte-identical** or **ABORT** (Registry posture). 
+* **Write posture:** single-writer, write-once per manifest_fingerprint; any re-emit must be **byte-identical** or **ABORT** (Registry posture). 
 
 ### 6.4 Binding constraints (shape-level)
 
@@ -260,7 +260,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 * **Integrity.** `tz_index_digest` equals the canonical digest of the compiled index; `rle_cache_bytes > 0`; all cache files referenced by the manifest exist. (Validators enforce.)
 * **Coverage.** The compiled index **MUST** include every `tzid` present in the sealed `tz_world` release (superset allowed). 
 
-*Result:* With these anchors and catalogue/registry bindings, S3’s single deliverable `tz_timetable_cache` is fully specified; inputs are pinned to their authoritative schemas; and the fingerprint-only identity matches the Dictionary and Registry contracts.
+*Result:* With these anchors and catalogue/registry bindings, S3’s single deliverable `tz_timetable_cache` is fully specified; inputs are pinned to their authoritative schemas; and the manifest_fingerprint-only identity matches the Dictionary and Registry contracts.
 
 ---
 
@@ -305,10 +305,10 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 
 ### 7.4 Emission & identity discipline
 
-* **Partitioning:** Output is fingerprint-scoped (**`[manifest_fingerprint]` only**; no `seed`).
-* **Path↔embed equality:** The manifest’s `manifest_fingerprint` **MUST** byte-equal the `fingerprint` path token.
-* **Write-once:** Re-emitting into an existing fingerprint partition **MUST** be byte-identical; otherwise the run **MUST ABORT**.
-* **Atomic publish:** Stage → fsync → single atomic move into the fingerprint partition. File order is **non-authoritative**; the manifest is the sole content authority.
+* **Partitioning:** Output is manifest_fingerprint-scoped (**`[manifest_fingerprint]` only**; no `seed`).
+* **Path↔embed equality:** The manifest’s `manifest_fingerprint` **MUST** byte-equal the `manifest_fingerprint` path token.
+* **Write-once:** Re-emitting into an existing manifest_fingerprint partition **MUST** be byte-identical; otherwise the run **MUST ABORT**.
+* **Atomic publish:** Stage → fsync → single atomic move into the manifest_fingerprint partition. File order is **non-authoritative**; the manifest is the sole content authority.
 
 ### 7.5 Prohibitions (non-behaviours)
 
@@ -331,8 +331,8 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 ### 8.1 Identity tokens
 
 * **Selection identity:** exactly one **`manifest_fingerprint`** per publish of `tz_timetable_cache`.
-* **No seed in S3:** `seed` is **absent** (fingerprint-only state).
-* **Path↔embed equality:** the manifest field **`manifest_fingerprint` MUST byte-equal** the `fingerprint` path token.
+* **No seed in S3:** `seed` is **absent** (manifest_fingerprint-only state).
+* **Path↔embed equality:** the manifest field **`manifest_fingerprint` MUST byte-equal** the `manifest_fingerprint` path token.
 
 ### 8.2 Partitions & path family
 
@@ -352,13 +352,13 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 
 ### 8.5 Merge & immutability
 
-* **Write-once per fingerprint.** If any artefact already exists under the target `fingerprint`, a re-emit **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
-* **Atomic publish.** Stage → fsync → single **atomic move** into the fingerprint partition.
-* **No in-place edits / tombstones.** Updates occur only by producing a **new fingerprint** (i.e., new sealed inputs in S0).
+* **Write-once per manifest_fingerprint.** If any artefact already exists under the target `manifest_fingerprint`, a re-emit **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Atomic publish.** Stage → fsync → single **atomic move** into the manifest_fingerprint partition.
+* **No in-place edits / tombstones.** Updates occur only by producing a **new manifest_fingerprint** (i.e., new sealed inputs in S0).
 
 ### 8.6 Concurrency & conflict detection
 
-* **Single-writer per identity.** Concurrent writes targeting the same `fingerprint` are not permitted.
+* **Single-writer per identity.** Concurrent writes targeting the same `manifest_fingerprint` are not permitted.
 * **Conflict:** The presence of any existing file in the target partition constitutes a conflict; S3 **MUST** abort rather than overwrite.
 
 ### 8.7 Discovery & selection (downstream contract)
@@ -393,7 +393,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 ### 9.3 Output manifest, identity & determinism (mandatory)
 
 **V-06 — Manifest schema validity (Abort).** The emitted manifest validates against `#/cache/tz_timetable_cache` (fields-strict).
-**V-07 — Path↔embed equality (Abort).** Embedded `manifest_fingerprint` equals the `fingerprint` partition token.
+**V-07 — Path↔embed equality (Abort).** Embedded `manifest_fingerprint` equals the `manifest_fingerprint` partition token.
 **V-08 — Deterministic timestamp (Abort).** `created_utc == S0.receipt.verified_at_utc`.
 
 ### 9.4 Integrity of compiled content (mandatory)
@@ -414,7 +414,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 
 ### 9.7 Merge & immutability (mandatory)
 
-**V-16 — Write-once partition (Abort).** If the target fingerprint partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
+**V-16 — Write-once partition (Abort).** If the target manifest_fingerprint partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
 
 ### 9.8 Outcome semantics
 
@@ -456,7 +456,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 
 ### 10.1 Gate & input resolution
 
-* **2A-S3-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 receipt for the target fingerprint.
+* **2A-S3-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 receipt for the target manifest_fingerprint.
   *Remediation:* publish/repair S0; rerun S3.
 * **2A-S3-010 TZDB_RESOLVE_FAILED (Abort)** — `tzdb_release` failed Dictionary resolution or Registry authorisation.
   *Remediation:* fix Dictionary/Registry entries; ensure the sealed artefact exists; rerun.
@@ -480,8 +480,8 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
   *Remediation:* emit schema-valid manifest only.
 * **2A-S3-040 PATH_EMBED_MISMATCH (Abort)** — Manifest `manifest_fingerprint` ≠ partition token.
   *Remediation:* correct path or embedded value; rerun.
-* **2A-S3-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Non-identical bytes written to an existing fingerprint partition.
-  *Remediation:* either produce byte-identical output or target a new fingerprint.
+* **2A-S3-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Non-identical bytes written to an existing manifest_fingerprint partition.
+  *Remediation:* either produce byte-identical output or target a new manifest_fingerprint.
 * **2A-S3-042 CREATED_UTC_NONDETERMINISTIC (Abort)** — `created_utc` ≠ S0.receipt.verified_at_utc.
   *Remediation:* set timestamp deterministically; rerun.
 
@@ -581,7 +581,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 
 **Optional (advisory, non-binding):**
 
-* `determinism.partition_hash : hex64` — directory-level hash of the emitted fingerprint partition.
+* `determinism.partition_hash : hex64` — directory-level hash of the emitted manifest_fingerprint partition.
 
 ---
 
@@ -617,7 +617,7 @@ Every record **SHALL** include:
 
 * **Reads:** sealed `tzdb_release` archive (single artefact) and `tz_world_<release>` tzid list (for coverage).
 * **Compute:** parse tzdb → assemble per-`tzid` transition sequences (UTC instant, offset minutes) → canonicalise → hash to `tz_index_digest`.
-* **Writes:** one fingerprint-scoped cache (payload file(s) + JSON manifest).
+* **Writes:** one manifest_fingerprint-scoped cache (payload file(s) + JSON manifest).
 
 ### 12.2 Asymptotics (Z = #tzids, T = total transitions across all tzids)
 
@@ -638,7 +638,7 @@ Every record **SHALL** include:
 ### 12.5 Parallelism & concurrency
 
 * **Across tzids:** embarrassingly parallel. Partition the tzid set into shards; compile shards independently; reduce into the canonical order before hashing.
-* **Across fingerprints:** independent; S3 is fingerprint-scoped (no `seed`).
+* **Across fingerprints:** independent; S3 is manifest_fingerprint-scoped (no `seed`).
 * **Publish:** still **single-writer, write-once** for the final partition; perform parallel work behind a single atomic emit.
 
 ### 12.6 Hot spots & guardrails
@@ -663,8 +663,8 @@ Every record **SHALL** include:
 
 ### 12.9 Re-run & churn costs
 
-* S3 runs **once per fingerprint**; downstream seeds reuse the same cache.
-* Changing **`tzdb_release`** or **`tz_world_<release>`** in S0 produces a **new fingerprint**, requiring a fresh compile; otherwise reruns reproduce bytes exactly.
+* S3 runs **once per manifest_fingerprint**; downstream seeds reuse the same cache.
+* Changing **`tzdb_release`** or **`tz_world_<release>`** in S0 produces a **new manifest_fingerprint**, requiring a fresh compile; otherwise reruns reproduce bytes exactly.
 
 ### 12.10 Typical envelopes (order-of-magnitude)
 
@@ -729,7 +729,7 @@ Require a MAJOR bump and downstream coordination:
 ### 13.6 Co-existence & migration
 
 * Use a **dual-anchor window** for material changes (e.g., `#/cache/tz_timetable_cache_v2`) while the old anchor remains valid; Dictionary may list both; identity remains the same (**`[manifest_fingerprint]`**).
-* **Re-fingerprinting is upstream.** Changing `tzdb_release` or `tz_world_<release>` happens in S0, producing a **new `manifest_fingerprint`**; S3 recomputes for that fingerprint with no spec change.
+* **Re-fingerprinting is upstream.** Changing `tzdb_release` or `tz_world_<release>` happens in S0, producing a **new `manifest_fingerprint`**; S3 recomputes for that manifest_fingerprint with no spec change.
 * **Idempotent re-runs.** Reruns with unchanged sealed inputs reproduce bytes exactly (write-once partition).
 
 ### 13.7 Reserved extension points
@@ -740,7 +740,7 @@ Require a MAJOR bump and downstream coordination:
 ### 13.8 External dependency evolution
 
 * **Tzdb format/tag drift.** If IANA modifies release tagging or minor archive structure, S3 may **MINOR**-expand acceptance (e.g., regex, non-identity parse tolerance) while preserving canonicalisation/digest law.
-* **`tz_world` churn.** Introducing a new `tz_world` release is not a spec change; it only changes sealed bytes → fingerprint in S0; S3’s coverage rule remains the same.
+* **`tz_world` churn.** Introducing a new `tz_world` release is not a spec change; it only changes sealed bytes → manifest_fingerprint in S0; S3’s coverage rule remains the same.
 
 ### 13.9 Governance & change process
 
@@ -750,7 +750,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 ### 13.10 Inter-state coupling
 
 * **Upstream:** depends only on S0 receipt, `tzdb_release`, and the `tz_world` tzid domain; no site-level coupling.
-* **Downstream:** S4 and others read `tz_timetable_cache` by fingerprint; any S3 change that forces downstream to re-implement S0 gates, alters the digest/coverage law, or changes the cache identity is **breaking**.
+* **Downstream:** S4 and others read `tz_timetable_cache` by manifest_fingerprint; any S3 change that forces downstream to re-implement S0 gates, alters the digest/coverage law, or changes the cache identity is **breaking**.
 
 ---
 
@@ -767,7 +767,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 ### A2. Upstream receipt & inputs used by S3
 
-* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped).
+* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (manifest_fingerprint-scoped).
 * **IANA tzdb release** — `schemas.2A.yaml#/ingress/tzdb_release_v1` (release tag + archive digest; sealed in S0).
 * **Time-zone world (tzid domain)** — `schemas.ingress.layer1.yaml#/tz_world_2025a` (GeoParquet, WGS84; read only for tzid coverage; sealed in S0).
 
@@ -779,8 +779,8 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 ### A4. Dataset Dictionary (catalogue authority)
 
 * **Inputs:** `tzdb_release` (artefacts/priors; unpartitioned), `tz_world_2025a` (reference/spatial; unpartitioned).
-* **Output:** `tz_timetable_cache` (fingerprint-scoped; format/files governed by catalogue).
-* **Evidence:** 2A.S0 receipt (fingerprint-scoped).
+* **Output:** `tz_timetable_cache` (manifest_fingerprint-scoped; format/files governed by catalogue).
+* **Evidence:** 2A.S0 receipt (manifest_fingerprint-scoped).
 
 ### A5. Artefact Registry (existence/licensing/lineage)
 

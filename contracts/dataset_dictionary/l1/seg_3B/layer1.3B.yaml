@@ -21,8 +21,8 @@ reference_data:
   description: Immutable per-site geometry emitted by 1B; 3B joins by `merchant_id` but MUST NOT mutate these rows.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, site_order]
   schema_ref: schemas.1B.yaml#/egress/site_locations
   lineage:
@@ -33,21 +33,183 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
-- id: zone_alloc
-  status: draft
-  owner_subsegment: 3A
-  description: Cross-layer zone allocation egress consumed by 3B routing.
+- id: outlet_catalogue
+  status: approved
+  owner_subsegment: 1A
+  description: Immutable outlet stubs emitted by 1A; used to derive virtual overlays.
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+  lineage:
+    produced_by: 1A.S8
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: site_timezones
+  status: approved
+  owner_subsegment: 2A
+  description: Per-site tzid assignments from Segment 2A; admissible input for virtual routing.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.2A.yaml#/egress/site_timezones
+  lineage:
+    produced_by: 2A.S2
+    consumed_by: [3B]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: tz_timetable_cache
+  status: approved
+  owner_subsegment: 2A
+  description: Fingerprint-scoped civil-time cache manifest compiled by Segment 2A.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+  lineage:
+    produced_by: 2A.S3
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_alloc
+  status: approved
+  owner_subsegment: 3A
+  description: Cross-layer zone allocation egress used by virtual routing.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, legal_country_iso, tzid]
   schema_ref: schemas.3A.yaml#/egress/zone_alloc
   lineage:
     produced_by: 3A.S5
-    consumed_by: [3B, routing_virtual]
+    consumed_by: [3B]
     final_in_layer: true
   retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_alloc_universe_hash
+  status: approved
+  owner_subsegment: 3A
+  description: Digest summary tying priors, policies, and allocation outputs for zone allocation.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+  lineage:
+    produced_by: 3A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: transaction_schema_merchant_ids
+  status: approved
+  owner_subsegment: ingress
+  description: Authoritative merchant ID seed list derived from transaction schema.
+  version: '{version}'
+  format: parquet
+  path: reference/layer1/transaction_schema_merchant_ids/{version}/
+  partitioning: [version]
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+  lineage:
+    produced_by:
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: route_rng_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Philox sub-stream layout & RNG budgets for routing states.
+  version: '{policy_version}'
+  format: json
+  path: config/layer1/2B/policy/route_rng_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: alias_layout_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Alias table byte layout, alignment, and decode invariants.
+  version: '{policy_version}'
+  format: json
+  path: config/layer1/2B/policy/alias_layout_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: day_effect_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Daily modulation cadence, variance, and clipping configuration for S3.
+  version: '{policy_version}'
+  format: json
+  path: config/layer1/2B/policy/day_effect_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3B]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: cdn_key_digest
+  status: approved
+  owner_subsegment: 3B
+  description: Canonical CDN key digest inputs for deterministic aliasing.
+  version: '{config_version}'
+  format: yaml
+  path: config/layer1/3B/virtual/cdn_key_digest.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/policy/cdn_key_digest_v1
+  lineage:
+    produced_by: 3B.governance
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1825
   pii: false
   licence: Proprietary-Internal
 
@@ -123,78 +285,37 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
-- id: merchant_ids
-  status: approved
-  owner_subsegment: ingress
-  description: Merchant classification universe with MCC, channel, and home country anchors.
-  version: 2026-01-03
-  format: parquet
-  path: reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet
+- id: virtual_logging_policy
+  status: draft
+  owner_subsegment: 3B
+  description: Run-log rotation and retention policy for virtual processing.
+  version: '{policy_version}'
+  format: yaml
+  path: config/layer1/3B/logging/virtual_logging.yml
   partitioning: []
-  ordering: [merchant_id]
-  schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+  ordering: []
+  schema_ref: schemas.3B.yaml#/policy/virtual_logging_policy_v1
   lineage:
-    produced_by: ingress
-    consumed_by: [3B.S1]
-    final_in_layer: true
-  retention_days: 365
+    produced_by: 3B.governance
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1825
   pii: false
   licence: Proprietary-Internal
 
 - id: hrsl_raster
-  status: deprecated
-  owner_subsegment: ingress
-  description: >-
-    HRSL 100 m rasters (build-time external). Kept for backwards reference only;
-    superseded by aggregated tile_population_weights derived at build time.
-  version: '{vintage}'
-  format: tif
-  path: reference/spatial/population_raster/hrsl-2022-aws/country={country_iso3}/hrsl_{country_iso3}.tif
-  partitioning: [country_iso3]
-  ordering: []
-  schema_ref: schemas.ingress.layer1.yaml#/population_raster
-  lineage:
-    produced_by: ingress
-    consumed_by: []
-    final_in_layer: false
-  retention_days: 90
-  pii: false
-  licence: CC-BY-4.0
-
-- id: global_population_raster
   status: approved
   owner_subsegment: ingress
-  description: >-
-    Global ~1km population raster (UN-adjusted 2020) used as the lightweight population prior for 3B.
-  version: '2025'
+  description: HRSL 100 m raster pinned for virtual edge sampling.
+  version: '{vintage}'
   format: tif
-  path: artefacts/spatial/population_raster/2025/raw/global_2020_1km_UNadj_uncounstrained.tif
+  path: artefacts/rasters/hrsl_100m.tif
   partitioning: []
   ordering: []
   schema_ref: schemas.ingress.layer1.yaml#/population_raster
   lineage:
     produced_by: ingress
     consumed_by: [3B.S2]
-    final_in_layer: false
-  retention_days: 1825
-  pii: false
-  licence: CC-BY-4.0
-
-- id: tile_population_weights
-  status: draft
-  owner_subsegment: 3B
-  description: >-
-    Per-tile population weights derived from the lightweight global population raster (or HRSL fallback)
-    at the engine tile grid; generated at build time and used by 3B for CDN edge weighting.
-  version: '{source_vintage}'
-  format: csv
-  path: reference/spatial/tile_weights/from_hrsl/{source_vintage}/tile_population_weights.csv
-  partitioning: [country_iso3]
-  ordering: [country_iso3, tile_id]
-  schema_ref: schemas.ingress.layer1.yaml#/tile_population_weights
-  lineage:
-    produced_by: 3B.build_hrsl_aggregation
-    consumed_by: [3B.S2, 3B.S3]
     final_in_layer: false
   retention_days: 1825
   pii: false
@@ -216,7 +337,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  licence: Proprietary-Internal
+  licence: CC-BY-4.0
 
 - id: pelias_cached_sqlite
   status: approved
@@ -225,6 +346,24 @@ reference_data:
   version: '{pelias_version}'
   format: sqlite
   path: artefacts/geocode/pelias_cached.sqlite
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/reference/pelias_cached_sqlite_v1
+  lineage:
+    produced_by: data_governance
+    consumed_by: [3B.S1]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: CC-BY-4.0
+
+- id: pelias_cached_bundle
+  status: approved
+  owner_subsegment: ingress
+  description: Metadata contract for the Pelias SQLite bundle (version + sha256).
+  version: '{pelias_version}'
+  format: json
+  path: artefacts/geocode/pelias_cached_bundle.json
   partitioning: []
   ordering: []
   schema_ref: schemas.3B.yaml#/reference/pelias_cached_bundle_v1
@@ -236,131 +375,150 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
-- id: country_polygons_admin0
-  status: draft
-  owner_subsegment: ingress
-  description: Admin-0 country polygons (Natural Earth or equivalent) used for country membership checks.
-  version: 2024-11-27
-  format: geojson
-  path: reference/spatial/world_countries/2024-11-27/ne_110m_admin_0_countries.geojson
-  partitioning: []
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/reference/country_polygons_admin0
-  lineage:
-    produced_by: ingress
-    consumed_by: [3B.S2]
-    final_in_layer: false
-  retention_days: 1825
-  pii: false
-  licence: Public-Domain
-
-- id: tz_world_polygons
-  status: draft
-  owner_subsegment: ingress
-  description: Global timezone polygons (Timezone Boundary Builder release).
-  version: '2024b'
-  format: shapefile
-  path: artefacts/spatial/tz_world/2024b/raw/timezones.shapefile.zip
-  partitioning: []
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/reference/tz_world_polygons
-  lineage:
-    produced_by: ingress
-    consumed_by: [2A, 3B.S2]
-    final_in_layer: false
-  retention_days: 1825
-  pii: false
-  licence: ODbL
-
-- id: tzdb_archive
-  status: draft
-  owner_subsegment: ingress
-  description: Pinned IANA tzdb archive used for timezone rules.
-  version: '2024b'
-  format: tar.gz
-  path: reference/time/tzdb/2024b/tzdata2024b.tar.gz
-  partitioning: []
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/reference/tzdb_archive
-  lineage:
-    produced_by: ingress
-    consumed_by: [2A, 3B.S2]
-    final_in_layer: false
-  retention_days: 1825
-  pii: false
-  licence: IANA-TZDB
-
-- id: ip_geo_country_db
-  status: draft
-  owner_subsegment: ingress
-  description: MaxMind GeoLite2 Country database (external, licensed) for IP-country mapping in validation.
-  version: latest
-  format: mmdb
-  path: reference/ip_geo/maxmind_geolite2/{snapshot}/GeoLite2-Country.mmdb
-  partitioning: []
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/reference/ip_geo_country_db
-  lineage:
-    produced_by: ingress
-    consumed_by: [3B.S4]
-    final_in_layer: false
-  retention_days: 365
-  pii: false
-  licence: MaxMind-GeoLite2
-
-- id: web_traffic_by_country
-  status: draft
-  owner_subsegment: ingress
-  description: Cloudflare Radar HTTP traffic share by country (snapshot) used to derive cdn_country_weights.
-  version: 'radar_http_top_locations_30d'
-  format: csv
-  path: reference/web_traffic/cloudflare_radar/{snapshot_date}/traffic_by_country.csv
-  partitioning: []
-  ordering: [country_iso]
-  schema_ref: schemas.layer1.yaml#/reference/web_traffic_by_country
-  lineage:
-    produced_by: ingress
-    consumed_by: [3B.S2, policy]
-    final_in_layer: false
-  retention_days: 365
-  pii: false
-  licence: CC-BY-4.0
-
-- id: population_raster_hrsl
-  status: required
-  owner_subsegment: ingress
-  description: HRSL population rasters (Meta & CIESIN) per country, used for edge placement.
-  version: hrsl-cogs-2022-aws
-  format: geotiff
-  path: reference/spatial/population_raster/hrsl-2022-aws/country={country_iso3}/hrsl_{country_iso3}.tif
-  partitioning: [country_iso3]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/reference/population_raster_hrsl
-  lineage:
-    produced_by: ingress
-    consumed_by: [3B.S2]
-    final_in_layer: false
-  retention_days: 1825
-  pii: false
-  licence: CC-BY
-
-- id: overture_places_base
-  status: required
+# (Optional, read-only discoverability; resolves via Dictionary as well as Registry)
+- id: validation_bundle_1A
+  status: approved
   owner_subsegment: 1A
-  description: Filtered Overture Maps Places theme (2025-11-19.0) as base POI universe.
-  version: '2025-11-19.0'
-  format: parquet
-  path: reference/poi/overture_places/2025-11-19.0/overture_places_filtered.parquet
-  partitioning: []
+  description: 1A validation bundle required before 3B consumes outlet_catalogue.
+  version: '{manifest_fingerprint}'
+  format: folder
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
-  schema_ref: schemas.layer1.yaml#/reference/overture_places_base
+  schema_ref: schemas.1A.yaml#/validation/validation_bundle
   lineage:
-    produced_by: ingress
-    consumed_by: [1A, 3B.S1]
+    produced_by: 1A.S9
+    consumed_by: [3B]
     final_in_layer: false
   retention_days: 365
   pii: false
-  licence: Overture-Open
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1A
+  status: approved
+  owner_subsegment: 1A
+  description: 1A PASS gate flag used by 3B.S0 before any read of outlet_catalogue.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 1B validation bundle required before 3B consumes site_locations.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 1B PASS gate flag used by 3B.S0 before any read of site_locations.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_2A
+  status: approved
+  owner_subsegment: 2A
+  description: 2A validation bundle required before 3B consumes 2A outputs.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_2A
+  status: approved
+  owner_subsegment: 2A
+  description: 2A PASS gate flag used by 3B.S0 before any read of 2A outputs.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_3A
+  status: approved
+  owner_subsegment: 3A
+  description: 3A validation bundle required before 3B consumes zone_alloc outputs.
+  version: '{manifest_fingerprint}'
+  format: folder
+  path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_passed_flag_3A
+  status: approved
+  owner_subsegment: 3A
+  description: 3A PASS gate flag used by 3B.S0 before any read of zone_alloc outputs.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
 
 
 datasets:
@@ -370,8 +528,8 @@ datasets:
   description: Gate receipt capturing upstream PASS status, sealed policy set and authoritative digests.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/s0_gate_receipt_3B
   lineage:
@@ -382,33 +540,14 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-reports:
-- id: segment_state_runs
-  status: draft
-  owner_subsegment: 3B
-  description: Layer-1 segment-state run-report (JSONL), one row per state invocation.
-  version: latest
-  format: jsonl
-  path: reports/l1/segment_states/segment_state_runs.jsonl
-  partitioning: []
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
-  lineage:
-    produced_by: 3B.S0|3B.S1|3B.S2|3B.S3|3B.S4|3B.S5
-    consumed_by: [orchestrator, ops]
-    final_in_layer: false
-  retention_days: 365
-  pii: false
-  licence: Proprietary-Internal
-
 - id: sealed_inputs_3B
   status: draft
   owner_subsegment: 3B
   description: Inventory of every artefact authorised for the manifest.
   version: '{manifest_fingerprint}'
-  format: parquet
-  path: data/layer1/3B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3B.parquet
-  partitioning: [fingerprint]
+  format: json
+  path: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: [owner_segment, artefact_kind, logical_id, path]
   schema_ref: schemas.3B.yaml#/validation/sealed_inputs_3B
   lineage:
@@ -425,8 +564,8 @@ reports:
   description: Merchant-level classification surface with closed vocabulary reason codes.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id]
   schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B
   lineage:
@@ -443,8 +582,8 @@ reports:
   description: One settlement node per virtual merchant with tzid semantics and evidence URLs.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id]
   schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B
   lineage:
@@ -461,8 +600,8 @@ reports:
   description: Per-edge geometry, tz semantics and weights for all virtual merchants.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, edge_id]
   schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B
   lineage:
@@ -479,8 +618,8 @@ reports:
   description: Digest summary and per-merchant counts for the edge catalogue.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+  partitioning: [seed, manifest_fingerprint]
   ordering: [scope, merchant_id]
   schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B
   lineage:
@@ -497,8 +636,8 @@ reports:
   description: Contiguous alias blob covering every virtual merchant edge distribution.
   version: '{seed}.{manifest_fingerprint}'
   format: bin
-  path: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B
   lineage:
@@ -515,8 +654,8 @@ reports:
   description: Index and checksum metadata for locating merchant alias segments inside the blob.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
-  partitioning: [seed, fingerprint]
+  path: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+  partitioning: [seed, manifest_fingerprint]
   ordering: [scope, merchant_id]
   schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B
   lineage:
@@ -533,8 +672,8 @@ reports:
   description: Fingerprint-scoped hash tying cdn weights, edge catalogue/index and alias outputs.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B
   lineage:
@@ -551,8 +690,8 @@ reports:
   description: Structured Philox audit for any gamma draws in the virtual pipeline.
   version: '{seed}.{manifest_fingerprint}'
   format: jsonl
-  path: logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
-  partitioning: [seed, fingerprint]
+  path: logs/layer1/3B/gamma_draw/seed={seed}/manifest_fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
+  partitioning: [seed, manifest_fingerprint]
   ordering: [merchant_id, day_index]
   schema_ref: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B
   lineage:
@@ -563,14 +702,86 @@ reports:
   pii: false
   licence: Proprietary-Internal
 
+- id: rng_audit_log
+  status: draft
+  owner_subsegment: 3B
+  description: RNG run audit (identity/config) - one row at run start for 3B S2 runs.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/layer1/3B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_trace_log
+  status: draft
+  owner_subsegment: 3B
+  description: RNG cumulative trace - append exactly one row after each event append for 3B S2 runs.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/layer1/3B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_event_edge_tile_assign
+  status: draft
+  owner_subsegment: 3B
+  description: RNG events for S2 edge tile assignment (one per expanded edge slot).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/layer1/3B/rng/events/edge_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/edge_tile_assign
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 30
+  pii: false
+  licence: Proprietary-Internal
+
+- id: rng_event_edge_jitter
+  status: draft
+  owner_subsegment: 3B
+  description: RNG events for S2 edge jitter attempts (one per attempt).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/layer1/3B/rng/events/edge_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/edge_jitter
+  lineage:
+    produced_by: 3B.S2
+    consumed_by: [3B]
+    final_in_layer: false
+  retention_days: 30
+  pii: false
+  licence: Proprietary-Internal
+
 - id: virtual_routing_policy_3B
   status: draft
   owner_subsegment: 3B
   description: Dual-TZ routing contract that tells 2B how to consume the virtual artefacts.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B
   lineage:
@@ -587,8 +798,8 @@ reports:
   description: Declarative suite of validation tests (IP mix, cut-offs, alias health) scoped to the manifest.
   version: '{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
-  partitioning: [fingerprint]
+  path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+  partitioning: [manifest_fingerprint]
   ordering: [test_id]
   schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B
   lineage:
@@ -605,8 +816,8 @@ reports:
   description: Optional S4 receipt capturing policy digests and status.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
-  partitioning: [fingerprint]
+  path: reports/layer1/3B/state=S4/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B
   lineage:
@@ -623,8 +834,8 @@ reports:
   description: Directory artefact containing manifest, digests and structural or RNG evidence.
   version: '{manifest_fingerprint}'
   format: folder
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
   lineage:
@@ -641,8 +852,8 @@ reports:
   description: index.json enumerating evidence files plus their SHA-256 digests.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
   lineage:
@@ -659,8 +870,8 @@ reports:
   description: ASCII _passed.flag storing the hash of the validation bundle.
   version: '{manifest_fingerprint}'
   format: text
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
   lineage:
@@ -677,8 +888,8 @@ reports:
   description: Optional S5 manifest summarising identity, digests and validator outcomes; lives inside the bundle.
   version: '{manifest_fingerprint}'
   format: json
-  path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json
-  partitioning: [fingerprint]
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+  partitioning: [manifest_fingerprint]
   ordering: []
   schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B
   lineage:
@@ -695,8 +906,8 @@ reports:
   description: Run report for 3B.S1 virtual classification.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s1_virtuals/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -713,8 +924,8 @@ reports:
   description: Run report for 3B.S2 edge catalogue.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s2_edges/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S2/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -731,8 +942,8 @@ reports:
   description: Run report for 3B.S3 alias packaging.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s3_alias/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -749,8 +960,8 @@ reports:
   description: Run report for 3B.S4 routing policy compilation.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s4_routing/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -767,8 +978,8 @@ reports:
   description: Run report for 3B.S5 validation bundle.
   version: '{seed}.{manifest_fingerprint}'
   format: json
-  path: reports/l1/3B/s5_validation/seed={seed}/fingerprint={manifest_fingerprint}/run_report.json
-  partitioning: [seed, fingerprint]
+  path: reports/layer1/3B/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitioning: [seed, manifest_fingerprint]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:
@@ -776,186 +987,5 @@ reports:
     consumed_by: [ops]
     final_in_layer: false
   retention_days: 365
-  pii: false
-  licence: Proprietary-Internal
-
-validation:
-- id: validation_bundle_1A
-  status: approved
-  owner_subsegment: 1A
-  description: Segment 1A validation bundle proving PASS for a manifest fingerprint.
-  version: '{manifest_fingerprint}'
-  format: directory
-  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
-  lineage:
-    produced_by: 1A.S9
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_passed_flag_1A
-  status: approved
-  owner_subsegment: 1A
-  description: PASS flag for the Segment 1A validation bundle.
-  version: '{manifest_fingerprint}'
-  format: text
-  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/validation/passed_flag
-  lineage:
-    produced_by: 1A.S9
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_bundle_1B
-  status: approved
-  owner_subsegment: 1B
-  description: Segment 1B validation bundle proving PASS for a manifest fingerprint.
-  version: '{manifest_fingerprint}'
-  format: directory
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
-  lineage:
-    produced_by: 1B.S9
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_passed_flag_1B
-  status: approved
-  owner_subsegment: 1B
-  description: PASS flag for the Segment 1B validation bundle.
-  version: '{manifest_fingerprint}'
-  format: text
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.1B.yaml#/validation/passed_flag
-  lineage:
-    produced_by: 1B.S9
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_bundle_2A
-  status: approved
-  owner_subsegment: 2A
-  description: Segment 2A validation bundle proving PASS for a manifest fingerprint.
-  version: '{manifest_fingerprint}'
-  format: directory
-  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
-  lineage:
-    produced_by: 2A.S5
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_passed_flag_2A
-  status: approved
-  owner_subsegment: 2A
-  description: PASS flag for the Segment 2A validation bundle.
-  version: '{manifest_fingerprint}'
-  format: text
-  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/validation/passed_flag
-  lineage:
-    produced_by: 2A.S5
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_bundle_2B
-  status: draft
-  owner_subsegment: 2B
-  description: Segment 2B validation bundle proving PASS for a manifest fingerprint.
-  version: '{manifest_fingerprint}'
-  format: directory
-  path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
-  lineage:
-    produced_by: 2B.S8
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_passed_flag_2B
-  status: draft
-  owner_subsegment: 2B
-  description: PASS flag for the Segment 2B validation bundle.
-  version: '{manifest_fingerprint}'
-  format: text
-  path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/validation/passed_flag
-  lineage:
-    produced_by: 2B.S8
-    consumed_by: [3B]
-    final_in_layer: false
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_bundle_3A
-  status: draft
-  owner_subsegment: 3A
-  description: Fingerprint-scoped validation bundle for Segment 3A.
-  version: '{manifest_fingerprint}'
-  format: dir
-  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
-  lineage:
-    produced_by: 3A.S7
-    consumed_by: [3B]
-    final_in_layer: true
-  retention_days: 1095
-  pii: false
-  licence: Proprietary-Internal
-
-- id: validation_passed_flag_3A
-  status: draft
-  owner_subsegment: 3A
-  description: HashGate PASS flag accompanying the 3A validation bundle.
-  version: '{manifest_fingerprint}'
-  format: text
-  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-  partitioning: [fingerprint]
-  ordering: []
-  schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
-  lineage:
-    produced_by: 3A.S7
-    consumed_by: [3B]
-    final_in_layer: true
-  retention_days: 1095
   pii: false
   licence: Proprietary-Internal

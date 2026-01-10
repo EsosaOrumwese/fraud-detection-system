@@ -1,65 +1,59 @@
 version: '1.0'
 $id: schemas.2A.yaml
 $schema: https://json-schema.org/draft/2020-12/schema
-description: "Layer-1 Segment 2A (Civil Time) schema pack. JSON-Schema is the sole shape authority."
+description: "Layer-1 · Segment 2A (Civil Time) — schema pack. JSON-Schema is the sole shape authority."
 
 $defs:
+  hex64:
+    $ref: 'schemas.layer1.yaml#/$defs/hex64'
+  uint64:
+    $ref: 'schemas.layer1.yaml#/$defs/uint64'
+  iso2:
+    $ref: 'schemas.layer1.yaml#/$defs/iso2'
   rfc3339_micros:
-    type: string
-    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
-    description: "RFC-3339 timestamp with exactly 6 fractional digits (microseconds) and trailing 'Z'."
+    $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+  iana_tzid:
+    $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
 
-# -- Validation / Receipts --------------------------------------------------
+# ── Validation / Receipts ─────────────────────────────────────────────────
+model: {}
+
+prep: {}
+
 validation:
 
   s0_gate_receipt_v1:
-    type: object
-    additionalProperties: false
-    required:
-      - manifest_fingerprint
-      - parameter_hash
-      - validation_bundle_path
-      - flag_sha256_hex
-      - verified_at_utc
-      - sealed_inputs
-    properties:
-      manifest_fingerprint:
-        $ref: 'schemas.layer1.yaml#/$defs/hex64'
-        description: "Must byte-equal fingerprint path token (path vs embed equality)."
-      parameter_hash:
-        $ref: 'schemas.layer1.yaml#/$defs/hex64'
-      validation_bundle_path:
-        type: string
-        minLength: 1
-        description: "Dictionary-resolved path to the 1B validation bundle for the same fingerprint."
-      flag_sha256_hex:
-        $ref: 'schemas.layer1.yaml#/$defs/hex64'
-        description: "Digest proven from the 1B _passed.flag artefact."
-      verified_at_utc:
-        $ref: '#/$defs/rfc3339_micros'
-      sealed_inputs:
+    type: table
+    description: "Fingerprint-scoped receipt proving 1B PASS and freezing the sealed-inputs manifest for 2A."
+    primary_key: [manifest_fingerprint]
+    partition_keys: [manifest_fingerprint]
+    sort_keys: []
+    columns_strict: true
+    columns:
+      - { name: manifest_fingerprint, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false,
+          description: "MUST byte-equal fingerprint path token (path↔embed equality)." }
+      - { name: parameter_hash, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false,
+          description: "Run lineage token recorded for S0 (not a partition in S0)." }
+      - { name: validation_bundle_path, type: string, nullable: false,
+          description: "Dictionary-resolved path to 1B bundle for the same fingerprint." }
+      - { name: flag_sha256_hex, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false,
+          description: "Value proven from 1B _passed.flag." }
+      - { name: verified_at_utc, $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
+      - name: sealed_inputs
         type: array
-        minItems: 1
-        description: "Every asset sealed by S0 (id, partitions, schema ref)."
+        nullable: false
+        description: "Every asset sealed by S0 (id, partitions, schema_ref)."
         items:
           type: object
           additionalProperties: false
-          required: [id, schema_ref]
+          required: [id, partition, schema_ref]
           properties:
-            id:
-              type: string
-              minLength: 1
-            partition:
-              type: array
-              items:
-                type: string
-              description: "Partition keys, for example [\"seed\",\"fingerprint\"] or [\"parameter_hash\"]."
-            schema_ref:
-              type: string
-              minLength: 1
-      notes:
-        type: string
+            id: { type: string, minLength: 1 }
+            partition: { type: array, items: { type: string }, description: 'Partition keys, e.g. ["seed","manifest_fingerprint"] or ["parameter_hash"].' }
+            schema_ref: { type: string, minLength: 1 }
+      - { name: notes, type: string, nullable: true }
 
+  # S4 legality evidence (referenced by Dictionary/Registry)
   s4_legality_report:
     type: object
     additionalProperties: false
@@ -69,14 +63,6 @@ validation:
       seed:                 { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
       generated_utc:        { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
       status:               { type: string, enum: [PASS, FAIL] }
-      segment:
-        type: string
-        const: "2A"
-        description: "Optional segment tag emitted for diagnostics."
-      state:
-        type: string
-        const: "S4"
-        description: "Optional state tag emitted for diagnostics."
       counts:
         type: object
         additionalProperties: false
@@ -91,8 +77,9 @@ validation:
         items: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
       notes: { type: string }
 
+  # 2A validation bundle (S5) — same index law as 1A/1B; keep structure modest
   validation_bundle_2A:
-    description: "Bundle certifying a 2A publish for a given manifest fingerprint (No PASS -> No read for 2A egress)."
+    description: "Bundle certifying a 2A publish for a given manifest_fingerprint (No PASS → No read for 2A egress)."
     type: object
     additionalProperties: false
     properties:
@@ -117,11 +104,28 @@ validation:
           required: [path, sha256_hex]
     required: [files]
 
+  validation_bundle_index_2A:
+    description: "Index file for validation_bundle_2A (index.json)."
+    type: object
+    additionalProperties: false
+    properties:
+      files:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            path:       { type: string, minLength: 1 }
+            sha256_hex: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+          required: [path, sha256_hex]
+    required: [files]
+
   checks_v1:
     type: object
     additionalProperties: false
     properties:
-      fingerprint:      { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       generated_at_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
       overall_status:   { type: string, enum: [PASS, FAIL] }
       datasets:
@@ -130,230 +134,160 @@ validation:
           type: object
           additionalProperties: false
           properties:
-            id:    { type: string }
-            status: { type: string, enum: [PASS, FAIL] }
-            notes: { type: string }
-    required: [fingerprint, generated_at_utc, overall_status]
+            id:      { type: string }
+            status:  { type: string, enum: [PASS, FAIL] }
+            notes:   { type: string }
+    required: [manifest_fingerprint, generated_at_utc, overall_status]
 
   metrics_v1:
     type: object
-    additionalProperties: false
-    properties:
-      fingerprint:      { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      generated_at_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
-      observations:
-        type: array
-        items:
-          type: object
-          additionalProperties: false
-          properties:
-            key:   { type: string }
-            value: { type: string }
-    required: [fingerprint, generated_at_utc]
+    additionalProperties: true   # intentionally loose; not identity-bearing
 
   passed_flag:
     type: string
-    description: "Single line ascii text: sha256_hex = <digest>."
-    pattern: "^sha256_hex = [a-f0-9]{64}$"
+    description: "Single line: 'sha256_hex = <hex64>' per index+ASCII-lex+raw-bytes law."
+    pattern: '^sha256_hex = [a-f0-9]{64}$'
 
-# -- Manifest tables -------------------------------------------------------
+# ── Manifests (diagnostics) ───────────────────────────────────────────────
 manifests:
 
-  sealed_inputs_v1:
+  sealed_inputs_2A:
     type: table
-    description: "Inventory of sealed inputs used to compute the 2A manifest fingerprint."
+    description: "Row-wise inventory of sealed assets for 2A manifest_fingerprint."
     primary_key: [manifest_fingerprint, asset_id]
-    partition_keys: [fingerprint]
+    partition_keys: [manifest_fingerprint]
     sort_keys: [asset_kind, basename]
     columns_strict: true
     columns:
       - { name: manifest_fingerprint, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false }
       - { name: asset_id, type: string, nullable: false }
-      - { name: asset_kind, type: string, nullable: false }
+      - { name: asset_kind, type: string, enum: [dataset, bundle, log, manifest, config], nullable: false }
       - { name: basename, type: string, nullable: false }
       - { name: version_tag, type: string, nullable: false }
       - { name: schema_ref, type: string, nullable: false }
       - { name: catalog_path, type: string, nullable: false }
-      - { name: partition_keys, type: array, items: { type: string }, nullable: false }
       - { name: sha256_hex, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false }
       - { name: size_bytes, $ref: 'schemas.layer1.yaml#/$defs/uint64', nullable: false }
       - { name: license_class, type: string, nullable: false }
-      - { name: notes, type: string, nullable: true }
+      - { name: created_utc, $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
 
-# -- Policy assets ---------------------------------------------------------
-policy:
-
-  tz_overrides_v1:
-    type: object
-    additionalProperties: false
-    properties:
-      semver: { type: string }
-      sha256_digest: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      overrides:
-        type: array
-        items:
-          type: object
-          additionalProperties: false
-          required: [scope, tzid]
-          properties:
-            scope: { type: string }
-            tzid:  { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
-            evidence_url: { type: string }
-            expiry_yyyy_mm_dd: { type: string }
-    required: [semver, sha256_digest, overrides]
-
-  tz_nudge_v1:
-    type: object
-    additionalProperties: false
-    properties:
-      semver: { type: string }
-      sha256_digest: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      nudge_distance_degrees:
-        type: number
-        exclusiveMinimum: 0
-    required: [semver, sha256_digest, nudge_distance_degrees]
-
-# -- Ingress references ----------------------------------------------------
+# ── Ingress / Policy (sealed in S0) ───────────────────────────────────────
 ingress:
 
   tzdb_release_v1:
     type: object
     additionalProperties: false
+    required: [release_tag, archive_sha256]
     properties:
-      release_tag: { type: string }
+      release_tag: { type: string, pattern: '^20[0-9]{2}[a-z]?$' }
       archive_sha256: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      files:
-        type: array
-        items:
-          type: string
-    required: [release_tag, archive_sha256, files]
 
-# -- Cache artefacts -------------------------------------------------------
+policy:
+
+  tz_overrides_v1:
+    type: array
+    description: "Governed override list; precedence declared site » mcc » country."
+    items:
+      type: object
+      additionalProperties: false
+      required: [scope, target, tzid]
+      properties:
+        scope:   { type: string, enum: [site, mcc, country] }
+        target:  { type: string, minLength: 1 }      # site_id or MCC or ISO-2
+        tzid:    { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+        evidence_url: { type: string, nullable: true }
+        expiry_yyyy_mm_dd: { type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$', nullable: true }
+        notes:   { type: string, nullable: true }
+
+  tz_nudge_v1:
+    type: object
+    additionalProperties: false
+    required: [semver, epsilon_degrees, sha256_digest]
+    properties:
+      semver: { type: string }
+      epsilon_degrees: { type: number, exclusiveMinimum: 0.0 }
+      sha256_digest: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+
+# ── Plan / Egress / Cache (downstream states) ─────────────────────────────
+plan:
+
+  s1_tz_lookup:
+    type: table
+    description: "Per-site provisional tz lookup inputs/outputs for 2A.S1."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: seed,               $ref: '#/$defs/uint64',                    nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64',                   nullable: false }
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',   nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',   nullable: false }
+      - { name: site_order,         type: integer, minimum: 1,                 nullable: false }
+      - { name: lat_deg,            type: number,                              nullable: false }
+      - { name: lon_deg,            type: number,                              nullable: false }
+      - { name: tzid_provisional,   $ref: '#/$defs/iana_tzid',                 nullable: false }
+      - { name: nudge_lat_deg,      type: number,                              nullable: true }
+      - { name: nudge_lon_deg,      type: number,                              nullable: true }
+      - { name: created_utc,        $ref: '#/$defs/rfc3339_micros',            nullable: false }
+
+egress:
+
+  site_timezones:
+    type: table
+    description: "Per-site assigned IANA tzid with provenance."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: seed,               $ref: '#/$defs/uint64',                    nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64',                   nullable: false }
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',   nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',   nullable: false }
+      - { name: site_order,         type: integer, minimum: 1,                 nullable: false }
+      - { name: tzid,               $ref: '#/$defs/iana_tzid',                 nullable: false }
+      - { name: tzid_source,        type: string, enum: [polygon, override],   nullable: false }
+      - { name: override_scope,     type: string, enum: [site, mcc, country],  nullable: true }
+      - { name: nudge_lat_deg,      type: number,                              nullable: true }
+      - { name: nudge_lon_deg,      type: number,                              nullable: true }
+      - { name: created_utc,        $ref: '#/$defs/rfc3339_micros',            nullable: false }
+
 cache:
 
   tz_timetable_cache:
     type: object
+    description: "Fingerprint-scoped manifest for compact tz transition tables."
     additionalProperties: false
+    required: [manifest_fingerprint, tzdb_release_tag, tzdb_archive_sha256, tz_index_digest, rle_cache_bytes, created_utc]
     properties:
       manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      tzdb_release_tag:      { type: string }
-      tzdb_archive_sha256:   { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      tz_index_digest:       { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      rle_cache_bytes:       { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
-      created_utc:           { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
-    required:
-      - manifest_fingerprint
-      - tzdb_release_tag
-      - tzdb_archive_sha256
-      - tz_index_digest
-      - rle_cache_bytes
-      - created_utc
+      tzdb_release_tag:     { type: string }
+      tzdb_archive_sha256:  { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      tz_index_digest:      { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      rle_cache_bytes:      { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      created_utc:          { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
 
   tz_offset_adjustments:
     type: object
+    description: "Per-tzid adjustment log emitted during S3 compilation."
     additionalProperties: false
+    required: [manifest_fingerprint, created_utc, count, adjustments]
     properties:
       manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      created_utc:           { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
-      count:                 { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      created_utc:          { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      count:                { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
       adjustments:
         type: array
         items:
           type: object
           additionalProperties: false
+          required: [tzid, transition_unix_utc, raw_seconds, adjusted_minutes, reasons]
           properties:
-            tzid: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
-            transition_unix_utc:
-              type: integer
-              minimum: -9223372036854775808
-              maximum: 9223372036854775807
-            raw_seconds:
-              type: integer
-              minimum: -9223372036854775808
-              maximum: 9223372036854775807
-            adjusted_minutes:
-              type: integer
-              minimum: -900
-              maximum: 900
+            tzid:               { $ref: '#/$defs/iana_tzid' }
+            transition_unix_utc: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+            raw_seconds:        { type: integer }
+            adjusted_minutes:   { type: integer }
             reasons:
               type: array
-              minItems: 1
-              uniqueItems: true
-              items:
-                type: string
-                enum: ["round", "clip"]
-          required:
-            - tzid
-            - transition_unix_utc
-            - raw_seconds
-            - adjusted_minutes
-            - reasons
-    required:
-      - manifest_fingerprint
-      - created_utc
-      - count
-      - adjustments
-
-  tz_index_digest:
-    type: object
-    additionalProperties: false
-    properties:
-      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-      tz_index_digest:      { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
-    required: [manifest_fingerprint, tz_index_digest]
-
-# -- Plan tables -----------------------------------------------------------
-plan:
-
-  s1_tz_lookup:
-    type: table
-    description: "Provisional tz assignment per site before overrides."
-    primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint]
-    sort_keys: [merchant_id, legal_country_iso, site_order]
-    columns_strict: true
-    columns:
-      - { name: merchant_id, type: string, nullable: false }
-      - { name: legal_country_iso, type: string, nullable: false }
-      - { name: site_order, $ref: 'schemas.layer1.yaml#/$defs/uint32', nullable: false }
-      - { name: lat_deg, type: number, nullable: false }
-      - { name: lon_deg, type: number, nullable: false }
-      - { name: tzid_provisional, $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: false }
-      - { name: nudge_lat_deg, type: number, nullable: true }
-      - { name: nudge_lon_deg, type: number, nullable: true }
-      - { name: created_utc, $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
-
-# -- Reference tables ------------------------------------------------------
-reference:
-
-  merchant_mcc_map:
-    type: table
-    description: "Authoritative merchant→MCC mapping derived from the governed ingress universe."
-    primary_key: [merchant_id]
-    partition_keys: [seed, fingerprint]
-    columns_strict: true
-    columns:
-      - { name: merchant_id, $ref: 'schemas.layer1.yaml#/$defs/uint64', nullable: false }
-      - { name: mcc, type: integer, minimum: 0, maximum: 9999, nullable: false }
-
-# -- Egress tables ---------------------------------------------------------
-egress:
-
-  site_timezones:
-    type: table
-    description: "Final per-site IANA tzid with provenance."
-    primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint]
-    sort_keys: [merchant_id, legal_country_iso, site_order]
-    columns_strict: true
-    columns:
-      - { name: merchant_id, type: string, nullable: false }
-      - { name: legal_country_iso, type: string, nullable: false }
-      - { name: site_order, $ref: 'schemas.layer1.yaml#/$defs/uint32', nullable: false }
-      - { name: tzid, $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: false }
-      - { name: tzid_source, type: string, enum: [polygon, override], nullable: false }
-      - { name: override_scope, type: string, enum: [site, mcc, country], nullable: true }
-      - { name: nudge_lat_deg, type: number, nullable: true }
-      - { name: nudge_lon_deg, type: number, nullable: true }
-      - { name: created_utc, $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
-      - { name: notes, type: string, nullable: true }
+              items: { type: string }

@@ -35,7 +35,7 @@
 
 **Change log (summary):**
 
-* `v1.0.0-alpha` - Initial specification for 2A.S5 (fingerprint-scoped validation bundle + PASS flag sealing S2-S4 evidence). Subsequent edits follow §13 Change Control.
+* `v1.0.0-alpha` - Initial specification for 2A.S5 (manifest_fingerprint-scoped validation bundle + PASS flag sealing S2-S4 evidence). Subsequent edits follow §13 Change Control.
 
 ---
 
@@ -63,16 +63,16 @@
 
 ## 2. Purpose & scope **(Binding)**
 
-**Intent.** Establish the **segment PASS gate** for 2A by verifying all required evidence for a single **`manifest_fingerprint`** and publishing a fingerprint-scoped **validation bundle** plus a cryptographic **`_passed.flag`** that downstream systems SHALL enforce as **“No PASS → No Read.”**
+**Intent.** Establish the **segment PASS gate** for 2A by verifying all required evidence for a single **`manifest_fingerprint`** and publishing a manifest_fingerprint-scoped **validation bundle** plus a cryptographic **`_passed.flag`** that downstream systems SHALL enforce as **“No PASS → No Read.”**
 
 **Objectives (normative).** 2A.S5 SHALL:
 
 * **Assert eligibility:** Use the 2A.S0 **gate receipt** for the target `manifest_fingerprint` before any read.
 * **Verify required evidence:**
-  • **S3 cache** exists and is valid for the fingerprint (schema-valid, path↔embed equality, non-empty).
+  • **S3 cache** exists and is valid for the manifest_fingerprint (schema-valid, path↔embed equality, non-empty).
   • **Discover all seeds** that have `site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
   • For **every discovered seed**, a matching **S4 legality report** exists with **`status="PASS"`**.
-* **Assemble a canonical bundle:** Create a fingerprint-scoped directory containing at least an **`index.json`** (fields-strict) that lists every bundled file as `{path, sha256_hex}` in **ASCII-lex order**, plus the referenced evidence files (e.g., all S4 reports for the fingerprint, an S3 cache manifest snapshot, optional checks/metrics).
+* **Assemble a canonical bundle:** Create a manifest_fingerprint-scoped directory containing at least an **`index.json`** (fields-strict) that lists every bundled file as `{path, sha256_hex}` in **ASCII-lex order**, plus the referenced evidence files (e.g., all S4 reports for the manifest_fingerprint, an S3 cache manifest snapshot, optional checks/metrics).
 * **Seal with a flag:** Write **`_passed.flag`** as the single line
   `sha256_hex = <64 lowercase hex>`
   where the value is the SHA-256 over the **raw bytes** of all files listed in `index.json`, concatenated in **ASCII-lex path order**; the flag itself is **excluded** from the hash.
@@ -106,7 +106,7 @@
 S5 SHALL begin only when:
 
 * **Gate verified.** A valid **2A.S0 gate receipt** exists and schema-validates for the target `manifest_fingerprint`. S5 relies on this for read permission; it does **not** re-hash upstream bundles.
-* **Run identity fixed.** The **`manifest_fingerprint`** for this publish is selected and constant; S5 is **fingerprint-scoped** (no `seed`).
+* **Run identity fixed.** The **`manifest_fingerprint`** for this publish is selected and constant; S5 is **manifest_fingerprint-scoped** (no `seed`).
 * **Authorities addressable.** The 2A schema pack, Dataset Dictionary, and Artefact Registry required below resolve without placeholders (Schema = shape; Dictionary = IDs→paths/partitions/format; Registry = existence/licence/retention/lineage).
 * **Posture.** S5 is **RNG-free** and deterministic; all observational timestamps in optional diagnostics **MUST** be derived from sealed inputs (e.g., S0 receipt), not wall-clock time.
 
@@ -115,15 +115,15 @@ S5 SHALL begin only when:
 S5 **consumes only** the inputs below. All inputs **MUST** resolve **by ID via the Dataset Dictionary** (no literal/relative paths) and be authorised by the Registry.
 
 1. **2A.S0 gate receipt (evidence)**
-   *Role:* proves eligibility to read fingerprint-scoped assets; binds the sealed-inputs set for this `manifest_fingerprint`.
-   *Use in S5:* presence + schema validity + fingerprint match (no bundle re-hash).
+   *Role:* proves eligibility to read manifest_fingerprint-scoped assets; binds the sealed-inputs set for this `manifest_fingerprint`.
+   *Use in S5:* presence + schema validity + manifest_fingerprint match (no bundle re-hash).
 
 2. **`tz_timetable_cache` (from S3) — partition `[manifest_fingerprint]`**
-   *Role:* authoritative cache manifest produced by S3 for this fingerprint.
+   *Role:* authoritative cache manifest produced by S3 for this manifest_fingerprint.
    *Use in S5:* schema validity, path↔embed equality, non-empty payload; a **snapshot** (e.g., the manifest) **MAY** be included in the bundle as evidence.
 
 3. **`site_timezones` (from S2) — discovery surface**
-   *Role:* determine the **set of seeds** that have egress under this fingerprint.
+   *Role:* determine the **set of seeds** that have egress under this manifest_fingerprint.
    *Discovery rule (binding):* S5 SHALL enumerate **SEEDS = { seed | exists path `…/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` }** via the Dictionary; **no heuristics**.
    *Use in S5:* discovery only; S5 SHALL NOT read or re-emit `site_timezones` data.
 
@@ -135,16 +135,16 @@ S5 **consumes only** the inputs below. All inputs **MUST** resolve **by ID via t
 
 ### 3.3 Binding constraints on input use
 
-* **Same-fingerprint constraint.** All fingerprinted inputs S5 references **MUST** match the target `manifest_fingerprint`.
+* **Same-manifest_fingerprint constraint.** All fingerprinted inputs S5 references **MUST** match the target `manifest_fingerprint`.
 * **Dictionary-only resolution.** Inputs SHALL be resolved by **ID → path/partitions/format** via the Dictionary; literal/relative paths are **forbidden**.
 * **Shape authority.** JSON-Schema anchors are the **sole** shape authority; S5 SHALL NOT assume undeclared fields.
 * **Seed completeness.** For the discovered **SEEDS**, a corresponding S4 report **MUST** exist for **each** seed and **MUST** have `status="PASS"`; otherwise S5 **MUST ABORT**.
-* **Bundle scope.** Files hashed by S5 **MUST** reside under the fingerprint’s **bundle root**; `index.json` **MUST NOT** reference `_passed.flag` or any path outside the bundle root.
+* **Bundle scope.** Files hashed by S5 **MUST** reside under the manifest_fingerprint’s **bundle root**; `index.json` **MUST NOT** reference `_passed.flag` or any path outside the bundle root.
 * **Non-mutation.** S5 SHALL NOT mutate any input datasets; it emits only the **validation bundle** and the **`_passed.flag`**.
 
 ### 3.4 Null/empty allowances
 
-* **No egress seeds (SEEDS = ∅).** Allowed. S5 SHALL still produce a fingerprint-scoped bundle/flag (e.g., with S3 evidence and an empty seed list) provided all other validators pass.
+* **No egress seeds (SEEDS = ∅).** Allowed. S5 SHALL still produce a manifest_fingerprint-scoped bundle/flag (e.g., with S3 evidence and an empty seed list) provided all other validators pass.
 * **Optional diagnostics.** S5 MAY include non-identity diagnostics (checks/metrics JSON) in the bundle; if present, they **MUST** be listed in `index.json` and are covered by the digest.
 * **No other inputs.** Datasets not enumerated in §3.2 are **out of scope** for S5 and SHALL NOT be read.
 
@@ -167,8 +167,8 @@ S5 **consumes only** the inputs below. All inputs **MUST** resolve **by ID via t
 1. **2A.S0 gate receipt (evidence)**
 
    * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
-   * **Catalogue:** fingerprint-scoped receipt.
-   * **Boundary:** S5 **SHALL** verify presence and **fingerprint match** only; it **SHALL NOT** recompute any upstream bundle hash or alter receipt content.
+   * **Catalogue:** manifest_fingerprint-scoped receipt.
+   * **Boundary:** S5 **SHALL** verify presence and **manifest_fingerprint match** only; it **SHALL NOT** recompute any upstream bundle hash or alter receipt content.
 
 2. **`tz_timetable_cache` (S3 output; required)**
 
@@ -181,7 +181,7 @@ S5 **consumes only** the inputs below. All inputs **MUST** resolve **by ID via t
 
    * **Shape:** `schemas.2A.yaml#/egress/site_timezones`.
    * **Catalogue:** `…/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (partitions `[seed, manifest_fingerprint]`).
-   * **Boundary (discovery-only):** S5 **SHALL** discover **SEEDS** by testing catalogue existence of the path family for this fingerprint.
+   * **Boundary (discovery-only):** S5 **SHALL** discover **SEEDS** by testing catalogue existence of the path family for this manifest_fingerprint.
      S5 **SHALL NOT** read, copy, or re-emit site rows; only the **set of seeds** is used.
 
 4. **`s4_legality_report` (S4 evidence; one per discovered seed)**
@@ -200,7 +200,7 @@ S5 **consumes only** the inputs below. All inputs **MUST** resolve **by ID via t
 * **Cache readiness:** Cache manifest is schema-valid, **path↔embed** correct, and payload **non-empty**.
 * **Seed completeness:** `SEEDS` is discovered from the catalogue; for **each** seed a matching S4 report exists with **`status="PASS"`** (none missing, none failing).
 * **Bundle evidence discipline:** Any evidence file S5 copies into the bundle **MUST** be byte-for-byte identical to the catalogued source.
-* **Root scoping (for later index checks):** All files S5 will hash **MUST** reside under the fingerprint’s **bundle root**; S5 **MUST NOT** reference paths outside the root or include `_passed.flag` in the index.
+* **Root scoping (for later index checks):** All files S5 will hash **MUST** reside under the manifest_fingerprint’s **bundle root**; S5 **MUST NOT** reference paths outside the root or include `_passed.flag` in the index.
 
 ### 4.4 Prohibitions
 
@@ -216,11 +216,11 @@ S5 **SHALL NOT**:
 
 ## 5. Outputs (bundle & flag) & identity **(Binding)**
 
-### 5.1 Validation bundle — `validation_bundle_2A` (fingerprint-scoped directory)
+### 5.1 Validation bundle — `validation_bundle_2A` (manifest_fingerprint-scoped directory)
 
 **Role.** The authoritative, immutable evidence set that proves 2A is publishable for a single **`manifest_fingerprint`**.
 
-**Catalogue (Dictionary).** Path family (fingerprint only):
+**Catalogue (Dictionary).** Path family (manifest_fingerprint only):
 `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/`
 
 **Required contents (binding):**
@@ -234,8 +234,8 @@ S5 **SHALL NOT**:
   * No duplicates; all listed files **exist in the bundle root**; **`_passed.flag` MUST NOT appear** in the index.
 * **Evidence files** (bytes **unchanged** from their catalogued sources):
 
-  * **All S4 reports** for the **discovered seed set** under this fingerprint (one per seed).
-  * An **S3 cache manifest snapshot** for this fingerprint.
+  * **All S4 reports** for the **discovered seed set** under this manifest_fingerprint (one per seed).
+  * An **S3 cache manifest snapshot** for this manifest_fingerprint.
   * *(Optional, non-identity)* `checks.json` / `metrics.json` (if present, they **MUST** be listed in `index.json` and are covered by the digest).
 
 **Prohibitions:** The bundle **MUST NOT** contain data from outside the sealed 2A evidence (no raw tzdb, no site rows).
@@ -271,8 +271,8 @@ sha256_hex = <64 lowercase hex>
 
 ### 5.4 Write posture & merge discipline
 
-* **Single-writer, write-once per fingerprint.** Any re-emit to an existing fingerprint **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
-* **Atomic publish (binding):** Stage bundle files → write `index.json` (ASCII-lex) → compute digest over raw bytes of indexed files → write `_passed.flag` with the canonical line → **single atomic move** into the fingerprint partition.
+* **Single-writer, write-once per manifest_fingerprint.** Any re-emit to an existing manifest_fingerprint **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Atomic publish (binding):** Stage bundle files → write `index.json` (ASCII-lex) → compute digest over raw bytes of indexed files → write `_passed.flag` with the canonical line → **single atomic move** into the manifest_fingerprint partition.
 * **File order non-authoritative:** Only the index’s order is authoritative for hashing; directory listing order has no meaning.
 
 ---
@@ -307,7 +307,7 @@ sha256_hex = <64 lowercase hex>
   **Binding rules:** paths are **relative** to the bundle root (no leading `/`, no `..`); entries are **ASCII-lexicographically** ordered by `path`; **no duplicates**; every listed file **exists in the bundle root**; `_passed.flag` **MUST NOT** be listed. 
 * **Optional non-identity artefacts:** `checks_json` (`#/validation/checks_v1`) and `metrics_json` (`#/validation/metrics_v1`) MAY be present; if present they **MUST** be listed in the index and are covered by the digest. 
 
-**Dictionary binding (catalogue authority).** Bundle is fingerprint-scoped under the validation path family; **partition:** `[manifest_fingerprint]`; the catalogue governs filenames/layout. 
+**Dictionary binding (catalogue authority).** Bundle is manifest_fingerprint-scoped under the validation path family; **partition:** `[manifest_fingerprint]`; the catalogue governs filenames/layout. 
 
 **Registry posture (existence/licensing/lineage).** Registered as **validation**; lineage depends on **`site_timezones`**, **`tz_timetable_cache`**, and **`s4_legality_report`**; write-once/atomic publish; index law is the 2A pack’s `bundle_index_v1`. 
 
@@ -335,8 +335,8 @@ sha256_hex = <64 lowercase hex>
 ### 6.3 Referenced inputs (read-only in S5)
 
 * **S4 report (one per discovered seed):** `schemas.2A.yaml#/validation/s4_legality_report` (**fields-strict**; includes `manifest_fingerprint`, `seed`, `generated_utc`, `status`, and `counts{…}`); partitions `[seed, manifest_fingerprint]`. These reports are **bundled verbatim** and listed in the index. 
-* **S3 cache (fingerprint):** `schemas.2A.yaml#/cache/tz_timetable_cache`; S5 verifies manifest validity, path↔embed equality, and non-empty payload; a manifest snapshot MAY be bundled. 
-* **S0 receipt (fingerprint):** `#/validation/s0_gate_receipt_v1`—used to assert gate/fingerprint; not necessarily bundled. 
+* **S3 cache (manifest_fingerprint):** `schemas.2A.yaml#/cache/tz_timetable_cache`; S5 verifies manifest validity, path↔embed equality, and non-empty payload; a manifest snapshot MAY be bundled. 
+* **S0 receipt (manifest_fingerprint):** `#/validation/s0_gate_receipt_v1`—used to assert gate/manifest_fingerprint; not necessarily bundled. 
 * **S2 egress discovery:** presence of `site_timezones` partitions is determined via the catalogue path family; rows are **not** read or bundled. 
 
 ---
@@ -353,9 +353,9 @@ sha256_hex = <64 lowercase hex>
 
 * **Fields-strict.** `validation_bundle_2A.index_json` MUST validate against `bundle_index_v1`; `passed_flag` MUST match its regex exactly. 
 * **Root scoping.** `index.json` MUST NOT reference paths outside the bundle root and MUST NOT list `_passed.flag`. 
-* **Write-once.** Bundle and flag are immutable per fingerprint; any re-emit MUST be byte-identical (Registry posture). 
+* **Write-once.** Bundle and flag are immutable per manifest_fingerprint; any re-emit MUST be byte-identical (Registry posture). 
 
-*Result:* With these anchors and catalogue/registry bindings, S5’s outputs—the **validation bundle** and **PASS flag**—are fully specified, fingerprint-scoped, and immutable, with a canonical index/digest law that downstream systems can verify to enforce **“No PASS → No Read.”***
+*Result:* With these anchors and catalogue/registry bindings, S5’s outputs—the **validation bundle** and **PASS flag**—are fully specified, manifest_fingerprint-scoped, and immutable, with a canonical index/digest law that downstream systems can verify to enforce **“No PASS → No Read.”***
 
 ---
 
@@ -370,7 +370,7 @@ sha256_hex = <64 lowercase hex>
 
 ### 7.2 Fingerprint & seed discovery (canonical)
 
-1. **Bind fingerprint.** Select the target `manifest_fingerprint` (S5 is fingerprint-scoped; no `seed`).
+1. **Bind manifest_fingerprint.** Select the target `manifest_fingerprint` (S5 is manifest_fingerprint-scoped; no `seed`).
 2. **Discover seeds (SEEDS).** Using the **Dictionary path family** for S2 egress, define
    **`SEEDS = { seed | exists data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/ }`**.
    Discovery is **catalogue-only**; S5 SHALL NOT read site rows.
@@ -380,7 +380,7 @@ sha256_hex = <64 lowercase hex>
 
 * **S3 cache:** Verify `tz_timetable_cache` (schema-valid, **path↔embed equality**, `rle_cache_bytes>0`).
 * **S4 reports:** For each `seed ∈ SEEDS`, verify the report validates against its anchor and has `status="PASS"`.
-* **S0 receipt:** Verify presence and fingerprint match (no bundle re-hash).
+* **S0 receipt:** Verify presence and manifest_fingerprint match (no bundle re-hash).
 
 ### 7.4 Bundle assembly (staging; bytes must be verbatim)
 
@@ -426,7 +426,7 @@ S5 SHALL create **`index.json`** listing **every** bundled file as `{path, sha25
 ### 7.7 Emission & identity discipline
 
 * **Partitioning:** publish to `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/` (**`[manifest_fingerprint]`** only).
-* **Atomic publish (binding):** stage files → write `index.json` → compute digest → write `_passed.flag` → **single atomic move** into the fingerprint partition.
+* **Atomic publish (binding):** stage files → write `index.json` → compute digest → write `_passed.flag` → **single atomic move** into the manifest_fingerprint partition.
 * **Write-once:** if the partition already exists, any re-emit **MUST** be **byte-identical**; otherwise **ABORT**.
 * **Path↔embed equality:** bundled evidence is copied **verbatim**; embedded lineage values remain unchanged.
 
@@ -452,7 +452,7 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 ### 8.1 Identity tokens
 
 * **Selection identity:** exactly one **`manifest_fingerprint`** per publish of the S5 outputs.
-* **No seed:** S5 outputs are **fingerprint-scoped only**; `seed` is not a partition key for S5.
+* **No seed:** S5 outputs are **manifest_fingerprint-scoped only**; `seed` is not a partition key for S5.
 * **Path↔embed equality:** Any embedded lineage present inside bundled evidence (e.g., S4 reports) remains **verbatim**; S5 SHALL NOT alter embedded values. The bundle’s identity is the **partition path** itself.
 
 ### 8.2 Partitions & path family
@@ -470,13 +470,13 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 
 ### 8.4 Write posture & immutability
 
-* **Single-writer, write-once per fingerprint.** If any artefact already exists under the target fingerprint, any re-emit **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
-* **Atomic publish (binding):** stage bundle files → write `index.json` (ASCII-lex) → compute digest → write `_passed.flag` → **single atomic move** into the fingerprint partition.
-* **No in-place edits/tombstones.** Updates occur only by producing a **new fingerprint** upstream (S0 reseal).
+* **Single-writer, write-once per manifest_fingerprint.** If any artefact already exists under the target manifest_fingerprint, any re-emit **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Atomic publish (binding):** stage bundle files → write `index.json` (ASCII-lex) → compute digest → write `_passed.flag` → **single atomic move** into the manifest_fingerprint partition.
+* **No in-place edits/tombstones.** Updates occur only by producing a **new manifest_fingerprint** upstream (S0 reseal).
 
 ### 8.5 Concurrency & conflict detection
 
-* **Single-writer per identity.** Concurrent writes targeting the same `fingerprint` are not permitted.
+* **Single-writer per identity.** Concurrent writes targeting the same `manifest_fingerprint` are not permitted.
 * **Conflict definition:** the presence of any file in `…/validation/manifest_fingerprint={manifest_fingerprint}/` constitutes a conflict; S5 **MUST** abort rather than overwrite or mutate.
 
 ### 8.6 Discovery & selection (downstream contract)
@@ -526,7 +526,7 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 ### 9.5 Identity & merge (mandatory)
 
 **V-15 — Partitioning (Abort).** Outputs are emitted under `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/` (**`[manifest_fingerprint]`** only).
-**V-16 — Write-once (Abort).** If the target fingerprint partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
+**V-16 — Write-once (Abort).** If the target manifest_fingerprint partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
 
 ### 9.6 Outcome semantics
 
@@ -566,11 +566,11 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 
 ### 10.1 Gate & input resolution
 
-* **2A-S5-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 receipt for the target fingerprint.
+* **2A-S5-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 receipt for the target manifest_fingerprint.
   *Remediation:* publish/repair S0; rerun S5.
 * **2A-S5-010 INPUT_RESOLUTION_FAILED (Abort)** — Any required input (cache, S4 report, or discovery catalogue) fails **Dictionary** resolution or Registry authorisation.
   *Remediation:* fix Dictionary/Registry entries/IDs; rerun.
-* **2A-S5-011 WRONG_PARTITION_SELECTED (Abort)** — Seed discovery mismatch (e.g., probing the wrong fingerprint or misreading seed partitions).
+* **2A-S5-011 WRONG_PARTITION_SELECTED (Abort)** — Seed discovery mismatch (e.g., probing the wrong manifest_fingerprint or misreading seed partitions).
   *Remediation:* restrict discovery to `…/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`; rerun.
 
 ### 10.2 Evidence readiness
@@ -609,9 +609,9 @@ Given the same **S0 receipt**, the same **S3 cache**, and the same **set of S4 P
 ### 10.5 Output identity & merge
 
 * **2A-S5-012 PARTITION_PURITY_VIOLATION (Abort)** — Outputs not emitted under `…/validation/manifest_fingerprint={manifest_fingerprint}/` (extra partitions present).
-  *Remediation:* emit only under the fingerprint partition.
-* **2A-S5-060 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes to an existing fingerprint partition.
-  *Remediation:* publish byte-identically or use a new fingerprint (via S0 reseal).
+  *Remediation:* emit only under the manifest_fingerprint partition.
+* **2A-S5-060 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes to an existing manifest_fingerprint partition.
+  *Remediation:* publish byte-identically or use a new manifest_fingerprint (via S0 reseal).
 
 ### 10.6 Authority conflict (resolution rule)
 
@@ -657,7 +657,7 @@ A single UTF-8 JSON object **SHALL** be written with at least the fields below. 
 **Seed discovery & S4 coverage**
 
 * `seeds.discovered : uint32`
-* `seeds.list : uint64[]` — **exact** set of `seed` values discovered from `site_timezones` for this fingerprint
+* `seeds.list : uint64[]` — **exact** set of `seed` values discovered from `site_timezones` for this manifest_fingerprint
 * `s4.covered : uint32` — number of seeds with a report
 * `s4.missing : uint32` — EXPECT `0` on PASS
 * `s4.failing : uint32` — EXPECT `0` on PASS
@@ -686,7 +686,7 @@ A single UTF-8 JSON object **SHALL** be written with at least the fields below. 
 
 **Optional (advisory, non-binding)**
 
-* `determinism.partition_hash : hex64` — directory-level hash of the emitted fingerprint partition (post-publish)
+* `determinism.partition_hash : hex64` — directory-level hash of the emitted manifest_fingerprint partition (post-publish)
 * `checks : object` — any non-identity checks/metrics S5 chose to emit in the bundle (keys mirror `checks_v1` / `metrics_v1`)
 
 ---
@@ -719,9 +719,9 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 
 ### 12.1 Workload shape
 
-* **Reads:** fingerprint-scoped **S3 cache manifest** (small), **S4 reports for each discovered seed** (one JSON per seed).
+* **Reads:** manifest_fingerprint-scoped **S3 cache manifest** (small), **S4 reports for each discovered seed** (one JSON per seed).
 * **Compute:** discover seeds via **catalogue listing** → validate evidence presence/PASS → assemble **index.json** (ASCII-lex) → **streaming SHA-256** over indexed files → write `_passed.flag`.
-* **Writes:** one fingerprint-scoped **bundle directory** (small JSONs + verbatim evidence) and a single-line **`_passed.flag`**.
+* **Writes:** one manifest_fingerprint-scoped **bundle directory** (small JSONs + verbatim evidence) and a single-line **`_passed.flag`**.
 
 ### 12.2 Asymptotics (N = files indexed; B = sum of indexed file sizes)
 
@@ -748,7 +748,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 
 * **Evidence reads:** may be performed in parallel (per-seed), but final **index.json** **MUST** be materialised and sorted deterministically (ASCII-lex).
 * **Hashing:** may precompute per-file hashes in parallel; the **attestation hash** is computed over **raw bytes concatenated in index order**, so perform a final serial pass (or a deterministic chunked concatenation).
-* **Publish:** still **single-writer, write-once** for the fingerprint partition.
+* **Publish:** still **single-writer, write-once** for the manifest_fingerprint partition.
 
 ### 12.6 Hot spots & guardrails
 
@@ -766,19 +766,19 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 
 ### 12.8 Scalability knobs (programme-level)
 
-* Cap on **max seeds per bundle** (advisory) or shard publish jobs by fingerprint if seeds are extremely numerous; still ends as a single bundle emit.
+* Cap on **max seeds per bundle** (advisory) or shard publish jobs by manifest_fingerprint if seeds are extremely numerous; still ends as a single bundle emit.
 * **Parallel read degree** for S4 report validation and per-file hashing.
 * **Hash chunk size** for streamed SHA-256 to balance CPU vs syscalls.
 * Optional toggle to include/exclude **checks/metrics** files (non-identity) in the bundle.
 
 ### 12.9 Re-run & churn costs
 
-* Re-running S5 with **unchanged evidence** for the same fingerprint reproduces **byte-identical** bundle, `index.json`, and `_passed.flag`.
-* Any upstream change (new/changed S4 report, new cache manifest, different seed set) entails a **new fingerprint** (via S0 reseal) and a fresh S5 emit; prior bundles remain immutable.
+* Re-running S5 with **unchanged evidence** for the same manifest_fingerprint reproduces **byte-identical** bundle, `index.json`, and `_passed.flag`.
+* Any upstream change (new/changed S4 report, new cache manifest, different seed set) entails a **new manifest_fingerprint** (via S0 reseal) and a fresh S5 emit; prior bundles remain immutable.
 
 ### 12.10 Typical envelopes (order-of-magnitude)
 
-* **Seeds per fingerprint:** tens to low hundreds (programme-dependent).
+* **Seeds per manifest_fingerprint:** tens to low hundreds (programme-dependent).
 * **Bundle file count (N):** `|SEEDS|` (S4 reports) + 1 (S3 manifest snapshot, if included) + 1–2 (checks/metrics).
 * **Indexed bytes (B):** MBs at most for typical configurations (dominated by S4 JSONs).
 * **Runtime:** seconds to low minutes, dominated by I/O and hashing **Θ(B)**; CPU is light.
@@ -801,7 +801,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 2. **Outputs:** existence and IDs/anchors of **`validation_bundle_2A`**, **`bundle_index_v1`**, and **`validation_passed_flag_2A`**; write-once/atomic publish.
 3. **Index law:** `index.json` lists **every** bundled file (except `_passed.flag`) as `{path, sha256_hex}`, paths are **relative**, **ASCII-lex** sorted by `path`, no duplicates, no out-of-root entries.
 4. **Digest & flag law:** flag line **exactly** `sha256_hex = <hex64>`; `<hex64>` is SHA-256 over the **raw bytes** of indexed files in **index order**; flag file **excluded**.
-5. **Evidence rule:** for the target fingerprint, **S3 cache** is valid/non-empty; **SEEDS** are discovered strictly from the **Dictionary**; for **every** discovered seed, an **S4 report with `status="PASS"`** exists and is bundled verbatim.
+5. **Evidence rule:** for the target manifest_fingerprint, **S3 cache** is valid/non-empty; **SEEDS** are discovered strictly from the **Dictionary**; for **every** discovered seed, an **S4 report with `status="PASS"`** exists and is bundled verbatim.
 6. **No site-row reads / no tzdb parsing:** S5 verifies and seals; it does not recompute S2–S4.
 7. **Authorities:** **Schema** = shape; **Dictionary** = IDs→paths/partitions/format; **Registry** = existence/licence/retention/lineage; precedence **Schema › Dictionary › Registry**.
 8. **Validator/code semantics:** §9 validators and §10 error codes maintain their meanings.
@@ -839,8 +839,8 @@ Require a MAJOR bump and downstream coordination:
 ### 13.6 Co-existence & migration
 
 * **Dual-anchor window:** introduce new index or bundle anchors (e.g., `bundle_index_v2`) while keeping `v1`; hashing law must remain identical during the window.
-* **New seeds after publish:** Because S5 is **write-once per fingerprint**, additional `site_timezones` seeds discovered **after** a bundle is published **cannot** be added in place. Programme policy **MUST** reseal in **S0** (new `manifest_fingerprint`) and re-run S2–S5 to produce a new bundle for the updated fingerprint.
-* **Idempotent re-runs:** With unchanged evidence for the same fingerprint, S5 reproduces byte-identical bundle, index, and `_passed.flag`.
+* **New seeds after publish:** Because S5 is **write-once per manifest_fingerprint**, additional `site_timezones` seeds discovered **after** a bundle is published **cannot** be added in place. Programme policy **MUST** reseal in **S0** (new `manifest_fingerprint`) and re-run S2–S5 to produce a new bundle for the updated manifest_fingerprint.
+* **Idempotent re-runs:** With unchanged evidence for the same manifest_fingerprint, S5 reproduces byte-identical bundle, index, and `_passed.flag`.
 
 ### 13.7 Reserved extension points
 
@@ -878,9 +878,9 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target **f
 
 ### A2. Upstream evidence S5 verifies
 
-* **S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped).
-* **S3 cache** — `schemas.2A.yaml#/cache/tz_timetable_cache` (fingerprint) — manifest validity, path↔embed equality, non-empty payload.
-* **S2 egress (discovery surface)** — `schemas.2A.yaml#/egress/site_timezones` (partitions `[seed, manifest_fingerprint]`) — used **only** to discover the seed set for the fingerprint.
+* **S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (manifest_fingerprint-scoped).
+* **S3 cache** — `schemas.2A.yaml#/cache/tz_timetable_cache` (manifest_fingerprint) — manifest validity, path↔embed equality, non-empty payload.
+* **S2 egress (discovery surface)** — `schemas.2A.yaml#/egress/site_timezones` (partitions `[seed, manifest_fingerprint]`) — used **only** to discover the seed set for the manifest_fingerprint.
 * **S4 legality report (per discovered seed)** — `schemas.2A.yaml#/validation/s4_legality_report` (partitions `[seed, manifest_fingerprint]`) — must exist with `status="PASS"` for every discovered seed.
 
 ### A3. S5 outputs (this state)
@@ -904,14 +904,14 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target **f
 * **`site_timezones`** — egress; write-once; final-in-layer.
 * **`tz_timetable_cache`** — cache; lineage `→ tzdb_release`; write-once.
 * **`s4_legality_report`** — validation evidence; lineage depends on S2/S3.
-* **`validation_bundle_2A`** — validation artefact; lineage depends on `site_timezones` (seed discovery), `tz_timetable_cache`, and all `s4_legality_report`s for the fingerprint; index law = 2A pack’s `bundle_index_v1`.
+* **`validation_bundle_2A`** — validation artefact; lineage depends on `site_timezones` (seed discovery), `tz_timetable_cache`, and all `s4_legality_report`s for the manifest_fingerprint; index law = 2A pack’s `bundle_index_v1`.
 * **`validation_passed_flag_2A`** — depends on the bundle; write-once/atomic publish.
 
 ### A6. Seed discovery rule (catalogue-only)
 
 * Define **SEEDS** as the exact set of `seed` partitions present under
   `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` in the Dictionary.
-* For **every** `seed ∈ SEEDS`, a matching S4 report **must** exist at the same `(seed,fingerprint)` with `status="PASS"` and be bundled verbatim.
+* For **every** `seed ∈ SEEDS`, a matching S4 report **must** exist at the same `(seed, manifest_fingerprint)` with `status="PASS"` and be bundled verbatim.
 
 ### A7. Programme context
 

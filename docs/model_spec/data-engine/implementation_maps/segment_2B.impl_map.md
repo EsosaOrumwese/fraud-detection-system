@@ -1,4 +1,4 @@
-# Segment 2B — Compiled Implementation Map (v0.1.0)
+# Segment 2B - Compiled Implementation Map (v0.1.0)
 
 This is the reviewer-facing view derived from `segment_2B.impl_map.yaml`.
 Use it to answer:
@@ -9,7 +9,7 @@ Use it to answer:
 
 Assumptions applied (as you requested):
 - Token naming is standardized to `manifest_fingerprint` everywhere (paths/partitions/examples).
-- Any accidental “2A is Layer-2” wording is corrected (2A is the pinned upstream within Layer-1).
+- Any accidental "2A is Layer-2" wording is corrected (2A is the pinned upstream within Layer-1).
 
 ---
 
@@ -25,46 +25,46 @@ Upstream inputs (hard)
     - site_timezones (seed + manifest_fingerprint)   [required pin]
     - tz_timetable_cache (manifest_fingerprint)     [optional pin; coherence/audit only]
 
-Pinned policy packs (fingerprint-only)
+Pinned policy packs (manifest_fingerprint-only)
   - route_rng_policy_v1        (streams/substreams/budgets for S5/S6)
   - alias_layout_policy_v1     (alias encoding/decoding law)
   - day_effect_policy_v1       (gamma cadence/variance/clipping for S3)
   - virtual_edge_policy_v1     (edge domain + weights/attrs for S6)
 
 2B pipeline
-  └─ S0 (gate-in foundation):
+  +- S0 (gate-in foundation):
        - verifies 1B final bundle gate (FAIL_CLOSED if mismatch)
        - seals/pins upstream inputs + policy packs
        - writes s0_gate_receipt_2B + sealed_inputs_2B
 
-  ├─ S1 (deterministic): per-site base weights → quantise/freeze
-  │    → s1_site_weights (seed + manifest_fingerprint)
-  │
-  ├─ S2 (deterministic): per-merchant alias tables (O(1) decode)
-  │    → s2_alias_index + s2_alias_blob (seed + manifest_fingerprint)
-  │
-  ├─ S3 (RNG-bounded plan): “corporate-day” gamma multipliers by tz-group
-  │    → s3_day_effects (seed + manifest_fingerprint)
-  │    (one Philox draw per row; RNG provenance embedded in table rows)
-  │
-  ├─ S4 (deterministic plan): tz-group mix weights per day
-  │    → s4_group_weights (seed + manifest_fingerprint)
-  │
-  ├─ S5 (router core, per-arrival RNG):
-  │    - Stage A: pick tz_group via alias (1 draw)
-  │    - Stage B: pick site within group via alias (1 draw)
-  │    → rng_event_alias_pick_group + rng_event_alias_pick_site + rng_audit_log + rng_trace_log
-  │    → optional s5_selection_log (by utc_day)
-  │
-  ├─ S6 (virtual edge branch, per-arrival RNG):
-  │    - only if is_virtual==1: pick cdn_edge (1 draw)
-  │    → rng_event_cdn_edge_pick + rng_audit_log + rng_trace_log
-  │    → optional s6_edge_log (by utc_day)
-  │
-  ├─ S7 (auditor): validates S2/S3/S4 + conditional router evidence
-  │    → s7_audit_report (seed + manifest_fingerprint)
-  │
-  └─ S8 (finalizer / consumer gate):
+  +- S1 (deterministic): per-site base weights -> quantise/freeze
+  |    -> s1_site_weights (seed + manifest_fingerprint)
+  |
+  +- S2 (deterministic): per-merchant alias tables (O(1) decode)
+  |    -> s2_alias_index + s2_alias_blob (seed + manifest_fingerprint)
+  |
+  +- S3 (RNG-bounded plan): "corporate-day" gamma multipliers by tz-group
+  |    -> s3_day_effects (seed + manifest_fingerprint)
+  |    (one Philox draw per row; RNG provenance embedded in table rows)
+  |
+  +- S4 (deterministic plan): tz-group mix weights per day
+  |    -> s4_group_weights (seed + manifest_fingerprint)
+  |
+  +- S5 (router core, per-arrival RNG):
+  |    - Stage A: pick tz_group via alias (1 draw)
+  |    - Stage B: pick site within group via alias (1 draw)
+  |    -> rng_event_alias_pick_group + rng_event_alias_pick_site + rng_audit_log + rng_trace_log
+  |    -> optional s5_selection_log (by utc_day)
+  |
+  +- S6 (virtual edge branch, per-arrival RNG):
+  |    - only if is_virtual==1: pick cdn_edge (1 draw)
+  |    -> rng_event_cdn_edge_pick + rng_audit_log + rng_trace_log
+  |    -> optional s6_edge_log (by utc_day)
+  |
+  +- S7 (auditor): validates S2/S3/S4 + conditional router evidence
+  |    -> s7_audit_report (seed + manifest_fingerprint)
+  |
+  +- S8 (finalizer / consumer gate):
        - discovers seeds by intersecting required plan surfaces
        - requires all s7_audit_report PASS
        - writes validation_bundle_2B + index.json + _passed.flag (indexed_bundle law)
@@ -77,16 +77,16 @@ manifest_fingerprint before reading 2B plan surfaces (alias tables, day effects,
 
 ## 2) Gates and what they authorize
 
-### Upstream gate (1B.final.bundle_gate) — MUST be verified in S0
+### Upstream gate (1B.final.bundle_gate) - MUST be verified in S0
 - Location: `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/`
 - Evidence: `index.json` + `_passed.flag`
 - Hash law: hash indexed files (exclude `_passed.flag`) in ASCII-lex order of `index.json.path`
 - S0 FAIL_CLOSED if mismatch.
 
 ### Gate-in receipt (2B.S0.gate_in_receipt)
-- Evidence: `s0_gate_receipt_2B` (fingerprint-scoped JSON)
-- Meaning: “S0 verified 1B PASS and pinned upstream inputs + policy packs”
-- Rule: downstream S1–S8 must fail-closed if missing.
+- Evidence: `s0_gate_receipt_2B` (manifest_fingerprint-scoped JSON)
+- Meaning: "S0 verified 1B PASS and pinned upstream inputs + policy packs"
+- Rule: downstream S1-S8 must fail-closed if missing.
 
 ### Final consumer gate (2B.final.bundle_gate)
 - Location: `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`
@@ -99,9 +99,9 @@ manifest_fingerprint before reading 2B plan surfaces (alias tables, day effects,
 ## 3) Frozen surfaces (do not change)
 
 Segment-wide:
-- No PASS → no read: S0 must verify 1B.final.bundle_gate before reading any 1B egress.
+- No PASS -> no read: S0 must verify 1B.final.bundle_gate before reading any 1B egress.
 - S0 seals/pins the minimum input set and policy packs; downstream must require S0 receipt.
-- Path↔embed equality for manifest_fingerprint in fingerprint-scoped receipts/manifests.
+- Path<->embed equality for manifest_fingerprint in manifest_fingerprint-scoped receipts/manifests.
 - Plan partitions are `[seed, manifest_fingerprint]`; receipts/bundles are `[manifest_fingerprint]`.
 - Routing logs/events are `[seed, parameter_hash, run_id]`.
 - Optional per-day logs are `[seed, parameter_hash, run_id, utc_day]`.
@@ -122,7 +122,7 @@ S3 (day effects):
 - created_utc = S0.verified_at_utc.
 
 S4 (group weights):
-- Deterministic normalisation: Σ p_group = 1 for each (merchant_id, utc_day).
+- Deterministic normalisation: sum p_group = 1 for each (merchant_id, utc_day).
 - Row order fixed: `(merchant_id, utc_day, tz_group_id)`.
 - created_utc = S0.verified_at_utc.
 
@@ -131,7 +131,7 @@ S5 (router core):
   1) `alias_pick_group` (1 draw)
   2) `alias_pick_site` (1 draw)
 - Event ordering is binding (group event precedes site event per arrival).
-- Trace reconciliation must hold: total_draws equals sum of both families and equals 2 × routed arrivals.
+- Trace reconciliation must hold: total_draws equals sum of both families and equals 2 x routed arrivals.
 
 S6 (virtual edge branch):
 - Bypass non-virtual arrivals (no RNG, no outputs).
@@ -164,7 +164,7 @@ Hotspots: per-merchant table build + blob packing.
 Safe levers: batch per merchant; sequential blob writer; avoid per-row overhead; keep deterministic merchant ordering.
 
 ### S3 (day effects surface)
-Hotspots: large surface size (merchants × days × tz_groups).
+Hotspots: large surface size (merchants x days x tz_groups).
 Safe levers: generate per merchant with deterministic day loops; avoid unordered group iteration.
 
 ### S5/S6 (per-arrival routing)
@@ -199,4 +199,4 @@ Baseline (per state):
 
 ## 7) Review flags (assumed resolved)
 - Standardize `manifest_fingerprint` token usage everywhere (docs/schemas/examples) to match dictionaries.
-- Fix any textual “Layer-2” mentions for 2A; 2A is the pinned upstream within Layer-1 flow here.
+- Fix any textual "Layer-2" mentions for 2A; 2A is the pinned upstream within Layer-1 flow here.

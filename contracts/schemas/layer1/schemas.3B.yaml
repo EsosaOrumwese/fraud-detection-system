@@ -38,9 +38,13 @@ reference:
       - name: lat_deg
         type: number
         nullable: false
+        minimum: -90
+        maximum: 90
       - name: lon_deg
         type: number
         nullable: false
+        exclusiveMinimum: -180
+        maximum: 180
       - name: evidence_url
         type: string
         nullable: true
@@ -65,6 +69,29 @@ reference:
       tile_span:  { type: string }
       licence:    { type: string }
       notes:      { type: string }
+
+  pelias_cached_sqlite_v1:
+    type: object
+    description: "SQLite bundle file reference (binary; schema intentionally permissive)."
+    additionalProperties: true
+
+  cdn_weights_ext_yaml_v1:
+    type: object
+    additionalProperties: false
+    description: "Raw external CDN weights YAML (versioned country weights)."
+    required: [version, countries]
+    properties:
+      version: { type: string, minLength: 1 }
+      countries:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [country_iso, weight]
+          properties:
+            country_iso: { $ref: '#/$defs/iso2' }
+            weight: { type: number, exclusiveMinimum: 0.0 }
 
 validation:
   s0_gate_receipt_3B:
@@ -236,12 +263,12 @@ plan:
     type: table
     description: "Classification surface for merchants with virtual reason codes."
     primary_key: [merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: is_virtual, type: boolean, nullable: false }
       - { name: virtual_mode, type: string, enum: [NON_VIRTUAL, HYBRID, VIRTUAL_ONLY], nullable: false }
@@ -257,12 +284,12 @@ plan:
     type: table
     description: "Settlement node per virtual merchant."
     primary_key: [merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: settlement_site_id, type: string, nullable: false }
       - { name: lat_deg, type: number, nullable: false }
@@ -280,12 +307,12 @@ plan:
     type: table
     description: "Per-edge geometry and weights for CDN catalogue."
     primary_key: [merchant_id, edge_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, edge_id]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: edge_id, type: string, nullable: false }
       - { name: edge_seq_index, type: integer, minimum: 0, nullable: false }
@@ -308,13 +335,13 @@ plan:
     type: table
     description: "Digest summary for edge catalogue partition (per-merchant + global rows)."
     primary_key: [scope, merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [scope, merchant_id]
     columns_strict: true
     columns:
       - { name: scope, type: string, enum: [MERCHANT, GLOBAL], nullable: false }
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: true }
       - { name: edge_count_total, type: integer, minimum: 0, nullable: true }
       - { name: edge_digest, $ref: '#/$defs/hex64', nullable: true }
@@ -329,13 +356,13 @@ plan:
     type: table
     description: "Metadata for CDN alias tables per merchant plus global blob record."
     primary_key: [scope, merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [scope, merchant_id]
     columns_strict: true
     columns:
       - { name: scope, type: string, enum: [MERCHANT, GLOBAL], nullable: false }
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: true }
       - { name: blob_offset_bytes, type: integer, minimum: 0, nullable: true }
       - { name: blob_length_bytes, type: integer, minimum: 0, nullable: true }
@@ -351,12 +378,12 @@ plan:
     type: table
     description: "Structured copy of gamma draw audit events."
     primary_key: [merchant_id, day_index]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, day_index]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: day_index, type: integer, minimum: 0, nullable: false }
       - { name: gamma_value, type: number, exclusiveMinimum: 0.0, nullable: false }
@@ -463,11 +490,11 @@ egress:
     type: table
     description: "Structured list of validation tests for virtual routing."
     primary_key: [test_id]
-    partition_keys: [fingerprint]
+    partition_keys: [manifest_fingerprint]
     sort_keys: [test_id]
     columns_strict: true
     columns:
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: test_id, type: string, nullable: false }
       - { name: test_type, type: string, enum: [IP_COUNTRY_MIX, SETTLEMENT_CUTOFF, EDGE_USAGE_VS_WEIGHT, ROUTING_RECEIPT], nullable: false }
       - { name: scope, type: string, enum: [GLOBAL, PER_MERCHANT, PER_CLASS, PER_SCENARIO], nullable: false }
@@ -532,26 +559,26 @@ policy:
     additionalProperties: false
     required: [version, rules]
     properties:
-      version: { type: string }
+      version: { type: string, minLength: 1 }
       rules:
         type: array
         minItems: 1
         items:
           type: object
           additionalProperties: false
-          required: [mcc, channel, decision]
+          required: [mcc, channel, decision, notes]
           properties:
-            mcc: { type: string }
-            channel: { type: string }
+            mcc: { type: string, pattern: '^[0-9]{4}$' }
+            channel: { type: string, enum: [card_present, card_not_present] }
             decision: { type: string, enum: [virtual, physical] }
-            notes: { type: string }
+            notes: { type: string, minLength: 1 }
 
   cdn_country_weights_v1:
     type: object
     additionalProperties: false
     required: [version, edge_scale, countries]
     properties:
-      version: { type: string }
+      version: { type: string, minLength: 1 }
       edge_scale: { type: integer, minimum: 1 }
       countries:
         type: array
@@ -562,7 +589,7 @@ policy:
           required: [country_iso, weight]
           properties:
             country_iso: { $ref: '#/$defs/iso2' }
-            weight: { type: number, minimum: 0.0 }
+            weight: { type: number, exclusiveMinimum: 0.0 }
             notes: { type: string }
 
   virtual_validation_policy_v1:
@@ -570,7 +597,79 @@ policy:
     additionalProperties: false
     required: [version, ip_country_tolerance, cutoff_tolerance_seconds]
     properties:
-      version: { type: string }
+      version: { type: string, minLength: 1 }
       ip_country_tolerance: { type: number, minimum: 0.0 }
       cutoff_tolerance_seconds: { type: integer, minimum: 0 }
       notes: { type: string }
+
+  cdn_key_digest_v1:
+    type: object
+    additionalProperties: false
+    required: [version, source_policy_id, source_policy_version, edge_scale, cdn_key_digest]
+    properties:
+      version: { type: string, minLength: 1 }
+      source_policy_id: { const: cdn_country_weights }
+      source_policy_version: { type: string, minLength: 1 }
+      edge_scale: { type: integer, minimum: 1 }
+      cdn_key_digest: { $ref: '#/$defs/hex64' }
+      notes: { type: string }
+
+  virtual_logging_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [policy_id, version, run_log_root, managed_logs, retention, housekeeping]
+    properties:
+      policy_id: { const: virtual_logging_policy }
+      version: { type: string, minLength: 1 }
+      run_log_root: { const: logs/virtual }
+      managed_logs:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_id, filename, write_mode, flush_policy, rotation, protection]
+          properties:
+            logical_id: { type: string, enum: [edge_progress_log, virtual_audit_log] }
+            filename: { type: string, enum: [edge_progress.log, virtual_audit.log] }
+            write_mode: { const: append_only }
+            flush_policy:
+              type: object
+              additionalProperties: false
+              required: [flush_each_line, fsync_every_n_lines]
+              properties:
+                flush_each_line: { type: boolean }
+                fsync_every_n_lines: { type: integer, minimum: 1 }
+            rotation:
+              type: object
+              additionalProperties: false
+              required: [mode, max_bytes, keep_files, compress_rotated]
+              properties:
+                mode: { const: size_bytes }
+                max_bytes: { type: integer, minimum: 1 }
+                keep_files: { type: integer, minimum: 1 }
+                compress_rotated: { type: boolean }
+            protection:
+              type: object
+              additionalProperties: false
+              required: [never_delete_active_file]
+              properties:
+                never_delete_active_file: { type: boolean }
+      retention:
+        type: object
+        additionalProperties: false
+        required: [keep_run_days, keep_min_completed_runs, never_delete_runs_newer_than_days]
+        properties:
+          keep_run_days: { type: integer, minimum: 1 }
+          keep_min_completed_runs: { type: integer, minimum: 1 }
+          never_delete_runs_newer_than_days: { type: integer, minimum: 1 }
+      housekeeping:
+        type: object
+        additionalProperties: false
+        required: [max_total_bytes_under_run_log_root, max_bytes_per_run_dir, deletion_order, on_over_budget]
+        properties:
+          max_total_bytes_under_run_log_root: { type: integer, minimum: 1 }
+          max_bytes_per_run_dir: { type: integer, minimum: 1 }
+          deletion_order: { const: oldest_completed_first }
+          on_over_budget: { const: delete_whole_run_dir }

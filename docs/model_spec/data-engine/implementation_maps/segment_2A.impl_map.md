@@ -1,4 +1,4 @@
-# Segment 2A — Compiled Implementation Map (v0.1.0)
+# Segment 2A - Compiled Implementation Map (v0.1.0)
 
 This is the reviewer-facing view derived from `segment_2A.impl_map.yaml`.
 Use it to answer:
@@ -7,7 +7,7 @@ Use it to answer:
 - What are the obvious performance hotspots and safe levers?
 - If something is wrong, which state owns it?
 
-> Assumption you stated: you’ll fix the `fingerprint` vs `manifest_fingerprint` drift as done for 1B.
+> Assumption you stated: you'll fix the `fingerprint` vs `manifest_fingerprint` drift as done for 1B.
 > This view standardizes on `manifest_fingerprint` in paths/partitions/examples.
 
 ---
@@ -15,45 +15,45 @@ Use it to answer:
 ## 1) One-screen relationship diagram
 ```
 Upstream (1B, hard dependency)
-  ├─ site_locations (seed + manifest_fingerprint)
-  └─ 1B final gate:
-       data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
-       (indexed_bundle: index.json drives hash)
+  -> site_locations (seed + manifest_fingerprint)
+  -> 1B final gate:
+     data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+     (indexed_bundle: index.json drives hash)
 
 2A pipeline (RNG-free)
-  └─ S0 (gate-in foundation):
-       - verifies 1B final bundle gate (FAIL_CLOSED if mismatch)
-       - seals inputs (tz_world, tzdb_release, tz_overrides, tz_nudge, …)
-       - writes s0_gate_receipt_2A + sealed_inputs_2A
+  -> S0 (gate-in foundation):
+     - verifies 1B final bundle gate (FAIL_CLOSED if mismatch)
+     - seals inputs (tz_world, tzdb_release, tz_overrides, tz_nudge, ...)
+     - writes s0_gate_receipt_2A + sealed_inputs_2A
 
-  ├─ S1 (provisional tz lookup):
-  │    site_locations + tz_world + tz_nudge  →  s1_tz_lookup
-  │    - deterministic point-in-polygon
-  │    - single ε-nudge on ambiguous/border cases; abort if still unresolved
-  │
-  ├─ S2 (final tz assignment):
-  │    s1_tz_lookup + tz_overrides (+ merchant_mcc_map if used)  →  site_timezones
-  │    - override precedence: site > mcc > country
-  │    - override uniqueness: >1 active per (scope,target) ⇒ ABORT
-  │    - created_utc = S0.verified_at_utc (binding)
-  │
-  ├─ S3 (tz transition cache):
-  │    tzdb_release + tz_world tzid-domain  →  tz_timetable_cache (fingerprint-scoped)
-  │    - created_utc = S0.verified_at_utc (binding)
-  │    - coverage: cache index includes all tzids in tz_world (superset allowed)
-  │
-  ├─ S4 (DST legality report):
-  │    site_timezones + tz_timetable_cache  →  s4_legality_report (per seed)
-  │    - generated_utc = S0.verified_at_utc (binding)
-  │    - FAIL blocks bundle gate
-  │
-  └─ S5 (finalizer / consumer gate):
-       - discovers seeds from site_timezones partitions
-       - requires each s4_legality_report status=PASS
-       - writes validation_bundle_2A + index.json + _passed.flag (indexed_bundle law)
+  -> S1 (provisional tz lookup):
+     site_locations + tz_world + tz_nudge -> s1_tz_lookup
+     - deterministic point-in-polygon
+     - single epsilon-nudge on ambiguous/border cases; abort if still unresolved
+
+  -> S2 (final tz assignment):
+     s1_tz_lookup + tz_overrides (+ merchant_mcc_map if used) -> site_timezones
+     - override precedence: site > mcc > country
+     - override uniqueness: >1 active per (scope,target) => ABORT
+     - created_utc = S0.verified_at_utc (binding)
+
+  -> S3 (tz transition cache):
+     tzdb_release + tz_world tzid-domain -> tz_timetable_cache (manifest_fingerprint-scoped)
+     - created_utc = S0.verified_at_utc (binding)
+     - coverage: cache index includes all tzids in tz_world (superset allowed)
+
+  -> S4 (DST legality report):
+     site_timezones + tz_timetable_cache -> s4_legality_report (per seed)
+     - generated_utc = S0.verified_at_utc (binding)
+     - FAIL blocks bundle gate
+
+  -> S5 (finalizer / consumer gate):
+     - discovers seeds from site_timezones partitions
+     - requires each s4_legality_report status=PASS
+     - writes validation_bundle_2A + index.json + _passed.flag (indexed_bundle law)
 
 Consumer rule (binding): downstream MUST verify the 2A final bundle gate for the same
-manifest_fingerprint before reading `site_timezones` (no PASS → no read).
+manifest_fingerprint before reading `site_timezones` (no PASS -> no read).
 ```
 
 ---
@@ -67,8 +67,8 @@ manifest_fingerprint before reading `site_timezones` (no PASS → no read).
 - Verified **only in S0**, fail-closed on mismatch.
 
 ### Gate-in receipt (2A.S0.gate_in_receipt)
-- Evidence: `s0_gate_receipt_2A` (fingerprint-scoped JSON)
-- Meaning: “S0 verified 1B PASS and sealed the declared 2A inputs”
+- Evidence: `s0_gate_receipt_2A` (manifest_fingerprint-scoped JSON)
+- Meaning: "S0 verified 1B PASS and sealed the declared 2A inputs"
 - Rule: **Any state that reads sealed inputs MUST require this receipt** (fail-closed if missing).
 
 ### Final consumer gate (2A.final.bundle_gate)
@@ -82,20 +82,20 @@ manifest_fingerprint before reading `site_timezones` (no PASS → no read).
 ## 3) Frozen surfaces (do not change)
 
 Segment-wide:
-- **No PASS → No Read**: S0 MUST verify 1B final gate before admitting any 1B egress reads.
+- **No PASS -> No Read**: S0 MUST verify 1B final gate before admitting any 1B egress reads.
 - `s0_gate_receipt_2A` is the durable attestation enabling downstream reads; all states must fail-closed if missing.
-- Path↔embed equality: embedded `manifest_fingerprint` must equal path token where embedded.
+- Path<->embed equality: embedded `manifest_fingerprint` must equal path token where embedded.
 - All states are RNG-free.
 
 S1 lookup laws:
 - Deterministic point-in-polygon.
-- If membership cardinality != 1: apply exactly **one** ε-nudge `(lat+ε, lon+ε)` with deterministic clamp/wrap; abort if still ambiguous/empty.
+- If membership cardinality != 1: apply exactly **one** epsilon-nudge `(lat+epsilon, lon+epsilon)` with deterministic clamp/wrap; abort if still ambiguous/empty.
 - `nudge_lat_deg` and `nudge_lon_deg` are both null or both non-null.
 
 S2 override laws:
 - Active override depends ONLY on date(S0.verified_at_utc), not wall-clock.
 - Scope precedence: **site > mcc > country**; apply at most one.
-- Uniqueness: >1 active per (scope,target) ⇒ ABORT.
+- Uniqueness: >1 active per (scope,target) => ABORT.
 - `created_utc = S0.verified_at_utc` (binding).
 - Carry `nudge_*` through unchanged from S1.
 
@@ -103,7 +103,7 @@ S3 cache laws:
 - Compile deterministic transition cache from sealed tzdb release.
 - Coverage: index includes all tzids present in sealed tz_world domain (superset allowed).
 - `created_utc = S0.verified_at_utc` (binding).
-- Atomic publish + write-once per fingerprint.
+- Atomic publish + write-once per manifest_fingerprint.
 
 S4 legality laws:
 - `generated_utc = S0.verified_at_utc` (binding).
@@ -168,5 +168,5 @@ Baseline (per state):
 
 ---
 
-## 7) Remaining review action (you said you’ll do this)
+## 7) Remaining review action (you said you'll do this)
 - Standardize token naming: use `manifest_fingerprint` everywhere (schemas/state docs/examples) to match the dictionary.

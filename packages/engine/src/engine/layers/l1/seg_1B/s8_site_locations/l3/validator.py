@@ -11,7 +11,7 @@ import polars as pl
 
 from ..exceptions import err
 from ..l0.datasets import S7SiteSynthesisPartition, load_s7_site_synthesis, resolve_site_locations_path
-from ...shared.dictionary import get_dataset_entry, load_dictionary
+from ...shared.dictionary import get_dataset_entry, load_dictionary, resolve_dataset_path
 
 
 @dataclass(frozen=True)
@@ -76,11 +76,17 @@ class S8SiteLocationsValidator:
         self._validate_final_flag(dictionary)
         self._validate_parity(dataset, s7_partition.frame)
 
-        run_summary_path = (
-            config.run_summary_path
-            if config.run_summary_path is not None
-            else dataset_path.parent / "s8_run_summary.json"
-        )
+        run_summary_path = config.run_summary_path
+        if run_summary_path is None:
+            run_summary_path = resolve_dataset_path(
+                "s8_run_summary",
+                base_path=config.data_root,
+                template_args={
+                    "seed": config.seed,
+                    "manifest_fingerprint": config.manifest_fingerprint,
+                },
+                dictionary=dictionary,
+            )
         self._validate_run_summary(
             run_summary_path=run_summary_path,
             dataset=dataset,

@@ -53,7 +53,7 @@
 
 ## 2. Purpose & scope **(Binding)**
 
-**Intent.** Assess **civil-time legality** for every site’s assigned `tzid` using the compiled transition cache—i.e., detect **gaps** (non-existent local times) and **folds** (ambiguous local times)—and publish a fingerprint+seed **legality report**.
+**Intent.** Assess **civil-time legality** for every site’s assigned `tzid` using the compiled transition cache—i.e., detect **gaps** (non-existent local times) and **folds** (ambiguous local times)—and publish a manifest_fingerprint+seed **legality report**.
 
 **Objectives (normative).** 2A.S4 SHALL:
 
@@ -93,7 +93,7 @@
 S4 SHALL begin only when:
 
 * **Gate verified.** A valid **2A.S0 gate receipt** exists and schema-validates for the target `manifest_fingerprint`. S4 relies on this receipt for read permission and sealed-input identity; it does not re-hash upstream bundles.
-* **Run identity fixed.** The pair **`(seed, manifest_fingerprint)`** is selected and constant for the run. S4 is seed+fingerprint scoped.
+* **Run identity fixed.** The pair **`(seed, manifest_fingerprint)`** is selected and constant for the run. S4 is seed+manifest_fingerprint scoped.
 * **Authorities addressable.** The 2A schema pack, Dataset Dictionary, and Artefact Registry entries required below resolve without placeholders (Schema = shape; Dictionary = IDs→paths/partitions/format; Registry = existence/licence/retention).
 * **Posture.** S4 is **RNG-free** and deterministic; observational fields (e.g., `generated_utc`) derive from sealed inputs.
 
@@ -112,7 +112,7 @@ S4 **consumes only** the following inputs. All MUST be resolved **by ID via the 
    *Shape:* `schemas.2A.yaml#/cache/tz_timetable_cache` (manifest with `tzdb_release_tag`, `tz_index_digest`, `rle_cache_bytes`, etc.).
 
 3. **2A.S0 gate receipt (evidence)**
-   *Role:* proves eligibility to read the sealed inputs for the target `manifest_fingerprint`; S4 verifies presence/fingerprint only (no re-hash).
+   *Role:* proves eligibility to read the sealed inputs for the target `manifest_fingerprint`; S4 verifies presence/manifest_fingerprint only (no re-hash).
 
 > *Note:* S4 does **not** read raw tzdb, geometry, overrides, or any site-level datasets other than `site_timezones`.
 
@@ -127,7 +127,7 @@ S4 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 ### 3.4 Null/empty allowances
 
 * **Empty `site_timezones`.** Allowed. S4 SHALL emit a report with zero counts (PASS if all validators hold).
-* **Cache presence.** `tz_timetable_cache` **MUST** exist for the fingerprint (S3 guarantees non-empty payload via its own validators).
+* **Cache presence.** `tz_timetable_cache` **MUST** exist for the manifest_fingerprint (S3 guarantees non-empty payload via its own validators).
 * **No other inputs.** Datasets not enumerated in §3.2 are **out of scope** for S4 and SHALL NOT be read.
 
 ---
@@ -163,8 +163,8 @@ S4 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 3. **2A.S0 gate receipt** *(evidence)*
 
    * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`
-   * **Catalogue:** fingerprint-scoped receipt
-   * **Boundary:** S4 **SHALL** verify presence and **fingerprint match** only; no re-computation of bundle hashes.
+   * **Catalogue:** manifest_fingerprint-scoped receipt
+   * **Boundary:** S4 **SHALL** verify presence and **manifest_fingerprint match** only; no re-computation of bundle hashes.
 
 > **Out of scope inputs:** raw tzdb, geometry, overrides, or any site-level dataset other than `site_timezones` are **forbidden** in S4.
 
@@ -203,7 +203,7 @@ S4 **SHALL NOT**:
 * `counts : { sites_total:uint64, tzids_total:uint32, gap_windows_total:uint64, fold_windows_total:uint64 }`
 * *(optional diagnostics)* `missing_tzids : string[]` (non-empty only on FAIL), `notes : string`
 
-**Catalogue (Dictionary).** Path family (seed + fingerprint):
+**Catalogue (Dictionary).** Path family (seed + manifest_fingerprint):
 `data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json`
 **Partitions:** `[seed, manifest_fingerprint]` · **Format:** JSON. Dictionary governs exact filename/layout.
 
@@ -217,7 +217,7 @@ S4 **SHALL NOT**:
 
 ### 5.3 Write posture & merge discipline
 
-* **Single-writer, write-once per `(seed, fingerprint)`.** Any re-emit to an existing partition **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Single-writer, write-once per `(seed, manifest_fingerprint)`.** Any re-emit to an existing partition **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
 * **Atomic publish.** Stage → fsync → single atomic move into the identity partition.
 
 ### 5.4 Format, licensing & retention (by catalogue/registry)
@@ -237,7 +237,7 @@ S4 **SHALL NOT**:
 
 ---
 
-### 6.1 Output artefact — `s4_legality_report` (fingerprint+seed report)
+### 6.1 Output artefact — `s4_legality_report` (manifest_fingerprint+seed report)
 
 * **ID → Schema:** `schemas.2A.yaml#/validation/s4_legality_report` (**fields-strict**; stored as JSON; anchor defines the fields).
 * **Minimum fields (binding):**
@@ -289,7 +289,7 @@ S4 **SHALL NOT**:
 * S4 is **strictly deterministic** and **RNG-free**.
 * Read permission derives from the **2A.S0 receipt** for the target `manifest_fingerprint`.
 * Inputs are resolved **only via the Dataset Dictionary**; literal/relative paths are forbidden.
-* S4 reads **`site_timezones`** (seed+fingerprint) and **`tz_timetable_cache`** (fingerprint). No other sources are read.
+* S4 reads **`site_timezones`** (seed+manifest_fingerprint) and **`tz_timetable_cache`** (manifest_fingerprint). No other sources are read.
 * Observational fields are deterministic: `generated_utc` **SHALL** equal `S0.receipt.verified_at_utc`.
 
 ### 7.2 Canonical processing order
@@ -335,7 +335,7 @@ S4 **SHALL**:
 * Emit **`s4_legality_report`** to
   `data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json`.
 * **Path↔embed equality:** embedded `seed` and `manifest_fingerprint` **MUST** byte-equal path tokens.
-* **Write-once:** re-emitting to an existing `(seed, fingerprint)` partition **MUST** be byte-identical; otherwise **ABORT**.
+* **Write-once:** re-emitting to an existing `(seed, manifest_fingerprint)` partition **MUST** be byte-identical; otherwise **ABORT**.
 * **Atomic publish:** stage → fsync → single atomic move into the partition.
 
 ### 7.6 Prohibitions (non-behaviours)
@@ -371,7 +371,7 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
 ### 8.3 Keys, uniqueness & coverage
 
 * **Single document per identity:** one JSON report per `(seed, manifest_fingerprint)` identity.
-* **Coverage coupling:** the identity selected **MUST** correspond to the same `(seed, fingerprint)` used to read `site_timezones` and the same `fingerprint` used to read `tz_timetable_cache`.
+* **Coverage coupling:** the identity selected **MUST** correspond to the same `(seed, manifest_fingerprint)` used to read `site_timezones` and the same `manifest_fingerprint` used to read `tz_timetable_cache`.
 
 ### 8.4 Writer order (discipline)
 
@@ -379,13 +379,13 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
 
 ### 8.5 Merge & immutability
 
-* **Write-once per `(seed, fingerprint)`.** If the target partition already contains a report, any re-emit **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
+* **Write-once per `(seed, manifest_fingerprint)`.** If the target partition already contains a report, any re-emit **MUST** be **byte-identical**; otherwise the run **MUST ABORT**.
 * **Atomic publish.** Stage → fsync → single **atomic move** into the identity partition.
 * **No in-place edits/tombstones.** Updates occur only by producing a new identity (i.e., a different `seed` or a new `manifest_fingerprint` upstream).
 
 ### 8.6 Concurrency & conflict detection
 
-* **Single-writer per identity.** Concurrent writes targeting the same `(seed, fingerprint)` are not permitted.
+* **Single-writer per identity.** Concurrent writes targeting the same `(seed, manifest_fingerprint)` are not permitted.
 * **Conflict definition:** the presence of any artefact under the target partition constitutes a conflict; S4 **MUST** abort rather than overwrite.
 
 ### 8.7 Discovery & selection (downstream contract)
@@ -437,7 +437,7 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
 
 ### 9.5 Merge & immutability (mandatory)
 
-**V-14 — Write-once partition (Abort).** If the target `(seed, fingerprint)` partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
+**V-14 — Write-once partition (Abort).** If the target `(seed, manifest_fingerprint)` partition already exists, newly written bytes must be **byte-identical**; otherwise **ABORT**.
 
 ### 9.6 Outcome semantics
 
@@ -476,7 +476,7 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
 
 ### 10.1 Gate & input resolution
 
-* **2A-S4-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 receipt for the target `(seed, fingerprint)`.
+* **2A-S4-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 receipt for the target `(seed, manifest_fingerprint)`.
   *Remediation:* publish/repair S0; rerun S4.
 * **2A-S4-010 INPUT_RESOLUTION_FAILED (Abort)** — `site_timezones` or `tz_timetable_cache` failed **Dictionary** resolution or Registry authorisation.
   *Remediation:* fix Dictionary/Registry entries or IDs; rerun.
@@ -511,7 +511,7 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
   *Remediation:* emit a schema-valid report only.
 * **2A-S4-040 PATH_EMBED_MISMATCH (Abort)** — Report `seed`/`manifest_fingerprint` ≠ path tokens.
   *Remediation:* correct embedded identity or path; rerun.
-* **2A-S4-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, fingerprint)` partition.
+* **2A-S4-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, manifest_fingerprint)` partition.
   *Remediation:* either reproduce byte-identical output or target a new identity.
 * **2A-S4-042 GENERATED_UTC_NONDETERMINISTIC (Abort)** — `generated_utc` ≠ `S0.receipt.verified_at_utc`.
   *Remediation:* set timestamp deterministically; rerun.
@@ -553,7 +553,7 @@ A single UTF-8 JSON object **SHALL** be written with at least the fields below. 
 
 * `s0.receipt_path : string`
 * `s0.verified_at_utc : rfc3339_micros`
-* `inputs.site_timezones.path : string` — Dictionary path for selected `(seed,fingerprint)`
+* `inputs.site_timezones.path : string` — Dictionary path for selected `(seed, manifest_fingerprint)`
 * `inputs.cache.path : string` — Dictionary path for `tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`
 * `inputs.cache.tzdb_release_tag : string`
 * `inputs.cache.tz_index_digest : hex64`
@@ -581,7 +581,7 @@ A single UTF-8 JSON object **SHALL** be written with at least the fields below. 
 
 **Optional (advisory, non-binding):**
 
-* `determinism.partition_hash : hex64` — directory-level hash of the emitted `(seed,fingerprint)` partition.
+* `determinism.partition_hash : hex64` — directory-level hash of the emitted `(seed, manifest_fingerprint)` partition.
 
 ---
 
@@ -635,7 +635,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 
 * **Across tzids:** embarrassingly parallel (independent window counts per tzid). Reduce into final totals in a deterministic order.
 * **Across identities:** different `(seed, manifest_fingerprint)` pairs run independently.
-* **Publish:** still **single-writer, write-once** for the `(seed, fingerprint)` partition.
+* **Publish:** still **single-writer, write-once** for the `(seed, manifest_fingerprint)` partition.
 
 ### 12.6 Hot spots & guardrails
 
@@ -660,7 +660,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 ### 12.9 Re-run & churn costs
 
 * Re-running with unchanged `site_timezones` and cache is **idempotent** (byte-identical report).
-* Changing `site_timezones` (new seed run) scales with rows; changing the fingerprint (new cache/inputs) requires a fresh S4 run for each seed that targets it.
+* Changing `site_timezones` (new seed run) scales with rows; changing the manifest_fingerprint (new cache/inputs) requires a fresh S4 run for each seed that targets it.
 
 ### 12.10 Typical envelopes (order-of-magnitude)
 
@@ -725,8 +725,8 @@ Require a MAJOR bump and downstream coordination:
 
 ### 13.6 Co-existence & migration
 
-* Use a **dual-anchor window** for material changes (e.g., `#/validation/s4_legality_report_v2`) while the old anchor remains valid; Dictionary may list both; identity remains `(seed,fingerprint)`.
-* **Re-fingerprinting is upstream.** Changes to inputs that alter `manifest_fingerprint` (via S0) naturally select a new partition; S4 re-runs per seed for that fingerprint.
+* Use a **dual-anchor window** for material changes (e.g., `#/validation/s4_legality_report_v2`) while the old anchor remains valid; Dictionary may list both; identity remains `(seed, manifest_fingerprint)`.
+* **Re-fingerprinting is upstream.** Changes to inputs that alter `manifest_fingerprint` (via S0) naturally select a new partition; S4 re-runs per seed for that manifest_fingerprint.
 * **Idempotent re-runs.** With unchanged inputs for the same identity, S4 reproduces bytes exactly.
 
 ### 13.7 Reserved extension points
@@ -764,7 +764,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 ### A2. Upstream receipt & inputs used by S4
 
-* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped).
+* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (manifest_fingerprint-scoped).
 * **Final per-site tz** — `site_timezones`: `schemas.2A.yaml#/egress/site_timezones` (partitions `[seed, manifest_fingerprint]`).
 * **Transition cache** — `tz_timetable_cache`: `schemas.2A.yaml#/cache/tz_timetable_cache` (partition `[manifest_fingerprint]`; authoritative per-`tzid` transitions).
 
@@ -777,11 +777,11 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 * **Inputs:**
   • `site_timezones` → path family with `[seed, manifest_fingerprint]`, Parquet, writer order `[merchant_id, legal_country_iso, site_order]`.
-  • `tz_timetable_cache` → fingerprint-scoped path family, manifest + cache files.
+  • `tz_timetable_cache` → manifest_fingerprint-scoped path family, manifest + cache files.
 * **Output:**
-  • `s4_legality_report` → fingerprint+seed JSON report at the path family above.
+  • `s4_legality_report` → manifest_fingerprint+seed JSON report at the path family above.
 * **Evidence:**
-  • 2A.S0 receipt (fingerprint-scoped).
+  • 2A.S0 receipt (manifest_fingerprint-scoped).
 
 ### A5. Artefact Registry (existence/licensing/lineage)
 
