@@ -169,3 +169,4 @@ runs/
 artefacts/rasters/hrsl_100m.tmp.tif
 .gitignore
 artefacts/rasters/source/hrsl/cog_globallat_0_lon_160_general-v1.5.1.tif
+reference/spatial/population/2025/source/Global2_Release_Statement_R2025A_v1.pdf
