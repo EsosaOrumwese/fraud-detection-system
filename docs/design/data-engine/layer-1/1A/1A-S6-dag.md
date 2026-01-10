@@ -35,7 +35,7 @@ Authoritative inputs (read-only at S6 entry)
       · canonical ISO-2 FK table; all country_iso must FK here
 
 [P] S6 policy (governed, participates in parameter_hash):
-    - s6_selection_policy @ config/allocation/s6_selection_policy.yaml
+    - s6_selection_policy @ config/layer1/1A/policy.s6.selection.yaml
       · validated against S6 policy JSON-Schema; unknown keys are hard FAIL
       · global defaults + per-currency overrides:
           * emit_membership_dataset : bool (default false)

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EXT_PATH = "artefacts/external/cdn_weights_ext.yaml"
 DEFAULT_ISO_PATH = "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"
 DEFAULT_WORLD_PATH = "reference/spatial/world_countries/2024/world_countries.parquet"
-DEFAULT_OUT_PATH = "config/virtual/cdn_country_weights.yaml"
+DEFAULT_OUT_PATH = "config/layer1/3B/virtual/cdn_country_weights.yaml"
 
 ALIASES = {"UK": "GB", "EL": "GR", "FX": "FR"}
 

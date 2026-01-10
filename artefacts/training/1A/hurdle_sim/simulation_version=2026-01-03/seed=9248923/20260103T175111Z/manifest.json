@@ -23,7 +23,7 @@
       "sha256": "bfb68d1770abef6a74571cfea4d659eefb7b6c7b39e81f1b6cc483bd60bd8b5f"
     },
     "priors": {
-      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/config/models/hurdle/hurdle_simulation.priors.yaml",
+      "path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml",
       "sha256": "7588df761e0c4ba3f09adced410db1ffb79fd7236b2ad99c6ef0362a230fa119"
     },
     "transaction_schema_merchant_ids": {
@@ -41,7 +41,7 @@
       "base_log_phi": 2.9113846185571335,
       "base_logit": -1.7514660120750398
     },
-    "config_path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/config/models/hurdle/hurdle_simulation.priors.yaml",
+    "config_path": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml",
     "rng": {
       "algorithm": "philox2x64-10",
       "seed": 9248923

@@ -49,15 +49,15 @@ Authoritative inputs (read-only at S0 entry)
 
 [Ingress / external artefacts S0 must seal for 3B]
     - Virtual classification rules:
-        · mcc_channel_rules @ config/virtual/mcc_channel_rules.yaml
+        · mcc_channel_rules @ config/layer1/3B/virtual/mcc_channel_rules.yaml
           (logical_id ≈ "virtual_rules" / manifest_key mlr.3B.config.virtual_rules)
     - Virtual settlement coordinate sources:
         · virtual_settlement_coords @ artefacts/virtual/virtual_settlement_coords.csv (or parquet)
     - CDN country mix policy:
-        · cdn_country_weights @ config/virtual/cdn_country_weights.yaml
+        · cdn_country_weights @ config/layer1/3B/virtual/cdn_country_weights.yaml
           + external base weights cdn_weights_ext_yaml
     - Validation policy packs:
-        · virtual_validation_config @ config/virtual/virtual_validation.yaml
+        · virtual_validation_config @ config/layer1/3B/virtual/virtual_validation.yaml
           (tolerances for virtual/CDN behaviour)
     - Civil-time manifest for tz provenance:
         · civil_time_manifest (2A-level roll-up of tz polygons / tzdb / overrides / tz_index)

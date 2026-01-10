@@ -251,7 +251,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build hurdle/dispersion exports.")
     parser.add_argument(
         "--config-path",
-        default="config/models/hurdle/hurdle_simulation.priors.yaml",
+        default="config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml",
     )
     parser.add_argument(
         "--merchant-path",

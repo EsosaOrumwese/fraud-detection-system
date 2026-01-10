@@ -18,7 +18,7 @@ DEFAULT_MERCHANT_PATH = (
     "reference/layer1/transaction_schema_merchant_ids/2026-01-03/"
     "transaction_schema_merchant_ids.parquet"
 )
-DEFAULT_OUT_PATH = "config/virtual/mcc_channel_rules.yaml"
+DEFAULT_OUT_PATH = "config/layer1/3B/virtual/mcc_channel_rules.yaml"
 
 KW = {
     "digital",

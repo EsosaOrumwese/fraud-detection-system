@@ -133,7 +133,7 @@ class Segment1AOrchestrator:
         candidate_keys = (
             "ccy_smoothing_params.yaml",
             "config.allocation.ccy_smoothing_params.yaml",
-            "config/allocation/ccy_smoothing_params.yaml",
+            "config/layer1/1A/allocation/ccy_smoothing_params.yaml",
         )
         for key in candidate_keys:
             policy_path = param_mapping.get(key)
@@ -156,7 +156,7 @@ class Segment1AOrchestrator:
         candidate_keys = (
             "s6_selection_policy.yaml",
             "config.allocation.s6_selection_policy.yaml",
-            "config/allocation/s6_selection_policy.yaml",
+            "config/layer1/1A/policy.s6.selection.yaml",
         )
         for key in candidate_keys:
             policy_path = param_mapping.get(key)
@@ -179,7 +179,7 @@ class Segment1AOrchestrator:
         candidate_keys = (
             "policy.s3.thresholds.yaml",
             "config.policy.s3.thresholds.yaml",
-            "config/policy/s3.thresholds.yaml",
+            "config/layer1/1A/policy/s3.thresholds.yaml",
         )
         for key in candidate_keys:
             policy_path = param_mapping.get(key)

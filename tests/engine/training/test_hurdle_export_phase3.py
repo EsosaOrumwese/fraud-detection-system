@@ -37,7 +37,7 @@ def _sources() -> MerchantUniverseSources:
 
 
 def test_generate_export_bundle(tmp_path: Path) -> None:
-    config_path = Path("config/models/hurdle/hurdle_simulation.priors.yaml")
+    config_path = Path("config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml")
     run_base = tmp_path / "runs"
     output_dir = tmp_path / "exports"
     timestamp = datetime(2025, 10, 9, 12, 0, 0, tzinfo=timezone.utc)

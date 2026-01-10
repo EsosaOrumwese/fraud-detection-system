@@ -1,5 +1,5 @@
 {
-  "bootstrap_config_path": "config/ingress/transaction_schema_merchant_ids.bootstrap.yaml",
+  "bootstrap_config_path": "config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml",
   "bootstrap_config_sha256": "fcbdf829969a14202a3d8de5cf9913ac7fcd50ca297a6e39088ed8b2a821b615",
   "bootstrap_config_version": "2024-12-31",
   "channel_counts": {

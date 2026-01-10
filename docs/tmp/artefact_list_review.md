@@ -20,7 +20,7 @@
 - `math_profile_manifest.json`
 - `artefact_registry_1A.yaml` (dependency closure for `manifest_fingerprint`)
 - `transaction_schema_merchant_ids` (ingress dataset referenced in dependency closure)
-- `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml` (dependency of `transaction_schema_merchant_ids` when declared)
+- `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml` (dependency of `transaction_schema_merchant_ids` when declared)
 - Fitting bundle dictionaries + coefficient vectors (MCC/channel/GDP bucket dictionaries; hurdle beta; NB dispersion beta) as parameter-scoped inputs
 
 ## Parameter-scoped outputs / caches
@@ -216,7 +216,7 @@
   - `iso3166_canonical_2024` (schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`)
   - `iso_legal_tender_2024` (schema `schemas.ingress.layer1.yaml#/iso_legal_tender_2024`)
 - Governed policy/config (parameter-hash member):
-  - `config/allocation/ccy_smoothing_params.yaml` (`ccy_smoothing_params`)
+  - `config/layer1/1A/allocation/ccy_smoothing_params.yaml` (`ccy_smoothing_params`)
 - Licence mapping artefact: `licenses/license_map.yaml`
 
 ## Outputs / datasets (parameter-scoped)
@@ -732,8 +732,8 @@
   - `tz_world_<release>` polygons (schema `schemas.ingress.layer1.yaml#/tz_world_2025a` example)
   - IANA tzdb archive + release metadata (e.g., `tzdata2025a.tar.gz`, `zoneinfo_version.yml`)
 - Policy/config inputs:
-  - `config/timezone/tz_overrides.yaml`
-  - `config/timezone/tz_nudge.yml`
+  - `config/layer1/2A/timezone/tz_overrides.yaml`
+  - `config/layer1/2A/timezone/tz_nudge.yml`
 - Optional auxiliaries (only if referenced by later 2A states):
   - `iso3166_canonical_2024`
   - `world_countries`

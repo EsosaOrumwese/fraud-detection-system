@@ -73,7 +73,7 @@ parameters:
   ccy_smoothing_params:
     description: Governed smoothing policy for S5 currency→country weight expansion (contributes to parameter_hash).
     format: yaml
-    path: config/allocation/ccy_smoothing_params.yaml
+    path: config/layer1/1A/allocation/ccy_smoothing_params.yaml
     schema_ref: null
     partitioning: []
     owner: 1A
@@ -81,7 +81,7 @@ parameters:
   s6_selection_policy:
     description: Governed selection policy for S6 foreign-set selection (contributes to parameter_hash).
     format: yaml
-    path: config/allocation/s6_selection_policy.yaml
+    path: config/layer1/1A/policy.s6.selection.yaml
     schema_ref: layer1/schemas.layer1.yaml#/policy/s6_selection
     partitioning: []
     owner: 1A
@@ -89,7 +89,7 @@ parameters:
   s7_integerisation_policy:
     description: Governed integer allocation policy for S7 (bounds, Dirichlet toggles; contributes to parameter_hash).
     format: yaml
-    path: config/allocation/s7_integerisation_policy.yaml
+    path: config/layer1/1A/allocation/s7_integerisation_policy.yaml
     schema_ref: layer1/schemas.layer1.yaml#/policy/s7_integerisation
     partitioning: []
     owner: 1A

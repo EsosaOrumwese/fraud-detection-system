@@ -8,8 +8,8 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CDN_PATH = "config/virtual/cdn_country_weights.yaml"
-DEFAULT_OUT_PATH = "config/virtual/virtual_validation.yml"
+DEFAULT_CDN_PATH = "config/layer1/3B/virtual/cdn_country_weights.yaml"
+DEFAULT_OUT_PATH = "config/layer1/3B/virtual/virtual_validation.yml"
 
 
 def clamp(value: float, low: float, high: float) -> float:

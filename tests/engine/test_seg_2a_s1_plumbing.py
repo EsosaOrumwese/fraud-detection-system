@@ -58,11 +58,11 @@ def _build_dictionary() -> dict[str, object]:
         "policies": [
             {
                 "id": "tz_nudge",
-                "path": "config/timezone/tz_nudge.yml",
+                "path": "config/layer1/2A/timezone/tz_nudge.yml",
             },
             {
                 "id": "tz_overrides",
-                "path": "config/timezone/tz_overrides.yaml",
+                "path": "config/layer1/2A/timezone/tz_overrides.yaml",
             },
         ],
     }
@@ -174,7 +174,7 @@ def _write_assets(base_path: Path, seed: int, manifest_fingerprint: str, *, site
                 "asset_id": "tz_nudge",
                 "asset_kind": "policy",
                 "schema_ref": "schemas.2A.yaml#/policy/tz_nudge_v1",
-                "catalog_path": "config/timezone/tz_nudge.yml",
+                "catalog_path": "config/layer1/2A/timezone/tz_nudge.yml",
                 "version_tag": "1.0.0",
                 "sha256_hex": "f" * 64,
                 "partition_keys": [],
@@ -183,7 +183,7 @@ def _write_assets(base_path: Path, seed: int, manifest_fingerprint: str, *, site
                 "asset_id": "tz_overrides",
                 "asset_kind": "policy",
                 "schema_ref": "schemas.2A.yaml#/policy/tz_overrides_v1",
-                "catalog_path": "config/timezone/tz_overrides.yaml",
+                "catalog_path": "config/layer1/2A/timezone/tz_overrides.yaml",
                 "version_tag": "1.0.0",
                 "sha256_hex": "a" * 64,
                 "partition_keys": [],

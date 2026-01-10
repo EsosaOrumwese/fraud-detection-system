@@ -186,7 +186,7 @@ def test_s6_runner_end_to_end(tmp_path):
         ],
     )
 
-    policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
+    policy_path = Path("config/layer1/1A/policy.s6.selection.yaml").resolve()
 
     runner = S6Runner()
     outputs = runner.run(
@@ -242,7 +242,7 @@ def test_s6_runner_zero_weight_domain(tmp_path):
         ],
     )
 
-    policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
+    policy_path = Path("config/layer1/1A/policy.s6.selection.yaml").resolve()
     runner = S6Runner()
     outputs = runner.run(
         base_path=tmp_path,
@@ -371,7 +371,7 @@ def test_s6_runner_defaults_missing_k_target_to_zero(tmp_path):
         ],
     )
 
-    policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
+    policy_path = Path("config/layer1/1A/policy.s6.selection.yaml").resolve()
     runner = S6Runner()
     outputs = runner.run(
         base_path=tmp_path,
@@ -459,7 +459,7 @@ def test_s6_runner_skips_ineligible_merchants(tmp_path):
         ],
     )
 
-    policy_path = Path('config/allocation/s6_selection_policy.yaml').resolve()
+    policy_path = Path('config/layer1/1A/policy.s6.selection.yaml').resolve()
     runner = S6Runner()
     outputs = runner.run(
         base_path=tmp_path,

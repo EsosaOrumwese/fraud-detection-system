@@ -28,7 +28,7 @@ Authoritative inputs (read-only at S2 entry)
 [Policy · overrides]
     - tz_overrides
         · schema: schemas.2A.yaml#/policy/tz_overrides_v1
-        · path:   config/timezone/tz_overrides.yml (Dictionary/Registry-owned)
+        · path:   config/layer1/2A/timezone/tz_overrides.yml (Dictionary/Registry-owned)
         · rows: { scope, target, tzid, expiry_yyyy_mm_dd?, comment? }
         · scope ∈ {"site","mcc","country"}; precedence: site > mcc > country
 
@@ -73,7 +73,7 @@ Numeric & RNG posture
                 ->  (S2.2) Resolve inputs & structural sanity
                     - Resolve via Dataset Dictionary (no literal paths):
                         · s1_tz_lookup @ data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
-                        · tz_overrides  @ config/timezone/tz_overrides.yml (or equivalent path family)
+                        · tz_overrides  @ config/layer1/2A/timezone/tz_overrides.yml (or equivalent path family)
                         · tz_world_2025a @ reference/spatial/tz_world/2025a/tz_world.parquet
                         · merchant_mcc_map (only if sealed and referenced by S0)
                     - Enforce partitions:

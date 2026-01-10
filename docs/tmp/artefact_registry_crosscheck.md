@@ -22,7 +22,7 @@
 - `policy.s3.rule_ladder.yaml`, `policy.s3.base_weight.yaml`, `policy.s3.thresholds.yaml` (all registry policy entries)
 - `math_profile_manifest.json` -> registry name `math_profile_manifest`
 - `numeric_policy.json` -> registry uses `numeric_policy_profile`
-- `config/ingress/transaction_schema_merchant_ids.bootstrap.yaml` -> registry name `transaction_schema_merchant_ids_bootstrap_policy`
+- `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml` -> registry name `transaction_schema_merchant_ids_bootstrap_policy`
 
 ### Alias or mismatch vs dictionary/registry ids
 - `merchant_ids` -> dictionary/registry use `transaction_schema_merchant_ids`

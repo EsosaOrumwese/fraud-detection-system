@@ -23,7 +23,7 @@ Authoritative inputs (read-only at S5 entry)
         · ISO2 → primary legal tender; schema: schemas.ingress.layer1.yaml#/iso_legal_tender_2024
 
 [P] Policy / config (parameter-scoped; contributes to parameter_hash):
-    - config/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
+    - config/layer1/1A/allocation/ccy_smoothing_params.yaml  (id: ccy_smoothing_params)
         · dp ∈ [0,18] (fixed decimals for output weights)
         · defaults: { blend_weight∈[0,1], alpha≥0, obs_floor≥0, min_share∈[0,1], shrink_exponent≥0 }
         · per_currency: optional overrides per ISO-4217 code

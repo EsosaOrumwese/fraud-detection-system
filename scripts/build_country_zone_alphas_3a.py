@@ -17,7 +17,7 @@ ISO_PATH = ROOT / "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"
 WORLD_PATH = ROOT / "reference/spatial/world_countries/2024/world_countries.parquet"
 TZ_WORLD_PATH = ROOT / "reference/spatial/tz_world/2025a/tz_world_2025a.parquet"
 POP_PATH = ROOT / "reference/spatial/population/2025/population.tif"
-OUT_PATH = ROOT / "config/allocation/country_zone_alphas.yaml"
+OUT_PATH = ROOT / "config/layer1/3A/allocation/country_zone_alphas.yaml"
 
 VERSION = "v1.0.0"
 POP_OVERVIEW_FACTOR = 8

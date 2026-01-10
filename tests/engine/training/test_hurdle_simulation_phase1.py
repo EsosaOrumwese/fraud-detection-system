@@ -20,7 +20,7 @@ def _latest_partition(root: Path) -> Path:
 
 
 def test_load_simulation_config() -> None:
-    config_path = Path("config/models/hurdle/hurdle_simulation.priors.yaml")
+    config_path = Path("config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml")
     cfg = load_simulation_config(config_path)
 
     assert cfg.rng.seed > 0

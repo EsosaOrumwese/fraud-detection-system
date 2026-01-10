@@ -21,7 +21,7 @@ reference_data:
   description: Governed escalation policy describing theta thresholds and decision reasons.
   version: '{policy_version}'
   format: yaml
-  path: config/policy/3A/zone_mixture_policy.yaml
+  path: config/layer1/3A/policy/zone_mixture_policy.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.3A.yaml#/policy/zone_mixture_policy_v1
@@ -39,7 +39,7 @@ reference_data:
   description: Dirichlet concentration priors per country×tzid used by S2.
   version: '{prior_pack_version}'
   format: yaml
-  path: config/allocation/country_zone_alphas.yaml
+  path: config/layer1/3A/allocation/country_zone_alphas.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.3A.yaml#/policy/country_zone_alphas_v1
@@ -57,7 +57,7 @@ reference_data:
   description: Global zone floor and bump rules.
   version: '{policy_version}'
   format: yaml
-  path: config/allocation/zone_floor_policy.yaml
+  path: config/layer1/3A/allocation/zone_floor_policy.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.3A.yaml#/policy/zone_floor_policy_v1

@@ -34,7 +34,7 @@ def _sources() -> MerchantUniverseSources:
 
 def test_simulate_hurdle_corpus_reproducible() -> None:
     config = load_simulation_config(
-        Path("config/models/hurdle/hurdle_simulation.priors.yaml")
+        Path("config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml")
     )
     corpus = simulate_hurdle_corpus(sources=_sources(), config=config)
     corpus_repeat = simulate_hurdle_corpus(sources=_sources(), config=config)
@@ -46,7 +46,7 @@ def test_simulate_hurdle_corpus_reproducible() -> None:
 
 def test_simulate_hurdle_corpus_structure() -> None:
     config = load_simulation_config(
-        Path("config/models/hurdle/hurdle_simulation.priors.yaml")
+        Path("config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml")
     )
     corpus = simulate_hurdle_corpus(sources=_sources(), config=config)
 

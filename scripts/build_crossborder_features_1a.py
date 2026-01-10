@@ -14,11 +14,11 @@ GDP_BUCKET_PATH = ROOT / "reference/economic/gdp_bucket_map/2024/gdp_bucket_map.
 OUT_ROOT = ROOT / "data/layer1/1A/crossborder_features"
 
 PARAMETER_FILES = [
-    ROOT / "config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/hurdle_coefficients.yaml",
-    ROOT / "config/models/hurdle/exports/version=2025-12-31/20251231T134200Z/nb_dispersion_coefficients.yaml",
-    ROOT / "config/policy/crossborder_hyperparams.yaml",
-    ROOT / "config/allocation/ccy_smoothing_params.yaml",
-    ROOT / "config/policy.s6.selection.yaml",
+    ROOT / "config/layer1/1A/models/hurdle/exports/version=2025-12-31/20251231T134200Z/hurdle_coefficients.yaml",
+    ROOT / "config/layer1/1A/models/hurdle/exports/version=2025-12-31/20251231T134200Z/nb_dispersion_coefficients.yaml",
+    ROOT / "config/layer1/1A/policy/crossborder_hyperparams.yaml",
+    ROOT / "config/layer1/1A/allocation/ccy_smoothing_params.yaml",
+    ROOT / "config/layer1/1A/policy.s6.selection.yaml",
 ]
 
 BASE_MAP = {1: 0.06, 2: 0.12, 3: 0.20, 4: 0.28, 5: 0.35}

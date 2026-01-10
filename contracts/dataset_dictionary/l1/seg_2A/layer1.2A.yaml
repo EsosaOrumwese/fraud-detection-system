@@ -83,7 +83,7 @@ policies:
     description: "Time-zone overrides (precedence site » mcc » country)."
     version: "{semver}"
     format: yaml
-    path: config/timezone/tz_overrides.yaml
+    path: config/layer1/2A/timezone/tz_overrides.yaml
     partitioning: []
     ordering: []
     schema_ref: schemas.2A.yaml#/policy/tz_overrides_v1
@@ -101,7 +101,7 @@ policies:
     description: "Deterministic ε used for border tie-breaks."
     version: "{semver}"
     format: yaml
-    path: config/timezone/tz_nudge.yml
+    path: config/layer1/2A/timezone/tz_nudge.yml
     partitioning: []
     ordering: []
     schema_ref: schemas.2A.yaml#/policy/tz_nudge_v1

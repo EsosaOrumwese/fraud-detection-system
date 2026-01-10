@@ -55,7 +55,7 @@ Authoritative inputs (read-only at S1 entry)
 
 [Virtual classification policy]
     - mcc_channel_rules (virtual-classification rules)
-        · config/virtual/mcc_channel_rules.yaml (logical_id resolved via sealed_inputs_3B).
+        · config/layer1/3B/virtual/mcc_channel_rules.yaml (logical_id resolved via sealed_inputs_3B).
         · schema_ref: schemas.3B.yaml#/policy/virtual_classification_rules.
         · defines:
             - overrides (allow/deny lists keyed by merchant_id/brand_id),

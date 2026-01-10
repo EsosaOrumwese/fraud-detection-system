@@ -30,7 +30,7 @@ class _DummyShareLoader:
 
 
 def _basic_deterministic_context() -> S5DeterministicContext:
-    policy_path = Path("config/allocation/ccy_smoothing_params.yaml").resolve()
+    policy_path = Path("config/layer1/1A/allocation/ccy_smoothing_params.yaml").resolve()
     return S5DeterministicContext(
         parameter_hash="abc123",
         manifest_fingerprint="fff111",

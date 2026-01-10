@@ -57,7 +57,7 @@ reference_data:
   description: Governed MCC×channel ladder that decides whether a merchant joins the virtual overlay.
   version: '{policy_version}'
   format: yaml
-  path: config/virtual/mcc_channel_rules.yaml
+  path: config/layer1/3B/virtual/mcc_channel_rules.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.3B.yaml#/policy/virtual_rules_policy_v1
@@ -93,7 +93,7 @@ reference_data:
   description: Normalised CDN country weights plus integer edge scale E for catalogue expansion.
   version: '{config_version}'
   format: yaml
-  path: config/virtual/cdn_country_weights.yaml
+  path: config/layer1/3B/virtual/cdn_country_weights.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.3B.yaml#/policy/cdn_country_weights_v1
@@ -111,7 +111,7 @@ reference_data:
   description: IP-country mix and settlement cut-off tolerances applied by virtual validation tests.
   version: '{policy_version}'
   format: yaml
-  path: config/virtual/virtual_validation.yml
+  path: config/layer1/3B/virtual/virtual_validation.yml
   partitioning: []
   ordering: []
   schema_ref: schemas.3B.yaml#/policy/virtual_validation_policy_v1

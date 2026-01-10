@@ -9,7 +9,7 @@ import geopandas as gpd
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ_WORLD_PATH = ROOT / "reference/spatial/tz_world/2025a/tz_world_2025a.parquet"
-OUT_PATH = ROOT / "config/allocation/zone_floor_policy.yaml"
+OUT_PATH = ROOT / "config/layer1/3A/allocation/zone_floor_policy.yaml"
 
 VERSION = "v1.0.0"
 PHI_MIN = 0.01

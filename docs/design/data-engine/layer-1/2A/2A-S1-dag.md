@@ -34,7 +34,7 @@ Authoritative inputs (read-only at S1 entry)
         · role: point-in-polygon authority for tzid membership
 
 [Policy · ε-nudge at borders]
-    - tz_nudge (config/timezone/tz_nudge.yml)
+    - tz_nudge (config/layer1/2A/timezone/tz_nudge.yml)
         · schema: schemas.2A.yaml#/policy/tz_nudge_v1
         · content: ε (strictly > 0) and units; nudge strategy at ambiguous/border sites
         · role: deterministic tie-break when geometry alone is ambiguous
@@ -68,7 +68,7 @@ Numeric & RNG posture (inherited)
                     - Resolve inputs strictly via Dataset Dictionary (no literal paths):
                         · site_locations @ data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
                         · tz_world_2025a @ reference/spatial/tz_world/2025a/tz_world.parquet
-                        · tz_nudge @ config/timezone/tz_nudge.yml
+                        · tz_nudge @ config/layer1/2A/timezone/tz_nudge.yml
                     - Enforce partition discipline:
                         · read site_locations only for this (seed, fingerprint),
                         · treat tz_world_2025a as immutable, WGS84, non-empty.
