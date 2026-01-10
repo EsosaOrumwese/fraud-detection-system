@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -10,20 +9,24 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
 import polars as pl
-from jsonschema import Draft201909Validator, ValidationError
+from jsonschema import Draft202012Validator, ValidationError
 
 from ...s0_foundations.exceptions import err
 from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy
 from ..l0.types import CountRow, PriorRow, RankedCandidateRow
 from ..l1.kernels import S3FeatureToggles, run_kernels
 from ..l2.deterministic import S3DeterministicContext
-from ...shared.dictionary import get_repo_root
+from ...shared.schema import load_schema
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA_VALIDATORS: Dict[str, Draft201909Validator] | None = None
-_SCHEMA_FILE_RELATIVE = Path("contracts/schemas/l1/seg_1A/s3_outputs.schema.json")
-_SCHEMA_SKIP_KEYS = {"$schema", "$id", "title", "description"}
+_SCHEMA_VALIDATORS: Dict[str, Draft202012Validator] | None = None
+_SCHEMA_REFS = {
+    "candidate_set": "schemas.1A.yaml#/s3/candidate_set",
+    "base_weight_priors": "schemas.1A.yaml#/s3/base_weight_priors",
+    "integerised_counts": "schemas.1A.yaml#/s3/integerised_counts",
+    "site_sequence": "schemas.1A.yaml#/s3/site_sequence",
+}
 
 
 @dataclass(frozen=True)
@@ -36,33 +39,22 @@ class S3ValidationResult:
     diagnostics: Tuple[Mapping[str, object], ...] = field(default_factory=tuple, repr=False)
 
 
-def _schema_validators() -> Dict[str, Draft201909Validator]:
+def _schema_validators() -> Dict[str, Draft202012Validator]:
     """Lazily load and cache JSON-Schema validators for S3 outputs."""
 
     global _SCHEMA_VALIDATORS
     if _SCHEMA_VALIDATORS is not None:
         return _SCHEMA_VALIDATORS
 
-    schema_path = get_repo_root() / _SCHEMA_FILE_RELATIVE
-    try:
-        raw = schema_path.read_text(encoding="utf-8")
-    except FileNotFoundError as exc:
-        raise err("E_SCHEMA_NOT_FOUND", f"S3 schema file missing at '{schema_path}'") from exc
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise err("E_SCHEMA_FORMAT", f"S3 schema file '{schema_path}' is not valid JSON") from exc
-
-    validators: Dict[str, Draft201909Validator] = {}
-    for key, schema in payload.items():
-        if key in _SCHEMA_SKIP_KEYS:
-            continue
+    validators: Dict[str, Draft202012Validator] = {}
+    for key, schema_ref in _SCHEMA_REFS.items():
         try:
-            validators[key] = Draft201909Validator(schema)
+            schema = load_schema(schema_ref)
+            validators[key] = Draft202012Validator(schema)
         except Exception as exc:  # pragma: no cover - jsonschema raises various subclasses
             raise err(
                 "E_SCHEMA_FORMAT",
-                f"S3 schema '{schema_path}' key '{key}' could not be compiled: {exc}",
+                f"S3 schema '{schema_ref}' could not be compiled: {exc}",
             ) from exc
     _SCHEMA_VALIDATORS = validators
     return validators

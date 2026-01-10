@@ -36,8 +36,8 @@ def test_run_context_captures_settlement_share_vector(tmp_path):
     )
 
     schema_authority = SchemaAuthority(
-        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+        segment_ref="layer1/schemas.1A.yaml",
         rng_ref="layer1/schemas.layer1.yaml",
     )
 

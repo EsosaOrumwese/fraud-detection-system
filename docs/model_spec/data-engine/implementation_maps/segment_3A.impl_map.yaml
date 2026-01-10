@@ -3,19 +3,19 @@ segment:
   segment_id: 3A
   layer_id: layer1
   title: Zone Allocation
-  description: Determine escalated merchant×country pairs, build country→zone priors, sample Dirichlet zone shares,
+  description: Determine escalated merchant x country pairs, build country->zone priors, sample Dirichlet zone shares,
     integerise counts, emit zone_alloc + routing_universe_hash, then publish PASS gate.
 generated_at_utc: '2026-01-10T10:45:00Z'
 sources:
   state_expanded_docs:
-  - state.3A.s0.expanded.txt
-  - state.3A.s1.expanded.txt
-  - state.3A.s2.expanded.txt
-  - state.3A.s3.expanded.txt
-  - state.3A.s4.expanded.txt
-  - state.3A.s5.expanded.txt
-  - state.3A.s6.expanded.txt
-  - state.3A.s7.expanded.txt
+  - state.3A.s0.expanded.md
+  - state.3A.s1.expanded.md
+  - state.3A.s2.expanded.md
+  - state.3A.s3.expanded.md
+  - state.3A.s4.expanded.md
+  - state.3A.s5.expanded.md
+  - state.3A.s6.expanded.md
+  - state.3A.s7.expanded.md
   dataset_dictionary:
   - dataset_dictionary.layer1.3A.yaml
   artefact_registry:
@@ -30,27 +30,27 @@ source_fingerprints:
   artefact_registry_3A.yaml:
     sha256: a5192fb89bd4e0eeea122ef363f65788303fb4d376660c8f641bb32ca151cdbc
   schemas.3A.yaml:
-    sha256: aaaa00667a323ad3d2377ac897b8c67e1655bd99dc50e648c6d64a5648e8cc07
+    sha256: 49a3ac2606b09e5b12f88eeaabe82dc8f98574047e1c1d80a190116a0c08e4e5
   schemas.layer1.yaml:
     sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
   schemas.ingress.layer1.yaml:
     sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
-  state.3A.s0.expanded.txt:
-    sha256: 0b0530439d2afdd909eac30be056a4a1c8102b943689250ebef5231c2ec80e27
-  state.3A.s1.expanded.txt:
-    sha256: b56baa44e40667a69d0fca8db027d5bab1a5b25d14b7a6ef09c5b2193d0302eb
-  state.3A.s2.expanded.txt:
-    sha256: 23ce1488e7d139b6b650454f1cb4814f970ae0f17f1e8160c74efdf9e74da5d4
-  state.3A.s3.expanded.txt:
-    sha256: 1779c05bc365b5c4d1cfea8e27877ddff3475d135b666d20bc5277afbb340fbc
-  state.3A.s4.expanded.txt:
-    sha256: 423a800a9e88d68afc02a11556819cf7d318dd0283e4df5ae6db5195a5613c08
-  state.3A.s5.expanded.txt:
-    sha256: c8017c80a84d9e7624d6fd816bff02fbf898b9805c07f5b711b9ba553f6080ca
-  state.3A.s6.expanded.txt:
-    sha256: 18a95969dc59d11a808065a2b7da72fffbadba30b1fcb82247bd8afc5acad13e
-  state.3A.s7.expanded.txt:
-    sha256: 753b357fed0ee1ac1c98eb012c1907940ff8b44be0073177fe0dcb128595ee4f
+  state.3A.s0.expanded.md:
+    sha256: d0549ba0b110e98520a22962c7528739d6b684ae349ccb223c1cdb435aea531a
+  state.3A.s1.expanded.md:
+    sha256: 936518922ab8fa8a4938aa09c8b0f0b73c7cf48ea06a4a296b1386356ef6b558
+  state.3A.s2.expanded.md:
+    sha256: ee414778f9cb489d9b989489b3f2d056747da895f7e0eb81a89828c6aa0fea2a
+  state.3A.s3.expanded.md:
+    sha256: 2a2eea915c885ab6f46166fc71b9914d4fc54feb3f558a89be8303230da4e31f
+  state.3A.s4.expanded.md:
+    sha256: e77fa4c03b96674f7b446a4cd01106a44d8181e09434cf49dd93de0b72af007e
+  state.3A.s5.expanded.md:
+    sha256: d5447aa4e9541b105746965afa4863323a352ca07a08ea710b43d92f64d8746d
+  state.3A.s6.expanded.md:
+    sha256: f1485c0d0c07e379e11dfa6b291fd240acb0f5b1fae63445bded5e86a781131e
+  state.3A.s7.expanded.md:
+    sha256: 40e5e70b821c5f7dfeb13e5435f37b29e250b3ed5894b540e36f358b549db78e
 path_tokens:
   parameter_hash: parameter_hash
   manifest_fingerprint: manifest_fingerprint
@@ -152,7 +152,7 @@ gates:
     evidence_files:
     - data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
   verification_method: schema_validate
-  file_set_rule: Validate s6_receipt_3A schema; must include overall_status ∈ {PASS,FAIL} and digests referencing s6_validation_report_3A
+  file_set_rule: Validate s6_receipt_3A schema; must include overall_status in {PASS,FAIL} and digests referencing s6_validation_report_3A
     (and issue table if present).
   authorizes_reads_of:
   - validation_bundle_3A
@@ -306,9 +306,9 @@ states:
       performed_here:
       - Verify upstream gates (1A,1B,2A) via indexed_bundle_raw_bytes law; FAIL_CLOSED on mismatch.
     frozen_surfaces:
-    - No PASS → no read: MUST verify 1A/1B/2A HashGate before admitting any of their outputs as sealed inputs.
+    - No PASS -> no read: MUST verify 1A/1B/2A HashGate before admitting any of their outputs as sealed inputs.
     - Upstream HashGate verification uses index.json per-file sha checks + composite digest over concatenated raw bytes (see 3A.S0).
-    - Resolution is by dictionary/registry IDs only (no literal paths, no “latest”).
+    - Resolution is by dictionary/registry IDs only (no literal paths, no "latest").
     - RNG-free; must not read/emit any RNG logs/events.
     flexible_choices:
     - Streaming bundle verification (hashing) permitted if it matches the upstream HashGate rule exactly.
@@ -333,7 +333,7 @@ states:
       required_gates:
       - 3A.S0.gate_in_receipt
       notes:
-      - Aggregate to merchant×country counts N(m,c); no per-site mutation.
+      - Aggregate to merchant x country counts N(m,c); no per-site mutation.
     - dataset_id: zone_mixture_policy
       kind: policy
       required_gates:
@@ -429,7 +429,7 @@ states:
     rng: null
     validation:
       performed_here:
-      - Construct α priors per country over its tzid/zone domain Z(c) and apply deterministic floor/bump rules.
+      - Construct alphalpha priors per country over its tzid/zone domain Z(c) and apply deterministic floor/bump rules.
     frozen_surfaces:
     - RNG-free; floor/bump and alpha construction are deterministic given sealed policies and tz domain.
     - s2_country_zone_priors is the sole authority for priors used by S3/S4/S5.
@@ -584,7 +584,7 @@ states:
     flexible_choices:
     - Integerisation algorithm may vary if it preserves deterministic tie-break rules and total conservation.
     debug_hooks:
-    - Emit Σ checks and first-N offending pairs on failure.
+    - Emit sum checks and first-N offending pairs on failure.
   S5:
     impl_map_key: segment=3A.state=S5
     state_class: SC-C
@@ -751,10 +751,10 @@ states:
     rng: null
     validation:
       performed_here:
-      - Validate structural invariants across S1–S5 and RNG accounting reconciliation for Dirichlet stream; emit s6_receipt_3A overall_status.
+      - Validate structural invariants across S1-S5 and RNG accounting reconciliation for Dirichlet stream; emit s6_receipt_3A overall_status.
     frozen_surfaces:
     - S6 is the sole authority for PASS/FAIL verdict for this manifest; S7 must not publish final gate unless S6 PASS.
-    - Receipt must include stable check-id→status map and digests for tamper detection.
+    - Receipt must include stable check-id->status map and digests for tamper detection.
     flexible_choices:
     - Validator implementation can be streaming/bounded-memory as long as deterministic and schema-consistent.
     debug_hooks:
@@ -868,9 +868,9 @@ gate_map_examples:
 review_flags:
 - flag_id: 3A.RF.standardize_manifest_fingerprint
   severity: info
-  summary: Assumed resolved—standardize on manifest_fingerprint everywhere (paths, partition keys, examples) to match dataset
-    dictionaries and avoid fingerprint label drift.
+  summary: Assumed resolved-standardize on manifest_fingerprint everywhere (paths, partition keys, examples) to match dataset
+    dictionaries and avoid manifest_fingerprint label drift.
 - flag_id: 3A.RF.parameter_hash_closure
   severity: info
-  summary: Assumed resolved—parameter_hash governance/rails include 3A parameter-scoped priors inputs (country_zone_alphas,
+  summary: Assumed resolved-parameter_hash governance/rails include 3A parameter-scoped priors inputs (country_zone_alphas,
     zone_floor_policy) so s2_country_zone_priors cannot drift without parameter_hash change.

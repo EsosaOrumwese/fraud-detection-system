@@ -51,7 +51,7 @@ def _assert_frame_equal(
 
 
 def _assert_schema(frame: pl.DataFrame, ref, *, dataset: str) -> None:
-    schema = ref.load()
+    schema = ref.load_jsonschema()
     validator = Draft202012Validator(schema)
     data = frame.to_dicts()
     try:

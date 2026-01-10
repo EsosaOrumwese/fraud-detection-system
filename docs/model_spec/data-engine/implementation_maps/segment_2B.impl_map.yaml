@@ -3,8 +3,7 @@ segment:
   segment_id: 2B
   layer_id: layer1
   title: 'Routing: traffic to sites and edges'
-  description: "Build deterministic alias tables + day effects and provide RNG-bounded per-arrival routing (group\u2192\
-    site, optional virtual edge), then publish PASS gate."
+  description: "Build deterministic alias tables + day effects and provide RNG-bounded per-arrival routing (group->site, optional virtual edge), then publish PASS gate."
 generated_at_utc: '2026-01-10T10:31:39.494355Z'
 sources:
   state_expanded_docs:
@@ -166,7 +165,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
   s2_alias_blob:
     dataset_id: s2_alias_blob
@@ -180,7 +179,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
   s3_day_effects:
     dataset_id: s3_day_effects
@@ -197,7 +196,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
   s4_group_weights:
     dataset_id: s4_group_weights
@@ -214,7 +213,7 @@ consumer_surfaces:
     - 2B.final.bundle_gate
     notes:
     - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
-    - Gate is manifest_manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
       are complete.
 states:
   S0:
@@ -485,7 +484,7 @@ states:
     - 2B.S0.gate_in_receipt
     gates_out: []
     rng:
-      stream_key_template: UER("2B.S3")||merchant_id||utc_day||tz_group_id
+      stream_key_template: policy-defined (day_effect_policy_v1; rng_engine/rng_stream_id + counter law)
       families_written: []
       envelope_discipline:
       - Exactly one Philox draw per output row (draws_per_row=1).
@@ -672,7 +671,7 @@ states:
     - 2B.S0.gate_in_receipt
     gates_out: []
     rng:
-      stream_key_template: UER("2B.S5")||merchant_id||arrival_ix||stage
+      stream_key_template: policy-defined (route_rng_policy_v1; derived from {seed, parameter_hash, run_id} + arrival attributes)
       families_written:
       - rng_event_alias_pick_group
       - rng_event_alias_pick_site
@@ -774,7 +773,7 @@ states:
     - 2B.S0.gate_in_receipt
     gates_out: []
     rng:
-      stream_key_template: UER("2B.S6")||merchant_id||arrival_ix
+      stream_key_template: policy-defined (route_rng_policy_v1; derived from {seed, parameter_hash, run_id} + arrival attributes)
       families_written:
       - rng_event_cdn_edge_pick
       envelope_discipline:

@@ -111,8 +111,8 @@ class Segment1AOrchestrator:
     """Convenience wrapper that executes S0 foundations followed by S1 hurdle."""
     def __init__(self, *, schema_authority: SchemaAuthority | None = None) -> None:
         authority = schema_authority or SchemaAuthority(
-            ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-            segment_ref="l1/seg_1A/s0_outputs.schema.json",
+            ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+            segment_ref="layer1/schemas.1A.yaml",
             rng_ref="layer1/schemas.layer1.yaml",
         )
         self._authority = authority

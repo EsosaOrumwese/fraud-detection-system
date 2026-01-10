@@ -177,7 +177,7 @@ def _validate_ingress_schema(
     table: pl.DataFrame, schema_authority: SchemaAuthority
 ) -> None:
     """Validate that ``table`` conforms to the configured ingress schema."""
-    schema = schema_authority.ingress_schema().load()
+    schema = schema_authority.ingress_schema().load_jsonschema()
     validator = Draft202012Validator(schema)
     payload = table.to_dicts()
     try:

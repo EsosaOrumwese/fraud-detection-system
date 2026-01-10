@@ -161,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help=(
             "Path to validation policy YAML for S2 corridors "
-            "(e.g. contracts/policies/l1/seg_1A/s2_validation_policy.yaml)."
+            "(e.g. config/layer1/1A/policy/validation_policy.yaml)."
         ),
     )
     parser.add_argument(

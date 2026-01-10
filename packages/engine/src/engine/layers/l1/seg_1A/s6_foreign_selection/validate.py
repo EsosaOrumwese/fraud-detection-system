@@ -11,12 +11,11 @@ from typing import Mapping, Sequence
 import re
 
 import pandas as pd
-import yaml
-from jsonschema import Draft201909Validator, ValidationError
-from referencing import Registry, Resource
+from jsonschema import Draft202012Validator
 
 from ..s0_foundations.l1.rng import PhiloxEngine, comp_iso, comp_u64
-from ..shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
+from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..shared.schema import load_schema
 from ..shared.passed_flag import parse_passed_flag
 from . import constants as c
 from .loader import verify_s5_pass
@@ -331,60 +330,23 @@ def _verify_counter_replay(outputs: S6RunOutputs) -> None:
                     )
 
 
-_LAYER1_SCHEMA_DATA: dict | None = None
-_LAYER1_RESOURCE: Resource | None = None
-_LAYER1_REGISTRY: Registry | None = None
-_LAYER1_VALIDATORS: dict[str, Draft201909Validator] = {}
-_MEMBERSHIP_VALIDATOR: Draft201909Validator | None = None
-_RECEIPT_VALIDATOR: Draft201909Validator | None = None
+_MEMBERSHIP_VALIDATOR: Draft202012Validator | None = None
+_RECEIPT_VALIDATOR: Draft202012Validator | None = None
 _HEX32_RE = re.compile(r"[a-f0-9]{32}")
 _HEX64_RE = re.compile(r"[0-9a-f]{64}")
 
 
-def _layer1_validator(pointer: str) -> Draft201909Validator:
-    global _LAYER1_SCHEMA_DATA, _LAYER1_RESOURCE, _LAYER1_REGISTRY
-    if _LAYER1_SCHEMA_DATA is None:
-        schema_path = get_repo_root() / "contracts" / "schemas" / "layer1" / "schemas.layer1.yaml"
-        payload = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
-        _LAYER1_SCHEMA_DATA = payload
-        base_uri = payload.get("$id", "memory://schemas.layer1.yaml")
-        resource = Resource.from_contents(payload)
-        _LAYER1_RESOURCE = resource
-        _LAYER1_REGISTRY = Registry().with_resource(base_uri, resource)
-    if pointer not in _LAYER1_VALIDATORS:
-        if _LAYER1_RESOURCE is None or _LAYER1_REGISTRY is None:
-            raise S6ValidationError("Layer1 schema registry not initialised")
-        node = _resolve_pointer(_LAYER1_SCHEMA_DATA, pointer)
-        _LAYER1_VALIDATORS[pointer] = Draft201909Validator(node, registry=_LAYER1_REGISTRY)
-    return _LAYER1_VALIDATORS[pointer]
-
-
-def _membership_validator() -> Draft201909Validator:
+def _membership_validator() -> Draft202012Validator:
     global _MEMBERSHIP_VALIDATOR
     if _MEMBERSHIP_VALIDATOR is None:
-        schema_path = get_repo_root() / "contracts" / "schemas" / "l1" / "seg_1A" / "s6_membership.schema.json"
-        payload = json.loads(schema_path.read_text(encoding="utf-8"))
-        node = payload.get("membership", payload)
-        _MEMBERSHIP_VALIDATOR = Draft201909Validator(node)
+        schema = load_schema("schemas.1A.yaml#/alloc/membership")
+        _MEMBERSHIP_VALIDATOR = Draft202012Validator(schema)
     return _MEMBERSHIP_VALIDATOR
 
 
-def _receipt_validator() -> Draft201909Validator:
+def _receipt_validator() -> Draft202012Validator:
     global _RECEIPT_VALIDATOR
     if _RECEIPT_VALIDATOR is None:
-        schema_path = get_repo_root() / "contracts" / "schemas" / "l1" / "seg_1A" / "s6_validation.schema.json"
-        payload = json.loads(schema_path.read_text(encoding="utf-8"))
-        _RECEIPT_VALIDATOR = Draft201909Validator(payload)
+        schema = load_schema("schemas.layer1.yaml#/validation/s6_receipt")
+        _RECEIPT_VALIDATOR = Draft202012Validator(schema)
     return _RECEIPT_VALIDATOR
-
-
-def _resolve_pointer(root: Mapping[str, object], pointer: str):
-    node = root
-    for part in pointer.split("/"):
-        if not part:
-            continue
-        if isinstance(node, Mapping) and part in node:
-            node = node[part]
-        else:
-            raise S6ValidationError(f"schema pointer '{pointer}' not found (stopped at '{part}')")
-    return node

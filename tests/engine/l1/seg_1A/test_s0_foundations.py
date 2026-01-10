@@ -56,8 +56,8 @@ def sample_context() -> tuple[RunContext, SchemaAuthority]:
     )
     buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket_id": [4, 3]})
     authority = SchemaAuthority(
-        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+        segment_ref="layer1/schemas.1A.yaml",
         rng_ref=None,
     )
     context = build_run_context(
@@ -174,8 +174,8 @@ def runner_and_context(parameter_files, governance_files):
     )
     buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket_id": [4, 3]})
     authority = SchemaAuthority(
-        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+        segment_ref="layer1/schemas.1A.yaml",
         rng_ref=None,
     )
     runner = S0FoundationsRunner(schema_authority=authority)
@@ -601,8 +601,8 @@ def test_run_from_paths_end_to_end(
     policy_path, manifest_path = governance_files
 
     authority = SchemaAuthority(
-        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+        segment_ref="layer1/schemas.1A.yaml",
         rng_ref=None,
     )
     runner = S0FoundationsRunner(schema_authority=authority)
@@ -696,8 +696,8 @@ def test_config_driven_smoke_run(
     loaded = json.loads(config_path.read_text(encoding="utf-8"))
 
     authority = SchemaAuthority(
-        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+        segment_ref="layer1/schemas.1A.yaml",
         rng_ref="layer1/schemas.layer1.yaml",
     )
     runner = S0FoundationsRunner(schema_authority=authority)

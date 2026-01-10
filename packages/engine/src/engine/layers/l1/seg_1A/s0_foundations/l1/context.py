@@ -11,12 +11,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import FrozenSet, Mapping, Optional, Tuple
+from typing import Any, FrozenSet, Mapping, Optional, Tuple
 
 import polars as pl
 import yaml
 
 from ..exceptions import err
+from ...shared.schema import normalize_schema
 from .numeric import MathProfileManifest, NumericPolicy, NumericPolicyAttestation
 
 _CHANNEL_SYMBOLS = {"CP", "CNP"}
@@ -35,6 +36,31 @@ class SchemaRef:
     pointer: Tuple[str, ...] | None = None
 
     def load(self) -> object:
+        data = self._load_document()
+        return self._resolve_pointer(data)
+
+    def load_jsonschema(self) -> Mapping[str, Any]:
+        """Load and normalize the referenced schema for JSON Schema validation."""
+
+        document = self._load_document()
+        node = self._resolve_pointer(document)
+        return normalize_schema(node, document)
+
+    def _resolve_pointer(self, document: object) -> object:
+        if not self.pointer:
+            return document
+        node: object = document
+        for token in self.pointer:
+            if isinstance(node, dict) and token in node:
+                node = node[token]
+                continue
+            raise err(
+                "E_SCHEMA_POINTER",
+                f"schema '{self.path}' missing json-pointer '/{'/'.join(self.pointer)}'",
+            )
+        return node
+
+    def _load_document(self) -> object:
         suffix = self.path.suffix.lower()
         try:
             with self.path.open("r", encoding="utf-8") as handle:
@@ -59,20 +85,7 @@ class SchemaRef:
                 "E_SCHEMA_FORMAT",
                 f"schema '{self.path}' is not valid YAML: {exc}",
             ) from exc
-
-        if not self.pointer:
-            return data
-
-        node: object = data
-        for token in self.pointer:
-            if isinstance(node, dict) and token in node:
-                node = node[token]
-                continue
-            raise err(
-                "E_SCHEMA_POINTER",
-                f"schema '{self.path}' missing json-pointer '/{'/'.join(self.pointer)}'",
-            )
-        return node
+        return data
 
 
 def _normalise_pointer(pointer: str) -> Tuple[str, ...]:

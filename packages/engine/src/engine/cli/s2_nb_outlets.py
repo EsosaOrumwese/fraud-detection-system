@@ -174,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         "--validation-policy",
         required=True,
         type=Path,
-        help="Path to validation policy YAML (e.g. contracts/policies/l1/seg_1A/s2_validation_policy.yaml).",
+        help="Path to validation policy YAML (e.g. config/layer1/1A/policy/validation_policy.yaml).",
     )
     parser.add_argument("--parameter-hash", help="Parameter hash for the run (overrides context JSON).")
     parser.add_argument("--manifest-fingerprint", help="Manifest fingerprint for the run (overrides context JSON).")

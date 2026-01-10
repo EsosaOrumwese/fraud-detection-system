@@ -105,8 +105,8 @@ def main(argv: list[str] | None = None) -> int:
     extra_manifest = _load_extra_manifest(args.extra_manifest)
 
     authority = SchemaAuthority(
-        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        ingress_ref="layer1/schemas.ingress.layer1.yaml#/merchant_ids",
+        segment_ref="layer1/schemas.1A.yaml",
         rng_ref="layer1/schemas.layer1.yaml",
     )
     runner = S0FoundationsRunner(schema_authority=authority)
