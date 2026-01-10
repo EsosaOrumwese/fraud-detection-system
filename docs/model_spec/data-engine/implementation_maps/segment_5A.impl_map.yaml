@@ -22,7 +22,7 @@ sources:
   - schemas.layer2.yaml
 source_fingerprints:
   dataset_dictionary.layer2.5A.yaml:
-    sha256: 5703229728a59c2482756edd6452ea98fa74c5afe5866850b0846e768d73a6ef
+    sha256: 313cafb806eaee120f4e1a05c2268ad874618616f0a4eef15f74b677b8bdb85d
   artefact_registry_5A.yaml:
     sha256: e6077a7664626afd98f57de8843789a164f87d90b7ec117c576544346c15c452
   schemas.5A.yaml:

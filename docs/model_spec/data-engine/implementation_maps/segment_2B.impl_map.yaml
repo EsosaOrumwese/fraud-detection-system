@@ -34,7 +34,7 @@ source_fingerprints:
   schemas.2B.yaml:
     sha256: 85e18b528507f0c4746927739fbc1b18edb96ab7c5a1f974bed7d919038f4715
   schemas.layer1.yaml:
-    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+    sha256: 4b3c68c285dd8bbc1b218faf5236029764babaef0d3c8e5187fc049eb1f958c6
   schemas.ingress.layer1.yaml:
     sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
   schemas.1B.yaml:

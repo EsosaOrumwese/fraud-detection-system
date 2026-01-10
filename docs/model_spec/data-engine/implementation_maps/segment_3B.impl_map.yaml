@@ -8,12 +8,12 @@ segment:
 generated_at_utc: '2026-01-10T12:13:07Z'
 sources:
   state_expanded_docs:
-  - state.3B.s0.expanded.txt
-  - state.3B.s1.expanded.txt
-  - state.3B.s2.expanded.txt
-  - state.3B.s3.expanded.txt
-  - state.3B.s4.expanded.txt
-  - state.3B.s5.expanded.txt
+  - state.3B.s0.expanded.md
+  - state.3B.s1.expanded.md
+  - state.3B.s2.expanded.md
+  - state.3B.s3.expanded.md
+  - state.3B.s4.expanded.md
+  - state.3B.s5.expanded.md
   dataset_dictionary:
   - dataset_dictionary.layer1.3B.yaml
   artefact_registry:
@@ -28,23 +28,23 @@ source_fingerprints:
   artefact_registry_3B.yaml:
     sha256: c231645bb0706aafbbfe87d37809c4e460ba4b60e71f84479825982f96a185fe
   schemas.3B.yaml:
-    sha256: 8fe893f51d88431597210353940dcf5c81ad2d82078b9e1ec04148456cae626c
+    sha256: f2a661c41413fad24c77890e9876d4a830964459e9b82b7427fe97ebd82907a9
   schemas.layer1.yaml:
-    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+    sha256: 4b3c68c285dd8bbc1b218faf5236029764babaef0d3c8e5187fc049eb1f958c6
   schemas.ingress.layer1.yaml:
     sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
-  state.3B.s0.expanded.txt:
-    sha256: f2205e47afb415e66e50346412b749bfc1edd3362098c0a13c2172645b06201a
-  state.3B.s1.expanded.txt:
-    sha256: 85d0cd37053ca71fc26f0264ac426a07e730941245129d163fd3cb6f619e9f92
-  state.3B.s2.expanded.txt:
-    sha256: f42773581ae7f1ee56e8ac50611995d37b9c23d7c3c642adc89bf0c721912f0d
-  state.3B.s3.expanded.txt:
-    sha256: 19d51dc10a42a02ec8af1886db6e1593c5fe0e2a63a5a6b5a8efe2094019ffd9
-  state.3B.s4.expanded.txt:
-    sha256: 5f7b8ddece0a23ed77b5faef41f07c6dbbdb9a2a155e7559e6688103828e0ecb
-  state.3B.s5.expanded.txt:
-    sha256: 747d151cfedf04c3660f204c26e596e42421540b07c7cfed4430dce1fe61c0f2
+  state.3B.s0.expanded.md:
+    sha256: 90a2f29c6d9aabec9bfb627c53d3de3668795538ee7c80441166035c69242067
+  state.3B.s1.expanded.md:
+    sha256: 204698b1550a6af2f3235564da1897c08f6a86e30a8d10a7ad20c439051fcd21
+  state.3B.s2.expanded.md:
+    sha256: d28759fb97ab6777f2038c45f0904eb5c2a5c7621b77ec39afa7aede8eb89e25
+  state.3B.s3.expanded.md:
+    sha256: 058bc4dad423391d59b09fe87062dcebe8fc92142888ed454ff28d57adcb3768
+  state.3B.s4.expanded.md:
+    sha256: 2af012bbe54af33a773eceb4e6d59ee76b9f017af69e1eeee023a056f324196e
+  state.3B.s5.expanded.md:
+    sha256: 2f316af32bceb3058ab0fbc6871ae6dbef543fbc7b53d23c739e9434eecf7742
 path_tokens:
   parameter_hash: parameter_hash
   manifest_fingerprint: manifest_fingerprint
@@ -54,7 +54,9 @@ lineage:
   parameter_hash:
     role: log_partition_and_receipt_field
     algorithm_ref: '3B.S0: tuple-hash over governed 3B parameter set (canonical by reference;
-      assumed updated in rails)'
+      see artefact_registry_3B.yaml: mcc_channel_rules, virtual_settlement_coords, cdn_country_weights,
+      virtual_validation_policy, hrsl_raster, cdn_weights_ext_yaml, pelias_cached_sqlite, route_rng_policy_v1,
+      alias_layout_policy_v1, day_effect_policy_v1, cdn_key_digest).'
     output_effect:
       log_partitions_must_include:
       - parameter_hash

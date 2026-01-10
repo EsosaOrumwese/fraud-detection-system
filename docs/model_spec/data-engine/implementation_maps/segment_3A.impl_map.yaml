@@ -26,13 +26,13 @@ sources:
   - schemas.ingress.layer1.yaml
 source_fingerprints:
   dataset_dictionary.layer1.3A.yaml:
-    sha256: cfe22371ea8b53c30af7ac714f7a0a188c418c89c112fcf43a20ecb1329e3226
+    sha256: 352a4391eec35ee6107b74d45426e949417cadd307a398194984d740ae0ff622
   artefact_registry_3A.yaml:
     sha256: a5192fb89bd4e0eeea122ef363f65788303fb4d376660c8f641bb32ca151cdbc
   schemas.3A.yaml:
-    sha256: 49a3ac2606b09e5b12f88eeaabe82dc8f98574047e1c1d80a190116a0c08e4e5
+    sha256: 322ceb9f0abb34bd22e9d40704382fa870c3c25afc64e197a7426a9f2747944f
   schemas.layer1.yaml:
-    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+    sha256: 4b3c68c285dd8bbc1b218faf5236029764babaef0d3c8e5187fc049eb1f958c6
   schemas.ingress.layer1.yaml:
     sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
   state.3A.s0.expanded.md:
@@ -60,8 +60,8 @@ path_tokens:
 lineage:
   parameter_hash:
     role: parameter_scoped_anchor
-    algorithm_ref: Layer-1 parameter_hash (canonical; by reference). Assumed resolved: 3A parameter-scoped priors depend
-      only on governed inputs.
+    algorithm_ref: Layer-1 parameter_hash (canonical; by reference). Governed 3A parameter set includes zone_mixture_policy,
+      country_zone_alphas, and zone_floor_policy (plus any other 3A parameter inputs listed in artefact_registry_3A.yaml).
     output_effect:
       partition_must_include:
       - parameter_hash

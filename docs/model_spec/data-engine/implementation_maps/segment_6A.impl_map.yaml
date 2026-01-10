@@ -23,7 +23,7 @@ sources:
   - schemas.layer3.yaml
 source_fingerprints:
   dataset_dictionary.layer3.6A.yaml:
-    sha256: 7352998d126166b48f86a1e281daa97dfcd8e33990a7b4f32cff0f0dbcac0f6b
+    sha256: 5014134eacb16b288c17195b2da19c4f71b5931837a13f085e9ed594d3c3a83c
   artefact_registry_6A.yaml:
     sha256: bc1e02c5353190cf1b9e62284a8cb006019eccc51bcae8a2d92c16ae8eacddcb
   schemas.6A.yaml:

@@ -9,7 +9,7 @@ Use it to answer:
 
 Assumptions applied (as you requested):
 - Token naming is standardized to `manifest_fingerprint` everywhere (paths/partitions/examples).
-- Parameter-hash closure is assumed updated in rails so 3A's parameter-scoped priors cannot drift without a parameter_hash change.
+- Parameter-hash closure explicitly includes `zone_mixture_policy`, `country_zone_alphas`, and `zone_floor_policy` (per `artefact_registry_3A.yaml`), so 3A parameter-scoped priors cannot drift without a parameter_hash change.
 
 ---
 
@@ -206,4 +206,4 @@ Baseline (per state):
 
 ## 7) Review flags (assumed resolved)
 - Standardize `manifest_fingerprint` token usage everywhere to match dictionaries.
-- Ensure parameter_hash governance/rails include 3A's priors inputs so parameter-scoped priors cannot drift without a parameter_hash change.
+- Confirm parameter_hash governance includes `zone_mixture_policy`, `country_zone_alphas`, and `zone_floor_policy` so parameter-scoped priors cannot drift without a parameter_hash change.

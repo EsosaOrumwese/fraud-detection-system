@@ -22,9 +22,9 @@ sources:
   - schemas.5B.yaml
 source_fingerprints:
   dataset_dictionary.layer2.5B.yaml:
-    sha256: 4acb2ca4acf311e6cea18468a3d9c71c6097b13430a1ea62b857e0dac3cc7c06
+    sha256: 91fc9c35c975b4ed8be1cd8d69a6ddda1c52e89efa563decd8241f07bc4709dc
   artefact_registry_5B.yaml:
-    sha256: e5e9d9e1be8469c89d67ea2f1589d7ed61306caff35442debc4ced4271d22dff
+    sha256: c3eeb94afa6805d9e05b48a6a2b6da9e4f24bcd93fa52d2fa4273424d054aad2
   schemas.5B.yaml:
     sha256: 8f07868f35ee0b59cc2f1674cf86a0ac653110610fc6fbd5cc3127f628285d75
   state.5B.s0.expanded.txt:

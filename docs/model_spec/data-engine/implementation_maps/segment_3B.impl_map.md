@@ -9,7 +9,7 @@ Use it to answer:
 
 Assumptions applied (as you requested):
 - Token naming is standardized to `manifest_fingerprint` everywhere (paths/partitions/examples).
-- Parameter-hash governance is assumed updated in rails so 3B’s governed parameter artefacts cannot drift without a `parameter_hash` change.
+- Parameter-hash governance includes the 3B parameter artefacts listed in `artefact_registry_3B.yaml` (e.g., `mcc_channel_rules`, `virtual_settlement_coords`, `cdn_country_weights`, `virtual_validation_policy`, `hrsl_raster`, `cdn_weights_ext_yaml`, `pelias_cached_sqlite`, `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `cdn_key_digest`).
 
 ---
 
@@ -189,4 +189,4 @@ Baseline (per state):
 
 ## 7) Review flags (assumed resolved)
 - Standardize `manifest_fingerprint` token usage everywhere.
-- Ensure parameter_hash governance includes the 3B parameter artefacts that must move parameter_hash.
+- Confirm parameter_hash governance includes the 3B parameter artefacts that must move parameter_hash (see `artefact_registry_3B.yaml` list above).
