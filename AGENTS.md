@@ -1,5 +1,5 @@
 # AGENTS.md - Router for the Closed-World Enterprise Fraud System
-_As of 2025-01-10_
+_As of 2026-01-10_
 
 Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live.
 
@@ -26,6 +26,14 @@ Read these in order before modifying code so you share the project context:
 
 ---
 
+## Run isolation + external roots (authoritative)
+- A run is logically isolated: all writes go to runs/<run_id>/... (data/logs/tmp/cache).
+- Inputs may be read from shared roots and are not “missing” if present there.
+- Resolution order: run-local staged → shared external roots → error.
+- S0 must record all external inputs in sealed_inputs_* (path + hash).
+- Default: do NOT copy large immutable datasets (e.g., hrsl_raster).
+- Optional: staged/hermetic mode copies small/medium inputs into runs/<run_id>/reference/.
+
 ## Extra information
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
 - As it's very difficult to know your approach to implementation. Ensure in high detail and for auditability, ensure you create a file in `docs\model_spec\data-engine\implementation_maps` called segment_{SEG}.impl_actual.md. You will section it according to the states there in that segment. For every single design element that you want to tackle in a state, you document what that design problem is in summary, but in detail, you articulate your plan to resolve it. Even if you have lots of trials, you append it to the previous and don't remove the former. This is very essential (especially the detail) so the USER can review your thought process and suggests improvements where necessary. Remember, your decisions or plans aren't to be summarized there but to be dropped in detail
@@ -35,6 +43,8 @@ Read these in order before modifying code so you share the project context:
 - As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable.
 - When working on a task, log every decision and action taken (not just the summary at the end) in the associated logbook in `docs\logbook` ensuring that you use one with the actual local date (if none exist, create one in the same format as the other logs) and log at the local time and not any random time. This will allow the USER to review the AGENTS actions and decisions
 - Ensure to employ the use of loggers in your implementation. Whilst the USER doesn't want to be spammed with logs, it's important that whilst having a heartbeat log, there's a log that gives information (with appropriate states) of what's going on in every process (and not just start and completed) such that at no point is console blank and the USER left confused on whether the run is hanging or not
+- Before we implement, I want to know where you will be taking your source of contracts from. As we're in dev mode, I can allow you running from the model_spec but when we switch to production, it should be easy and not a code break to switch to having the contracts in the root. Also realize that some of the data/artefacts/etc that engine would need are in the root of the repo. For no reason should we use placeholders, instead using the contract (artefact registry or data dictionary) locate the possible location of the external.
+- Also be aware of the engine's interaction of the root 
 
 ---
 

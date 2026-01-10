@@ -1,5 +1,5 @@
 # AGENTS.md - Data Engine Router (Specs sealed; implementation next)
-_As of 2025-12-31_
+_As of 2026-01-10_
 
 This router tells you what is binding, what to read first, and which parts of the engine are in play. All technical specifications for all segments, 1A to 6B are ready. **Ensure you have read the repo's root AGENTS.md**.
 
@@ -61,10 +61,14 @@ Read these in order before touching code so you align with the frozen specs. Not
 
 ---
 
-## House style (soft guidance)
-- Prefer clarity and determinism over cleverness.
-- Surface TODOs or questions when the spec leaves gaps; do not improvise contracts.
-- Keep logging informative—mirror the Segment 1A CLI/orchestrator patterns so smoke tests stay readable.
+## Run isolation + external roots (authoritative)
+- A run is logically isolated: all writes go to runs/<run_id>/... (data/logs/tmp/cache).
+- Inputs may be read from shared roots and are not “missing” if present there.
+- Resolution order: run-local staged → shared external roots → error.
+- S0 must record all external inputs in sealed_inputs_* (path + hash).
+- Default: do NOT copy large immutable datasets (e.g., hrsl_raster).
+- Optional: staged/hermetic mode copies small/medium inputs into runs/<run_id>/reference/.
+
 
 ---
 
