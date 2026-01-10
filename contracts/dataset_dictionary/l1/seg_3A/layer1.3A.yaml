@@ -75,7 +75,7 @@ reference_data:
   description: Day-effect variance/γ policy consumed when computing routing universe hash.
   version: '{policy_version}'
   format: json
-  path: contracts/policy/2B/day_effect_policy_v1.json
+  path: config/layer1/2B/policy/day_effect_policy_v1.json
   partitioning: []
   ordering: []
   schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1

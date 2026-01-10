@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ISO_PATH = ROOT / "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"
 WORLD_PATH = ROOT / "reference/spatial/world_countries/2024/world_countries.parquet"
 POP_PATH = ROOT / "reference/spatial/population/2025/population.tif"
-OUT_PATH = ROOT / "contracts/policy/2B/virtual_edge_policy_v1.json"
+OUT_PATH = ROOT / "config/layer1/2B/policy/virtual_edge_policy_v1.json"
 
 POLICY_ID = "virtual_edge_policy_v1"
 VERSION_TAG = "v1.0.0"

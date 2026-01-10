@@ -205,9 +205,9 @@ datasets:
 def _stage_policies(base: Path) -> Dict[str, Dict[str, object]]:
     repo_root = Path(__file__).resolve().parents[2]
     assets = {
-        "route_rng_policy_v1": repo_root / "contracts/policies/l1/seg_2B/route_rng_policy_v1.json",
-        "alias_layout_policy_v1": repo_root / "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json",
-        "virtual_edge_policy_v1": repo_root / "contracts/policies/l1/seg_2B/virtual_edge_policy_v1.json",
+        "route_rng_policy_v1": repo_root / "config/layer1/2B/policy/route_rng_policy_v1.json",
+        "alias_layout_policy_v1": repo_root / "config/layer1/2B/policy/alias_layout_policy_v1.json",
+        "virtual_edge_policy_v1": repo_root / "config/layer1/2B/policy/virtual_edge_policy_v1.json",
     }
     staged: Dict[str, Dict[str, object]] = {}
     for asset_id, src_path in assets.items():

@@ -36,7 +36,7 @@ datasets:
     schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
 policies:
   - id: alias_layout_policy_v1
-    path: contracts/policies/l1/seg_2B/alias_layout_policy_v1.json
+    path: config/layer1/2B/policy/alias_layout_policy_v1.json
     schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
 """
     dictionary_path = path / "dictionary.yaml"
@@ -80,7 +80,7 @@ def _write_policy(base: Path) -> Path:
         },
         "decode_law": "walker_vose_integer_grid",
     }
-    path = base / "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json"
+    path = base / "config/layer1/2B/policy/alias_layout_policy_v1.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
@@ -106,7 +106,7 @@ def _write_sealed_inventory(
             "asset_id": "alias_layout_policy_v1",
             "version_tag": "2025.11",
             "sha256_hex": _sealed_digest(policy_path),
-            "path": "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json",
+            "path": "config/layer1/2B/policy/alias_layout_policy_v1.json",
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1",
         },

@@ -12,7 +12,7 @@ PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 # ---------------------------------------------------------------------------
 # Run defaults
 # ---------------------------------------------------------------------------
-RUN_ROOT ?= runs/local_full_run-4
+RUN_ROOT ?= runs/local_full_run-5
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -24,9 +24,9 @@ SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
-RUN_ID ?= 00000000000000000000000000000004
-LOG ?= $(RUN_ROOT)/run_log_run-4.log
-SEED ?= 2026010401
+RUN_ID ?= 00000000000000000000000000000005
+LOG ?= $(RUN_ROOT)/run_log_run-5.log
+SEED ?= 2026011001
 SKIP_SEG1A ?= 0
 SKIP_SEG1B ?= 0
 SKIP_SEG2A ?= 0
@@ -809,19 +809,24 @@ preflight-seg1a:
 	@echo "Preflight Segment 1A inputs"
 	$(call REQUIRE_DIR,reference)
 	$(call REQUIRE_DIR,config)
-	@for path in $(SEG1A_REQUIRED_REFS); do \
+	@missing=0; \
+	for path in $(SEG1A_REQUIRED_REFS); do \
 		if [ ! -f "$$path" ]; then \
 			echo "Missing required Segment 1A input: $$path" >&2; \
-			exit 1; \
+			missing=1; \
 		fi; \
-	done
-	@for param in $(SEG1A_PARAM_PAIRS); do \
+	done; \
+	for param in $(SEG1A_PARAM_PAIRS); do \
 		path="$${param#*=}"; \
 		if [ ! -f "$$path" ]; then \
 			echo "Missing SEG1A param file: $$path (from $$param)" >&2; \
-			exit 1; \
+			missing=1; \
 		fi; \
-	done
+	done; \
+	if [ "$$missing" -ne 0 ]; then \
+		echo "Preflight failed: missing inputs detected." >&2; \
+		exit 1; \
+	fi
 
 segment1a: preflight-seg1a
 	@echo "Running Segment 1A (S0-S9)"

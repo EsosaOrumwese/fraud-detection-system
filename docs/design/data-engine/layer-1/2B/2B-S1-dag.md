@@ -82,7 +82,7 @@ DAG — 2B.S1 (site_locations → frozen per-merchant probability law)  [NO RNG]
                 ->  (S1.2) Resolve inputs & basic sanity
                     - Resolve, via Dataset Dictionary only:
                         · site_locations @ data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-                        · alias_layout_policy_v1 @ contracts/policy/2B/alias_layout_policy_v1.json
+                        · alias_layout_policy_v1 @ config/layer1/2B/policy/alias_layout_policy_v1.json
                         · optional pins site_timezones/tz_timetable_cache iff BOTH are present in sealed_inputs_2B.
                     - Enforce **subset-of-S0**:
                         · every resolved artefact MUST appear in sealed_inputs_2B for this fingerprint.

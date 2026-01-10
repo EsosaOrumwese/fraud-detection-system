@@ -38,7 +38,7 @@ Authoritative inputs (read-only at S3 entry)
     - day_effect_policy_v1
         · producer: 2B.governance
         · partition: [] (token-less; contract file)
-        · path: contracts/policy/2B/day_effect_policy_v1.json (resolved exactly as sealed in S0)
+        · path: config/layer1/2B/policy/day_effect_policy_v1.json (resolved exactly as sealed in S0)
         · minima (must exist):
             · rng_engine          (Philox variant for S3)
             · rng_stream_id       (reserved stream name/id for S3)
