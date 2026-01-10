@@ -43,12 +43,12 @@ S3 will emit one deterministic table (ID **`s3_requirements`**) partitioned so i
 # 2) Preconditions & sealed inputs **(Binding)**
 
 **2.1 Consumer gate (must hold before any read).**
-S0 has verified the 1A validation bundle for the target `manifest_fingerprint` (ASCII-lex index → SHA-256) and published exactly one `s0_gate_receipt_1B` under `fingerprint={manifest_fingerprint}`. Absence or mismatch ⇒ ABORT; `outlet_catalogue` must not be read.   
+S0 has verified the 1A validation bundle for the target `manifest_fingerprint` (ASCII-lex index → SHA-256) and published exactly one `s0_gate_receipt_1B` under `manifest_fingerprint={manifest_fingerprint}`. Absence or mismatch ⇒ ABORT; `outlet_catalogue` must not be read.   
 
 **2.2 Sealed inputs authorised by S0 (enumerated in the receipt).**
 S0’s `sealed_inputs[]` names the surfaces 1B may read, each with its schema anchor and (where applicable) partitions:
 
-* `outlet_catalogue` — `[seed, fingerprint]`; `schemas.1A.yaml#/egress/outlet_catalogue`. **Order-free; join 1A.S3 `s3_candidate_set` for inter-country order.** Read only after PASS.  
+* `outlet_catalogue` — `[seed, manifest_fingerprint]`; `schemas.1A.yaml#/egress/outlet_catalogue`. **Order-free; join 1A.S3 `s3_candidate_set` for inter-country order.** Read only after PASS.  
 * `s3_candidate_set` — `[parameter_hash]`; `schemas.1A.yaml#/s3/candidate_set` (order authority; used later, not by S3).  
 * `iso3166_canonical_2024` — FK target; `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.  
 * `world_countries` — spatial reference; `schemas.ingress.layer1.yaml#/world_countries`. *(Not read by S3.)*  
@@ -62,7 +62,7 @@ S0’s `sealed_inputs[]` names the surfaces 1B may read, each with its schema an
 * **`iso3166_canonical_2024`** (FK domain for `legal_country_iso`). 
 
 **2.4 Identity & parameter selection.**
-S3 binds to a single `{seed}`, a single `{manifest_fingerprint}` (from S0), and a single `{parameter_hash}` (matching S2 outputs). `tile_weights` identity and partitions are `{parameter_hash}` with writer sort `[country_iso, tile_id]`. `outlet_catalogue` identity and partitions are `{seed, fingerprint}` with writer sort `[merchant_id, legal_country_iso, site_order]`.   
+S3 binds to a single `{seed}`, a single `{manifest_fingerprint}` (from S0), and a single `{parameter_hash}` (matching S2 outputs). `tile_weights` identity and partitions are `{parameter_hash}` with writer sort `[country_iso, tile_id]`. `outlet_catalogue` identity and partitions are `{seed, manifest_fingerprint}` with writer sort `[merchant_id, legal_country_iso, site_order]`.   
 
 **2.5 Resolution & read rules.**
 All reads resolve via the **Dataset Dictionary**; path strings are owned there. Path tokens **must equal** embedded columns where specified (e.g., `manifest_fingerprint`). Do not introduce literal paths in code.  
@@ -76,7 +76,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 
 **3.1 Required datasets (IDs → `$ref` → partitions).**
 
-* **`outlet_catalogue`** → `schemas.1A.yaml#/egress/outlet_catalogue` · **partitions:** `[seed, fingerprint]` · **writer sort:** `[merchant_id, legal_country_iso, site_order]` · **law:** order-free; **read only after PASS** (S0 proves PASS).  
+* **`outlet_catalogue`** → `schemas.1A.yaml#/egress/outlet_catalogue` · **partitions:** `[seed, manifest_fingerprint]` · **writer sort:** `[merchant_id, legal_country_iso, site_order]` · **law:** order-free; **read only after PASS** (S0 proves PASS).  
 * **`tile_weights`** → `schemas.1B.yaml#/prep/tile_weights` · **partitions:** `[parameter_hash]` · **writer sort:** `[country_iso, tile_id]` · identity is **parameter-scoped**.  
 * **`iso3166_canonical_2024`** (FK domain for `legal_country_iso`) → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` · **unpartitioned**. 
 
@@ -91,7 +91,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 * **Schema vs Dictionary vs Registry.** **JSON-Schema is the sole shape authority** (columns, domains, PK/partition/sort); the **Dataset Dictionary** governs IDs→paths/partitions/writer sort/licence; the **Artefact Registry** records provenance/licences. If Dictionary and Schema conflict, **Schema wins**. **No hard-coded paths**; all reads resolve by Dictionary.  
 * **Gate law.** S3 reads `outlet_catalogue` **only** under the fingerprint proven in S0’s `s0_gate_receipt_1B` (No PASS → No read). 
 * **Path↔embed equality.**
-  • For `outlet_catalogue`: embedded `manifest_fingerprint` (and `global_seed` if present) **equals** the `{fingerprint}` (`{seed}`) path token(s). 
+  • For `outlet_catalogue`: embedded `manifest_fingerprint` (and `global_seed` if present) **equals** the `{manifest_fingerprint}` (`{seed}`) path token(s). 
   • For `tile_weights`: no embedded lineage columns; the `{parameter_hash}` path token alone is authoritative.
     (If a `parameter_hash` column is introduced in a future schema revision, it MUST equal the path token.)
 
@@ -133,7 +133,7 @@ The **Dataset Dictionary** MUST declare this path family and writer policy:
 data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
-* **Partitions:** `[seed, fingerprint, parameter_hash]` (one write per identity; write-once). This matches established multi-key partitioning patterns in Layer-1. 
+* **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` (one write per identity; write-once). This matches established multi-key partitioning patterns in Layer-1. 
 * **Writer sort:** `[merchant_id, legal_country_iso]` (stable merge order; file order non-authoritative). Pattern mirrors S1/S2 writer-sort discipline.  
 * **Format:** `parquet` (as per Dictionary conventions for 1B tables). 
 
@@ -192,11 +192,11 @@ Cross-schema references (e.g., shared ID/ISO defs or FK surfaces) are **declared
 # 6) Deterministic algorithm (no RNG) **(Binding)**
 
 **6.1 Resolve identities (inputs are fixed before compute).**
-a) Read **`s0_gate_receipt_1B`** for the target `manifest_fingerprint`; assert `_passed.flag` equivalence as recorded there. If missing/mismatch ⇒ **ABORT**.  
+a) Read **`s0_gate_receipt_1B`** for the target `manifest_fingerprint`; confirm it schema-validates and its `manifest_fingerprint` matches the path token. If missing/invalid ? **ABORT**.  
 b) Fix **`parameter_hash`** to the same value used for **S2 `tile_weights`**. 
 
 **6.2 Locate inputs via Dictionary (no literals).**
-a) **`outlet_catalogue`** under `…/seed={seed}/fingerprint={manifest_fingerprint}/` (order-free; writer sort `[merchant_id, legal_country_iso, site_order]`). Assert **path↔embed equality** for `manifest_fingerprint` (and `global_seed` if present).  
+a) **`outlet_catalogue`** under `…/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (order-free; writer sort `[merchant_id, legal_country_iso, site_order]`). Assert **path↔embed equality** for `manifest_fingerprint` (and `global_seed` if present).  
 b) **`tile_weights`** under `…/parameter_hash={parameter_hash}/` (writer sort `[country_iso, tile_id]`). 
 c) **`iso3166_canonical_2024`** as FK domain. 
 
@@ -244,7 +244,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 * **Path family:**
   `data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-* **Partitions:** `[seed, fingerprint, parameter_hash]` (write **once** per identity; no appends; no compaction).
+* **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` (write **once** per identity; no appends; no compaction).
 * **Format:** `parquet` (Dictionary governs format & location; no literal paths in code). 
 
 **7.3 Writer sort & file-order posture.**
@@ -254,7 +254,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **7.4 Identity-coherence checks (must hold before publish).**
 
-* **Receipt parity:** `partition.fingerprint == s0_gate_receipt_1B.manifest_fingerprint`. 
+* **Receipt parity:** `partition.manifest_fingerprint == s0_gate_receipt_1B.manifest_fingerprint`. 
 * **Parameter parity:** `partition.parameter_hash` equals the `parameter_hash` used to read **`tile_weights`**.  
 * **Seed parity:** `partition.seed` equals the `{seed}` used to read **`outlet_catalogue`**.
 * If any lineage field is embedded in rows in a future schema revision, **embedded == path token** (path↔embed equality). 
@@ -304,7 +304,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.5 Count equality (authoritative source = `outlet_catalogue`).**
 
-* For each emitted pair `(merchant_id, legal_country_iso)`, `n_sites` equals the number of rows in `outlet_catalogue` for the same `{seed, fingerprint}` and the same pair.
+* For each emitted pair `(merchant_id, legal_country_iso)`, `n_sites` equals the number of rows in `outlet_catalogue` for the same `{seed, manifest_fingerprint}` and the same pair.
 * Zero-count pairs are not materialised.
 * **Fail:** `E308_COUNTS_MISMATCH`, `E309_ZERO_SITES_ROW`.
 
@@ -325,7 +325,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.9 Partition, immutability & atomic publish.**
 
-* Published under `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
+* Published under `…/s3_requirements/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
 * If the identity partition already exists and the new bytes differ, reject. Publish is staged, fsynced, and atomically moved.
 * **Fail:** `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
 
@@ -349,11 +349,11 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 # 9) Failure modes & canonical error codes **(Binding)**
 
-> A run of **S3** is **rejected** if **any** condition below is triggered. On first detection the writer **MUST** abort, emit the failure record per Layer-1 failure-payload conventions, and ensure **no partials** are visible under `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (atomic publish; write-once). **Shape authority = JSON-Schema; IDs→paths/partitions/sort/licence = Dataset Dictionary; gate & lineage rules from S0/1A are binding.**   
+> A run of **S3** is **rejected** if **any** condition below is triggered. On first detection the writer **MUST** abort, emit the failure record per Layer-1 failure-payload conventions, and ensure **no partials** are visible under `…/s3_requirements/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (atomic publish; write-once). **Shape authority = JSON-Schema; IDs→paths/partitions/sort/licence = Dataset Dictionary; gate & lineage rules from S0/1A are binding.**   
 
 ### E301_NO_PASS_FLAG — 1A gate not proven *(ABORT)*
 
-**Trigger (MUST):** Missing S0 receipt for the `manifest_fingerprint`, or `_passed.flag` content hash ≠ `SHA256(validation_bundle_1A)` for that fingerprint. **S3 MUST NOT read `outlet_catalogue` without PASS.**  
+**Trigger (MUST):** Missing S0 receipt for the `manifest_fingerprint`, or receipt fails schema validation / token parity. **S3 MUST NOT read `outlet_catalogue` without PASS.**  
 **Detection:** validate `s0_gate_receipt_1B` against `#/validation/s0_gate_receipt` and confirm its `manifest_fingerprint` equals the publish path token. S3 does not re-hash the 1A bundle.
 **Authority refs:** S0 gate; 1A Dictionary gate text (“No PASS → no read”).  
 
@@ -386,7 +386,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 ### E308_COUNTS_MISMATCH — Count not equal to source rows *(ABORT)*
 
-**Trigger (MUST):** For any `(merchant_id, legal_country_iso)`, `n_sites ≠` the number of rows in **`outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}`** for that pair (authority = 1A egress).  
+**Trigger (MUST):** For any `(merchant_id, legal_country_iso)`, `n_sites ≠` the number of rows in **`outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}`** for that pair (authority = 1A egress).  
 
 ### E309_ZERO_SITES_ROW — (see E304) *(ABORT)*
 
@@ -441,7 +441,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 > Observability artefacts are **required to exist** and be **retrievable** by validators, but they do **not** alter the semantics of `s3_requirements`. They **must not** be written inside the dataset partition. This posture mirrors S1/S2.  
 
 **10.1 Deliverables (outside the dataset partition; binding for presence)**
-An accepted S3 run **MUST** expose, outside `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
+An accepted S3 run **MUST** expose, outside `…/s3_requirements/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
 
 * **S3 run report** — single machine-readable JSON object (fields in §10.2). 
 * **Determinism receipt** — composite SHA-256 over the produced **partition files only** (recipe in §10.4).  
@@ -472,7 +472,7 @@ The run report **MUST** include at least:
 **10.4 Determinism receipt — composite hash (method is normative)**
 Compute a **composite SHA-256** over the **produced S3 partition files only**:
 
-1. List all files under `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` as **relative paths**, **ASCII-lex sort** them.
+1. List all files under `…/s3_requirements/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` as **relative paths**, **ASCII-lex sort** them.
 2. Concatenate raw bytes in that order; compute SHA-256; encode as lowercase hex64.
 3. Store as `{ "partition_path": "<path>", "sha256_hex": "<hex64>" }` in the run report.
    This mirrors the established S1/S2 determinism-receipt recipe.  
@@ -543,7 +543,7 @@ S3 **MUST** increment **MAJOR** and be re-ratified if any of the following chang
 
 * **Dataset contract for `s3_requirements`:** primary key, column set/types, `columns_strict` posture, partition keys (`[seed, manifest_fingerprint, parameter_hash]`), writer sort, or path family. (Identity/layout/keys are breaking by precedent.) 
 * **Authority/precedence model:** JSON-Schema as sole shape authority; Dictionary for IDs→paths/partitions/writer policy; Registry for provenance/licences.  
-* **Gate or lineage law:** consumer-gate semantics (“**No PASS → No read**”), `_passed.flag` hashing rule/location, or path↔embed byte-equality rules used by S3. 
+* **Gate or lineage law:** consumer-gate semantics ("**No PASS -> No read**"), S0 receipt authority for 1A PASS, or path-embed byte-equality rules used by S3. 
 * **Dataset IDs / `$ref` anchors** S3 binds to (e.g., renaming `outlet_catalogue`, `tile_weights`, or this anchor). 
 * **Governance weakening:** licence class reduction or retention reduction below published Dictionary/Registry values for S3 or its inputs. 
 
@@ -582,7 +582,7 @@ On release, record in governance: `semver`, `effective_date`, ratifiers, repo co
 
 ## A.1 Identity & lineage tokens
 
-* **`manifest_fingerprint`** — Lowercase **hex64** SHA-256 identifying a run’s validated artefacts; for S3 reads it **equals** the `fingerprint` path token and is proven by S0’s `s0_gate_receipt_1B`.  
+* **`manifest_fingerprint`** — Lowercase **hex64** SHA-256 identifying a run’s validated artefacts; for S3 reads it **equals** the `manifest_fingerprint` path token and is proven by S0’s `s0_gate_receipt_1B`.  
 * **`parameter_hash`** — Lowercase **hex64** SHA-256 of the governed **parameter bundle**; partitions parameter-scoped datasets (e.g., `tile_index`, `tile_weights`).  
 * **`seed`** — Unsigned 64-bit master Philox seed for the run (S3 does not consume RNG but inherits the lineage token). 
 * **`run_id`** — Lowercase **hex32** identifier for RNG event logs (not used by S3). 
@@ -596,7 +596,7 @@ On release, record in governance: `semver`, `effective_date`, ratifiers, repo co
 
 ## A.3 Dataset IDs, anchors, and partitions used by S3
 
-* **`outlet_catalogue`** — Authority for outlet rows and within-country `site_order`; **order-free across countries**; partitions `[seed, fingerprint]`; schema `schemas.1A.yaml#/egress/outlet_catalogue`; **No PASS → No read** (must verify the 1A validation bundle for the same fingerprint).  
+* **`outlet_catalogue`** — Authority for outlet rows and within-country `site_order`; **order-free across countries**; partitions `[seed, manifest_fingerprint]`; schema `schemas.1A.yaml#/egress/outlet_catalogue`; **No PASS → No read** (must verify the 1A validation bundle for the same fingerprint).  
 * **`s3_candidate_set`** — **Sole** cross-country order authority (`candidate_rank`, home=0); partitions `[parameter_hash]`; schema `schemas.1A.yaml#/s3/candidate_set`. *(Not read in S3; pinned for later states.)*  
 * **`tile_index`** — S1 output; eligible tiles per country; partitions `[parameter_hash]`; schema `schemas.1B.yaml#/prep/tile_index`. *(Not read in S3.)* 
 * **`tile_weights`** — S2 output; fixed-dp weights per eligible tile; partitions `[parameter_hash]`; schema `schemas.1B.yaml#/prep/tile_weights`. *(S3 checks **coverage** against this for the fixed `parameter_hash`.)* 
@@ -607,14 +607,14 @@ On release, record in governance: `semver`, `effective_date`, ratifiers, repo co
 ## A.4 Laws & posture (used repeatedly in S3)
 
 * **Schema authority** — **JSON-Schema is the sole shape authority** (columns, domains, PK/partition/sort). Dictionary governs IDs→paths/partitions/writer policy; Registry records provenance/licences. If Dictionary and Schema disagree, **Schema wins**. 
-* **Gate law** — A consumer must verify 1A’s `_passed.flag` equals `SHA256(validation_bundle_1A)` for the same fingerprint **before** reading `outlet_catalogue` (**No PASS → No read**). Proof is recorded by `s0_gate_receipt_1B`.  
+* **Gate law** - S0 verifies 1A's `_passed.flag` equals `SHA256(validation_bundle_1A)` for the same fingerprint and records proof in `s0_gate_receipt_1B`; downstream states validate the receipt (no bundle re-hash) before reading `outlet_catalogue` (**No PASS -> No read**). 
 * **Path↔embed equality** — Where lineage fields are embedded, they **must** byte-equal the corresponding path tokens (e.g., `manifest_fingerprint`). 
 * **Order authority boundary** — Cross-country order is **not** encoded in `outlet_catalogue` or any 1B egress; consumers join `s3_candidate_set.candidate_rank`. 
 * **Writer-sort vs file order** — File order is **non-authoritative**; stable writer sort is binding (e.g., S3 uses `[merchant_id, legal_country_iso]`). 
 
 ## A.5 Symbols (this state)
 
-* **`n_sites`** — Deterministic integer count of outlets for a `(merchant_id, legal_country_iso)` pair; equals the number of rows in `outlet_catalogue` for the same `{seed, fingerprint}` and pair; **S3 elides zeros**. 
+* **`n_sites`** — Deterministic integer count of outlets for a `(merchant_id, legal_country_iso)` pair; equals the number of rows in `outlet_catalogue` for the same `{seed, manifest_fingerprint}` and pair; **S3 elides zeros**. 
 * **`candidate_rank`** — Total, contiguous rank over countries per merchant from **1A.S3**; `home = 0`. *(Not produced here.)* 
 
 ## A.6 Abbreviations

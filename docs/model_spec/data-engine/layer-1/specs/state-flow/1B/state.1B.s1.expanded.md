@@ -159,7 +159,7 @@ All dataset and field references in this document MUST be resolved first via the
 
 ## 3.1 Identity tokens & scope
 
-* **Identity for S1 outputs:** `parameter_hash` **only**. S1 emits no `seed`- or `fingerprint`-partitioned artefacts. This follows the Dictionary entries for `tile_index` and `tile_bounds` (partitioning `[parameter_hash]`, version `{parameter_hash}`).
+* **Identity for S1 outputs:** `parameter_hash` **only**. S1 emits no `seed`- or `manifest_fingerprint`-partitioned artefacts. This follows the Dictionary entries for `tile_index` and `tile_bounds` (partitioning `[parameter_hash]`, version `{parameter_hash}`).
 * **No RNG in S1:** S1 is deterministic geometry; it inherits the layer lineage discipline (identity by partitions; publish is atomic; file order non-authoritative) from S0’s law. 
 
 ## 3.2 Partition law for `tile_index` and `tile_bounds`
@@ -256,7 +256,7 @@ S1 consumes only **reference/ingress** surfaces. It does **not** read any 1A egr
 ## 5.1 Upstream consumer gate (context from S0/1A)
 
 * **S1 does not read 1A egress**; therefore **S0 PASS is *not* a precondition to execute S1**. The **1A validation bundle** entry appears in the 1B Dictionary for discoverability only. 
-* For coherence across 1B: **any workflow that *does* read `outlet_catalogue` must verify the 1A consumer gate** for the same `fingerprint` before reads — i.e., recompute the bundle hash from `index.json` (ASCII-lex over `index.path`, excluding the flag) and compare to `_passed.flag`; **No PASS → no read**.  
+* For coherence across 1B: any workflow that does read `outlet_catalogue` must validate `s0_gate_receipt_1B` (schema-valid + path token parity). S0 performs the bundle hash verification; downstream states must not re-hash the 1A bundle.  
 
 ## 5.2 Allowed reads before any PASS
 
@@ -270,12 +270,12 @@ S1 MAY read **only** the sealed ingress references declared in §4:
 
 ## 5.4 Gate-verification recipe (normative when 1A is read by other states)
 
-If a downstream state (not S1) reads 1A egress for `fingerprint = f`:
+If a downstream state (not S1) reads 1A egress for `manifest_fingerprint = f`:
 
-1. Locate `data/layer1/1A/validation/manifest_fingerprint=f/`.
-2. Read `index.json`; ensure listed files are unique and ASCII-sortable relative paths.
-3. Compute `SHA256(concat(bytes(files in ASCII-lex order of index.path)))`, excluding `_passed.flag`.
-4. Compare to the contents of `_passed.flag` (`sha256_hex = <hex64>`). **Match → PASS; else ABORT.** 
+1. Locate `data/layer1/1B/s0_gate_receipt/manifest_fingerprint=f/s0_gate_receipt.json`.
+2. Validate against `schemas.1B.yaml#/validation/s0_gate_receipt`; confirm `manifest_fingerprint == f`.
+3. Treat the receipt as the PASS proof; do **not** re-hash the 1A bundle here.
+
 
 ## 5.5 Order-authority boundary (coherence rule)
 
@@ -288,7 +288,7 @@ If a downstream state (not S1) reads 1A egress for `fingerprint = f`:
 
 ## 5.7 Failure semantics (when gate checks apply)
 
-* If any step in §5.4 fails (when applicable in later states), the consumer **MUST abort** and treat it as a **gate failure** for that `fingerprint`; **no** compensating reads or fallbacks are permitted. This mirrors S0’s “**No PASS → no read**” rule. 
+* If any step in §5.4 fails (when applicable in later states), the consumer **MUST abort** and treat it as a **gate failure** for that `manifest_fingerprint`; **no** compensating reads or fallbacks are permitted. This mirrors S0’s “**No PASS → no read**” rule. 
 
 *Result:* S1’s gate stance is minimal and precise: **ingress-only reads**, **no 1A dependency**, **no S1 PASS gate**, and crystal-clear instructions for the broader 1B pipeline where 1A gating *does* apply.
 
@@ -875,7 +875,7 @@ Validators execute the following using the artefacts in §9:
 ## A.1 Core identifiers & lineage
 
 * **`parameter_hash`** — Lowercase **hex64** (SHA-256) digest representing the governed parameter set for a run; used as the **sole partition key** for parameter-scoped datasets in 1B (e.g., `tile_index`). In S1 it’s a **path token**; some tables in other states also **embed** it as a column with path↔embed equality.
-* **`manifest_fingerprint`** (`fingerprint` in paths) — Lowercase **hex64** lineage digest used by 1A’s validation bundle and any 1A egress. The value in rows (when present) is byte-equal to the `fingerprint` path token. 
+* **`manifest_fingerprint`** (`manifest_fingerprint` in paths) — Lowercase **hex64** lineage digest used by 1A’s validation bundle and any 1A egress. The value in rows (when present) is byte-equal to the `manifest_fingerprint` path token. 
 * **`seed`** — 64-bit unsigned RNG seed that appears in 1A egress and RNG logs; **not used** by S1 (S1 is RNG-free). 
 * **`run_id`** — Run-scoped identifier (lowercase hex per layer); used for RNG logs, not by S1. 
 * **`hex64`**, **`uint64`**, **`rfc3339_micros`** — Reusable JSON-Schema primitives defined for 1B (64-hex string; 0…2⁶⁴−1 integer; UTC timestamp `…Z` with 6 fractional digits). 

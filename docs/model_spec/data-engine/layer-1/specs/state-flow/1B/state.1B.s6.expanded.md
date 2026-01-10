@@ -26,7 +26,7 @@ Key words **MUST/SHALL/SHOULD/MAY** are normative. Unless explicitly marked *Inf
   – Data table: `schemas.1B.yaml#/plan/s6_site_jitter` (PK/partitions/writer-sort are binding). 
   – RNG events: `schemas.layer1.yaml#/rng/events/in_cell_jitter` (common envelope: `draws` dec-u128, `blocks` u64, counters, etc.). 
 * **Dictionary law (IDs → paths/partitions):**
-  – `s6_site_jitter` at `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with ordering `[merchant_id, legal_country_iso, site_order]`. 
+  – `s6_site_jitter` at `…/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with ordering `[merchant_id, legal_country_iso, site_order]`. 
   – RNG log `in_cell_jitter` under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. 
 
 ## 1.4 Compatibility window (assumed baselines)
@@ -35,11 +35,11 @@ S6 assumes the following remain on their **line**; a **MAJOR** bump in any requi
 
 * `schemas.layer1.yaml` (RNG envelope/events) and `schemas.1B.yaml` (S6 table).  
 * `dataset_dictionary.layer1.1B.yaml` (IDs, canonical paths/partitions for S5/S6). 
-* S0 gate & 1A gate model (“**No PASS → No read**”): consumers of 1A egress verify `_passed.flag` per the hashing law before S6’s upstream reads occur. 
+* S0 gate & 1A gate model (“**No PASS → No read**”): 1B.S0 verifies the 1A bundle + `_passed.flag` and records the proof in `s0_gate_receipt_1B`; downstream states rely on that receipt. S6 does **not** re-hash the bundle or verify `_passed.flag`. 
 
 ## 1.5 Identity & lineage (binding)
 
-* **Dataset identity (S6 table):** exactly one `{seed, manifest_fingerprint, parameter_hash}` per publish; **partition keys** are `[seed, fingerprint, parameter_hash]`, with **path token** `fingerprint=…` and **column** `manifest_fingerprint` (path↔embed equality holds wherever both appear). 
+* **Dataset identity (S6 table):** exactly one `{seed, manifest_fingerprint, parameter_hash}` per publish; **partition keys** are `[seed, manifest_fingerprint, parameter_hash]`, with **path token** `manifest_fingerprint=…` and **column** `manifest_fingerprint` (path↔embed equality holds wherever both appear). 
 * **RNG log identity:** `{seed, parameter_hash, run_id}`; one `run_id` per publish. Envelope must include `draws` (dec-u128) and `blocks` (u64) consistent with counters. 
 * **Order law:** file order is **non-authoritative**; writer sort is binding. Cross-country order is never encoded in 1B; downstreams join 1A S3 for `candidate_rank`.  
 
@@ -88,7 +88,7 @@ Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note
 * **Bounded resample.** On predicate failure, S6 SHALL resample within a fixed **MAX_ATTEMPTS** (≥1). If exceeded, **ABORT** this state.
 * **RNG evidence.** S6 SHALL record **one RNG event per attempt** under `in_cell_jitter` (**≥1 events per site**). **Each event** MUST have `blocks = 1` and `draws = "2"` (two-uniform family). The **last** event for a site corresponds to the **accepted** sample.
 * **Identity & partitions.** All outputs/logs SHALL bind to one `{seed, manifest_fingerprint, parameter_hash}`; path↔embed equality is binding; writer sort is binding; file order is non-authoritative.
-* **Authority surfaces.** S6 SHALL read only sealed inputs: S5 assignment, S1 tile geometry, country polygons, and the S0 gate receipt.
+* **Authority surfaces.** S6 SHALL read only sealed inputs: S5 assignment, S1 tile geometry, country polygons, and the S0 gate receipt (sealed context; S6 does not read 1A egress).
 
 ## 2.2 Out of scope (what S6 SHALL NOT do)
 
@@ -115,14 +115,14 @@ S6 is **successful** only if the acceptance criteria in **§9** hold—uniform-i
 
 S6 SHALL read only these sealed surfaces for the fixed identity `{seed, manifest_fingerprint, parameter_hash}`:
 
-* **S5 assignment** (`s5_site_tile_assignment`): authoritative mapping `(merchant_id, legal_country_iso, site_order) → tile_id`. Partitions `[seed, fingerprint, parameter_hash]`; writer-sort `[merchant_id, legal_country_iso, site_order]`. 
+* **S5 assignment** (`s5_site_tile_assignment`): authoritative mapping `(merchant_id, legal_country_iso, site_order) → tile_id`. Partitions `[seed, manifest_fingerprint, parameter_hash]`; writer-sort `[merchant_id, legal_country_iso, site_order]`. 
 * **S1 tile geometry** (`tile_index`): pixel centroid & bounds; partition `[parameter_hash]`; writer-sort `[country_iso, tile_id]`. 
 * **Country polygons** (`world_countries`): the **only** authority for the *point-in-country* predicate; dateline-aware geometry semantics are bound in S1 and inherited here. 
-* **Gate receipt** (`s0_gate_receipt_1B` / 1A PASS): consumers MUST have verified **`_passed.flag`** before any upstream read (**No PASS → No read**). 
+* **Gate receipt** (`s0_gate_receipt_1B` / 1A PASS): proof is recorded by S0; S6 relies on the receipt (schema-valid) and **does not** re-hash the 1A bundle or verify `_passed.flag`. 
 
 ## 3.3 Identity & partitions (binding)
 
-* **Dataset identity (S6 table):** exactly one publish per `{seed, manifest_fingerprint, parameter_hash}`; partitions are `[seed, fingerprint, parameter_hash]` (path token is `fingerprint=…`; embedded column is `manifest_fingerprint`). Writer-sort `[merchant_id, legal_country_iso, site_order]`.  
+* **Dataset identity (S6 table):** exactly one publish per `{seed, manifest_fingerprint, parameter_hash}`; partitions are `[seed, manifest_fingerprint, parameter_hash]` (path token is `manifest_fingerprint=…`; embedded column is `manifest_fingerprint`). Writer-sort `[merchant_id, legal_country_iso, site_order]`.  
 * **RNG events identity:** partitions `[seed, parameter_hash, run_id]` (no fingerprint in logs); one `run_id` per publish. 
 * **Path↔embed equality:** whenever lineage fields are embedded, their values MUST byte-equal the corresponding path tokens for both datasets and logs. 
 
@@ -155,18 +155,18 @@ S6 SHALL access **only** the surfaces in §3.2. Reading any unlisted spatial/tim
 
 ## 4.1 Run identity is sealed before S6
 
-S6 runs **only** under a fixed lineage tuple **`{seed, manifest_fingerprint, parameter_hash, run_id}`**. Any embedded lineage fields in rows/logs **MUST** byte-equal their path tokens (path token is `fingerprint=…`; embedded column is `manifest_fingerprint`). The S0 gate schema explicitly binds the **`fingerprint` path token ↔ `manifest_fingerprint`** value. 
+S6 runs **only** under a fixed lineage tuple **`{seed, manifest_fingerprint, parameter_hash, run_id}`**. Any embedded lineage fields in rows/logs **MUST** byte-equal their path tokens (path token is `manifest_fingerprint=…`; embedded column is `manifest_fingerprint`). The S0 gate schema explicitly binds the **`manifest_fingerprint` path token ↔ `manifest_fingerprint`** value. 
 
 ## 4.2 Gate condition (must hold before any read)
 
-**No PASS → No read.** The **S0 gate receipt** for 1B **MUST** be present and valid for this `fingerprint` before S6 reads any upstream 1B datasets. The S0 schema is fingerprint-scoped and marks this receipt as the authorisation to read 1A egress used upstream. 
+**No PASS → No read.** The **S0 gate receipt** for 1B **MUST** be present and valid for this `manifest_fingerprint` before S6 reads any upstream 1B datasets. The S0 schema is fingerprint-scoped and marks this receipt as the authorisation to read 1A egress used upstream. 
 
 ## 4.3 Upstream states (existence & conformance)
 
-The following upstream 1B datasets **MUST** already exist for **this** `{seed, fingerprint, parameter_hash}` and conform to their schema **and** Dictionary partitions/sort:
+The following upstream 1B datasets **MUST** already exist for **this** `{seed, manifest_fingerprint, parameter_hash}` and conform to their schema **and** Dictionary partitions/sort:
 
 * **S5 — `s5_site_tile_assignment`**
-  **Path/partitions:** `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  **Path/partitions:** `…/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
   **Writer-sort:** `[merchant_id, legal_country_iso, site_order]`
   **Shape:** `schemas.1B.yaml#/plan/s5_site_tile_assignment` (FK to ISO; FK to `tile_index` with same `parameter_hash`).  
 
@@ -204,7 +204,7 @@ S6 **SHALL** read **only** the sealed inputs enumerated here: **S5 assignment**,
 **ID (Dictionary):** `s6_site_jitter` → `schemas.1B.yaml#/plan/s6_site_jitter`. **Path family:**
 `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` 
 
-**Identity & partitions (binding).** Partitions are **`[seed, fingerprint, parameter_hash]`**. Primary key `[merchant_id, legal_country_iso, site_order]`. Writer sort `[merchant_id, legal_country_iso, site_order]`. Path token `fingerprint=…` MUST byte-equal the embedded `manifest_fingerprint` column wherever present.  
+**Identity & partitions (binding).** Partitions are **`[seed, manifest_fingerprint, parameter_hash]`**. Primary key `[merchant_id, legal_country_iso, site_order]`. Writer sort `[merchant_id, legal_country_iso, site_order]`. Path token `manifest_fingerprint=…` MUST byte-equal the embedded `manifest_fingerprint` column wherever present.  
 
 **Shape (owned by schema).** One row **per site** with effective (post-boundary) deltas:
 `delta_lat_deg`, `delta_lon_deg` (bounded guards e.g. `[-1,1]`, columns_strict=true). *(The exact columns/constraints are defined by the anchor and SHALL NOT be restated here.)* 
@@ -228,7 +228,7 @@ Where lineage appears both in the **path** and as **embedded fields** (e.g., `ma
 
 ## 5.4 No egress mutation
 
-S6 **does not** publish or mutate the 1B egress `site_locations`. That surface remains partitioned by `[seed, fingerprint]` and is governed elsewhere in 1B; S6 only produces the jitter dataset and its RNG events. 
+S6 **does not** publish or mutate the 1B egress `site_locations`. That surface remains partitioned by `[seed, manifest_fingerprint]` and is governed elsewhere in 1B; S6 only produces the jitter dataset and its RNG events. 
 
 ## 5.5 Resolution rule (no literal paths)
 
@@ -246,7 +246,7 @@ Implementations SHALL resolve dataset/log IDs → **path families, partitions, w
 This anchor fixes **PK**, **partition keys**, **writer sort**, and **columns_strict** for the S6 table. In v2.4 it is:
 
 * **PK:** `[merchant_id, legal_country_iso, site_order]`
-* **Partitions:** `[seed, fingerprint, parameter_hash]` (path token `fingerprint=…`; embedded column is `manifest_fingerprint`)
+* **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` (path token `manifest_fingerprint=…`; embedded column is `manifest_fingerprint`)
 * **Writer sort:** `[merchant_id, legal_country_iso, site_order]`
 * **Columns (excerpt):** `merchant_id`, `legal_country_iso` (FK to ISO ingress), `site_order`, and **effective** deltas `delta_lat_deg`, `delta_lon_deg` *(bounded guard e.g. [-1,1])*; **columns_strict: true**. 
 
@@ -270,7 +270,7 @@ The **Dictionary** entry binds the **path family** and partitions for this strea
 
 S6 **reads** these shapes and inherits their constraints; this spec does not restate them:
 
-* **S5 assignment table:** `schemas.1B.yaml#/plan/s5_site_tile_assignment` (PK `[merchant_id, legal_country_iso, site_order]`, partitions `[seed, fingerprint, parameter_hash]`, FK of `tile_id` → `prep.tile_index` with **partition hint `['parameter_hash']`** in the FK block). 
+* **S5 assignment table:** `schemas.1B.yaml#/plan/s5_site_tile_assignment` (PK `[merchant_id, legal_country_iso, site_order]`, partitions `[seed, manifest_fingerprint, parameter_hash]`, FK of `tile_id` → `prep.tile_index` with **partition hint `['parameter_hash']`** in the FK block). 
 * **S1 tile geometry:** `schemas.1B.yaml#/prep/tile_index` (PK `[country_iso, tile_id]`, partition `[parameter_hash]`, writer sort `[country_iso, tile_id]`). 
 * **ISO country codes (ingress):** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (FK target for `legal_country_iso`). *(Referenced from the 1B schema columns via FK.)* 
 
@@ -339,7 +339,7 @@ with the layer envelope (including `draws="2"`, `blocks=1`). After an **accepted
 
 ## 7.6 Identity & determinism guarantees
 
-* **Path↔embed equality.** Embedded `manifest_fingerprint` MUST byte-equal the `fingerprint=` path token for both dataset rows and any lineage fields in events.
+* **Path↔embed equality.** Embedded `manifest_fingerprint` MUST byte-equal the `manifest_fingerprint=` path token for both dataset rows and any lineage fields in events.
 * **Run stability.** Given identical `{seed, manifest_fingerprint, parameter_hash, run_id}` and identical inputs (S5, S1, country polygons), the sequence of attempts and the accepted sample for each site MUST be reproducible.
 * **Concurrency.** Parallel execution MUST NOT alter per-site RNG sequencing: attempts are ordered per site; inter-site interleaving is permitted, but each site’s event sequence MUST remain in-order.
 
@@ -362,20 +362,20 @@ with the layer envelope (including `draws="2"`, `blocks=1`). After an **accepted
 ## 8.1 Identity tokens (one tuple per publish)
 
 * **Dataset identity:** exactly one `{seed, manifest_fingerprint, parameter_hash}` for the entire S6 publish. Mixing identities within a publish is **forbidden**. The Dictionary fixes `s6_site_jitter` under
-  `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint, parameter_hash]` and writer sort `[merchant_id, legal_country_iso, site_order]`. 
+  `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint, parameter_hash]` and writer sort `[merchant_id, legal_country_iso, site_order]`. 
 * **RNG logs identity:** `{seed, parameter_hash, run_id}` for the `in_cell_jitter` stream under
   `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. *(“version: {run_id}” in Registry.)*  
 
 ## 8.2 Partition law & path families (resolve via Dictionary; no literal paths)
 
-* **S6 dataset:** `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
-  **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
+* **S6 dataset:** `…/s6_site_jitter/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` · **Format:** parquet · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
 * **RNG events:** `…/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   **Partitions:** `[seed, parameter_hash, run_id]` · **Ordering:** none (append-only; file order non-authoritative). 
 
 ## 8.3 Path↔embed equality (lineage law)
 
-Where lineage appears both in the **path** and as **embedded fields**, values MUST be byte-identical (e.g., the `fingerprint` path token equals any embedded `manifest_fingerprint`). This mirrors the S0 receipt’s binding equality rule and applies to all S6 outputs. 
+Where lineage appears both in the **path** and as **embedded fields**, values MUST be byte-identical (e.g., the `manifest_fingerprint` path token equals any embedded `manifest_fingerprint`). This mirrors the S0 receipt’s binding equality rule and applies to all S6 outputs. 
 
 ## 8.4 Ordering posture (writer sort vs file order)
 
@@ -396,7 +396,7 @@ RNG events are **append-only during the job**, partitioned by `[seed, parameter_
 
 ## 8.8 Identity-coherence checks (must hold before publish)
 
-* **Receipt parity (fingerprint):** any S6 publish for `fingerprint=f` implies the S0 gate receipt for `f` exists and is valid. 
+* **Receipt parity (fingerprint):** any S6 publish for `manifest_fingerprint=f` implies the S0 gate receipt for `f` exists and is valid. 
 * **Parameter parity:** `parameter_hash` in both dataset and logs equals the `parameter_hash` used to read `tile_index`. 
 * **Seed parity:** dataset `seed` equals the seed used by upstream S5; logs `seed` equals dataset `seed`. 
 
@@ -426,9 +426,9 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 **Detection.** JSON-Schema validate S6 files; reject unknown/missing columns or invalid values (e.g., delta guards if present). 
 
 ## A603 — Partition & identity law *(Binding)*
-**Cross-surface lineage.** For every `in_cell_jitter` event, assert that the embedded `manifest_fingerprint` equals the S6 dataset partition’s `fingerprint` token for the same run.
+**Cross-surface lineage.** For every `in_cell_jitter` event, assert that the embedded `manifest_fingerprint` equals the S6 dataset partition’s `manifest_fingerprint` token for the same run.
 **Rule.** S6 dataset lives at
-`…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with **partitions** `[seed, fingerprint, parameter_hash]`; embedded lineage (when present) byte-equals path tokens (**path↔embed equality**).
+`…/s6_site_jitter/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with **partitions** `[seed, manifest_fingerprint, parameter_hash]`; embedded lineage (when present) byte-equals path tokens (**path↔embed equality**).
 **Detection.** Derive identity from the path and compare to any embedded lineage fields (must match). 
 
 ## A604 — Writer sort *(Binding)*
@@ -500,7 +500,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 
 ### Notes & references the validator relies on
 
-* **S6 table ID, partitions, writer-sort**: `s6_site_jitter` → `[seed, fingerprint, parameter_hash]`, sort `[merchant_id, legal_country_iso, site_order]`. 
+* **S6 table ID, partitions, writer-sort**: `s6_site_jitter` → `[seed, manifest_fingerprint, parameter_hash]`, sort `[merchant_id, legal_country_iso, site_order]`. 
 * **RNG stream ID & path family**: `rng_event_in_cell_jitter` → logs under `[seed, parameter_hash, run_id]`; **events are per attempt (≥1 per site)**; per-event budget `blocks=1`, `draws="2"`.  
 * **Layer RNG envelope invariants**: counters (128-bit) and budget semantics. 
 * **S1 geometry authority (tile bounds & country PIP)**. 
@@ -529,7 +529,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 
 **Trigger:** Any of:
 
-* Dataset not under `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`,
+* Dataset not under `…/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`,
 * Embedded lineage (where present) ≠ path tokens.
   **Detection:** Compare path-derived `{seed,fingerprint,parameter_hash}` to embedded fields; assert partitioning and writer policy match Dictionary. 
 
@@ -724,7 +724,7 @@ This section offers **non-binding** guidance to make S6 fast, predictable, and r
 ## 12.5 I/O & file layout
 
 * **Dataset (parquet).** Write S6 in **writer sort** to help columnar encoders and downstream range scans; aim for **balanced row groups** (tens of MBs) aligned to sort runs. Dictionary fixes **format and partitions**:
-  `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`. 
+  `…/s6_site_jitter/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`. 
 * **Logs (JSONL).** Emit `in_cell_jitter` as **streaming appends**; partitions `[seed, parameter_hash, run_id]`; retention **30 days** in the Dictionary keeps the footprint bounded. 
 
 ## 12.6 Work scheduling & memory
@@ -766,7 +766,7 @@ The following **SHALL** be treated as **MAJOR** and require re-ratification of S
 
 1. **Dataset/log identity or path law**
 
-   * Changing **partitions** for `s6_site_jitter` from `[seed, fingerprint, parameter_hash]` or its path family, or changing writer-sort `[merchant_id, legal_country_iso, site_order]`. 
+   * Changing **partitions** for `s6_site_jitter` from `[seed, manifest_fingerprint, parameter_hash]` or its path family, or changing writer-sort `[merchant_id, legal_country_iso, site_order]`. 
    * Changing RNG log partitions `[seed, parameter_hash, run_id]` or path family for `rng_event_in_cell_jitter`. 
 
 2. **Schema-owned shape**
@@ -804,7 +804,7 @@ The following are **MINOR** only if strictly backward-compatible:
 
 S6 is validated against the following **frozen** surfaces:
 
-* **Schema (1B):** `schemas.1B.yaml` — `s6_site_jitter` anchor (PK, partitions `[seed,fingerprint,parameter_hash]`, writer-sort, `columns_strict`). 
+* **Schema (1B):** `schemas.1B.yaml` — `s6_site_jitter` anchor (PK, partitions `[seed, manifest_fingerprint, parameter_hash]`, writer-sort, `columns_strict`). 
 * **Dictionary (1B):** `dataset_dictionary.layer1.1B.yaml` — IDs→paths/partitions for `s6_site_jitter` and `rng_event_in_cell_jitter`, retentions (365d / 30d). 
 * **Registry (1B):** `artefact_registry_1B.yaml` — notes on write-once/atomic-move and RNG event family roles. 
 * **Layer schema:** `schemas.layer1.yaml` — RNG **envelope** (`draws` dec-u128, `blocks` u64) and event constants for `in_cell_jitter` (`draws="2"`, `blocks=1`). 
@@ -815,7 +815,7 @@ A **MAJOR** bump in any of the above that changes a bound interface requires an 
 ## 13.6 Forward-compatibility guidance
 
 * **If per-site resample attempts need to be logged:** do **not** mutate the existing `in_cell_jitter` event schema (fixed `draws="2"`, `blocks=1`) — instead **add** a new event family (e.g., `in_cell_jitter_v2`) or a separate diagnostic stream. That is a **MINOR** addition if it doesn’t alter acceptance; changing the existing stream’s budget would be **MAJOR**. 
-* **If egress partitions change upstream:** S6 does **not** publish egress; `site_locations` remains `[seed, fingerprint]` per Dictionary. Altering that is outside S6 and would be handled in the egress state’s change control. 
+* **If egress partitions change upstream:** S6 does **not** publish egress; `site_locations` remains `[seed, manifest_fingerprint]` per Dictionary. Altering that is outside S6 and would be handled in the egress state’s change control. 
 
 ## 13.7 Deprecation & migration (binding posture)
 
@@ -841,14 +841,14 @@ A **MAJOR** bump in any of the above that changes a bound interface requires an 
 
 * **seed** — 64-bit unsigned integer that parameterises all RNG substreams for the run. Appears in dataset partitions and RNG log partitions.  
 * **parameter_hash** — 256-bit hex string (formatted) identifying the sealed parameter bundle; appears in both dataset and RNG log partitions. 
-* **manifest_fingerprint** — 256-bit hex string (formatted) fingerprint of the run manifest; **path token** is `fingerprint={manifest_fingerprint}`; **embedded column** remains `manifest_fingerprint` when present. 
+* **manifest_fingerprint** — 256-bit hex string (formatted) fingerprint of the run manifest; **path token** is `manifest_fingerprint={manifest_fingerprint}`; **embedded column** remains `manifest_fingerprint` when present. 
 * **run_id** — Lowercase **hex32** identifier for the RNG-log partition; one `run_id` per publish under `[seed, parameter_hash, run_id]`.
 
 ## A.3 Datasets, logs, partitions (dictionary law)
 
 * **S6 dataset ID:** `s6_site_jitter`
   Path family: `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-  Partitions: `[seed, fingerprint, parameter_hash]` · Writer sort: `[merchant_id, legal_country_iso, site_order]`. 
+  Partitions: `[seed, manifest_fingerprint, parameter_hash]` · Writer sort: `[merchant_id, legal_country_iso, site_order]`. 
 * **RNG events ID:** `rng_event_in_cell_jitter`
   Path family: `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   Partitions: `[seed, parameter_hash, run_id]` (no fingerprint in logs). 
@@ -936,7 +936,7 @@ run_id                  = "a7e2c4f91d0b7e2a3c5f6b7a8d9e0f12"
 
 **Partitions used**
 
-* S6 dataset: `…/s6_site_jitter/seed=987654321/fingerprint=f2c0…/parameter_hash=7b1e…/`
+* S6 dataset: `…/s6_site_jitter/seed=987654321/manifest_fingerprint=f2c0…/parameter_hash=7b1e…/`
 * RNG events: `…/in_cell_jitter/seed=987654321/parameter_hash=7b1e…/run_id=a7e2c4f91d0b7e2a3c5f6b7a8d9e0f12/`
 
 ---
@@ -1040,7 +1040,7 @@ Envelope law holds: `u128(after) − u128(before) = 1 (blocks)`; `draws="2"`.
 | 1           | GB                |          1 |  240104 |   -0.01977055 |    0.01162105 | f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1 |
 
 **Partition path:**
-`…/s6_site_jitter/seed=987654321/fingerprint=f2c0…/parameter_hash=7b1e…/part-0000.snappy.parquet`
+`…/s6_site_jitter/seed=987654321/manifest_fingerprint=f2c0…/parameter_hash=7b1e…/part-0000.snappy.parquet`
 
 Writer sort (`merchant_id, legal_country_iso, site_order`) is respected.
 
@@ -1050,7 +1050,7 @@ Writer sort (`merchant_id, legal_country_iso, site_order`) is respected.
 
 * **A601 Row parity:** `|S6| == |S5|` for the key `(1,GB,1)` ✅
 * **A602 Schema:** row validates; columns_strict honored ✅
-* **A603 Partition & identity:** path partitions match, and the embedded `manifest_fingerprint` equals `fingerprint` ✅
+* **A603 Partition & identity:** path partitions match, and the embedded `manifest_fingerprint` equals `manifest_fingerprint` ✅
 * **A604 Writer sort:** non-decreasing by `[merchant_id, legal_country_iso, site_order]` ✅
 * **A605 FK:** `(GB, 240104)` exists in `tile_index` for this `parameter_hash` ✅
 * **A606 Inside pixel:** reconstructed `(lon*,lat*)` inside rectangle ✅

@@ -53,7 +53,7 @@ S4 emits a single **integer allocation plan** dataset (ID: **`s4_alloc_plan`**) 
 # 2) Preconditions & sealed inputs **(Binding)**
 
 **2.1 Gate (must hold before any read).**
-S0 has published exactly one **`s0_gate_receipt_1B`** under `fingerprint={manifest_fingerprint}` for this run; it **schema-validates** and proves the 1A PASS. S4 **relies on the receipt** and **does not** re-hash the 1A bundle. The receipt enumerates the sealed inputs 1B may read.  
+S0 has published exactly one **`s0_gate_receipt_1B`** under `manifest_fingerprint={manifest_fingerprint}` for this run; it **schema-validates** and proves the 1A PASS. S4 **relies on the receipt** and **does not** re-hash the 1A bundle. The receipt enumerates the sealed inputs 1B may read.  
 
 **2.2 Identities (fixed for the whole run).**
 All S4 reads and writes bind to **one** `{seed}`, **one** `{manifest_fingerprint}`, and **one** `{parameter_hash}`. Mixing identities within an S4 publish is **forbidden**. (This matches S3’s identity and S2’s parameter scope.)  
@@ -61,7 +61,7 @@ All S4 reads and writes bind to **one** `{seed}`, **one** `{manifest_fingerprint
 **2.3 Sealed inputs (IDs → path/partitions → `$ref`).**
 Resolved via the **Dataset Dictionary** (no literal paths).
 
-* **`s3_requirements`** → `data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` · **partitions:** `[seed, fingerprint, parameter_hash]` · **schema:** `schemas.1B.yaml#/plan/s3_requirements`. *(Counts source for `n_sites`.)*  
+* **`s3_requirements`** → `data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` · **partitions:** `[seed, manifest_fingerprint, parameter_hash]` · **schema:** `schemas.1B.yaml#/plan/s3_requirements`. *(Counts source for `n_sites`.)*  
 * **`tile_weights`** → `…/parameter_hash={parameter_hash}/` · **partitions:** `[parameter_hash]` · **writer sort:** `[country_iso, tile_id]` · **schema:** `schemas.1B.yaml#/prep/tile_weights`. *(Fixed-dp weights authority.)* 
 * **`tile_index`** → `…/parameter_hash={parameter_hash}/` · **partitions:** `[parameter_hash]` · **writer sort:** `[country_iso, tile_id]` · **schema:** `schemas.1B.yaml#/prep/tile_index`. *(Eligible tile universe.)* 
 * **`iso3166_canonical_2024`** → **schema:** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. *(FK domain for `legal_country_iso`.)* 
@@ -84,7 +84,7 @@ S4 **consumes no RNG** and writes **no RNG logs**; it is purely deterministic. *
 
 **3.1 Required datasets (IDs → `$ref` → partitions; resolve via Dictionary only).**
 
-* **`s3_requirements`** → `schemas.1B.yaml#/plan/s3_requirements` · **partitions:** `[seed, fingerprint, parameter_hash]` · **writer sort:** `[merchant_id, legal_country_iso]` · **law:** sole authority for `n_sites` (count source).  
+* **`s3_requirements`** → `schemas.1B.yaml#/plan/s3_requirements` · **partitions:** `[seed, manifest_fingerprint, parameter_hash]` · **writer sort:** `[merchant_id, legal_country_iso]` · **law:** sole authority for `n_sites` (count source).  
 * **`tile_weights`** → `schemas.1B.yaml#/prep/tile_weights` · **partitions:** `[parameter_hash]` · **writer sort:** `[country_iso, tile_id]` · **law:** fixed-dp fractional mass; S4 **must not** alter weights. 
 * **`tile_index`** → `schemas.1B.yaml#/prep/tile_index` · **partitions:** `[parameter_hash]` · **law:** eligible tile universe (no extras outside this set). 
 * **`iso3166_canonical_2024`** → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` · **law:** FK domain for `legal_country_iso`. 
@@ -142,7 +142,7 @@ Writers **must** resolve via the Dataset Dictionary (no literal paths). The path
 data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
-* **Partitions:** `[seed, fingerprint, parameter_hash]` (one publish per identity; write-once).
+* **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` (one publish per identity; write-once).
 * **Writer sort:** `[merchant_id, legal_country_iso, tile_id]` (stable merge order; file order non-authoritative).
 * **Format:** `parquet`.
   These mirror the S3/S2 identity and sorting posture already in your packs.  
@@ -198,7 +198,7 @@ b) Validate the **S0 receipt** for `manifest_fingerprint` (schema-valid; No PASS
 c) Resolve all surfaces via the **Dataset Dictionary** (no literal paths).
 
 **6.2 Locate inputs (identity-parity checks).**
-a) `s3_requirements` under `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
+a) `s3_requirements` under `…/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
 b) `tile_weights` and `tile_index` under `…/parameter_hash={parameter_hash}/`.
 c) **Parity:** the `{seed}` used to read `s3_requirements` and the `{parameter_hash}` used to read S2 tables **must equal** the S4 publish tokens.
 
@@ -227,7 +227,7 @@ b) **Universe:** every `(legal_country_iso, tile_id)` emitted **must exist** in 
 c) **No renormalisation:** S4 **must not** alter or re-scale `weight_fp` or `dp`.
 
 **6.6 Materialisation & writer discipline.**
-a) **Path family:** publish under `…/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
+a) **Path family:** publish under `…/s4_alloc_plan/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
 b) **Writer sort:** rows in non-decreasing `[merchant_id, legal_country_iso, tile_id]`; **file order is non-authoritative**.
 c) **Write-once:** re-publishing to the same identity must be **byte-identical**; stage → fsync → single atomic move.
 
@@ -255,14 +255,14 @@ S4 binds all reads/writes to exactly one **`{seed, manifest_fingerprint, paramet
 **7.2 Partition law (Dictionary-resolved path family).**
 All IO **must** resolve via the Dataset Dictionary (no literal paths). The S4 path family is:
 `data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-**Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** per identity; no appends/compaction. (Partitioning mirrors the S3 path law and triple identity.)  
+**Partitions:** `[seed, manifest_fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** per identity; no appends/compaction. (Partitioning mirrors the S3 path law and triple identity.)  
 
 **7.3 Writer sort & file-order posture.**
 Rows **must** be written in non-decreasing `[merchant_id, legal_country_iso, tile_id]`. File order is **non-authoritative**; the stable writer sort is binding (same posture used by S3). 
 
 **7.4 Identity-coherence checks (must hold before publish).**
 
-* **Receipt parity (fingerprint):** `partition.fingerprint == s0_gate_receipt_1B.manifest_fingerprint` *(S0 receipt is fingerprint-scoped)*.  
+* **Receipt parity (fingerprint):** `partition.manifest_fingerprint == s0_gate_receipt_1B.manifest_fingerprint` *(S0 receipt is fingerprint-scoped)*.  
 * **Parameter parity (S2 scope):** `partition.parameter_hash` equals the `{parameter_hash}` used to read `tile_weights`/`tile_index` *(S2/S1 tables are parameter-scoped)*.
 * **Seed parity (S3 scope):** `partition.seed` equals the `{seed}` used to read `s3_requirements` *(S3 is seed+fingerprint+parameter_hash-scoped)*.
 * **Path↔embed equality:** where lineage fields are embedded in rows, values **must equal** their path tokens. (Same equality law used by S0 for `manifest_fingerprint`.) 
@@ -325,7 +325,7 @@ persist `{ merchant_id, legal_country_iso, n_sites_s3, n_sites_sum }` with `n_si
 
 **8.8 Partition & immutability.**
 
-* Published under `…/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`; re-publishing to the same identity must be **byte-identical**; stage → fsync → atomic move.
+* Published under `…/s4_alloc_plan/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`; re-publishing to the same identity must be **byte-identical**; stage → fsync → atomic move.
 * **Fail:** `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.  
 
 **8.9 Writer sort (stable merge order).**
@@ -353,7 +353,7 @@ persist `{ merchant_id, legal_country_iso, n_sites_s3, n_sites_sum }` with `n_si
 
 # 9) Failure modes & canonical error codes **(Binding)**
 
-> **Fail-closed posture.** Any condition below **ABORTS** the run. On first detection the writer **must** stop, emit a failure record, and ensure **no partials** are visible under `…/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (write-once; atomic publish). Shape authority = **Schema**; IDs→paths/partitions/sort/licence = **Dictionary**; gate law relies on **S0 receipt**.   
+> **Fail-closed posture.** Any condition below **ABORTS** the run. On first detection the writer **must** stop, emit a failure record, and ensure **no partials** are visible under `…/s4_alloc_plan/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (write-once; atomic publish). Shape authority = **Schema**; IDs→paths/partitions/sort/licence = **Dictionary**; gate law relies on **S0 receipt**.   
 
 ### E301_NO_PASS_FLAG — S0 gate not proven *(ABORT)*
 
@@ -476,7 +476,7 @@ persist `{ merchant_id, legal_country_iso, n_sites_s3, n_sites_sum }` with `n_si
 
 **10.1 Deliverables (outside the dataset partition; binding for presence)**
 An accepted S4 run **MUST** expose, outside
-`…/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
+`…/s4_alloc_plan/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
 
 * **S4 run report** — single machine-readable JSON object (fields in §10.2).
 * **Determinism receipt** — composite SHA-256 over the produced **partition files only** (recipe in §10.4).
@@ -506,7 +506,7 @@ The run report **MUST** include at least:
 Compute a **composite SHA-256** over the **produced S4 partition files only**:
 
 1. List all files under
-   `…/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+   `…/s4_alloc_plan/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
    as **relative paths**, **ASCII-lex sort** them.
 2. Concatenate raw bytes in that order; compute SHA-256; encode as lowercase hex64.
 3. Store as `{ "partition_path": "<path>", "sha256_hex": "<hex64>" }` in the run report.

@@ -18,16 +18,16 @@ Key words **MUST, MUST NOT, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY** are norm
 
 S8 v1.* is written against—and assumes—these frozen surfaces:
 
-* **Egress anchor:** `schemas.1B.yaml#/egress/site_locations` — **partitions `[seed, fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, columns_strict=true, **order-free** egress. 
+* **Egress anchor:** `schemas.1B.yaml#/egress/site_locations` — **partitions `[seed, manifest_fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, columns_strict=true, **order-free** egress. 
 * **Dictionary entry:** `site_locations` → path
-  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, **partitioning `[seed, fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
+  `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, **partitioning `[seed, manifest_fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
 * **Registry stanza:** `site_locations` (egress) with role “Concrete per-outlet coordinates (order-free; join 1A S3 for inter-country order)”; notes: write-once; atomic move; file order non-authoritative. 
 
 A **MAJOR** change to any of the above (e.g., egress partitions, writer sort, or the egress schema) requires re-ratifying S8.
 
 ## 1.4 Identity & lineage posture (state-wide)
 
-* **Egress identity:** exactly one `{seed, manifest_fingerprint}` publish per run; egress partitions are **`[seed, fingerprint]`**. Where lineage appears both in **path** and **rows** (e.g., `manifest_fingerprint`), values **MUST** be byte-identical (path↔embed equality).
+* **Egress identity:** exactly one `{seed, manifest_fingerprint}` publish per run; egress partitions are **`[seed, manifest_fingerprint]`**. Where lineage appears both in **path** and **rows** (e.g., `manifest_fingerprint`), values **MUST** be byte-identical (path↔embed equality).
 * **Order law:** Egress is **order-free**; any inter-country order remains outside 1B egress and is obtained by joining 1A S3 `candidate_rank`.
 * **Publish posture:** write-once; stage → fsync → **single atomic move** into the identity partition; file order non-authoritative. 
 
@@ -59,7 +59,7 @@ Here’s **Section 2 — Purpose & scope (Binding)** for **L1·1B·S8**.
 
 # 2) Purpose & scope **(Binding)**
 
-**Mission.** S8 **publishes** the 1B egress dataset **`site_locations`** by transforming the S7 per-site synthesis into the **egress shape** and writing it under the **order-free** identity **`[seed, fingerprint]`**. S8 is **deterministic** and **RNG-free**; it MUST NOT encode inter-country order (downstreams join 1A S3 when order is required).
+**Mission.** S8 **publishes** the 1B egress dataset **`site_locations`** by transforming the S7 per-site synthesis into the **egress shape** and writing it under the **order-free** identity **`[seed, manifest_fingerprint]`**. S8 is **deterministic** and **RNG-free**; it MUST NOT encode inter-country order (downstreams join 1A S3 when order is required).
 
 ## 2.1 In-scope (what S8 SHALL do)
 
@@ -84,15 +84,15 @@ S8 is successful only if the acceptance suite in **§9** passes: **row parity S7
 
 ## 3.1 Run identity is sealed before S8
 
-S8 executes under a fixed lineage tuple **`{seed, manifest_fingerprint, parameter_hash, run_id}`** for the run. Egress publishes under **`[seed, fingerprint]`**; any lineage fields embedded in rows (e.g., `manifest_fingerprint`, if present) **MUST** byte-equal the corresponding **path tokens** (`fingerprint=…`).
+S8 executes under a fixed lineage tuple **`{seed, manifest_fingerprint, parameter_hash, run_id}`** for the run. Egress publishes under **`[seed, manifest_fingerprint]`**; any lineage fields embedded in rows (e.g., `manifest_fingerprint`, if present) **MUST** byte-equal the corresponding **path tokens** (`manifest_fingerprint=…`).
 
 ## 3.2 Upstream dataset required (for this identity)
 
-S8 SHALL read **only** the following sealed input for **this** `{seed, fingerprint, parameter_hash}`:
+S8 SHALL read **only** the following sealed input for **this** `{seed, manifest_fingerprint, parameter_hash}`:
 
 * **S7 — `s7_site_synthesis`** (deterministic per-site absolutes; RNG-free)
   **Path family:** `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-  **Partitions / writer sort:** `[seed, fingerprint, parameter_hash]`; `[merchant_id, legal_country_iso, site_order]`.
+  **Partitions / writer sort:** `[seed, manifest_fingerprint, parameter_hash]`; `[merchant_id, legal_country_iso, site_order]`.
   **Shape authority:** `schemas.1B.yaml#/plan/s7_site_synthesis`. 
 
 *(S8 does not read S1 or 1A surfaces; S7 has already produced conformed per-site rows.)*
@@ -100,7 +100,7 @@ S8 SHALL read **only** the following sealed input for **this** `{seed, fingerpri
 ## 3.3 Egress target identity (preview)
 
 S8 MUST publish **`site_locations`** at
-`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions `[seed, fingerprint]`** and **writer sort `[merchant_id, legal_country_iso, site_order]`**. The egress dataset is **order-free**.
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions `[seed, manifest_fingerprint]`** and **writer sort `[merchant_id, legal_country_iso, site_order]`**. The egress dataset is **order-free**.
 
 ## 3.4 Resolution rule (no literal paths)
 
@@ -121,7 +121,7 @@ S8 **SHALL NOT** read any surface other than **`s7_site_synthesis`**. Attempting
 ## 4.1 Authority stack (precedence)
 
 * **Shape authority:** `schemas.1B.yaml` anchors — **`#/plan/s7_site_synthesis`** (upstream) and **`#/egress/site_locations`** (this state). 
-* **IDs → paths/partitions/writer policy:** **Dataset Dictionary** — `s7_site_synthesis` under `[seed,fingerprint,parameter_hash]`; `site_locations` under `[seed,fingerprint]`. 
+* **IDs → paths/partitions/writer policy:** **Dataset Dictionary** — `s7_site_synthesis` under `[seed, manifest_fingerprint, parameter_hash]`; `site_locations` under `[seed, manifest_fingerprint]`. 
 * **Provenance/operational posture:** **Artefact Registry** — write-once, atomic move, file order non-authoritative; egress role “order-free; join 1A S3 for inter-country order.” 
 
 ## 4.2 Bound input (sealed for this identity)
@@ -129,12 +129,12 @@ S8 **SHALL NOT** read any surface other than **`s7_site_synthesis`**. Attempting
 S8 SHALL read **only**:
 
 * **`s7_site_synthesis`** — deterministic per-site absolutes (RNG-free).
-  **Shape:** `schemas.1B.yaml#/plan/s7_site_synthesis` · **Path family/identity:** `…/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **Partitions:** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`.
+  **Shape:** `schemas.1B.yaml#/plan/s7_site_synthesis` · **Path family/identity:** `…/s7_site_synthesis/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`.
 
 ## 4.3 Egress target (authoritative output surface)
 
 * **`site_locations`** — egress dataset.
-  **Shape:** `schemas.1B.yaml#/egress/site_locations` · **Path family/identity:** `…/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true**.
+  **Shape:** `schemas.1B.yaml#/egress/site_locations` · **Path family/identity:** `…/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` · **Partitions:** `[seed, manifest_fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true**.
 
 ## 4.4 Order authority (what S8 MUST NOT encode)
 
@@ -159,11 +159,11 @@ S8 SHALL NOT read any surface other than **`s7_site_synthesis`**. The egress Reg
 **Path family (Dictionary):**
 `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` 
 
-**Partitions (binding):** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true** · **Retention:** 365 days · **Format:** parquet. 
+**Partitions (binding):** `[seed, manifest_fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true** · **Retention:** 365 days · **Format:** parquet. 
 
 **Order posture:** **order-free**; consumers obtain any inter-country order by joining 1A S3 `candidate_rank` (Dictionary description). 
 
-**Path↔embed equality (binding):** wherever lineage fields appear in rows (e.g., `manifest_fingerprint`, if present), their values **MUST** byte-equal the corresponding path tokens (`fingerprint=…`). 
+**Path↔embed equality (binding):** wherever lineage fields appear in rows (e.g., `manifest_fingerprint`, if present), their values **MUST** byte-equal the corresponding path tokens (`manifest_fingerprint=…`). 
 
 **Publish posture (binding):** write-once under the identity partition; publish via **stage → fsync → single atomic move**; file order is **non-authoritative** (Registry posture for 1B datasets). 
 
@@ -180,18 +180,18 @@ S8 introduces **no** RNG/event logs; egress consists solely of the `site_locatio
 ## 6.1 Egress table (shape authority)
 
 **ID → Schema:** `site_locations` → `schemas.1B.yaml#/egress/site_locations`.
-The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, fingerprint]`, **writer sort** `[merchant_id, legal_country_iso, site_order]`, and `columns_strict: true`. 
+The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, manifest_fingerprint]`, **writer sort** `[merchant_id, legal_country_iso, site_order]`, and `columns_strict: true`. 
 
 **Dictionary binding (for the same ID):**
-Path family `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, fingerprint]`; **ordering** `[merchant_id, legal_country_iso, site_order]`; `final_in_layer: true`. 
+Path family `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, manifest_fingerprint]`; **ordering** `[merchant_id, legal_country_iso, site_order]`; `final_in_layer: true`. 
 
 ## 6.2 Referenced input anchor (read-only)
 
 **ID → Schema:** `s7_site_synthesis` → `schemas.1B.yaml#/plan/s7_site_synthesis`.
-The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, fingerprint, parameter_hash]`, **writer sort** `[merchant_id, legal_country_iso, site_order]`, and `columns_strict: true`. 
+The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, manifest_fingerprint, parameter_hash]`, **writer sort** `[merchant_id, legal_country_iso, site_order]`, and `columns_strict: true`. 
 
 **Dictionary binding (for the same ID):**
-Path family `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, fingerprint, parameter_hash]`; **ordering** `[merchant_id, legal_country_iso, site_order]`. 
+Path family `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`; **partitioning** `[seed, manifest_fingerprint, parameter_hash]`; **ordering** `[merchant_id, legal_country_iso, site_order]`. 
 
 ## 6.3 Resolution & path law **(Binding)**
 
@@ -209,7 +209,7 @@ For the sealed identity `{seed, manifest_fingerprint, parameter_hash}`, open **S
 
 * **ID:** `s7_site_synthesis`
 * **Path family / partitions / sort (resolve via Dictionary):**
-  `…/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · partitions `[seed, fingerprint, parameter_hash]` · writer sort `[merchant_id, legal_country_iso, site_order]`.
+  `…/s7_site_synthesis/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · partitions `[seed, manifest_fingerprint, parameter_hash]` · writer sort `[merchant_id, legal_country_iso, site_order]`.
 
 ## 7.2 Row mapping (S7 → S8 egress shape)
 
@@ -225,7 +225,7 @@ Materialise the mapped rows to the **egress path family** with the egress identi
 
 * **ID:** `site_locations`
 * **Path family / partitions / sort (resolve via Dictionary):**
-  `…/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/` · partitions `[seed, fingerprint]` · writer sort `[merchant_id, legal_country_iso, site_order]`.
+  `…/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` · partitions `[seed, manifest_fingerprint]` · writer sort `[merchant_id, legal_country_iso, site_order]`.
   `parameter_hash` **does not** appear in the egress partition (it is subsumed by `manifest_fingerprint`). 
 
 ## 7.4 Writer discipline & stable merge
@@ -234,7 +234,7 @@ Maintain the binding writer sort throughout emission and perform a **stable merg
 
 ## 7.5 Identity & lineage law
 
-Where lineage appears in rows (e.g., `manifest_fingerprint`, if present), it **MUST** byte-equal the corresponding **path tokens** (`fingerprint=…`) at the egress location. 
+Where lineage appears in rows (e.g., `manifest_fingerprint`, if present), it **MUST** byte-equal the corresponding **path tokens** (`manifest_fingerprint=…`) at the egress location. 
 
 ## 7.6 Publish posture
 
@@ -255,14 +255,14 @@ Write to a **staging** location under the target identity, **fsync**, then perfo
 
 ## 8.1 Identity tokens (one publish per identity)
 
-* **Egress identity:** exactly one `{seed, manifest_fingerprint}` per publish to `site_locations`. Where lineage appears in rows (e.g., an embedded `manifest_fingerprint` field), the value **MUST** byte-equal the `fingerprint=` path token (**path↔embed equality**). 
+* **Egress identity:** exactly one `{seed, manifest_fingerprint}` per publish to `site_locations`. Where lineage appears in rows (e.g., an embedded `manifest_fingerprint` field), the value **MUST** byte-equal the `manifest_fingerprint=` path token (**path↔embed equality**). 
 * **Execution tokens:** `run_id` is **not** part of egress identity or partitions (S8 introduces no RNG logs). 
 
 ## 8.2 Partition law & path family (resolve via Dictionary; no literal paths)
 
 * **Dataset:** `site_locations` → `schemas.1B.yaml#/egress/site_locations`.
   **Path family:** `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-  **Partitions:** `[seed, fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true**. 
+  **Partitions:** `[seed, manifest_fingerprint]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Final in layer:** **true**. 
 
 ## 8.3 Ordering posture (writer sort vs file order)
 
@@ -279,7 +279,7 @@ Publish via **stage → fsync → single atomic move** into the identity partiti
 
 ## 8.6 Path↔embed equality (lineage law)
 
-Whenever lineage fields appear both in the **path** and **rows**, values MUST be byte-identical (e.g., `fingerprint` path token equals embedded `manifest_fingerprint`). 
+Whenever lineage fields appear both in the **path** and **rows**, values MUST be byte-identical (e.g., `manifest_fingerprint` path token equals embedded `manifest_fingerprint`). 
 
 ## 8.7 Identity-coherence checks (must hold before publish)
 
@@ -311,7 +311,7 @@ A run **PASSES** S8 only if **all** checks below succeed.
 ## A803 — Partition & identity law (egress)
 
 **Rule.** Egress is written at
-`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions **`[seed, fingerprint]`**; any embedded lineage (e.g., `manifest_fingerprint`, if present) **byte-equals** the path token (**path↔embed equality**).
+`data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions **`[seed, manifest_fingerprint]`**; any embedded lineage (e.g., `manifest_fingerprint`, if present) **byte-equals** the path token (**path↔embed equality**).
 **Detection.** Compare path-derived identity to embedded fields; verify Dictionary partitions.
 
 ## A804 — Writer sort
@@ -331,7 +331,7 @@ A run **PASSES** S8 only if **all** checks below succeed.
 
 ## A807 — Partition shift law (S7 → S8)
 
-**Rule.** S7 input is under `[seed, fingerprint, parameter_hash]`; S8 egress **drops `parameter_hash`** and publishes under `[seed, fingerprint]`.
+**Rule.** S7 input is under `[seed, manifest_fingerprint, parameter_hash]`; S8 egress **drops `parameter_hash`** and publishes under `[seed, manifest_fingerprint]`.
 **Detection.** Verify S8 `{seed,fingerprint}` equals S7’s `{seed,fingerprint}` for the consumed `{parameter_hash}`; ensure no parameter_hash appears in egress paths.
 
 ## A808 — Publish posture
@@ -377,7 +377,7 @@ A run **PASSES** S8 only if **all** checks below succeed.
 
 **Trigger:** Any of:
 
-* Egress not under `…/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`, or
+* Egress not under `…/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, or
 * embedded lineage (e.g., `manifest_fingerprint`, if present) ≠ path token.
   **Detection:** Compare path-derived `{seed,fingerprint}` to embedded fields; verify Dictionary partitions. 
 
@@ -399,7 +399,7 @@ A run **PASSES** S8 only if **all** checks below succeed.
 ### E809_PARTITION_SHIFT_VIOLATION — S7→S8 identity mismatch *(ABORT)*
 
 **Trigger:** Egress failed to **drop `parameter_hash`** from partitions, or `{seed,fingerprint}` used in S8 does not equal S7’s `{seed,fingerprint}` for the consumed `{parameter_hash}`.
-**Detection:** Verify S7 input under `[seed,fingerprint,parameter_hash]` and S8 output under `[seed,fingerprint]` share identical `{seed,fingerprint}`; ensure no `parameter_hash` in egress paths.
+**Detection:** Verify S7 input under `[seed, manifest_fingerprint, parameter_hash]` and S8 output under `[seed, manifest_fingerprint]` share identical `{seed,fingerprint}`; ensure no `parameter_hash` in egress paths.
 
 ### E810_PUBLISH_POSTURE — Not write-once / non-atomic publish *(ABORT)*
 
@@ -441,7 +441,7 @@ Produce a single run-scoped JSON summary (non-identity-bearing) with at least:
 **Validation counters**
 
 * `schema_fail_count` — rows failing `#/egress/site_locations` (columns_strict). 
-* `path_embed_mismatches` — any embedded lineage value ≠ path tokens at egress (`fingerprint=` ↔ `manifest_fingerprint`). 
+* `path_embed_mismatches` — any embedded lineage value ≠ path tokens at egress (`manifest_fingerprint=` ↔ `manifest_fingerprint`). 
 * `writer_sort_violations` — rows out of `[merchant_id, legal_country_iso, site_order]` sort in the egress partition. 
 * `order_leak_indicators` — count of prohibited order-bearing fields/implications beyond writer sort (egress is **order-free**). 
 
@@ -455,10 +455,10 @@ by_country[ISO]: { rows_s7, rows_s8, parity_ok }
 
 * **Upstream input:** `s7_site_synthesis` under
   `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-  (partitions `[seed, fingerprint, parameter_hash]`; writer sort `[merchant_id, legal_country_iso, site_order]`). 
+  (partitions `[seed, manifest_fingerprint, parameter_hash]`; writer sort `[merchant_id, legal_country_iso, site_order]`). 
 * **Egress output:** `site_locations` under
   `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-  (partitions `[seed, fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`; **final_in_layer: true**; order-free). 
+  (partitions `[seed, manifest_fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`; **final_in_layer: true**; order-free). 
 
 ## 11.3 Publish & posture (binding)
 
@@ -506,13 +506,13 @@ S8 SHALL expose at least the keys below (values per §11.1):
 
 ## 12.2 Streaming pass-through (no shuffles)
 
-* **Stream S7 → S8.** Read S7 in writer sort and **map/select** directly into the egress shape; no joins or shuffles are required in S8. S7 identity is `[seed,fingerprint,parameter_hash]`; S8 **drops `parameter_hash`** and writes under `[seed,fingerprint]`.
+* **Stream S7 → S8.** Read S7 in writer sort and **map/select** directly into the egress shape; no joins or shuffles are required in S8. S7 identity is `[seed, manifest_fingerprint, parameter_hash]`; S8 **drops `parameter_hash`** and writes under `[seed, manifest_fingerprint]`.
 * **Single-pass materialisation.** Perform the projection and partition shift in one pass to a staging area under the egress path family. 
 
 ## 12.3 I/O layout
 
 * **Writer sort–aligned row groups.** When writing parquet, emit row groups aligned with the writer sort to improve downstream range scans over `[merchant_id, legal_country_iso, site_order]`. 
-* **Partition sizing.** Keep identity partitions (`seed, fingerprint`) balanced; prefer many medium files to a few huge ones for parallel reads—file order remains non-authoritative. 
+* **Partition sizing.** Keep identity partitions (`seed, manifest_fingerprint`) balanced; prefer many medium files to a few huge ones for parallel readsG��file order remains non-authoritative.
 
 ## 12.4 Memory & batching
 
@@ -540,7 +540,7 @@ S8 SHALL expose at least the keys below (values per §11.1):
 * **No RNG or geometry reads.** All RNG evidence and geometry checks are upstream; S8 is a deterministic pass-through from S7 to the egress anchor. 
 * **No order encoding.** Egress remains **order-free**; downstreams obtain any inter-country order via 1A S3 `candidate_rank`. 
 
-This guidance keeps S8 fast, deterministic, and consistent with the **Dictionary** (`site_locations` under `[seed,fingerprint]`, writer sort) and **Registry** (write-once; atomic move; file-order non-authoritative).
+This guidance keeps S8 fast, deterministic, and consistent with the **Dictionary** (`site_locations` under `[seed, manifest_fingerprint]`, writer sort) and **Registry** (write-once; atomic move; file-order non-authoritative).
 
 ---
 
@@ -556,7 +556,7 @@ Changes that can invalidate previously valid egress or alter bound interfaces:
 
 1. **Identity / path law**
 
-   * Changing egress **partitions** from **`[seed, fingerprint]`** or its **path family**
+   * Changing egress **partitions** from **`[seed, manifest_fingerprint]`** or its **path family**
      `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
    * Changing the **writer sort** from `[merchant_id, legal_country_iso, site_order]`. 
 
@@ -594,8 +594,8 @@ Editorial fixes (typos, cross-refs, prose layout) that **do not** change behavio
 
 S8 v1.* assumes the following are in effect:
 
-* **Schema:** `schemas.1B.yaml#/egress/site_locations` — **partitions `[seed,fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, `columns_strict: true`, order-free. 
-* **Dictionary:** `site_locations` — path family `…/seed={seed}/fingerprint={manifest_fingerprint}/`, **partitioning `[seed,fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, `final_in_layer: true`. 
+* **Schema:** `schemas.1B.yaml#/egress/site_locations` — **partitions `[seed, manifest_fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, `columns_strict: true`, order-free. 
+* **Dictionary:** `site_locations` — path family `…/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, **partitioning `[seed, manifest_fingerprint]`**, writer sort `[merchant_id, legal_country_iso, site_order]`, `final_in_layer: true`. 
 * **Registry:** `site_locations` — role “order-free; join 1A S3”, **write-once; atomic move; file order non-authoritative**; dependency on **`s7_site_synthesis`** only. 
 
 A **MAJOR** change to any baseline that affects these contracts requires an S8 **MAJOR** (or an explicit compatibility shim).
@@ -612,7 +612,7 @@ A **MAJOR** change to any baseline that affects these contracts requires an S8 *
 
 ## 13.8 Cross-state compatibility
 
-* **Upstream handshake:** S8 consumes only **`s7_site_synthesis`** under `[seed,fingerprint,parameter_hash]`; a MAJOR in S7 that alters its **PK/partitions** or breaks parity requires S8 re-ratification.
+* **Upstream handshake:** S8 consumes only **`s7_site_synthesis`** under `[seed, manifest_fingerprint, parameter_hash]`; a MAJOR in S7 that alters its **PK/partitions** or breaks parity requires S8 re-ratification.
 * **Downstream neutrality:** `site_locations` is the **final** 1B surface (no further 1B states consume it); keep its identity and order-free law stable. 
 
 ---
@@ -622,22 +622,22 @@ A **MAJOR** change to any baseline that affects these contracts requires an S8 *
 ## A.1 Keysets
 
 * **S7_keys** — exact site keyset produced by S7:
-  `S7_keys = {(merchant_id, legal_country_iso, site_order)}`. S8 emits **one** egress row per S7 key. (S7 is partitioned `[seed,fingerprint,parameter_hash]` with writer sort `[merchant_id, legal_country_iso, site_order]`; S8 preserves the same writer sort under `[seed,fingerprint]`.)
+  `S7_keys = {(merchant_id, legal_country_iso, site_order)}`. S8 emits **one** egress row per S7 key. (S7 is partitioned `[seed, manifest_fingerprint, parameter_hash]` with writer sort `[merchant_id, legal_country_iso, site_order]`; S8 preserves the same writer sort under `[seed, manifest_fingerprint]`.)
 
 ## A.2 Identity & lineage tokens
 
 * **seed** — 64-bit unsigned; partitions S7 and S8. 
-* **manifest_fingerprint** — hex64 fingerprint of the run manifest; appears in the **path token** `fingerprint={manifest_fingerprint}` for S7 **and** S8.
+* **manifest_fingerprint** — hex64 fingerprint of the run manifest; appears in the **path token** `manifest_fingerprint={manifest_fingerprint}` for S7 **and** S8.
 * **parameter_hash** — hex64 for the sealed parameter bundle; partitions S7 (and S1 geometry) but is **not** in egress partitions; S8 **drops** it because the fingerprint subsumes parameters.
 
 ## A.3 Dataset IDs → path families & partitions (Dictionary law)
 
 * **S7 — `s7_site_synthesis`**
   `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-  Partitions `[seed, fingerprint, parameter_hash]` · Ordering `[merchant_id, legal_country_iso, site_order]`. 
+  Partitions `[seed, manifest_fingerprint, parameter_hash]` · Ordering `[merchant_id, legal_country_iso, site_order]`. 
 * **S8 (egress) — `site_locations`**
   `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-  Partitions `[seed, fingerprint]` · Ordering `[merchant_id, legal_country_iso, site_order]` · **final_in_layer: true**. 
+  Partitions `[seed, manifest_fingerprint]` · Ordering `[merchant_id, legal_country_iso, site_order]` · **final_in_layer: true**. 
 
 *(All dataset IDs resolve via the **Dataset Dictionary**; no literal paths are permitted.)* 
 
@@ -652,7 +652,7 @@ A **MAJOR** change to any baseline that affects these contracts requires an S8 *
 
 ## A.6 Identity equality (path↔embed)
 
-Where lineage appears both as **path tokens** and **embedded fields** in rows (e.g., `manifest_fingerprint`), values MUST byte-equal; the path token is always `fingerprint=…`. (Applied across 1B planning tables and the egress.) 
+Where lineage appears both as **path tokens** and **embedded fields** in rows (e.g., `manifest_fingerprint`), values MUST byte-equal; the path token is always `manifest_fingerprint=…`. (Applied across 1B planning tables and the egress.) 
 
 ## A.7 Abbreviations
 
@@ -677,10 +677,10 @@ manifest_fingerprint   = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbe
 ```
 
 **Input (S7) partition:**
-`data/layer1/1B/s7_site_synthesis/seed=4242424242/manifest_fingerprint=deadbeef…/parameter_hash=c0ffee…/` — partitions `[seed, fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`. 
+`data/layer1/1B/s7_site_synthesis/seed=4242424242/manifest_fingerprint=deadbeef…/parameter_hash=c0ffee…/` — partitions `[seed, manifest_fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`. 
 
 **Output (S8 egress) partition:**
-`data/layer1/1B/site_locations/seed=4242424242/manifest_fingerprint=deadbeef…/` — partitions `[seed, fingerprint]`, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
+`data/layer1/1B/site_locations/seed=4242424242/manifest_fingerprint=deadbeef…/` — partitions `[seed, manifest_fingerprint]`, writer sort `[merchant_id, legal_country_iso, site_order]`, **final_in_layer: true**. 
 
 ---
 
@@ -703,7 +703,7 @@ lat_deg=51.50522945
 (Shape: `schemas.1B.yaml#/plan/s7_site_synthesis`, with PK/partitions/sort and `columns_strict: true`.) 
 
 **S8 mapping → egress shape**
-Egress uses `#/egress/site_locations` with PK `[merchant_id, legal_country_iso, site_order]`, partitions `[seed, fingerprint]`, **order-free**. From the S7 row above, S8 emits: 
+Egress uses `#/egress/site_locations` with PK `[merchant_id, legal_country_iso, site_order]`, partitions `[seed, manifest_fingerprint]`, **order-free**. From the S7 row above, S8 emits: 
 
 ```
 merchant_id=1234567890123
@@ -721,8 +721,8 @@ lat_deg=51.50522945
 
 ## B.3 Partition shift (what changes from S7 → S8)
 
-* **Input S7:** `[seed, fingerprint, parameter_hash]` (parameter-scoped). 
-* **Output S8:** `[seed, fingerprint]` (drop `parameter_hash`; fingerprint subsumes parameters). 
+* **Input S7:** `[seed, manifest_fingerprint, parameter_hash]` (parameter-scoped). 
+* **Output S8:** `[seed, manifest_fingerprint]` (drop `parameter_hash`; fingerprint subsumes parameters). 
 
 ---
 
@@ -730,7 +730,7 @@ lat_deg=51.50522945
 
 * **A801 Row parity S7↔S8:** `|site_locations| == |s7_site_synthesis|` for the shared keyset `[merchant_id, legal_country_iso, site_order]`. With one input row, egress has one output row. 
 * **A802 Schema conformance:** the egress row validates `#/egress/site_locations` (columns_strict). 
-* **A803 Partition & identity law:** output lives at `…/seed=4242424242/fingerprint=deadbeef…/` with `[seed,fingerprint]`; any embedded `manifest_fingerprint` (if present) equals the `fingerprint` path token. 
+* **A803 Partition & identity law:** output lives at `…/seed=4242424242/manifest_fingerprint=deadbeef…/` with `[seed, manifest_fingerprint]`; any embedded `manifest_fingerprint` (if present) equals the `manifest_fingerprint` path token. 
 * **A804 Writer sort:** rows are in non-decreasing `[merchant_id, legal_country_iso, site_order]`. 
 * **A805 Order-authority pledge:** no inter-country order is encoded; egress is **order-free** per Dictionary/Registry.
 * **A807 Partition shift law:** `{seed,fingerprint}` match between the consumed S7 partition and the produced S8 partition; **no** `parameter_hash` directory under egress. 
@@ -759,7 +759,7 @@ Matches §11’s binding keys (non-identity-bearing summary):
 }
 ```
 
-(S7 source under `[seed,fingerprint,parameter_hash]`; egress under `[seed,fingerprint]`; writer sorts per Dictionary/Schema.)
+(S7 source under `[seed, manifest_fingerprint, parameter_hash]`; egress under `[seed, manifest_fingerprint]`; writer sorts per Dictionary/Schema.)
 
 ---
 

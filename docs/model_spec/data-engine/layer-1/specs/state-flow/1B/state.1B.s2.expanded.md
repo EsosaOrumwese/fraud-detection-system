@@ -185,7 +185,7 @@ All dataset/field references in this document **MUST** resolve via:
 
 ## 3.1 Identity tokens & scope
 
-* **Identity for S2 outputs:** `{parameter_hash}` **only**. `tile_weights` is parameter-scoped; it does **not** partition by `seed` or `fingerprint`. This follows the Dictionary entry for `tile_weights`. 
+* **Identity for S2 outputs:** `{parameter_hash}` **only**. `tile_weights` is parameter-scoped; it does **not** partition by `seed` or `manifest_fingerprint`. This follows the Dictionary entry for `tile_weights`. 
 
 ## 3.2 Partition law for `tile_weights`
 
@@ -293,8 +293,8 @@ S2 reads the **ratified S1 universe** and (optionally) a small set of ingress re
 
 ## 5.1 Upstream consumer gate (context from 1A/S0)
 
-* **S2 does not read any 1A egress**; therefore **S0’s 1A consumer gate is *not* a precondition to execute S2**. The Dictionary carries the 1A **validation bundle** only for discoverability (partition `fingerprint={…}` with the 1A bundle schema anchor).
-* For coherence across Layer-1: any state that *does* read 1A egress (e.g., `outlet_catalogue`) must first verify `_passed.flag` by recomputing the bundle hash over the **ASCII-lex ordered** files listed in `index.json`, excluding the flag; **no PASS → no read**. *(S2 never performs this check because it doesn’t read 1A.)*
+* **S2 does not read any 1A egress**; therefore **S0’s 1A consumer gate is *not* a precondition to execute S2**. The Dictionary carries the 1A **validation bundle** only for discoverability (partition `manifest_fingerprint={…}` with the 1A bundle schema anchor).
+* For coherence across Layer-1: any state that does read 1A egress (e.g., `outlet_catalogue`) must validate `s0_gate_receipt_1B` (schema-valid + path token parity). S0 performs the bundle hash verification; downstream states must not re-hash the 1A bundle. *(S2 never performs this check because it does not read 1A.)*
 
 ## 5.2 Pre-read checks for S1 input (tile_index) *(normative for S2)*
 
@@ -322,12 +322,12 @@ S2 **MAY** read **only**:
 
 ## 5.5 Gate-verification recipe for 1A consumers (for reference)
 
-When a *downstream* 1B state (not S2) reads 1A egress for a `fingerprint=f`:
+When a *downstream* 1B state (not S2) reads 1A egress for a `manifest_fingerprint=f`:
 
-1. Locate `data/layer1/1A/validation/manifest_fingerprint=f/`.
-2. Read **`index.json`**; list files by **ASCII-lex** `index.path`.
-3. Compute `SHA256(concat(bytes(files in that order)))` (exclude `_passed.flag`).
-4. Compare to `_passed.flag`’s `sha256_hex`. **Match ⇒ PASS; else ABORT.** 
+1. Locate `data/layer1/1B/s0_gate_receipt/manifest_fingerprint=f/s0_gate_receipt.json`.
+2. Validate against `schemas.1B.yaml#/validation/s0_gate_receipt`; confirm `manifest_fingerprint == f`.
+3. Treat the receipt as the PASS proof; do **not** re-hash the 1A bundle here.
+
 
 ## 5.6 Gate posture for S2 outputs
 

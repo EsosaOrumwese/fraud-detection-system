@@ -1,0 +1,1268 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 1A
+  layer_id: layer1
+  title: Merchants to Physical Sites
+  description: Merchants to Physical Sites (Layer 1 root segment).
+generated_at_utc: '2026-01-10T07:25:32Z'
+sources:
+  state_expanded_docs:
+  - state.1A.s0.expanded.md
+  - state.1A.s1.expanded.md
+  - state.1A.s2.expanded.md
+  - state.1A.s3.expanded.md
+  - state.1A.s4.expanded.md
+  - state.1A.s5.expanded.md
+  - state.1A.s6.expanded.md
+  - state.1A.s7.expanded.md
+  - state.1A.s8.expanded.md
+  - state.1A.s9.expanded.md
+  dataset_dictionary:
+  - dataset_dictionary.layer1.1A.yaml
+  artefact_registry:
+  - artefact_registry_1A.yaml
+  schemas:
+  - schemas.1A.yaml
+  - schemas.layer1.yaml
+  - schemas.ingress.layer1.yaml
+source_fingerprints:
+  dataset_dictionary.layer1.1A.yaml:
+    sha256: 6d683494927e506f08f9f509a73a034605c88e4d10055382ce28f7d4690e8711
+  artefact_registry_1A.yaml:
+    sha256: 8ecda17c7bf99bfe5a0f6858eea072c2e7ba9dcda28bbed789fa73b5442a0f72
+  schemas.1A.yaml:
+    sha256: 83891933b7b0cd63697c5b3b2b446382d7676448ebdae5875bea09555f0e3bf0
+  schemas.layer1.yaml:
+    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+  schemas.ingress.layer1.yaml:
+    sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
+  state.1A.s0.expanded.md:
+    sha256: 1fcd32e714d5b4dba0d799219022bae51557a2347b343b986f3f32e3b491ea6b
+  state.1A.s1.expanded.md:
+    sha256: c031dfb5c9e90c3366b551ffac5b56baeb1cad387de3b441d1459e799da83bd4
+  state.1A.s2.expanded.md:
+    sha256: 0a687555b51a2f1803919455eda1ca8a03e183b96731d0fdc6cec24f593d39b3
+  state.1A.s3.expanded.md:
+    sha256: 0f339d9c4ce54b29d5b5ef09245263cd8135d91020e3737499f823914faeae1e
+  state.1A.s4.expanded.md:
+    sha256: c616b011fb7959a699cd3b405f02142f7b1e1b7cc16a6bfd604403897b0e8732
+  state.1A.s5.expanded.md:
+    sha256: 8fcc6721fadff05e29d28c34d95eb2de6babb851e2e41ecf44b906857ba69671
+  state.1A.s6.expanded.md:
+    sha256: ae6c36e26caf818207427bedb5a65a2d66a1818fa63d653c835947dce1f7eece
+  state.1A.s7.expanded.md:
+    sha256: e162ea1220c92a35e398450bae54de7ecb6f9c1c1d281f078fd251a69b6fc33c
+  state.1A.s8.expanded.md:
+    sha256: 1a8ae8feea8e28c06ce9ed1e5785c99fea70944c7db5d4b40d6909a2b2b4a551
+  state.1A.s9.expanded.md:
+    sha256: b2003017b8e2af9b14d9cf2b9ed8e38257769418b0d2ef9f22cd054b4f5cdef0
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+lineage:
+  parameter_hash:
+    governed_basenames:
+    - hurdle_coefficients.yaml
+    - nb_dispersion_coefficients.yaml
+    - crossborder_hyperparams.yaml
+    - ccy_smoothing_params.yaml
+    - s6_selection_policy.yaml
+    - policy.s3.rule_ladder.yaml
+    governed_basenames_optional:
+    - policy.s3.base_weight.yaml
+    - policy.s3.thresholds.yaml
+    algorithm_ref: S0.2.2 tuple-hash (name-sensitive, ASCII-sort)
+    output_effect:
+      partition_must_include:
+      - parameter_hash
+  manifest_fingerprint:
+    algorithm_ref: S0.2.3 opened-artefact tuple-hash + git bytes + parameter_hash_bytes
+    dependency_closure_source: artefact_registry_1A.yaml
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: S0.2.4 SHA256(UER('run:1A')||manifest_fingerprint_bytes||LE64(seed)||LE64(T_ns)) -> first16 -> hex32
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1A.S5.receipt
+  gate_type: receipt
+  scope_keys:
+  - parameter_hash
+  location:
+    passed_flag: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/_passed.flag
+    evidence_files:
+    - data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/S5_VALIDATION.json
+  verification_method: unindexed_receipt
+  file_set_rule: SHA256(concat(raw_bytes(files in receipt folder excluding _passed.flag), ASCII-lex relative path order))
+  authorizes_reads_of:
+  - ccy_country_weights_cache
+  - merchant_currency
+  - sparse_flag
+- gate_id: 1A.S6.receipt
+  gate_type: receipt
+  scope_keys:
+  - seed
+  - parameter_hash
+  location:
+    passed_flag: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/_passed.flag
+    evidence_files:
+    - data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/S6_VALIDATION.json
+  verification_method: unindexed_receipt
+  file_set_rule: SHA256(concat(raw_bytes(files in receipt folder excluding _passed.flag), ASCII-lex relative path order))
+  authorizes_reads_of:
+  - s6_membership
+  - s6_validation_receipt
+- gate_id: 1A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json path entries))
+  authorizes_reads_of:
+  - outlet_catalogue
+order_authorities:
+- authority_id: 1A.s3_candidate_order
+  dataset_id: s3_candidate_set
+  scope_keys:
+  - parameter_hash
+  ordering_keys:
+  - merchant_id
+  - candidate_rank
+  - country_iso
+  rule: Downstream MUST use candidate_rank from s3_candidate_set as the single authority for inter-country order; outlet_catalogue MUST NOT be used to infer cross-country order.
+- authority_id: 1A.s3_within_country_site_order
+  dataset_id: s3_site_sequence
+  scope_keys:
+  - parameter_hash
+  ordering_keys:
+  - merchant_id
+  - country_iso
+  - site_order
+  rule: Within-country site_order is defined by s3_site_sequence/S8; consumers MUST NOT invent within-country order beyond the declared site_order.
+consumer_surfaces:
+  outlet_catalogue:
+    dataset_id: outlet_catalogue
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - site_order
+    required_gates:
+    - 1A.final.bundle_gate
+    notes:
+    - "Consumer binding: MUST verify validation_passed_flag_1A for the same manifest_fingerprint before reading (no PASS \u2192 no read)."
+    - Does not encode inter-country order; join to s3_candidate_set.candidate_rank when order is required.
+  s3_candidate_set:
+    dataset_id: s3_candidate_set
+    scope_keys:
+    - parameter_hash
+    address_template: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+    schema_ref: schemas.1A.yaml#/s3/candidate_set
+    ordering:
+    - merchant_id
+    - candidate_rank
+    - country_iso
+    required_gates: []
+    notes:
+    - Single authority for inter-country order via candidate_rank (home=0, contiguous).
+    - 'Parameter-scoped: MUST NOT depend on seed/RNG draws (gates may affect downstream use, not the candidate set content).'
+  s6_validation_receipt:
+    dataset_id: s6_validation_receipt
+    scope_keys:
+    - seed
+    - parameter_hash
+    address_template: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+    schema_ref: schemas.layer1.yaml#/validation/s6_receipt
+    ordering: []
+    required_gates:
+    - 1A.S6.receipt
+    notes:
+    - Receipt folder containing S6_VALIDATION.json and _passed.flag; gates downstream reads of any S6 convenience surface.
+  country_set_legacy:
+    dataset_id: country_set
+    scope_keys:
+    - seed
+    - parameter_hash
+    address_template: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
+    schema_ref: schemas.1A.yaml#/alloc/country_set
+    ordering: []
+    required_gates: []
+    status: deprecated
+states:
+  S0:
+    impl_map_key: segment=1A.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - parameter_hash
+    - manifest_fingerprint
+    reads:
+    - dataset_id: transaction_schema_merchant_ids
+      kind: ingress
+      required_gates: []
+      notes:
+      - Merchant ids ingress list (authoritative domain of merchants in this segment).
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: world_bank_gdp_per_capita_20250415
+      kind: reference_data
+      required_gates: []
+    - dataset_id: gdp_bucket_map_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: mcc_canonical_2025-12-31
+      kind: reference_data
+      required_gates: []
+    - dataset_id: world_countries
+      kind: reference_data
+      required_gates: []
+    - dataset_id: iso_legal_tender_2024
+      kind: reference_data
+      required_gates: []
+      notes:
+      - Fallback for currency assignment where currency-to-country mapping is missing.
+    - dataset_id: hurdle_coefficients
+      kind: policy_in_P
+      required_gates: []
+      notes:
+      - Governs parameter_hash (basename hurdle_coefficients.yaml).
+    - dataset_id: nb_dispersion_coefficients
+      kind: policy_in_P
+      required_gates: []
+      notes:
+      - Governs parameter_hash (basename nb_dispersion_coefficients.yaml).
+    - dataset_id: crossborder_hyperparams
+      kind: policy_in_P
+      required_gates: []
+      notes:
+      - Governs parameter_hash (basename crossborder_hyperparams.yaml).
+    - dataset_id: ccy_smoothing_params
+      kind: policy_in_P
+      required_gates: []
+      notes:
+      - Governs parameter_hash (basename ccy_smoothing_params.yaml).
+    - dataset_id: s6_selection_policy
+      kind: policy_in_P
+      required_gates: []
+      notes:
+      - Governs parameter_hash (basename s6_selection_policy.yaml).
+    - dataset_id: policy.s3.rule_ladder.yaml
+      kind: policy_in_P
+      required_gates: []
+      notes:
+      - Governs parameter_hash (basename policy.s3.rule_ladder.yaml).
+    - dataset_id: policy.s3.base_weight.yaml
+      kind: policy_in_P
+      required_gates: []
+      conditional: only if present
+      notes:
+      - Optional governed policy; included in parameter_hash only when present.
+    - dataset_id: policy.s3.thresholds.yaml
+      kind: policy_in_P
+      required_gates: []
+      conditional: only if present
+      notes:
+      - Optional governed policy; included in parameter_hash only when present.
+    - dataset_id: numeric_policy_profile
+      kind: governance
+      required_gates: []
+    - dataset_id: math_profile_manifest
+      kind: governance
+      required_gates: []
+    writes:
+    - dataset_id: crossborder_features
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
+      ordering:
+      - merchant_id
+      equality: ordered
+      optional: true
+      notes:
+      - Status planning in dictionary; materialize only when explicitly enabled.
+    - dataset_id: crossborder_eligibility_flags
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: hurdle_design_matrix
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: hurdle_pi_probs
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: true
+      notes:
+      - Optional diagnostic cache (not required by downstream correctness).
+    - dataset_id: merchant_abort_log
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/prep/merchant_abort_log/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: sealed_inputs_1A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: s0_gate_receipt_1A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Assemble parameter_hash_resolved + manifest_fingerprint_resolved evidence (diagnostic).
+      deferred_to_finalizer:
+      - All segment-level integrity checks are enforced in S9 validation bundle.
+      evidence_written:
+      - parameter_hash_resolved.json (in validation bundle via S9)
+      - manifest_fingerprint_resolved.json (in validation bundle via S9)
+    frozen_surfaces:
+    - parameter_hash: governed basenames + name-sensitive tuple-hash + ASCII sort.
+    - manifest_fingerprint: opened-artefact closure MUST include dependency closure from registry.
+    - run_id is logs-only (must not influence modelling outputs or RNG outcomes).
+    - partition law: embedded lineage fields (seed/parameter_hash/manifest_fingerprint) MUST equal path keys when embedded.
+    - rowset equality default for parquet outputs unless ordering is declared.
+    flexible_choices:
+    - Parquet physical layout (row-group size, file count, compression) permitted if equality=rowset and no ordering constraints.
+    - Vectorization strategy for feature building allowed if deterministic and stable numeric policy is observed.
+    - In-memory indexing strategy for eligibility rules allowed if deterministic.
+    perf_hotspots:
+    - Join-heavy prep over merchant_ids × reference tables; avoid unnecessary global sorts.
+    - Eligibility evaluation across all merchants; avoid per-row YAML parsing (precompile policies).
+    safe_optimization_levers:
+    - Pre-sort/join on stable keys where required; keep merges deterministic.
+    - Cache small reference tables in-memory; avoid repeated parses.
+    do_not_optimize:
+    - Do not alter lineage algorithms (parameter_hash / manifest_fingerprint / run_id).
+    - Do not introduce non-deterministic iteration orders (e.g., hash-map iteration).
+    debug_hooks:
+    - Emit counts + distinct merchant_id counts per produced dataset (deterministic summary).
+    - Emit checksum over primary key columns (sampled deterministically) for drift localization.
+    - sealed_inputs_1A must list opened artefacts + sizes/digests (authoritative sealing inventory).
+  S1:
+    impl_map_key: segment=1A.state=S1
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: hurdle_design_matrix
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Parameter-scoped design matrix for hurdle model.
+    - dataset_id: hurdle_coefficients
+      kind: policy
+      required_gates: []
+    - dataset_id: hurdle_pi_probs
+      kind: intermediate
+      required_gates: []
+      conditional: only if precomputed probabilities are used (diagnostic cache)
+    writes:
+    - dataset_id: rng_event_hurdle_bernoulli
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Branch authority: is_multi determines whether downstream emits multi-site states.
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng:
+      stream_key_template: UER("1A.S1")||merchant_id||draw_ix
+      families_written:
+      - rng_event_hurdle_bernoulli
+      envelope_discipline:
+      - Trace-after-each-event; maintain event count and draw accounting invariants.
+      audit_trace_obligations:
+      - Record per-event draw counts in rng_audit_log; reconcile in S9.
+    validation:
+      performed_here:
+      - Enforce numeric stability posture (IEEE-754 binary64 RN-even; FMA-OFF; no FTZ/DAZ) during probability computation.
+      deferred_to_finalizer:
+      - Cross-file/accounting reconciliation across RNG logs is enforced in S9.
+      evidence_written:
+      - rng_event_hurdle_bernoulli family present for all merchants (or explicit skip conditions).
+    frozen_surfaces:
+    - Branch gate semantics: S1 is the single authority for is_multi.
+    - RNG stream identity and accounting (Philox2x64-10; open-interval U(0,1); draw counting).
+    - Log partitions are keyed by {seed, parameter_hash, run_id}.
+    flexible_choices:
+    - Vectorized Bernoulli draws permitted if draw ordering + accounting invariants are preserved.
+    - Parallelize by merchant_id permitted only if worker-count invariance is proven (no dependence on worker scheduling).
+    perf_hotspots:
+    - Probability computation over all merchants (matrix operations).
+    safe_optimization_levers:
+    - Use vectorized linear algebra with deterministic reductions.
+    - Partition work by merchant_id with deterministic chunking.
+    do_not_optimize:
+    - Do not change draw ordering or accounting; do not depend on file order for RNG logs.
+    debug_hooks:
+    - Emit counts of is_multi true/false and coverage stats per merchant cohort.
+    - Record first-N numeric stability warnings (if any) with merchant_id.
+  S2:
+    impl_map_key: segment=1A.state=S2
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: rng_event_hurdle_bernoulli
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Gate: only merchants with is_multi==true proceed.
+    - dataset_id: hurdle_coefficients
+      kind: policy
+      required_gates: []
+    - dataset_id: nb_dispersion_coefficients
+      kind: policy
+      required_gates: []
+    - dataset_id: world_bank_gdp_per_capita_20250415
+      kind: reference_data
+      required_gates: []
+    - dataset_id: transaction_schema_merchant_ids
+      kind: ingress
+      required_gates: []
+    writes:
+    - dataset_id: rng_event_gamma_component
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_poisson_component
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_nb_final
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Gate: downstream should only use n_outlets>=2 for multi-site allocations.
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng:
+      stream_key_template: UER("1A.S2")||merchant_id||draw_ix
+      families_written:
+      - rng_event_gamma_component
+      - rng_event_poisson_component
+      - rng_event_nb_final
+      envelope_discipline:
+      - Conditional emission: only for merchants where is_multi==true (from S1).
+      - Gate emission: only when n_outlets>=2 for downstream use; still record explicit events for accountability.
+      audit_trace_obligations:
+      - Maintain per-family draw accounting in rng_audit_log; reconcile in S9.
+    validation:
+      performed_here:
+      - Enforce conditional gates (is_multi, n_outlets>=2) at event emission time.
+      deferred_to_finalizer:
+      - Segment-wide reconciliation of event coverage and accounting is enforced in S9.
+      evidence_written:
+      - Explicit counts of events emitted per gate path (multi/non-multi; n_outlets thresholds).
+    frozen_surfaces:
+    - Do not emit S2 event families for merchants where is_multi==false.
+    - RNG accounting and log partitioning rules as per S0.
+    flexible_choices:
+    - Use vectorized gamma/poisson sampling if deterministic and accounting preserved.
+    - Parallelize by merchant_id only if worker-count invariance is proven.
+    perf_hotspots:
+    - RNG-heavy loops for gamma/poisson sampling at scale.
+    safe_optimization_levers:
+    - Precompute per-merchant parameters; batch draws with deterministic chunking.
+    do_not_optimize:
+    - Do not merge or reorder draws across merchants in a way that changes accounting.
+    debug_hooks:
+    - Emit per-gate coverage counts (is_multi, n_outlets>=2) and shortfall reasons.
+  S3:
+    impl_map_key: segment=1A.state=S3
+    state_class: SC-C
+    rng_posture: RNG_MIXED
+    scope_keys:
+    - parameter_hash
+    reads:
+    - dataset_id: rng_event_hurdle_bernoulli
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Gate: only merchants with is_multi==true participate.
+    - dataset_id: rng_event_nb_final
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Gate: only merchants with n_outlets>=2 participate.
+    - dataset_id: transaction_schema_merchant_ids
+      kind: ingress
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: static.currency_to_country.map.json
+      kind: reference_data
+      required_gates: []
+      conditional: only if policy enables static mapping
+    - dataset_id: policy.s3.rule_ladder.yaml
+      kind: policy
+      required_gates: []
+      notes:
+      - S3 rule ladder policy (treated as sealed input by S3 spec).
+    - dataset_id: policy.s3.base_weight.yaml
+      kind: policy
+      required_gates: []
+      conditional: only if base-weight priors lane is enabled
+    - dataset_id: policy.s3.thresholds.yaml
+      kind: policy
+      required_gates: []
+      conditional: only if present
+      notes:
+      - Optional thresholds referenced by rule ladder; sealed input when present.
+    writes:
+    - dataset_id: s3_candidate_set
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+      ordering:
+      - merchant_id
+      - candidate_rank
+      - country_iso
+      equality: ordered
+      optional: false
+      notes:
+      - Inter-country order authority: candidate_rank (home=0; contiguous).
+    - dataset_id: s3_base_weight_priors
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: true
+    - dataset_id: s3_integerised_counts
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: true
+    - dataset_id: s3_site_sequence
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
+      ordering:
+      - merchant_id
+      - country_iso
+      - site_order
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Enforce candidate_rank semantics (home=0; contiguous; within merchant).
+      deferred_to_finalizer:
+      - Downstream/egress checks and consumer gating are enforced in S9.
+      evidence_written:
+      - Candidate set coverage stats and rank integrity metrics.
+    frozen_surfaces:
+    - s3_candidate_set.candidate_rank is the single authority for inter-country order.
+    - outlet_catalogue MUST NOT be used to infer cross-country order.
+    - candidate_rank(home)=0 and contiguous rank semantics are binding.
+    flexible_choices:
+    - Internal sorting strategy allowed if declared ordering_keys are met (merchant_id,candidate_rank,country_iso).
+    - Optional lanes (priors/integerisation) may be omitted if specs/dictionary mark optional.
+    perf_hotspots:
+    - Candidate generation can be join-heavy and sort-heavy (rank construction).
+    safe_optimization_levers:
+    - Use stable sort keys and avoid global sorts; sort per-merchant partitions.
+    do_not_optimize:
+    - Do not change candidate_rank definition; do not alter tie-break rules.
+    debug_hooks:
+    - Emit per-merchant candidate counts + rank continuity checks (first-N failures).
+  S4:
+    impl_map_key: segment=1A.state=S4
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: rng_event_hurdle_bernoulli
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Gate: is_multi==true
+    - dataset_id: rng_event_nb_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: s3_candidate_set
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Provides admissible foreign set size; used in ZTP rejection sampling.
+    writes:
+    - dataset_id: rng_event_ztp_rejection
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_ztp_retry_exhausted
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_ztp_final
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng:
+      stream_key_template: UER("1A.S4")||merchant_id||draw_ix
+      families_written:
+      - rng_event_ztp_rejection
+      - rng_event_ztp_retry_exhausted
+      - rng_event_ztp_final
+      envelope_discipline:
+      - ZTP rejection loop must be deterministic; emit explicit terminal events when loops exhaust.
+      audit_trace_obligations:
+      - Reconcile rejection counts and terminal events in S9.
+    validation:
+      performed_here:
+      - Enforce admissible set constraints and terminal event semantics.
+      deferred_to_finalizer:
+      - Cross-family accounting and coverage reconciliation in S9.
+      evidence_written:
+      - Exhaustion counts and retry histograms (inferred from event logs).
+    frozen_surfaces:
+    - Gate semantics: only is_multi merchants participate.
+    - Terminal event semantics (retry exhausted vs final) are binding.
+    flexible_choices:
+    - Use bounded loops and vectorized proposals if deterministic and emits identical event sequences.
+    - Parallelize by merchant_id only if worker-count invariance proven.
+    perf_hotspots:
+    - Rejection sampling loops can dominate runtime for edge distributions.
+    safe_optimization_levers:
+    - Tight numeric bounds; avoid Python-level per-draw overhead (use compiled loops) while preserving determinism.
+    do_not_optimize:
+    - Do not change retry budget semantics or event emission ordering.
+    debug_hooks:
+    - Emit retry histograms and exhaustion counts; sample first-N problematic merchants.
+  S5:
+    impl_map_key: segment=1A.state=S5
+    state_class: SC-D
+    rng_posture: RNG_NONE
+    scope_keys:
+    - parameter_hash
+    reads:
+    - dataset_id: settlement_shares_2024Q4
+      kind: reference_data
+      required_gates: []
+    - dataset_id: ccy_country_shares_2024Q4
+      kind: reference_data
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: ccy_smoothing_params
+      kind: policy
+      required_gates: []
+    writes:
+    - dataset_id: ccy_country_weights_cache
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: merchant_currency
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: sparse_flag
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - emits_gate: 1A.S5.receipt
+    gates_in: []
+    gates_out:
+    - 1A.S5.receipt
+    rng: null
+    validation:
+      performed_here:
+      - Write S5_VALIDATION.json with policy_digest and summary stats.
+      - Receipt publish (atomic): write evidence -> compute hash -> write _passed.flag -> rename stage.
+      deferred_to_finalizer:
+      - Consumer gate for egress remains S9 responsibility.
+      evidence_written:
+      - S5_VALIDATION.json
+      - _passed.flag
+    frozen_surfaces:
+    - Receipt hashing rule: unindexed receipt; ASCII-lex paths; exclude _passed.flag.
+    - Atomic publish requirement (stage -> finalize).
+    - Readers MUST verify 1A.S5.receipt before reading cache outputs.
+    flexible_choices:
+    - Internal representation of weights allowed if on-disk contract is met exactly.
+    - Parallelize by currency (deterministic key order) permitted.
+    perf_hotspots:
+    - Per-currency normalization and smoothing; deterministic grouping required.
+    safe_optimization_levers:
+    - Group by currency; pre-sort by (ccy,country_iso) and stream computations.
+    do_not_optimize:
+    - Do not change quantisation/normalization rules enforced by S5_VALIDATION and downstream expectations.
+    debug_hooks:
+    - Emit per-currency sum/coverage stats and override counts in S5_VALIDATION.json.
+  S6:
+    impl_map_key: segment=1A.state=S6
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s3_candidate_set
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_ztp_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: ccy_country_weights_cache
+      kind: intermediate
+      required_gates:
+      - 1A.S5.receipt
+    - dataset_id: merchant_currency
+      kind: intermediate
+      required_gates:
+      - 1A.S5.receipt
+      conditional: only if currency-dependent weighting is enabled
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: crossborder_eligibility_flags
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Eligibility predicate for emitting gumbel keys (is_eligible==true).
+    writes:
+    - dataset_id: rng_event_gumbel_key
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: s6_membership
+      scope_keys:
+      - seed
+      - parameter_hash
+      address_template: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
+      ordering: []
+      equality: rowset
+      optional: true
+      notes:
+      - Optional convenience surface; RNG events remain authoritative.
+    - emits_gate: 1A.S6.receipt
+    gates_in:
+    - 1A.S5.receipt
+    gates_out:
+    - 1A.S6.receipt
+    rng:
+      stream_key_template: UER("1A.S6")||merchant_id||candidate_rank||draw_ix
+      families_written:
+      - rng_event_gumbel_key
+      envelope_discipline:
+      - Iteration order MUST follow s3_candidate_set ordering (merchant_id,candidate_rank,country_iso).
+      - Only eligible candidates receive gumbel key events; ineligible must be accounted for deterministically.
+      audit_trace_obligations:
+      - Update rng_audit_log and rng_trace_log per event; reconcile in S9.
+    validation:
+      performed_here:
+      - Write S6_VALIDATION.json with policy_digest and membership summary stats.
+      - Receipt publish (atomic): evidence -> hash -> _passed.flag.
+      deferred_to_finalizer:
+      - Full RNG reconciliation and egress checks in S9.
+      evidence_written:
+      - S6_VALIDATION.json
+      - _passed.flag
+    frozen_surfaces:
+    - Iteration order must be candidate_rank order; do not use file order or hash order.
+    - Receipt hashing rule: unindexed receipt; ASCII-lex paths; exclude _passed.flag.
+    - Membership is optional; events are authoritative.
+    flexible_choices:
+    - Use heap/partial-select for top-k if deterministic tie-breaks preserved.
+    - Parallelize by merchant_id only if worker-count invariance is proven.
+    perf_hotspots:
+    - Top-k selection over potentially large candidate lists; RNG-heavy.
+    safe_optimization_levers:
+    - Deterministic per-merchant partitioning; precompute admissible candidates; avoid global sorts.
+    do_not_optimize:
+    - Do not change candidate_rank authority usage or gumbel-key emission semantics.
+    debug_hooks:
+    - Emit per-merchant expected vs produced event counts and shortfall reasons.
+  S7:
+    impl_map_key: segment=1A.state=S7
+    state_class: SC-C
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: rng_event_nb_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_ztp_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: s3_candidate_set
+      kind: intermediate
+      required_gates: []
+    - dataset_id: ccy_country_weights_cache
+      kind: intermediate
+      required_gates:
+      - 1A.S5.receipt
+    - dataset_id: merchant_currency
+      kind: intermediate
+      required_gates:
+      - 1A.S5.receipt
+      conditional: only if currency-dependent weighting is enabled
+    - dataset_id: s6_membership
+      kind: intermediate
+      required_gates:
+      - 1A.S6.receipt
+      conditional: only if membership path is chosen
+    - dataset_id: rng_event_gumbel_key
+      kind: intermediate
+      required_gates: []
+      conditional: if membership path is not chosen (events authoritative)
+    writes:
+    - dataset_id: rng_event_residual_rank
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_dirichlet_gamma_vector
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+      conditional: only if dirichlet allocation lane is enabled
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 1A.S5.receipt
+    gates_out: []
+    rng:
+      stream_key_template: UER("1A.S7")||merchant_id||draw_ix
+      families_written:
+      - rng_event_residual_rank
+      - rng_event_dirichlet_gamma_vector
+      envelope_discipline:
+      - Allocation order must follow candidate_rank authority.
+      audit_trace_obligations:
+      - Trace and audit accounting reconciled in S9.
+    validation:
+      performed_here:
+      - Fail-closed allocation invariants enforced (no silent drops).
+      deferred_to_finalizer:
+      - Cross-family coverage reconciliation in S9.
+      evidence_written:
+      - Allocation summaries per merchant (diagnostic).
+    frozen_surfaces:
+    - Inter-country order authority is candidate_rank (S3).
+    - Must respect S5 receipt-gated cache inputs.
+    - Fail-closed on allocation errors (no partial egress).
+    flexible_choices:
+    - Use vectorized allocation if deterministic; stable tie-breaks required.
+    perf_hotspots:
+    - Allocation across many candidate countries per merchant.
+    safe_optimization_levers:
+    - Work per-merchant partitions; cache weight vectors; avoid repeated joins.
+    do_not_optimize:
+    - Do not change allocation semantics that would alter membership or rank.
+    debug_hooks:
+    - Emit per-merchant allocation totals and invariant checks; include first-N offending keys on failure.
+  S8:
+    impl_map_key: segment=1A.state=S8
+    state_class: SC-C
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s3_candidate_set
+      kind: intermediate
+      required_gates: []
+    - dataset_id: s6_membership
+      kind: intermediate
+      required_gates:
+      - 1A.S6.receipt
+      conditional: only if membership path is chosen
+    - dataset_id: rng_event_nb_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_residual_rank
+      kind: intermediate
+      required_gates: []
+    - dataset_id: s3_integerised_counts
+      kind: intermediate
+      required_gates: []
+      conditional: only if S3 owns integerisation lane
+    writes:
+    - dataset_id: outlet_catalogue
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+      notes:
+      - Egress; consumer gate is S9 final bundle gate (no PASS -> no read).
+    - dataset_id: rng_event_sequence_finalize
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+      conditional: only if sequence finalize events are emitted
+    - dataset_id: rng_event_site_sequence_overflow
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+      conditional: only if overflow events are emitted
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng:
+      stream_key_template: UER("1A.S8")||merchant_id||site_order||draw_ix
+      families_written:
+      - rng_event_sequence_finalize
+      - rng_event_site_sequence_overflow
+      envelope_discipline:
+      - Within-country ordering must be site_order; no cross-country order encoded in egress.
+      audit_trace_obligations:
+      - Reconcile any finalize/overflow events in S9 (if emitted).
+    validation:
+      performed_here:
+      - Enforce egress row embedding of seed and manifest_fingerprint matches path keys.
+      deferred_to_finalizer:
+      - Gate publication and egress checksums are in S9.
+      evidence_written:
+      - Egress rowcount and key integrity summaries (diagnostic).
+    frozen_surfaces:
+    - outlet_catalogue ordering keys are binding (merchant_id, legal_country_iso, site_order).
+    - Do not encode cross-country order; use candidate_rank when needed.
+    - Embedded lineage fields must match path keys.
+    flexible_choices:
+    - Physical parquet layout allowed only if ordering preserved (equality=ordered).
+    - Streaming writers allowed if deterministic and preserves ordering.
+    perf_hotspots:
+    - Building large egress parquet while preserving ordering.
+    safe_optimization_levers:
+    - Write per-merchant chunks and merge deterministically; avoid random sharding that breaks ordering.
+    do_not_optimize:
+    - Do not reorder egress rows or drop ordering constraints.
+    debug_hooks:
+    - Emit egress checksum summaries and first-N key mismatches for embedding checks.
+  S9:
+    impl_map_key: segment=1A.state=S9
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: outlet_catalogue
+      kind: egress
+      required_gates: []
+      notes:
+      - Validates egress; does not mutate.
+    - dataset_id: sealed_inputs_1A
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_audit_log
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_trace_log
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_hurdle_bernoulli
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_gamma_component
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_poisson_component
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_nb_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_ztp_rejection
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_ztp_retry_exhausted
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_ztp_final
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_gumbel_key
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_residual_rank
+      kind: intermediate
+      required_gates: []
+    - dataset_id: rng_event_dirichlet_gamma_vector
+      kind: intermediate
+      required_gates: []
+      conditional: only if emitted
+    - dataset_id: rng_event_sequence_finalize
+      kind: intermediate
+      required_gates: []
+      conditional: only if emitted
+    - dataset_id: rng_event_site_sequence_overflow
+      kind: intermediate
+      required_gates: []
+      conditional: only if emitted
+    - dataset_id: s3_candidate_set
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Used for order authority checks (candidate_rank semantics).
+    - dataset_id: s6_membership
+      kind: intermediate
+      required_gates:
+      - 1A.S6.receipt
+      conditional: only if membership is materialized and used as evidence
+    writes:
+    - dataset_id: validation_bundle_1A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_1A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_passed_flag_1A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - emits_gate: 1A.final.bundle_gate
+    gates_in: []
+    gates_out:
+    - 1A.final.bundle_gate
+    rng: null
+    validation:
+      performed_here:
+      - Validate required bundle members exist: MANIFEST.json, parameter_hash_resolved.json, manifest_fingerprint_resolved.json, rng_accounting.json, s9_summary.json, egress_checksums.json, index.json.
+      - Build index.json listing all non-flag files once with relative paths.
+      - Compute _passed.flag hash over files listed in index.json (excluding _passed.flag) in ASCII-lex order of index.json.path.
+      - Atomic publish: stage -> compute index -> compute flag -> single rename; FAIL writes bundle without flag.
+      deferred_to_finalizer: []
+      evidence_written:
+      - index.json
+      - _passed.flag
+      - rng_accounting.json
+      - egress_checksums.json
+      - s9_summary.json
+    frozen_surfaces:
+    - Bundle membership + index.json completeness are binding.
+    - _passed.flag hashing uses index.json.path ASCII-lex order; exclude _passed.flag.
+    - Atomic publish semantics are binding (no partial visibility).
+    flexible_choices:
+    - Streaming validators vs batch scans permitted if deterministic outcomes and required evidence files match.
+    perf_hotspots:
+    - Large parquet scans for PK/UK checks; RNG reconciliation over many event logs.
+    safe_optimization_levers:
+    - Use streaming key-checkers + bounded-memory structures.
+    - Read RNG logs with set-semantics (no file-order dependence).
+    do_not_optimize:
+    - Do not weaken gate hashing rules or atomic publish semantics.
+    debug_hooks:
+    - Bucket failure codes by validation class; include first-N offending keys per class.
+gate_map_examples:
+- consumer: 1A.internal_state
+  reads:
+    dataset_id: ccy_country_weights_cache
+    scope_keys:
+    - parameter_hash
+  required_gates:
+  - 1A.S5.receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 1A.internal_state
+  reads:
+    dataset_id: s6_membership
+    scope_keys:
+    - seed
+    - parameter_hash
+  required_gates:
+  - 1A.S6.receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 1B
+  reads:
+    dataset_id: outlet_catalogue
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 1A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags: []

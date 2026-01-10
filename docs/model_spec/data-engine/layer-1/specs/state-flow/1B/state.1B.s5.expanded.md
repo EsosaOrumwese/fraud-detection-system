@@ -47,14 +47,14 @@ b) **RNG event logs:** a stream under the layer RNG envelope capturing the **ass
 # 2) Preconditions & sealed inputs **(Binding)**
 
 **2.1 Gate (must hold before any read).**
-Exactly one **`s0_gate_receipt_1B`** exists under `fingerprint={manifest_fingerprint}` for this run and **schema-validates**. S5 **relies on the receipt** (No PASS → No read) and **does not** re-hash the 1A bundle.
+Exactly one **`s0_gate_receipt_1B`** exists under `manifest_fingerprint={manifest_fingerprint}` for this run and **schema-validates**. S5 **relies on the receipt** (No PASS → No read) and **does not** re-hash the 1A bundle.
 
 **2.2 Fixed identities (for the entire publish).**
 All S5 reads and writes bind to exactly one **`{seed, manifest_fingerprint, parameter_hash}`**. Mixing identities within a publish is **forbidden**.
 
 **2.3 Sealed inputs (resolve via Dataset Dictionary; no literal paths).**
 
-* **`s4_alloc_plan`** — path family: `…/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · partitions: `[seed, fingerprint, parameter_hash]` · *authority for per-tile integers `n_sites_tile` (positives only).*
+* **`s4_alloc_plan`** — path family: `…/s4_alloc_plan/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · partitions: `[seed, manifest_fingerprint, parameter_hash]` · *authority for per-tile integers `n_sites_tile` (positives only).*
 * **`tile_index`** — path family: `…/tile_index/parameter_hash={parameter_hash}/` · partitions: `[parameter_hash]` · *eligible tile universe.*
 * **`iso3166_canonical_2024`** — ingress FK surface for `legal_country_iso`.
 * *(Optional, diagnostics only)* **`s3_requirements`** — same identity as S4; may be read only to echo pair-level sums (not required for assignment).
@@ -141,7 +141,7 @@ Resolve via the **Dataset Dictionary** only (no literal paths).
 data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
 ```
 
-* **Partitions:** `[seed, fingerprint, parameter_hash]` (one publish per identity; write-once).
+* **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` (one publish per identity; write-once).
 * **Writer sort:** `[merchant_id, legal_country_iso, site_order]` (stable merge order; file order non-authoritative).
 * **Format:** `parquet`.
 
@@ -216,7 +216,7 @@ b) Validate the **S0 receipt** for `manifest_fingerprint` (schema-valid; **No PA
 c) Resolve all inputs/outputs strictly via the **Dataset Dictionary** (no literal paths).
 
 **6.2 Locate inputs (identity parity checks).**
-a) Read **`s4_alloc_plan`** for the fixed `{seed, fingerprint, parameter_hash}`.
+a) Read **`s4_alloc_plan`** for the fixed `{seed, manifest_fingerprint, parameter_hash}`.
 b) Read **`tile_index`** (same `{parameter_hash}`) and **`iso3166_canonical_2024`** (FK domain).
 c) Assert **parity** before any emit: the `{seed}` used to read `s4_alloc_plan` and the `{parameter_hash}` used to read `tile_index` **equal** the intended publish tokens.
 
@@ -278,7 +278,7 @@ Given identical sealed inputs and the same identity triple `{seed, manifest_fing
 
 * **Dataset path family:**
   `data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`
-  **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** (no appends/compaction).
+  **Partitions:** `[seed, manifest_fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** (no appends/compaction).
 * **RNG logs path family:**
   `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   **Partitions:** `[seed, parameter_hash, run_id]` · **Append-only during job**, then frozen on success.
@@ -290,7 +290,7 @@ Given identical sealed inputs and the same identity triple `{seed, manifest_fing
 
 **7.4 Identity-coherence checks (must hold before publish).**
 
-* **Receipt parity (fingerprint):** dataset `fingerprint` equals **S0 receipt** `manifest_fingerprint` (S0 is fingerprint-scoped).
+* **Receipt parity (fingerprint):** dataset `manifest_fingerprint` equals **S0 receipt** `manifest_fingerprint` (S0 is fingerprint-scoped).
 * **Seed parity (S3/S4 scope):** dataset `seed` equals the `seed` used to read **`s4_alloc_plan`**; RNG logs `seed` equals dataset `seed`.
 * **Parameter parity (S2 scope):** dataset `parameter_hash` equals the value used to read **`tile_index`**; RNG logs `parameter_hash` equals dataset `parameter_hash`.
 * **Path↔embed equality:** if lineage fields are embedded in rows in this or a future revision, embedded values **must equal** their path tokens.
@@ -356,7 +356,7 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 
 **8.8 Partition, immutability & atomic publish (dataset).**
 
-* Published under `…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
+* Published under `…/s5_site_tile_assignment/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
 * Re-publishing to the same identity must be **byte-identical**; stage → fsync → atomic move.
 * **Fail:** `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
 
@@ -386,7 +386,7 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 # 9) Failure modes & canonical error codes **(Binding)**
 
 > **Fail-closed posture.** On first detection of any condition below, the writer **MUST** abort the run, emit a failure record, and ensure **no partials** are visible under
-> `…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+> `…/s5_site_tile_assignment/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
 > (write-once; atomic publish). RNG logs are **append-only during the job** under
 > `logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/` and then **frozen** on success.
 
@@ -495,7 +495,7 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 
 **10.1 Deliverables (outside the dataset partition; binding for presence)**
 An accepted S5 run **MUST** expose, outside
-`…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
+`…/s5_site_tile_assignment/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
 
 * **S5 run report** — single machine-readable JSON object (fields in §10.2).
 * **Determinism receipt** — composite SHA-256 over the produced **dataset partition files only** (recipe in §10.4).
@@ -523,7 +523,7 @@ The run report **MUST** include at least:
 Compute a **composite SHA-256** over the **dataset partition files only**:
 
 1. List all files under
-   `…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+   `…/s5_site_tile_assignment/seed={seed}/manifest_fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
    as **relative paths**, **ASCII-lex sort** them.
 2. Concatenate raw bytes in that order; compute SHA-256; encode as lowercase hex64.
 3. Store `{ "partition_path": "<path>", "sha256_hex": "<hex64>" }` as `determinism_receipt` in the run report.
