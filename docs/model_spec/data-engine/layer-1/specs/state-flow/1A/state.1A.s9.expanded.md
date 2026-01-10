@@ -57,6 +57,7 @@ S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before runn
 
 **Outputs:**
 * `validation_bundle_1A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_1A` - scope: FINGERPRINT_SCOPED; gate emitted: none
 * `validation_passed_flag_1A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
 
 **Sealing / identity:**

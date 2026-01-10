@@ -52,6 +52,7 @@ A **MAJOR** in any baseline that changes these bound interfaces requires S9 re-r
 
 **Outputs:**
 * `validation_bundle_1B` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_1B` - scope: FINGERPRINT_SCOPED; gate emitted: none
 * `validation_passed_flag_1B` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
 
 **Sealing / identity:**

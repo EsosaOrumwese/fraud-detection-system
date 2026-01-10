@@ -21,9 +21,10 @@
   • `schemas.2A.yaml#/validation/s4_legality_report` (S4; `[seed,fingerprint]`)
 * **Outputs (this state):**
   • `schemas.2A.yaml#/validation/validation_bundle_2A`
+  • `schemas.2A.yaml#/validation/validation_bundle_index_2A`
   • `schemas.2A.yaml#/validation/bundle_index_v1`
   • `schemas.2A.yaml#/validation/passed_flag`
-* **Catalogue & registry:** Dataset Dictionary entries for `validation_bundle_2A` and `_passed.flag` (partition `[fingerprint]`); Artefact Registry lineage (bundle/flag depend on S2/S3/S4 evidence).
+* **Catalogue & registry:** Dataset Dictionary entries for `validation_bundle_2A`, `validation_bundle_index_2A`, and `_passed.flag` (partition `[fingerprint]`); Artefact Registry lineage (bundle/index/flag depend on S2/S3/S4 evidence).
 * **Layer-1 governance:** Identity & Path Law (path↔embed equality), Gate Law (“No PASS → No Read”), Fingerprint/Hashing Law (ASCII-lex index; raw-bytes digest; flag excluded), Numeric Policy.
 
 **Conformance & interpretation:**
@@ -51,6 +52,7 @@
 
 **Outputs:**
 * `validation_bundle_2A` - scope: FINGERPRINT_SCOPED; gate emitted: none
+* `validation_bundle_index_2A` - scope: FINGERPRINT_SCOPED; gate emitted: none
 * `validation_passed_flag_2A` - scope: FINGERPRINT_SCOPED; gate emitted: final consumer gate
 
 **Sealing / identity:**
