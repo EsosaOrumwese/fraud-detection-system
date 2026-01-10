@@ -1,0 +1,876 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 3A
+  layer_id: layer1
+  title: Zone Allocation
+  description: Determine escalated merchant×country pairs, build country→zone priors, sample Dirichlet zone shares,
+    integerise counts, emit zone_alloc + routing_universe_hash, then publish PASS gate.
+generated_at_utc: '2026-01-10T10:45:00Z'
+sources:
+  state_expanded_docs:
+  - state.3A.s0.expanded.txt
+  - state.3A.s1.expanded.txt
+  - state.3A.s2.expanded.txt
+  - state.3A.s3.expanded.txt
+  - state.3A.s4.expanded.txt
+  - state.3A.s5.expanded.txt
+  - state.3A.s6.expanded.txt
+  - state.3A.s7.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer1.3A.yaml
+  artefact_registry:
+  - artefact_registry_3A.yaml
+  schemas:
+  - schemas.3A.yaml
+  - schemas.layer1.yaml
+  - schemas.ingress.layer1.yaml
+source_fingerprints:
+  dataset_dictionary.layer1.3A.yaml:
+    sha256: cfe22371ea8b53c30af7ac714f7a0a188c418c89c112fcf43a20ecb1329e3226
+  artefact_registry_3A.yaml:
+    sha256: a5192fb89bd4e0eeea122ef363f65788303fb4d376660c8f641bb32ca151cdbc
+  schemas.3A.yaml:
+    sha256: aaaa00667a323ad3d2377ac897b8c67e1655bd99dc50e648c6d64a5648e8cc07
+  schemas.layer1.yaml:
+    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+  schemas.ingress.layer1.yaml:
+    sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
+  state.3A.s0.expanded.txt:
+    sha256: 0b0530439d2afdd909eac30be056a4a1c8102b943689250ebef5231c2ec80e27
+  state.3A.s1.expanded.txt:
+    sha256: b56baa44e40667a69d0fca8db027d5bab1a5b25d14b7a6ef09c5b2193d0302eb
+  state.3A.s2.expanded.txt:
+    sha256: 23ce1488e7d139b6b650454f1cb4814f970ae0f17f1e8160c74efdf9e74da5d4
+  state.3A.s3.expanded.txt:
+    sha256: 1779c05bc365b5c4d1cfea8e27877ddff3475d135b666d20bc5277afbb340fbc
+  state.3A.s4.expanded.txt:
+    sha256: 423a800a9e88d68afc02a11556819cf7d318dd0283e4df5ae6db5195a5613c08
+  state.3A.s5.expanded.txt:
+    sha256: c8017c80a84d9e7624d6fd816bff02fbf898b9805c07f5b711b9ba553f6080ca
+  state.3A.s6.expanded.txt:
+    sha256: 18a95969dc59d11a808065a2b7da72fffbadba30b1fcb82247bd8afc5acad13e
+  state.3A.s7.expanded.txt:
+    sha256: 753b357fed0ee1ac1c98eb012c1907940ff8b44be0073177fe0dcb128595ee4f
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+lineage:
+  parameter_hash:
+    role: parameter_scoped_anchor
+    algorithm_ref: Layer-1 parameter_hash (canonical; by reference). Assumed resolved: 3A parameter-scoped priors depend
+      only on governed inputs.
+    output_effect:
+      partition_must_include:
+      - parameter_hash
+  manifest_fingerprint:
+    role: sealed_input_anchor
+    algorithm_ref: Layer-1 manifest_fingerprint (canonical; opened-artefact closure). Must cover all artefacts sealed by
+      3A.S0 (upstream bundles, egress pins, policies, refs).
+    dependency_closure_source: artefact_registry_3A.yaml
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Layer-1 run_id (canonical; log-only; must not influence modelling outputs).
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 1A
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'For each index.json entry (ASCII-lex by path): SHA256(file_bytes)==entry.sha256_hex; then D = SHA256(concat(file_bytes
+    in that order)); _passed.flag must be `sha256_hex = <64-lowercase-hex>` equal to D.'
+  authorizes_reads_of:
+  - outlet_catalogue
+- gate_id: 1B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 1B
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'For each index.json entry (ASCII-lex by path): SHA256(file_bytes)==entry.sha256_hex; then D = SHA256(concat(file_bytes
+    in that order)); _passed.flag must be `sha256_hex = <64-lowercase-hex>` equal to D.'
+  authorizes_reads_of:
+  - site_locations
+- gate_id: 2A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 2A
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'For each index.json entry (ASCII-lex by path): SHA256(file_bytes)==entry.sha256_hex; then D = SHA256(concat(file_bytes
+    in that order)); _passed.flag must be `sha256_hex = <64-lowercase-hex>` equal to D.'
+  authorizes_reads_of:
+  - site_timezones
+  - tz_timetable_cache
+  - s4_legality_report
+- gate_id: 3A.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
+  verification_method: attestation_table
+  file_set_rule: Validate s0_gate_receipt_3A schema; must include per-segment upstream verified digest(s) and sealed input
+    set for this manifest_fingerprint (ID-resolved).
+  authorizes_reads_of:
+  - outlet_catalogue
+  - site_timezones
+  - tz_timetable_cache
+  - s4_legality_report
+  - zone_mixture_policy
+  - country_zone_alphas
+  - zone_floor_policy
+  - day_effect_policy_v1
+  - iso3166_canonical_2024
+  - tz_world_2025a
+- gate_id: 3A.S6.validation_receipt
+  gate_type: validation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
+  verification_method: schema_validate
+  file_set_rule: Validate s6_receipt_3A schema; must include overall_status ∈ {PASS,FAIL} and digests referencing s6_validation_report_3A
+    (and issue table if present).
+  authorizes_reads_of:
+  - validation_bundle_3A
+  - validation_passed_flag_3A
+- gate_id: 3A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 3A
+  location:
+    bundle_root: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_digest_concat
+  file_set_rule: Compute bundle_sha256_hex = SHA256(concat(entry.sha256_hex (ASCII hex) for index.json entries in canonical
+    order)); _passed.flag content is JSON `{ "sha256_hex": "<64-lowercase-hex>" }` equal to bundle_sha256_hex.
+  authorizes_reads_of:
+  - zone_alloc
+  - zone_alloc_universe_hash
+  - s2_country_zone_priors
+  - s3_zone_shares
+  - s4_zone_counts
+order_authorities:
+- authority_id: 1A.outlet_site_order
+  owner_segment: 1A
+  dataset_id: outlet_catalogue
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  ordering_keys:
+  - merchant_id
+  - legal_country_iso
+  - site_order
+  rule: Upstream 1A defines site_order within each (merchant_id,legal_country_iso). 3A may aggregate counts but MUST NOT
+    renumber site_order or infer inter-country order from egress.
+consumer_surfaces:
+  zone_alloc:
+    dataset_id: zone_alloc
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    schema_ref: schemas.3A.yaml#/egress/zone_alloc
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - tzid
+    required_gates:
+    - 3A.final.bundle_gate
+    notes:
+    - Cross-layer egress for zone counts; semantics are count authority on (merchant_id,legal_country_iso,tzid)->n_zone_outlets.
+    - S5 currently writes escalated pairs only; monolithic pairs have no rows (per S5 spec).
+  zone_alloc_universe_hash:
+    dataset_id: zone_alloc_universe_hash
+    scope_keys:
+    - manifest_fingerprint
+    address_template: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    schema_ref: schemas.3A.yaml#/egress/zone_alloc_universe_hash
+    ordering: []
+    required_gates:
+    - 3A.final.bundle_gate
+    notes:
+    - Fingerprint-scoped digest binding priors + policies + zone_alloc parquet digest into routing_universe_hash.
+states:
+  S0:
+    impl_map_key: segment=3A.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_2A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_2A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: outlet_catalogue
+      kind: egress
+      required_gates:
+      - 1A.final.bundle_gate
+      conditional: sealed; S0 may validate existence/schema after upstream PASS
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2A.final.bundle_gate
+      conditional: optional sealed pin
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 2A.final.bundle_gate
+      conditional: optional sealed pin
+    - dataset_id: s4_legality_report
+      kind: validation
+      required_gates:
+      - 2A.final.bundle_gate
+      conditional: optional sealed pin
+    - dataset_id: zone_mixture_policy
+      kind: policy
+      required_gates: []
+    - dataset_id: country_zone_alphas
+      kind: policy
+      required_gates: []
+    - dataset_id: zone_floor_policy
+      kind: policy
+      required_gates: []
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: s0_gate_receipt_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1A.final.bundle_gate
+    - 1B.final.bundle_gate
+    - 2A.final.bundle_gate
+    gates_out:
+    - 3A.S0.gate_in_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Verify upstream gates (1A,1B,2A) via indexed_bundle_raw_bytes law; FAIL_CLOSED on mismatch.
+    frozen_surfaces:
+    - No PASS → no read: MUST verify 1A/1B/2A HashGate before admitting any of their outputs as sealed inputs.
+    - Upstream HashGate verification uses index.json per-file sha checks + composite digest over concatenated raw bytes (see 3A.S0).
+    - Resolution is by dictionary/registry IDs only (no literal paths, no “latest”).
+    - RNG-free; must not read/emit any RNG logs/events.
+    flexible_choices:
+    - Streaming bundle verification (hashing) permitted if it matches the upstream HashGate rule exactly.
+    - Optional sealing of 2A surfaces (site_timezones/tz_timetable_cache/s4_legality_report) is allowed per spec; must not change
+      required sealed policy set.
+    debug_hooks:
+    - s0_gate_receipt_3A must record per-segment verified sha256 digest and resolved bundle paths.
+    - sealed_inputs_3A must enumerate all opened artefacts with sha256 + size for drift localization.
+  S1:
+    impl_map_key: segment=3A.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: outlet_catalogue
+      kind: egress
+      required_gates:
+      - 3A.S0.gate_in_receipt
+      notes:
+      - Aggregate to merchant×country counts N(m,c); no per-site mutation.
+    - dataset_id: zone_mixture_policy
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 3A.S0.gate_in_receipt
+      conditional: optional; if sealed by S0
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 3A.S0.gate_in_receipt
+      conditional: optional; if sealed by S0
+    writes:
+    - dataset_id: s1_escalation_queue
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      equality: ordered
+      optional: false
+    gates_in:
+    - 3A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Deterministically classify each (merchant_id,legal_country_iso) as Monolithic vs Escalated per zone_mixture_policy.
+    frozen_surfaces:
+    - S1 is the exclusive authority for escalation decisions; downstream MUST NOT re-evaluate mixture policy.
+    - RNG-free; classification and reasons are deterministic given sealed inputs.
+    flexible_choices:
+    - Optional use of 2A pins for auxiliary signals is allowed only if sealed by S0 and does not alter the binding escalation law
+      unless explicitly specified in policy.
+    debug_hooks:
+    - 'Emit counts: total_pairs, escalated_pairs, monolithic_pairs; first-N escalation reasons by code.'
+  S2:
+    impl_map_key: segment=3A.state=S2
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - parameter_hash
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: country_zone_alphas
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_floor_policy
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 3A.S0.gate_in_receipt
+      conditional: optional; if sealed by S0
+    writes:
+    - dataset_id: s2_country_zone_priors
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+      ordering:
+      - country_iso
+      - tzid
+      equality: ordered
+      optional: false
+    gates_in:
+    - 3A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Construct α priors per country over its tzid/zone domain Z(c) and apply deterministic floor/bump rules.
+    frozen_surfaces:
+    - RNG-free; floor/bump and alpha construction are deterministic given sealed policies and tz domain.
+    - s2_country_zone_priors is the sole authority for priors used by S3/S4/S5.
+    flexible_choices:
+    - Internal representation and vectorization strategy permitted if deterministic and preserves ordering and fixed-dp rules (if
+      any) specified by schema/policy.
+    debug_hooks:
+    - 'Emit counts: countries_total, tzids_total, floor_applied_total; first-N missing tzids (if abort).'
+  S3:
+    impl_map_key: segment=3A.state=S3
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_escalation_queue
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+      notes:
+      - 'Domain authority: escalated pairs only.'
+    - dataset_id: s2_country_zone_priors
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    writes:
+    - dataset_id: s3_zone_shares
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_zone_dirichlet
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3A/rng/events/zone_dirichlet/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One event per escalated (merchant,country); records counter_before/after, blocks, draws, zone_count.
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only RNG audit log; trace accounted.
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only RNG trace log; trace-after-each-event discipline.
+    gates_in:
+    - 3A.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_zone_dirichlet
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - Emit RNG only for escalated pairs from s1_escalation_queue; no events/rows for monolithic pairs.
+      - Dirichlet implemented via gamma component draws; draws_total may vary by zone_count; must be accounted in event.
+      - Trace-after-each-event; counter_before/after and draws must reconcile with rng_trace_log totals.
+      audit_trace_obligations:
+      - rng_audit_log must include per-event draw counts; rng_trace_log must reconcile total_draws with sum over events.
+      stream_key_template: Implementation-defined deterministic rng_stream_id per (merchant_id, legal_country_iso);
+        rng_substream_label="zone_dirichlet" (see 3A.S3).
+    validation:
+      performed_here:
+      - Write s3_zone_shares rows only for escalated pairs; ensure per (merchant,country) shares sum to 1 over tzids.
+    frozen_surfaces:
+    - No outputs for monolithic pairs; escalation domain is frozen by S1.
+    - RNG accounting is binding: counters/draws must reconcile across events, audit, and trace logs.
+    flexible_choices:
+    - Exact construction of rng_stream_id is flexible but MUST be deterministic and join-consistent between s3_zone_shares and
+      rng_event_zone_dirichlet.
+    - Vectorized sampling permitted if deterministic and preserves per-pair accounting.
+    debug_hooks:
+    - 'Emit counts: escalated_pairs, events_emitted, draws_total; first-N counter anomalies for audit.'
+  S4:
+    impl_map_key: segment=3A.state=S4
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_escalation_queue
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s3_zone_shares
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s2_country_zone_priors
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+      notes:
+      - 'Used for metadata/provenance; not for RNG.'
+    writes:
+    - dataset_id: s4_zone_counts
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      equality: ordered
+      optional: false
+    gates_in:
+    - 3A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Deterministically integerise shares into counts per tzid for escalated pairs only.
+    frozen_surfaces:
+    - RNG-free; integerisation is deterministic with explicit tie-breaks (per spec).
+    - Must conserve totals and remain within domain from S3 shares; no outputs for monolithic.
+    flexible_choices:
+    - Integerisation algorithm may vary if it preserves deterministic tie-break rules and total conservation.
+    debug_hooks:
+    - Emit Σ checks and first-N offending pairs on failure.
+  S5:
+    impl_map_key: segment=3A.state=S5
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: s4_zone_counts
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s2_country_zone_priors
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_mixture_policy
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_floor_policy
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    writes:
+    - dataset_id: zone_alloc
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      equality: ordered
+      optional: false
+      notes:
+      - 'Egress: escalated pairs only (per S5 spec).'
+    - dataset_id: zone_alloc_universe_hash
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - routing_universe_hash digest binding priors/policies + zone_alloc parquet digest.
+    gates_in:
+    - 3A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Project counts into zone_alloc egress (escalated pairs only) and compute zone_alloc_universe_hash as specified.
+    frozen_surfaces:
+    - Universe hash construction is binding (component digests + concatenation order).
+    - zone_alloc_parquet_digest must be computed over all zone_alloc files in canonical path order.
+    - Egress currently contains escalated pairs only (explicit v1 posture).
+    flexible_choices:
+    - Parquet physical layout is flexible if writer ordering keys are preserved (merchant_id,legal_country_iso,tzid) and digest
+      computation uses canonical path ordering.
+    debug_hooks:
+    - Emit component digests and final routing_universe_hash in logs for quick drift localization.
+  S6:
+    impl_map_key: segment=3A.state=S6
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_escalation_queue
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s2_country_zone_priors
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s3_zone_shares
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s4_zone_counts
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_alloc
+      kind: egress
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_alloc_universe_hash
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: rng_event_zone_dirichlet
+      kind: log
+      required_gates: []
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+    - dataset_id: zone_mixture_policy
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: country_zone_alphas
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_floor_policy
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    writes:
+    - dataset_id: s6_validation_report_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/s6_validation_report_3A.json
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: s6_issue_table_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s6_issue_table/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - severity
+      - issue_id
+      equality: ordered
+      optional: true
+      notes:
+      - May be empty but should exist for bundling per S7 expectations.
+    - dataset_id: s6_receipt_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 3A.S0.gate_in_receipt
+    gates_out:
+    - 3A.S6.validation_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Validate structural invariants across S1–S5 and RNG accounting reconciliation for Dirichlet stream; emit s6_receipt_3A overall_status.
+    frozen_surfaces:
+    - S6 is the sole authority for PASS/FAIL verdict for this manifest; S7 must not publish final gate unless S6 PASS.
+    - Receipt must include stable check-id→status map and digests for tamper detection.
+    flexible_choices:
+    - Validator implementation can be streaming/bounded-memory as long as deterministic and schema-consistent.
+    debug_hooks:
+    - Bucket failures by class; include first-N offending keys (merchant,country,tzid) per class in report.
+  S7:
+    impl_map_key: segment=3A.state=S7
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_escalation_queue
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s2_country_zone_priors
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s3_zone_shares
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s4_zone_counts
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_alloc
+      kind: egress
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: zone_alloc_universe_hash
+      kind: intermediate
+      required_gates:
+      - 3A.S0.gate_in_receipt
+    - dataset_id: s6_validation_report_3A
+      kind: validation
+      required_gates:
+      - 3A.S6.validation_receipt
+    - dataset_id: s6_issue_table_3A
+      kind: validation
+      required_gates:
+      - 3A.S6.validation_receipt
+      conditional: if present
+    - dataset_id: s6_receipt_3A
+      kind: validation
+      required_gates:
+      - 3A.S6.validation_receipt
+    writes:
+    - dataset_id: validation_bundle_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Bundle directory; must include index.json listing members with sha256_hex.
+    - dataset_id: validation_passed_flag_3A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Text file containing JSON object { "sha256_hex": "<hex64>" } (per 3A.S7).
+    - emits_gate: 3A.final.bundle_gate
+    gates_in:
+    - 3A.S6.validation_receipt
+    gates_out:
+    - 3A.final.bundle_gate
+    rng: null
+    validation:
+      performed_here:
+      - Precondition: s6_receipt_3A.overall_status must be PASS; then build bundle index and compute bundle_sha256_hex as SHA256(concat(entry.sha256_hex))
+        and write _passed.flag JSON.
+    frozen_surfaces:
+    - Final gate computation uses digest-of-digests (concat sha256_hex strings from index.json), not raw-bytes concatenation.
+    - _passed.flag logical content is JSON object with sha256_hex field; must validate against passed_flag_3A schema.
+    - Write-once + idempotence: no partial/overwritten bundles for a manifest_fingerprint.
+    flexible_choices:
+    - Bundle construction may be streaming as long as index order and digest rules are deterministic.
+    debug_hooks:
+    - Record bundled member list and computed bundle_sha256_hex for drift localization; include first-N missing members on failure.
+gate_map_examples:
+- consumer: 3A.internal_state
+  reads:
+    dataset_id: outlet_catalogue
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 3A.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 2B
+  reads:
+    dataset_id: zone_alloc
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 3A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 3A.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: Assumed resolved—standardize on manifest_fingerprint everywhere (paths, partition keys, examples) to match dataset
+    dictionaries and avoid fingerprint label drift.
+- flag_id: 3A.RF.parameter_hash_closure
+  severity: info
+  summary: Assumed resolved—parameter_hash governance/rails include 3A parameter-scoped priors inputs (country_zone_alphas,
+    zone_floor_policy) so s2_country_zone_priors cannot drift without parameter_hash change.

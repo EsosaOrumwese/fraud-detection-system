@@ -1,0 +1,1056 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 2B
+  layer_id: layer1
+  title: 'Routing: traffic to sites and edges'
+  description: "Build deterministic alias tables + day effects and provide RNG-bounded per-arrival routing (group\u2192\
+    site, optional virtual edge), then publish PASS gate."
+generated_at_utc: '2026-01-10T10:31:39.494355Z'
+sources:
+  state_expanded_docs:
+  - state.2B.s0.expanded.txt
+  - state.2B.s1.expanded.txt
+  - state.2B.s2.expanded.txt
+  - state.2B.s3.expanded.txt
+  - state.2B.s4.expanded.txt
+  - state.2B.s5.expanded.txt
+  - state.2B.s6.expanded.txt
+  - state.2B.s7.expanded.txt
+  - state.2B.s8.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer1.2B.yaml
+  artefact_registry:
+  - artefact_registry_2B.yaml
+  schemas:
+  - schemas.2B.yaml
+  - schemas.layer1.yaml
+  - schemas.ingress.layer1.yaml
+  - schemas.1B.yaml
+  - schemas.2A.yaml
+source_fingerprints:
+  dataset_dictionary.layer1.2B.yaml:
+    sha256: c6e8b3745687af0d4c8fd81facd0c640ede2626a275fc53cc27591c0c25cfd5a
+  artefact_registry_2B.yaml:
+    sha256: 513a8c01c2fc4b79f37359ae09d81e27bfaecd1d70a482901c9ec5d387ade781
+  schemas.2B.yaml:
+    sha256: 3e55f2767c16492be0eec6a2c47e9c9092748fbf38965edf0aa1bcffd5253e77
+  schemas.layer1.yaml:
+    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+  schemas.ingress.layer1.yaml:
+    sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
+  schemas.1B.yaml:
+    sha256: 92283b986add164492a997f62ffd9265adb48c75370565576ffd14cb46b96b35
+  schemas.2A.yaml:
+    sha256: 480503ff5963fc10cb7f354d3ae6bef181b48bace150bb877bf3701d31cc6192
+  state.2B.s0.expanded.txt:
+    sha256: 19e88f93c368c16fc4135f7cc7ec29a109f81305ac1686451b9f85312b468a10
+  state.2B.s1.expanded.txt:
+    sha256: dd48577bcf40d5e360d27965bc51e563ea5b2cfff825b4c8acc64302e08ef04e
+  state.2B.s2.expanded.txt:
+    sha256: 4dc91d00c6f2ebb14cec5655bbbe1a85b5b8c9956399c8ed44566bba8d264642
+  state.2B.s3.expanded.txt:
+    sha256: 9473e121edbce0f81cf4101ac427c482b0dd3a04122d05bad6c4317d2aaafec8
+  state.2B.s4.expanded.txt:
+    sha256: 4bd82f48f6c644941ed2902e563a747082e545fa73df42c2fc74c10a916a872b
+  state.2B.s5.expanded.txt:
+    sha256: 3b816fa2305e494b7f19633d2736cdfda8a7a778af004a6bd70553a1d4fdec36
+  state.2B.s6.expanded.txt:
+    sha256: a556b3201454b24d56622586113de2526578229d50a4af2e26cf44888c63a09f
+  state.2B.s7.expanded.txt:
+    sha256: bd657c237aaadf33d68f197265058beac13eff28c5686873c01059da5592bad5
+  state.2B.s8.expanded.txt:
+    sha256: 6a0774ea5930b86799a4b2685e98ab4886c08d7231aaf59555b6ebf3d47c617e
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+  utc_day: utc_day
+lineage:
+  parameter_hash:
+    role: log_partition_and_receipt_field
+    algorithm_ref: Layer-1 parameter_hash (canonical; by reference). Used for routing log partitions and recorded in
+      S0 receipt; not used for plan partitioning in 2B.
+    output_effect:
+      log_partitions_must_include:
+      - parameter_hash
+  manifest_fingerprint:
+    role: sealed_input_anchor
+    algorithm_ref: Layer-1 manifest_fingerprint (canonical; opened-artefact closure). Must cover all assets sealed by
+      2B.S0 including upstream seed-scoped inputs and token-less policy packs.
+    dependency_closure_source: artefact_registry_2B.yaml
+    output_effect:
+      partitions_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Layer-1 run_id (canonical; log-only; derived from manifest_fingerprint_bytes + seed + time; must not
+      influence modelling outputs).
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 1B
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json.path
+    entries))
+  authorizes_reads_of:
+  - site_locations
+- gate_id: 2B.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer1/2B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+  verification_method: attestation_table
+  file_set_rule: Validate s0_gate_receipt_2B schema; MUST include verified upstream gate digest + sealed input list for
+    this manifest_fingerprint (ID-resolved).
+  authorizes_reads_of:
+  - site_locations
+  - site_timezones
+  - tz_timetable_cache
+  - route_rng_policy_v1
+  - alias_layout_policy_v1
+  - day_effect_policy_v1
+  - virtual_edge_policy_v1
+- gate_id: 2B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 2B
+  location:
+    bundle_root: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json.path
+    entries))
+  authorizes_reads_of:
+  - s2_alias_index
+  - s2_alias_blob
+  - s3_day_effects
+  - s4_group_weights
+order_authorities:
+- authority_id: 1B.site_order
+  owner_segment: 1B
+  dataset_id: site_locations
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  ordering_keys:
+  - merchant_id
+  - legal_country_iso
+  - site_order
+  rule: 1B defines site_order for each (merchant_id,legal_country_iso). 2B MUST preserve site_order and MUST NOT renumber
+    sites. Writer ordering is for determinism/diffability; semantics are order-free.
+consumer_surfaces:
+  s2_alias_index:
+    dataset_id: s2_alias_index
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json
+    schema_ref: schemas.2B.yaml#/plan/s2_alias_index
+    ordering:
+    - merchant_id
+    required_gates:
+    - 2B.final.bundle_gate
+    notes:
+    - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+      are complete.
+  s2_alias_blob:
+    dataset_id: s2_alias_blob
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin
+    schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
+    ordering: []
+    required_gates:
+    - 2B.final.bundle_gate
+    notes:
+    - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+      are complete.
+  s3_day_effects:
+    dataset_id: s3_day_effects
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    schema_ref: schemas.2B.yaml#/plan/s3_day_effects
+    ordering:
+    - merchant_id
+    - utc_day
+    - tz_group_id
+    required_gates:
+    - 2B.final.bundle_gate
+    notes:
+    - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+      are complete.
+  s4_group_weights:
+    dataset_id: s4_group_weights
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    schema_ref: schemas.2B.yaml#/plan/s4_group_weights
+    ordering:
+    - merchant_id
+    - utc_day
+    - tz_group_id
+    required_gates:
+    - 2B.final.bundle_gate
+    notes:
+    - Downstream MUST verify 2B final bundle _passed.flag for the same manifest_fingerprint before reading.
+    - Gate is manifest_fingerprint-scoped; seed discovery is handled by 2B.S8 and implies all required seed partitions
+      are complete.
+states:
+  S0:
+    impl_map_key: segment=2B.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: site_locations
+      kind: egress
+      required_gates:
+      - 1B.final.bundle_gate
+      notes:
+      - Sealed input; S0 verifies 1B gate before any read.
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates: []
+      notes:
+      - Sealed input from 2A (seed+fingerprint).
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates: []
+      conditional: optional (read-only coherence/audit use)
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: virtual_edge_policy_v1
+      kind: policy
+      required_gates: []
+    writes:
+    - dataset_id: s0_gate_receipt_2B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_2B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1B.final.bundle_gate
+    gates_out:
+    - 2B.S0.gate_in_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Verify 1B bundle gate using indexed_bundle law (index schema in schemas.layer1.yaml); FAIL_CLOSED on mismatch.
+      - Resolve all sealed inputs by dictionary ID only (no literal paths), record in sealed_inputs_2B.
+      - Write s0_gate_receipt_2B attesting upstream verification, identity tokens (manifest_fingerprint/seed/parameter_hash),
+        and verified_at_utc.
+      deferred_to_finalizer:
+      - Plan correctness checks and routing audit checks are performed in S7; packaging and PASS flag are in S8.
+      evidence_written:
+      - s0_gate_receipt_2B
+      - sealed_inputs_2B
+    frozen_surfaces:
+    - 'No PASS → no read: S0 MUST verify 1B.final.bundle_gate before reading any 1B egress (site_locations).'
+    - S0 seals the minimum pinned input set (site_locations, site_timezones, required policy packs) and records it in
+      sealed_inputs_2B; downstream MUST fail-closed if receipt missing.
+    - Resolution by ID only: do not embed literal file paths as authorities; dictionary/registry IDs are authoritative.
+    - Deterministic verified_at_utc reuse on rerun (idempotent reuse for same manifest_fingerprint) to keep derived outputs
+      byte-stable.
+    - Path↔embed equality for manifest_fingerprint in fingerprint-scoped receipts/manifests.
+    flexible_choices:
+    - Streaming verification of upstream bundle digest is allowed so long as it matches the indexed_bundle hashing law
+      exactly.
+    - S0 may perform additional post-PASS sanity checks (recommended) without weakening gate law.
+    perf_hotspots:
+    - Upstream validation bundle hashing can be IO-heavy if bundle contains many evidence files.
+    safe_optimization_levers:
+    - Stream hashing and avoid materializing large evidence files in memory.
+    do_not_optimize:
+    - Do not skip or weaken upstream gate verification.
+    - Do not admit unpinned inputs into sealed set (no “latest”).
+    debug_hooks:
+    - s0_gate_receipt_2B must record resolved upstream bundle root path and verified _passed.flag digest.
+    - sealed_inputs_2B must enumerate every opened policy/input with digests and schema_refs (drift-localization anchor).
+  S1:
+    impl_map_key: segment=2B.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: site_locations
+      kind: egress
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 2B.S0.gate_in_receipt
+      conditional: optional (if used for coherence/audit)
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s1_site_weights
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Compute per-site base weights and freeze them with deterministic quantisation as defined by alias_layout_policy_v1.
+      - Enforce 1:1 coverage with site_locations; PK uniqueness (merchant_id,legal_country_iso,site_order).
+      - created_utc must equal s0_gate_receipt_2B.verified_at_utc.
+      deferred_to_finalizer:
+      - Cross-state audit checks are performed in S7; packaging/gate in S8.
+      evidence_written:
+      - s1_site_weights
+    frozen_surfaces:
+    - Deterministic weight normalisation + quantisation grid (G=2^b) with tie-to-even and deterministic remainder tie-break
+      by PK (as specified).
+    - created_utc must equal S0 verified_at_utc.
+    - Does not introduce any semantic ordering authority; preserves site_order.
+    flexible_choices:
+    - Vectorized weight computation is allowed if deterministic and quantisation/tie-break laws are preserved.
+    - Coherence-only use of tz_timetable_cache is optional and must not affect outcomes unless explicitly specified.
+    perf_hotspots:
+    - Per-merchant normalisation/quantisation over large site sets.
+    safe_optimization_levers:
+    - Process per merchant_id with deterministic chunking; avoid global sorts beyond declared writer keys.
+    do_not_optimize:
+    - Do not alter quantisation/tie-break law; do not depend on hash-map iteration order.
+    debug_hooks:
+    - Emit per-merchant Σp_weight≈1 diagnostics (in logs/audit report inputs) and floor_applied counts.
+  S2:
+    impl_map_key: segment=2B.state=S2
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_site_weights
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s2_alias_index
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering:
+      - merchant_id
+      equality: ordered
+      optional: false
+    - dataset_id: s2_alias_blob
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Build deterministic alias tables according to alias_layout_policy_v1 (layout/endianness/alignment).
+      - Blob packing must be byte-stable; index offsets/digests must match blob bytes (sha256).
+      - S2 SHALL NOT read site_timezones or tz_timetable_cache for alias construction.
+      - created_utc must equal S0 verified_at_utc.
+      deferred_to_finalizer:
+      - Audit checks and gating are performed in S7/S8.
+      evidence_written:
+      - s2_alias_index
+      - s2_alias_blob
+    frozen_surfaces:
+    - Alias encoding/decoding contract is fixed by alias_layout_policy_v1; do not change layout semantics.
+    - Index is the decode authority; blob sha256 in index must match raw blob bytes.
+    - S2 SHALL NOT consult site_timezones or any tz legality cache.
+    flexible_choices:
+    - Internal construction algorithm may use Vose or equivalent as long as encoded tables decode identically and bytes are
+      deterministic.
+    perf_hotspots:
+    - Per-merchant alias construction and blob packing.
+    safe_optimization_levers:
+    - Batch construction per merchant; write blob sequentially; avoid per-row Python overhead.
+    do_not_optimize:
+    - Do not introduce nondeterministic ordering of merchants or entries; packing must be stable.
+    debug_hooks:
+    - Record merchants_count and first-N merchant offsets in index for drift localization.
+  S3:
+    impl_map_key: segment=2B.state=S3
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_site_weights
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s3_day_effects
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - utc_day
+      - tz_group_id
+      equality: ordered
+      optional: false
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      stream_key_template: UER("2B.S3")||merchant_id||utc_day||tz_group_id
+      families_written: []
+      envelope_discipline:
+      - Exactly one Philox draw per output row (draws_per_row=1).
+      - 'RNG provenance is embedded in s3_day_effects rows: rng_stream_id and rng_counter_hi/lo.'
+      audit_trace_obligations:
+      - S3 does not emit rng_event_* families; S7 MUST validate counter uniqueness/coverage and draws accounting from embedded
+        counters.
+    validation:
+      performed_here:
+      - Construct tz-groups per merchant from site_timezones and draw gamma multipliers per (merchant, utc_day, tz_group_id)
+        as declared by day_effect_policy_v1.
+      - Enforce draws_per_row=1 and record rng_stream_id + rng_counter_hi/lo per row.
+      - created_utc must equal S0 verified_at_utc.
+      deferred_to_finalizer:
+      - S7 audits validate draws accounting/counter laws; S8 publishes final gate.
+      evidence_written:
+      - s3_day_effects
+    frozen_surfaces:
+    - 'Draw budget: exactly one Philox draw per row; draws_total equals rows_written; no counter reuse.'
+    - Row ordering is fixed (merchant_id, utc_day, tz_group_id) and must match schema ordering.
+    - No separate rng_event outputs for S3; embedded provenance fields are authoritative evidence.
+    flexible_choices:
+    - Vectorized gamma/lognormal math permitted if deterministic and respects numeric discipline.
+    - Computation may be factored per merchant or per tz_group as long as row order and counter assignment laws are preserved.
+    perf_hotspots:
+    - Large surface generation across merchants × days × tz_groups.
+    safe_optimization_levers:
+    - Generate per merchant with deterministic day loops; avoid hash-based group ordering.
+    do_not_optimize:
+    - Do not change counter assignment scheme; do not depend on wall-clock time beyond S0 verified_at_utc.
+    debug_hooks:
+    - Emit expected_draws vs observed_draws summary (S7 audit) and first-N counter anomalies.
+  S4:
+    impl_map_key: segment=2B.state=S4
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_site_weights
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s3_day_effects
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s4_group_weights
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - utc_day
+      - tz_group_id
+      equality: ordered
+      optional: false
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Compute per-merchant × UTC-day tz-group mix p_group using base shares and gamma multipliers; enforce normalisation
+        (Σ p_group = 1).
+      - created_utc must equal S0 verified_at_utc.
+      deferred_to_finalizer:
+      - Audits in S7; final gate in S8.
+      evidence_written:
+      - s4_group_weights
+    frozen_surfaces:
+    - Deterministic normalisation and coherence checks; writer order fixed (merchant_id, utc_day, tz_group_id).
+    - Must preserve tz_group_id semantics from site_timezones.
+    flexible_choices:
+    - Streaming computation per merchant/day allowed if deterministic.
+    perf_hotspots:
+    - Computing group weights over large day surfaces.
+    safe_optimization_levers:
+    - Reuse per-merchant tz_group structures; avoid recomputing base shares per day.
+    do_not_optimize:
+    - Do not introduce nondeterministic tz_group ordering (e.g., unordered sets).
+    debug_hooks:
+    - Emit per (merchant, utc_day) Σp_group diagnostics and min/max p_group summaries (for S7 audit).
+  S5:
+    impl_map_key: segment=2B.state=S5
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s2_alias_index
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s2_alias_blob
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s4_group_weights
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s1_site_weights
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+      conditional: Option-A path for within-group decode uses S1 masses
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: rng_event_alias_pick_group
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/events/alias_pick_group/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_alias_pick_site
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/events/alias_pick_site/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: s5_selection_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      - utc_day
+      address_template: data/layer1/2B/s5_selection_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/selection_log.jsonl
+      ordering:
+      - utc_timestamp
+      equality: ordered
+      optional: true
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      stream_key_template: UER("2B.S5")||merchant_id||arrival_ix||stage
+      families_written:
+      - rng_event_alias_pick_group
+      - rng_event_alias_pick_site
+      envelope_discipline:
+      - 'Two single-uniform events per arrival: Stage-A alias_pick_group then Stage-B alias_pick_site (ordering is binding).'
+      - Each event has envelope blocks=1, draws="1"; after-before == 1 per event; counters strictly increasing and never
+        wrap within a run.
+      audit_trace_obligations:
+      - Append rng_audit_log and rng_trace_log per layer rules (trace-after-each-event).
+      - Trace reconciliation: rng_trace_log.total_draws == 2 × (#arrivals_routed) and equals sum over both families.
+    validation:
+      performed_here:
+      - Treat s2_alias_index as decode authority; verify blob_sha256 against raw s2_alias_blob bytes before use.
+      - Mapping coherence: ensure tz_group_id(site_id) matches group picked in Stage-A.
+      - Optional s5_selection_log must be arrival-ordered (utc_timestamp ordering) when enabled.
+      deferred_to_finalizer:
+      - S7 audits may validate router evidence; S8 publishes final gate.
+      evidence_written:
+      - rng_event_alias_pick_group
+      - rng_event_alias_pick_site
+      - rng_audit_log
+      - rng_trace_log
+      - s5_selection_log (optional)
+    frozen_surfaces:
+    - Do not change number of draws per arrival or event ordering (group first, then site).
+    - Do not renormalize S4 p_group except as implied by alias construction/decoding (spec-defined).
+    - 'RNG partitioning is run-scoped: [seed, parameter_hash, run_id].'
+    flexible_choices:
+    - Batch routing may be vectorized if arrival order is preserved for logs and deterministic equivalence holds.
+    - Optional selection log may be disabled; when enabled, must follow ordering contract.
+    perf_hotspots:
+    - High-volume per-arrival routing; log IO can dominate.
+    safe_optimization_levers:
+    - Buffer log writes; shard and merge only if log contract permits set-semantics (otherwise preserve append order).
+    do_not_optimize:
+    - Do not change alias artefacts; do not alter per-arrival draw budgets.
+    debug_hooks:
+    - Emit counters for arrivals_routed, events_emitted per family, and decode integrity failures.
+  S6:
+    impl_map_key: segment=2B.state=S6
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: virtual_edge_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: rng_event_cdn_edge_pick
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/2B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: s6_edge_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      - utc_day
+      address_template: logs/layer1/2B/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
+      ordering:
+      - utc_timestamp
+      equality: ordered
+      optional: true
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      stream_key_template: UER("2B.S6")||merchant_id||arrival_ix
+      families_written:
+      - rng_event_cdn_edge_pick
+      envelope_discipline:
+      - 'Virtual-only: exactly one single-uniform event per virtual arrival (blocks=1, draws="1").'
+      - Bypass for non-virtual arrivals (no RNG, no outputs).
+      audit_trace_obligations:
+      - Append rng_audit_log and rng_trace_log per layer rules (trace-after-each-event).
+      - 'When emitted: exactly one trace row after each event append.'
+    validation:
+      performed_here:
+      - Edge pick domain and weights come from virtual_edge_policy_v1; unknown edge_id or empty domain => ABORT.
+      - Optional s6_edge_log must be arrival-ordered (utc_timestamp ordering) when enabled.
+      deferred_to_finalizer:
+      - S7 audits may validate router evidence; S8 publishes final gate.
+      evidence_written:
+      - rng_event_cdn_edge_pick
+      - rng_audit_log
+      - rng_trace_log
+      - s6_edge_log (optional)
+    frozen_surfaces:
+    - Do not emit any edge events for non-virtual arrivals.
+    - Per virtual arrival: exactly one draw and exactly one event row; event envelope blocks=1, draws="1".
+    flexible_choices:
+    - Vectorized edge selection allowed if deterministic and preserves per-arrival ordering for logs when enabled.
+    perf_hotspots:
+    - Per-arrival edge selection + log IO (virtual-only share).
+    safe_optimization_levers:
+    - Precompute cumulative weights deterministically; cache edge catalogue in memory.
+    do_not_optimize:
+    - Do not change draw budget or event envelope; do not reorder arrivals in logs.
+    debug_hooks:
+    - 'Emit counts: virtual_arrivals, edge_events_emitted, and per-edge selection histogram (diagnostic).'
+  S7:
+    impl_map_key: segment=2B.state=S7
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: virtual_edge_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s2_alias_index
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s2_alias_blob
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s3_day_effects
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: s4_group_weights
+      kind: intermediate
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+      conditional: only if routing evidence produced in run
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+      conditional: only if routing evidence produced in run
+    - dataset_id: rng_event_alias_pick_group
+      kind: log
+      required_gates: []
+      conditional: only if routing evidence produced in run
+    - dataset_id: rng_event_alias_pick_site
+      kind: log
+      required_gates: []
+      conditional: only if routing evidence produced in run
+    - dataset_id: rng_event_cdn_edge_pick
+      kind: log
+      required_gates: []
+      conditional: only if virtual routing evidence produced in run
+    - dataset_id: s5_selection_log
+      kind: trace
+      required_gates: []
+      conditional: optional; only if enabled
+    - dataset_id: s6_edge_log
+      kind: trace
+      required_gates: []
+      conditional: optional; only if enabled
+    writes:
+    - dataset_id: s7_audit_report
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s7_audit_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - 'Alias artefact coherence: index/blob digest match and decode round-trip checks.'
+      - 'Day surface checks: s3 draws_per_row=1, counter uniqueness/coverage, gamma/log_gamma coherence; s4 normalisation
+        and mass/denom coherence.'
+      - Router evidence checks (conditional): arrival ordering (if logs enabled), event budgets and trace reconciliation
+        per route_rng_policy_v1.
+      deferred_to_finalizer:
+      - S8 packages S7 PASS evidence and publishes final gate.
+      evidence_written:
+      - s7_audit_report
+    frozen_surfaces:
+    - 'Audit outcome is fail-closed: S8 must not publish _passed.flag unless all required S7 audits PASS for all discovered
+      seeds.'
+    flexible_choices:
+    - Audit implementation may be streaming and bounded-memory as long as deterministic outcomes and evidence fields match
+      schema.
+    perf_hotspots:
+    - Alias decode verification and potentially large log reconciliation (when routing evidence enabled).
+    safe_optimization_levers:
+    - Stream scan logs; use set-semantics where permitted; bounded-memory counters and checksums.
+    do_not_optimize:
+    - Do not weaken audit checks; do not skip trace reconciliation when evidence is present.
+    debug_hooks:
+    - Bucket validator failures by class and include first-N offending keys (merchant_id/utc_day/arrival_ix) in report.
+  S8:
+    impl_map_key: segment=2B.state=S8
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_2B
+      kind: validation
+      required_gates: []
+    - dataset_id: s7_audit_report
+      kind: validation
+      required_gates: []
+      notes:
+      - One per seed at [seed,manifest_fingerprint]; each must be PASS.
+    - dataset_id: s2_alias_index
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Used for seed discovery/intersection and provenance.
+    - dataset_id: s2_alias_blob
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Used for provenance.
+    - dataset_id: s3_day_effects
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Used for seed discovery/intersection and provenance.
+    - dataset_id: s4_group_weights
+      kind: intermediate
+      required_gates: []
+      notes:
+      - Used for seed discovery/intersection and provenance.
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    - dataset_id: virtual_edge_policy_v1
+      kind: policy
+      required_gates:
+      - 2B.S0.gate_in_receipt
+    writes:
+    - dataset_id: validation_bundle_2B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_2B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_passed_flag_2B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - emits_gate: 2B.final.bundle_gate
+    gates_in:
+    - 2B.S0.gate_in_receipt
+    gates_out:
+    - 2B.final.bundle_gate
+    rng: null
+    validation:
+      performed_here:
+      - Discover seeds by intersecting required plan surfaces under this manifest_fingerprint (stable ordering).
+      - Require s7_audit_report exists and PASS for each discovered seed; otherwise do not publish _passed.flag.
+      - Build validation bundle and index.json; _passed.flag hash computed over indexed files (exclude flag) in ASCII-lex
+        path order; publish atomically.
+      - Evidence copied into bundle must be byte-identical to sources (verbatim).
+      deferred_to_finalizer: []
+      evidence_written:
+      - validation_bundle_2B/index.json
+      - validation_bundle_2B/_passed.flag
+    frozen_surfaces:
+    - Bundle index + hash gate is the sole consumer gate for 2B.
+    - 'Indexed_bundle law: index.json drives hashing; _passed.flag excluded from index; ASCII-lex path ordering.'
+    - Atomic publish + write-once partition for manifest_fingerprint.
+    - 'Fail-closed: if any audit failure or missing evidence, do not publish _passed.flag.'
+    flexible_choices:
+    - Bundle may include optional additional evidence files as long as they are listed in index.json and hashing law is
+      respected.
+    - Bundle construction can be streaming; index can be built incrementally with deterministic ordering.
+    perf_hotspots:
+    - Bundling and hashing potentially many evidence files across multiple seeds.
+    safe_optimization_levers:
+    - Stream hashing; avoid loading large evidence into memory; build index deterministically.
+    do_not_optimize:
+    - Do not publish _passed.flag unless all preconditions are satisfied.
+    - Do not omit index entries or include _passed.flag in index.
+    debug_hooks:
+    - Record discovered seed set and per-seed audit PASS/FAIL summary in bundle summary evidence.
+    - Emit index completeness checks and first-N missing/extra file issues if validation fails.
+gate_map_examples:
+- consumer: 2B.internal_state
+  reads:
+    dataset_id: site_locations
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 2B.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: downstream_component
+  reads:
+    dataset_id: s2_alias_blob
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 2B.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 2B.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: 'Assumed resolved: standardize on manifest_fingerprint everywhere (paths, partition keys, examples) to match dictionaries.'
+- flag_id: 2B.RF.layer_label_text
+  severity: info
+  summary: 'Assumed resolved: any textual references calling 2A “Layer-2” are corrected to Layer-1 to avoid reviewer/implementer confusion.'

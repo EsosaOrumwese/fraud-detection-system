@@ -6,12 +6,13 @@
 
 ## Key mismatches and drift (ordered by impact)
 
-### 1) parameter_hash contract mismatch (systemic)
+### 1) parameter_hash contract mismatch (systemic) — RESOLVED
 - Impl map defines governed basenames: `hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`, `crossborder_hyperparams.yaml`, `ccy_smoothing_params.yaml`, `s6_selection_policy.yaml`, `policy.s3.rule_ladder.yaml`, with optional `policy.s3.base_weight.yaml`, `policy.s3.thresholds.yaml`.
   - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_map.yaml` (lineage/governed_basenames).
-- Implementation requires a much larger list (includes 5A/5B/6A/6B basenames) in `_REQUIRED_PARAMETER_FILES`.
+- Previous implementation required a much larger list (includes 5A/5B/6A/6B basenames) in `_REQUIRED_PARAMETER_FILES`.
   - Evidence: `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/l2/runner.py`.
-- Impact: parameter_hash differs from the contract and will shift every parameter-scoped path.
+- Resolution: `_REQUIRED_PARAMETER_FILES` now matches the impl map’s governed basenames, and optional S3 policies are included only when provided.
+  - Evidence: `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/l2/runner.py`.
 
 ### 2) Missing S0 contract outputs/gates
 - Impl map requires S0 to write `merchant_abort_log`, `sealed_inputs_1A`, and `s0_gate_receipt_1A`.
@@ -76,6 +77,10 @@
 - Implementation can skip `merchant_currency` if the share surface or legal tender mapping is incomplete.
   - Evidence: `packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py`.
 - Impact: contract-required artefact may be missing in valid runs.
+
+## Status summary
+- Resolved: parameter_hash governed basenames now align to the impl map.
+- Still open: items 2-9 above remain unresolved in code.
 
 ## Questions to resolve
 - Should the implementation reduce `_REQUIRED_PARAMETER_FILES` to match the impl map, or should the impl map be updated to reflect the current cross-layer parameter hashing?

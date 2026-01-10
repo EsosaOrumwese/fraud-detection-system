@@ -1,0 +1,1146 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 3B
+  layer_id: layer1
+  title: Virtual merchants & CDN surfaces
+  description: Classify virtual merchants; construct settlement nodes; generate CDN edge catalogue (RNG)
+    and alias tables; emit virtual routing/validation contracts; publish PASS gate.
+generated_at_utc: '2026-01-10T12:13:07Z'
+sources:
+  state_expanded_docs:
+  - state.3B.s0.expanded.txt
+  - state.3B.s1.expanded.txt
+  - state.3B.s2.expanded.txt
+  - state.3B.s3.expanded.txt
+  - state.3B.s4.expanded.txt
+  - state.3B.s5.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer1.3B.yaml
+  artefact_registry:
+  - artefact_registry_3B.yaml
+  schemas:
+  - schemas.3B.yaml
+  - schemas.layer1.yaml
+  - schemas.ingress.layer1.yaml
+source_fingerprints:
+  dataset_dictionary.layer1.3B.yaml:
+    sha256: f3fb28fde8dfc321c3783e2c096fb52f73d6bef1f1d569bc6c24767536e22d26
+  artefact_registry_3B.yaml:
+    sha256: c231645bb0706aafbbfe87d37809c4e460ba4b60e71f84479825982f96a185fe
+  schemas.3B.yaml:
+    sha256: 8fe893f51d88431597210353940dcf5c81ad2d82078b9e1ec04148456cae626c
+  schemas.layer1.yaml:
+    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+  schemas.ingress.layer1.yaml:
+    sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
+  state.3B.s0.expanded.txt:
+    sha256: f2205e47afb415e66e50346412b749bfc1edd3362098c0a13c2172645b06201a
+  state.3B.s1.expanded.txt:
+    sha256: 85d0cd37053ca71fc26f0264ac426a07e730941245129d163fd3cb6f619e9f92
+  state.3B.s2.expanded.txt:
+    sha256: f42773581ae7f1ee56e8ac50611995d37b9c23d7c3c642adc89bf0c721912f0d
+  state.3B.s3.expanded.txt:
+    sha256: 19d51dc10a42a02ec8af1886db6e1593c5fe0e2a63a5a6b5a8efe2094019ffd9
+  state.3B.s4.expanded.txt:
+    sha256: 5f7b8ddece0a23ed77b5faef41f07c6dbbdb9a2a155e7559e6688103828e0ecb
+  state.3B.s5.expanded.txt:
+    sha256: 747d151cfedf04c3660f204c26e596e42421540b07c7cfed4430dce1fe61c0f2
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+lineage:
+  parameter_hash:
+    role: log_partition_and_receipt_field
+    algorithm_ref: '3B.S0: tuple-hash over governed 3B parameter set (canonical by reference;
+      assumed updated in rails)'
+    output_effect:
+      log_partitions_must_include:
+      - parameter_hash
+      recorded_in:
+      - s0_gate_receipt_3B
+  manifest_fingerprint:
+    role: sealed_input_anchor
+    algorithm_ref: Layer-1 manifest_fingerprint (opened-artefact closure; canonical by reference)
+    dependency_closure_source: artefact_registry_3B.yaml
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Layer-1 run_id (log-only; canonical by reference)
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1A.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 1A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag),
+    ASCII-lex order of index.json.path entries)); _passed.flag is single ASCII line:
+    sha256_hex = <hex64>.'
+  authorizes_reads_of:
+  - outlet_catalogue
+- gate_id: 1B.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 1B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag),
+    ASCII-lex order of index.json.path entries)); _passed.flag is single ASCII line:
+    sha256_hex = <hex64>.'
+  authorizes_reads_of:
+  - site_locations
+- gate_id: 2A.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 2A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag),
+    ASCII-lex order of index.json.path entries)); _passed.flag is single ASCII line:
+    sha256_hex = <hex64>.'
+  authorizes_reads_of:
+  - site_timezones
+  - tz_timetable_cache
+- gate_id: 3A.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 3A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_digest_concat
+  file_set_rule: bundle_sha256_hex = SHA256(concat(entry.sha256_hex strings in index order));
+    _passed.flag JSON contains sha256_hex.
+  authorizes_reads_of:
+  - zone_alloc
+  - zone_alloc_universe_hash
+- gate_id: 3B.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
+  verification_method: attestation_table
+  file_set_rule: Validate s0_gate_receipt_3B schema; MUST include upstream_gates PASS statuses
+    + verified digests and list sealed inputs for this manifest_fingerprint.
+  authorizes_reads_of:
+  - 3B sealed inputs (as listed in sealed_inputs_3B)
+- gate_id: 3B.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 3B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: 'SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag),
+    ASCII-lex order of index.json.path entries)); _passed.flag is single ASCII line:
+    sha256_hex = <hex64>.'
+  authorizes_reads_of:
+  - virtual_classification_3B
+  - virtual_settlement_3B
+  - edge_catalogue_3B
+  - edge_alias_*_3B
+  - edge_universe_hash_3B
+  - virtual_routing_policy_3B
+  - virtual_validation_contract_3B
+order_authorities:
+- authority_id: 3B.edge_catalogue_order
+  dataset_id: edge_catalogue_3B
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  ordering_keys:
+  - merchant_id
+  - edge_id
+  rule: S3 and validation MUST use edge_catalogue_3B ordering for deterministic alias construction;
+    do not rely on filesystem order.
+consumer_surfaces:
+  edge_alias_blob_3B:
+    dataset_id: edge_alias_blob_3B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+    schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B
+    ordering: []
+    required_gates:
+    - 3B.final.bundle_gate
+    notes:
+    - Binary alias blob used by 2B virtual routing branch.
+  edge_alias_index_3B:
+    dataset_id: edge_alias_index_3B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+    schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B
+    ordering:
+    - scope
+    - merchant_id
+    required_gates:
+    - 3B.final.bundle_gate
+    notes:
+    - Parquet index/offsets for decoding edge_alias_blob_3B; decode authority.
+  edge_universe_hash_3B:
+    dataset_id: edge_universe_hash_3B
+    scope_keys:
+    - manifest_fingerprint
+    address_template: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+    schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B
+    ordering: []
+    required_gates:
+    - 3B.final.bundle_gate
+    notes:
+    - Fingerprint-scoped descriptor and combined edge universe hash; used to detect drift.
+  virtual_routing_policy_3B:
+    dataset_id: virtual_routing_policy_3B
+    scope_keys:
+    - manifest_fingerprint
+    address_template: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+    schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+    ordering: []
+    required_gates:
+    - 3B.final.bundle_gate
+    notes:
+    - Bindings that 2B MUST use for virtual routing (streams, artefact refs, timezone semantics).
+  virtual_validation_contract_3B:
+    dataset_id: virtual_validation_contract_3B
+    scope_keys:
+    - manifest_fingerprint
+    address_template: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+    schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B
+    ordering:
+    - test_id
+    required_gates:
+    - 3B.final.bundle_gate
+    notes:
+    - Validation contract table for virtual routing surfaces; consumed by 4A and validation.
+states:
+  S0:
+    impl_map_key: segment=3B.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_bundle_1B
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_bundle_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_bundle_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3A
+      kind: validation
+      required_gates: []
+    - dataset_id: outlet_catalogue
+      kind: egress
+      required_gates:
+      - 1A.final.bundle_gate
+      notes:
+      - Sealed input; S0 verifies 1A PASS first.
+    - dataset_id: site_locations
+      kind: egress
+      required_gates:
+      - 1B.final.bundle_gate
+      notes:
+      - Sealed input; S0 verifies 1B PASS first.
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2A.final.bundle_gate
+      conditional: optional sealed pin (if used by downstream states)
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 2A.final.bundle_gate
+      conditional: optional sealed pin (if used by downstream states)
+    - dataset_id: zone_alloc
+      kind: egress
+      required_gates:
+      - 3A.final.bundle_gate
+      conditional: sealed pin (routing/validation context)
+    - dataset_id: zone_alloc_universe_hash
+      kind: egress
+      required_gates:
+      - 3A.final.bundle_gate
+      conditional: sealed pin (routing/validation context)
+    - dataset_id: transaction_schema_merchant_ids
+      kind: reference_data
+      required_gates: []
+      notes:
+      - Merchant universe reference (sealed).
+    - dataset_id: mcc_channel_rules
+      kind: policy
+      required_gates: []
+    - dataset_id: virtual_settlement_coords
+      kind: reference_data
+      required_gates: []
+    - dataset_id: cdn_weights_ext_yaml
+      kind: reference_data
+      required_gates: []
+    - dataset_id: cdn_country_weights
+      kind: policy
+      required_gates: []
+    - dataset_id: cdn_key_digest
+      kind: policy
+      required_gates: []
+    - dataset_id: virtual_validation_policy
+      kind: policy
+      required_gates: []
+    - dataset_id: virtual_logging_policy
+      kind: policy
+      required_gates: []
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: day_effect_policy_v1
+      kind: policy
+      required_gates: []
+    - dataset_id: hrsl_raster
+      kind: reference_data
+      required_gates: []
+    - dataset_id: pelias_cached_sqlite
+      kind: reference_data
+      required_gates: []
+    - dataset_id: pelias_cached_bundle
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: s0_gate_receipt_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3B.json
+      ordering:
+      - owner_segment
+      - artefact_kind
+      - logical_id
+      - path
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1A.final.bundle_gate
+    - 1B.final.bundle_gate
+    - 2A.final.bundle_gate
+    - 3A.final.bundle_gate
+    gates_out:
+    - 3B.S0.gate_in_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Verify upstream PASS gates for 1A/1B/2A/3A for this manifest_fingerprint (segment-defined
+        HashGate laws).
+      - Write s0_gate_receipt_3B recording upstream statuses/digests and resolved paths.
+      - Write sealed_inputs_3B enumerating the closed input universe for 3B.
+      deferred_to_finalizer:
+      - Segment-wide structural audits and final PASS gate are produced by 3B.S5.
+      evidence_written:
+      - s0_gate_receipt_3B
+      - sealed_inputs_3B
+    frozen_surfaces:
+    - No PASS → no read: MUST verify 1A/1B/2A/3A PASS gates before sealing inputs or reading
+      upstream egress.
+    - Closed input universe: downstream 3B states MUST NOT read artefacts not listed in sealed_inputs_3B.
+    - RNG-free: MUST NOT open/advance Philox streams; no RNG events.
+    - Idempotent publish: re-run for same manifest_fingerprint must produce byte-identical outputs
+      or fail.
+    flexible_choices:
+    - Streaming HashGate verification is allowed if it matches each upstream segment's canonical gate
+      law exactly.
+    - Additional post-PASS sanity checks MAY be performed (schema validation, basic counts) without
+      weakening gate law.
+    perf_hotspots:
+    - Upstream bundle verification (hashing) can be IO-heavy for large validation bundles.
+    safe_optimization_levers:
+    - Stream hashing; avoid loading entire evidence files into memory.
+    - Avoid nondeterministic filesystem iteration when enumerating bundle members.
+    do_not_optimize:
+    - Do not skip upstream gate verification or relax closed-world sealing rules.
+    debug_hooks:
+    - s0_gate_receipt_3B records resolved upstream bundle roots and verified digests per upstream
+      segment.
+    - sealed_inputs_3B includes sha256/size/schema_ref per artefact for drift localization.
+  S1:
+    impl_map_key: segment=3B.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: transaction_schema_merchant_ids
+      kind: reference_data
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: mcc_channel_rules
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_settlement_coords
+      kind: reference_data
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: cdn_weights_ext_yaml
+      kind: reference_data
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      notes:
+      - Raw external CDN weights; used for deterministic classification/eligibility signals.
+    - dataset_id: pelias_cached_sqlite
+      kind: reference_data
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: pelias_cached_bundle
+      kind: reference_data
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: outlet_catalogue
+      kind: egress
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: optional sealed pin (if S1 uses physical footprint for classification checks)
+    writes:
+    - dataset_id: virtual_classification_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      equality: ordered
+      optional: false
+    - dataset_id: virtual_settlement_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      equality: ordered
+      optional: false
+    - dataset_id: s1_run_report_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3B/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: ordered
+      optional: true
+      notes:
+      - Ops-only run report; non-gating.
+    gates_in:
+    - 3B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Classify each merchant as virtual vs non-virtual using mcc_channel_rules and sealed references;
+        deterministic, RNG-free.
+      - For virtual merchants, construct deterministic settlement nodes from virtual_settlement_coords
+        (and/or geocode cache) and write virtual_settlement_3B.
+      deferred_to_finalizer:
+      - Segment-level audits and consumer gate in S5.
+      evidence_written:
+      - virtual_classification_3B
+      - virtual_settlement_3B
+    frozen_surfaces:
+    - RNG-free: MUST NOT open/advance Philox streams; no RNG events.
+    - virtual_classification_3B is the sole authority for the virtual set V; downstream MUST NOT
+      reclassify merchants.
+    - No rows in virtual_settlement_3B for non-virtual merchants.
+    flexible_choices:
+    - Geocode lookup strategy (sqlite vs bundle) is flexible if deterministic and outputs match schema.
+    - Internal data structures for classification rules are flexible if deterministic and policy-driven.
+    perf_hotspots:
+    - Large merchant universe classification; geocode lookups if used.
+    safe_optimization_levers:
+    - Pre-index rules; batch lookups; deterministic chunking by merchant_id.
+    do_not_optimize:
+    - Do not introduce nondeterministic iteration order or wall-clock dependence.
+    debug_hooks:
+    - 'Emit counts: merchants_total, virtual_merchants_total; first-N reason codes distribution in
+      run report/logs.'
+  S2:
+    impl_map_key: segment=3B.state=S2
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: virtual_classification_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_settlement_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: cdn_country_weights
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: hrsl_raster
+      kind: reference_data
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: site_locations
+      kind: egress
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: optional sealed pin (if edges are constrained by physical site footprint)
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: optional sealed pin (if tzid_operational derives from 2A assets)
+    writes:
+    - dataset_id: edge_catalogue_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - edge_id
+      equality: ordered
+      optional: false
+    - dataset_id: edge_catalogue_index_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_catalogue_index_3B.parquet
+      ordering:
+      - scope
+      - merchant_id
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_edge_tile_assign
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3B/rng/events/edge_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_edge_jitter
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3B/rng/events/edge_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/3B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: s2_run_report_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3B/state=S2/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: ordered
+      optional: true
+      notes:
+      - Ops-only run report; non-gating.
+    gates_in:
+    - 3B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_edge_tile_assign
+      - rng_event_edge_jitter
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - RNG streams/substreams MUST be those declared in route_rng_policy_v1 (e.g., module='3B.S2',
+        substream_label ∈ {'edge_tile_assign','edge_jitter'}).
+      - Budgets (blocks, draws) and any attempt caps are governed by route_rng_policy_v1; S2 MUST
+        NOT exceed them.
+      - Trace-after-each-event discipline; audit/trace must reconcile with emitted events and edge
+        counts.
+      stream_key_template: Deterministic mapping from (seed, manifest_fingerprint, module='3B.S2',
+        substream_label, merchant/tile indices) to rng_stream_id/counters (policy-governed).
+      audit_trace_obligations:
+      - rng_audit_log records per-event draws/blocks; rng_trace_log reconciles total_draws with sum
+        over events.
+    validation:
+      performed_here:
+      - Construct edge_catalogue_3B and edge_catalogue_index_3B deterministically from virtual set
+        V and cdn_country_weights (RNG-free budgets); RNG is used only for placement/jitter.
+      - Emit rng_event_* families for edge placement/jitter and maintain audit/trace logs.
+      deferred_to_finalizer:
+      - Segment-level audit and PASS gate in S5.
+      evidence_written:
+      - edge_catalogue_index_3B
+      - rng_event_edge_*
+      - rng_audit_log
+      - rng_trace_log
+    frozen_surfaces:
+    - Virtual set V is defined only by virtual_classification_3B; S2 MUST NOT reclassify merchants.
+    - Budgets and integer allocations MUST be RNG-free; RNG is permitted only for stochastic placement/jitter.
+    - RNG accounting and envelope discipline are binding (audit/trace reconciliation).
+    flexible_choices:
+    - Spatial acceleration and raster sampling strategy are flexible if deterministic and bounded by
+      policy-defined budgets.
+    - Choice to use site_locations/site_timezones as constraints is allowed only if sealed by S0
+      and specified by the mode/policy.
+    perf_hotspots:
+    - Edge placement over large domains; point-in-country checks and jitter resampling; log IO.
+    safe_optimization_levers:
+    - Deterministic spatial indexing; cache country geometries; buffered log writes.
+    do_not_optimize:
+    - Do not exceed RNG budgets or change event schemas; do not depend on filesystem order for RNG
+      log correctness.
+    debug_hooks:
+    - 'Emit counts: virtual_merchants, edges_total, jitter_attempts_total; and per-reason rejection
+      histograms (in reports/logs).'
+  S3:
+    impl_map_key: segment=3B.state=S3
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: edge_catalogue_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_catalogue_index_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_classification_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: optional checks
+    - dataset_id: virtual_settlement_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: optional checks
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: cdn_country_weights
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      notes:
+      - Used for component digest in edge_universe_hash_3B.
+    writes:
+    - dataset_id: edge_alias_blob_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: edge_alias_index_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
+      ordering:
+      - scope
+      - merchant_id
+      equality: ordered
+      optional: false
+    - dataset_id: edge_universe_hash_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: gamma_draw_log_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: logs/layer1/3B/gamma_draw/seed={seed}/manifest_fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl
+      ordering:
+      - merchant_id
+      - day_index
+      equality: rowset
+      optional: true
+      notes:
+      - 'Guardrail: expected empty; any record implies RNG usage in S3 (fatal).'
+    - dataset_id: s3_run_report_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3B/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: ordered
+      optional: true
+      notes:
+      - Ops-only run report; non-gating.
+    gates_in:
+    - 3B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Construct per-merchant alias tables over edges using edge_weights from edge_catalogue_3B in
+        deterministic order and alias_layout_policy_v1.
+      - Compute component digests and edge_universe_hash per canonical combination law (sorted by
+        component name).
+      - Publish gamma_draw_log_3B partition as empty guardrail (optional but recommended).
+      deferred_to_finalizer:
+      - Segment-level audits and PASS gate in S5.
+      evidence_written:
+      - edge_alias_blob_3B
+      - edge_alias_index_3B
+      - edge_universe_hash_3B
+    frozen_surfaces:
+    - RNG-free: MUST NOT open/advance Philox streams; MUST NOT emit RNG events.
+    - Alias encoding/decoding contract is fixed by alias_layout_policy_v1 (layout/endianness/alignment).
+    - 'edge_universe_hash is computed by canonical combination law: sort component list by name
+      (ASCII-lex), concatenate digest bytes in that order, SHA256 → lower-case hex.'
+    - edge_universe_hash_3B is fingerprint-scoped (seed-invariant); if any component is seed-dependent,
+      the design must change rather than silently including seed.
+    flexible_choices:
+    - Alias construction algorithm may vary (Vose or equivalent) if encoded bytes and decode semantics
+      are identical and deterministic.
+    - Whether to emit gamma_draw_log_3B as a zero-byte file vs empty JSONL is flexible if emptiness
+      can be proven (e.g., via index digest).
+    perf_hotspots:
+    - Alias table build and blob packing for large edge universes; digest computation over large blobs.
+    safe_optimization_levers:
+    - Batch per merchant; sequential blob writer; stream digests.
+    do_not_optimize:
+    - Do not depend on unordered sets/maps for edge ordering or component ordering; determinism is required.
+    debug_hooks:
+    - Index includes per-merchant offsets and blob sha256 for drift localization.
+    - edge_universe_hash_3B records component digests used in the final hash.
+  S4:
+    impl_map_key: segment=3B.state=S4
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: virtual_classification_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_settlement_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_catalogue_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_catalogue_index_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_alias_blob_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_alias_index_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_universe_hash_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_validation_policy
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: cdn_key_digest
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      notes:
+      - Used to bind RNG stream IDs/labels that 2B MUST use for cdn_edge_pick.
+    writes:
+    - dataset_id: virtual_routing_policy_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: virtual_validation_contract_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+      ordering:
+      - test_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_run_summary_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: reports/layer1/3B/state=S4/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: s4_run_report_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3B/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: ordered
+      optional: true
+      notes:
+      - Ops-only run report; non-gating.
+    gates_in:
+    - 3B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - 'Compile virtual_routing_policy_3B: bind alias artefact manifest keys, edge_universe_hash
+        manifest key, timezone semantics (settlement vs operational), and RNG stream bindings for
+        2B virtual routing.'
+      - 'Compile virtual_validation_contract_3B: enumerate tests, thresholds, and severities used
+        by validation consumers.'
+      deferred_to_finalizer:
+      - Segment-level audits and PASS gate in S5.
+      evidence_written:
+      - virtual_routing_policy_3B
+      - virtual_validation_contract_3B
+    frozen_surfaces:
+    - RNG-free: S4 codifies routing/validation contracts only; must not modify S1–S3 semantics or emit RNG.
+    - virtual_routing_policy_3B must reference registry manifest keys for edge_alias_* and edge_universe_hash_3B,
+      and MUST match alias_layout_version used in S3.
+    - virtual_edge_rng_binding must be consistent with route_rng_policy_v1 identifiers (streams/labels/budgets).
+    flexible_choices:
+    - Exact list of validation tests is driven by virtual_validation_policy; S4 may include optional non-breaking
+      fields if defined in schema.
+    perf_hotspots:
+    - Minimal (contract compilation).
+    safe_optimization_levers:
+    - N/A (small).
+    do_not_optimize:
+    - Do not introduce implicit defaults; all bindings used by 2B must be explicit and schema-defined.
+    debug_hooks:
+    - Include component versions/digests (cdn_key_digest, alias layout version) in routing policy for drift diagnosis.
+  S5:
+    impl_map_key: segment=3B.state=S5
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_3B
+      kind: validation
+      required_gates: []
+    - dataset_id: virtual_classification_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      notes:
+      - Seed discovery / evidence bundling.
+    - dataset_id: virtual_settlement_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      notes:
+      - Seed discovery / evidence bundling.
+    - dataset_id: edge_catalogue_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_catalogue_index_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_alias_blob_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_alias_index_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: edge_universe_hash_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: gamma_draw_log_3B
+      kind: log
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: if emitted; must be empty
+    - dataset_id: virtual_routing_policy_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_validation_contract_3B
+      kind: intermediate
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: s4_run_summary_3B
+      kind: validation
+      required_gates:
+      - 3B.S0.gate_in_receipt
+      conditional: optional
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+      notes:
+      - Audit-only read of S2 RNG logs/events.
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_edge_tile_assign
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_edge_jitter
+      kind: log
+      required_gates: []
+    - dataset_id: virtual_validation_policy
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: virtual_logging_policy
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: cdn_country_weights
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    - dataset_id: cdn_key_digest
+      kind: policy
+      required_gates:
+      - 3B.S0.gate_in_receipt
+    writes:
+    - dataset_id: validation_bundle_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_passed_flag_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: s5_manifest_3B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+      ordering: []
+      equality: ordered
+      optional: true
+      notes:
+      - Optional but recommended evidence summary inside validation bundle.
+    - dataset_id: s5_run_report_3B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3B/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: ordered
+      optional: true
+      notes:
+      - Ops-only run report; non-gating.
+    gates_in:
+    - 3B.S0.gate_in_receipt
+    gates_out:
+    - 3B.final.bundle_gate
+    rng: null
+    validation:
+      performed_here:
+      - Re-audit 3B S0–S4 invariants (S1 virtual set vs settlement; S2 edge catalogue/index sanity;
+        S3 alias decode and universe-hash consistency; S4 routing policy and validation contract
+        coherence).
+      - 'RNG-accounting audits for S2: reconcile rng_event_* with rng_audit_log and rng_trace_log
+        per route_rng_policy_v1.'
+      - Construct validation bundle under manifest_fingerprint including index.json listing all
+        evidence files and their per-file digests.
+      - Compute _passed.flag as SHA256 over concatenated raw bytes of indexed files (excluding _passed.flag)
+        in ASCII-lex path order; publish atomically.
+      deferred_to_finalizer: []
+      evidence_written:
+      - validation_bundle_index_3B
+      - validation_passed_flag_3B
+    frozen_surfaces:
+    - RNG-free: S5 MUST NOT open/advance Philox streams; must not emit RNG events.
+    - 'HashGate law: index.json lists evidence files with per-file sha256; _passed.flag is single
+      ASCII line ''sha256_hex = <bundle_sha256>'' where bundle_sha256 = SHA256(concat(raw_bytes(files
+      listed in index.json excluding _passed.flag) in ASCII-lex path order)).'
+    - Atomic publish: write evidence + index.json first; write _passed.flag last; write-once partition
+      per manifest_fingerprint.
+    - Fail-closed: if any audit fails, do not publish _passed.flag.
+    flexible_choices:
+    - Audit implementation may be streaming/bounded-memory if deterministic outcomes and evidence formats
+      match schema.
+    - Bundle may include optional evidence (e.g., s5_manifest_3B) if listed in index.json and hashed.
+    perf_hotspots:
+    - Hashing and scanning potentially large evidence files; reconciling RNG logs.
+    safe_optimization_levers:
+    - Stream hashing; avoid materializing evidence; set-semantics reads for event logs (no file-order dependence).
+    do_not_optimize:
+    - Do not weaken audit checks or gate hashing law; do not publish _passed.flag on failure.
+    debug_hooks:
+    - Bundle contains summary evidence (s5_manifest_3B if enabled) with key counts/digests and audit outcomes.
+    - Index completeness checks: first-N missing/extra files and their paths on failure.
+gate_map_examples:
+- consumer: 3B.internal_state
+  reads:
+    dataset_id: edge_catalogue_3B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 3B.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 2B.routing
+  reads:
+    dataset_id: edge_alias_blob_3B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 3B.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 3B.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: Assumed resolved—standardize on manifest_fingerprint everywhere (paths, partition
+    keys, examples) to match dictionaries and avoid fingerprint label drift.
+- flag_id: 3B.RF.parameter_hash_governance
+  severity: info
+  summary: Assumed resolved—rails/governed-set definition includes the 3B parameter artefacts
+    that should move parameter_hash, so log partitions and receipts cannot drift without
+    parameter_hash change.
