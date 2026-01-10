@@ -497,40 +497,40 @@ Where upstream segments publish sealed-inputs tables (e.g. `sealed_inputs_2A`, `
 
 * **From Layer-1 / 1B & 2A (world geometry & time)**
 
-  * `site_locations@seed,fingerprint`
-  * `site_timezones@seed,fingerprint`
-  * `tz_timetable_cache@fingerprint`
+  * `site_locations@seed,manifest_fingerprint`
+  * `site_timezones@seed,manifest_fingerprint`
+  * `tz_timetable_cache@manifest_fingerprint`
 
 * **From Layer-1 / 2B (routing law & day-effects)**
 
-  * `s1_site_weights@seed,fingerprint`
-  * `s2_alias_blob@seed,fingerprint` + `s2_alias_index@seed,fingerprint`
-  * `s3_day_effects@seed,fingerprint` (if 5B will later depend on γ explicitly)
-  * `s4_group_weights@seed,fingerprint` (if 5B will later depend on per-day tz-group weights)
+  * `s1_site_weights@seed,manifest_fingerprint`
+  * `s2_alias_blob@seed,manifest_fingerprint` + `s2_alias_index@seed,manifest_fingerprint`
+  * `s3_day_effects@seed,manifest_fingerprint` (if 5B will later depend on γ explicitly)
+  * `s4_group_weights@seed,manifest_fingerprint` (if 5B will later depend on per-day tz-group weights)
 
 * **From Layer-1 / 3A (zone allocation)**
 
-  * `zone_alloc@seed,fingerprint`
-  * `zone_alloc_universe_hash@fingerprint`
+  * `zone_alloc@seed,manifest_fingerprint`
+  * `zone_alloc_universe_hash@manifest_fingerprint`
 
 * **From Layer-1 / 3B (virtual overlay & edge universe)**
 
-  * `virtual_classification_3B@seed,fingerprint`
-  * `virtual_settlement_3B@seed,fingerprint`
-  * `edge_catalogue_3B@seed,fingerprint` + `edge_catalogue_index_3B`
-  * `edge_alias_blob_3B@seed,fingerprint` + `edge_alias_index_3B`
-  * `edge_universe_hash_3B@fingerprint`
-  * `virtual_routing_policy_3B@fingerprint`
-  * `virtual_validation_contract_3B@fingerprint`
+  * `virtual_classification_3B@seed,manifest_fingerprint`
+  * `virtual_settlement_3B@seed,manifest_fingerprint`
+  * `edge_catalogue_3B@seed,manifest_fingerprint` + `edge_catalogue_index_3B`
+  * `edge_alias_blob_3B@seed,manifest_fingerprint` + `edge_alias_index_3B`
+  * `edge_universe_hash_3B@manifest_fingerprint`
+  * `virtual_routing_policy_3B@manifest_fingerprint`
+  * `virtual_validation_contract_3B@manifest_fingerprint`
 
 * **From Layer-2 / 5A (intensity surfaces & scenario metadata)**
 
-  * `scenario_manifest_5A@fingerprint`
-  * `merchant_zone_profile_5A@fingerprint`
+  * `scenario_manifest_5A@manifest_fingerprint`
+  * `merchant_zone_profile_5A@manifest_fingerprint`
   * `shape_grid_definition_5A@parameter_hash,scenario_id`
   * `class_zone_shape_5A@parameter_hash,scenario_id`
-  * `merchant_zone_baseline_local_5A@fingerprint,scenario_id`
-  * `merchant_zone_scenario_local_5A@fingerprint,scenario_id`
+  * `merchant_zone_baseline_local_5A@manifest_fingerprint,scenario_id`
+  * `merchant_zone_scenario_local_5A@manifest_fingerprint,scenario_id`
   * Optional surfaces such as `merchant_zone_overlay_factors_5A` and `merchant_zone_scenario_utc_5A` if defined.
 
 For these artefacts, 5B.S0 MAY:
@@ -1286,7 +1286,7 @@ Binding constraints:
 
    * For every row in `sealed_inputs_5B`:
 
-     * the `manifest_fingerprint` column MUST equal the `manifest_fingerprint` implied by the `fingerprint=…` partition directory.
+     * the `manifest_fingerprint` column MUST equal the `manifest_fingerprint` implied by the `manifest_fingerprint=…` partition directory.
    * For the `s0_gate_receipt_5B` JSON object:
 
      * the `manifest_fingerprint` field in the JSON MUST equal the value in the path token.

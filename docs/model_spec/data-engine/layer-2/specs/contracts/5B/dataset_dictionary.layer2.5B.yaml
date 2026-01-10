@@ -1281,6 +1281,24 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  - id: rng_event_arrival_bucket_count
+    status: required
+    owner_subsegment: 5B
+    description: RNG event table for 5B.S3 bucket count draws.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/layer2/5B/rng/events/arrival_bucket_count/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/arrival_bucket_count
+    lineage:
+      produced_by: [5B.S3]
+      consumed_by: [5B.S5]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    licence: Proprietary-Internal
+
   - id: rng_event_arrival_lgcp_gaussian
     status: required
     owner_subsegment: 5B

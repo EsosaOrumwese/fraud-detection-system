@@ -1106,7 +1106,7 @@ S1 MUST NOT:
 
 **No cross-fingerprint merges:**
 
-* Datasets for different `manifest_fingerprint` values MUST live in separate `fingerprint=…` directories and MUST NOT be combined by S1.
+* Datasets for different `manifest_fingerprint` values MUST live in separate `manifest_fingerprint=…` directories and MUST NOT be combined by S1.
 
 ---
 
@@ -1118,8 +1118,8 @@ Downstream 5B states MUST:
 
    * Choose a single `(mf, scenario_id)` and read:
 
-     * `s1_time_grid_5B@fingerprint=mf/scenario_id={scenario_id}`,
-     * `s1_grouping_5B@fingerprint=mf/scenario_id={scenario_id}`.
+     * `s1_time_grid_5B@manifest_fingerprint=mf/scenario_id={scenario_id}`,
+     * `s1_grouping_5B@manifest_fingerprint=mf/scenario_id={scenario_id}`.
 
    * They MUST NOT infer a time grid or grouping by scanning across multiple `(mf, scenario_id)`.
 
@@ -1289,8 +1289,8 @@ All later 5B states MUST treat S1 as a **hard gate**:
 
    * verify that, for each `scenario_id` they intend to process:
 
-     * `s1_time_grid_5B@fingerprint=mf/scenario_id={scenario_id}` exists and passes schema validation,
-     * `s1_grouping_5B@fingerprint=mf/scenario_id={scenario_id}` exists and passes schema validation.
+     * `s1_time_grid_5B@manifest_fingerprint=mf/scenario_id={scenario_id}` exists and passes schema validation,
+     * `s1_grouping_5B@manifest_fingerprint=mf/scenario_id={scenario_id}` exists and passes schema validation.
 
    If either is missing or invalid, the downstream state MUST fail fast and MUST NOT attempt to construct its own grid or grouping.
 

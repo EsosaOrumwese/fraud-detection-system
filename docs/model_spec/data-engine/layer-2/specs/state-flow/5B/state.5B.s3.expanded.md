@@ -200,10 +200,11 @@ Within this scope, **5B.S3** is the unique, well-defined step that converts **re
 **Authority / ordering:**
 * S3 is the sole authority for bucket-level count draws for 5B.
 
-**Outputs:**
-* `s3_bucket_counts_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
-* `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+  **Outputs:**
+  * `s3_bucket_counts_5B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+  * `rng_event_arrival_bucket_count` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+  * `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
+  * `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 
 **Sealing / identity:**
 * External inputs MUST appear in `sealed_inputs_5B` for the target `manifest_fingerprint`.
@@ -246,8 +247,8 @@ For each `scenario_id` S3 intends to process (the `scenario_set` in `s0_gate_rec
 
 1. **S1 outputs MUST exist and be valid**
 
-   * `s1_time_grid_5B@fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_time_grid_5B`.
-   * `s1_grouping_5B@fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_grouping_5B`.
+   * `s1_time_grid_5B@manifest_fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_time_grid_5B`.
+   * `s1_grouping_5B@manifest_fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_grouping_5B`.
 
 2. **Identity and domain consistency**
 
@@ -267,7 +268,7 @@ S3 operates **only** on intensities realised by S2. For each `scenario_id` and `
 
 1. **S2 outputs MUST exist and be valid**
 
-   * `s2_realised_intensity_5B@seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={scenario_id}` MUST:
+   * `s2_realised_intensity_5B@seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}` MUST:
 
      * exist,
      * validate against `schemas.5B.yaml#/model/s2_realised_intensity_5B`, and
@@ -972,7 +973,7 @@ Once counts have been sampled for all `(s, key, b) ∈ D_s` for all `scenario_id
 
      ```text
      data/layer2/5B/s3_bucket_counts/
-       seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={s}/
+       seed={seed}/manifest_fingerprint={mf}/scenario_id={s}/
        s3_bucket_counts_5B.parquet
      ```
 
@@ -1150,7 +1151,7 @@ If S3 finds an existing file for `(ph, mf, seed, scenario_id)` whose content wou
 
 **No cross-world or cross-seed merges:**
 
-* Files for different `manifest_fingerprint` values MUST reside under different `fingerprint=…` directories and MUST NOT be combined.
+* Files for different `manifest_fingerprint` values MUST reside under different `manifest_fingerprint=…` directories and MUST NOT be combined.
 * Files for different `seed` values MUST reside under different `seed=…` partitions and MUST NOT be combined into a single dataset by S3.
 
 Aggregation across seeds or manifests (e.g. for analysis) is an external concern, outside S3.

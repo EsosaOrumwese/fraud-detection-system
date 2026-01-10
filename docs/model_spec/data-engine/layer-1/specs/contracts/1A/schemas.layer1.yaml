@@ -354,10 +354,24 @@ rng:
       - type: object
         unevaluatedProperties: false
 
-    arrival_lgcp_gaussian:
-      description: "Segment 5B.S2 LGCP latent-vector draws (arrival intensity)."
-      allOf:
-      - $ref: '#/$defs/rng_envelope'
+      arrival_bucket_count:
+        description: "Segment 5B.S3 bucket-count draws."
+        allOf:
+        - $ref: '#/$defs/rng_envelope'
+        - type: object
+          required: [module, substream_label, scenario_id, bucket_index]
+          properties:
+            module: { const: 5B.S3 }
+            substream_label: { const: bucket_count }
+            scenario_id: { type: string }
+            bucket_index:
+              type: integer
+              minimum: 0
+
+      arrival_lgcp_gaussian:
+        description: "Segment 5B.S2 LGCP latent-vector draws (arrival intensity)."
+        allOf:
+        - $ref: '#/$defs/rng_envelope'
       - type: object
         required: [module, substream_label, scenario_id, group_id]
         properties:

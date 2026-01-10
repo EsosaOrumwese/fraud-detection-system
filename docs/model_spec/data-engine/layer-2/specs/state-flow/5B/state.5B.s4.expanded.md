@@ -497,7 +497,7 @@ To align with existing Layer-1 egress patterns (e.g. `site_locations` dropping `
 
 S4 MUST NOT:
 
-* write arrival events into any path that does not embed `seed` and `fingerprint` in this way,
+* write arrival events into any path that does not embed `seed` and `manifest_fingerprint` in this way,
 * mix different `scenario_id` values into the same partition directory.
 
 ---
@@ -542,7 +542,7 @@ S4 can emit up to three datasets:
 
 Binding rules:
 
-* Files live under `data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, with partition keys `[seed, fingerprint, scenario_id]`. S4 MUST NOT deviate from this layout.
+* Files live under `data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/`, with partition keys `[seed, manifest_fingerprint, scenario_id]`. S4 MUST NOT deviate from this layout.
 * Each row captures one realised arrival “skeleton” (merchant, zone/channel context, UTC/local timestamps, routing info). Column definitions and required orderings are governed by the schema pack; S4 MUST keep them byte-accurate.
 * The registry declares that this surface is final-in-layer and depends on S3 counts, routing metadata, and RNG policies. S4 MUST NOT read additional artefacts that aren’t declared and sealed.
 * Determinism: same `(seed, scenario_id, parameter_hash, manifest_fingerprint)` ⇒ byte-identical arrival stream.
@@ -850,7 +850,7 @@ Any optional S4 diagnostics (if implemented) MUST:
 * either use the **same** partition triple, or
 * a **coarser** partitioning (e.g. omit `scenario_id`) clearly documented in their own specs.
 
-S4 MUST NOT write any S4-owned dataset into paths that do not embed at least `seed` and `fingerprint` as shown.
+S4 MUST NOT write any S4-owned dataset into paths that do not embed at least `seed` and `manifest_fingerprint` as shown.
 
 ---
 
@@ -1056,7 +1056,7 @@ For `s4_arrival_events_5B`:
   * no undeclared columns when `columns_strict: true`.
 * Partitioning MUST obey:
 
-  * paths embed the correct `{seed}`, `{fingerprint}`, `{scenario_id}` values,
+  * paths embed the correct `{seed}`, `{manifest_fingerprint}`, `{scenario_id}` values,
   * all rows in a partition have matching `seed`, `manifest_fingerprint`, `scenario_id`.
 * Primary key:
 

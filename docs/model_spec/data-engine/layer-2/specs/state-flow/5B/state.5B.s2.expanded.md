@@ -234,8 +234,8 @@ S2 builds latent fields **on top of** S1. For each `scenario_id` S2 intends to p
 
 1. **S1 outputs MUST exist**
 
-   * `s1_time_grid_5B@fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_time_grid_5B`.
-   * `s1_grouping_5B@fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_grouping_5B`.
+   * `s1_time_grid_5B@manifest_fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_time_grid_5B`.
+   * `s1_grouping_5B@manifest_fingerprint=mf/scenario_id={scenario_id}` MUST exist and validate against `schemas.5B.yaml#/model/s1_grouping_5B`.
 
 2. **S1 identity & domain MUST be consistent**
 
@@ -948,7 +948,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
    * For each `(seed, mf, scenario_id)`, materialise a Parquet file at:
 
      ```text
-     data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+     data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
      ```
 
    * Enforce:
@@ -969,7 +969,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
      * For each `(seed, mf, scenario_id)`, write:
 
        ```text
-       data/layer2/5B/s2_latent_field/seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+       data/layer2/5B/s2_latent_field/seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
        ```
 
      * Enforce:
@@ -1166,7 +1166,7 @@ If S2 detects an existing file whose content would differ from what it is about 
 
 **No cross-world merges:**
 
-* Files for different `manifest_fingerprint` values MUST live in different `fingerprint=…` directories and MUST NOT be combined.
+* Files for different `manifest_fingerprint` values MUST live in different `manifest_fingerprint=…` directories and MUST NOT be combined.
 * Files for different `seed` values MUST live in different `seed=…` partitions and MUST NOT be combined.
 
 ---

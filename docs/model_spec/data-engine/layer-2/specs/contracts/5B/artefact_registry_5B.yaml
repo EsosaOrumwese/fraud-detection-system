@@ -790,7 +790,7 @@ subsegments:
         name: s1_time_grid_5B
         type: dataset
         category: model
-          path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer2/5B/s1_time_grid/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
         schema: schemas.5B.yaml#/model/s1_time_grid_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -811,7 +811,7 @@ subsegments:
         name: s1_grouping_5B
         type: dataset
         category: model
-        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer2/5B/s1_grouping/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
         schema: schemas.5B.yaml#/model/s1_grouping_5B
         semver: '1.0.0'
         version: '{manifest_fingerprint}.{scenario_id}'
@@ -833,7 +833,7 @@ subsegments:
         name: s2_realised_intensity_5B
         type: dataset
         category: model
-        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        path: data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
         schema: schemas.5B.yaml#/model/s2_realised_intensity_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -855,7 +855,7 @@ subsegments:
         name: s2_latent_field_5B
         type: dataset
         category: diagnostic
-        path: |
+        path: data/layer2/5B/s2_latent_field/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
         schema: schemas.5B.yaml#/model/s2_latent_field_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -877,7 +877,7 @@ subsegments:
         name: s3_bucket_counts_5B
         type: dataset
         category: model
-        path: |
+        path: data/layer2/5B/s3_bucket_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
         schema: schemas.5B.yaml#/model/s3_bucket_counts_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -929,7 +929,7 @@ subsegments:
         name: s4_arrival_summary_5B
         type: dataset
         category: diagnostic
-        path: |
+        path: data/layer2/5B/arrival_summary/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
         schema: schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -947,7 +947,7 @@ subsegments:
         name: s4_arrival_anomalies_5B
         type: dataset
         category: diagnostic
-        path: |
+        path: data/layer2/5B/arrival_anomalies/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
         schema: schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B
         semver: '1.0.0'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
@@ -989,6 +989,23 @@ subsegments:
         version: '{run_id}'
         digest:
         dependencies: [arrival_rng_policy_5B, rng_audit_log]
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [runtime]
+        cross_layer: false
+        notes:
+
+      - manifest_key: mlr.rng.events.5B.arrival_bucket_count
+        name: rng_event_arrival_bucket_count
+        type: log
+        category: rng_event
+        path: logs/layer2/5B/rng/events/arrival_bucket_count/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        schema: schemas.layer1.yaml#/rng/events/arrival_bucket_count
+        semver: '1.0.0'
+        version: '{run_id}'
+        digest:
+        dependencies: [arrival_rng_policy_5B]
         source: internal
         owner: { team: data-engineering }
         last_updated:

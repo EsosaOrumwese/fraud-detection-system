@@ -1041,7 +1041,7 @@ For each `(mf, sid, seed)` partition of `s4_arrival_events_5B`:
 * The dataset is schema-valid against `schemas.5B.yaml#/egress/s4_arrival_events_5B`:
 
   * all required columns present, types correct, no undeclared columns.
-* Partition keys in the path (`seed`, `fingerprint`, `scenario_id`) match the corresponding column values.
+* Partition keys in the path (`seed`, `manifest_fingerprint`, `scenario_id`) match the corresponding column values.
 * Primary key (arrival identity) is unique within `(mf, seed, sid)` and covers all rows.
 
 Any schema/partition/PK violation is a FAIL.
@@ -1086,7 +1086,7 @@ After all checks above pass:
 * The bundle digest computed according to the law in §7.4 matches the value written into `_passed.flag` at:
 
   ```text
-  data/layer2/5B/validation/manifest_manifest_fingerprint={mf}/_passed.flag
+  data/layer2/5B/validation/manifest_fingerprint={mf}/_passed.flag
   ```
 
 * If a previous `_passed.flag` already exists for `mf`, S5 recomputes the digest and confirms it is identical.
@@ -1261,8 +1261,8 @@ Raised when:
 **9.6.2 `5B.S5.S4_PARTITION_OR_IDENTITY_VIOLATION`**
 Raised when:
 
-* directory partition tokens (`seed`, `fingerprint`, `scenario_id`) do not match the values in the data columns, or
-* multiple different `(seed, fingerprint, scenario_id)` values are mixed in the same logical partition.
+* directory partition tokens (`seed`, `manifest_fingerprint`, `scenario_id`) do not match the values in the data columns, or
+* multiple different `(seed, manifest_fingerprint, scenario_id)` values are mixed in the same logical partition.
 
 **9.6.3 `5B.S5.S4_PK_VIOLATION`**
 Raised when:
