@@ -1,0 +1,1242 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 6B
+  layer_id: layer3
+  title: Behaviour, Fraud Overlay & Labelling
+  description: Attach arrivals to entities/sessions, generate baseline flows, overlay fraud, label truth and bank-view, publish PASS gate.
+generated_at_utc: '2026-01-10T13:15:00Z'
+sources:
+  state_expanded_docs:
+  - state.6B.s0.expanded.txt
+  - state.6B.s1.expanded.txt
+  - state.6B.s2.expanded.txt
+  - state.6B.s3.expanded.txt
+  - state.6B.s4.expanded.txt
+  - state.6B.s5.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer3.6B.yaml
+  artefact_registry:
+  - artefact_registry_6B.yaml
+  schemas:
+  - schemas.6B.yaml
+  - schemas.layer3.yaml
+source_fingerprints:
+  dataset_dictionary.layer3.6B.yaml:
+    sha256: 152e4ab9de2f325019df3a4fbbd341899a1629e5a50757833646c4ffd596acd2
+  artefact_registry_6B.yaml:
+    sha256: 6502cfb35b87bfdbfff763f703d824f38811dbd5dc1b88671396829fce574f64
+  schemas.6B.yaml:
+    sha256: a1076e0ad176a7abe86b81cad06b4ad9b9bc7bbdb727840cc142b43eea8047a3
+  schemas.layer3.yaml:
+    sha256: 6d9f6a71c7ee8d5a0855f9789c6a5ff6d75ce6c38b43540fd7972bbfb4264612
+  state.6B.s0.expanded.txt:
+    sha256: d14d6a91bdad4d8a96a5552f9fb31bc806b4a78817af796f774dba9a25e32510
+  state.6B.s1.expanded.txt:
+    sha256: 248346c660912d37ef9902ca5cadefa08a45bbd2ac76e3136ae2f19094837fc7
+  state.6B.s2.expanded.txt:
+    sha256: 1e7979162425f2c910783b02be0d0b70abfe51dc9218cdedd39f720041f02fd6
+  state.6B.s3.expanded.txt:
+    sha256: 948e4d116df575addd4aabd22684a0c24150fb139125eecf7e9525113fb6c185
+  state.6B.s4.expanded.txt:
+    sha256: 5e9d3d661f185b997465ad73951371cf86e34c84dd21947ebc272bfdbd0c568f
+  state.6B.s5.expanded.txt:
+    sha256: 06a8a951454e5211b63ec00b17f8b647c89c349ddbf915bef6aa7b42b6b0191a
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+  scenario_id: scenario_id
+lineage:
+  manifest_fingerprint:
+    role: world_anchor
+    algorithm_ref: Engine-global manifest_fingerprint (canonical; opened-artefact closure via sealed_inputs_6B).
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  parameter_hash:
+    role: config_anchor_and_log_partition
+    algorithm_ref: Engine-global parameter_hash (canonical; by reference).
+    output_effect:
+      log_partitions_must_include:
+      - parameter_hash
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Engine-global run_id (canonical; log-only).
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: upstream.1A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 1A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.1B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 1B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.2A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 2A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.2B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 2B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.3A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 3A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.3B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 3B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.5A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 5A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.5B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 5B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: upstream.6A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 6A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment (index-driven; note 3A uses digest-of-digests).
+- gate_id: 6B.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    receipt: data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+    sealed_inputs: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
+  verification_method: schema_validate_and_digest_link
+  file_set_rule: Validate s0_gate_receipt_6B and sealed_inputs_6B schemas; sealed_inputs_digest in receipt MUST equal digest computed from canonical sealed_inputs rows (sorted by owner_layer, owner_segment, manifest_key).
+  authorizes_reads_of:
+  - 6B.sealed_inputs_universe
+- gate_id: 6B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: bundle_sha256 = SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag) in ASCII-lex path order)); _passed.flag stores sha256_hex = <hex64>.
+  authorizes_reads_of:
+  - s1_arrival_entities_6B
+  - s1_session_index_6B
+  - s2_flow_anchor_baseline_6B
+  - s2_event_stream_baseline_6B
+  - s3_campaign_catalogue_6B
+  - s3_flow_anchor_with_fraud_6B
+  - s3_event_stream_with_fraud_6B
+  - s4_flow_truth_labels_6B
+  - s4_flow_bank_view_6B
+  - s4_event_labels_6B
+  - s4_case_timeline_6B
+order_authorities:
+- authority_id: 5B.arrival_order
+  owner_segment: 5B
+  dataset_id: arrival_events_5B
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  - scenario_id
+  ordering_keys:
+  - merchant_id
+  - arrival_seq
+  rule: S1 MUST produce exactly one attachment row per arrival key; arrival_seq is authoritative within each merchant.
+- authority_id: 6B.flow_order
+  dataset_id: s2_flow_anchor_baseline_6B
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  ordering_keys:
+  - flow_id
+  rule: flow_id is the join authority for flow tables and event streams; do not infer from file order.
+- authority_id: 6B.event_order
+  dataset_id: s2_event_stream_baseline_6B
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  ordering_keys:
+  - flow_id
+  - event_seq
+  rule: Within a flow, event_seq is the sole authority ordering for event streams.
+consumer_surfaces:
+  s3_event_stream_with_fraud_6B:
+    dataset_id: s3_event_stream_with_fraud_6B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    address_template: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
+    ordering:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+    - event_seq
+    required_gates:
+    - 6B.final.bundle_gate
+    notes:
+    - Behavioural event stream after fraud overlay.
+  s4_flow_bank_view_6B:
+    dataset_id: s4_flow_bank_view_6B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    address_template: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    schema_ref: schemas.6B.yaml#/s4/flow_bank_view_6B
+    ordering:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+    required_gates:
+    - 6B.final.bundle_gate
+    notes:
+    - Bank-view outcomes per flow.
+  s4_event_labels_6B:
+    dataset_id: s4_event_labels_6B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    address_template: data/layer3/6B/s4_event_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    schema_ref: schemas.6B.yaml#/s4/event_labels_6B
+    ordering:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - flow_id
+    - event_seq
+    required_gates:
+    - 6B.final.bundle_gate
+    notes:
+    - Per-event labels aligned to fraud-overlay event stream.
+  s4_case_timeline_6B:
+    dataset_id: s4_case_timeline_6B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    address_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    schema_ref: schemas.6B.yaml#/s4/case_timeline_6B
+    ordering:
+    - case_id
+    - case_event_seq
+    required_gates:
+    - 6B.final.bundle_gate
+    notes:
+    - Case timeline for investigations/label-store simulation.
+states:
+  S0:
+    impl_map_key: segment=6B.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_1B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_2A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_2B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_3A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_3B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_5A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_5B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_6A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_5A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_5B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_6A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: attachment_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: sessionisation_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: behaviour_config_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: behaviour_prior_pack_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: rng_profile_layer3
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: rng_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: flow_shape_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: amount_model_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: timing_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: flow_rng_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: fraud_campaign_catalogue_config_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: fraud_overlay_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: fraud_rng_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: truth_labelling_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: bank_view_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: delay_models_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: case_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: label_rng_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: segment_validation_policy_6B
+      kind: policy_or_config
+      required_gates: []
+    writes:
+    - dataset_id: s0_gate_receipt_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
+      ordering:
+      - owner_layer
+      - owner_segment
+      - manifest_key
+      equality: ordered
+      optional: false
+      notes:
+      - 'Assumed resolved: format=json matches sealed_inputs_6B.json path.'
+    gates_in:
+    - upstream.1A.final_bundle_gate
+    - upstream.1B.final_bundle_gate
+    - upstream.2A.final_bundle_gate
+    - upstream.2B.final_bundle_gate
+    - upstream.3A.final_bundle_gate
+    - upstream.3B.final_bundle_gate
+    - upstream.5A.final_bundle_gate
+    - upstream.5B.final_bundle_gate
+    - upstream.6A.final_bundle_gate
+    gates_out:
+    - 6B.S0.gate_in_receipt
+    validation:
+      performed_here:
+      - Verify upstream PASS gates for 1A–3B, 5A–5B, 6A for this manifest_fingerprint (per-segment hashing law).
+      - Seal the input universe into sealed_inputs_6B (closed-world) including arrival_events_5B and required 6A surfaces.
+      - Compute sealed_inputs_digest and record in s0_gate_receipt_6B.
+      deferred_to_finalizer:
+      - S5 validates behavioural outputs and RNG accounting.
+      evidence_written:
+      - s0_gate_receipt_6B
+      - sealed_inputs_6B
+    frozen_surfaces:
+    - 'FAIL_CLOSED: if any required upstream gate is missing/mismatched, S0 writes nothing.'
+    - RNG-free and metadata-only: no data-plane scans in S0.
+    - Closed-world: downstream MUST NOT read inputs not listed in sealed_inputs_6B; enforce read_scope.
+    flexible_choices:
+    - Streaming upstream bundle verification is allowed if canonical laws are matched exactly.
+    perf_hotspots:
+    - Hashing/verification of many upstream bundles.
+    safe_optimization_levers:
+    - Stream hashing; deterministic member ordering.
+    do_not_optimize:
+    - Do not weaken gate verification or sealed-universe enforcement.
+    debug_hooks:
+    - Record verified digests and bundle roots per upstream segment in s0_gate_receipt_6B.
+  S1:
+    impl_map_key: segment=6B.state=S1
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: arrival_events_5B
+      kind: egress
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s1_party_base_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s2_account_base_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_instrument_base_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_account_instrument_links_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_device_base_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_ip_base_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_device_links_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_party_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_account_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_merchant_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_device_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_ip_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: attachment_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: sessionisation_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: behaviour_prior_pack_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_profile_layer3
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s1_arrival_entities_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s1_arrival_entities_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - arrival_seq
+      equality: ordered
+      optional: false
+    - dataset_id: s1_session_index_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s1_session_index_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - session_id
+      equality: ordered
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - S1 randomness is evidenced in audit/trace (no dedicated rng_event_* dataset for S1 in dictionary).
+      - Conceptual families (entity_attach, session_boundary) are tagged within audit/trace per rng_policy_6B.
+    frozen_surfaces:
+    - Exactly one s1_arrival_entities_6B row per arrival_events_5B key (merchant_id,arrival_seq).
+    - Session integrity: arrivals’ session_id must exist in s1_session_index_6B.
+    - S1 is the sole authority for attachments/sessionisation.
+  S2:
+    impl_map_key: segment=6B.state=S2
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_arrival_entities_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s1_session_index_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: behaviour_config_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: behaviour_prior_pack_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: flow_shape_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: amount_model_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: timing_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: flow_rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_profile_layer3
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s2_flow_anchor_baseline_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      equality: ordered
+      optional: false
+    - dataset_id: s2_event_stream_baseline_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      - event_seq
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_flow_anchor_baseline
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/events/flow_anchor_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_event_stream_baseline
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/events/event_stream_baseline/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_flow_anchor_baseline
+      - rng_event_event_stream_baseline
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - Baseline flow/event randomness is recorded in the registered event families + audit/trace per rng_policy_6B.
+    frozen_surfaces:
+    - Baseline is all-legit; no fraud semantics introduced in S2; flow/event integrity must hold.
+  S3:
+    impl_map_key: segment=6B.state=S3
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: s2_flow_anchor_baseline_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s2_event_stream_baseline_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_party_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_account_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s5_merchant_fraud_roles_6A
+      kind: reference_data
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: fraud_campaign_catalogue_config_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: fraud_overlay_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: fraud_rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_profile_layer3
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s3_campaign_catalogue_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - campaign_id
+      equality: ordered
+      optional: false
+    - dataset_id: s3_flow_anchor_with_fraud_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s3_flow_anchor_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      equality: ordered
+      optional: false
+    - dataset_id: s3_event_stream_with_fraud_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s3_event_stream_with_fraud_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      - event_seq
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_fraud_campaign_pick
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/events/fraud_campaign_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_fraud_overlay_apply
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/events/fraud_overlay_apply/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_fraud_campaign_pick
+      - rng_event_fraud_overlay_apply
+      - rng_audit_log
+      - rng_trace_log
+    frozen_surfaces:
+    - Fraud overlay must not mutate S2 in place; overlay expressed only via S3 outputs + catalogue provenance.
+  S4:
+    impl_map_key: segment=6B.state=S4
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: s3_campaign_catalogue_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_flow_anchor_with_fraud_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_event_stream_with_fraud_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: truth_labelling_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: bank_view_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: delay_models_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: case_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: label_rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_profile_layer3
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s4_flow_truth_labels_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s4_flow_truth_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_flow_bank_view_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s4_flow_bank_view_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_event_labels_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s4_event_labels_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - flow_id
+      - event_seq
+      equality: ordered
+      optional: false
+    - dataset_id: s4_case_timeline_6B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer3/6B/s4_case_timeline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - case_id
+      - case_event_seq
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_truth_label
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/events/truth_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_bank_view_label
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/events/bank_view_label/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_truth_label
+      - rng_event_bank_view_label
+      - rng_audit_log
+      - rng_trace_log
+    frozen_surfaces:
+    - S4 is the sole authority for truth vs bank-view; must not mutate S1–S3 surfaces in place.
+  S5:
+    impl_map_key: segment=6B.state=S5
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6B
+      kind: validation
+      required_gates: []
+    - dataset_id: segment_validation_policy_6B
+      kind: policy
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s1_arrival_entities_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s1_session_index_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s2_flow_anchor_baseline_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s2_event_stream_baseline_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_campaign_catalogue_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_flow_anchor_with_fraud_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s3_event_stream_with_fraud_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_flow_truth_labels_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_flow_bank_view_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_event_labels_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: s4_case_timeline_6B
+      kind: model
+      required_gates:
+      - 6B.S0.gate_in_receipt
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_flow_anchor_baseline
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_event_stream_baseline
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_fraud_campaign_pick
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_fraud_overlay_apply
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_truth_label
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_bank_view_label
+      kind: log
+      required_gates: []
+    writes:
+    - dataset_id: s5_validation_report_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: s5_issue_table_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: validation_bundle_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_passed_flag_6B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - emits_gate: 6B.final.bundle_gate
+    gates_in:
+    - 6B.S0.gate_in_receipt
+    gates_out:
+    - 6B.final.bundle_gate
+    validation:
+      performed_here:
+      - Validate structural invariants across S1–S4 (coverage, FK alignment, flow/event sequencing, campaign provenance, label alignment).
+      - Validate RNG accounting using rng_audit_log/rng_trace_log and registered rng_event_* datasets.
+      - Build validation bundle index.json and _passed.flag per indexed_bundle hashing law; publish atomically (flag last).
+      deferred_to_finalizer: []
+      evidence_written:
+      - s5_validation_report_6B
+      - validation_bundle_index_6B
+      - validation_passed_flag_6B
+    frozen_surfaces:
+    - S5 is RNG-free; must not publish _passed.flag unless required checks PASS; atomic publish; write-once per manifest_fingerprint.
+gate_map_examples:
+- consumer: 6B.internal_state
+  reads:
+    dataset_id: arrival_events_5B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+  required_gates:
+  - upstream.5B.final_bundle_gate
+  - 6B.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: downstream_consumer
+  reads:
+    dataset_id: s4_event_labels_6B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+  required_gates:
+  - 6B.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 6B.RF.partitioning_alignment
+  severity: info
+  summary: Assumed resolved—docs align to dictionary scope [seed, manifest_fingerprint, parameter_hash, scenario_id] and token naming manifest_fingerprint.
+- flag_id: 6B.RF.rng_family_mapping
+  severity: info
+  summary: Assumed resolved—conceptual RNG families are mapped onto registered RNG event datasets and/or audit/trace via rng_policy_6B.
+- flag_id: 6B.RF.sealed_inputs_format
+  severity: info
+  summary: Assumed resolved—sealed_inputs_6B is JSON (format=json) matching sealed_inputs_6B.json path.
+- flag_id: 6B.RF.registry_indentation
+  severity: info
+  summary: Assumed resolved—artefact_registry_6B.yaml indentation fixed for sealed_inputs_6B entry.
