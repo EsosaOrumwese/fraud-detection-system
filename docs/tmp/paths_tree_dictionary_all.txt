@@ -151,6 +151,9 @@ data/
       ranking_residual_cache_1A/
         seed={seed}/
           parameter_hash={parameter_hash}/  [id: ranking_residual_cache_1A]
+      s0_gate_receipt/
+        manifest_fingerprint={manifest_fingerprint}/
+          s0_gate_receipt.json  [id: s0_gate_receipt_1A]
       s3_base_weight_priors/
         parameter_hash={parameter_hash}/  [id: s3_base_weight_priors]
       s3_candidate_set/
@@ -173,6 +176,7 @@ data/
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_1A]
           _passed.flag  [id: validation_passed_flag_1A]
+          index.json  [id: validation_bundle_index_1A]
     1B/
       s0_gate_receipt/
         manifest_fingerprint={manifest_fingerprint}/
@@ -212,6 +216,7 @@ data/
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_1B]
           _passed.flag  [id: validation_passed_flag_1B]
+          index.json  [id: validation_bundle_index_1B]
     2A/
       legality_report/
         seed={seed}/
@@ -234,6 +239,7 @@ data/
       validation/
         manifest_fingerprint={manifest_fingerprint}/  [id: validation_bundle_2A]
           _passed.flag  [id: validation_passed_flag_2A]
+          index.json  [id: validation_bundle_index_2A]
     2B/
       s0_gate_receipt/
         manifest_fingerprint={manifest_fingerprint}/
