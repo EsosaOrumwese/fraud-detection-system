@@ -190,32 +190,6 @@ policy:
               minProperties: 1
       notes:       { type: string }
 
-  virtual_rules_policy_v1:
-    type: object
-    additionalProperties: false
-    required: [version_tag, virtual_mccs]
-    properties:
-      version_tag: { type: string, minLength: 1 }
-      default_virtual: { type: boolean }
-      virtual_mccs:
-        type: array
-        minItems: 0
-        items:
-          type: string
-          pattern: '^\d{3,4}$'
-      mcc_overrides:
-        type: array
-        items:
-          type: object
-          additionalProperties: false
-          required: [mcc, virtual]
-          properties:
-            mcc:
-              type: string
-              pattern: '^\d{3,4}$'
-            virtual: { type: boolean }
-      notes: { type: string }
-
   day_effect_policy_v1:
     type: object
     additionalProperties: true

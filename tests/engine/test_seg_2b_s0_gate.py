@@ -73,11 +73,6 @@ policies:
     schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
     partitioning: []
     version: "2025.11"
-  - id: virtual_rules_policy_v1
-    path: contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
-    schema_ref: schemas.2B.yaml#/policy/virtual_rules_policy_v1
-    partitioning: []
-    version: "2025.11"
 datasets:
   - id: validation_bundle_1B
     path: data/layer1/1B/validation/fingerprint={{manifest_fingerprint}}/bundle

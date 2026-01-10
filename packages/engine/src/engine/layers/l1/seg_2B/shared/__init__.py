@@ -7,5 +7,4 @@ __all__ = [
     "rng_trace",
     "runtime",
     "schema",
-    "virtual",
 ]

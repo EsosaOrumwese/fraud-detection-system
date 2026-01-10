@@ -35,7 +35,6 @@ from ...shared.receipt import (
 )
 from ...shared.runtime import RouterVirtualArrival
 from ...shared.policies import load_policy_asset
-from ...shared.virtual import VirtualMerchantClassifier, VirtualRules
 from ...s0_gate.exceptions import err
 
 RUN_REPORT_ROOT = Path("reports") / "l1" / "s5_router"
@@ -268,21 +267,6 @@ class S5RouterRunner:
             repo_root=repo_root,
             error_prefix="E_S5_POLICY",
         )
-        virtual_rules_payload, virtual_rules_digest, _, virtual_rules_path = load_policy_asset(
-            asset_id="virtual_rules_policy_v1",
-            sealed_records=sealed_map,
-            base_path=config.data_root,
-            repo_root=repo_root,
-            error_prefix="E_S5_POLICY",
-        )
-        virtual_classifier, merchant_mcc_map_path = self._build_virtual_classifier(
-            seed=seed_int,
-            seg2a_manifest=seg2a_manifest,
-            fallback_manifest=manifest,
-            base_path=config.data_root,
-            dictionary=dictionary,
-            policy_payload=virtual_rules_payload,
-        )
         dictionary_versions = self._resolve_dictionary_versions(receipt, dictionary)
         group_frame = self._read_parquet_partition(
             base_path=config.data_root,
@@ -327,14 +311,7 @@ class S5RouterRunner:
         site_alias_map = self._build_site_alias_map(site_lookup)
         arrivals_iter: Iterator[Tuple[RouterArrival, AliasTable | None]]
         if config.arrivals is not None:
-            arrivals = [
-                RouterArrival(
-                    merchant_id=arrival.merchant_id,
-                    utc_timestamp=arrival.utc_timestamp,
-                    is_virtual=virtual_classifier.is_virtual(arrival.merchant_id),
-                )
-                for arrival in config.arrivals
-            ]
+            arrivals = list(config.arrivals)
             arrivals_sorted = sorted(
                 arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id)
             )
@@ -365,7 +342,6 @@ class S5RouterRunner:
         else:
             arrivals_iter, total_arrivals = self._iter_group_arrivals(
                 group_frame=group_frame,
-                classifier=virtual_classifier,
                 max_arrivals=config.max_arrivals,
             )
             if config.max_arrivals is not None:
@@ -686,7 +662,6 @@ class S5RouterRunner:
                 template_args={"seed": seed_int, "manifest_fingerprint": manifest},
                 dictionary=dictionary,
             ),
-            "merchant_mcc_map_path": str(merchant_mcc_map_path),
         }
 
         run_report = self._build_run_report(
@@ -702,9 +677,6 @@ class S5RouterRunner:
             policy_stream_id=policy_stream_id,
             policy_draws_per_selection=policy_draws_per_selection,
             policy_rng_engine=policy_rng_engine,
-            virtual_policy_payload=virtual_rules_payload,
-            virtual_policy_digest=virtual_rules_digest,
-            virtual_policy_path=virtual_rules_path,
             arrivals=total_arrivals,
             group_events=group_events_count,
             site_events=site_events_count,
@@ -712,9 +684,6 @@ class S5RouterRunner:
             selection_samples=selection_samples,
             manifest_inputs=manifest_inputs,
             selection_log_paths=selection_log_paths,
-            merchant_mcc_map_path=str(merchant_mcc_map_path),
-            virtual_merchants_total=virtual_classifier.virtual_merchants_total,
-            virtual_arrivals_total=len(virtual_arrivals),
         )
         run_report_path = self._write_run_report(
             base_path=base_path,
@@ -977,7 +946,6 @@ class S5RouterRunner:
         self,
         *,
         group_frame: pl.DataFrame,
-        classifier: VirtualMerchantClassifier,
         max_arrivals: Optional[int] = None,
     ) -> Tuple[Iterator[Tuple[RouterArrival, AliasTable]], int]:
         ordered = group_frame.sort(["utc_day", "merchant_id", "tz_group_id"])
@@ -998,7 +966,7 @@ class S5RouterRunner:
             arrival = RouterArrival(
                 merchant_id=merchant_id,
                 utc_timestamp=timestamp,
-                is_virtual=classifier.is_virtual(merchant_id),
+                is_virtual=False,
             )
             return arrival, alias
 
@@ -1110,46 +1078,6 @@ class S5RouterRunner:
         if current_key is not None:
             alias_map[current_key] = self._build_alias_table(values, weights)
         return alias_map
-
-    def _build_virtual_classifier(
-        self,
-        *,
-        seed: int,
-        seg2a_manifest: str,
-        fallback_manifest: str,
-        base_path: Path,
-        dictionary: Mapping[str, object],
-        policy_payload: Mapping[str, object],
-    ) -> tuple[VirtualMerchantClassifier, Path]:
-        rules = VirtualRules.from_payload(policy_payload)
-        merchant_map_path = resolve_dataset_path(
-            "merchant_mcc_map",
-            base_path=base_path,
-            template_args={"seed": seed, "manifest_fingerprint": seg2a_manifest},
-            dictionary=dictionary,
-        )
-        resolved_path = merchant_map_path
-        if not resolved_path.exists():
-            fallback_path = resolve_dataset_path(
-                "merchant_mcc_map",
-                base_path=base_path,
-                template_args={"seed": seed, "manifest_fingerprint": fallback_manifest},
-                dictionary=dictionary,
-            )
-            if fallback_path.exists():
-                resolved_path = fallback_path
-                logger.warning(
-                    "merchant_mcc_map missing at seg2a fingerprint '%s'; using fallback path '%s'",
-                    seg2a_manifest,
-                    resolved_path,
-                )
-        if not resolved_path.exists():
-            raise err(
-                "E_VIRTUAL_MCC_MAP",
-                "merchant_mcc_map not found for either seg2a or gate manifest fingerprint",
-            )
-        classifier = VirtualMerchantClassifier(merchant_map_path=resolved_path, rules=rules)
-        return classifier, resolved_path
 
     def _read_parquet_partition(
         self,
@@ -1580,9 +1508,6 @@ class S5RouterRunner:
         policy_stream_id: str,
         policy_draws_per_selection: int,
         policy_rng_engine: str,
-        virtual_policy_payload: Mapping[str, object],
-        virtual_policy_digest: str,
-        virtual_policy_path: Path,
         arrivals: int,
         group_events: int,
         site_events: int,
@@ -1590,9 +1515,6 @@ class S5RouterRunner:
         selection_samples: Sequence[Mapping[str, object]],
         manifest_inputs: Mapping[str, str],
         selection_log_paths: Sequence[Path],
-        merchant_mcc_map_path: str,
-        virtual_merchants_total: int,
-        virtual_arrivals_total: int,
     ) -> Mapping[str, object]:
         rng_events_total = group_events + site_events
         draws_total = rng_events_total
@@ -1615,17 +1537,6 @@ class S5RouterRunner:
             "last_counter": {},
         }
         validators = self._build_validator_results(selection_log_enabled=selection_log_enabled)
-        virtual_section = {
-            "policy": {
-                "id": "virtual_rules_policy_v1",
-                "version_tag": virtual_policy_payload.get("version_tag", ""),
-                "sha256_hex": virtual_policy_digest,
-                "path": str(virtual_policy_path),
-            },
-            "merchant_mcc_map_path": merchant_mcc_map_path,
-            "virtual_merchants_total": virtual_merchants_total,
-            "virtual_arrivals_total": virtual_arrivals_total,
-        }
         report = {
             "component": "2B.S5",
             "fingerprint": manifest,
@@ -1667,7 +1578,6 @@ class S5RouterRunner:
                 "rng_events_emitted": rng_events_total,
                 "selection_log_partitions": len(selection_log_paths),
             },
-            "virtual_routing": virtual_section,
             "determinism": dict(receipt.determinism_receipt),
         }
         return report

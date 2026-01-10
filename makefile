@@ -129,7 +129,6 @@ ALIAS_LAYOUT_POLICY_V1 ?= config/layer1/2B/policy/alias_layout_policy_v1.json
 DAY_EFFECT_POLICY_V1 ?= config/layer1/2B/policy/day_effect_policy_v1.json
 ROUTE_RNG_POLICY_V1 ?= config/layer1/2B/policy/route_rng_policy_v1.json
 VIRTUAL_EDGE_POLICY_V1 ?= config/layer1/2B/policy/virtual_edge_policy_v1.json
-VIRTUAL_RULES_POLICY_V1 ?= contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
 
 # Segment 3A policies
 ZONE_MIXTURE_POLICY ?= config/layer1/3A/policy/zone_mixture_policy.yaml
@@ -232,7 +231,6 @@ SEG1A_PARAM_PAIRS = \
 	day_effect_policy_v1.json=$(DAY_EFFECT_POLICY_V1) \
 	route_rng_policy_v1.json=$(ROUTE_RNG_POLICY_V1) \
 	virtual_edge_policy_v1.json=$(VIRTUAL_EDGE_POLICY_V1) \
-	virtual_rules_policy_v1.json=$(VIRTUAL_RULES_POLICY_V1) \
 	zone_mixture_policy.yaml=$(ZONE_MIXTURE_POLICY) \
 	country_zone_alphas.yaml=$(COUNTRY_ZONE_ALPHAS) \
 	zone_floor_policy.yaml=$(ZONE_FLOOR_POLICY) \

@@ -42,7 +42,6 @@ _REQUIRED_POLICY_IDS: tuple[str, ...] = (
     "alias_layout_policy_v1",
     "day_effect_policy_v1",
     "virtual_edge_policy_v1",
-    "virtual_rules_policy_v1",
 )
 
 

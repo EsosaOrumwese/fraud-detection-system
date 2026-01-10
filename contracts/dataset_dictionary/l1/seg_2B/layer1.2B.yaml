@@ -152,24 +152,6 @@ policies:
     pii: false
     license: Proprietary-Internal
 
-  - id: virtual_rules_policy_v1
-    status: approved
-    owner_subsegment: 2B
-    description: "MCC/channel classification rules for virtual merchants."
-    version: "2025.11"
-    format: json
-    path: contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
-    partitioning: []
-    ordering: []
-    schema_ref: schemas.2B.yaml#/policy/virtual_rules_policy_v1
-    lineage:
-      produced_by: 2B.policy
-      consumed_by: [2B]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    license: Proprietary-Internal
-
   - id: day_effect_policy_v1
     status: approved
     owner_subsegment: 2B
