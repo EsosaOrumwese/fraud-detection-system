@@ -10,12 +10,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/prep/ccy_country_weights_cache
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#ccy_country_weights_cache
-  primary_key:
-  - currency
-  - country_iso
-  join_keys:
-  - currency
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -31,16 +27,13 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/alloc/country_set
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#country_set
-  primary_key:
-  - merchant_id
-  - country_iso
-  join_keys:
-  - merchant_id
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country order.
+  description: Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country
+    order.
 - output_id: crossborder_eligibility_flags
   class: surface
   exposure: internal
@@ -51,10 +44,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/prep/crossborder_eligibility_flags
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#crossborder_eligibility_flags
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -69,10 +60,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/model/crossborder_features
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#crossborder_features
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -87,10 +76,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/model/hurdle_design_matrix
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#hurdle_design_matrix
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -105,10 +92,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/model/hurdle_pi_probs
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#hurdle_pi_probs
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -123,10 +108,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/validation/hurdle_stationarity_tests
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#hurdle_stationarity_tests_2024Q4
-  primary_key:
-  - test_id
-  join_keys:
-  - test_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -157,10 +140,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/prep/merchant_currency
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#merchant_currency
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -176,20 +157,15 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#outlet_catalogue
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.1A.validation
   immutability:
     immutable_once_written: true
-  description: Immutable outlet stubs per merchant x legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying
-    `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9).
+  description: Immutable outlet stubs per merchant x legal_country. Does NOT encode cross-country order; consumers MUST join
+    `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`)
+    for the same fingerprint (see S9.9).
 - output_id: ranking_residual_cache_1A
   class: surface
   exposure: internal
@@ -201,12 +177,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/alloc/ranking_residual_cache
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#ranking_residual_cache_1A
-  primary_key:
-  - merchant_id
-  - country_iso
-  join_keys:
-  - merchant_id
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -498,8 +470,9 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit
-    exactly one cumulative row after each RNG event append (per S4 2A).
+  description: Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total`
+    equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each
+    RNG event append (per S4 2A).
 - output_id: s0_gate_receipt_1A
   class: gate
   exposure: internal
@@ -526,12 +499,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/s3/base_weight_priors
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#s3_base_weight_priors
-  primary_key:
-  - merchant_id
-  - country_iso
-  join_keys:
-  - merchant_id
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -546,12 +515,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/s3/candidate_set
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#s3_candidate_set
-  primary_key:
-  - merchant_id
-  - country_iso
-  join_keys:
-  - merchant_id
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -566,12 +531,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/s3/integerised_counts
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#s3_integerised_counts
-  primary_key:
-  - merchant_id
-  - country_iso
-  join_keys:
-  - merchant_id
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -586,14 +547,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/s3/site_sequence
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#s3_site_sequence
-  primary_key:
-  - merchant_id
-  - country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -609,16 +564,13 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/alloc/membership
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#s6_membership
-  primary_key:
-  - merchant_id
-  - country_iso
-  join_keys:
-  - merchant_id
-  - country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country order encoded.
+  description: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country
+    order encoded.
 - output_id: s6_validation_receipt
   class: surface
   exposure: internal
@@ -653,7 +605,21 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Authoritative inventory of every asset sealed by 1A.S0 for the manifest.
-  notes: Dictionary id sealed_inputs_1A; namespaced here to enforce unique output_id.
+- output_id: segment_state_runs
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 1A
+  path_template: reports/layer1/segment_state_runs/segment=1A/utc_day={utc_day}/segment_state_runs.jsonl
+  partitions: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#segment_state_runs
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Layer-1 segment-state run-report (JSONL), one row per state invocation.
 - output_id: sparse_flag
   class: surface
   exposure: internal
@@ -664,10 +630,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1A.yaml#/prep/sparse_flag
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#sparse_flag
-  primary_key:
-  - currency
-  join_keys:
-  - currency
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -720,6 +684,94 @@ outputs:
   immutability:
     immutable_once_written: true
   description: HashGate PASS flag for the 1A validation bundle.
+- output_id: jitter_policy
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 1B
+  path_template: config/layer1/1B/policy/1B.jitter.yaml
+  partitions: []
+  schema_ref: schemas.1B.yaml#/policy/jitter_policy
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#jitter_policy
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "RESERVED (VNext). Gaussian jitter \u03C3 (deg) policy by latitude band / merchant class. Not consumed by 1B\
+    \ v1 uniform lane."
+- output_id: rng_audit_log
+  class: stream
+  exposure: internal
+  scope: scope_seed_parameter_hash_run_id
+  owner_segment: 1B
+  path_template: logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  partitions:
+  - seed
+  - parameter_hash
+  - run_id
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#rng_audit_log
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "RNG run audit (identity/config) \u2014 one row at run start."
+- output_id: rng_event_in_cell_jitter
+  class: stream
+  exposure: internal
+  scope: scope_seed_parameter_hash_run_id
+  owner_segment: 1B
+  path_template: logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+  partitions:
+  - seed
+  - parameter_hash
+  - run_id
+  schema_ref: schemas.layer1.yaml#/rng/events/in_cell_jitter
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#rng_event_in_cell_jitter
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "RNG events for S6 in-cell jitter (\u22651 event per site; one per attempt; per-event budget; blocks=1, draws=2)."
+- output_id: rng_event_site_tile_assign
+  class: stream
+  exposure: internal
+  scope: scope_seed_parameter_hash_run_id
+  owner_segment: 1B
+  path_template: logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+  partitions:
+  - seed
+  - parameter_hash
+  - run_id
+  schema_ref: schemas.layer1.yaml#/rng/events/site_tile_assign
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#rng_event_site_tile_assign
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "RNG events for site\u2192tile assignment (one event per assigned site)."
+- output_id: rng_trace_log
+  class: stream
+  exposure: internal
+  scope: scope_seed_parameter_hash_run_id
+  owner_segment: 1B
+  path_template: logs/layer1/1B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  partitions:
+  - seed
+  - parameter_hash
+  - run_id
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#rng_trace_log
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "RNG cumulative trace \u2014 append exactly one row after each event append."
 - output_id: s0_gate_receipt_1B
   class: gate
   exposure: internal
@@ -736,6 +788,38 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Fingerprint-scoped receipt proving 1A PASS verification; enumerates sealed inputs for 1B.
+- output_id: s1_run_report
+  class: surface
+  exposure: internal
+  scope: scope_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S1/parameter_hash={parameter_hash}/s1_run_report.json
+  partitions:
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s1_run_report
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s1_run_report
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane run report for S1 tile index publish.
+- output_id: s2_run_report
+  class: surface
+  exposure: internal
+  scope: scope_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S2/parameter_hash={parameter_hash}/s2_run_report.json
+  partitions:
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s2_run_report
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s2_run_report
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane run report for S2 tile weights publish.
 - output_id: s3_requirements
   class: surface
   exposure: internal
@@ -748,17 +832,31 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/plan/s3_requirements
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s3_requirements
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  join_keys:
-  - merchant_id
-  - legal_country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
   description: Deterministic site counts per (merchant_id, legal_country_iso) for this run.
+- output_id: s3_run_report
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S3/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s3_run_report
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s3_run_report
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane counters and receipts for S3 requirements publish.
 - output_id: s4_alloc_plan
   class: surface
   exposure: internal
@@ -771,19 +869,49 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/plan/s4_alloc_plan
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s4_alloc_plan
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - tile_id
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - tile_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
   description: Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives only).
+- output_id: s4_run_report
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S4/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s4_run_report
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s4_run_report
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane counters and receipts for S4 allocation publish.
+- output_id: s5_run_report
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S5/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s5_run_report
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s5_run_report
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "Control-plane counters and receipts for S5 site\u2192tile assignment publish."
 - output_id: s5_site_tile_assignment
   class: surface
   exposure: internal
@@ -796,19 +924,31 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/plan/s5_site_tile_assignment
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s5_site_tile_assignment
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
   description: Site->tile assignment; one row per site; satisfies S4 per-tile quotas.
+- output_id: s6_run_report
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S6/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s6_run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s6_run_report
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s6_run_report
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane counters and RNG coverage for S6 jitter publish.
 - output_id: s6_site_jitter
   class: surface
   exposure: internal
@@ -821,19 +961,31 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/plan/s6_site_jitter
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s6_site_jitter
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
   description: Per-site in-pixel jitter; effective deltas (projection into country); one row per site.
+- output_id: s7_run_summary
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint_parameter_hash
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S7/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s7_run_summary.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  schema_ref: schemas.1B.yaml#/control/s7_run_summary
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s7_run_summary
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane run summary for S7 site synthesis publish.
 - output_id: s7_site_synthesis
   class: surface
   exposure: internal
@@ -846,19 +998,31 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/plan/s7_site_synthesis
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s7_site_synthesis
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
-  description: Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes; RNG-free; 1:1 with outlet_catalogue.
+  description: Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes; RNG-free;
+    1:1 with outlet_catalogue.
+- output_id: s8_run_summary
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 1B
+  path_template: reports/layer1/1B/state=S8/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s8_run_summary.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.1B.yaml#/control/s8_run_summary
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#s8_run_summary
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Control-plane summary for S8 site_locations publish.
 - output_id: sealed_inputs_1B
   class: surface
   exposure: internal
@@ -876,7 +1040,6 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Authoritative inventory of every asset sealed by 1B.S0 for the manifest.
-  notes: Dictionary id sealed_inputs_1B; namespaced here to enforce unique output_id.
 - output_id: site_locations
   class: surface
   exposure: external
@@ -888,17 +1051,11 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.1B.yaml#/egress/site_locations
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#site_locations
-  primary_key: &id001
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys: &id002
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  read_requires_gates: &id003
+  primary_key: []
+  join_keys: []
+  read_requires_gates: &id001
   - gate.layer1.1B.validation
-  immutability: &id004
+  immutability: &id002
     immutable_once_written: true
   description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.
 - output_id: site_locations
@@ -912,10 +1069,10 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.1B.yaml#/egress/site_locations
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#site_locations
-  primary_key: *id001
-  join_keys: *id002
-  read_requires_gates: *id003
-  immutability: *id004
+  primary_key: []
+  join_keys: []
+  read_requires_gates: *id001
+  immutability: *id002
   description: Immutable per-site lon/lat coordinates emitted by Segment 1B.
 - output_id: tile_bounds
   class: surface
@@ -927,12 +1084,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/prep/tile_bounds
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#tile_bounds
-  primary_key:
-  - country_iso
-  - tile_id
-  join_keys:
-  - country_iso
-  - tile_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -947,12 +1100,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/prep/tile_index
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#tile_index
-  primary_key:
-  - country_iso
-  - tile_id
-  join_keys:
-  - country_iso
-  - tile_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -967,12 +1116,8 @@ outputs:
   - parameter_hash
   schema_ref: schemas.1B.yaml#/prep/tile_weights
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#tile_weights
-  primary_key:
-  - country_iso
-  - tile_id
-  join_keys:
-  - country_iso
-  - tile_id
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -987,10 +1132,10 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#validation_bundle_1B
-  primary_key: &id005 []
-  join_keys: &id006 []
-  read_requires_gates: &id007 []
-  immutability: &id008
+  primary_key: []
+  join_keys: []
+  read_requires_gates: &id003 []
+  immutability: &id004
     immutable_once_written: true
   description: Validation bundle for a 1B publish (one per manifest_fingerprint).
 - output_id: validation_bundle_1B
@@ -1003,10 +1148,10 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#validation_bundle_1B
-  primary_key: *id005
-  join_keys: *id006
-  read_requires_gates: *id007
-  immutability: *id008
+  primary_key: []
+  join_keys: []
+  read_requires_gates: *id003
+  immutability: *id004
   description: Fingerprint-scoped PASS bundle for Segment 1B; 2B verifies it before any read.
 - output_id: validation_bundle_index_1B
   class: gate
@@ -1034,10 +1179,10 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.1B.yaml#/validation/passed_flag
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#validation_passed_flag_1B
-  primary_key: &id009 []
-  join_keys: &id010 []
-  read_requires_gates: &id011 []
-  immutability: &id012
+  primary_key: []
+  join_keys: []
+  read_requires_gates: &id005 []
+  immutability: &id006
     immutable_once_written: true
   description: PASS gate flag; equals SHA-256 of the bundle per S9 hashing rule.
 - output_id: validation_passed_flag_1B
@@ -1050,10 +1195,10 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.1B.yaml#/validation/passed_flag
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#validation_passed_flag_1B
-  primary_key: *id009
-  join_keys: *id010
-  read_requires_gates: *id011
-  immutability: *id012
+  primary_key: []
+  join_keys: []
+  read_requires_gates: *id005
+  immutability: *id006
   description: Companion single-line flag carrying the SHA-256 digest of the 1B validation bundle.
 - output_id: s0_gate_receipt_2A
   class: gate
@@ -1082,14 +1227,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#s1_tz_lookup
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.2A.validation
   immutability:
@@ -1123,18 +1262,13 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_2A
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#sealed_inputs_2A
-  primary_key:
-  - manifest_fingerprint
-  - asset_id
-  join_keys:
-  - manifest_fingerprint
-  - asset_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.2A.validation
   immutability:
     immutable_once_written: true
   description: Diagnostic inventory of sealed inputs for a 2A fingerprint.
-  notes: Dictionary id sealed_inputs_2A; namespaced here to enforce unique output_id.
 - output_id: site_timezones
   class: surface
   exposure: external
@@ -1146,17 +1280,11 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2A.yaml#/egress/site_timezones
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#site_timezones
-  primary_key: &id013
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys: &id014
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  read_requires_gates: &id015
+  primary_key: []
+  join_keys: []
+  read_requires_gates: &id007
   - gate.layer1.2A.validation
-  immutability: &id016
+  immutability: &id008
     immutable_once_written: true
   description: Final per-site IANA tzid with provenance; order-free egress.
 - output_id: site_timezones
@@ -1170,11 +1298,41 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2A.yaml#/egress/site_timezones
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#site_timezones
-  primary_key: *id013
-  join_keys: *id014
-  read_requires_gates: *id015
-  immutability: *id016
+  primary_key: []
+  join_keys: []
+  read_requires_gates: *id007
+  immutability: *id008
   description: Per-site IANA tzid assignments emitted by 2A; REQUIRED input for 2B v1 tz-grouping + day-effects.
+- output_id: tz_nudge
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 2A
+  path_template: config/layer1/2A/timezone/tz_nudge.yml
+  partitions: []
+  schema_ref: schemas.2A.yaml#/policy/tz_nudge_v1
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tz_nudge
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "Deterministic \u03B5 used at borders for tie-breaks; sealed for reproducibility."
+- output_id: tz_overrides
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 2A
+  path_template: config/layer1/2A/timezone/tz_overrides.yaml
+  partitions: []
+  schema_ref: schemas.2A.yaml#/policy/tz_overrides_v1
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tz_overrides
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: "Time-zone overrides (governed; precedence site \xBB mcc \xBB country)."
 - output_id: tz_timetable_cache
   class: surface
   exposure: internal
@@ -1185,11 +1343,11 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tz_timetable_cache
-  primary_key: &id017 []
-  join_keys: &id018 []
-  read_requires_gates: &id019
+  primary_key: []
+  join_keys: []
+  read_requires_gates: &id009
   - gate.layer1.2A.validation
-  immutability: &id020
+  immutability: &id010
     immutable_once_written: true
   description: Fingerprint-scoped cache manifest for tz transitions.
 - output_id: tz_timetable_cache
@@ -1202,11 +1360,26 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#tz_timetable_cache
-  primary_key: *id017
-  join_keys: *id018
-  read_requires_gates: *id019
-  immutability: *id020
+  primary_key: []
+  join_keys: []
+  read_requires_gates: *id009
+  immutability: *id010
   description: Fingerprint-scoped cache of tz transitions compiled by 2A.
+- output_id: tzdb_release
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 2A
+  path_template: artefacts/priors/tzdata/{release_tag}/
+  partitions: []
+  schema_ref: schemas.2A.yaml#/ingress/tzdb_release_v1
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tzdb_release
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Pinned IANA tzdata archive and release tag.
 - output_id: validation_bundle_2A
   class: gate
   exposure: internal
@@ -1417,14 +1590,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2B.yaml#/plan/s1_site_weights
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#s1_site_weights
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - site_order
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - site_order
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.2B.validation
   immutability:
@@ -1477,14 +1644,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2B.yaml#/plan/s3_day_effects
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#s3_day_effects
-  primary_key:
-  - merchant_id
-  - utc_day
-  - tz_group_id
-  join_keys:
-  - merchant_id
-  - utc_day
-  - tz_group_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.2B.validation
   immutability:
@@ -1501,14 +1662,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.2B.yaml#/plan/s4_group_weights
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#s4_group_weights
-  primary_key:
-  - merchant_id
-  - utc_day
-  - tz_group_id
-  join_keys:
-  - merchant_id
-  - utc_day
-  - tz_group_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.2B.validation
   immutability:
@@ -1587,7 +1742,6 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Authoritative inventory of every asset sealed by 2B.S0 for the manifest.
-  notes: Dictionary id sealed_inputs_2B; namespaced here to enforce unique output_id.
 - output_id: validation_bundle_2B
   class: gate
   exposure: internal
@@ -1732,17 +1886,30 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s1_escalation_queue
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  join_keys:
-  - merchant_id
-  - legal_country_iso
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3A.validation
   immutability:
     immutable_once_written: true
   description: Per-merchant escalation decisions and totals.
+- output_id: s1_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s1_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S1 escalation queue.
 - output_id: s2_country_zone_priors
   class: surface
   exposure: internal
@@ -1753,16 +1920,45 @@ outputs:
   - parameter_hash
   schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s2_country_zone_priors
-  primary_key:
-  - country_iso
-  - tzid
-  join_keys:
-  - country_iso
-  - tzid
+  primary_key: []
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
   description: Parameter-scoped Dirichlet -vectors per countryxtzid.
+- output_id: s2_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_parameter_hash
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S2/parameter_hash={parameter_hash}/run_report.json
+  partitions:
+  - parameter_hash
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s2_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S2 priors stage.
+- output_id: s3_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s3_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S3 zone share sampling.
 - output_id: s3_zone_shares
   class: surface
   exposure: internal
@@ -1774,19 +1970,30 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3A.yaml#/plan/s3_zone_shares
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s3_zone_shares
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - tzid
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3A.validation
   immutability:
     immutable_once_written: true
   description: Dirichlet share draws per merchantxcountryxzone.
+- output_id: s4_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s4_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S4 zone count integerisation.
 - output_id: s4_zone_counts
   class: surface
   exposure: internal
@@ -1798,19 +2005,30 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s4_zone_counts
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - tzid
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3A.validation
   immutability:
     immutable_once_written: true
   description: Integer outlet counts per merchantxcountryxzone after floor/bump.
+- output_id: s5_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s5_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S5 zone allocation egress.
 - output_id: s6_issue_table_3A
   class: surface
   exposure: internal
@@ -1845,6 +2063,23 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Compact validation receipt capturing S6 outcomes.
+- output_id: s6_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S6/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s6_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S6 validation.
 - output_id: s6_validation_report_3A
   class: surface
   exposure: internal
@@ -1862,6 +2097,23 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Structural validation report emitted by 3A.S6.
+- output_id: s7_run_report_3A
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3A
+  path_template: reports/layer1/3A/state=S7/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#s7_run_report_3A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3A.S7 validation bundle.
 - output_id: sealed_inputs_3A
   class: surface
   exposure: internal
@@ -1879,6 +2131,21 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Sealed inventory of artefacts authorised for Segment 3A.
+- output_id: segment_state_runs
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 3A
+  path_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+  partitions: []
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#segment_state_runs
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Layer-1 segment-state run-report (JSONL), one row per state invocation.
 - output_id: validation_bundle_3A
   class: gate
   exposure: internal
@@ -1922,14 +2189,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3A.yaml#/egress/zone_alloc
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml#zone_alloc
-  primary_key:
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - tzid
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3A.validation
   immutability:
@@ -1981,12 +2242,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#edge_alias_index_3B
-  primary_key:
-  - scope
-  - merchant_id
-  join_keys:
-  - scope
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3B.validation
   immutability:
@@ -2003,12 +2260,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#edge_catalogue_3B
-  primary_key:
-  - merchant_id
-  - edge_id
-  join_keys:
-  - merchant_id
-  - edge_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3B.validation
   immutability:
@@ -2025,12 +2278,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#edge_catalogue_index_3B
-  primary_key:
-  - scope
-  - merchant_id
-  join_keys:
-  - scope
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3B.validation
   immutability:
@@ -2159,6 +2408,90 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Gate receipt capturing upstream PASS status, sealed policy set and authoritative digests.
+- output_id: s1_run_report_3B
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3B
+  path_template: reports/layer1/3B/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#s1_run_report_3B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3B.S1 virtual classification.
+- output_id: s2_run_report_3B
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3B
+  path_template: reports/layer1/3B/state=S2/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#s2_run_report_3B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3B.S2 edge catalogue.
+- output_id: s3_run_report_3B
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3B
+  path_template: reports/layer1/3B/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#s3_run_report_3B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3B.S3 alias packaging.
+- output_id: s4_run_report_3B
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3B
+  path_template: reports/layer1/3B/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#s4_run_report_3B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3B.S4 routing policy compilation.
+- output_id: s4_run_summary_3B
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 3B
+  path_template: reports/layer1/3B/state=S4/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#s4_run_summary_3B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Optional S4 receipt capturing policy digests and status.
 - output_id: s5_manifest_3B
   class: surface
   exposure: internal
@@ -2176,6 +2509,23 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Optional S5 manifest summarising identity, digests and validator outcomes; lives inside the bundle.
+- output_id: s5_run_report_3B
+  class: surface
+  exposure: internal
+  scope: scope_seed_manifest_fingerprint
+  owner_segment: 3B
+  path_template: reports/layer1/3B/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - seed
+  - manifest_fingerprint
+  schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#s5_run_report_3B
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 3B.S5 validation bundle.
 - output_id: sealed_inputs_3B
   class: surface
   exposure: internal
@@ -2252,10 +2602,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#virtual_classification_3B
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3B.validation
   immutability:
@@ -2289,10 +2637,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#virtual_settlement_3B
-  primary_key:
-  - merchant_id
-  join_keys:
-  - merchant_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3B.validation
   immutability:
@@ -2308,10 +2654,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml#virtual_validation_contract_3B
-  primary_key:
-  - test_id
-  join_keys:
-  - test_id
+  primary_key: []
+  join_keys: []
   read_requires_gates:
   - gate.layer1.3B.validation
   immutability:
@@ -2331,7 +2675,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Baseline intensity semantics policy for 5A.S3. Defines how S1 scale fields are interpreted (units/constraints) and any clipping/zero-handling rules.
+  description: 'Baseline intensity semantics policy for 5A.S3. Defines how S1 scale fields are interpreted (units/constraints)
+    and any clipping/zero-handling rules.
 
     '
 - output_id: class_shape_catalogue_5A
@@ -2351,10 +2696,7 @@ outputs:
   - parameter_hash
   - scenario_id
   - demand_class
-  join_keys:
-  - parameter_hash
-  - scenario_id
-  - demand_class
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -2379,13 +2721,7 @@ outputs:
   - legal_country_iso
   - tzid
   - bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - demand_class
-  - legal_country_iso
-  - tzid
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2411,13 +2747,7 @@ outputs:
   - legal_country_iso
   - tzid
   - bucket_index
-  join_keys:
-  - parameter_hash
-  - scenario_id
-  - demand_class
-  - legal_country_iso
-  - tzid
-  - bucket_index
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -2453,7 +2783,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Classing policy for 5A.S1. Maps merchantxzone features to demand_class and optional demand_subclass/profile IDs.
+  description: 'Classing policy for 5A.S1. Maps merchantxzone features to demand_class and optional demand_subclass/profile
+    IDs.
 
     '
 - output_id: merchant_class_profile_5A
@@ -2468,8 +2799,7 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#merchant_class_profile_5A
   primary_key:
   - merchant_id
-  join_keys:
-  - merchant_id
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2495,13 +2825,7 @@ outputs:
   - legal_country_iso
   - tzid
   - bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2527,13 +2851,7 @@ outputs:
   - legal_country_iso
   - tzid
   - utc_bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  - utc_bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2559,13 +2877,7 @@ outputs:
   - legal_country_iso
   - tzid
   - local_horizon_bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  - local_horizon_bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2585,10 +2897,7 @@ outputs:
   - merchant_id
   - legal_country_iso
   - tzid
-  join_keys:
-  - merchant_id
-  - legal_country_iso
-  - tzid
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2614,13 +2923,7 @@ outputs:
   - legal_country_iso
   - tzid
   - local_horizon_bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  - local_horizon_bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2646,13 +2949,7 @@ outputs:
   - legal_country_iso
   - tzid
   - utc_horizon_bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - legal_country_iso
-  - tzid
-  - utc_horizon_bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2687,12 +2984,91 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#s0_gate_receipt_5A
   primary_key:
   - manifest_fingerprint
-  join_keys:
-  - manifest_fingerprint
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
   description: Fingerprint-scoped S0 receipt confirming upstream gates and sealed inputs.
+- output_id: s1_run_report_5A
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 5A
+  path_template: reports/layer2/5A/state=S1/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#s1_run_report_5A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 5A.S1 demand profiles.
+- output_id: s2_run_report_5A
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 5A
+  path_template: reports/layer2/5A/state=S2/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#s2_run_report_5A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 5A.S2 shape synthesis.
+- output_id: s3_run_report_5A
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 5A
+  path_template: reports/layer2/5A/state=S3/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#s3_run_report_5A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 5A.S3 baseline intensity synthesis.
+- output_id: s4_run_report_5A
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 5A
+  path_template: reports/layer2/5A/state=S4/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#s4_run_report_5A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 5A.S4 scenario overlays.
+- output_id: s5_run_report_5A
+  class: surface
+  exposure: internal
+  scope: scope_manifest_fingerprint
+  owner_segment: 5A
+  path_template: reports/layer2/5A/state=S5/manifest_fingerprint={manifest_fingerprint}/run_report.json
+  partitions:
+  - manifest_fingerprint
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#s5_run_report_5A
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Run report for 5A.S5 validation bundle.
 - output_id: scenario_calendar_5A
   class: surface
   exposure: internal
@@ -2704,12 +3080,16 @@ outputs:
   - scenario_id
   schema_ref: schemas.5A.yaml#/scenario/scenario_calendar_5A
   dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#scenario_calendar_5A
-  primary_key: []
+  primary_key:
+  - manifest_fingerprint
+  - scenario_id
+  - event_id
   join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Scenario calendar for 5A.S4. Defines dated events (holidays, campaigns, outages, stress scenarios) and their scope.
+  description: 'Scenario calendar for 5A.S4. Defines dated events (holidays, campaigns, outages, stress scenarios) and their
+    scope.
 
     '
 - output_id: scenario_horizon_config_5A
@@ -2742,9 +3122,7 @@ outputs:
   primary_key:
   - manifest_fingerprint
   - scenario_id
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
@@ -2781,7 +3159,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Overlay policy for 5A.S4. Maps scenario events to multiplicative factors and defines precedence/combination rules.
+  description: 'Overlay policy for 5A.S4. Maps scenario events to multiplicative factors and defines precedence/combination
+    rules.
 
     '
 - output_id: scenario_overlay_validation_policy_5A
@@ -2815,15 +3194,27 @@ outputs:
   - manifest_fingerprint
   - owner_segment
   - artifact_id
-  join_keys:
-  - manifest_fingerprint
-  - owner_segment
-  - artifact_id
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5A.validation
   immutability:
     immutable_once_written: true
   description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
+- output_id: segment_state_runs
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 5A
+  path_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+  partitions: []
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml#segment_state_runs
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Layer-2 segment-state run-report (JSONL), one row per state invocation.
 - output_id: shape_grid_definition_5A
   class: surface
   exposure: internal
@@ -2841,10 +3232,7 @@ outputs:
   - parameter_hash
   - scenario_id
   - bucket_index
-  join_keys:
-  - parameter_hash
-  - scenario_id
-  - bucket_index
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -2863,7 +3251,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Shape library for 5A.S2. Defines unit-mass shape templates per demand_classxzonexchannel_group (grid lives in shape_time_grid_policy_5A).
+  description: 'Shape library for 5A.S2. Defines unit-mass shape templates per demand_classxzonexchannel_group (grid lives
+    in shape_time_grid_policy_5A).
 
     '
 - output_id: shape_time_grid_policy_5A
@@ -3051,12 +3440,7 @@ outputs:
   - scenario_id
   - merchant_id
   - arrival_seq
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - arrival_seq
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3272,8 +3656,7 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml#s0_gate_receipt_5B
   primary_key:
   - manifest_fingerprint
-  join_keys:
-  - manifest_fingerprint
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -3297,12 +3680,7 @@ outputs:
   - merchant_id
   - zone_representation
   - channel_group
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - zone_representation
-  - channel_group
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3325,10 +3703,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - bucket_index
-  join_keys:
-  - manifest_fingerprint
-  - scenario_id
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3354,12 +3729,7 @@ outputs:
   - scenario_id
   - group_id
   - bucket_index
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - group_id
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3387,14 +3757,7 @@ outputs:
   - zone_representation
   - channel_group
   - bucket_index
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - zone_representation
-  - channel_group
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3422,14 +3785,7 @@ outputs:
   - zone_representation
   - channel_group
   - bucket_index
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - zone_representation
-  - channel_group
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3454,11 +3810,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - anomaly_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - anomaly_id
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3486,14 +3838,7 @@ outputs:
   - zone_representation
   - channel_group
   - bucket_index
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - zone_representation
-  - channel_group
-  - bucket_index
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
@@ -3513,15 +3858,27 @@ outputs:
   - manifest_fingerprint
   - owner_segment
   - artifact_id
-  join_keys:
-  - manifest_fingerprint
-  - owner_segment
-  - artifact_id
+  join_keys: []
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
     immutable_once_written: true
   description: Inventory of artefacts 5B is allowed to read for a fingerprint.
+- output_id: segment_state_runs
+  class: surface
+  exposure: internal
+  scope: scope_global
+  owner_segment: 5B
+  path_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+  partitions: []
+  schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
+  dictionary_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml#segment_state_runs
+  primary_key: []
+  join_keys: []
+  read_requires_gates: []
+  immutability:
+    immutable_once_written: true
+  description: Global run-report journal for layer2 segment states.
 - output_id: time_grid_policy_5B
   class: surface
   exposure: internal
@@ -4297,7 +4654,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint, summarising upstream gates and the sealed input universe for 6A.
+  description: 'Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint, summarising upstream gates and the sealed
+    input universe for 6A.
 
     '
 - output_id: s1_party_base_6A
@@ -4318,7 +4676,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Base party/customer universe for Layer-3 / Segment 6A. One row per party per (manifest_fingerprint, seed), including type, home geography and static segment attributes.
+  description: 'Base party/customer universe for Layer-3 / Segment 6A. One row per party per (manifest_fingerprint, seed),
+    including type, home geography and static segment attributes.
 
     '
 - output_id: s1_party_summary_6A
@@ -4339,7 +4698,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate view of the 6A party base, providing party counts by geography, segment and type for diagnostics and downstream sizing.
+  description: 'Aggregate view of the 6A party base, providing party counts by geography, segment and type for diagnostics
+    and downstream sizing.
 
     '
 - output_id: s2_account_base_6A
@@ -4360,7 +4720,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Account and product universe for Layer-3 / Segment 6A. One row per account per (manifest_fingerprint, seed), including owner references, account type, currency and static account attributes.
+  description: 'Account and product universe for Layer-3 / Segment 6A. One row per account per (manifest_fingerprint, seed),
+    including owner references, account type, currency and static account attributes.
 
     '
 - output_id: s2_account_summary_6A
@@ -4381,7 +4742,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate view of the 6A account base, providing account counts by geography, segment and account type for diagnostics and sizing.
+  description: 'Aggregate view of the 6A account base, providing account counts by geography, segment and account type for
+    diagnostics and sizing.
 
     '
 - output_id: s2_merchant_account_base_6A
@@ -4402,7 +4764,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Merchant-centric view of accounts where a merchant is an owner (e.g. settlement or acquiring accounts). Pure subset of s2_account_base_6A.
+  description: 'Merchant-centric view of accounts where a merchant is an owner (e.g. settlement or acquiring accounts). Pure
+    subset of s2_account_base_6A.
 
     '
 - output_id: s2_party_product_holdings_6A
@@ -4423,7 +4786,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-party product holdings for Layer-3 / Segment 6A, derived from s2_account_base_6A and s1_party_base_6A. One row per party and product grouping (e.g. account_type), with account counts.
+  description: 'Per-party product holdings for Layer-3 / Segment 6A, derived from s2_account_base_6A and s1_party_base_6A.
+    One row per party and product grouping (e.g. account_type), with account counts.
 
     '
 - output_id: s3_account_instrument_links_6A
@@ -4444,8 +4808,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived from s3_instrument_base_6A and s2_account_base_6A; provides either per-instrument or aggregated per-account, per-instrument-type
-    views of instrument ownership.
+  description: 'Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived from s3_instrument_base_6A and s2_account_base_6A;
+    provides either per-instrument or aggregated per-account, per-instrument-type views of instrument ownership.
 
     '
 - output_id: s3_instrument_base_6A
@@ -4466,8 +4830,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Instrument and payment-credential universe for Layer-3 / Segment 6A. One row per instrument per (manifest_fingerprint, seed), including owner account, owner party/merchant (if modelled),
-    instrument type, scheme/network, masked identifier, expiry, and static flags.
+  description: 'Instrument and payment-credential universe for Layer-3 / Segment 6A. One row per instrument per (manifest_fingerprint,
+    seed), including owner account, owner party/merchant (if modelled), instrument type, scheme/network, masked identifier,
+    expiry, and static flags.
 
     '
 - output_id: s3_instrument_summary_6A
@@ -4488,7 +4853,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate instrument diagnostics for Layer-3 / Segment 6A, providing instrument counts by geography, segment, account_type and instrument_type.
+  description: 'Aggregate instrument diagnostics for Layer-3 / Segment 6A, providing instrument counts by geography, segment,
+    account_type and instrument_type.
 
     '
 - output_id: s3_party_instrument_holdings_6A
@@ -4509,7 +4875,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-party instrument holdings for Layer-3 / Segment 6A, derived from s3_instrument_base_6A and s1_party_base_6A; one row per (party_id, instrument grouping) with instrument_count.
+  description: 'Per-party instrument holdings for Layer-3 / Segment 6A, derived from s3_instrument_base_6A and s1_party_base_6A;
+    one row per (party_id, instrument grouping) with instrument_count.
 
     '
 - output_id: s4_device_base_6A
@@ -4530,7 +4897,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint, seed), with device classification, primary owner context and static device risk/capability flags.
+  description: 'Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint, seed), with device
+    classification, primary owner context and static device risk/capability flags.
 
     '
 - output_id: s4_device_links_6A
@@ -4551,7 +4919,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id to one or more parties/accounts/instruments/merchants with a link_role describing the semantics.
+  description: 'Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id to one or more parties/accounts/instruments/merchants
+    with a link_role describing the semantics.
 
     '
 - output_id: s4_entity_neighbourhoods_6A
@@ -4572,7 +4941,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-entity graph neighbourhood metrics for Layer-3 / Segment 6A (devices per party, IPs per device, shared-device/shared-IP degrees, etc.), derived from S4 base and link datasets.
+  description: 'Per-entity graph neighbourhood metrics for Layer-3 / Segment 6A (devices per party, IPs per device, shared-device/shared-IP
+    degrees, etc.), derived from S4 base and link datasets.
 
     '
 - output_id: s4_ip_base_6A
@@ -4593,8 +4963,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'IP / network endpoint universe for Layer-3 / Segment 6A. One row per IP/endpoint per (manifest_fingerprint, seed), including masked representation, ip_type, asn_class, geo hints and static
-    risk tags.
+  description: 'IP / network endpoint universe for Layer-3 / Segment 6A. One row per IP/endpoint per (manifest_fingerprint,
+    seed), including masked representation, ip_type, asn_class, geo hints and static risk tags.
 
     '
 - output_id: s4_ip_links_6A
@@ -4615,7 +4985,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id to one or more devices/parties/merchants with a link_role describing the semantics.
+  description: 'IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id to one or more devices/parties/merchants
+    with a link_role describing the semantics.
 
     '
 - output_id: s4_network_summary_6A
@@ -4636,7 +5007,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate graph diagnostics for Layer-3 / Segment 6A: degree distributions and sharing summaries per region/segment/account_type and globally.
+  description: 'Aggregate graph diagnostics for Layer-3 / Segment 6A: degree distributions and sharing summaries per region/segment/account_type
+    and globally.
 
     '
 - output_id: s5_account_fraud_roles_6A
@@ -4657,7 +5029,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for accounts in Layer-3 / Segment 6A. One row per account per (manifest_fingerprint, seed).
+  description: 'Static fraud posture for accounts in Layer-3 / Segment 6A. One row per account per (manifest_fingerprint,
+    seed).
 
     '
 - output_id: s5_device_fraud_roles_6A
@@ -4699,7 +5072,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One row per ip_id per (manifest_fingerprint, seed).
+  description: 'Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One row per ip_id per (manifest_fingerprint,
+    seed).
 
     '
 - output_id: s5_issue_table_6A
@@ -4779,7 +5153,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Segment-level validation report for Layer-3 / Segment 6A, summarising the results of S5 checks across S1-S4 and S5 fraud roles.
+  description: 'Segment-level validation report for Layer-3 / Segment 6A, summarising the results of S5 checks across S1-S4
+    and S5 fraud roles.
 
     '
 - output_id: sealed_inputs_6A
@@ -4798,7 +5173,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint, with roles, digests, and read scopes.
+  description: 'Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint, with roles, digests,
+    and read scopes.
 
     '
 - output_id: taxonomy_account_types_6A
@@ -4906,7 +5282,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Validation bundle directory for Layer-3 / Segment 6A, containing the evidence index and HashGate outputs for this manifest_fingerprint.
+  description: 'Validation bundle directory for Layer-3 / Segment 6A, containing the evidence index and HashGate outputs for
+    this manifest_fingerprint.
 
     '
 - output_id: validation_bundle_index_6A
@@ -5341,12 +5718,12 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml#s0_gate_receipt_6B
   primary_key:
   - manifest_fingerprint
-  join_keys:
-  - manifest_fingerprint
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.
+  description: 'Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint summarising upstream gates, contracts_6B
+    and sealed_inputs_digest_6B.
 
     '
 - output_id: s1_arrival_entities_6B
@@ -5368,17 +5745,13 @@ outputs:
   - scenario_id
   - merchant_id
   - arrival_seq
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - merchant_id
-  - arrival_seq
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Arrival events from 5B enriched with entity attachments and session identifiers for Layer-3 behaviour; one row per arrival.
+  description: 'Arrival events from 5B enriched with entity attachments and session identifiers for Layer-3 behaviour; one
+    row per arrival.
 
     '
 - output_id: s1_session_index_6B
@@ -5399,11 +5772,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - session_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - session_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5430,12 +5799,7 @@ outputs:
   - scenario_id
   - flow_id
   - event_seq
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
-  - event_seq
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5461,11 +5825,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5491,11 +5851,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - campaign_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - campaign_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5522,12 +5878,7 @@ outputs:
   - scenario_id
   - flow_id
   - event_seq
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
-  - event_seq
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5553,11 +5904,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5584,12 +5931,7 @@ outputs:
   - scenario_id
   - case_id
   - case_event_seq
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - case_id
-  - case_event_seq
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5616,12 +5958,7 @@ outputs:
   - scenario_id
   - flow_id
   - event_seq
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
-  - event_seq
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5647,11 +5984,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5677,11 +6010,7 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys:
-  - seed
-  - manifest_fingerprint
-  - scenario_id
-  - flow_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5703,10 +6032,7 @@ outputs:
   - manifest_fingerprint
   - check_id
   - issue_id
-  join_keys:
-  - manifest_fingerprint
-  - check_id
-  - issue_id
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
@@ -5726,13 +6052,13 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml#s5_validation_report_6B
   primary_key:
   - manifest_fingerprint
-  join_keys:
-  - manifest_fingerprint
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Segment 6B world-level validation report; one JSON document summarising the results of S5 checks across S1-S4 artefacts.
+  description: 'Segment 6B world-level validation report; one JSON document summarising the results of S5 checks across S1-S4
+    artefacts.
 
     '
 - output_id: sealed_inputs_6B
@@ -5750,16 +6076,13 @@ outputs:
   - owner_layer
   - owner_segment
   - manifest_key
-  join_keys:
-  - manifest_fingerprint
-  - owner_layer
-  - owner_segment
-  - manifest_key
+  join_keys: []
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Sealed list of all artefacts 6B is allowed to read for a given manifest_fingerprint, with roles, schema_refs and digests.
+  description: 'Sealed list of all artefacts 6B is allowed to read for a given manifest_fingerprint, with roles, schema_refs
+    and digests.
 
     '
 - output_id: segment_validation_policy_6B
@@ -5834,8 +6157,7 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml#validation_bundle_6B
   primary_key:
   - manifest_fingerprint
-  join_keys:
-  - manifest_fingerprint
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
@@ -5852,7 +6174,8 @@ outputs:
   - manifest_fingerprint
   schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml#validation_bundle_index_6B
-  primary_key: []
+  primary_key:
+  - manifest_fingerprint
   join_keys: []
   read_requires_gates: []
   immutability:
@@ -5872,8 +6195,7 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml#validation_passed_flag_6B
   primary_key:
   - manifest_fingerprint
-  join_keys:
-  - manifest_fingerprint
+  join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true

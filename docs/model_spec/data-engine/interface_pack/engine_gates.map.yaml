@@ -48,7 +48,6 @@ gates:
   - s7_site_synthesis
   - sealed_inputs_1B
   - site_locations
-  - site_locations
   upstream_gate_dependencies:
   - gate.layer1.1A.validation
   receipts_emitted:
@@ -77,8 +76,6 @@ gates:
   - s4_legality_report
   - sealed_inputs_2A
   - site_timezones
-  - site_timezones
-  - tz_timetable_cache
   - tz_timetable_cache
   upstream_gate_dependencies:
   - gate.layer1.1B.validation
