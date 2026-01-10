@@ -4,7 +4,7 @@
 Authoritative inputs (read-only at S1 entry)
 --------------------------------------------
 [S0 Gate & Identity]
-    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
+    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…
       · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: allowed inputs for 2A (incl. site_locations, tz_world_2025a, tz_nudge)
       · binds: manifest_fingerprint, parameter_hash for this 2A run
@@ -21,8 +21,8 @@ Authoritative inputs (read-only at S1 entry)
 [1B Egress · per-site geometry]
     - site_locations
         · schema: schemas.1B.yaml#/egress/site_locations
-        · path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-        · partitions: [seed, fingerprint]
+        · path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        · partitions: [seed, manifest_fingerprint]
         · PK/writer sort: [merchant_id, legal_country_iso, site_order]
         · role: final per-site (lat_deg, lon_deg) at 1B; order-free; write-once; atomic publish
 
@@ -66,7 +66,7 @@ Numeric & RNG posture (inherited)
 [Policy · tz_nudge]
                 ->  (S1.2) Resolve sealed inputs & basic sanity checks
                     - Resolve inputs strictly via Dataset Dictionary (no literal paths):
-                        · site_locations @ data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+                        · site_locations @ data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
                         · tz_world_2025a @ reference/spatial/tz_world/2025a/tz_world.parquet
                         · tz_nudge @ config/layer1/2A/timezone/tz_nudge.yml
                     - Enforce partition discipline:
@@ -127,8 +127,8 @@ tz_nudge
 [Schema+Dict]
                 ->  (S1.6) Materialise s1_tz_lookup & exit posture
                     - Write s1_tz_lookup under:
-                        · data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
-                        · partitions: [seed, fingerprint]
+                        · data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+                        · partitions: [seed, manifest_fingerprint]
                         · writer sort: [merchant_id, legal_country_iso, site_order]
                         · format: Parquet
                     - Enforce:

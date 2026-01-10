@@ -13,13 +13,13 @@ Authoritative inputs (read-only at S0 entry)
     - artefact_registry_2A.yaml          (bindings for tzdb_release, tz_world_2025a, tz_overrides, tz_nudge, 2A S0 outputs)
 
 [1B Gate Artefacts] (fingerprint-scoped; S0’s primary subject):
-    - validation_bundle_1B                @ data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    - validation_bundle_1B                @ data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
         · contains MANIFEST + rng_accounting + egress_checksums + s9_summary + index.json + other non-flag files
-    - validation_passed_flag_1B           @ .../validation/fingerprint={manifest_fingerprint}/_passed.flag
+    - validation_passed_flag_1B           @ .../validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
         · text: `sha256_hex = <hex64>`; sole consumer gate for 1B egress (site_locations) — No PASS → No Read
 
 [2A Ingress & Policy] Inputs S0 will seal for 2A:
-    - site_locations                      (1B egress; partitions [seed, fingerprint]; final_in_layer for 1B)
+    - site_locations                      (1B egress; partitions [seed, manifest_fingerprint]; final_in_layer for 1B)
     - tz_world_2025a                      (TZ polygons; WGS84; ingress anchor)
     - tzdb_release                        (IANA tzdata archive + tag/version)
     - tz_overrides                        (governed override registry: per-site / per-MCC / per-country rules)
@@ -45,7 +45,7 @@ Authoritative inputs (read-only at S0 entry)
                     - Resolve 1B + 2A schema packs and dictionaries by ID (no literal paths).
                     - Assert JSON-Schema as sole shape authority; Dictionary is IDs→paths/partitions/writer policy.
                     - Confirm compatibility window for layer1/1B/2A schema & dict baselines (v1.* lines).
-                    - Fix target `manifest_fingerprint` for this 2A run (path token `fingerprint={manifest_fingerprint}`).
+                    - Fix target `manifest_fingerprint` for this 2A run (path token `manifest_fingerprint={manifest_fingerprint}`).
                     - Bind the run’s `parameter_hash` to this fingerprint for 2A; record the lineage tuple S0 will use.
                     - Re-state S0 scope:
                         · consumes **no RNG**,
@@ -56,7 +56,7 @@ Authoritative inputs (read-only at S0 entry)
 [1B Gate Artefacts]
                 ->  (S0.2) Locate 1B validation bundle & verify PASS flag (No PASS → No Read)
                     - Resolve 1B validation bundle location via Dictionary:
-                        · data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+                        · data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
                     - Read `index.json` and enforce index hygiene:
                         · every non-flag file listed exactly once,
                         · all `path` values relative and ASCII-lex-sortable,
@@ -75,7 +75,7 @@ Authoritative inputs (read-only at S0 entry)
 [2A Ingress & Policy]
                 ->  (S0.3) Enumerate & normalise 2A sealed inputs
                     - Enumerate the exact assets 2A will rely on downstream, e.g.:
-                        · 1B egress: `site_locations` ([seed,fingerprint]).
+                        · 1B egress: `site_locations` ([seed, manifest_fingerprint]).
                         · TZ polygons: `tz_world_2025a`.
                         · tzdb archive: `tzdb_release` (tag + URI + SHA-256).
                         · policy files: `tz_overrides`, `tz_nudge`.
@@ -103,8 +103,8 @@ Authoritative inputs (read-only at S0 entry)
 [Schema+Dict]
                 ->  (S0.5) Emit s0_gate_receipt_2A (fingerprint-scoped; no RNG)
                     - Write a single JSON receipt under:
-                        · data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
-                        · partition: [fingerprint]; PK: manifest_fingerprint.
+                        · data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+                        · partition: [manifest_fingerprint]; PK: manifest_fingerprint.
                     - Populate fields per `schemas.2A.yaml#/validation/s0_gate_receipt_v1`, including at minimum:
                         · manifest_fingerprint (== `fingerprint` path token),
                         · parameter_hash bound for this 2A run,
@@ -122,7 +122,7 @@ Authoritative inputs (read-only at S0 entry)
                 ->  (S0.6) Materialise sealed_inputs_2A (fingerprint-scoped inventory)
                     - Write `sealed_inputs_2A` (JSON) under:
                         · data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
-                        · partition: [fingerprint]; writer sort by (asset_kind, asset_id, or similar per schema).
+                        · partition: [manifest_fingerprint]; writer sort by (asset_kind, asset_id, or similar per schema).
                     - Emit one row per sealed asset:
                         · asset_id, schema_ref, catalogue_path_template,
                         · partitioning keys, version_tag, sha256_hex, licence, retention, consumed_by.

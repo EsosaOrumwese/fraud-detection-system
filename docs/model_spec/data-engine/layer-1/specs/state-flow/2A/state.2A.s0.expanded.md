@@ -118,7 +118,7 @@
 
 2A.S0 SHALL begin only when all of the following hold:
 
-* **Upstream PASS present.** Segment 1B has published a **validation bundle** and a matching **`_passed.flag`** under `fingerprint={manifest_fingerprint}` as defined in the Dataset Dictionary (IDs: `validation_bundle_1B`, `validation_passed_flag_1B`). Consumers MUST treat “No PASS → No Read.” 
+* **Upstream PASS present.** Segment 1B has published a **validation bundle** and a matching **`_passed.flag`** under `manifest_fingerprint={manifest_fingerprint}` as defined in the Dataset Dictionary (IDs: `validation_bundle_1B`, `validation_passed_flag_1B`). Consumers MUST treat “No PASS → No Read.” 
 * **Run identity fixed.** `parameter_hash` for the 2A run is fixed (Layer-1 identity law, by reference).
 * **Authority sets available.** The schema set, dataset dictionary, and artefact registries that enumerate the inputs below are addressable and free of placeholders for assets in scope (licensing and retention specified). *(By reference to Layer-1 governance.)*
 * **RNG posture.** 2A.S0 is **RNG-free** (deterministic).
@@ -129,13 +129,13 @@ S0 **seals** the following assets into the 2A manifest. Each item MUST be **immu
 
 1. **Upstream 1B PASS artefacts (gate evidence).**
 
-   * `validation_bundle_1B` — Dictionary‑resolved folder under `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (**partition:** `[fingerprint]`). Do not assume a subfolder name; Dictionary governs the exact layout.
+   * `validation_bundle_1B` — Dictionary‑resolved folder under `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/` (**partition:** `[manifest_fingerprint]`). Do not assume a subfolder name; Dictionary governs the exact layout.
    * `validation_passed_flag_1B` — `_passed.flag` under `data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/`.
      *Role:* proves eligibility to read any 1B egress for this fingerprint. 
 
 2. **1B egress pointer required by 2A.**
 
-   * `site_locations` — `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (**partitions:** `[seed, fingerprint]`). Order-free egress; writer sort as per Dictionary. *(Read is permitted only after PASS verification.)*
+   * `site_locations` — `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (**partitions:** `[seed, manifest_fingerprint]`). Order-free egress; writer sort as per Dictionary. *(Read is permitted only after PASS verification.)*
 
 3. **Time-zone polygons (tz-world).**
 
@@ -198,7 +198,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 2. **`site_locations` (1B egress pointer)**
 
    * **Shape:** 1B egress schema for `site_locations`.
-   * **Catalogue:** Dictionary entry defining partitions (incl. `fingerprint={manifest_fingerprint}`; `seed={seed}`).
+   * **Catalogue:** Dictionary entry defining partitions (incl. `manifest_fingerprint={manifest_fingerprint}`; `seed={seed}`).
    * **Existence/licence:** 1B registry.
    * **Boundary:** S0 may **reference** the dataset in the sealed manifest but SHALL NOT **read** records; eligibility depends solely on verified PASS.
 
@@ -259,7 +259,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 **Partition & path law.**
 
-* **Partition:** `[fingerprint]` (no `seed`; parameter hash is embedded, not a partition). The path token **MUST** byte-equal the embedded `manifest_fingerprint`. 
+* **Partition:** `[manifest_fingerprint]` (no `seed`; parameter hash is embedded, not a partition). The path token **MUST** byte-equal the embedded `manifest_fingerprint`. 
 * **Canonical template (Dictionary owns exact path):**
   `data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
   *(Dictionary governs format/path; this spec fixes partition and equality.)* 
@@ -286,7 +286,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 **Identity & path.**
 
-* **Partition:** `[fingerprint]` (same as the receipt).
+* **Partition:** `[manifest_fingerprint]` (same as the receipt).
 * **Canonical template (Dictionary owns exact path/format):**
   `data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json`
 * **Columns (design intent; shape owned by `schemas.2A.yaml#/manifests/sealed_inputs_2A`):** `asset_id`, `kind`, `basename`, `version_tag`, `schema_ref`, `catalog_path`, `sha256_hex`, `size_bytes`, `license_class`. Authority split mirrors Layer-1 practice (Schema=shape; Dictionary=IDs→paths/partitions; Registry=licence/retention).
@@ -325,7 +325,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 **Identity & keys (binding):**
 
 * **Primary key:** `[manifest_fingerprint]` (one row per fingerprint).
-* **Partitions:** `[fingerprint]` (path token **must** byte-equal the embedded `manifest_fingerprint`).
+* **Partitions:** `[manifest_fingerprint]` (path token **must** byte-equal the embedded `manifest_fingerprint`).
 * **Sort:** `[]` (no writer-sort requirement for the single-row receipt).
 
 **Required columns (design intent; exact types live in the anchor):**
@@ -349,7 +349,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 **Identity & keys (binding):**
 
 * **Primary key:** `[manifest_fingerprint, asset_id]`.
-* **Partitions:** `[fingerprint]` (same as the receipt).
+* **Partitions:** `[manifest_fingerprint]` (same as the receipt).
 * **Writer sort:** `[asset_kind, basename]` (stable audit order; file order is non-authoritative).
 
 **Required columns (design intent; exact typing in the anchor):**
@@ -373,7 +373,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 The receipt’s `sealed_inputs[]` **MUST** point to authoritative anchors for every asset it seals. At minimum, 2A.S0 binds the following anchors (examples shown; actual list is the manifest produced in §3):
 
 * **1B egress pointer:**
-  `site_locations` → `schemas.1B.yaml#/egress/site_locations` (readable only after 1B PASS; partitions `[seed,fingerprint]`; order-free by contract). 
+  `site_locations` → `schemas.1B.yaml#/egress/site_locations` (readable only after 1B PASS; partitions `[seed, manifest_fingerprint]`; order-free by contract). 
 * **Ingress FK surfaces (ingress pack):**
   `iso3166_canonical_2024` → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`;
   `world_countries` → `schemas.ingress.layer1.yaml#/world_countries`;
@@ -387,8 +387,8 @@ The receipt’s `sealed_inputs[]` **MUST** point to authoritative anchors for ev
 
 For the two 2A surfaces in §6.2–§6.3, the Dataset Dictionary **SHALL** declare:
 
-* **`s0_gate_receipt_2A`** → path family `data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…` · **partitioning:** `[fingerprint]` · **format:** JSON. *(Dictionary owns exact filenames and retention.)*
-* **`sealed_inputs_2A`** → path family `data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…` · **partitioning:** `[fingerprint]` · **format:** JSON.
+* **`s0_gate_receipt_2A`** → path family `data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…` · **partitioning:** `[manifest_fingerprint]` · **format:** JSON. *(Dictionary owns exact filenames and retention.)*
+* **`sealed_inputs_2A`** → path family `data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/…` · **partitioning:** `[manifest_fingerprint]` · **format:** JSON.
   This mirrors the 1B convention for S0 receipts and keeps the receipt **fingerprint-only**. 
 
 ---
@@ -472,8 +472,8 @@ To form the sealed set for 2A:
 
 ### 8.2 Partitions & path families
 
-* **Receipt:** `s0_gate_receipt_2A` is partitioned by `[fingerprint]` only.
-* **Diagnostics:** `sealed_inputs_2A` is co-partitioned by `[fingerprint]`.
+* **Receipt:** `s0_gate_receipt_2A` is partitioned by `[manifest_fingerprint]` only.
+* **Diagnostics:** `sealed_inputs_2A` is co-partitioned by `[manifest_fingerprint]`.
 * **Dictionary authority:** Exact path templates, filenames, and formats are governed by the Dataset Dictionary; this spec binds the **partition set** and equality law.
 * **Prohibitions:** No additional partitions (e.g., `seed`) are permitted in S0 outputs; `parameter_hash` MUST NOT appear as a partition.
 
@@ -853,7 +853,7 @@ Typical sealed set sizes (order-of-magnitude only):
 
 S0 defines the following **stable surfaces**. Changes here are **breaking** unless explicitly allowed below.
 
-1. **Identity:** definition of `manifest_fingerprint`; partition key set (`[fingerprint]` only); Path↔Embed equality.
+1. **Identity:** definition of `manifest_fingerprint`; partition key set (`[manifest_fingerprint]` only); Path↔Embed equality.
 2. **Outputs:** the existence, IDs, and anchors of `s0_gate_receipt_2A` (required) and `sealed_inputs_2A` (required).
 3. **Gate posture:** “**No PASS → No Read**” with respect to Segment 1B.
 4. **Authority model:** Schema = shape authority; Dictionary = IDs→paths/partitions/format; Registry = existence/licensing/retention; precedence **Schema › Dictionary › Registry**.
@@ -935,7 +935,7 @@ The following require a **MAJOR** version and downstream coordination:
 
 ### A2. Upstream (Segment 1B) surfaces consumed/verified by 2A.S0
 
-* **Egress dataset — `site_locations`.** Schema anchor & Dictionary path/partitions `[seed,fingerprint]`; order-free egress; final in layer.
+* **Egress dataset — `site_locations`.** Schema anchor & Dictionary path/partitions `[seed, manifest_fingerprint]`; order-free egress; final in layer.
 * **Validation bundle & PASS artefacts (1B).** Dictionary IDs and registry entry for fingerprint-scoped bundle and `_passed.flag`. *(S0 verifies PASS before any read.)*
 
 ### A3. Ingress/reference surfaces used by 2A

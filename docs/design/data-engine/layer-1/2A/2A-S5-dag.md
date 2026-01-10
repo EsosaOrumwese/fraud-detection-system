@@ -4,7 +4,7 @@
 Authoritative inputs (read-only at S5 entry)
 --------------------------------------------
 [S0 Gate & Identity]
-    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
+    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…
       · proves: 1B gate was verified for this manifest_fingerprint
       · seals: site_timezones, tz_timetable_cache, s4_legality_report as 2A inputs
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A fingerprint  
@@ -20,23 +20,23 @@ Authoritative inputs (read-only at S5 entry)
 [S2 Egress · discovery surface]
     - site_timezones
         · schema: schemas.2A.yaml#/egress/site_timezones
-        · path:   data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-        · partitions: [seed, fingerprint]
+        · path:   data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        · partitions: [seed, manifest_fingerprint]
         · role in S5: **discovery only** — S5 uses it just to discover the seed set SEEDS;
                       it MUST NOT read or copy site rows.  
 
 [S3 Cache · tz timetable]
     - tz_timetable_cache
         · schema: schemas.2A.yaml#/cache/tz_timetable_cache
-        · path:   data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-        · partitions: [fingerprint]
+        · path:   data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+        · partitions: [manifest_fingerprint]
         · role: compiled tzdb transitions for this fingerprint; must be schema-valid, path↔embed correct, non-empty.  
 
 [S4 Evidence · per-seed legality]
     - s4_legality_report
         · schema: schemas.2A.yaml#/validation/s4_legality_report
-        · path:   data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
-        · partitions: [seed, fingerprint]
+        · path:   data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
+        · partitions: [seed, manifest_fingerprint]
         · role: MUST exist with status="PASS" for every discovered seed; copied verbatim into bundle.  
 
 Numeric & RNG posture
@@ -66,9 +66,9 @@ Numeric & RNG posture
 site_timezones
                 ->  (S5.2) Discover SEEDS from site_timezones catalogue (discovery only)
                     - Using Dataset Dictionary for `site_timezones`:
-                        · list all partitions matching fingerprint={manifest_fingerprint},
+                        · list all partitions matching manifest_fingerprint={manifest_fingerprint},
                           i.e. all distinct seed values under:
-                              data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+                              data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
                     - Define:
                         · SEEDS := { all such seed values } (may be empty).
                     - S5 MUST NOT:
@@ -81,20 +81,20 @@ tz_timetable_cache,
 [Schema+Dict]
                 ->  (S5.3) Resolve cache & S4 reports; verify evidence completeness
                     - Resolve tz_timetable_cache for this fingerprint:
-                        · data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+                        · data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
                         · validate against its schema anchor; ensure:
                             · manifest_fingerprint field == fingerprint path token,
                             · rle_cache_bytes > 0 and all referenced cache files exist.
                         · Failure → 2A-S5-020 CACHE_INVALID.
                     - For each seed ∈ SEEDS:
-                        · resolve s4_legality_report[seed,fingerprint] via Dictionary:
-                            data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+                        · resolve s4_legality_report[seed, manifest_fingerprint] via Dictionary:
+                            data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
                         · validate shape against its schema anchor,
                         · require status == "PASS".
                         · missing or failing report → 2A-S5-030 MISSING_OR_FAILING_S4 (Abort).
                     - Build in-memory evidence set:
                         · E_cache_manifest   (from tz_timetable_cache),
-                        · E_legality_reports = { s4_legality_report[seed,fingerprint] | seed ∈ SEEDS }.
+                        · E_legality_reports = { s4_legality_report[seed, manifest_fingerprint] | seed ∈ SEEDS }.
 
 (S5.3),
 [Schema+Dict]
@@ -102,7 +102,7 @@ tz_timetable_cache,
                     - Create a temporary bundle root, e.g.:
                         · data/layer1/2A/validation/_tmp.{uuid}/
                     - Copy required evidence into this temp root, byte-for-byte from catalogued sources:
-                        · all s4_legality_report[seed,fingerprint] for seed ∈ SEEDS,
+                        · all s4_legality_report[seed, manifest_fingerprint] for seed ∈ SEEDS,
                         · a snapshot manifest for tz_timetable_cache (and any required cache descriptor),
                         · optionally checks/metrics JSON (if present in spec).
                     - Guarantee:
@@ -135,8 +135,8 @@ tz_timetable_cache,
 [Schema+Dict]
                 ->  (S5.6) Atomic publish validation_bundle_2A & exit posture
                     - Move the staged bundle root atomically into:
-                        · data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
-                        · partitions: [fingerprint]; no seed partition.
+                        · data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+                        · partitions: [manifest_fingerprint]; no seed partition.
                     - Ensure:
                         · bundle contents match index.json exactly (no extra/unlisted files),
                         · path↔embed equality holds wherever manifest_fingerprint appears in evidence files,
@@ -151,12 +151,12 @@ Downstream touchpoints
 ----------------------
 - **Consumers of 2A egress** (2B, 3A, 3B, ingestion gates, scenario runner, model training):
     - MUST, for a given manifest_fingerprint:
-        1) resolve data/layer1/2A/validation/fingerprint={manifest_fingerprint}/ via Dictionary,
+        1) resolve data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/ via Dictionary,
         2) read index.json and recompute SHA-256 over raw bytes of indexed files in ASCII-lex path order,
         3) read _passed.flag and compare its sha256_hex to their recomputation,
         4) only then read:
-            · site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-            · tz_timetable_cache/fingerprint={manifest_fingerprint}/
+            · site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+            · tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
        If comparison fails or _passed.flag is missing → **No PASS → No Read** for 2A civil-time surfaces.
 - **Enterprise HashGate / governance tooling**:
     - MAY treat validation_bundle_2A + _passed.flag as the single “2A HashGate receipt”

@@ -4,7 +4,7 @@
 Authoritative inputs (read-only at S2 entry)
 --------------------------------------------
 [S0 Gate & Identity]
-    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
+    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…
       · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: allowed 2A inputs (incl. s1_tz_lookup, tz_overrides, tz_world_2025a, tz_nudge, optional merchant_mcc_map)
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A run
@@ -20,8 +20,8 @@ Authoritative inputs (read-only at S2 entry)
 [S1 Output · geometry-only tz guess]
     - s1_tz_lookup
         · schema: schemas.2A.yaml#/plan/s1_tz_lookup
-        · path:   data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
-        · partitions: [seed, fingerprint]
+        · path:   data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        · partitions: [seed, manifest_fingerprint]
         · PK/sort: [merchant_id, legal_country_iso, site_order]
         · contents: tzid_provisional, nudge_lat_deg, nudge_lon_deg (+ lat_deg, lon_deg echo)
 
@@ -72,7 +72,7 @@ Numeric & RNG posture
 [Schema+Dict]
                 ->  (S2.2) Resolve inputs & structural sanity
                     - Resolve via Dataset Dictionary (no literal paths):
-                        · s1_tz_lookup @ data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
+                        · s1_tz_lookup @ data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
                         · tz_overrides  @ config/layer1/2A/timezone/tz_overrides.yml (or equivalent path family)
                         · tz_world_2025a @ reference/spatial/tz_world/2025a/tz_world.parquet
                         · merchant_mcc_map (only if sealed and referenced by S0)
@@ -161,8 +161,8 @@ tz_world_2025a,
 [Schema+Dict]
                 ->  (S2.6) Materialise site_timezones & exit posture
                     - Write site_timezones under:
-                        · data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-                        · partitions: [seed, fingerprint]
+                        · data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+                        · partitions: [seed, manifest_fingerprint]
                         · writer sort: [merchant_id, legal_country_iso, site_order]
                         · format: Parquet
                     - Enforce:
@@ -184,7 +184,7 @@ Downstream touchpoints
     - Uses site_timezones plus tz_timetable_cache to:
         · compute gap/fold windows per tzid,
         · detect missing tzids in the cache,
-        · emit s4_legality_report[seed,fingerprint] (PASS / FAIL).
+        · emit s4_legality_report[seed, manifest_fingerprint] (PASS / FAIL).
 
 - **2A.S5 — 2A validation bundle & PASS flag**:
     - For a given manifest_fingerprint, ensures:

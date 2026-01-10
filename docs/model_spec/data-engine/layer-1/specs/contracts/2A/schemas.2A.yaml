@@ -26,7 +26,7 @@ validation:
     type: table
     description: "Fingerprint-scoped receipt proving 1B PASS and freezing the sealed-inputs manifest for 2A."
     primary_key: [manifest_fingerprint]
-    partition_keys: [fingerprint]
+    partition_keys: [manifest_fingerprint]
     sort_keys: []
     columns_strict: true
     columns:
@@ -49,7 +49,7 @@ validation:
           required: [id, partition, schema_ref]
           properties:
             id: { type: string, minLength: 1 }
-            partition: { type: array, items: { type: string }, description: 'Partition keys, e.g. ["seed","fingerprint"] or ["parameter_hash"].' }
+            partition: { type: array, items: { type: string }, description: 'Partition keys, e.g. ["seed","manifest_fingerprint"] or ["parameter_hash"].' }
             schema_ref: { type: string, minLength: 1 }
       - { name: notes, type: string, nullable: true }
 
@@ -125,7 +125,7 @@ validation:
     type: object
     additionalProperties: false
     properties:
-      fingerprint:      { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       generated_at_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
       overall_status:   { type: string, enum: [PASS, FAIL] }
       datasets:
@@ -137,7 +137,7 @@ validation:
             id:      { type: string }
             status:  { type: string, enum: [PASS, FAIL] }
             notes:   { type: string }
-    required: [fingerprint, generated_at_utc, overall_status]
+    required: [manifest_fingerprint, generated_at_utc, overall_status]
 
   metrics_v1:
     type: object
@@ -153,9 +153,9 @@ manifests:
 
   sealed_inputs_2A:
     type: table
-    description: "Row-wise inventory of sealed assets for 2A fingerprint."
+    description: "Row-wise inventory of sealed assets for 2A manifest_fingerprint."
     primary_key: [manifest_fingerprint, asset_id]
-    partition_keys: [fingerprint]
+    partition_keys: [manifest_fingerprint]
     sort_keys: [asset_kind, basename]
     columns_strict: true
     columns:
@@ -215,12 +215,12 @@ plan:
     type: table
     description: "Per-site provisional tz lookup inputs/outputs for 2A.S1."
     primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:
       - { name: seed,               $ref: '#/$defs/uint64',                    nullable: false }
-      - { name: fingerprint,        $ref: '#/$defs/hex64',                     nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64',                   nullable: false }
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',   nullable: false }
       - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',   nullable: false }
       - { name: site_order,         type: integer, minimum: 1,                 nullable: false }
@@ -237,12 +237,12 @@ egress:
     type: table
     description: "Per-site assigned IANA tzid with provenance."
     primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:
       - { name: seed,               $ref: '#/$defs/uint64',                    nullable: false }
-      - { name: fingerprint,        $ref: '#/$defs/hex64',                     nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64',                   nullable: false }
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',   nullable: false }
       - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',   nullable: false }
       - { name: site_order,         type: integer, minimum: 1,                 nullable: false }

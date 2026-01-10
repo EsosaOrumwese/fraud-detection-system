@@ -4,7 +4,7 @@
 Authoritative inputs (read-only at S3 entry)
 --------------------------------------------
 [S0 Gate & Identity]
-    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
+    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…
       · proves: 1B PASS gate verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: tzdb_release + tz_world_2025a as the only TZ inputs S3 may read
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A run
@@ -68,7 +68,7 @@ tz_world_2025a
                         · TZID_world = { tzid | distinct tz_world_2025a.tzid }.
                         · ensure no null/empty tzid; enforce iana_tzid pattern per schema.
                     - Confirm S3 output slot exists in Dictionary:
-                        · tz_timetable_cache entry with schema_ref, path family, partitions [fingerprint],
+                        · tz_timetable_cache entry with schema_ref, path family, partitions [manifest_fingerprint],
                           writer policy and licence present.
 
 [S3.2],
@@ -115,8 +115,8 @@ tz_world_2025a
 [Schema+Dict]
                 ->  (S3.6) Materialise tz_timetable_cache (fingerprint-scoped) & exit posture
                     - Write tz_timetable_cache under:
-                        · data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-                        · partitions: [fingerprint]
+                        · data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+                        · partitions: [manifest_fingerprint]
                         · format: as per Dictionary (e.g. Parquet + sidecar manifest JSON).
                     - Emit at least a manifest row/object per schema:
                         · manifest_fingerprint  == fingerprint path token,
@@ -139,15 +139,15 @@ Downstream touchpoints
 ----------------------
 - **2A.S4 — Legality report (DST gaps/folds)**:
     - Reads tz_timetable_cache for this fingerprint,
-      combines with site_timezones[seed,fingerprint] to:
+      combines with site_timezones[seed, manifest_fingerprint] to:
         · compute gap/fold windows per tzid,
         · detect missing tzids,
-        · emit s4_legality_report[seed,fingerprint] (PASS/FAIL).
+        · emit s4_legality_report[seed, manifest_fingerprint] (PASS/FAIL).
 
 - **2A.S5 — 2A validation bundle & PASS flag**:
     - For the same fingerprint, packages:
         · tz_timetable_cache manifest,
-        · all s4_legality_report[seed,fingerprint] for seeds that have site_timezones,
+        · all s4_legality_report[seed, manifest_fingerprint] for seeds that have site_timezones,
       into a fingerprint-scoped validation bundle,
       computes the ASCII-lex + SHA-256 digest over bundle files,
       and writes `_passed.flag` that downstream must verify before reading

@@ -4,7 +4,7 @@
 Authoritative inputs (read-only at S4 entry)
 --------------------------------------------
 [S0 Gate & Identity]
-    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/…
+    - s0_gate_receipt_2A @ data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…
       · proves: 1B PASS gate was verified for this manifest_fingerprint (via 1B bundle + _passed.flag)
       · seals: site_timezones + tz_timetable_cache as allowed 2A inputs
       · binds: manifest_fingerprint, parameter_hash, verified_at_utc for this 2A run
@@ -18,16 +18,16 @@ Authoritative inputs (read-only at S4 entry)
 [S2 Egress · per-site final tzid]
     - site_timezones
         · schema: schemas.2A.yaml#/egress/site_timezones
-        · path:   data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-        · partitions: [seed, fingerprint]
+        · path:   data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        · partitions: [seed, manifest_fingerprint]
         · PK / writer sort: [merchant_id, legal_country_iso, site_order]
         · contents: final tzid per site + tzid_source, override_scope, nudge_* (S2 is authority)
 
 [S3 Output · compiled tz timetable]
     - tz_timetable_cache
         · schema: schemas.2A.yaml#/plan/tz_timetable_cache
-        · path:   data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-        · partitions: [fingerprint]
+        · path:   data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+        · partitions: [manifest_fingerprint]
         · contents: canonical transition series per tzid, tzdb_release_tag, tzdb_archive_sha256, tz_index_digest, rle_cache_bytes
 
 Numeric & RNG posture
@@ -59,8 +59,8 @@ Numeric & RNG posture
 site_timezones
                 ->  (S4.2) Resolve site_timezones & derive TZ_USED
                     - Resolve site_timezones via Dictionary:
-                        · data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
-                        · partitions: [seed, fingerprint]; writer sort [merchant_id, legal_country_iso, site_order].
+                        · data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+                        · partitions: [seed, manifest_fingerprint]; writer sort [merchant_id, legal_country_iso, site_order].
                     - Validate shape:
                         · conforms to schemas.2A.yaml#/egress/site_timezones (columns_strict),
                         · PK uniqueness on [merchant_id, legal_country_iso, site_order].
@@ -77,8 +77,8 @@ site_timezones
 tz_timetable_cache
                 ->  (S4.3) Resolve tz_timetable_cache & canonical index
                     - Resolve tz_timetable_cache via Dictionary:
-                        · data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
-                        · partitions: [fingerprint]; write-once; atomic publish.
+                        · data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+                        · partitions: [manifest_fingerprint]; write-once; atomic publish.
                     - Validate shape:
                         · manifest object conforms to schemas.2A.yaml#/plan/tz_timetable_cache,
                         · embedded manifest_fingerprint equals fingerprint path token.
@@ -134,8 +134,8 @@ tz_timetable_cache
 [Schema+Dict]
                 ->  (S4.6) Materialise s4_legality_report & exit posture
                     - Write a single JSON legality report under:
-                        · data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
-                        · partitions: [seed, fingerprint]
+                        · data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
+                        · partitions: [seed, manifest_fingerprint]
                         · schema: schemas.2A.yaml#/plan/s4_legality_report (shape-owned by 2A schema pack).
                     - Populate fields:
                         · manifest_fingerprint (MUST equal fingerprint path token),
@@ -159,13 +159,13 @@ Downstream touchpoints
 - **2A.S5 — 2A validation bundle & PASS flag (fingerprint-scoped)**:
     - Discovers all seeds that have site_timezones for this manifest_fingerprint,
       then for each such seed:
-        · reads s4_legality_report[seed,fingerprint],
+        · reads s4_legality_report[seed, manifest_fingerprint],
         · requires status == "PASS".
     - Packages:
-        · all s4_legality_report[seed,fingerprint],
+        · all s4_legality_report[seed, manifest_fingerprint],
         · tz_timetable_cache manifest for this fingerprint,
       into the 2A validation bundle at:
-        · data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+        · data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
       builds index.json, computes ASCII-lex + SHA-256 digest, and writes `_passed.flag`.
     - Downstream consumers of site_timezones / tz_timetable_cache MUST verify `_passed.flag`
       for this fingerprint before reads (No PASS → No Read for 2A civil-time surfaces).

@@ -69,7 +69,7 @@
   • `mcc` → merchant’s MCC (from the sealed mapping if used by the programme);
   • `country` → `legal_country_iso`.
 * **Validate tzids:** Any override `tzid` MUST conform to the layer `iana_tzid` domain (and MAY be required to appear in the sealed `tz_world` release per validators).
-* **Emit final egress:** Write **`site_timezones`** under `[seed, fingerprint]`, setting `tzid`, `tzid_source ∈ {polygon, override}`, and `override_scope` when overridden; carry forward S1 `nudge_*` unchanged.
+* **Emit final egress:** Write **`site_timezones`** under `[seed, manifest_fingerprint]`, setting `tzid`, `tzid_source ∈ {polygon, override}`, and `override_scope` when overridden; carry forward S1 `nudge_*` unchanged.
 * **Remain RNG-free & idempotent.**
 
 **In scope.**
@@ -109,7 +109,7 @@ S2 SHALL begin only when:
 
 S2 **consumes only** the following inputs. All MUST be resolved **by ID via the Dataset Dictionary** (no literal paths) and be authorised by the Registry.
 
-1. **`s1_tz_lookup` (from S1) — partitioned by `[seed, fingerprint]`**
+1. **`s1_tz_lookup` (from S1) — partitioned by `[seed, manifest_fingerprint]`**
    *Role:* provides one provisional row per site (including any `nudge_*`).
    *Catalogue:* `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
    *Shape:* `schemas.2A.yaml#/plan/s1_tz_lookup`. 
@@ -128,7 +128,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
    *Role:* authoritative mapping to evaluate `mcc`-scope overrides.
    *Catalogue/Shape:* `merchant_mcc_map` (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); MUST be present in the sealed manifest if MCC overrides are to be applied in this run.
 
-> *Context for downstream:* S2 emits **`site_timezones`** as egress under `[seed, fingerprint]` (catalogue and anchor already defined), but this is an **output**, not a precondition.
+> *Context for downstream:* S2 emits **`site_timezones`** as egress under `[seed, manifest_fingerprint]` (catalogue and anchor already defined), but this is an **output**, not a precondition.
 
 ### 3.3 Binding constraints on input use
 
@@ -161,7 +161,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 1. **`s1_tz_lookup` (required)**
 
-   * **Shape:** `schemas.2A.yaml#/plan/s1_tz_lookup` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, fingerprint]`). 
+   * **Shape:** `schemas.2A.yaml#/plan/s1_tz_lookup` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, manifest_fingerprint]`). 
    * **Catalogue:** `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format Parquet; writer order `[merchant_id, legal_country_iso, site_order]`). 
    * **Registry:** plan dataset; depends on `site_locations`, `tz_world_2025a`, and `tz_nudge`. 
    * **Boundary:** S2 SHALL read exactly the run’s `(seed, fingerprint)` partition; it SHALL NOT mutate or re-write S1. 
@@ -181,7 +181,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 4. **2A.S0 gate receipt (evidence)**
 
    * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
-   * **Catalogue:** fingerprint-scoped receipt under `…/s0_gate_receipt/fingerprint={manifest_fingerprint}/…`.
+   * **Catalogue:** fingerprint-scoped receipt under `…/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…`.
    * **Boundary:** S2 SHALL only verify presence and fingerprint match; it SHALL NOT re-compute bundle hashes. 
 
 5. **(Optional) Merchant→MCC mapping** *(only if MCC-scope overrides are in use)*
@@ -212,11 +212,11 @@ S2 SHALL NOT: read datasets beyond §4.2; invent tzids not present in policy or 
 **Shape (authority).** `schemas.2A.yaml#/egress/site_timezones` (**columns_strict: true**) fixes:
 
 * **PK:** `[merchant_id, legal_country_iso, site_order]`
-* **Partitions:** `[seed, fingerprint]`
+* **Partitions:** `[seed, manifest_fingerprint]`
 * **Required columns:** `tzid`, `tzid_source ∈ {polygon, override}`, optional `override_scope ∈ {site,mcc,country}`, carry-through `nudge_lat_deg`, `nudge_lon_deg`, and `created_utc`. 
 
 **Catalogue (Dictionary).**
-`data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitioning** `[seed, fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet, **final_in_layer: true**.
+`data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitioning** `[seed, manifest_fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet, **final_in_layer: true**.
 
 **Registry (existence/licensing).**
 Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema:** `#/egress/site_timezones`. 
@@ -246,14 +246,14 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 
 ### 6.1 Output table — `site_timezones` (egress)
 
-* **ID → Schema:** `schemas.2A.yaml#/egress/site_timezones` (**columns_strict: true**). The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, fingerprint]`, writer **sort** `[merchant_id, legal_country_iso, site_order]`, and required columns:
+* **ID → Schema:** `schemas.2A.yaml#/egress/site_timezones` (**columns_strict: true**). The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, manifest_fingerprint]`, writer **sort** `[merchant_id, legal_country_iso, site_order]`, and required columns:
   `tzid` (layer `iana_tzid`), `tzid_source ∈ {polygon, override}`, optional `override_scope ∈ {site, mcc, country}`, carry-through `nudge_lat_deg`, `nudge_lon_deg`, `created_utc` (`rfc3339_micros`). 
 * **Dictionary/Registry binding:** Path family
-  `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions** `[seed, fingerprint]`; registered as **egress** with dependencies on `s1_tz_lookup` and `tz_overrides`.
+  `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions** `[seed, manifest_fingerprint]`; registered as **egress** with dependencies on `s1_tz_lookup` and `tz_overrides`.
 
 ### 6.2 Referenced inputs (read-only in S2)
 
-* **`s1_tz_lookup` (S1 plan):** `schemas.2A.yaml#/plan/s1_tz_lookup` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, fingerprint]`; includes `tzid_provisional` and optional `nudge_*`). Catalogue path
+* **`s1_tz_lookup` (S1 plan):** `schemas.2A.yaml#/plan/s1_tz_lookup` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, manifest_fingerprint]`; includes `tzid_provisional` and optional `nudge_*`). Catalogue path
   `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`. Registry classifies it as a **plan** dataset.
 * **`tz_overrides` (policy):** `schemas.2A.yaml#/policy/tz_overrides_v1` (scope∈{site,mcc,country}, `tzid`, optional expiry). Catalogue path `config/layer1/2A/timezone/tz_overrides.yaml`; registry lists it under **policy/config**.
 * **`tz_world_<release>` (ingress tz polygons; read-only membership source):** `schemas.ingress.layer1.yaml#/tz_world_2025a`. Catalogue path `reference/spatial/tz_world/<release>/tz_world.parquet`.
@@ -261,7 +261,7 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 
 ### 6.3 Identity & partition posture (binding)
 
-* **Output partitions:** `site_timezones` is partitioned by **`[seed, fingerprint]`**; the **Dataset Dictionary** governs the path family; **path↔embed equality** MUST hold where lineage appears in rows. 
+* **Output partitions:** `site_timezones` is partitioned by **`[seed, manifest_fingerprint]`**; the **Dataset Dictionary** governs the path family; **path↔embed equality** MUST hold where lineage appears in rows. 
 * **Single-writer & immutability:** One successful publish per `(seed, fingerprint)`; re-emits must be **byte-identical** or abort (registry posture). 
 
 ### 6.4 Binding constraints (shape-level, S2)
@@ -281,14 +281,14 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 * S2 is **strictly deterministic** and **RNG-free**.
 * Read permission derives from the **2A.S0 gate receipt** for the target `manifest_fingerprint`; S2 does **not** re-hash bundles.
 * Inputs are resolved **only via the Dataset Dictionary**; literal/relative paths are forbidden.
-* Output is the single egress **`site_timezones`** under `[seed, fingerprint]`.
+* Output is the single egress **`site_timezones`** under `[seed, manifest_fingerprint]`.
 
 ### 7.2 Canonical order of operations
 
 1. **Verify gate.** Assert presence & schema validity of the 2A.S0 receipt for the target `manifest_fingerprint`.
 2. **Resolve inputs.**
 
-   * Select `s1_tz_lookup` **exactly** at `[seed, fingerprint]`.
+   * Select `s1_tz_lookup` **exactly** at `[seed, manifest_fingerprint]`.
    * Bind the sealed `tz_overrides` policy.
    * Bind the sealed `tz_world` release for membership validation.
    * If MCC-scope overrides exist, bind the **authoritative merchant→MCC mapping** (must be present in the sealed inputs for this run); otherwise MCC-scope entries are **not active**.
@@ -324,7 +324,7 @@ f) **Finalise assignment & provenance.**
 
 ### 7.4 Output emission (identity & immutability)
 
-* Emit **`site_timezones`** to `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`.
+* Emit **`site_timezones`** to `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]`.
 * **Path↔embed equality** MUST hold wherever lineage appears in rows.
 * **Single-writer, write-once** posture: re-emitting to an existing `(seed, fingerprint)` **MUST** be byte-identical; otherwise **ABORT**.
 
@@ -358,7 +358,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 
 * **Dataset:** `site_timezones` →
   `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
-* **Partitions (binding):** `[seed, fingerprint]` (no others). **Dictionary** is the catalogue authority for path/partitions/format.
+* **Partitions (binding):** `[seed, manifest_fingerprint]` (no others). **Dictionary** is the catalogue authority for path/partitions/format.
 
 ### 8.3 Keys, uniqueness & coverage
 
@@ -399,7 +399,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 ### 9.1 Gate & input resolution (mandatory)
 
 **V-01 — S0 receipt present (Abort).** A valid **2A.S0 gate receipt** exists and schema-validates for the target `manifest_fingerprint`.
-**V-02 — Dictionary resolution (Abort).** Inputs resolve by **ID** via the Dataset Dictionary (no literal paths): `s1_tz_lookup` `[seed,fingerprint]`, `tz_overrides`, and `tz_world_<release>` (and merchant→MCC mapping if MCC scope is used).
+**V-02 — Dictionary resolution (Abort).** Inputs resolve by **ID** via the Dataset Dictionary (no literal paths): `s1_tz_lookup` `[seed, manifest_fingerprint]`, `tz_overrides`, and `tz_world_<release>` (and merchant→MCC mapping if MCC scope is used).
 **V-03 — Partition selection (Abort).** `s1_tz_lookup` is read **only** from the run’s `(seed, manifest_fingerprint)` partition.
 
 ### 9.2 Policy readiness & precedence (mandatory)
@@ -412,7 +412,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 ### 9.3 Output shape, identity & determinism (mandatory)
 
 **V-08 — Schema validity (Abort).** `site_timezones` validates against `schemas.2A.yaml#/egress/site_timezones` (**columns_strict: true**).
-**V-09 — Path↔embed equality (Abort).** Output partition tokens `[seed,fingerprint]` **byte-equal** any embedded lineage fields.
+**V-09 — Path↔embed equality (Abort).** Output partition tokens `[seed, manifest_fingerprint]` **byte-equal** any embedded lineage fields.
 **V-10 — Write-once semantics (Abort).** If the target `(seed, fingerprint)` partition already exists, newly written bytes MUST be **byte-identical**; otherwise **ABORT**.
 **V-11 — Deterministic `created_utc` (Abort).** `created_utc` equals **`S0.receipt.verified_at_utc`** in every emitted row.
 
@@ -596,7 +596,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 
 **Outputs & identity:**
 
-* `output.path : string` — Dictionary path to `site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `output.path : string` — Dictionary path to `site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * `output.format : "parquet"`
 * `output.created_utc : rfc3339_micros` — MUST equal `s0.verified_at_utc` (see §9 V-11)
 * `catalogue.writer_order_ok : bool` — advisory (writer-order check)
@@ -697,7 +697,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 
 ### 13.2 Stable compatibility surfaces (must remain invariant)
 
-1. **Identity:** output is selected by **`(seed, manifest_fingerprint)`**; partitions are **`[seed, fingerprint]`** only; path↔embed equality MUST hold.
+1. **Identity:** output is selected by **`(seed, manifest_fingerprint)`**; partitions are **`[seed, manifest_fingerprint]`** only; path↔embed equality MUST hold.
 2. **Output surface:** dataset **`site_timezones`** exists with its **schema anchor/ID** unchanged; `columns_strict: true`.
 3. **Shape/keys:** PK = `[merchant_id, legal_country_iso, site_order]`; required columns include `tzid`, `tzid_source ∈ {polygon, override}`; `override_scope ∈ {site,mcc,country|null}`; `nudge_*` carry-through; `created_utc` present.
 4. **Determinism:** `created_utc` **= S0.receipt.verified_at_utc**; S2 is RNG-free.
@@ -777,14 +777,14 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 ### A2. Upstream receipts & inputs used by S2
 
-* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped, catalogue path family `…/s0_gate_receipt/fingerprint={manifest_fingerprint}/…`).
-* **S1 output** — `s1_tz_lookup`: `schemas.2A.yaml#/plan/s1_tz_lookup`; Dictionary path `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (partitions `[seed,fingerprint]`).
+* **2A.S0 gate receipt** — `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (fingerprint-scoped, catalogue path family `…/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/…`).
+* **S1 output** — `s1_tz_lookup`: `schemas.2A.yaml#/plan/s1_tz_lookup`; Dictionary path `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (partitions `[seed, manifest_fingerprint]`).
 * **Policy overrides** — `tz_overrides`: `schemas.2A.yaml#/policy/tz_overrides_v1`; Dictionary path `config/layer1/2A/timezone/tz_overrides.yaml` (precedence site » mcc » country).
 * **(Optional) Merchant→MCC mapping** — `merchant_mcc_map` dataset (schema `schemas.ingress.layer1.yaml#/merchant_mcc_map`); must be sealed and enumerated in the S0 manifest for the run.
 
 ### A3. S2 egress (this state)
 
-* **Final per-site tz** — `site_timezones`: `schemas.2A.yaml#/egress/site_timezones` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed,fingerprint]`; provenance fields `tzid_source`, `override_scope`; carry-through `nudge_*`).
+* **Final per-site tz** — `site_timezones`: `schemas.2A.yaml#/egress/site_timezones` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, manifest_fingerprint]`; provenance fields `tzid_source`, `override_scope`; carry-through `nudge_*`).
   Dictionary path family `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`; Registry marks as **final in layer**.
 
 ### A4. Ingress/time-zone domain (membership source)
@@ -794,8 +794,8 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 ### A5. Dataset Dictionary entries (catalogue authority)
 
-* **Inputs:** `s1_tz_lookup` (plan; `[seed,fingerprint]`), `tz_overrides` (policy file), *(optional)* MCC mapping (if used).
-* **Output:** `site_timezones` (egress; `[seed,fingerprint]`; Parquet; writer order `[merchant_id, legal_country_iso, site_order]`).
+* **Inputs:** `s1_tz_lookup` (plan; `[seed, manifest_fingerprint]`), `tz_overrides` (policy file), *(optional)* MCC mapping (if used).
+* **Output:** `site_timezones` (egress; `[seed, manifest_fingerprint]`; Parquet; writer order `[merchant_id, legal_country_iso, site_order]`).
 * **Evidence:** 2A.S0 receipt (fingerprint-scoped).
 
 ### A6. Artefact Registry entries (existence/licensing posture)
