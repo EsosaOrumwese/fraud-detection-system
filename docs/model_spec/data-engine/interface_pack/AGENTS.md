@@ -77,7 +77,7 @@ If code disagrees with specs, record a **DRIFT NOTE** in `data_engine_interface.
    - No RNG internals unless required for *external verification* (usually it is not).
 
 2) **Token convention**
-   - Fingerprint scoping MUST use: `fingerprint={manifest_fingerprint}` (exact).
+   - Fingerprint scoping MUST use: `manifest_fingerprint={manifest_fingerprint}` (exact).
    - Do not introduce variants.
 
 3) **No PASS → no read**

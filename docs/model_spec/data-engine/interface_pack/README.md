@@ -65,7 +65,7 @@ Must answer:
 - Identity tuple definitions: `parameter_hash`, `manifest_fingerprint`, `seed`, `scenario_id`, `run_id`
 - Determinism promise (same identity tuple ⇒ same outputs)
 - Output classes: **streams**, **authority surfaces**, **HashGates**
-- Discovery rules and path templates (must use `fingerprint={manifest_fingerprint}` consistently)
+- Discovery rules and path templates (must use `manifest_fingerprint={manifest_fingerprint}` consistently)
 - Join semantics and canonical join keys (global vs fingerprint-scoped)
 - Gate rulebook: what constitutes verification; “no PASS → no read”
 - Compatibility/versioning rules for breaking changes
@@ -76,7 +76,7 @@ Machine-readable inventory of every engine exposure to the platform.
 Each `output_id` entry defines:
 - `class`: `stream | surface`
 - `scope`: `world | run | scenario` (or equivalent)
-- `path_template` (must include `fingerprint={manifest_fingerprint}` where applicable)
+- `path_template` (must include `manifest_fingerprint={manifest_fingerprint}` where applicable)
 - `partitions` (e.g., `manifest_fingerprint`, `run_id`, `scenario_id`, date buckets if any)
 - `schema_ref`, `dictionary_ref` (authoritative references)
 - `primary_key`, `join_keys`
@@ -152,7 +152,7 @@ Components MUST discover engine outputs using:
 - `path_template` + partition keys in the catalogue
 
 Path templates MUST follow the convention:
-- `fingerprint={manifest_fingerprint}` (exact token usage)
+- `manifest_fingerprint={manifest_fingerprint}` (exact token usage)
 
 ### 4.4 Join rule (Binding)
 When joining events to surfaces, components MUST use:
