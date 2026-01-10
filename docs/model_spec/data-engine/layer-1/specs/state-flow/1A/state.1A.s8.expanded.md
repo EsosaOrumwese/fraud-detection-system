@@ -43,7 +43,7 @@
 ### What requires a **MAJOR** bump (breaking):
 
 * Any change to **dataset IDs**, **schema `$ref` anchors**, or **column/PK/partition** contracts for `outlet_catalogue`. 
-* Any change to **partition law** or lineage fields used by S8 (e.g., switching egress partitions away from `[seed, fingerprint]`). 
+* Any change to **partition law** or lineage fields used by S8 (e.g., switching egress partitions away from `[seed, manifest_fingerprint]`). 
 * Changing **“no cross-country order in egress”** (i.e., encoding inter-country order in `outlet_catalogue`). 
 * Altering **PASS-gate semantics** for 1A hand-off (validation bundle and `_passed.flag` relationship). 
 
@@ -69,7 +69,7 @@
 ## 0.3 Document scope & non-goals (status framing)
 
 * This document **governs only** S8 behaviour and artefacts needed to materialise `outlet_catalogue` and its minimal instrumentation events. It **does not** define cross-country order, counts, or weights; those remain with S3/S7/S5 respectively and are referenced in later sections.
-* S8 egress is **fingerprint-scoped** and partitioned `[seed, fingerprint]`; **path↔embed equality** for `manifest_fingerprint` is enforced elsewhere in this spec. 
+* S8 egress is **fingerprint-scoped** and partitioned `[seed, manifest_fingerprint]`; **path↔embed equality** for `manifest_fingerprint` is enforced elsewhere in this spec. 
 
 ---
 
@@ -124,7 +124,7 @@ S8 **consumes** already-ratified facts and authorities; it does **not** derive t
 
 ## 1.3 What S8 produces
 
-* **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
+* **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
 * **Instrumentation streams:**
   - `rng_event.sequence_finalize` per `(merchant,country)` block with `{site_count,start_sequence,end_sequence}` (for audit and replay accounting).
   - `rng_event.site_sequence_overflow` on overflow (guardrail → merchant-scoped failure).
@@ -164,7 +164,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 * **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/layer1/1A/events** and appears in their paths. 
 * **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/layer1/1A/events; where embedded, bytes **MUST** equal the path token.
 * **`run_id`** — run-scoped identifier (**lowercase hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`).  
-* **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — **lowercase hex64** lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
+* **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — **lowercase hex64** lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `manifest_fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
 
 ## 2.2 Entities & keys
 
@@ -182,8 +182,8 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 ## 2.4 S8 egress: `outlet_catalogue` column terms (all **Binding**)
 
-* **Primary key (PK)** — `[merchant_id, legal_country_iso, site_order]`. **Unique key equals PK.** Sort keys are identical. Partition keys: `[seed, fingerprint]`. 
-* **`manifest_fingerprint`** — per-row **lowercase hex64** equal to the egress `fingerprint` path token (lineage equality).
+* **Primary key (PK)** — `[merchant_id, legal_country_iso, site_order]`. **Unique key equals PK.** Sort keys are identical. Partition keys: `[seed, manifest_fingerprint]`. 
+* **`manifest_fingerprint`** — per-row **lowercase hex64** equal to the egress `manifest_fingerprint` path token (lineage equality).
 * **`site_order`** — **within-country** contiguous sequence `1..nᵢ` for each `(merchant_id, legal_country_iso)` block (**no gaps**). 
 * **`site_id`** — **mandatory** 6-digit zero-padded string for the within-country sequence (`^[0-9]{6}$`). It encodes **only** the local sequence, not global order. 
 * **`single_vs_multi_flag`** — boolean copy of the S1 hurdle decision at merchant level (1 if multi-site). 
@@ -211,12 +211,12 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 * **`Nₘ`** — merchant-level domestic outlets from `nb_final.n_outlets`. **Invariant later (§9):** `Σ_{c∈Dₘ} nₘ,c = Nₘ`. 
 * **`nₘ,c`** — per-country final integer count in `outlet_catalogue.final_country_outlet_count` for merchant `m` and country `c`. 
 * **`site_order` sequence** — for each `(m,c)`, the ordered list `⟨1,…,nₘ,c⟩`. `site_id` is the 6-digit rendering of this sequence. 
-* **Path↔embed equality** — whenever lineage columns are embedded: egress `manifest_fingerprint` **MUST** equal the `fingerprint` path token; event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
+* **Path↔embed equality** — whenever lineage columns are embedded: egress `manifest_fingerprint` **MUST** equal the `manifest_fingerprint` path token; event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
 
 ## 2.7 Consumption gates (terms used throughout)
 
 * **S6 PASS** — the S6 validation receipt folder whose `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed, parameter_hash}`; required before reading S6 convenience surfaces.
-* **1A PASS (hand-off to 1B)** — the `validation_bundle_1A` at `…/validation/fingerprint={manifest_fingerprint}/`; consumers must verify `_passed.flag` content hash equals `SHA256(bundle)` before reading `outlet_catalogue`.
+* **1A PASS (hand-off to 1B)** — the `validation_bundle_1A` at `…/validation/manifest_fingerprint={manifest_fingerprint}/`; consumers must verify `_passed.flag` content hash equals `SHA256(bundle)` before reading `outlet_catalogue`.
 
 **Status:** All terms above are **Binding** and will be used verbatim in §§3–13.
 
@@ -241,7 +241,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 ## 3.2 What each authority decides (scope partitioning)
 
 * **JSON-Schema (source of truth):** row/record **shape**, field domains & types, **PK/UK** definitions, event envelope fields, and required lineage columns.
-* **Dataset Dictionary:** dataset **IDs → schema `$ref`**, **partition keys** (e.g., `[seed, fingerprint]` for S8 egress; `[parameter_hash]` for parameter-scoped inputs), **writer sort**, and **consumer gates** text. 
+* **Dataset Dictionary:** dataset **IDs → schema `$ref`**, **partition keys** (e.g., `[seed, manifest_fingerprint]` for S8 egress; `[parameter_hash]` for parameter-scoped inputs), **writer sort**, and **consumer gates** text. 
 * **This S8 spec:** behavioural rules (e.g., “within-country sequencing only”), **prohibitions**, invariants, error/degrade ladder, and **PASS-gate** expectations. 
 
 ## 3.3 Fixed upstream authorities S8 MUST honour
@@ -314,7 +314,7 @@ This section fixes **what keys partition which artefacts**, how **path tokens mu
 
 **Egress (S8 output).**
 `outlet_catalogue` is **fingerprint-scoped** under
-`data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` and writer sort `[merchant_id, legal_country_iso, site_order]`. Schema anchor: `schemas.1A.yaml#/egress/outlet_catalogue`.
+`data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]` and writer sort `[merchant_id, legal_country_iso, site_order]`. Schema anchor: `schemas.1A.yaml#/egress/outlet_catalogue`.
 
 **Parameter-scoped inputs (RNG-free; upstream).**
 Examples: `s3_candidate_set`, `s3_integerised_counts`, `s3_site_sequence` when present. These live under `…/parameter_hash={parameter_hash}/` (partition `[parameter_hash]`). Schema anchors: `schemas.1A.yaml#/s3/*`.
@@ -329,7 +329,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 ## 5.2 Path↔embed equality (must hold)
 
-**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `fingerprint` path token for the same partition, and `global_seed` **MUST** equal the `seed` path token. **Pattern (for `manifest_fingerprint`):** `^[a-f0-9]{64}$`.
+**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `manifest_fingerprint` path token for the same partition, and `global_seed` **MUST** equal the `seed` path token. **Pattern (for `manifest_fingerprint`):** `^[a-f0-9]{64}$`.
 
 **Parameter-scoped tables.** Each row **MUST** embed `parameter_hash` and it **MUST equal** the `parameter_hash` path token. If present, `produced_by_fingerprint` is **informational only** (not a partition key nor part of equality).
 
@@ -337,7 +337,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 ## 5.3 Identity, immutability & atomic publish
 
-**Identity of a partition.** *(“fingerprint” path token equals `manifest_fingerprint` column value.)*
+**Identity of a partition.** *(“manifest_fingerprint” path token equals `manifest_fingerprint` column value.)*
 
 * Egress: `(dataset='outlet_catalogue', seed, manifest_fingerprint)`.
 * Parameter-scoped: `(dataset_id, parameter_hash)`.
@@ -440,11 +440,11 @@ This section fixes **exactly what S8 writes**, with schema anchors, partitions, 
 
 **Dataset ID & schema.** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue`. 
 
-**Path & partitions.** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`. **Writer sort** `[merchant_id, legal_country_iso, site_order]`. **No cross-country order is encoded** in this table. 
+**Path & partitions.** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]`. **Writer sort** `[merchant_id, legal_country_iso, site_order]`. **No cross-country order is encoded** in this table. 
 
-**Keys.** **PK** = **UK** = `[merchant_id, legal_country_iso, site_order]`. Rows are immutable within a `(seed,fingerprint)` partition. 
+**Keys.** **PK** = **UK** = `[merchant_id, legal_country_iso, site_order]`. Rows are immutable within a `(seed, manifest_fingerprint)` partition. 
 
-**Lineage column.** `manifest_fingerprint` **MUST** be a lowercase hex64 and **MUST byte-equal** the `fingerprint` path token for the partition. 
+**Lineage column.** `manifest_fingerprint` **MUST** be a lowercase hex64 and **MUST byte-equal** the `manifest_fingerprint` path token for the partition. 
 
 **Inter-country order boundary (binding).** Consumers that need cross-country order **MUST** join S3 `s3_candidate_set.candidate_rank` (home rank = 0). `outlet_catalogue` **MUST NOT** encode that order. 
 
@@ -490,14 +490,14 @@ S8 emits exactly two **rng_event** families, both partitioned at
 
 ## 7.4 Lineage embedding & equality (write-time checks)
 
-* **Egress rows:** `outlet_catalogue.manifest_fingerprint` **MUST equal** the `fingerprint` path token (hex64).
+* **Egress rows:** `outlet_catalogue.manifest_fingerprint` **MUST equal** the `manifest_fingerprint` path token (hex64).
 * **Events:** every event row **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** equal their path tokens; `manifest_fingerprint` **MUST** equal the egress fingerprint for this run. 
 
 ---
 
 ## 7.5 Physical format, writer sort & immutability
 
-* `outlet_catalogue` **format:** Parquet; **writer sort:** `[merchant_id, legal_country_iso, site_order]`; partitioned `[seed, fingerprint]`; immutable once published. 
+* `outlet_catalogue` **format:** Parquet; **writer sort:** `[merchant_id, legal_country_iso, site_order]`; partitioned `[seed, manifest_fingerprint]`; immutable once published. 
 * **Event files:** JSONL; reader semantics are **set-based** (row order non-authoritative). Trace/audit logs use the core RNG schemas. 
 * **Compression policy:** if the registry pins codecs/levels (e.g., ZSTD level 3), producers **MUST** adhere; otherwise value-identity suffices. (Outlet entry notes storage policy and gate.) 
 
@@ -600,7 +600,7 @@ S8 recognizes the following **valid** outcomes (still enforcing all invariants i
 
 ## 8.9 Publication discipline (write step coupling)
 
-* **Atomicity & idempotence.** After all `(merchant,country)` blocks pass, publish `outlet_catalogue` once under `seed={seed}/fingerprint={manifest_fingerprint}`; content is **immutable** and **byte-stable** for identical inputs/lineage. 
+* **Atomicity & idempotence.** After all `(merchant,country)` blocks pass, publish `outlet_catalogue` once under `seed={seed}/manifest_fingerprint={manifest_fingerprint}`; content is **immutable** and **byte-stable** for identical inputs/lineage. 
 * **Gate reminder.** Downstream (e.g., 1B) **MUST** verify that `_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the **same fingerprint** before reading `outlet_catalogue`. 
 
 **Status:** Section 8 is **Binding**.
@@ -609,7 +609,7 @@ S8 recognizes the following **valid** outcomes (still enforcing all invariants i
 
 # 9) Invariants & integrity constraints **(Binding)**
 
-All clauses below are **normative** and MUST hold for every `(seed,fingerprint)` partition of **`outlet_catalogue`** and its paired S8 instrumentation streams.
+All clauses below are **normative** and MUST hold for every `(seed, manifest_fingerprint)` partition of **`outlet_catalogue`** and its paired S8 instrumentation streams.
 
 ---
 
@@ -624,7 +624,7 @@ All clauses below are **normative** and MUST hold for every `(seed,fingerprint)`
 
 ## 9.2 Lineage equality & immutability
 
-* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed,fingerprint)` partition.
+* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `manifest_fingerprint` (hex64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed, manifest_fingerprint)` partition.
 * **Path↔embed equality (events).** Every S8 event row embeds `{seed, parameter_hash, run_id, manifest_fingerprint}`; `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the validation fingerprint for this bundle; envelope fields (`blocks`, `draws`) obey the family budgets in the layer schema.
 
 ---
@@ -680,7 +680,7 @@ For each `(merchant, country)` with `final_country_outlet_count = n ≥ 1`:
 
 ## 9.9 Hand-off gate (consumer constraint)
 
-* For a given `fingerprint`, consumers (e.g., 1B) **MUST** verify that the `_passed.flag` in `data/layer1/1A/validation/manifest_fingerprint={fingerprint}/` has **content hash equal to `SHA256(validation_bundle_1A)`** for the same fingerprint **before** reading `outlet_catalogue`. **No PASS → no read.** 
+* For a given `manifest_fingerprint`, consumers (e.g., 1B) **MUST** verify that the `_passed.flag` in `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` has **content hash equal to `SHA256(validation_bundle_1A)`** for the same `manifest_fingerprint` **before** reading `outlet_catalogue`. **No PASS → no read.** 
 
 **Status:** Section 9 is **Binding**.
 
@@ -832,7 +832,7 @@ On any **Abort** action:
 
 ## 11.1 Inputs the validator MUST read (and their anchors)
 
-* **Subject of validation:** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` (PK/UK, partitions `[seed,fingerprint]`, writer sort). 
+* **Subject of validation:** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` (PK/UK, partitions `[seed, manifest_fingerprint]`, writer sort). 
 * **Order authority:** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` (total, contiguous ranks; `home` at 0). 
 * **Count facts:** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` (exactly one per merchant; **non-consuming**). If present, also read `s3_integerised_counts` → `schemas.1A.yaml#/s3/integerised_counts`. Otherwise, use S7 residual evidence (`rng_event.residual_rank`).
 * **S8 instrumentation:** `rng_event.sequence_finalize`, `rng_event.site_sequence_overflow` (S8-emitted families). Also `rng_trace_log` and `rng_audit_log` for coverage.
@@ -845,7 +845,7 @@ On any **Abort** action:
 The validator **MUST** assert:
 
 1. **Schema-validity & partitions** for all inputs above (tables/events match their `$ref`; paths match dictionary path templates & partitions).
-2. **Path↔embed equality:** every egress row’s `manifest_fingerprint` equals the `fingerprint` path token; every RNG/event row (audit/trace/S8 events) embeds `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` equal the path tokens and `manifest_fingerprint` equals the **validation fingerprint** for this bundle. **Any mismatch ⇒ fail.**
+2. **Path↔embed equality:** every egress row’s `manifest_fingerprint` equals the `manifest_fingerprint` path token; every RNG/event row (audit/trace/S8 events) embeds `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` equal the path tokens and `manifest_fingerprint` equals the **validation fingerprint** for this bundle. **Any mismatch ⇒ fail.**
 3. **S6 gate (if applicable):** if `s6_membership` was consumed by the producer, the S6 receipt folder exists and `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed,parameter_hash}`. **No PASS → fail.** 
 
 ---
@@ -890,7 +890,7 @@ Join distinct egress countries back to S3 on `outlet_catalogue.(merchant_id, leg
 ## 11.7 Validator artefacts & PASS gate (fingerprint-scoped)
 
 Write the **validation bundle** under:
-`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint partition). Bundle contains machine-readable results (e.g., schema checks, counts & sums, membership parity, RNG accounting, FK checks). Compute `_passed.flag` as:
+`data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/` (manifest_fingerprint partition). Bundle contains machine-readable results (e.g., schema checks, counts & sums, membership parity, RNG accounting, FK checks). Compute `_passed.flag` as:
 
 * Single line: `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over the **ASCII-lexicographic concatenation** of all other bundle files’ bytes (exclude `_passed.flag`). Publish atomically into the fingerprint folder.
 
@@ -921,7 +921,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.1 Writer discipline (single identity, at-most-once)
 
-* **Partition identity (egress):** `(dataset='outlet_catalogue', seed, fingerprint)`; this partition is **write-once**. If it already exists, producers **MUST** verify byte identity; if different, **hard-fail** (no overwrite). Egress path & sort are fixed by the Dictionary & schema.
+* **Partition identity (egress):** `(dataset='outlet_catalogue', seed, manifest_fingerprint)`; this partition is **write-once**. If it already exists, producers **MUST** verify byte identity; if different, **hard-fail** (no overwrite). Egress path & sort are fixed by the Dictionary & schema.
 * **Atomic publish:** **Stage → fsync → atomic rename** into the Dictionary location; **no partial contents** may become visible. After publish, the partition is **immutable**. (Discipline mirrors S7 §10.4.) 
 
 ## 12.2 Sharding model (how to split the work)
@@ -954,7 +954,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.7 Lineage equality & canonical paths (concurrency checks)
 
-* **Path↔embed equality** is **binding** on every event/log row for `{seed, parameter_hash, run_id}`, and on egress for `manifest_fingerprint == fingerprint path token`. Mismatch ⇒ abort.
+* **Path↔embed equality** is **binding** on every event/log row for `{seed, parameter_hash, run_id}`, and on egress for `manifest_fingerprint equals the `manifest_fingerprint` path token`. Mismatch ⇒ abort.
 * **Canonical paths only:** All writes **MUST** target the Dictionary paths and partitions for their families/datasets; free-hand paths are non-conformant. 
 
 ## 12.8 Storage & writer policy (if pinned)
@@ -964,7 +964,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.9 Consumer guarantees (what parallelism may not break)
 
-Given §§12.1–12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed,fingerprint)`:
+Given §§12.1–12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed, manifest_fingerprint)`:
 
 * `outlet_catalogue` is **byte-stable** and **order-stable** by its sort keys;
 * each `(merchant, country)` block contributes `n` rows with `site_order=1..n` and a single `sequence_finalize` event;
@@ -1105,7 +1105,7 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 ## A.3 Dataset IDs S8 reads/writes (IDs → `$ref` → partitions)
 
 * **Egress (S8 writes):**
-  `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` → `[seed, fingerprint]`
+  `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` → `[seed, manifest_fingerprint]`
   Path: `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
   *(Does **not** encode cross-country order; consumers must join S3 candidate rank.)*
 
@@ -1147,9 +1147,9 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 
 ## A.6 Lineage & path tokens (exact column/segment names)
 
-* Path tokens used by S8: `seed`, `parameter_hash`, `run_id`, `fingerprint`.
+* Path tokens used by S8: `seed`, `parameter_hash`, `run_id`, `manifest_fingerprint`.
 * Embedded lineage columns that must **byte-equal** path tokens where present:
-  `manifest_fingerprint` (egress row) ↔ `fingerprint` (path);
+  `manifest_fingerprint` (egress row) ↔ `manifest_fingerprint` (path);
   `{seed, parameter_hash, run_id}` (event rows) ↔ their path segments;
   and for **event rows**, `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
 
@@ -1189,7 +1189,7 @@ These toy scenarios illustrate S8 behaviour. Values are illustrative only; they 
 ## B.1 Normal multi-country merchant (three-country domain)
 
 **Lineage tokens**
-`seed=1234567890123456789` (uint64) · `parameter_hash=a1…a1` (**hex64**) · `run_id=9f…9f` (**hex32**) · `fingerprint=0123456789abcdef…(**hex64**)`
+`seed=1234567890123456789` (uint64) · `parameter_hash=a1…a1` (**hex64**) · `run_id=9f…9f` (**hex32**) · `manifest_fingerprint=0123456789abcdef…(**hex64**)`
 
 **S3 candidate set (sole cross-country order, home rank=0)**
 `GB(0), US(1), DE(2)` — total, contiguous.
@@ -1199,7 +1199,7 @@ These toy scenarios illustrate S8 behaviour. Values are illustrative only; they 
 S7 integerised counts: `GB:4, US:2, DE:1` (sum = 7).
 S6 membership agrees with S3 domain.
 
-**S8 writes** `outlet_catalogue` (partitioned by `[seed, fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`):
+**S8 writes** `outlet_catalogue` (partitioned by `[seed, manifest_fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`):
 
 | `merchant_id` | `home_country_iso` | `legal_country_iso` | `site_order` | `site_id` | `raw_nb_outlet_draw` | `final_country_outlet_count` | `manifest_fingerprint` |       `global_seed` |
 |---------------|--------------------|---------------------|-------------:|----------:|---------------------:|-----------------------------:|------------------------|--------------------:|
@@ -1258,7 +1258,7 @@ S6 membership agrees with S3 domain.
 ## B.5 Path & lineage parity (spot example)
 
 Given path
-`…/outlet_catalogue/seed=1234567890123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/part-000.parquet`,
+`…/outlet_catalogue/seed=1234567890123456789/manifest_fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/part-000.parquet`,
 every egress row **must** embed `manifest_fingerprint = "0123456789abcdef…"` and `global_seed = 1234567890123456789`. Any byte mismatch triggers `E_PATH_EMBED_MISMATCH` (see §10).
 
 ---
@@ -1298,7 +1298,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.4 Canonical paths & partitions (reminder)
 
-* **Egress (S8):** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` (Parquet). 
+* **Egress (S8):** `data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint]` (Parquet). 
 * **RNG events/logs:** `logs/layer1/1A/rng/{audit|trace|events/<family>}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` (JSONL). 
 * **Validation bundle:** `data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/`. Gate via `_passed.flag` content hash == `SHA256(bundle)` for the **same** fingerprint. 
 

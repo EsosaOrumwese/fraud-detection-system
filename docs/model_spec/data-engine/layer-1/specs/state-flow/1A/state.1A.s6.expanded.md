@@ -35,6 +35,7 @@
 * **Inputs (read):**
 
   * `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` (partition `[parameter_hash]`). **Authority for order & admissible set A.** 
+  * `crossborder_eligibility_flags` → `schemas.1A.yaml#/prep/crossborder_eligibility_flags` (partition `[parameter_hash]`); eligibility gate (`is_eligible == true`).
   * `rng_event_ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` (partitions `{seed, parameter_hash, run_id}`); carries `K_target`. 
   * `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache` (partition `[parameter_hash]`); authority for currency→country weights. 
   * *(Optional)* `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency` (partition `[parameter_hash]`). 
@@ -61,6 +62,7 @@
 
 **Inputs (authoritative; see 0.5 for full list):**
 * `s3_candidate_set` - scope: PARAMETER_SCOPED; sealed_inputs: required
+* `crossborder_eligibility_flags` - scope: PARAMETER_SCOPED; sealed_inputs: required
 * `rng_event_ztp_final` - scope: LOG_SCOPED; sealed_inputs: required
 * `ccy_country_weights_cache` - scope: PARAMETER_SCOPED; sealed_inputs: required
 * `merchant_currency` - scope: PARAMETER_SCOPED; sealed_inputs: optional
@@ -146,6 +148,7 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
 **3.1 Required datasets (IDs, `$ref`, PK/FK; partitions).**
 
 * **`s3_candidate_set`** → `schemas.1A.yaml#/s3/candidate_set`; **partition:** `parameter_hash={…}`; **row order (logical):** `(merchant_id, candidate_rank, country_iso)`; **authority:** `candidate_rank` is **total & contiguous** per merchant with **home=0**.
+* **`crossborder_eligibility_flags`** → `schemas.1A.yaml#/prep/crossborder_eligibility_flags`; **partition:** `parameter_hash={…}`; **PK:** `merchant_id`; **gate:** `is_eligible == true` is required to run S6.
 * **`rng_event_ztp_final`** (S4) → `schemas.layer1.yaml#/rng/events/ztp_final`; **partition:** `{seed, parameter_hash, run_id}`; **one** acceptance record per resolved merchant; consumed by **S6**. 
 * **`ccy_country_weights_cache`** (S5) → `schemas.1A.yaml#/prep/ccy_country_weights_cache`; **partition:** `parameter_hash={…}`; **PK:** `(currency, country_iso)`; downstream **must** verify **S5 PASS** for same `parameter_hash` (**no PASS → no read**).
 * *(Optional)* **`merchant_currency`** → `schemas.1A.yaml#/prep/merchant_currency`; **partition:** `parameter_hash={…}`; **PK:** `(merchant_id)`; precedence & domains pinned in S5.
@@ -534,6 +537,7 @@ Downstream states **MUST** verify the **S6 PASS** receipt before reading S6 conv
 **Inputs present & valid (precondition recap).**
 
 * `s3_candidate_set` exists for `parameter_hash={…}` and validates against its `$ref`; ranks total/contiguous with home=0. 
+* `crossborder_eligibility_flags` exists for the same `parameter_hash` and contains an `is_eligible` row for each merchant. 
 * Exactly one `rng_event_ztp_final` per merchant under `{seed,parameter_hash,run_id}` (schema-valid). 
 * `ccy_country_weights_cache` exists for **the same** `parameter_hash` and S5 **PASS** is present (S5 receipt + valid `_passed.flag`). **No PASS → no read.** 
 
@@ -880,8 +884,9 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 **Prerequisites (gates):**
 
 1. **S3** candidate set present & schema-valid for `parameter_hash={…}`.
-2. **S4** `ztp_final` present (one per resolved merchant) under `{seed, parameter_hash, run_id}`.
-3. **S5** weights cache present for same `parameter_hash` **and S5 PASS receipt exists** (**no PASS → no read**). 
+2. **S0** eligibility flags present (`crossborder_eligibility_flags`) for the same `parameter_hash`.
+3. **S4** `ztp_final` present (one per resolved merchant) under `{seed, parameter_hash, run_id}`.
+4. **S5** weights cache present for same `parameter_hash` **and S5 PASS receipt exists** (**no PASS → no read**). 
 
 **Nodes & order (single run):**
 
@@ -906,6 +911,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 [Pre-flight (N1)]
    │  Inputs present & schema-valid:
    │    • S3 candidate_set (home=0; ranks total/contiguous)
+   │    • S0 crossborder_eligibility_flags (is_eligible == true)
    │    • S4 rng_event.ztp_final (one per merchant) → K_target
    │    • S5 ccy_country_weights_cache (same parameter_hash) + S5 PASS
    │  Lineage checks: path↔embed equality
@@ -1263,7 +1269,7 @@ Use this **tick-box** list to sign off S6 before hand-off to implementation/ops.
 
 **Pre-flight (§3):**
 
-* [ ] **Inputs present & schema-valid** — S3 candidate set (home=0; ranks contiguous), S4 `ztp_final` (exactly one per merchant), S5 weights (same `parameter_hash`) with **S5 PASS receipt**; path↔embed equality holds.
+* [ ] **Inputs present & schema-valid** — S3 candidate set (home=0; ranks contiguous), S0 eligibility flags (`crossborder_eligibility_flags.is_eligible == true`), S4 `ztp_final` (exactly one per merchant), S5 weights (same `parameter_hash`) with **S5 PASS receipt**; path↔embed equality holds.
 * [ ] **Lineage triplet** — `{seed, parameter_hash, run_id}` resolved and used for S6 paths.
 
 **Selection & RNG (§6/§11):**

@@ -1156,7 +1156,7 @@ data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/…
 1. **Single emit:** exactly one hurdle record per merchant per `{seed, parameter_hash, run_id}` and exactly one $\Xi_m$.
 2. **Cross-label independence:** downstream RNG events **derive** their base counters via S0’s keyed mapping for their **own** labels; there is **no** requirement that `before(next) == C^{\star}`.
 3. **Branch purity (gating):** gated downstream 1A RNG streams are **present iff** `is_multi=true`.
-4. **Lineage coherence:** dataset paths use `{seed, parameter_hash, run_id}`; embedded envelope keys equal the path keys (**see V2: Path ↔ embed equality**); egress/validation later uses `fingerprint={manifest_fingerprint}`.
+4. **Lineage coherence:** dataset paths use `{seed, parameter_hash, run_id}`; embedded envelope keys equal the path keys (**see V2: Path ↔ embed equality**); egress/validation later uses `manifest_fingerprint={manifest_fingerprint}`.
 5. **Numeric consistency:** hurdle `pi` equals the S1.2 recomputed value (fixed-order dot + two-branch logistic (no clamp)).
 
 ---

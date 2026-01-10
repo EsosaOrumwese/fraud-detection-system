@@ -248,12 +248,15 @@ Create the three lineage keys that make 1A reproducible and auditable:
 ## S0.2.2 `parameter_hash` (canonical, normative)
 
 **Governed set 𝓟 (canonical basenames):**
-`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`, `crossborder_hyperparams.yaml`, `ccy_smoothing_params.yaml`, `s6_selection_policy.yaml`.
+`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`, `crossborder_hyperparams.yaml`, `ccy_smoothing_params.yaml`, `s6_selection_policy.yaml`,
+`policy.s3.rule_ladder.yaml` (**required**),
+`policy.s3.base_weight.yaml` (**optional**; only if priors are enabled),
+`policy.s3.thresholds.yaml` (**optional**; only if referenced by the rule ladder).
 
 **Algorithm (tuple-hash; includes names):**
 
 1. Validate: basenames are **ASCII** and **unique**; error if not.
-2. Sort 𝓟 by **basename** using bytewise ASCII lexicographic order → `(p₁,…,pₙ)`, where here `n=5`.
+2. Sort 𝓟 by **basename** using bytewise ASCII lexicographic order → `(p₁,…,pₙ)`, where `n = |𝓟|`.
 3. For each `pᵢ`:
 
    * `dᵢ = SHA256(bytes(pᵢ))`  (32 bytes)
@@ -264,7 +267,7 @@ Create the three lineage keys that make 1A reproducible and auditable:
 
 **Properties:** deterministic; resistant to name/byte collisions; future-proof if 𝓟 grows.
 
-**Storage effect (normative):** *Parameter-scoped* datasets **must** partition by `parameter_hash={parameter_hash}` (e.g., `crossborder_eligibility_flags`, optional `hurdle_pi_probs`).
+**Storage effect (normative):** *Parameter-scoped* datasets **must** partition by `parameter_hash={parameter_hash}` (e.g., `crossborder_eligibility_flags`, optional `crossborder_features`, optional `hurdle_pi_probs`).
 
 > **Note:** Randomness-bearing allocations such as `country_set` and `ranking_residual_cache_1A` are **not** parameter-scoped and must partition by `seed` (and, when applicable, by `manifest_fingerprint`).
 
@@ -311,7 +314,7 @@ Create the three lineage keys that make 1A reproducible and auditable:
 
 **Properties:** Any change to an opened artefact’s **bytes or basename**, the **commit**, or the **parameter bundle** flips the fingerprint. No XOR cancellation risk.
 
-**Storage effect (normative):** Egress & validation datasets **must** partition by `fingerprint={manifest_fingerprint}` (often alongside `seed`).
+**Storage effect (normative):** Egress & validation datasets **must** partition by `manifest_fingerprint={manifest_fingerprint}` (often alongside `seed`).
 
 **Errors (abort S0):**
 `E_ARTIFACT_EMPTY`, `E_ARTIFACT_IO(name,errno)`, `E_ARTIFACT_NONASCII_NAME`, `E_ARTIFACT_DUP_BASENAME`, `E_ARTIFACT_DEP_MISSING(name)`, `E_GIT_BYTES`, `E_PARAM_HASH_ABSENT`.
@@ -2028,7 +2031,7 @@ Validation outputs are **fingerprint-scoped**. On the first failure:
 
 ```
 data/layer1/1A/validation/failures/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
     seed={seed}/
       run_id={run_id}/
         failure.json                  # mandatory, single file
@@ -2130,7 +2133,7 @@ This log **never** replaces a run-abort; it records permitted soft fallbacks onl
 ## 5) Examples (concrete)
 
 * **Missing audit row (F4a):** first RNG event is `hurdle_bernoulli` but `rng_audit_log` has no `run_id=…` → `rng_audit_missing_before_first_draw` → **Run-abort**.
-* **Partition mismatch (F5):** write `outlet_catalogue` under `…/fingerprint=X` but embed row fingerprint `Y` → `partition_mismatch` → **Run-abort**.
+* **Partition mismatch (F5):** write `outlet_catalogue` under `…/manifest_fingerprint=X` but embed row fingerprint `Y` → `partition_mismatch` → **Run-abort**.
 * **Non-finite hurdle (F3b):** `η_m` becomes NaN due to malformed coefficients → `hurdle_nonfinite` → **Run-abort**.
 
 ---
@@ -2141,7 +2144,7 @@ This log **never** replaces a run-abort; it records permitted soft fallbacks onl
 function abort_run(failure_class, failure_code, ctx):
   stop_emitters()                                  # no new RNG/events
   payload = build_failure_payload(failure_class, failure_code, ctx)  # includes lineage keys
-  path = val_path(fingerprint=ctx.fp, seed=ctx.seed, run_id=ctx.run_id)
+  path = val_path(manifest_fingerprint=ctx.fp, seed=ctx.seed, run_id=ctx.run_id)
   write_atomic(path+"/failure.json", json(payload))
   write_atomic(path+"/_FAILED.SENTINEL.json", json(payload_header(payload)))
   mark_incomplete_partitions(ctx.inflight_outputs)
@@ -2178,7 +2181,7 @@ function abort_run(failure_class, failure_code, ctx):
 **Embedding rule (row-level):**
 * If a schema includes a **`parameter_hash`** column, its value **must equal** the directory key (`parameter_hash`).
 * If a schema includes a **`manifest_fingerprint`** column, its value **must equal** the run’s `manifest_fingerprint`.
-  For **egress/validation** datasets (fingerprint-scoped), it **must also equal** the directory key `fingerprint={manifest_fingerprint}`.
+  For **egress/validation** datasets (fingerprint-scoped), it **must also equal** the directory key `manifest_fingerprint={manifest_fingerprint}`.
 * For datasets with **both** columns present, both constraints must hold simultaneously.
 
 Any mismatch triggers **S0.9/F5 run-abort**.
@@ -2190,6 +2193,7 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 1. **Parameter-scoped model inputs/caches** (deterministic; reusable across runs with the same `parameter_hash`)
 
 * `crossborder_eligibility_flags` (S0.6).
+* `crossborder_features` (**planning/optional**, produced only when the feature pipeline is enabled).
 * `hurdle_pi_probs` (S0.7, **optional** diagnostics).
 * *(Optionally transient; not authoritative)*: `hurdle_design_matrix`.
 
@@ -2205,6 +2209,7 @@ Any mismatch triggers **S0.9/F5 run-abort**.
   * `param_digest_log.jsonl`
   * `fingerprint_artifacts.jsonl`
   * `numeric_policy_attest.json` (S0.8)
+  * `index.json` (bundle index; authoritative file list)
   * optional: `DICTIONARY_LINT.txt`, `SCHEMA_LINT.txt`
   * `_passed.flag` (gate)
 
@@ -2216,7 +2221,7 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 
 ## S0.10.3 Partitioning & paths (authoritative)
 
-**Naming rule (normative):** Any path segment named `fingerprint={…}` **always** carries the value of `manifest_fingerprint`. The column name is `manifest_fingerprint`; the path label remains `fingerprint=…`.
+**Naming rule (normative):** Any path segment named `manifest_fingerprint={…}` **always** carries the value of `manifest_fingerprint`. The column name and the path label are both `manifest_fingerprint`.
 
 **RNG logs (normative paths & keys):**
 `rng_audit_log` → `logs/layer1/1A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
@@ -2229,6 +2234,12 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 **Dataset:** `crossborder_eligibility_flags`
 **Path:** `data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet`
 **Schema:** `schemas.1A.yaml#/prep/crossborder_eligibility_flags`
+**Row keys:** `merchant_id` (PK)
+**Embedded lineage (normative):** `parameter_hash` (required; equals path key). Optional: `produced_by_fingerprint` (hex64), **informational only** and **never** part of partition keys/equality.
+
+**Dataset (planning/optional):** `crossborder_features`
+**Path:** `data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/part-*.parquet`
+**Schema:** `schemas.1A.yaml#/model/crossborder_features`
 **Row keys:** `merchant_id` (PK)
 **Embedded lineage (normative):** `parameter_hash` (required; equals path key). Optional: `produced_by_fingerprint` (hex64), **informational only** and **never** part of partition keys/equality.
 
@@ -2286,13 +2297,14 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 
 ```
 validation/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
     MANIFEST.json
     parameter_hash_resolved.json
     manifest_fingerprint_resolved.json
     param_digest_log.jsonl
     fingerprint_artifacts.jsonl
     numeric_policy_attest.json
+    index.json
     DICTIONARY_LINT.txt          # optional
     SCHEMA_LINT.txt              # optional
     _passed.flag
@@ -2316,7 +2328,7 @@ validation/
 **`parameter_hash_resolved.json`**
 
 ```json
-{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml","ccy_smoothing_params.yaml","s6_selection_policy.yaml"],"artifact_count":5}
+{"parameter_hash":"<hex64>","filenames_sorted":["ccy_smoothing_params.yaml","crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml","policy.s3.base_weight.yaml","policy.s3.rule_ladder.yaml","policy.s3.thresholds.yaml","s6_selection_policy.yaml"],"artifact_count":8}
 ```
 
 **`manifest_fingerprint_resolved.json`**
@@ -2330,14 +2342,14 @@ validation/
 **`numeric_policy_attest.json`** — S0.8 self-tests/flags & IDs.
 
 **Gate `_passed.flag` (mandatory):**
-Contains one line: `sha256_hex = <hex64>`, where `<hex64>` is **SHA-256 over the raw byte concatenation** of **all other bundle files** in **ASCII lexicographic filename order**. `_passed.flag` itself is **excluded** from the hash.
+Contains one line: `sha256_hex = <hex64>`, where `<hex64>` is **SHA-256 over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`)** in **ASCII lexicographic order of `index.path`**. `_passed.flag` itself is **excluded** from the hash.
 Downstream **must** verify this; mismatch ⇒ treat run as invalid (S0.9/F10).
 
 ---
 
 ## S0.10.6 Writer behavior (atomicity & lints)
 
-* **Atomic publish:** write bundle into `…/validation/_tmp.{uuid}`; compute `_passed.flag`; single atomic `rename(2)` to `fingerprint=…/`. On failure, delete tmp.
+* **Atomic publish:** write bundle into `…/validation/_tmp.{uuid}`; compute `_passed.flag`; single atomic `rename(2)` to `manifest_fingerprint=…/`. On failure, delete tmp.
 * **Optional lints:**
 
   * `DICTIONARY_LINT.txt`: diff of dictionary vs observed writer paths/schema refs.
@@ -2355,56 +2367,10 @@ Two bundles are **equivalent** if:
 
 ---
 
-## S0.10.8 Pseudocode (reference)
-
-```text
-function S0_10_emit_outputs_and_bundle(ctx):
-  # Assert parameter-scoped partitions exist (S0.6/S0.7 may have written them)
-  assert partition_exists("crossborder_eligibility_flags", ctx.parameter_hash)
-  if ctx.emit_hurdle_pi_probs:
-      assert partition_exists("hurdle_pi_probs", ctx.parameter_hash)
-
-  # Build bundle in temp dir
-  tmp = mktempdir()
-  write_json(tmp+"/MANIFEST.json", {
-    "version":"1A.validation.v1",
-    "manifest_fingerprint":ctx.fingerprint,
-    "parameter_hash":ctx.parameter_hash,
-    "git_commit_hex":ctx.git_commit_hex,
-    "artifact_count":len(ctx.artifacts),
-    "math_profile_id":ctx.math_profile_id,
-    "compiler_flags":ctx.compiler_flags,
-    "created_utc_ns":now_ns()
-  })
-  write_json(tmp+"/parameter_hash_resolved.json", {
-    "parameter_hash":ctx.parameter_hash,
-    "filenames_sorted":ctx.param_filenames_sorted
-  })
-  write_json(tmp+"/manifest_fingerprint_resolved.json", {
-    "manifest_fingerprint":ctx.fingerprint,
-    "git_commit_hex":ctx.git_commit_hex,
-    "parameter_hash":ctx.parameter_hash,
-    "artifact_count":len(ctx.artifacts)
-  })
-  write_jsonl(tmp+"/param_digest_log.jsonl", ctx.param_digests)
-  write_jsonl(tmp+"/fingerprint_artifacts.jsonl", ctx.artifact_digests)
-  write_json(tmp+"/numeric_policy_attest.json", ctx.numeric_attest)
-
-  # Gate: hash all files except the flag
-  files = list_ascii_sorted(tmp)           # lexicographic ASCII
-  H = sha256_concat_bytes([read_bytes(f) for f in files if basename(f) != "_passed.flag"])
-  write_text(tmp+"/_passed.flag", "sha256_hex = " + hex64(H) + "\n")
-
-  # Atomic publish under fingerprint partition
-  publish_atomic(tmp, "data/layer1/1A/validation/manifest_fingerprint="+ctx.fingerprint)
-```
-
----
-
 ## S0.10.9 Validation (CI/runtime must assert)
 
-* **Partition lint:** parameter-scoped datasets live under `parameter_hash=…`; rows embed the same `parameter_hash`; RNG logs use `{seed,parameter_hash,run_id}`; validation bundle under `fingerprint=…`.
-* **Bundle integrity:** presence of all required files and `_passed.flag` hash match.
+* **Partition lint:** parameter-scoped datasets live under `parameter_hash=…`; rows embed the same `parameter_hash`; RNG logs use `{seed,parameter_hash,run_id}`; validation bundle under `manifest_fingerprint=…`.
+* **Bundle integrity:** `index.json` present; `_passed.flag` hash matches the `index.json` paths list.
 * **Schema conformance:** produced datasets validate against their JSON-Schema anchors.
 * **Lineage recomputation:** `parameter_hash` and `manifest_fingerprint` recomputed equal the `*_resolved.json` values.
 * **Numeric attestation:** `numeric_policy_attest.json` indicates **all** S0.8 self-tests passed.
@@ -2416,7 +2382,7 @@ function S0_10_emit_outputs_and_bundle(ctx):
 * **Parameter-scoped readers** (S1/S2/S3): key by **`parameter_hash`** only; ignore `run_id`.
 * **Egress/validation consumers:**
 
-  1. locate `fingerprint={manifest_fingerprint}`,
+  1. locate `manifest_fingerprint={manifest_fingerprint}`,
   2. verify `_passed.flag`,
   3. (optional) re-hash `fingerprint_artifacts.jsonl` & `param_digest_log.jsonl`.
      Any failure ⇒ treat run as invalid and halt per S0.9.

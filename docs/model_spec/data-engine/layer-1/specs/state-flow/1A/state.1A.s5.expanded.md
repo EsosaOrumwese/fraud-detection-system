@@ -1435,7 +1435,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 * **Union coverage** — For each currency, S5 outputs rows for the **union** of ISO codes appearing in either input surface, unless narrowed by policy (recorded via lineage/metrics).
 * **Join keys** — Weights join on `(currency, country_iso)`; S3 order joins on `(merchant_id, country_iso)` with `candidate_rank` as the order key. 
-* **Parameter scope vs egress scope** — S5 outputs are **parameter-scoped** (`parameter_hash=…`); egress (e.g., `outlet_catalogue`) is **fingerprint-scoped** (`fingerprint=…`). 
+* **Parameter scope vs egress scope** — S5 outputs are **parameter-scoped** (`parameter_hash=…`); egress (e.g., `outlet_catalogue`) is **fingerprint-scoped** (`manifest_fingerprint=…`). 
 
 ## A.9 Degrade modes & attestations (per currency)
 

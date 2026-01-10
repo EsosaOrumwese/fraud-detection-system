@@ -93,42 +93,6 @@ Pin the RNG/stream contracts that S2.3–S2.5 will rely on:
 
 ---
 
-## 5) Pseudocode (normative preflight & assembly)
-
-```pseudo
-# Preflight gate + input assembly; emits no RNG events (draws=0)
-
-function s2_1_prepare_inputs(m):
-    # 1) Entry gate from S1
-    hb := read_hurdle_event(m)                     # select within {seed, parameter_hash, run_id}, then merchant_id=m
-                                                   # and verify the in-row envelope `manifest_fingerprint`
-                                                   # equals the current run's `manifest_fingerprint` (explicit lineage check).
-    if hb is None:           raise ERR_S2_ENTRY_MISSING_HURDLE
-    if hb.is_multi != true:  raise ERR_S2_ENTRY_NOT_MULTI   # branch purity
-
-    # 2) Load deterministic features
-    c  := ingress.home_country_iso[m]
-    g  := gdp_per_capita[c]                        # > 0 (checked when loaded in S0)
-    xm := [1, enc_mcc(ingress.mcc[m]), enc_ch(ingress.channel_sym[m])]   # channel_sym ∈ {CP,CNP}
-    xk := [1, enc_mcc(ingress.mcc[m]), enc_ch(ingress.channel_sym[m]), ln(g)]  # ln = natural log
-
-    # 3) Load governed coefficients (parameter-scoped by parameter_hash)
-    beta_mu  := artefacts.hurdle_coefficients.beta_mu           # from hurdle_coefficients.yaml
-    beta_phi := artefacts.nb_dispersion_coefficients.beta_phi   # from nb_dispersion_coefficients.yaml
-
-    # 4) Produce the S2 context (consumed by S2.2+)
-    return NBContext{
-        merchant_id: m,
-        x_mu: xm, x_phi: xk,
-        beta_mu: beta_mu, beta_phi: beta_phi,
-        lineage: {seed, parameter_hash, manifest_fingerprint, run_id}
-    }
-```
-
-**Emissions:** S2.1 emits **no** event records and consumes **no** RNG draws (draws=0).
-
----
-
 ## 6) Invariants & MUST-NOTs (checked locally, and again by the validator)
 
 * **I-S2.1-A (Entry determinism).** S2 only runs for merchants with an S1 hurdle record where `is_multi=true`. Any S2 event for `is_multi=false` is a **structural failure**.
