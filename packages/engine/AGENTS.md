@@ -8,27 +8,14 @@ This router tells you what is binding, what to read first, and which parts of th
 ## 0) Scope (you are here)
 - Package: `packages\engine`
 - Specs: `docs\model_spec\data-engine`
-- Spec posture: Specs are authoritative for 1A-6B. Layer-1 (1A-3B) externals are complete; focus is now build quality and spec conformance for layer-1. Layer-2/3 (5A-6B) are spec-ready and actively being built with data-intake support. Spec updates are allowed when replacing placeholder externals or when the USER requests, and must be logged.
+- Spec posture: Specs are authoritative for 1A-6B. Layer-1/2/3 (1A-6B) are spec-ready and actively being built with data-intake support. Most of these data/configs/policies have already been materialized in the repo, if none exists, inform the USER
 - Binding specs: Contracts and expanded docs for 1A-6B govern code. There are no "locked" areas; focus is driven by the current job plan.
 - Implementation note: current engine code is provisional (placeholder-driven) and will be refactored as real externals land; treat specs as the source of truth.
 
 ---
 
-### 0.1) Current Job
-- Validate layer-1 (1A-3B) engine implementation against the binding specs and improve build quality.
-- For 5A+ work hand-in-hand with data-intake (layer-2/layer-3) to author or acquire externals as needed.
-- Pay special attention to run-scoped artefacts: anything dependent on a run-specific manifest fingerprint must be produced inside the run output tree and referenced via the sealing inventory/dictionary so no manual copying is required.
-- Work sequentially, segment by segment, following the order in the guides where data-intake is involved.
-- **Audit + fix mode for 1A-3B:** for each segment, read expanded specs + contracts, then review data-intake (note: 1A and 1B share the same intake folder) to list expected externals and their locations or acquisition/authoring guides, then audit code paths to confirm the implementation consumes the correct artefacts and follows spec intent.
-
-
-Route immediately to:
-   - `docs\model_spec\data-engine\layer-1\specs\data-intake\AGENTS.md` [status:complete]
-   - `docs\model_spec\data-engine\layer-2\specs\data-intake\AGENTS.md` [status:in-progress]
-   - `docs\model_spec\data-engine\layer-3\specs\data-intake\AGENTS.md` [status:in-progress]
-
 ## 1) Reading order (strict)
-Read these in order before touching code so you align with the frozen specs.
+Read these in order before touching code so you align with the frozen specs. Note the USER will tell you what segment to focus on. You must ensure that the state expanded docs and contracts for that segment never leave your mind. You never implement without consulting that source of truth.
 
 **A. Layer-1 implementation references (Segments 1A-3B)**
 - Review the current implementation of the project which for now involves understanding the implemented data engine in packages/engine and also its run tests in `runs/`.
@@ -76,7 +63,6 @@ Read these in order before touching code so you align with the frozen specs.
 
 ## House style (soft guidance)
 - Prefer clarity and determinism over cleverness.
-- Preserve the L0/L1/L2/L3 separation inside each state package.
 - Surface TODOs or questions when the spec leaves gaps; do not improvise contracts.
 - Keep logging informative—mirror the Segment 1A CLI/orchestrator patterns so smoke tests stay readable.
 

@@ -17,18 +17,18 @@
 ### Current build status (2025-11-27)
 | Segment | States | Status | Notes |
 |---------|--------|--------|-------|
-| 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
-| 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
-| 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
-| 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-S7 | **Online (sealed)** | Layer-1 cross-zone merchants; PASS bundle and `_passed.flag_3A` emitted |
-| 3B | S0-S5 | **Online (sealed)** | Layer-1 virtual merchants & CDN; PASS bundle and `_passed.flag_3B` emitted |
-| 5A | S0-S5 | **Sealed (specs, locked)** | Layer-2 arrival surfaces & calendar (locked until opened) |
-| 5B | S0-S5 | **Sealed (specs, locked)** | Layer-2 arrival realisation (LGCP + routing) (locked until opened) |
-| 6A | S0-S5 | **Sealed (specs, locked)** | Layer-3 entity & product world (locked until opened) |
-| 6B | S0-S5 | **Sealed (specs, locked)** | Layer-3 behaviour & fraud cascades (locked until opened) |
+| 1A | S0-S9 | **Pending** | Authority surface for downstream segments |
+| 1B | S0-S9 | **Pending** | Production-ready Layer-1 world realism |
+| 2A | S0-S5 | **Pending** | Gate, TZ pipeline, timetable, legality, bundle |
+| 2B | S0-S8 | **Pending** | Alias build, router core, audits, PASS bundle |
+| 3A | S0-S7 | **Pending** | Layer-1 cross-zone merchants; PASS bundle and `_passed.flag_3A` emitted |
+| 3B | S0-S5 | **Pending** | Layer-1 virtual merchants & CDN; PASS bundle and `_passed.flag_3B` emitted |
+| 5A | S0-S5 | **Pending** | Layer-2 arrival surfaces & calendar |
+| 5B | S0-S5 | **Pending** | Layer-2 arrival realisation (LGCP + routing) |
+| 6A | S0-S5 | **Pending** | Layer-3 entity & product world |
+| 6B | S0-S5 | **Pending** | Layer-3 behaviour & fraud cascades |
 
-Implementation sequence (next): Layer-1 is online (1A-3B). Next build frontier is Layer-2: 5A followed by 5B (segments remain locked until explicitly opened). Keep all Layer-1 artefacts read-only.
+Implementation sequence (next): Layer-1 is first (1A-3B). Next build frontier is Layer-2: 5A followed by 5B (segments remain locked until explicitly opened).
 
 ### Spec sources (repo layout)
 - **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
@@ -154,11 +154,11 @@ Legend (compact):
   - `parameter_hash` — governed parameters that define a run’s semantics.  
   - `manifest_fingerprint` — digest of **everything opened** (incl. git tree + artefacts).  
 - **Determinism & replay.** Strict RNG mapping; counters/trace envelopes; reproducible runs keyed by `{seed, parameter_hash, manifest_fingerprint}`.  
-- **Separation of concerns.**  
-  - **L0** emitters (schema-bound I/O)  
-  - **L1** pure kernels  
-  - **L2** orchestrators  
-  - **L3** validators (read-only proofs)
+- **Separation of concerns.** (suggestion not binding) 
+  - emitters (schema-bound I/O)  
+  - pure kernels  
+  - orchestrators  
+  - validators (read-only proofs)
 
 ---
 
