@@ -10,7 +10,7 @@ Use it to answer:
 ---
 
 ## 1) One-screen relationship diagram
-
+```
 Ingress + Reference + Policies (sealed / hashed)
   └─ S0 (foundation): parameter_hash + manifest_fingerprint + deterministic precomputes
        ├─ (parameter_hash scope) crossborder_features (planning/opt), crossborder_eligibility_flags,
@@ -51,7 +51,7 @@ S9 (finalizer): validation bundle + index + consumer gate publish (manifest_fing
 
 Consumer rule (binding): downstream MUST verify 1A.final.bundle_gate for the same
 manifest_fingerprint before reading outlet_catalogue (no PASS → no read).
-
+```
 ---
 
 ## 2) Gates and what they authorize (review checklist)
