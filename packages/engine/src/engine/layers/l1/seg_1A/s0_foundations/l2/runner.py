@@ -53,7 +53,11 @@ from ..l1.rng import PhiloxEngine, comp_u64
 from ..l2.failure import emit_failure_record
 from ..l2.output import S0Outputs, write_outputs
 from ..l2.rng_logging import RNGLogWriter, rng_event
-from ...shared.dictionary import get_repo_root
+from ...shared.dictionary import (
+    get_repo_root,
+    load_dictionary,
+    resolve_rng_audit_path,
+)
 
 _REQUIRED_PARAMETER_FILES = (
     "hurdle_coefficients.yaml",
@@ -562,16 +566,15 @@ class S0FoundationsRunner:
         )
 
         start_ns = start_time_ns or time.time_ns()
-        audit_root = (
-            base_path
-            / "logs"
-            / "layer1"
-            / "1A"
-            / "rng"
-            / "audit"
-            / f"seed={seed}"
-            / f"parameter_hash={sealed.parameter_hash.parameter_hash}"
+        dictionary = load_dictionary()
+        audit_path = resolve_rng_audit_path(
+            base_path=base_path,
+            seed=seed,
+            parameter_hash=sealed.parameter_hash.parameter_hash,
+            run_id="__RUN_ID__",
+            dictionary=dictionary,
         )
+        audit_root = audit_path.parent.parent
         existing_ids: list[str] = []
         if audit_root.exists():
             for candidate in audit_root.glob("run_id=*"):

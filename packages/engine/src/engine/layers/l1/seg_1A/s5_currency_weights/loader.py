@@ -8,6 +8,7 @@ from typing import Iterator, Protocol
 
 import pandas as pd
 
+from ..shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
 __all__ = [
     "ShareSurface",
     "LegalTender",
@@ -42,11 +43,32 @@ class ShareDataPaths:
     iso_legal_tender: Path
 
 
-DEFAULT_PATHS = ShareDataPaths(
-    settlement_shares=Path("reference/network/settlement_shares/2024Q4/settlement_shares.parquet"),
-    ccy_country_shares=Path("reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet"),
-    iso_legal_tender=Path("reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet"),
-)
+def _default_paths() -> ShareDataPaths:
+    dictionary = load_dictionary()
+    repo_root = get_repo_root()
+    return ShareDataPaths(
+        settlement_shares=resolve_dataset_path(
+            "settlement_shares_2024Q4",
+            base_path=repo_root,
+            template_args={},
+            dictionary=dictionary,
+        ),
+        ccy_country_shares=resolve_dataset_path(
+            "ccy_country_shares_2024Q4",
+            base_path=repo_root,
+            template_args={},
+            dictionary=dictionary,
+        ),
+        iso_legal_tender=resolve_dataset_path(
+            "iso_legal_tender_2024",
+            base_path=repo_root,
+            template_args={},
+            dictionary=dictionary,
+        ),
+    )
+
+
+DEFAULT_PATHS = _default_paths()
 
 
 class ShareLoader(Protocol):

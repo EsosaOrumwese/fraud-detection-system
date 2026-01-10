@@ -15,7 +15,11 @@ from ..l0.artifacts import hash_artifact
 from ..l1.hashing import compute_manifest_fingerprint, compute_parameter_hash
 from ..l2.output import S0Outputs
 from ..l2.runner import SealedFoundations
-from ...shared.dictionary import load_dictionary, resolve_dataset_path
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_dataset_path,
+    resolve_rng_event_path,
+)
 from ...shared.passed_flag import parse_passed_flag
 
 
@@ -284,9 +288,15 @@ def validate_outputs(
     ):
         raise err("E_VALIDATION_MISMATCH", "rng audit lineage mismatch")
 
-    events_root = base_path / "logs" / "layer1" / "1A" / "rng" / "events"
-    event_exists = any(events_root.rglob("part-00000.jsonl"))
-    if not event_exists:
+    anchor_path = resolve_rng_event_path(
+        "core",
+        base_path=base_path,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        run_id=run_id,
+        dictionary=dictionary,
+    )
+    if not anchor_path.exists():
         raise err("E_VALIDATION_MISMATCH", "rng event logs missing")
 
 

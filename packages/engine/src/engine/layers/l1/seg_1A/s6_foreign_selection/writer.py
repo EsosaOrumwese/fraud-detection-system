@@ -10,6 +10,11 @@ from typing import Dict, Mapping, MutableMapping
 
 from ..s0_foundations.exceptions import err
 from ..s0_foundations.l1.rng import PhiloxState
+from ..shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from . import constants as c
 
 U64_MAX = 2**64 - 1
@@ -67,18 +72,31 @@ class GumbelEventWriter:
 
     def __post_init__(self) -> None:
         self.base_path = self.base_path.expanduser().resolve()
-        rng_root = self.base_path / "logs" / "layer1" / "1A" / "rng"
-        self._events_root = rng_root / "events"
-        self._trace_root = rng_root / "trace"
+        self._dictionary = load_dictionary()
+        self._event_path = resolve_rng_event_path(
+            c.STREAM_GUMBEL_KEY,
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=self._dictionary,
+        )
+        self._trace_path = resolve_rng_trace_path(
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=self._dictionary,
+        )
         self._trace_totals = {}
 
     @property
     def events_path(self) -> Path:
-        return self._event_path(c.STREAM_GUMBEL_KEY)
+        return self._event_path
 
     @property
     def trace_path(self) -> Path:
-        return self._trace_root / self._partition("rng_trace_log.jsonl")
+        return self._trace_path
 
     def write_gumbel_event(
         self,
@@ -151,17 +169,6 @@ class GumbelEventWriter:
     # ------------------------------------------------------------------ #
     # Internal helpers
 
-    def _event_path(self, stream: str) -> Path:
-        return self._events_root / stream / self._partition("part-00000.jsonl")
-
-    def _partition(self, filename: str) -> Path:
-        return (
-            Path(f"seed={self.seed}")
-            / f"parameter_hash={self.parameter_hash}"
-            / f"run_id={self.run_id}"
-            / filename
-        )
-
     def _write_event(
         self,
         *,
@@ -191,7 +198,7 @@ class GumbelEventWriter:
             "draws": str(draws),
         }
         record.update(payload)
-        _append_jsonl(self._event_path(stream), record)
+        _append_jsonl(self._event_path, record)
         self._update_trace(
             counter_before=counter_before,
             counter_after=counter_after,

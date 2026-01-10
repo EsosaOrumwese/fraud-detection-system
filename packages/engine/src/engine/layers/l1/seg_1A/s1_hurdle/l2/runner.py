@@ -11,6 +11,7 @@ from typing import Iterable, Iterator, List, Sequence, Tuple
 from ...s0_foundations.exceptions import S0Error, err
 from ...s0_foundations.l1.design import DesignVectors
 from ...s0_foundations.l1.rng import PhiloxEngine
+from ...shared.dictionary import load_dictionary, resolve_rng_audit_path
 from ..l1.probability import hurdle_probability
 from ..l1.rng import HURDLE_MODULE_NAME, HURDLE_SUBSTREAM_LABEL, counters, derive_hurdle_substream
 from ..l3.catalogue import GatedStream, load_gated_streams, write_hurdle_catalogue
@@ -91,7 +92,7 @@ class S1HurdleRunner:
         self._ensure_audit_exists(base_path, seed, parameter_hash, run_id)
         engine = PhiloxEngine(seed=seed, manifest_fingerprint=manifest_fingerprint)
         writer = HurdleEventWriter(
-            base_path=base_path / "logs" / "layer1" / "1A" / "rng",
+            base_path=base_path,
             seed=seed,
             parameter_hash=parameter_hash,
             manifest_fingerprint=manifest_fingerprint,
@@ -217,18 +218,13 @@ class S1HurdleRunner:
     def _ensure_audit_exists(
         base_path: Path, seed: int, parameter_hash: str, run_id: str
     ) -> None:
-        root = base_path.resolve()
-        audit_path = (
-            root
-            / "logs"
-            / "layer1"
-            / "1A"
-            / "rng"
-            / "audit"
-            / f"seed={seed}"
-            / f"parameter_hash={parameter_hash}"
-            / f"run_id={run_id}"
-            / "rng_audit_log.jsonl"
+        dictionary = load_dictionary()
+        audit_path = resolve_rng_audit_path(
+            base_path=base_path.resolve(),
+            seed=seed,
+            parameter_hash=parameter_hash,
+            run_id=run_id,
+            dictionary=dictionary,
         )
         if not audit_path.exists():
             raise err(

@@ -13,7 +13,12 @@ from pathlib import Path
 from typing import Dict, Iterable, Mapping, Sequence, Tuple
 
 from ..s0_foundations.exceptions import err
-from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..shared.dictionary import (
+    load_dictionary,
+    resolve_dataset_path,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from .builder import CurrencyResult, build_weights
 from .contexts import MerchantCurrencyInput, S5DeterministicContext, S5PolicyMetadata
 from .loader import (
@@ -518,17 +523,16 @@ class S5CurrencyWeightsRunner:
         base_path: Path,
         deterministic: S5DeterministicContext,
     ) -> Dict[str, int]:
-        rng_root = (base_path / "logs" / "layer1" / "1A" / "rng").resolve()
+        dictionary = load_dictionary()
         totals: Dict[str, int] = {"events_total": 0, "draws_total": 0, "blocks_total": 0}
-        trace_dir = (
-            rng_root
-            / "trace"
-            / f"seed={deterministic.seed}"
-            / f"parameter_hash={deterministic.parameter_hash}"
-            / f"run_id={deterministic.run_id}"
+        trace_file = resolve_rng_trace_path(
+            base_path=base_path,
+            seed=deterministic.seed,
+            parameter_hash=deterministic.parameter_hash,
+            run_id=deterministic.run_id,
+            dictionary=dictionary,
         )
-        trace_file = trace_dir / "rng_trace_log.jsonl"
-        summary_file = trace_dir / "rng_totals.json"
+        summary_file = trace_file.parent / "rng_totals.json"
         try:
             if summary_file.exists():
                 summary_data = json.loads(summary_file.read_text(encoding="utf-8"))
@@ -553,7 +557,14 @@ class S5CurrencyWeightsRunner:
                     block_totals[key] = int(record.get("blocks_total", 0))
         totals["blocks_total"] = sum(block_totals.values())
 
-        events_root = rng_root / "events"
+        events_root = resolve_rng_event_path(
+            "core",
+            base_path=base_path,
+            seed=deterministic.seed,
+            parameter_hash=deterministic.parameter_hash,
+            run_id=deterministic.run_id,
+            dictionary=dictionary,
+        ).parents[4]
         if events_root.exists():
             pattern = events_root.glob(
                 f"**/seed={deterministic.seed}/parameter_hash={deterministic.parameter_hash}/run_id={deterministic.run_id}/part-*.jsonl"

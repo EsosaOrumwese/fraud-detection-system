@@ -23,7 +23,7 @@ reference:
   world_countries:
     description: Global country polygons (EPSG:4326) derived from Natural Earth with synthetic coverage for microstates.
     format: parquet
-    path: reference/spatial/world_countries/2025-10-08/world_countries.parquet
+    path: reference/spatial/world_countries/2024/world_countries.parquet
     schema_ref: l1/seg_1A/world_countries.schema.json
     partitioning: []
     owner: reference
@@ -31,7 +31,7 @@ reference:
   tz_world_2025a:
     description: IANA timezone polygons (2025a) intersected with world countries.
     format: parquet
-    path: reference/spatial/tz_world/2025-10-08/tz_world_2025a.parquet
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
     schema_ref: l1/seg_1A/tz_world_2025a.schema.json
     partitioning: []
     owner: reference
@@ -39,7 +39,7 @@ reference:
   population_raster_2025:
     description: Global population raster (2025) in EPSG:4326.
     format: tif
-    path: reference/spatial/population_raster/2025/population_raster_2025.tif
+    path: reference/spatial/population/2025/population.tif
     schema_ref: l1/seg_1A/population_raster.schema.json
     partitioning: []
     owner: reference

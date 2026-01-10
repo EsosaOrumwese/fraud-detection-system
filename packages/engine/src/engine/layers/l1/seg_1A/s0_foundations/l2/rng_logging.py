@@ -18,6 +18,11 @@ from typing import Dict, IO, Iterator, Mapping, MutableMapping, Optional
 
 from ..exceptions import err
 from ..l1.rng import PhiloxState, PhiloxSubstream
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 
 
 def _utc_timestamp() -> str:
@@ -49,15 +54,17 @@ class RNGLogWriter:
     summary_filename: str = "rng_totals.json"
 
     def __post_init__(self) -> None:  # pragma: no cover - simple validation
-        rng_root = (self.base_path / "logs" / "layer1" / "1A" / "rng").resolve()
-        self._events_root = rng_root / "events"
-        self._trace_root = rng_root / "trace"
-        self._ensure_dir(self._events_root)
-        self._ensure_dir(self._trace_root)
+        self.base_path = self.base_path.expanduser().resolve()
+        self._dictionary = load_dictionary()
+        self._trace_path = resolve_rng_trace_path(
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=self._dictionary,
+        )
         self._trace_totals: MutableMapping[tuple[str, str], Dict[str, int]] = {}
-        self._summary_path = (
-            self._trace_root / self._seed_path / self.summary_filename
-        ).resolve()
+        self._summary_path = (self._trace_path.parent / self.summary_filename).resolve()
         self._event_handles: MutableMapping[Path, IO[str]] = {}
         self._trace_handle: Optional[IO[str]] = None
         self._events_since_summary = 0
@@ -91,9 +98,14 @@ class RNGLogWriter:
         if blocks < 0 or draws < 0:
             raise err("E_RNG_COUNTER", "negative blocks or draws recorded")
 
-        events_dir = self._events_root / family / self._seed_path
-        self._ensure_dir(events_dir)
-        event_file = events_dir / self.event_filename
+        event_file = resolve_rng_event_path(
+            family,
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=self._dictionary,
+        )
         record = {
             "ts_utc": _utc_timestamp(),
             "module": module,
@@ -123,9 +135,6 @@ class RNGLogWriter:
             totals["events"] = min(totals["events"] + 1, U64_MAX)
             totals["blocks"] = min(totals["blocks"] + blocks, U64_MAX)
             totals["draws"] = min(totals["draws"] + max(0, int(str(draws))), U64_MAX)
-            trace_dir = self._trace_root / self._seed_path
-            self._ensure_dir(trace_dir)
-            trace_file = trace_dir / self.trace_filename
             trace_record = {
                 "ts_utc": record["ts_utc"],
                 "module": module,
@@ -140,7 +149,9 @@ class RNGLogWriter:
                 "run_id": self.run_id,
                 "seed": self.seed,
             }
-            self._append_jsonl_handle(self._open_trace_handle(trace_file), trace_record)
+            self._append_jsonl_handle(
+                self._open_trace_handle(self._trace_path), trace_record
+            )
             self._events_since_summary += 1
             self._events_since_flush += 1
             if (
@@ -152,14 +163,6 @@ class RNGLogWriter:
             if self._events_since_flush >= self.io_flush_every:
                 self._flush_handles()
                 self._events_since_flush = 0
-
-    @property
-    def _seed_path(self) -> Path:
-        return (
-            Path(f"seed={self.seed}")
-            / f"parameter_hash={self.parameter_hash}"
-            / f"run_id={self.run_id}"
-        )
 
     @staticmethod
     def _ensure_dir(path: Path) -> None:

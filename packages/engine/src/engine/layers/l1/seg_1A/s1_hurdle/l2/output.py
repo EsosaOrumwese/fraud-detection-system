@@ -10,6 +10,11 @@ from typing import Mapping, Optional
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxState
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from ..l1.rng import HURDLE_MODULE_NAME, HURDLE_SUBSTREAM_LABEL
 
 
@@ -47,23 +52,22 @@ class HurdleEventWriter:
     substream_label: str = HURDLE_SUBSTREAM_LABEL
 
     def __post_init__(self) -> None:
-        events_dir = (
-            self.base_path
-            / "events"
-            / self.substream_label
-            / f"seed={self.seed}"
-            / f"parameter_hash={self.parameter_hash}"
-            / f"run_id={self.run_id}"
+        dictionary = load_dictionary()
+        self._events_path = resolve_rng_event_path(
+            self.substream_label,
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=dictionary,
         )
-        self._events_path = events_dir / "part-00000.jsonl"
-        trace_dir = (
-            self.base_path
-            / "trace"
-            / f"seed={self.seed}"
-            / f"parameter_hash={self.parameter_hash}"
-            / f"run_id={self.run_id}"
+        self._trace_path = resolve_rng_trace_path(
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=dictionary,
         )
-        self._trace_path = trace_dir / "rng_trace_log.jsonl"
         self._draws_total = 0
         self._blocks_total = 0
         self._events_total = 0

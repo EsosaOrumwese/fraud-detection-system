@@ -10,6 +10,11 @@ from typing import Dict, Mapping, MutableMapping
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxState
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from ..l1 import rng as nb_rng
 
 
@@ -58,11 +63,39 @@ class NBEventWriter:
 
     def __post_init__(self) -> None:
         self.base_path = self.base_path.resolve()
-        self._events_root = (
-            self.base_path / "logs" / "layer1" / "1A" / "rng" / "events"
-        )
-        self._trace_root = (
-            self.base_path / "logs" / "layer1" / "1A" / "rng" / "trace"
+        dictionary = load_dictionary()
+        self._event_paths = {
+            "gamma_component": resolve_rng_event_path(
+                "gamma_component",
+                base_path=self.base_path,
+                seed=self.seed,
+                parameter_hash=self.parameter_hash,
+                run_id=self.run_id,
+                dictionary=dictionary,
+            ),
+            "poisson_component": resolve_rng_event_path(
+                "poisson_component",
+                base_path=self.base_path,
+                seed=self.seed,
+                parameter_hash=self.parameter_hash,
+                run_id=self.run_id,
+                dictionary=dictionary,
+            ),
+            "nb_final": resolve_rng_event_path(
+                "nb_final",
+                base_path=self.base_path,
+                seed=self.seed,
+                parameter_hash=self.parameter_hash,
+                run_id=self.run_id,
+                dictionary=dictionary,
+            ),
+        }
+        self._trace_path = resolve_rng_trace_path(
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=dictionary,
         )
         self._trace_totals = {}
 
@@ -80,7 +113,7 @@ class NBEventWriter:
 
     @property
     def trace_path(self) -> Path:
-        return self._trace_root / self._partition("rng_trace_log.jsonl")
+        return self._trace_path
 
     def write_gamma_component(
         self,
@@ -218,15 +251,7 @@ class NBEventWriter:
     # Internal helpers
 
     def _event_path(self, stream: str) -> Path:
-        return self._events_root / stream / self._partition("part-00000.jsonl")
-
-    def _partition(self, filename: str) -> Path:
-        return (
-            Path(f"seed={self.seed}")
-            / f"parameter_hash={self.parameter_hash}"
-            / f"run_id={self.run_id}"
-            / filename
-        )
+        return self._event_paths[stream]
 
     def _write_event(
         self,

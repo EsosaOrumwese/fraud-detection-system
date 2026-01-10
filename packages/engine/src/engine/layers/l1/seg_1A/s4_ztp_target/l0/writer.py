@@ -17,6 +17,11 @@ from typing import Dict, Mapping, MutableMapping
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxState
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from . import constants as c
 
 U64_MAX = 2**64 - 1
@@ -102,9 +107,14 @@ class ZTPEventWriter:
 
     def __post_init__(self) -> None:
         self.base_path = self.base_path.resolve()
-        rng_root = self.base_path / "logs" / "layer1" / "1A" / "rng"
-        self._events_root = rng_root / "events"
-        self._trace_root = rng_root / "trace"
+        self._dictionary = load_dictionary()
+        self._trace_path = resolve_rng_trace_path(
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=self._dictionary,
+        )
         self._trace_totals = {}
 
     # ------------------------------------------------------------------ #
@@ -128,7 +138,7 @@ class ZTPEventWriter:
 
     @property
     def trace_path(self) -> Path:
-        return self._trace_root / self._partition(f"{c.STREAM_TRACE}.jsonl")
+        return self._trace_path
 
     # ------------------------------------------------------------------ #
     # Event emission
@@ -323,14 +333,13 @@ class ZTPEventWriter:
     # Internal helpers
 
     def _event_path(self, stream: str) -> Path:
-        return self._events_root / stream / self._partition("part-00000.jsonl")
-
-    def _partition(self, filename: str) -> Path:
-        return (
-            Path(f"seed={self.seed}")
-            / f"parameter_hash={self.parameter_hash}"
-            / f"run_id={self.run_id}"
-            / filename
+        return resolve_rng_event_path(
+            stream,
+            base_path=self.base_path,
+            seed=self.seed,
+            parameter_hash=self.parameter_hash,
+            run_id=self.run_id,
+            dictionary=self._dictionary,
         )
 
     def _write_event(

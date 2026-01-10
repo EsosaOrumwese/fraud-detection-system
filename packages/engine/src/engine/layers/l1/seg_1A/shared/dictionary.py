@@ -144,9 +144,97 @@ def _format_template(
     return path
 
 
+_RNG_EVENT_DATASET_IDS: Mapping[str, str] = {
+    "core": "rng_event_anchor",
+    "hurdle_bernoulli": "rng_event_hurdle_bernoulli",
+    "gamma_component": "rng_event_gamma_component",
+    "poisson_component": "rng_event_poisson_component",
+    "nb_final": "rng_event_nb_final",
+    "ztp_rejection": "rng_event_ztp_rejection",
+    "ztp_retry_exhausted": "rng_event_ztp_retry_exhausted",
+    "ztp_final": "rng_event_ztp_final",
+    "gumbel_key": "rng_event_gumbel_key",
+    "residual_rank": "rng_event_residual_rank",
+    "dirichlet_gamma_vector": "rng_event_dirichlet_gamma_vector",
+    "sequence_finalize": "rng_event.sequence_finalize",
+    "site_sequence_overflow": "rng_event.site_sequence_overflow",
+}
+
+
+def resolve_rng_event_path(
+    stream: str,
+    *,
+    base_path: Path,
+    seed: int,
+    parameter_hash: str,
+    run_id: str,
+    dictionary: Mapping[str, object] | None = None,
+) -> Path:
+    """Resolve the RNG event path for a given stream label."""
+
+    dataset_id = _RNG_EVENT_DATASET_IDS.get(stream, f"rng_event_{stream}")
+    return resolve_dataset_path(
+        dataset_id,
+        base_path=base_path,
+        template_args={
+            "seed": seed,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+
+
+def resolve_rng_trace_path(
+    *,
+    base_path: Path,
+    seed: int,
+    parameter_hash: str,
+    run_id: str,
+    dictionary: Mapping[str, object] | None = None,
+) -> Path:
+    """Resolve the RNG trace log path."""
+
+    return resolve_dataset_path(
+        "rng_trace_log",
+        base_path=base_path,
+        template_args={
+            "seed": seed,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+
+
+def resolve_rng_audit_path(
+    *,
+    base_path: Path,
+    seed: int,
+    parameter_hash: str,
+    run_id: str,
+    dictionary: Mapping[str, object] | None = None,
+) -> Path:
+    """Resolve the RNG audit log path."""
+
+    return resolve_dataset_path(
+        "rng_audit_log",
+        base_path=base_path,
+        template_args={
+            "seed": seed,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+
+
 __all__ = [
     "default_dictionary_path",
     "get_repo_root",
     "load_dictionary",
     "resolve_dataset_path",
+    "resolve_rng_audit_path",
+    "resolve_rng_event_path",
+    "resolve_rng_trace_path",
 ]

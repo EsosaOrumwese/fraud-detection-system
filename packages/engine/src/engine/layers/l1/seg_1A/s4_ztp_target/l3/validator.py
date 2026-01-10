@@ -10,6 +10,11 @@ from pathlib import Path
 from typing import Dict, Iterable, Mapping, MutableMapping, Sequence
 
 from ...s0_foundations.exceptions import err
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from ..contexts import S4DeterministicContext
 from ..l0 import constants as c
 from ..l1.sampler import A_ZERO_REASON
@@ -29,47 +34,22 @@ def _load_jsonl(path: Path) -> list[dict]:
     return records
 
 
-def _partition_path(
+def _event_path(
     root: Path,
     stream: str,
     *,
     seed: int,
     parameter_hash: str,
     run_id: str,
+    dictionary: Mapping[str, object],
 ) -> Path:
-    partition = (
-        Path(f"seed={seed}")
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
-    )
-    return (
-        root
-        / "logs"
-        / "layer1"
-        / "1A"
-        / "rng"
-        / "events"
-        / stream
-        / partition
-        / "part-00000.jsonl"
-    )
-
-
-def _trace_path(root: Path, *, seed: int, parameter_hash: str, run_id: str) -> Path:
-    partition = (
-        Path(f"seed={seed}")
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
-    )
-    return (
-        root
-        / "logs"
-        / "layer1"
-        / "1A"
-        / "rng"
-        / "trace"
-        / partition
-        / "rng_trace_log.jsonl"
+    return resolve_rng_event_path(
+        stream,
+        base_path=root,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        run_id=run_id,
+        dictionary=dictionary,
     )
 
 
@@ -117,39 +97,45 @@ def validate_s4_run(
     """Replay the S4 sampler to confirm envelope and payload integrity."""
 
     base_path = base_path.expanduser().resolve()
-    attempts_path = _partition_path(
+    dictionary = load_dictionary()
+    attempts_path = _event_path(
         base_path,
         c.STREAM_POISSON_COMPONENT,
         seed=deterministic.seed,
         parameter_hash=deterministic.parameter_hash,
         run_id=deterministic.run_id,
+        dictionary=dictionary,
     )
-    rejection_path = _partition_path(
+    rejection_path = _event_path(
         base_path,
         c.STREAM_ZTP_REJECTION,
         seed=deterministic.seed,
         parameter_hash=deterministic.parameter_hash,
         run_id=deterministic.run_id,
+        dictionary=dictionary,
     )
-    retry_path = _partition_path(
+    retry_path = _event_path(
         base_path,
         c.STREAM_ZTP_RETRY_EXHAUSTED,
         seed=deterministic.seed,
         parameter_hash=deterministic.parameter_hash,
         run_id=deterministic.run_id,
+        dictionary=dictionary,
     )
-    final_path = _partition_path(
+    final_path = _event_path(
         base_path,
         c.STREAM_ZTP_FINAL,
         seed=deterministic.seed,
         parameter_hash=deterministic.parameter_hash,
         run_id=deterministic.run_id,
+        dictionary=dictionary,
     )
-    trace_path = _trace_path(
-        base_path,
+    trace_path = resolve_rng_trace_path(
+        base_path=base_path,
         seed=deterministic.seed,
         parameter_hash=deterministic.parameter_hash,
         run_id=deterministic.run_id,
+        dictionary=dictionary,
     )
 
     attempt_records = _group_attempts(_load_jsonl(attempts_path))

@@ -9,6 +9,11 @@ from typing import Dict, Iterable, Sequence
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxEngine
+from ...shared.dictionary import (
+    load_dictionary,
+    resolve_rng_event_path,
+    resolve_rng_trace_path,
+)
 from ..l1.probability import hurdle_probability
 from ..l1.rng import (
     HURDLE_MODULE_NAME,
@@ -52,30 +57,21 @@ def validate_hurdle_run(
     if not design_map:
         raise err("E_DATASET_EMPTY", "no hurdle design rows supplied for validation")
 
-    events_path = (
-        base_path
-        / "logs"
-        / "layer1"
-        / "1A"
-        / "rng"
-        / "events"
-        / HURDLE_SUBSTREAM_LABEL
-        / f"seed={seed}"
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
-        / "part-00000.jsonl"
+    dictionary = load_dictionary()
+    events_path = resolve_rng_event_path(
+        HURDLE_SUBSTREAM_LABEL,
+        base_path=base_path,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        run_id=run_id,
+        dictionary=dictionary,
     )
-    trace_path = (
-        base_path
-        / "logs"
-        / "layer1"
-        / "1A"
-        / "rng"
-        / "trace"
-        / f"seed={seed}"
-        / f"parameter_hash={parameter_hash}"
-        / f"run_id={run_id}"
-        / "rng_trace_log.jsonl"
+    trace_path = resolve_rng_trace_path(
+        base_path=base_path,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        run_id=run_id,
+        dictionary=dictionary,
     )
 
     events = _load_jsonl(events_path)

@@ -12,6 +12,7 @@ from typing import Iterable, Mapping, MutableMapping, Tuple
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxEngine
+from ...shared.dictionary import load_dictionary, resolve_rng_event_path
 from ..contexts import S4DeterministicContext, S4MerchantTarget
 from ..l0 import constants as c
 from ..l0 import writer as l0_writer
@@ -53,25 +54,20 @@ class S4RunResult:
     trace_path: Path
 
 
-def _partition_path(
+def _event_path(
     base_path: Path,
     stream: str,
     *,
     deterministic: S4DeterministicContext,
+    dictionary: Mapping[str, object],
 ) -> Path:
-    partition = (
-        Path(f"seed={deterministic.seed}")
-        / f"parameter_hash={deterministic.parameter_hash}"
-        / f"run_id={deterministic.run_id}"
-    )
-    return (
-        base_path
-        / "logs"
-        / "rng"
-        / "events"
-        / stream
-        / partition
-        / "part-00000.jsonl"
+    return resolve_rng_event_path(
+        stream,
+        base_path=base_path,
+        seed=deterministic.seed,
+        parameter_hash=deterministic.parameter_hash,
+        run_id=deterministic.run_id,
+        dictionary=dictionary,
     )
 
 
@@ -99,33 +95,44 @@ def _load_existing_outcomes(
     base_path: Path,
     deterministic: S4DeterministicContext,
 ) -> tuple[list[ZTPFinalRecord], set[int], set[int]]:
+    dictionary = load_dictionary()
     attempts = _group_records(
         _load_jsonl(
-            _partition_path(
-                base_path, c.STREAM_POISSON_COMPONENT, deterministic=deterministic
+            _event_path(
+                base_path,
+                c.STREAM_POISSON_COMPONENT,
+                deterministic=deterministic,
+                dictionary=dictionary,
             )
         )
     )
     rejections = _group_records(
         _load_jsonl(
-            _partition_path(
-                base_path, c.STREAM_ZTP_REJECTION, deterministic=deterministic
+            _event_path(
+                base_path,
+                c.STREAM_ZTP_REJECTION,
+                deterministic=deterministic,
+                dictionary=dictionary,
             )
         )
     )
     retries = _group_records(
         _load_jsonl(
-            _partition_path(
+            _event_path(
                 base_path,
                 c.STREAM_ZTP_RETRY_EXHAUSTED,
                 deterministic=deterministic,
+                dictionary=dictionary,
             )
         )
     )
     finals = _group_records(
         _load_jsonl(
-            _partition_path(
-                base_path, c.STREAM_ZTP_FINAL, deterministic=deterministic
+            _event_path(
+                base_path,
+                c.STREAM_ZTP_FINAL,
+                deterministic=deterministic,
+                dictionary=dictionary,
             )
         )
     )

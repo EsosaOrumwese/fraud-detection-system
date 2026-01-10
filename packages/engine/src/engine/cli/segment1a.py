@@ -7,47 +7,25 @@ import json
 import logging
 import shutil
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence
 
 from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
-from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
+from engine.layers.l1.seg_1A.shared.dictionary import (
+    get_repo_root,
+    load_dictionary,
+    resolve_dataset_path,
+)
 from engine.scenario_runner.l1_seg_1A import Segment1AOrchestrator
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class _ReferenceSurfaceSpec:
-    dataset_id: str
-    source: Path
-    relative_destination: Path
-
-
-_SEGMENT1B_REFERENCE_SURFACES: Sequence[_ReferenceSurfaceSpec] = (
-    _ReferenceSurfaceSpec(
-        dataset_id="iso3166_canonical_2024",
-        source=Path("reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"),
-        relative_destination=Path("reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"),
-    ),
-    _ReferenceSurfaceSpec(
-        dataset_id="world_countries",
-        source=Path("reference/spatial/world_countries/2024/world_countries.parquet"),
-        relative_destination=Path("reference/spatial/world_countries/2024/world_countries.parquet"),
-    ),
-    _ReferenceSurfaceSpec(
-        dataset_id="population_raster_2025",
-        source=Path(
-            "artefacts/spatial/population_raster/2025/raw/global_2020_1km_UNadj_uncounstrained.tif"
-        ),
-        relative_destination=Path("reference/spatial/population/2025/population.tif"),
-    ),
-    _ReferenceSurfaceSpec(
-        dataset_id="tz_world_2025a",
-        source=Path("reference/spatial/tz_world/2025a/tz_world_2025a.parquet"),
-        relative_destination=Path("reference/spatial/tz_world/2025a/tz_world.parquet"),
-    ),
+_SEGMENT1B_REFERENCE_DATASETS: Sequence[str] = (
+    "iso3166_canonical_2024",
+    "world_countries",
+    "population_raster_2025",
+    "tz_world_2025a",
 )
 
 
@@ -75,20 +53,31 @@ def _stage_segment1b_references(base_path: Path) -> List[Path]:
 
     repo_root = get_repo_root()
     base = base_path.expanduser().resolve()
+    dictionary = load_dictionary()
     staged_paths: List[Path] = []
 
-    for spec in _SEGMENT1B_REFERENCE_SURFACES:
-        source = (repo_root / spec.source).resolve()
+    for dataset_id in _SEGMENT1B_REFERENCE_DATASETS:
+        source = resolve_dataset_path(
+            dataset_id,
+            base_path=repo_root,
+            template_args={},
+            dictionary=dictionary,
+        )
         if not source.exists():
             raise FileNotFoundError(
-                f"Segment1B reference source '{source}' (dataset_id={spec.dataset_id}) is missing"
+                f"Segment1B reference source '{source}' (dataset_id={dataset_id}) is missing"
             )
-        destination = (base / spec.relative_destination).resolve()
+        destination = resolve_dataset_path(
+            dataset_id,
+            base_path=base,
+            template_args={},
+            dictionary=dictionary,
+        )
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
         logger.info(
             "Segment1A CLI: staged reference '%s' from %s to %s",
-            spec.dataset_id,
+            dataset_id,
             source,
             destination,
         )

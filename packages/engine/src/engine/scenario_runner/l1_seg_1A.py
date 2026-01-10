@@ -142,6 +142,8 @@ class Segment1AOrchestrator:
         default_path = (
             get_repo_root()
             / "config"
+            / "layer1"
+            / "1A"
             / "allocation"
             / "ccy_smoothing_params.yaml"
         )
@@ -165,8 +167,9 @@ class Segment1AOrchestrator:
         default_path = (
             get_repo_root()
             / "config"
-            / "allocation"
-            / "s6_selection_policy.yaml"
+            / "layer1"
+            / "1A"
+            / "policy.s6.selection.yaml"
         )
         if not default_path.exists():
             raise err(
@@ -188,6 +191,8 @@ class Segment1AOrchestrator:
         default_path = (
             get_repo_root()
             / "config"
+            / "layer1"
+            / "1A"
             / "policy"
             / "s3.thresholds.yaml"
         )
