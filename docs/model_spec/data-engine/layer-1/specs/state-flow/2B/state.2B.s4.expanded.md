@@ -28,7 +28,7 @@
 * **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden.
   *Evidence rule:* Cross-layer/policy assets MUST appear in S0 `sealed_inputs_2B`;
   within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed but
-  MUST match this run’s `{seed,fingerprint}` and be resolved by Dictionary IDs only.
+  MUST match this run’s `{seed,manifest_fingerprint}` and be resolved by Dictionary IDs only.
 * **RNG posture:** **RNG-free**.
 * **Numeric discipline:** IEEE-754 binary64, round-to-nearest-even; stable serial reductions.
 * **Gate law:** **No PASS → No read** applies throughout the segment.
@@ -99,7 +99,7 @@
 * **Catalogue discipline.** All inputs resolve by **Dataset Dictionary IDs**; **literal paths are forbidden**.
 * **S0-evidence rule.** Cross-layer/policy assets MUST appear in S0’s `sealed_inputs_2B`;
   within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed
-  but MUST match this run’s `{seed,fingerprint}` and be resolved by Dictionary IDs only.
+  but MUST match this run’s `{seed,manifest_fingerprint}` and be resolved by Dictionary IDs only.
 
 ### 3.2 Required sealed inputs (must all be present)
 
@@ -110,8 +110,8 @@ S4 SHALL read **only** the following, for this run’s identity:
 3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `gamma` factors per `{merchant_id, utc_day, tz_group_id}`).
 
 > All required assets MUST be resolvable via the Dictionary. Cross-layer/policy assets MUST
-> appear in S0’s inventory for the same fingerprint. Within-segment datasets (`s1_site_weights`,
-> `s3_day_effects`) are NOT S0-sealed; select them exactly by `{seed,fingerprint}`.
+> appear in S0’s inventory for the same manifest_fingerprint. Within-segment datasets (`s1_site_weights`,
+> `s3_day_effects`) are NOT S0-sealed; select them exactly by `{seed,manifest_fingerprint}`.
 
 ### 3.3 Resolution & partition discipline (Binding)
 
@@ -153,9 +153,9 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 2. **`site_timezones`** — 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `tzid` per site).
 3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `{utc_day, tz_group_id, gamma}`).
 
-> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for the same fingerprint.
+> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for the same manifest_fingerprint.
 > Within-segment datasets (`s1_site_weights`, `s3_day_effects`) are not S0-sealed; select them
-> exactly by `{seed,fingerprint}` via the Dictionary (no literals, no wildcards).
+> exactly by `{seed,manifest_fingerprint}` via the Dictionary (no literals, no wildcards).
 
 ### 4.3 Prohibited resources & behaviours
 
@@ -181,7 +181,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 
 ### 4.6 Trust boundary & sequencing
 
-1. Verify S0 evidence for the target fingerprint exists.
+1. Verify S0 evidence for the target manifest_fingerprint exists.
 2. Resolve `s1_site_weights`, `site_timezones`, and `s3_day_effects` via the Dictionary.
 3. Form tz-groups from the join, aggregate base shares, then combine with S3 `gamma` and renormalise—strictly from these sealed inputs; do not consult any other sources.
 
@@ -247,11 +247,11 @@ Rows **MUST** include at least:
 ### 5.9 Provenance stamping
 
 * `created_utc` **MUST** equal S0 `verified_at_utc`.
-* If policy/dataset identifiers are echoed in metadata (anchor-permitting), they **MUST** match the S0-sealed values for this fingerprint.
+* If policy/dataset identifiers are echoed in metadata (anchor-permitting), they **MUST** match the S0-sealed values for this manifest_fingerprint.
 
 ### 5.10 Downstream reliance
 
-* **S5/S6** SHALL: (1) select by `(seed, fingerprint)` via the Dictionary, (2) sample the tz-group using `p_group` for the given `{merchant, day}`, then (3) sample the site within that group using the **static S2 alias**.
+* **S5/S6** SHALL: (1) select by `(seed, manifest_fingerprint)` via the Dictionary, (2) sample the tz-group using `p_group` for the given `{merchant, day}`, then (3) sample the site within that group using the **static S2 alias**.
 
 ---
 
@@ -289,7 +289,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 * For each `{merchant_id, utc_day}`: `Σ_group p_group = 1` **within ε** (validator-enforced).
 * For each `{merchant_id}`: `Σ_group base_share = 1` **within ε** (recomputed from S1 join).
-* `gamma` must equal the corresponding value in `s3_day_effects@{seed,fingerprint}`.
+* `gamma` must equal the corresponding value in `s3_day_effects@{seed,manifest_fingerprint}`.
 
 ---
 
@@ -336,7 +336,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 1. **Fix identity.** Capture `{seed, manifest_fingerprint}` from the run context.
 2. **Resolve inputs by Dictionary IDs only:**
-   `s1_site_weights@{seed,fingerprint}`, `site_timezones@{seed,fingerprint}`, `s3_day_effects@{seed,fingerprint}`.
+   `s1_site_weights@{seed,manifest_fingerprint}`, `site_timezones@{seed,manifest_fingerprint}`, `s3_day_effects@{seed,manifest_fingerprint}`.
 3. **Set `created_utc`.** Read from S0 receipt `verified_at_utc` and use for all output rows.
 4. **Materialise day grid `D`.** Extract the **distinct** `utc_day` values present in `s3_day_effects` and sort ascending (`YYYY-MM-DD`).
 
@@ -401,7 +401,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 ### 8.2 Partitions & exact selection
 
 * **Write partition:** `…/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
-* **Exact selection (read/write):** a single `(seed,fingerprint)` partition per publish; no wildcards, ranges, or multi-partition writes.
+* **Exact selection (read/write):** a single `(seed,manifest_fingerprint)` partition per publish; no wildcards, ranges, or multi-partition writes.
 
 ### 8.3 Path↔embed equality
 
@@ -431,7 +431,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 8.8 Merge discipline
 
-* **No appends, compactions, or in-place updates.** Any change requires publishing to a **new** `(seed,fingerprint)` identity (or a new fingerprint per change-control rules).
+* **No appends, compactions, or in-place updates.** Any change requires publishing to a **new** `(seed,manifest_fingerprint)` identity (or a new manifest_fingerprint per change-control rules).
 
 ### 8.9 Determinism & replay
 
@@ -440,12 +440,12 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 8.10 Token hygiene
 
-* Partition tokens **MUST** appear exactly once and in this order: `seed=…/fingerprint=…/`.
+* Partition tokens **MUST** appear exactly once and in this order: `seed=…/manifest_fingerprint=…/`.
 * Literal paths, environment-injected overrides, or ad-hoc globs are prohibited.
 
 ### 8.11 Provenance echo
 
-* `created_utc` **MUST** equal the canonical S0 time (`verified_at_utc`) for this fingerprint.
+* `created_utc` **MUST** equal the canonical S0 time (`verified_at_utc`) for this manifest_fingerprint.
 * If dataset/policy identifiers are echoed in metadata, they **MUST** match the S0-sealed values.
 
 ### 8.12 Retention & ownership
@@ -465,7 +465,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 All inputs (`s1_site_weights`, `site_timezones`, `s3_day_effects`) were resolved by **Dictionary IDs**; zero literal paths.
 
 **V-03 — Partition/selection exact (Abort).**
-Reads used only `…@seed={seed}/manifest_fingerprint={manifest_fingerprint}` for all three inputs (no wildcards, no cross-seed/fingerprint reads).
+Reads used only `…@seed={seed}/manifest_fingerprint={manifest_fingerprint}` for all three inputs (no wildcards, no cross-seed/manifest_fingerprint reads).
 
 **V-04 — Join integrity (Abort).**
 Join on keys `(merchant_id, legal_country_iso, site_order)` between `s1_site_weights` and `site_timezones` is **1:1** for every key in S1; no missing partner and no multiple `tzid` per key.
@@ -484,7 +484,7 @@ No duplicate `(merchant_id, utc_day, tz_group_id)` in `s4_group_weights`.
 Row emission order is exactly `[merchant_id, utc_day, tz_group_id]` ascending.
 
 **V-09 — Gamma echo coherent (Abort).**
-For each `{merchant, utc_day, tz_group_id}`, the echoed `gamma` equals the value in `s3_day_effects@{seed,fingerprint}`.
+For each `{merchant, utc_day, tz_group_id}`, the echoed `gamma` equals the value in `s3_day_effects@{seed,manifest_fingerprint}`.
 
 **V-10 — Domain checks (Abort).**
 `base_share ≥ 0`, `gamma > 0`, and `p_group ∈ [0,1]` for every row.
@@ -499,10 +499,10 @@ The set of `utc_day` values in `s4_group_weights` equals the **inclusive** day g
 ` s4_group_weights` validates against `schemas.2B.yaml#/plan/s4_group_weights` (fields-strict).
 
 **V-14 — Created time canonical (Abort).**
-`created_utc` in every row equals the S0 receipt’s `verified_at_utc` for this fingerprint.
+`created_utc` in every row equals the S0 receipt’s `verified_at_utc` for this manifest_fingerprint.
 
 **V-15 — Path↔embed equality (Abort).**
-Any embedded identity equals the dataset path tokens (`seed`, `fingerprint`).
+Any embedded identity equals the dataset path tokens (`seed`, `manifest_fingerprint`).
 
 **V-16 — Write-once immutability (Abort).**
 Target partition was empty before publish, or existing bytes are **bit-identical**.
@@ -512,7 +512,7 @@ Re-running S4 with identical sealed inputs produces **byte-identical** output; o
 
 **V-18 — No network & no extra reads (Abort).**
 Execution performed with network I/O disabled and accessed **only** the inputs enumerated in §4.2
-(Dictionary-resolved). Every cross-layer/policy asset read appears in S0’s `sealed_inputs_2B` for this fingerprint.
+(Dictionary-resolved). Every cross-layer/policy asset read appears in S0’s `sealed_inputs_2B` for this manifest_fingerprint.
 
 **V-19 — Optional audit coherence (Abort if present).**
 If `mass_raw`/`denom_raw` columns are present, then for each `{merchant, utc_day}`:
@@ -528,12 +528,12 @@ Re-aggregating S1 over the join during validation reproduces the stored `base_sh
 ## 10. **Failure modes & canonical error codes (Binding)**
 
 **Code namespace.** `2B-S4-XYZ` (zero-padded). **Severity** ∈ {**Abort**, **Warn**}.
-Every failure log entry **MUST** include: `code`, `severity`, `message`, `fingerprint`, `seed`, `validator` (e.g., `"V-11"` or `"runtime"`), and a `context{…}` object with the keys noted below.
+Every failure log entry **MUST** include: `code`, `severity`, `message`, `manifest_fingerprint`, `seed`, `validator` (e.g., `"V-11"` or `"runtime"`), and a `context{…}` object with the keys noted below.
 
 ### 10.1 Gate & catalogue discipline
 
-* **2B-S4-001 S0_RECEIPT_MISSING (Abort)** — No `s0_gate_receipt_2B` for target fingerprint.
-  *Context:* `fingerprint`.
+* **2B-S4-001 S0_RECEIPT_MISSING (Abort)** — No `s0_gate_receipt_2B` for target manifest_fingerprint.
+  *Context:* `manifest_fingerprint`.
 
 * **2B-S4-020 DICTIONARY_RESOLUTION_ERROR (Abort)** — Input ID could not be resolved for the required partition.
   *Context:* `id`, `expected_partition`.
@@ -548,7 +548,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S4-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
   *Context:* `endpoint`.
 
-* **2B-S4-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` for one or more inputs/outputs.
+* **2B-S4-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/manifest_fingerprint={manifest_fingerprint}` for one or more inputs/outputs.
   *Context:* `id`, `expected`, `actual`.
 
 ### 10.2 Join integrity & coverage
@@ -573,7 +573,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S4-052 BASE_SHARE_INCOHERENT (Abort)** — For a merchant, `|Σ base_share − 1| > ε`, or recomputation from S1 join does not match stored `base_share` within ε.
   *Context:* `merchant_id`, `sum_base_share`, `epsilon`.
 
-* **2B-S4-053 GAMMA_ECHO_MISMATCH (Abort)** — Echoed `gamma` ≠ value in `s3_day_effects@{seed,fingerprint}`.
+* **2B-S4-053 GAMMA_ECHO_MISMATCH (Abort)** — Echoed `gamma` ≠ value in `s3_day_effects@{seed,manifest_fingerprint}`.
   *Context:* `merchant_id`, `utc_day`, `tz_group_id`, `expected`, `observed`.
 
 * **2B-S4-051 NORMALISATION_FAILED (Abort)** — For a `{merchant, utc_day}`, `|Σ p_group − 1| > ε`, or `denom_raw ≤ 0` (if present).
@@ -602,7 +602,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S4-082 ATOMIC_PUBLISH_FAILED (Abort)** — Staging/rename not atomic or post-publish verification failed.
   *Context:* `staging_path`, `final_path`.
 
-* **2B-S4-086 CREATED_UTC_MISMATCH (Abort)** — `created_utc` ≠ S0 `verified_at_utc` for this fingerprint.
+* **2B-S4-086 CREATED_UTC_MISMATCH (Abort)** — `created_utc` ≠ S0 `verified_at_utc` for this manifest_fingerprint.
   *Context:* `created_utc`, `verified_at_utc`.
 
 ### 10.5 Optional audit fields (if present)
@@ -613,7 +613,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 ### 10.6 Standard message fields (Binding)
 
 All failures MUST include:
-`code`, `severity`, `message`, `fingerprint`, `seed`, `validator` (or `"runtime"`), and `context{…}` as specified above.
+`code`, `severity`, `message`, `manifest_fingerprint`, `seed`, `validator` (or `"runtime"`), and `context{…}` as specified above.
 
 ### 10.7 Validator → code map (Binding)
 
@@ -658,15 +658,15 @@ Emit one **structured JSON run-report** that proves what S4 read, how it formed 
 The run-report **MUST** contain:
 
 * `component`: `"2B.S4"`
-* `fingerprint`: `<hex64>`
+* `manifest_fingerprint`: `<hex64>`
 * `seed`: `<string>`
 * `created_utc`: ISO-8601 UTC (echo of S0 `verified_at_utc`)
 * `catalogue_resolution`: `{ dictionary_version: <semver>, registry_version: <semver> }`
 * `inputs_summary`:
 
-  * `weights_path`: `<string>` *(Dictionary-resolved `s1_site_weights@seed,fingerprint`)*
-  * `timezones_path`: `<string>` *(Dictionary-resolved `site_timezones@seed,fingerprint`)*
-  * `day_effects_path`: `<string>` *(Dictionary-resolved `s3_day_effects@seed,fingerprint`)*
+  * `weights_path`: `<string>` *(Dictionary-resolved `s1_site_weights@seed,manifest_fingerprint`)*
+  * `timezones_path`: `<string>` *(Dictionary-resolved `site_timezones@seed,manifest_fingerprint`)*
+  * `day_effects_path`: `<string>` *(Dictionary-resolved `s3_day_effects@seed,manifest_fingerprint`)*
   * `merchants_total`: `<int>`
   * `tz_groups_total`: `<int>` *(distinct `merchant_id × tz_group_id` pairs)*
   * `days_total`: `<int>` *(distinct `utc_day` from S3)*
@@ -759,10 +759,10 @@ For traceability, S4 **MUST** echo an `id_map` array of the exact Dictionary-res
 
 ```
 id_map: [
-  { id: "s1_site_weights",  path: "<…/s1_site_weights/seed=…/fingerprint=…/>" },
-  { id: "site_timezones",   path: "<…/site_timezones/seed=…/fingerprint=…/>" },
-  { id: "s3_day_effects",   path: "<…/s3_day_effects/seed=…/fingerprint=…/>" },
-  { id: "s4_group_weights", path: "<…/s4_group_weights/seed=…/fingerprint=…/>" }
+  { id: "s1_site_weights",  path: "<…/s1_site_weights/seed=…/manifest_fingerprint=…/>" },
+  { id: "site_timezones",   path: "<…/site_timezones/seed=…/manifest_fingerprint=…/>" },
+  { id: "s3_day_effects",   path: "<…/s3_day_effects/seed=…/manifest_fingerprint=…/>" },
+  { id: "s4_group_weights", path: "<…/s4_group_weights/seed=…/manifest_fingerprint=…/>" }
 ]
 ```
 
@@ -805,7 +805,7 @@ Overall: `O(S + R)` (or `O(S log S + R)` if a deterministic external sort is nee
 
 ### 12.4 I/O discipline
 
-* **Reads:** one scan of `s1_site_weights@{seed,fingerprint}` (project **PK + p_weight** only); one scan of `site_timezones@{seed,fingerprint}` (project **PK + tzid**); one scan of `s3_day_effects@{seed,fingerprint}` (project **PK + gamma**).
+* **Reads:** one scan of `s1_site_weights@{seed,manifest_fingerprint}` (project **PK + p_weight** only); one scan of `site_timezones@{seed,manifest_fingerprint}` (project **PK + tzid**); one scan of `s3_day_effects@{seed,manifest_fingerprint}` (project **PK + gamma**).
 * **Writes:** one partition `…/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (write-once).
 * **Atomic publish:** stage on the same filesystem → `fsync` → atomic rename.
 
@@ -857,7 +857,7 @@ Overall: `O(S + R)` (or `O(S log S + R)` if a deterministic external sort is nee
 ### 12.10 Non-goals
 
 * No network I/O or literal-path access.
-* No record-level appends/updates post-publish; any change requires a new `{seed,fingerprint}` (or new fingerprint per change control).
+* No record-level appends/updates post-publish; any change requires a new `{seed,manifest_fingerprint}` (or new manifest_fingerprint per change control).
 
 ---
 
@@ -921,7 +921,7 @@ When **Status = frozen**, post-freeze edits are **patch-only** unless a ratified
 
 ### 13.6 Relationship to upstream inputs
 
-S4 has **no policy bytes of its own**. Its outputs change when the **sealed inputs** change (`s1_site_weights`, `site_timezones`, `s3_day_effects`). Updating those inputs **does not** change this spec version; it produces different results under a different `{seed, fingerprint}` captured by S0.
+S4 has **no policy bytes of its own**. Its outputs change when the **sealed inputs** change (`s1_site_weights`, `site_timezones`, `s3_day_effects`). Updating those inputs **does not** change this spec version; it produces different results under a different `{seed, manifest_fingerprint}` captured by S0.
 
 ---
 
@@ -939,7 +939,7 @@ Changes are proposed → reviewed → ratified with a **change log** (impact, va
 
 ### 13.9 Rollback policy
 
-Outputs are **write-once**; rollback means publishing a **new** `{seed,fingerprint}` (or reverting to a prior fingerprint) that reproduces the last known good behaviour. No in-place mutation.
+Outputs are **write-once**; rollback means publishing a **new** `{seed,manifest_fingerprint}` (or reverting to a prior manifest_fingerprint) that reproduces the last known good behaviour. No in-place mutation.
 
 ---
 
@@ -996,7 +996,7 @@ Validator IDs (`V-01`…`V-20`) and canonical codes (`2B-S4-…`) are **reserved
 
 ### A.2 Prior state evidence (2B.S0)
 
-* **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (fingerprint-scoped).
+* **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (manifest_fingerprint-scoped).
 * **`sealed_inputs_2B`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S4 does not re-hash 1B; it relies on this evidence.)*
 

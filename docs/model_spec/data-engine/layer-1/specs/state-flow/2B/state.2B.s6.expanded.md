@@ -16,7 +16,7 @@
 **Normative cross-references (Binding).**
 S6 SHALL treat the following surfaces as authoritative:
 
-* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B`, `sealed_inputs_2B` (fingerprint-scoped; proves sealed inputs for this fingerprint). *(S6 relies on the receipt; it does not re-hash upstream bundles.)* 
+* **Prior state evidence (2B.S0):** `s0_gate_receipt_2B`, `sealed_inputs_2B` (manifest_fingerprint-scoped; proves sealed inputs for this manifest_fingerprint). *(S6 relies on the receipt; it does not re-hash upstream bundles.)* 
 * **Routing policies (token-less; S0-sealed):**
   `route_rng_policy_v1` (declares Philox stream/substreams & budgets for **edge routing**),
   `virtual_edge_policy_v1` (eligible `edge_id`s, weights/attrs). *(Both referenced in the 2B schema pack’s policy section.)* 
@@ -28,7 +28,7 @@ S6 SHALL treat the following surfaces as authoritative:
 * **When S6 triggers.** S6 is a *branch* that runs **only** for arrivals where the merchant is flagged `is_virtual=1`; non-virtual arrivals are fully handled by S5 and **bypass** S6 (no draw, no edge). *(Consistent with S5’s runtime role and layer RNG law.)* 
 * **Run identity (logs/layer1/2B/evidence):** RNG **core logs** and **event streams** are always partitioned by **`[seed, parameter_hash, run_id]`**; S6 appends **one** trace row after **each** event append, per the layer law. 
 * **Plan/egress reads:** Any 2B/2A tables S6 references (context) are selected at **`[seed, manifest_fingerprint]`** via **Dictionary-only** resolution (no literal paths, no network I/O). *(Same catalogue discipline as S5.)*  
-* **Gate law:** **No PASS → No read.** S6 must see valid S0 receipt + sealed inventory for this fingerprint before any read. 
+* **Gate law:** **No PASS → No read.** S6 must see valid S0 receipt + sealed inventory for this manifest_fingerprint before any read. 
 
 > With this header, S6 is anchored to the same authorities and identity rails as S0-S5: schemas govern **shape**, the Dictionary governs **selection & partitions**, the Registry governs **metadata**, and the **layer RNG envelope** governs evidence and counters.
 
@@ -80,7 +80,7 @@ S6 SHALL treat the following surfaces as authoritative:
 **3.1 Gate & run-identity (must hold before any read)**
 
 * **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and validate against the 2B schema pack; S6 **relies** on this receipt and **does not** re-hash upstream bundles. 
-* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (e.g., `s2_alias_index`, `s2_alias_blob`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literal paths). 
+* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this manifest_fingerprint; within-segment datasets (e.g., `s2_alias_index`, `s2_alias_blob`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literal paths). 
 
 **3.2 Inputs required by S6 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed at S0.
@@ -98,7 +98,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
   `s2_alias_blob@…` (**shape:** `#/binary/s2_alias_blob`). 
 
 * **Runtime inputs (not sealed artefacts):**
-  The S5 router supplies per-arrival fields `{merchant_id, utc_timestamp, utc_day, tz_group_id, site_id, is_virtual}` at runtime; they are **not** catalogue assets and carry the run lineage `{seed, parameter_hash, run_id}`. (RNG core logs and events remain **run-scoped**, never fingerprint-partitioned.) 
+  The S5 router supplies per-arrival fields `{merchant_id, utc_timestamp, utc_day, tz_group_id, site_id, is_virtual}` at runtime; they are **not** catalogue assets and carry the run lineage `{seed, parameter_hash, run_id}`. (RNG core logs and events remain **run-scoped**, never manifest_fingerprint-partitioned.) 
 
 **3.3 Selection & partition discipline (binding)**
 
@@ -107,7 +107,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 
 **3.4 Integrity & compatibility pre-checks (abort on failure)**
 
-* **Gate evidence:** S0 receipt & inventory for this fingerprint exist and validate. 
+* **Gate evidence:** S0 receipt & inventory for this manifest_fingerprint exist and validate. 
 * **Policy minima:** `virtual_edge_policy_v1` **must** declare, at minimum: a non-empty set of `edge_id`s; a probability law over those edges (or a country→edge mapping that induces one); and attributes for each edge: `ip_country` ∈ ISO-3166-1 alpha-2, `edge_lat ∈ [−90,90]`, `edge_lon ∈ (−180,180]`. (Row-level checks in §9.)
 * **Catalogue discipline:** all reads resolve **by ID**; any literal path or non-sealed asset → `DICTIONARY_RESOLUTION_ERROR` / `PROHIBITED_LITERAL_PATH`. (Codes enumerated in §10.) 
 * **RNG envelope readiness:** layer **core logs** (`rng_audit_log`, `rng_trace_log`) and event rows follow the **run-scoped** partition law `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` and carry the standard envelope. 
@@ -166,7 +166,7 @@ These boundaries keep S6’s reads **unambiguous, sealed, and replayable**, and 
 ## 5. **Outputs (datasets) & identity (Binding)**
 
 **5.1 Primary egress**
-S6 is a **runtime branch**. It produces **no mandatory fingerprint-scoped egress**; S5/S2/S4 remain the authoritative tables. (S6 only augments virtual arrivals with an edge pick.) 
+S6 is a **runtime branch**. It produces **no mandatory manifest_fingerprint-scoped egress**; S5/S2/S4 remain the authoritative tables. (S6 only augments virtual arrivals with an edge pick.) 
 
 **5.2 RNG evidence (required for virtual arrivals)**
 S6 **MUST** write RNG evidence under the **run-scoped** envelope:
@@ -186,7 +186,7 @@ If diagnostics are enabled and the **Dataset Dictionary registers** an ID, S6 **
 * **ID (when registered):** `s6_edge_log` *(optional)*
 
 * **Partitioning:** **`[seed, parameter_hash, run_id, utc_day]`** (run-scoped lineage, matching RNG logs).
-  Include `manifest_fingerprint` as a **column** with **path↔embed equality**; **do not** use fingerprint as a partition key. Writer order = **arrival order**; format = `jsonl`; **write-once + atomic publish**.
+  Include `manifest_fingerprint` as a **column** with **path↔embed equality**; **do not** use manifest_fingerprint as a partition key. Writer order = **arrival order**; format = `jsonl`; **write-once + atomic publish**.
   *(This mirrors S5’s optional selection log posture.)*
 
 * **Row shape (owned by 2B pack):** `schemas.2B.yaml#/trace/s6_edge_log_row` *(fields-strict; defined in §6).*
@@ -198,9 +198,9 @@ If diagnostics are enabled and the **Dataset Dictionary registers** an ID, S6 **
 * **Write-once + atomic publish:** no partial files; retries must be **byte-identical** or use a **new `run_id`**. Path↔embed equality holds wherever lineage is embedded. 
 
 **5.5 No other persisted outputs**
-S6 **MUST NOT** write to fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`). Those remain read-only. 
+S6 **MUST NOT** write to manifest_fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`). Those remain read-only. 
 
-> Net effect: S6 adds **run-scoped RNG evidence** (one event per virtual arrival) and, if registered, an **optional** edge diagnostics log aligned with the Layer-1 logging envelope—while leaving all **authoritative** fingerprint-scoped datasets untouched.
+> Net effect: S6 adds **run-scoped RNG evidence** (one event per virtual arrival) and, if registered, an **optional** edge diagnostics log aligned with the Layer-1 logging envelope—while leaving all **authoritative** manifest_fingerprint-scoped datasets untouched.
 
 ---
 
@@ -235,7 +235,7 @@ This dataset is **optional**. It SHALL be emitted **only if** the Dataset Dictio
   `manifest_fingerprint` (`hex64`), `created_utc` (`rfc3339_micros`).
   *(IDs/timestamps/counters/tz domains reuse Layer-1 `$defs`.)* 
 
-* **Partitioning (Dictionary authority):** **`[seed, parameter_hash, run_id, utc_day]`** (run-scoped lineage, matching RNG logs). `manifest_fingerprint` **must** appear as a **column** and **byte-equal** the run fingerprint; **do not** use it as a partition key. Writer order = **arrival order**; format = `jsonl`; **write-once + atomic publish**. *(Mirrors S5’s optional selection log posture.)* 
+* **Partitioning (Dictionary authority):** **`[seed, parameter_hash, run_id, utc_day]`** (run-scoped lineage, matching RNG logs). `manifest_fingerprint` **must** appear as a **column** and **byte-equal** the run manifest_fingerprint; **do not** use it as a partition key. Writer order = **arrival order**; format = `jsonl`; **write-once + atomic publish**. *(Mirrors S5’s optional selection log posture.)* 
 
 > **Anchor note:** `#/trace/s6_edge_log_row` is defined in the 2B pack and reuses Layer-1 `$defs` (mirrors S5 trace row style).
 
@@ -268,7 +268,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 **6.7 Structural & identity constraints (binding)**
 
 * All rows bound by §6 are **fields-strict** (no extra properties).
-* **Path↔embed equality** holds wherever lineage is embedded (e.g., `manifest_fingerprint` column in `s6_edge_log` equals the run fingerprint).
+* **Path↔embed equality** holds wherever lineage is embedded (e.g., `manifest_fingerprint` column in `s6_edge_log` equals the run manifest_fingerprint).
 * Writer order for the optional log is **arrival order**; RNG events must preserve **event order** and append trace totals accordingly. 
 
 ---
@@ -365,7 +365,7 @@ If `is_virtual = 0` → **bypass**: do **not** pick an edge; **no** RNG draws; *
 * Do **not** alter S5’s `(tz_group_id, site_id)`; S6 only **adds** edge metadata for virtuals.
 * Do **not** generate additional RNG draws (no hidden draws in alias builders or attribute lookup).
 * Do **not** read beyond S0-sealed, Dictionary-declared assets; **no** network I/O; **no** literal paths.
-* Do **not** write to any fingerprint-scoped plan/egress surface.
+* Do **not** write to any manifest_fingerprint-scoped plan/egress surface.
 
 > Result: For fixed `{seed, manifest_fingerprint}` and sealed policy bytes, S6 yields **bit-replayable** edge selections—with **exactly one** event per virtual arrival—and preserves all Layer-1 identity, logging, and authority boundaries.
 
@@ -405,13 +405,13 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 **8.8 Prohibitions (binding)**
 
 * **No literal paths; no network I/O;** Dictionary-only resolution.
-* **No writes** to fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`). Those remain read-only.
+* **No writes** to manifest_fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`). Those remain read-only.
 
 **8.9 Evidence hooks (what validators will check)**
 
 * Exact partition selection vs Dictionary; **path↔embed equality** on any embedded lineage; event ordering (per-arrival), and **trace-after-event** discipline; write-once + atomic publish; idempotent re-emit; and (if diagnostics enabled) arrival-order preservation and correct run-scoped partitions. These mirror the proven laws already enforced in S5 and the layer RNG envelope.
 
-> Net: S6’s outputs are **run-scoped, append-only, immutable**, and its reads are **fingerprint-scoped** and sealed—perfectly aligned with your Layer-1 catalogue and logging posture.
+> Net: S6’s outputs are **run-scoped, append-only, immutable**, and its reads are **manifest_fingerprint-scoped** and sealed—perfectly aligned with your Layer-1 catalogue and logging posture.
 
 ---
 
@@ -421,7 +421,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 
 **V-01 — Gate evidence present (S0)**
 
-* **Check:** For this fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and are schema-valid.
+* **Check:** For this manifest_fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and are schema-valid.
 * **Fail →** ⟨2B-S6-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 - S0-evidence + token-less policy selection**
@@ -476,7 +476,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 
 **V-12 — Optional `s6_edge_log` (only if registered)**
 
-* **Check:** If the Dictionary registers `s6_edge_log`, rows conform to `schemas.2B.yaml#/trace/s6_edge_log_row`; partitions are **`[seed,parameter_hash,run_id,utc_day]`**; **writer order = arrival order**; column `manifest_fingerprint` exists and **byte-equals** the run fingerprint; `created_utc` echoes S0’s `verified_at_utc`.
+* **Check:** If the Dictionary registers `s6_edge_log`, rows conform to `schemas.2B.yaml#/trace/s6_edge_log_row`; partitions are **`[seed,parameter_hash,run_id,utc_day]`**; **writer order = arrival order**; column `manifest_fingerprint` exists and **byte-equals** the run manifest_fingerprint; `created_utc` echoes S0’s `verified_at_utc`.
 * **Fail →** ⟨2B-S6-071 PATH_EMBED_MISMATCH⟩ / ⟨2B-S6-080 IMMUTABLE_OVERWRITE⟩ / ⟨2B-S6-081 NON_IDEMPOTENT_REEMIT⟩.
 
 **V-13 — Immutability & atomic publish**
@@ -484,7 +484,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 * **Check:** All S6 outputs (events/logs, optional diagnostics) are **write-once**; publish by atomic move; any retry must produce **byte-identical** bytes or use a **new `run_id`**.
 * **Fail →** ⟨2B-S6-080⟩ / ⟨2B-S6-081⟩. 
 
-**V-14 — No writes to fingerprint-scoped plan/egress surfaces**
+**V-14 — No writes to manifest_fingerprint-scoped plan/egress surfaces**
 
 * **Check:** S6 writes **only** run-scoped evidence; it does **not** write to `[seed, manifest_fingerprint]` datasets (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`).
 * **Fail →** ⟨2B-S6-090 PROHIBITED_WRITE⟩. 
@@ -515,7 +515,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 
 **2B-S6-001 — S0_RECEIPT_MISSING** · *Abort*
 **Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[manifest_fingerprint]`.
-**Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition. 
+**Detect:** V-01. **Remedy:** publish valid S0 for this manifest_fingerprint; fix schema/partition. 
 
 **2B-S6-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
 **Trigger:** Any input not resolved by **Dataset Dictionary ID** (wrong ID/path family/format).
@@ -602,7 +602,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 **Detect:** V-13/V-12. **Remedy:** stage → fsync → single atomic move; verify final bytes. 
 
 **2B-S6-090 — PROHIBITED_WRITE** · *Abort*
-**Trigger:** Any write to fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`).
+**Trigger:** Any write to manifest_fingerprint-scoped plan/egress surfaces (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`).
 **Detect:** V-14. **Remedy:** S6 writes only run-scoped logs/layer1/2B/events (and optional diagnostics). 
 
 ---
@@ -656,7 +656,7 @@ The run-report **MUST** contain exactly the keys below (no extras). Timestamps/I
 ```
 {
   "component": "2B.S6",
-  "fingerprint": "<hex64>",
+  "manifest_fingerprint": "<hex64>",
   "seed": "<uint64>",
   "parameter_hash": "<hex64>",
   "run_id": "<hex32>",
@@ -741,7 +741,7 @@ This section creates **no** new dataset authorities. Shapes remain governed by t
 
 ## 12. **Performance & scalability (Informative)**
 
-**Goal.** Keep S6 cost **O(1)** per **virtual** arrival (exactly one alias decode + one RNG event), with deterministic caches and run-scoped logging that scale across merchants, days, and workers—without touching any fingerprint-scoped plan/egress surfaces. 
+**Goal.** Keep S6 cost **O(1)** per **virtual** arrival (exactly one alias decode + one RNG event), with deterministic caches and run-scoped logging that scale across merchants, days, and workers—without touching any manifest_fingerprint-scoped plan/egress surfaces. 
 
 ### 12.1 Cost model (asymptotics)
 
@@ -755,7 +755,7 @@ Then:
 * **Alias builds (first use per merchant):** `∑_m O(K_m)` from the sealed policy (RNG-free).
 * **Per virtual arrival:** `O(1)` (one single-uniform draw + one alias decode).
 * **Non-virtual arrivals:** bypass S6 → **O(0)** work, **0** draws.
-  Evidence writes (event row + one trace append) are run-scoped and independent of fingerprint. 
+  Evidence writes (event row + one trace append) are run-scoped and independent of manifest_fingerprint. 
 
 ### 12.2 Caching (deterministic, RNG-free)
 
@@ -830,7 +830,7 @@ Allowed without breaking consumers:
 Require a new S6 **major** and coordinated updates to packs:
 
 * Change **draws per virtual arrival** (≠1), RNG engine, event family name (`cdn_edge_pick`), or event ordering; or alter the run-scoped logging envelope. 
-* Change input IDs, path families, or partitioning; make `s6_edge_log` **mandatory** or alter its partition law; write to fingerprint-scoped plan/egress surfaces. 
+* Change input IDs, path families, or partitioning; make `s6_edge_log` **mandatory** or alter its partition law; write to manifest_fingerprint-scoped plan/egress surfaces. 
 * Alter how the edge distribution is derived such that outcomes change for the same sealed policy bytes.
 
 **13.5 Coordination with neighbouring states**
@@ -849,7 +849,7 @@ Validator IDs (`V-01…`) and canonical codes (`2B-S6-…`) are **reserved**; ad
 Publish a change log with impact, validator diffs, new anchors, and migration plan; prefer **dual-publish** (old & new side-by-side) or a consumer shim window for MAJOR transitions. 
 
 **13.9 Rollback policy**
-All S6 outputs are **write-once**; rollback = publish a new `{seed,fingerprint}`/policy bytes that reproduce last-known-good behaviour, or use a new `run_id` for evidence. No in-place mutation. 
+All S6 outputs are **write-once**; rollback = publish a new `{seed,manifest_fingerprint}`/policy bytes that reproduce last-known-good behaviour, or use a new `run_id` for evidence. No in-place mutation. 
 
 **13.10 No new authorities**
 This section adds **no** new dataset authorities. Shapes remain governed by **`schemas.2B.yaml`** (policy/trace) and the **Layer-1** pack (RNG envelope/core logs); ID→paths/partitions remain governed by the **Dataset Dictionary**; the **Artefact Registry** stays metadata-only.
@@ -893,7 +893,7 @@ This section adds **no** new dataset authorities. Shapes remain governed by **`s
 **A.5 Optional diagnostics (only if registered)**
 
 * **Row shape:** `schemas.2B.yaml#/trace/s6_edge_log_row` *(fields-strict; mirrors S5 trace style and Layer-1 `$defs`)*. 
-* **Dictionary ID (when present):** `s6_edge_log` → partition **`[seed, parameter_hash, run_id, utc_day]`**; include `manifest_fingerprint` **as a column** (path↔embed equality). *(Do not use fingerprint as a partition key.)* 
+* **Dictionary ID (when present):** `s6_edge_log` → partition **`[seed, parameter_hash, run_id, utc_day]`**; include `manifest_fingerprint` **as a column** (path↔embed equality). *(Do not use manifest_fingerprint as a partition key.)* 
 
 ---
 

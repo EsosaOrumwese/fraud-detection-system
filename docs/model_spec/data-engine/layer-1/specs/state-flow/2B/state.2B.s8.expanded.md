@@ -24,7 +24,7 @@
 **Normative cross-references (Binding).**
 S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
-* **S0 evidence (2B):** `s0_gate_receipt_2B`, `sealed_inputs_2B` — fingerprint-scoped.
+* **S0 evidence (2B):** `s0_gate_receipt_2B`, `sealed_inputs_2B` — manifest_fingerprint-scoped.
 * **S7 audit:** `s7_audit_report_v1` — one per **seed** at `[seed, manifest_fingerprint]` and status **PASS**.
 * **Plans referenced for provenance (read-only):** `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` — all at `[seed, manifest_fingerprint]`.
 * **Policies (token-less; S0-sealed):** `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1`.
@@ -35,7 +35,7 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 **Segment invariants (Binding).**
 
-* **Partitioning:** S8 **publishes** under `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint-only).
+* **Partitioning:** S8 **publishes** under `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/` (manifest_fingerprint-only).
 * **Write discipline:** **single writer**, **write-once + atomic move**; idempotent re-emit **must** be byte-identical.
 * **Catalogue discipline:** Dictionary-only resolution; **no network I/O**; **no re-auditing** (S8 packages evidence and verifies digests; S7 is the audit).
 
@@ -71,13 +71,13 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 ## 2. **Purpose & scope (Binding)**
 
-**Purpose.** Publish the **authoritative PASS evidence** for **Layer-1 · 2B** at a given `manifest_fingerprint`. S8 is **RNG-free** and **fingerprint-scoped**. It **does not re-audit**; it **packages** already-sealed evidence into a deterministic **validation bundle** and emits the canonical **`_passed.flag`**. **No PASS → No read** for any 2B consumer remains in force.
+**Purpose.** Publish the **authoritative PASS evidence** for **Layer-1 · 2B** at a given `manifest_fingerprint`. S8 is **RNG-free** and **manifest_fingerprint-scoped**. It **does not re-audit**; it **packages** already-sealed evidence into a deterministic **validation bundle** and emits the canonical **`_passed.flag`**. **No PASS → No read** for any 2B consumer remains in force.
 
 **S8 SHALL do (in scope):**
 
 * **Verify prerequisites (RNG-free):**
 
-  1. S0 receipt & sealed-inputs exist for this fingerprint.
+  1. S0 receipt & sealed-inputs exist for this manifest_fingerprint.
   2. **Seed set discovery** for the bundle using a deterministic rule (**intersection** of seeds present in `s2_alias_index`, `s3_day_effects`, `s4_group_weights`).
   3. For **every** seed in that set, an **S7 audit report** exists at `[seed, manifest_fingerprint]` and its **status is PASS** (WARNs are permitted unless policy forbids).
 
@@ -111,7 +111,7 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 **Out of scope (SHALL NOT):**
 
-* Re-run S7 checks, modify S2/S3/S4 or policies, generate any run-scoped logs, or write to any path outside the fingerprint-scoped bundle.
+* Re-run S7 checks, modify S2/S3/S4 or policies, generate any run-scoped logs, or write to any path outside the manifest_fingerprint-scoped bundle.
 * Use network I/O or literal file paths; all reads are **Dataset-Dictionary** resolved; **S0‑evidence rule** in force:
   cross‑layer/policy assets **MUST** appear in S0’s sealed inventory; within‑segment inputs are **NOT** S0‑sealed and
   **MUST** be resolved by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literals).
@@ -119,7 +119,7 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 **Determinism & numeric discipline (Binding).**
 
 * **No RNG.** Hashing is **SHA-256** over bytes; index order is **ASCII-lex**; all decisions (seed discovery, file layout) are defined deterministically so a re-run yields **identical bytes**.
-* **Path↔embed equality:** any identity echoed inside included reports (e.g., S7’s `seed`, `fingerprint`) **must** equal their path tokens.
+* **Path↔embed equality:** any identity echoed inside included reports (e.g., S7’s `seed`, `manifest_fingerprint`) **must** equal their path tokens.
 
 **Effect.** On success, consumers have a single, reproducible proof that **all required seeds passed S7** and that the **exact bytes** of 2B’s evidence are frozen—enforced by the bundle’s index/flag pair.
 
@@ -129,13 +129,13 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 **3.1 Gate & authority (must hold before any read)**
 
-* **S0 evidence present for this fingerprint.** `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and validate against the 2B pack. S8 **relies** on S0 (does not re-hash upstream 1B). 
+* **S0 evidence present for this manifest_fingerprint.** `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and validate against the 2B pack. S8 **relies** on S0 (does not re-hash upstream 1B). 
 * **Index/flag laws in force.** S8 will use the canonical **bundle index schema** (fields `{path, sha256_hex}`, relative paths, ASCII-lex order) and the **`_passed.flag`** law (exact one-line `sha256_hex = <hex64>`).
 * **RNG posture:** **RNG-free**. No random draws are permitted anywhere in S8. *(Hashing only.)*
 
 **3.2 Seed set discovery (deterministic; binding)**
 
-* **Required seeds = intersection** of seeds present at this fingerprint across:
+* **Required seeds = intersection** of seeds present at this manifest_fingerprint across:
   `s2_alias_index@[seed, manifest_fingerprint]`, `s3_day_effects@[seed, manifest_fingerprint]`, `s4_group_weights@[seed, manifest_fingerprint]`.
   If the intersection is **empty**, **Abort** (no bundle can be formed). 
 * The discovery procedure and the resulting ordered list of seeds **must** be deterministic (e.g., ASCII-lex on decimal `seed` strings) to guarantee identical bytes on re-emit.
@@ -147,13 +147,13 @@ S8 SHALL treat these surfaces as authoritative and Dictionary-resolvable:
 
 **3.4 Inputs S8 SHALL read (sealed; read-only)**
 Resolve **by Dataset Dictionary ID only**.
-Evidence posture: cross‑layer/policy assets **MUST** appear in S0’s sealed inventory for this fingerprint;
+Evidence posture: cross‑layer/policy assets **MUST** appear in S0’s sealed inventory for this manifest_fingerprint;
 within‑segment datasets (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) are **NOT** S0‑sealed and **MUST**
 be read at exactly **`[seed, manifest_fingerprint]`** (no literals, no network).
 
-* **S0 evidence (fingerprint-scoped):** `s0_gate_receipt_2B`, `sealed_inputs_2B` (for provenance and sealed digests/paths). 
-* **S7 reports (seed×fingerprint-scoped):** one `s7_audit_report` per required seed (PASS). **Shape:** `#/validation/s7_audit_report_v1`. 
-* **Plans for provenance echo (seed×fingerprint-scoped):**
+* **S0 evidence (manifest_fingerprint-scoped):** `s0_gate_receipt_2B`, `sealed_inputs_2B` (for provenance and sealed digests/paths). 
+* **S7 reports (seed×manifest_fingerprint-scoped):** one `s7_audit_report` per required seed (PASS). **Shape:** `#/validation/s7_audit_report_v1`. 
+* **Plans for provenance echo (seed×manifest_fingerprint-scoped):**
   `s2_alias_index` (`#/plan/s2_alias_index`), `s2_alias_blob` (`#/binary/s2_alias_blob`), `s3_day_effects` (`#/plan/s3_day_effects`), `s4_group_weights` (`#/plan/s4_group_weights`). *(S8 does **not** re-audit these; used to echo/verify digests and to compute the seed intersection.)* 
 * **Policies (token-less; S0-sealed path+digest):** `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1`. *(Single files; `partition={}`.)* 
 
@@ -161,7 +161,7 @@ be read at exactly **`[seed, manifest_fingerprint]`** (no literals, no network).
 
 * **Dictionary-only resolution.** No literal paths; no network I/O.
 * **Exact partitions:** S2/S3/S4 & S7 read at **`[seed, manifest_fingerprint]`**; policies selected by **exact S0-sealed** `path` **and** `sha256_hex` (`partition={}`).
-* **Path↔embed equality:** where lineage is embedded (e.g., `seed`/`fingerprint` in S7), values **must** byte-equal the path tokens. 
+* **Path↔embed equality:** where lineage is embedded (e.g., `seed`/`manifest_fingerprint` in S7), values **must** byte-equal the path tokens. 
 
 **3.6 Integrity pre-flight before packaging (abort on failure)**
 
@@ -174,7 +174,7 @@ be read at exactly **`[seed, manifest_fingerprint]`** (no literals, no network).
 **3.7 Prohibitions (binding)**
 
 * **No RNG; no network I/O; no literal paths.**
-* **No mutation** of any input artefact; S8 writes **only** the fingerprint-scoped validation bundle (`index.json` + `_passed.flag`), **write-once** with an **atomic move**. *(Idempotent re-emit must be byte-identical.)* 
+* **No mutation** of any input artefact; S8 writes **only** the manifest_fingerprint-scoped validation bundle (`index.json` + `_passed.flag`), **write-once** with an **atomic move**. *(Idempotent re-emit must be byte-identical.)* 
 
 > With these preconditions, S8’s inputs are **sealed and partition-exact**, the **seed set** is deterministic and complete, S7 PASS coverage is enforced, and the **index/flag** laws are in place—so the published bundle is a reproducible, authoritative PASS signal for Segment 2B.
 
@@ -194,14 +194,14 @@ be read at exactly **`[seed, manifest_fingerprint]`** (no literals, no network).
 Evidence rule: cross‑layer/policy inputs **MUST** appear in S0’s sealed inventory; within‑segment inputs are **not** S0‑sealed and
 **MUST** be selected by ID at **`[seed, manifest_fingerprint]`**.
 
-* **S0 evidence (fingerprint):** `s0_gate_receipt_2B`, `sealed_inputs_2B` — provenance + sealed digests/paths.
+* **S0 evidence (manifest_fingerprint):** `s0_gate_receipt_2B`, `sealed_inputs_2B` — provenance + sealed digests/paths.
 * **S7 audit reports (one per required seed):**
   `s7_audit_report@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
   **Shape:** `schemas.2B.yaml#/validation/s7_audit_report_v1` (fields-strict). **Partition:** `[seed, manifest_fingerprint]`.  
 * **Plan/binary provenance (used for seed discovery & echo only):**
-  `s2_alias_index@{seed,fingerprint}` → `#/plan/s2_alias_index` · `s2_alias_blob@{seed,fingerprint}` → `#/binary/s2_alias_blob`;
-  `s3_day_effects@{seed,fingerprint}` → `#/plan/s3_day_effects`;
-  `s4_group_weights@{seed,fingerprint}` → `#/plan/s4_group_weights`. 
+  `s2_alias_index@{seed,manifest_fingerprint}` → `#/plan/s2_alias_index` · `s2_alias_blob@{seed,manifest_fingerprint}` → `#/binary/s2_alias_blob`;
+  `s3_day_effects@{seed,manifest_fingerprint}` → `#/plan/s3_day_effects`;
+  `s4_group_weights@{seed,manifest_fingerprint}` → `#/plan/s4_group_weights`. 
 * **Policies (token-less; S0-sealed path+digest):**
   `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1`. *(Single files; `partition={}`.)* 
 
@@ -215,21 +215,21 @@ Evidence rule: cross‑layer/policy inputs **MUST** appear in S0’s sealed inve
 * **Exact partitions:**
   • S2/S3/S4 and S7 reads at **`[seed, manifest_fingerprint]`**;
   • Policies are token-less (`partition={}`) and selected by **exact S0-sealed** `path`+`sha256_hex`.  
-* **Publish partition:** the validation bundle is **fingerprint-scoped** under `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`. (Write-once; atomic move; idempotent re-emit must be **byte-identical**.) 
-* **Path↔embed equality:** any lineage echoed inside included evidence (e.g., `seed`/`fingerprint` fields in S7 JSON) **must** byte-equal the path tokens. 
+* **Publish partition:** the validation bundle is **manifest_fingerprint-scoped** under `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`. (Write-once; atomic move; idempotent re-emit must be **byte-identical**.) 
+* **Path↔embed equality:** any lineage echoed inside included evidence (e.g., `seed`/`manifest_fingerprint` fields in S7 JSON) **must** byte-equal the path tokens. 
 
 **4.5 Prohibitions & boundaries (binding)**
 
 * **No re-auditing:** S8 does **not** re-run S7 validators; it only verifies presence/digests and packages evidence. (S7 is the audit gate.) 
 * **RNG-free;** **no network I/O;** **no literal paths.** All reads are Dictionary-resolved sealed artefacts; S8 writes only the **bundle** (`index.json` + `_passed.flag`). 
-* **Single writer:** one logical writer for the fingerprint bundle; **atomic publish**; **file order non-authoritative** (only the index order governs hashing). 
+* **Single writer:** one logical writer for the manifest_fingerprint bundle; **atomic publish**; **file order non-authoritative** (only the index order governs hashing). 
 
 ---
 
 ## 5. **Outputs (datasets) & identity (Binding)**
 
-**5.1 Authoritative egress (fingerprint-scoped bundle).**
-S8 produces **exactly two artefacts** under the fingerprint path:
+**5.1 Authoritative egress (manifest_fingerprint-scoped bundle).**
+S8 produces **exactly two artefacts** under the manifest_fingerprint path:
 
 * **Bundle index** — `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json`
   *Fields-strict; entries are `{ path, sha256_hex }`, with `path` **relative** to the bundle root and rows **ASCII-lex ordered by `path`**.* 
@@ -238,8 +238,8 @@ S8 produces **exactly two artefacts** under the fingerprint path:
 
 **5.2 Identity & partitions (binding).**
 
-* **Partition law:** **fingerprint-only**; no `seed`, `parameter_hash`, or `run_id` appear in the publish path. 
-* **Path↔embed equality:** any identity echoed inside included files (e.g., S7 report `seed`/`fingerprint`) **must** byte-equal their path tokens; S8 does **not** rewrite those files. 
+* **Partition law:** **manifest_fingerprint-only**; no `seed`, `parameter_hash`, or `run_id` appear in the publish path. 
+* **Path↔embed equality:** any identity echoed inside included files (e.g., S7 report `seed`/`manifest_fingerprint`) **must** byte-equal their path tokens; S8 does **not** rewrite those files. 
 
 **5.3 Shapes & anchors (binding).**
 
@@ -248,9 +248,9 @@ S8 produces **exactly two artefacts** under the fingerprint path:
 
 **5.4 Write discipline (binding).**
 
-* **Write-once + atomic publish:** build the bundle in a temp workspace, fsync, then **single atomic move** to the final fingerprint path.
+* **Write-once + atomic publish:** build the bundle in a temp workspace, fsync, then **single atomic move** to the final manifest_fingerprint path.
 * **Idempotent re-emit:** allowed only if **bytes are identical** to the existing bundle; otherwise **Abort**.
-* **Single writer** for the fingerprint bundle. *(File order inside the directory is non-authoritative; only the index governs hashing.)* 
+* **Single writer** for the manifest_fingerprint bundle. *(File order inside the directory is non-authoritative; only the index governs hashing.)* 
 
 **5.5 Digest parity (binding).**
 
@@ -266,7 +266,7 @@ Register three IDs in the **Dataset Dictionary** (and mirror them in the **Artef
   `format: json` ; `schema_ref: schemas.2B.yaml#/validation/validation_bundle_index_2B`.
 * `validation_passed_flag_2B` -> `./manifest_fingerprint={manifest_fingerprint}/_passed.flag`  
   `format: text` ; `schema_ref: schemas.1B.yaml#/validation/passed_flag`.
-> Net: S8 emits a **single, fingerprint-scoped validation bundle** whose **index.json** and **`_passed.flag`** form the authoritative PASS proof for 2B; identity is fingerprint-only; ordering and digests follow the canonical bundle laws; and publish is **write-once + atomic**.
+> Net: S8 emits a **single, manifest_fingerprint-scoped validation bundle** whose **index.json** and **`_passed.flag`** form the authoritative PASS proof for 2B; identity is manifest_fingerprint-only; ordering and digests follow the canonical bundle laws; and publish is **write-once + atomic**.
 
 ---
 
@@ -318,9 +318,9 @@ S8 *does not re-audit*; it references these anchors to validate prerequisites an
 
 **6.5 Partition law & identity (Binding)**
 
-* **Publish partition:** `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint-only).
+* **Publish partition:** `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/` (manifest_fingerprint-only).
 * **Inputs:** S7/S2/S3/S4 are selected at **`[seed, manifest_fingerprint]`**; policies are **token-less** (`partition={}`) and selected by **exact S0-sealed** `path` + `sha256_hex`.
-* **Path↔embed equality:** any lineage echoed *inside included evidence* (e.g., S7 JSON `seed`, `fingerprint`) **MUST** byte-equal path tokens; S8 does **not** modify evidence bytes.
+* **Path↔embed equality:** any lineage echoed *inside included evidence* (e.g., S7 JSON `seed`, `manifest_fingerprint`) **MUST** byte-equal path tokens; S8 does **not** modify evidence bytes.
 
 ---
 
@@ -350,9 +350,9 @@ Implementations **MUST** validate, prior to publish:
 1. `index.json` against the **index** anchor (fields-strict, relative paths, ASCII-lex, no duplicates).
 2. Each `sha256_hex` row against the on-disk bytes.
 3. `_passed.flag` against the **flag** anchor; recompute bundle digest equals the flag value.
-4. Partition/path discipline (fingerprint-scoped publish; no extra files listed outside the root).
+4. Partition/path discipline (manifest_fingerprint-scoped publish; no extra files listed outside the root).
 
-> With these anchors and rules, the S8 bundle is a **deterministic, fingerprint-scoped** PASS artefact: anyone can re-hash the bytes listed in `index.json` and match `_passed.flag`, and S8 never re-audits or mutates evidence—only packages it under the canonical index/flag laws.
+> With these anchors and rules, the S8 bundle is a **deterministic, manifest_fingerprint-scoped** PASS artefact: anyone can re-hash the bytes listed in `index.json` and match `_passed.flag`, and S8 never re-audits or mutates evidence—only packages it under the canonical index/flag laws.
 
 ---
 
@@ -363,7 +363,7 @@ Implementations **MUST** validate, prior to publish:
 ### 7.1 Resolve & verify prerequisites (RNG-free)
 
 1. **Resolve by ID (Dictionary-only):** `s0_gate_receipt_2B`, `sealed_inputs_2B`; all **S7** reports; **S2/S3/S4** plans; token-less **policies** (selected by S0-sealed path+digest). **No network I/O; no literal paths.**
-2. **Seed discovery (intersection):** Required seeds = **intersection** of seeds present at this fingerprint in `s2_alias_index`, `s3_day_effects`, `s4_group_weights`. **Abort** if empty. Sort seeds **ASCII-lex** by their decimal string for stability. 
+2. **Seed discovery (intersection):** Required seeds = **intersection** of seeds present at this manifest_fingerprint in `s2_alias_index`, `s3_day_effects`, `s4_group_weights`. **Abort** if empty. Sort seeds **ASCII-lex** by their decimal string for stability. 
 3. **S7 coverage:** For **every** discovered seed, load `s7_audit_report@[seed, manifest_fingerprint]`, validate against `#/validation/s7_audit_report_v1`, and require `summary.overall_status == "PASS"`. (WARN allowed unless policy forbids.) 
 4. **Sealed-digest parity (policies only):** For token-less policies, echo `(path, sha256_hex)` from `sealed_inputs_2B` and require equality.
    For S2/S3/S4 (within-segment), select by **Dataset Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literals); do not require S0 parity. 
@@ -397,7 +397,7 @@ Validate against the **flag** anchor. **The flag is not listed** in `index.json`
 
 ### 7.5 Pre-publish validations (binding)
 
-12. Re-validate: index schema; every index row’s `sha256_hex` vs file bytes; flag value vs recomputed bundle digest; fingerprint partition law. **Abort** on any mismatch. 
+12. Re-validate: index schema; every index row’s `sha256_hex` vs file bytes; flag value vs recomputed bundle digest; manifest_fingerprint partition law. **Abort** on any mismatch. 
 
 ### 7.6 Publish (binding)
 
@@ -409,9 +409,9 @@ Validate against the **flag** anchor. **The flag is not listed** in `index.json`
 * **No RNG;** hash = **SHA-256** over raw bytes.
 * **JSON encoding:** UTF-8; stable serializer (key order and whitespace fixed by implementation so re-runs produce identical bytes).
 * **Path discipline:** all `path` values are relative, UTF-8, no leading `/`, no `..`.
-* **Path↔embed equality:** any lineage echoed inside included reports (e.g., S7 `seed`/`fingerprint`) equals path tokens; S8 never edits those files. 
+* **Path↔embed equality:** any lineage echoed inside included reports (e.g., S7 `seed`/`manifest_fingerprint`) equals path tokens; S8 never edits those files. 
 
-> Outcome: a **deterministic, fingerprint-scoped** validation bundle whose `index.json` and `_passed.flag` can be independently re-hashed to the same digest, proving 2B is **PASS** for all required seeds.
+> Outcome: a **deterministic, manifest_fingerprint-scoped** validation bundle whose `index.json` and `_passed.flag` can be independently re-hashed to the same digest, proving 2B is **PASS** for all required seeds.
 
 ---
 
@@ -419,13 +419,13 @@ Validate against the **flag** anchor. **The flag is not listed** in `index.json`
 
 **8.1 Publish identity (authoritative).**
 
-* **Partition:** fingerprint-only — bundle lives at
+* **Partition:** manifest_fingerprint-only — bundle lives at
   `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`. 
 * **No run/seed tokens** appear in the publish path. Inputs that S8 reads remain at `[seed, manifest_fingerprint]` (S2/S3/S4/S7); policies are token-less. 
 
 **8.2 Path↔embed equality.**
 
-* Any lineage echoed **inside** included evidence (e.g., S7 report `seed`, `fingerprint`) **MUST** byte-equal the tokens in its path. S8 does not rewrite bytes; mismatches are fatal. 
+* Any lineage echoed **inside** included evidence (e.g., S7 report `seed`, `manifest_fingerprint`) **MUST** byte-equal the tokens in its path. S8 does not rewrite bytes; mismatches are fatal. 
 
 **8.3 Index ordering & path law (binding).**
 
@@ -434,13 +434,13 @@ Validate against the **flag** anchor. **The flag is not listed** in `index.json`
 
 **8.4 Write discipline & atomicity.**
 
-* **Single writer** for the fingerprint bundle. Build in a temp workspace and **publish by single atomic move** into the final path. 
+* **Single writer** for the manifest_fingerprint bundle. Build in a temp workspace and **publish by single atomic move** into the final path. 
 * **Write-once.** Re-publishing is allowed **only** if bytes are **identical** (idempotent re-emit). Otherwise **Abort**. 
 
 **8.5 Merge discipline.**
 
-* **No cross-bundle merges.** Never merge across different fingerprints.
-* **No partial updates.** The bundle is published as a complete unit; additions require a new publication that produces byte-identical content or a new fingerprint. 
+* **No cross-bundle merges.** Never merge across different manifest_fingerprints.
+* **No partial updates.** The bundle is published as a complete unit; additions require a new publication that produces byte-identical content or a new manifest_fingerprint. 
 
 **8.6 Hashing determinism.**
 
@@ -452,26 +452,26 @@ Validate against the **flag** anchor. **The flag is not listed** in `index.json`
 * **No network I/O**, **no literal paths**; all reads are **Dataset-Dictionary** resolved sealed artefacts.
 * **No mutation** of any included evidence file; S8 copies/links bytes unchanged. 
 
-> Result: the S8 bundle is a **fingerprint-scoped, write-once** artefact whose identity, ordering, and digests are fully deterministic and verifiable from `index.json` and `_passed.flag`.
+> Result: the S8 bundle is a **manifest_fingerprint-scoped, write-once** artefact whose identity, ordering, and digests are fully deterministic and verifiable from `index.json` and `_passed.flag`.
 
 ---
 
 ## 9. **Acceptance criteria (validators) (Binding)**
 
-> S8 is **RNG-free**. All inputs are **Dataset-Dictionary** resolved; all publishes are **fingerprint-scoped**. Index/flag laws are **canonical**.
+> S8 is **RNG-free**. All inputs are **Dataset-Dictionary** resolved; all publishes are **manifest_fingerprint-scoped**. Index/flag laws are **canonical**.
 
 **V-01 — Gate evidence present (S0)**
 **Check:** `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and validate.
 **Fail →** ⟨2B-S8-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 — S0-evidence & Dictionary-only**
-**Check:** All cross-layer/policy assets appear in the **S0 sealed inventory** for this fingerprint; all within-segment
+**Check:** All cross-layer/policy assets appear in the **S0 sealed inventory** for this manifest_fingerprint; all within-segment
 inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) resolve **by Dataset Dictionary ID** at exactly
 **`[seed, manifest_fingerprint]`** (no literals / no network). Policies are token-less and selected by **S0-sealed `path+sha256_hex`** (`partition={}`).
 **Fail →** ⟨2B-S8-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S8-021 PROHIBITED_LITERAL_PATH⟩ / ⟨2B-S8-023 NETWORK_IO_ATTEMPT⟩.
 
 **V-03 — Seed set discovery (intersection, non-empty)**
-**Check:** Required seeds = **intersection** of seeds present in `s2_alias_index`, `s3_day_effects`, `s4_group_weights` at this fingerprint; result is **non-empty** and deterministically ordered (ASCII-lex on decimal).
+**Check:** Required seeds = **intersection** of seeds present in `s2_alias_index`, `s3_day_effects`, `s4_group_weights` at this manifest_fingerprint; result is **non-empty** and deterministically ordered (ASCII-lex on decimal).
 **Fail →** ⟨2B-S8-030 SEED_SET_EMPTY_OR_INCOHERENT⟩. 
 
 **V-04 — S7 coverage & status**
@@ -500,7 +500,7 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 **Fail →** ⟨2B-S8-051 FLAG_DIGEST_MISMATCH⟩ / ⟨2B-S8-052 FLAG_SCHEMA_INVALID⟩. 
 
 **V-10 — Publish partition & identity**
-**Check:** Bundle published at **`…/validation/manifest_fingerprint={manifest_fingerprint}/`** (fingerprint-only); no `seed`/`run` tokens in the publish path; any lineage echoed inside included evidence matches its path tokens (path↔embed equality).
+**Check:** Bundle published at **`…/validation/manifest_fingerprint={manifest_fingerprint}/`** (manifest_fingerprint-only); no `seed`/`run` tokens in the publish path; any lineage echoed inside included evidence matches its path tokens (path↔embed equality).
 **Fail →** ⟨2B-S8-060 PARTITION_LAW_VIOLATION⟩ / ⟨2B-S8-061 PATH_EMBED_MISMATCH⟩.
 
 **V-11 — Write-once, atomic publish, idempotent re-emit**
@@ -530,7 +530,7 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 | **V-11 Write-once/atomic/idempotent**   | 2B-S8-080, 2B-S8-081, 2B-S8-082            |
 | **V-12 Prohibitions**                   | 2B-S8-023, 2B-S8-021, 2B-S8-090            |
 
-> Passing **V-01…V-12** proves that S8 **packages** a deterministic, fingerprint-scoped validation bundle with a canonical `index.json` and `_passed.flag`, that **all required seeds passed S7**, and that publishing obeys **write-once + atomic** with **no RNG** or out-of-band reads.
+> Passing **V-01…V-12** proves that S8 **packages** a deterministic, manifest_fingerprint-scoped validation bundle with a canonical `index.json` and `_passed.flag`, that **all required seeds passed S7**, and that publishing obeys **write-once + atomic** with **no RNG** or out-of-band reads.
 
 ---
 
@@ -544,7 +544,7 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 
 **2B-S8-001 — S0_RECEIPT_MISSING** · *Abort*
 **Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[manifest_fingerprint]`.
-**Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition.
+**Detect:** V-01. **Remedy:** publish valid S0 for this manifest_fingerprint; fix schema/partition.
 
 **2B-S8-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
 **Trigger:** Any read not resolved by **Dataset Dictionary ID** (wrong ID/path family/format).
@@ -631,11 +631,11 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 ### 10.6 Publish identity & provenance
 
 **2B-S8-060 — PARTITION_LAW_VIOLATION** · *Abort*
-**Trigger:** Publish path not fingerprint-scoped (`…/validation/manifest_fingerprint={manifest_fingerprint}/`).
-**Detect:** V-10. **Remedy:** publish to canonical fingerprint path.
+**Trigger:** Publish path not manifest_fingerprint-scoped (`…/validation/manifest_fingerprint={manifest_fingerprint}/`).
+**Detect:** V-10. **Remedy:** publish to canonical manifest_fingerprint path.
 
 **2B-S8-061 — PATH_EMBED_MISMATCH** · *Abort*
-**Trigger:** Identity echoed inside included evidence (e.g., S7 JSON `seed`/`fingerprint`) doesn’t match path tokens.
+**Trigger:** Identity echoed inside included evidence (e.g., S7 JSON `seed`/`manifest_fingerprint`) doesn’t match path tokens.
 **Detect:** V-10. **Remedy:** fix upstream evidence; S8 never rewrites bytes.
 
 ---
@@ -644,7 +644,7 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 
 **2B-S8-080 — IMMUTABLE_OVERWRITE** · *Abort*
 **Trigger:** Target bundle exists and bytes differ.
-**Detect:** V-11. **Remedy:** treat as write-once; publish only byte-identical or use a new fingerprint.
+**Detect:** V-11. **Remedy:** treat as write-once; publish only byte-identical or use a new manifest_fingerprint.
 
 **2B-S8-081 — NON_IDEMPOTENT_REEMIT** · *Abort*
 **Trigger:** Re-emit for same inputs yields different bytes.
@@ -681,7 +681,7 @@ For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** 
 | **V-11 Write-once/atomic/idempotent**   | 2B-S8-080, 2B-S8-081, 2B-S8-082            |
 | **V-12 Prohibitions**                   | 2B-S8-023, 2B-S8-021, 2B-S8-090            |
 
-> These codes make S8 enforce what it’s for: **package, don’t re-audit**; **index/flag** must be canonical; **digests** must match bytes; publish is **fingerprint-scoped, write-once, atomic**; and **all required seeds** must already have **S7 = PASS**.
+> These codes make S8 enforce what it’s for: **package, don’t re-audit**; **index/flag** must be canonical; **digests** must match bytes; publish is **manifest_fingerprint-scoped, write-once, atomic**; and **all required seeds** must already have **S7 = PASS**.
 
 ---
 
@@ -693,7 +693,7 @@ Emit a single **diagnostic** JSON run-report to **STDOUT** that proves *what S8 
 **11.2 Emission rules (binding)**
 
 * Print **exactly one** JSON object to **STDOUT** upon success (and on abort, if possible). Persisted copies (if any) are **non-authoritative**.
-* The bundle itself is published fingerprint-scoped under `…/validation/manifest_fingerprint={manifest_fingerprint}/` via **single atomic move** (write-once; idempotent re-emit must be byte-identical). 
+* The bundle itself is published manifest_fingerprint-scoped under `…/validation/manifest_fingerprint={manifest_fingerprint}/` via **single atomic move** (write-once; idempotent re-emit must be byte-identical). 
 
 **11.3 Fields-strict run-report shape (binding)**
 S8 MUST emit a JSON with **exactly** the keys below (no extras). Types reuse layer `$defs` (`hex64`, `uint64`, `rfc3339_micros`).
@@ -701,7 +701,7 @@ S8 MUST emit a JSON with **exactly** the keys below (no extras). Types reuse lay
 ```
 {
   "component": "2B.S8",
-  "fingerprint": "<hex64>",
+  "manifest_fingerprint": "<hex64>",
   "created_utc": "<rfc3339_micros>",               // echo S0.receipt.verified_at_utc
   "catalogue_resolution": {
     "dictionary_version": "<semver>",
@@ -715,10 +715,10 @@ S8 MUST emit a JSON with **exactly** the keys below (no extras). Types reuse lay
     "missing_or_fail_count": <int>
   },
   "inputs_digest": {                                // policies echo from S0; S2/S3/S4 record resolved (path, partition);
-    "s2_alias_index": { "path": "<...>", "partition": {"seed":"…","fingerprint":"…"}, "sha256_hex":"<hex64>" },
-    "s2_alias_blob":  { "path": "<...>", "partition": {"seed":"…","fingerprint":"…"}, "sha256_hex":"<hex64>" },
-    "s3_day_effects": { "path": "<...>", "partition": {"seed":"…","fingerprint":"…"}, "sha256_hex":"<hex64>" },
-    "s4_group_weights": { "path": "<...>", "partition": {"seed":"…","fingerprint":"…"}, "sha256_hex":"<hex64>" },
+    "s2_alias_index": { "path": "<...>", "partition": {"seed":"…","manifest_fingerprint":"…"}, "sha256_hex":"<hex64>" },
+    "s2_alias_blob":  { "path": "<...>", "partition": {"seed":"…","manifest_fingerprint":"…"}, "sha256_hex":"<hex64>" },
+    "s3_day_effects": { "path": "<...>", "partition": {"seed":"…","manifest_fingerprint":"…"}, "sha256_hex":"<hex64>" },
+    "s4_group_weights": { "path": "<...>", "partition": {"seed":"…","manifest_fingerprint":"…"}, "sha256_hex":"<hex64>" },
     "policies": {
       "alias_layout_policy_v1": { "path":"<...>", "sha256_hex":"<hex64>" },
       "route_rng_policy_v1":    { "path":"<...>", "sha256_hex":"<hex64>" },
@@ -726,7 +726,7 @@ S8 MUST emit a JSON with **exactly** the keys below (no extras). Types reuse lay
     }
   },
   "bundle": {
-    "publish_path": "data/layer1/2B/validation/manifest_fingerprint=<fingerprint>/",
+    "publish_path": "data/layer1/2B/validation/manifest_fingerprint=<manifest_fingerprint>/",
     "index_path": "…/index.json",
     "flag_path":  "…/_passed.flag",
     "files_indexed": <int>,                         // rows in index.json
@@ -757,10 +757,10 @@ The run-report MUST document these and S8 MUST enforce them before publish:
 
 **11.5 Prohibitions & scope reminders**
 
-* S8 writes **no** run-scoped logs; it only publishes the fingerprint-scoped bundle (`index.json` + `_passed.flag`) via **write-once + atomic** publish. 
+* S8 writes **no** run-scoped logs; it only publishes the manifest_fingerprint-scoped bundle (`index.json` + `_passed.flag`) via **write-once + atomic** publish. 
 * **No network I/O, no literal paths**; all reads are **Dictionary-resolved** sealed artefacts. 
 
-> This run-report makes S8 transparent and reproducible: it shows the **seed set**, the **sealed inputs** echoed from S0, the **exact files indexed**, and the **flag/bundle digest** proof—while the authoritative evidence remains the fingerprint-scoped **index/flag pair** governed by the canonical bundle laws.
+> This run-report makes S8 transparent and reproducible: it shows the **seed set**, the **sealed inputs** echoed from S0, the **exact files indexed**, and the **flag/bundle digest** proof—while the authoritative evidence remains the manifest_fingerprint-scoped **index/flag pair** governed by the canonical bundle laws.
 
 ---
 
@@ -768,7 +768,7 @@ The run-report MUST document these and S8 MUST enforce them before publish:
 
 **Goal.** Make S8 a **streaming, RNG-free** packager whose work is linear in the total size of files it bundles and whose output bytes are **bit-stable** across re-runs.
 
-### 12.1 Cost model (per fingerprint)
+### 12.1 Cost model (per manifest_fingerprint)
 
 * **Discovery & checks:** set operations over seed lists in S2/S3/S4 → **O(#seeds)**.
 * **Audit presence:** existence/shape checks for `s7_audit_report@[seed, manifest_fingerprint]` → **O(#seeds)**.
@@ -804,7 +804,7 @@ The run-report MUST document these and S8 MUST enforce them before publish:
 
 ### 12.7 Sharding & CI posture
 
-* Shard **across fingerprints** (embarrassingly parallel). Within a fingerprint, you may pipeline: discover → copy/hash → index/flag → publish.
+* Shard **across manifest_fingerprints** (embarrassingly parallel). Within a manifest_fingerprint, you may pipeline: discover → copy/hash → index/flag → publish.
 * Nightly CI: full re-pack; PR CI: dry-run through discovery + S7 checks + synthetic index assertions (no copy) to prove determinism without I/O.
 
 ### 12.8 Large bundles (many seeds / big files)
@@ -829,7 +829,7 @@ The run-report MUST document these and S8 MUST enforce them before publish:
 * **MAJOR** when any binding interface changes:
 
   * **Index/flag law** (fields, relative‐path rule, ASCII-lex order, or digest algorithm), or listing `_passed.flag` in the index.
-  * **Partition law** (anything other than fingerprint-only for the bundle).
+  * **Partition law** (anything other than manifest_fingerprint-only for the bundle).
   * **Seed discovery rule** (e.g., changing the required set from **intersection**), or the **S7 requirement** (e.g., requiring WARN-free when previously allowed).
   * **Required inputs/IDs** or their path families; switching away from **Dictionary-only** resolution.
   * **Report dependencies**: making S7 optional, or removing S7 PASS as a precondition.
@@ -838,7 +838,7 @@ The run-report MUST document these and S8 MUST enforce them before publish:
 * **MINOR** for backward-compatible additions that **do not change pass/fail semantics** and keep index/flag law intact:
 
   * Optional **run-report** fields.
-  * Optional **evidence snapshots** placed in the bundle **only if** they are part of the sealed inputs for this fingerprint (i.e., the sealed set—and thus the bundle bytes—are expected to change because the **fingerprint** changes).
+  * Optional **evidence snapshots** placed in the bundle **only if** they are part of the sealed inputs for this manifest_fingerprint (i.e., the sealed set—and thus the bundle bytes—are expected to change because the **manifest_fingerprint** changes).
   * Descriptions/help text in schemas; non-required object members in schema anchors (fields-strict keys unchanged).
 
 * **PATCH** for typos, clarifications, non-semantic schema description edits; **no** shape, law, or output-byte changes.
@@ -848,7 +848,7 @@ The run-report MUST document these and S8 MUST enforce them before publish:
 Consumers **MAY rely** on the following remaining stable across 1.x:
 
 * **Publish identity:** bundle lives at
-  `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/` (fingerprint-only). 
+  `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/` (manifest_fingerprint-only). 
 * **Index law:** `index.json` is a fields-strict array of `{path, sha256_hex}` with **relative** paths, **ASCII-lex** order, no duplicates; `_passed.flag` **excluded**. 
 * **Flag law:** `_passed.flag` is exactly `sha256_hex = <hex64>`, where the value equals **SHA-256(concat(all indexed bytes in ASCII-lex path order))**. 
 * **Prerequisites:** S0 present; **every required seed** (intersection of S2/S3/S4) has **S7 PASS** at `[seed, manifest_fingerprint]`; S8 does **not** re-audit.
@@ -857,11 +857,11 @@ Consumers **MAY rely** on the following remaining stable across 1.x:
 
 **13.3 Backward-compatible (MINOR) changes**
 
-Allowed without breaking consumers **provided idempotence is preserved for a given fingerprint**:
+Allowed without breaking consumers **provided idempotence is preserved for a given manifest_fingerprint**:
 
 * Add optional keys to the **STDOUT run-report** (diagnostic only).
 * Add optional **schema descriptions** or non-required members to anchors (fields-strict required keys unchanged).
-* Allow **additional evidence files** only when the sealed input set (and therefore the **fingerprint**) changes; i.e., do **not** change bundle contents for an unchanged fingerprint.
+* Allow **additional evidence files** only when the sealed input set (and therefore the **manifest_fingerprint**) changes; i.e., do **not** change bundle contents for an unchanged manifest_fingerprint.
 
 **13.4 Breaking (MAJOR) changes**
 
@@ -882,7 +882,7 @@ Require a coordinated **major** for S8 and contract packs:
 
 **13.6 Dictionary/Registry coordination**
 
-* **Required IDs:** `validation_bundle_2B` (bundle directory), `validation_bundle_index_2B` (index), and `validation_passed_flag_2B` (flag) must be present with fingerprint-only partitioning and write-once/atomic metadata in the Registry. Any rename, path-family change, or partition change is **MAJOR**.
+* **Required IDs:** `validation_bundle_2B` (bundle directory), `validation_bundle_index_2B` (index), and `validation_passed_flag_2B` (flag) must be present with manifest_fingerprint-only partitioning and write-once/atomic metadata in the Registry. Any rename, path-family change, or partition change is **MAJOR**.
 * **Optional:** run-report is diagnostic; not catalogued.
 
 **13.7 Deprecation & migration protocol**
@@ -892,13 +892,13 @@ Require a coordinated **major** for S8 and contract packs:
 
 **13.8 Rollback policy**
 
-* Bundles are **write-once**; rollback = publish a new fingerprint (or revert to a prior fingerprint) that reproduces last-known-good contents. No in-place mutation of an existing bundle.
+* Bundles are **write-once**; rollback = publish a new manifest_fingerprint (or revert to a prior manifest_fingerprint) that reproduces last-known-good contents. No in-place mutation of an existing bundle.
 
 **13.9 No new authorities**
 
 * S8 introduces **no new shape authorities** beyond the canonical **index** and **flag** anchors; inputs remain governed by 2B/Layer packs; **ID→path/partitions** remain governed by the **Dataset Dictionary**; the **Artefact Registry** stays metadata-only.
 
-> Net: S8 remains a **deterministic, RNG-free packager** with a **fingerprint-scoped** bundle whose **index/flag** laws, **S7 PASS** precondition, and **write-once/atomic** publish are the stable contract. Any change that would alter those guarantees is a coordinated **MAJOR**.
+> Net: S8 remains a **deterministic, RNG-free packager** with a **manifest_fingerprint-scoped** bundle whose **index/flag** laws, **S7 PASS** precondition, and **write-once/atomic** publish are the stable contract. Any change that would alter those guarantees is a coordinated **MAJOR**.
 
 ---
 
@@ -916,7 +916,7 @@ Require a coordinated **major** for S8 and contract packs:
 
 **A.2 2B anchors S8 references (read-only evidence)**
 
-* **S0 evidence:** `#/validation/s0_gate_receipt_2B`, `#/validation/sealed_inputs_2B` (fingerprint-scoped provenance).
+* **S0 evidence:** `#/validation/s0_gate_receipt_2B`, `#/validation/sealed_inputs_2B` (manifest_fingerprint-scoped provenance).
 * **S7 audit:** `#/validation/s7_audit_report_v1` (one per seed at `[seed, manifest_fingerprint]`).
 * **Plans/Binary:**
   • `#/plan/s2_alias_index` · `#/binary/s2_alias_blob`
@@ -952,10 +952,10 @@ Require a coordinated **major** for S8 and contract packs:
 
 **A.5 Deterministic rules (law references)**
 
-* **Seed discovery:** deterministic **intersection** of seeds present in `s2_alias_index`, `s3_day_effects`, `s4_group_weights` for the fingerprint; seeds listed **ASCII-lex**.
+* **Seed discovery:** deterministic **intersection** of seeds present in `s2_alias_index`, `s3_day_effects`, `s4_group_weights` for the manifest_fingerprint; seeds listed **ASCII-lex**.
 * **Index law:** entries `{path, sha256_hex}`; `path` **relative**; entries **ASCII-lex by `path`**; no duplicates; every file exists under bundle root; **do not index `_passed.flag`**.
 * **Flag law:** value equals **SHA-256(concat(indexed file bytes in ASCII-lex path order))**.
-* **Identity & publish:** bundle is **fingerprint-scoped**, **write-once**, published by **single atomic move**; idempotent re-emit must be **byte-identical**.
+* **Identity & publish:** bundle is **manifest_fingerprint-scoped**, **write-once**, published by **single atomic move**; idempotent re-emit must be **byte-identical**.
 * **Prohibitions:** **RNG-free**; **no network I/O**; **no literal paths**; S8 **does not re-audit** (S7 is authoritative).
 
 ---

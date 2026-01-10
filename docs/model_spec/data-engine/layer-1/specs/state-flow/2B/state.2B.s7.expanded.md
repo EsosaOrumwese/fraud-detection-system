@@ -24,7 +24,7 @@ Schema packs are the **sole shape authorities**; the **Dataset Dictionary** gove
 
 **Segment invariants (Binding).**
 
-* **Gate law:** **No PASS → No read** remains in force; S7 MUST see a valid S0 receipt & inventory for this fingerprint before any read. 
+* **Gate law:** **No PASS → No read** remains in force; S7 MUST see a valid S0 receipt & inventory for this manifest_fingerprint before any read. 
 * **Catalogue discipline:** S7 resolves **only** by **Dataset Dictionary IDs** at the **exact partitions** declared (`[seed, manifest_fingerprint]` for S2/S3/S4; token-less policies by S0-sealed path+digest). **No literal paths; no network I/O.** 
 * **RNG posture:** **RNG-free.** If S5/S6 logs are present, S7 *reads* Layer-1 RNG evidence (events/trace) but emits **no** RNG. (Event families and envelope live in the Layer-1 pack.)
 * **Output identity:** S7 produces a single authoritative audit JSON `s7_audit_report` at **`[seed, manifest_fingerprint]`** (shape anchor in the 2B pack; see §6), **write-once** with path↔embed equality and idempotent re-emit (byte-identical). *(Dictionary governs its path family; Registry carries ownership/retention.)* 
@@ -83,7 +83,7 @@ Schema packs are the **sole shape authorities**; the **Dataset Dictionary** gove
 **3.1 Gate & run-identity (must hold before any read)**
 
 * **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and validate against the 2B schema pack. S7 **relies** on this receipt; it **does not** re-hash 1B.   
-* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literal paths; no network I/O). 
+* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this manifest_fingerprint; within-segment datasets (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literal paths; no network I/O). 
 
 **3.2 Inputs required by S7 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` established at S0. Partitions and shapes are governed by the **Dataset Dictionary** and **2B schema pack**:
@@ -113,9 +113,9 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` establ
 
 * **Catalogue discipline:** All reads resolve **by ID**; any literal path or non-sealed asset → `DICTIONARY_RESOLUTION_ERROR / PROHIBITED_LITERAL_PATH`. (Codes enumerated in §10.)
 * **S2 parity:** `s2_alias_index.header.blob_sha256 == SHA256(raw bytes of s2_alias_blob)`; header echo (layout/endianness/alignment/bit-depth) coheres with `alias_layout_policy_v1`. 
-* **S3/S4 grid & echo availability:** Day grid and γ vectors exist at the same `(seed,fingerprint)` and are schema-valid; Σ per-merchant/day will be checked in §7. 
+* **S3/S4 grid & echo availability:** Day grid and γ vectors exist at the same `(seed,manifest_fingerprint)` and are schema-valid; Σ per-merchant/day will be checked in §7. 
 * **Optional logs (if present):**
-  • **S5** log rows conform to `#/trace/s5_selection_log_row`; partitions are `[seed, parameter_hash, run_id, utc_day]`; writer order = arrival order; `manifest_fingerprint` column **byte-equals** the run fingerprint; `created_utc` echoes S0 `verified_at_utc`.  
+  • **S5** log rows conform to `#/trace/s5_selection_log_row`; partitions are `[seed, parameter_hash, run_id, utc_day]`; writer order = arrival order; `manifest_fingerprint` column **byte-equals** the run manifest_fingerprint; `created_utc` echoes S0 `verified_at_utc`.  
   • **S6** log rows conform to `#/trace/s6_edge_log_row`; partitions are `[seed, parameter_hash, run_id, utc_day]`; writer order = arrival order; `manifest_fingerprint` column obeys path↔embed equality; `created_utc` present per anchor.  
   • **RNG core logs (evidence reconciliation):** if S5/S6 logs are present, S7 **reads** Layer-1 `rng_audit_log` and `rng_trace_log` at `[seed, parameter_hash, run_id]` to reconcile draws and counters. (S7 itself is **RNG-free**.) 
 
@@ -156,11 +156,11 @@ All inputs are **sealed** and **Dictionary-resolved** under the run identity `{s
 **4.3 Boundaries S7 SHALL enforce**
 
 * **Dictionary-only resolution** with **exact partitions** as above. Any literal path or network I/O is a hard error. 
-* **Path↔embed equality** wherever lineage appears (e.g., optional log rows must carry `manifest_fingerprint` that **byte-equals** the run fingerprint); logs must preserve **arrival order** in each run-scoped partition.
+* **Path↔embed equality** wherever lineage appears (e.g., optional log rows must carry `manifest_fingerprint` that **byte-equals** the run manifest_fingerprint); logs must preserve **arrival order** in each run-scoped partition.
 * **RNG posture:** S7 is **RNG-free**. When optional logs are present, S7 *reads* Layer-1 RNG evidence only to reconcile events/trace; shapes/partitions for `rng_audit_log` and `rng_trace_log` are owned by the **Layer-1 pack** under **`[seed, parameter_hash, run_id]`**. 
 * **No writes** to any S2/S3/S4 dataset or to log partitions; S7 **only** writes the `s7_audit_report` at **`[seed, manifest_fingerprint]`** (write-once; atomic publish; idempotent re-emit = byte-identical). *(Report shape anchor is defined in the 2B pack’s validation section.)*
 
-> Result: S7’s reads are **sealed, partition-exact, and authority-aligned** (2B shapes + Dictionary IDs), optional S5/S6 evidence is **run-scoped** and validated against the **Layer-1 envelope**, and S7’s only write is the **fingerprint-scoped audit report**.
+> Result: S7’s reads are **sealed, partition-exact, and authority-aligned** (2B shapes + Dictionary IDs), optional S5/S6 evidence is **run-scoped** and validated against the **Layer-1 envelope**, and S7’s only write is the **manifest_fingerprint-scoped audit report**.
 
 ---
 
@@ -177,28 +177,28 @@ S7 emits exactly **one** authoritative artefact per `(seed, manifest_fingerprint
 
 **5.2 Identity & provenance (binding).**
 
-* **Path↔embed equality:** Any lineage echoed inside the JSON (e.g., `seed`, `fingerprint`) **MUST** byte-equal the path tokens.
+* **Path↔embed equality:** Any lineage echoed inside the JSON (e.g., `seed`, `manifest_fingerprint`) **MUST** byte-equal the path tokens.
 * **Created time:** `created_utc` **MUST** equal S0 receipt’s `verified_at_utc`. 
 * **Catalogue resolution echo:** The report **MUST** include `catalogue_resolution{ dictionary_version, registry_version }` and an `inputs_digest` section that echoes the IDs, versions and `sha256_hex` of the sealed inputs used (S2/S3/S4/policies), taken from the S0 inventory. 
 
 **5.3 Write policy (binding).**
 
 * **Write-once + atomic publish:** Produce the JSON to a staging location, fsync, then **single atomic move** into the final path.
-* **Idempotent re-emit:** Re-publishing the same `(seed, fingerprint)` is permitted **only** if the bytes are **identical**; otherwise a new run must not overwrite. 
-* **Single writer:** Exactly one logical writer per `(seed, fingerprint)` partition.
+* **Idempotent re-emit:** Re-publishing the same `(seed, manifest_fingerprint)` is permitted **only** if the bytes are **identical**; otherwise a new run must not overwrite. 
+* **Single writer:** Exactly one logical writer per `(seed, manifest_fingerprint)` partition.
 
 **5.4 Non-authoritative emission (diagnostic).**
 S7 **SHALL** also print a **STDOUT run-report** (diagnostic only). Persisted copies (if any) are **non-authoritative**; consumers **MUST NOT** depend on them. (Authoritative output is **only** `s7_audit_report` above.) 
 
 **5.5 Prohibitions (binding).**
 
-* S7 **MUST NOT** write to any fingerprint-scoped **plan/egress** surfaces (`s2_alias_*`, `s3_day_effects`, `s4_group_weights`) or any **run-scoped** router logs (`s5_selection_log`, `s6_edge_log`). Those are read-only inputs; S7’s only write is the audit report.
+* S7 **MUST NOT** write to any manifest_fingerprint-scoped **plan/egress** surfaces (`s2_alias_*`, `s3_day_effects`, `s4_group_weights`) or any **run-scoped** router logs (`s5_selection_log`, `s6_edge_log`). Those are read-only inputs; S7’s only write is the audit report.
 
 **5.6 Catalogue notes.**
 
 * Ensure the **Dataset Dictionary** contains an entry for `s7_audit_report` with the partition law **`[seed, manifest_fingerprint]`**, format `json`, and `schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1`. The **Artefact Registry** should mirror it (metadata, owners, write_once/atomic flags). *(Dictionary = ID→paths/partitions/format; Registry = metadata only.)*
 
-> Net: S7 produces a **single, fingerprint-scoped, fields-strict JSON report** under Dictionary control, with strict path↔embed equality, S0-derived provenance, and write-once/atomic publish. No other datasets are written.
+> Net: S7 produces a **single, manifest_fingerprint-scoped, fields-strict JSON report** under Dictionary control, with strict path↔embed equality, S0-derived provenance, and write-once/atomic publish. No other datasets are written.
 
 ---
 
@@ -214,7 +214,7 @@ JSON-Schema is the **sole** shape authority. S7 binds to the **2B schema pack** 
 **Required top-level keys (no extras):**
 
 * `component` (`"2B.S7"`)
-* `fingerprint` (`hex64`), `seed` (`uint64`)
+* `manifest_fingerprint` (`hex64`), `seed` (`uint64`)
 * `created_utc` (`rfc3339_micros`) — **echo S0.verified_at_utc**
 * `catalogue_resolution` → `{ dictionary_version: <semver>, registry_version: <semver> }`
 * `inputs_digest` → echo of sealed inputs (IDs, version_tags, `sha256_hex`, path, partition) for **S2/S3/S4** and **policies** (from S0 inventory)
@@ -266,7 +266,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 **6.7 Structural & identity constraints (binding)**
 
 * **Fields-strict**: `s7_audit_report` must contain **only** the keys defined in the anchor.
-* **Path↔embed equality** wherever lineage appears (e.g., `seed`, `fingerprint`, `created_utc`).
+* **Path↔embed equality** wherever lineage appears (e.g., `seed`, `manifest_fingerprint`, `created_utc`).
 * **Created-time provenance**: `created_utc` **equals** S0 `verified_at_utc`.
 * **No extra writes**: S7 writes **only** the audit report; logs (if present) are read-only and run-scoped. 
 
@@ -280,7 +280,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 
 ### A. Alias mechanics (S2) — **index & blob coherence + decode round-trip**
 
-**Inputs:** `s2_alias_index@{seed,fingerprint}`, `s2_alias_blob@{seed,fingerprint}`, `alias_layout_policy_v1` (token-less). Shapes: `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`, `#/policy/alias_layout_policy_v1`. 
+**Inputs:** `s2_alias_index@{seed,manifest_fingerprint}`, `s2_alias_blob@{seed,manifest_fingerprint}`, `alias_layout_policy_v1` (token-less). Shapes: `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`, `#/policy/alias_layout_policy_v1`. 
 
 1. **Schema/contract validity (Abort on fail).**
    Both artefacts validate against their anchors; required header keys present. `quantised_bits`, `endianness`, `alignment_bytes` exist and are well-typed. 
@@ -297,7 +297,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 
 ### B. Day effects & mixes (S3/S4) — **grid equality, γ echo, normalisation**
 
-**Inputs:** `s3_day_effects@{seed,fingerprint}`, `s4_group_weights@{seed,fingerprint}`. Shapes: `#/plan/s3_day_effects`, `#/plan/s4_group_weights`.
+**Inputs:** `s3_day_effects@{seed,manifest_fingerprint}`, `s4_group_weights@{seed,manifest_fingerprint}`. Shapes: `#/plan/s3_day_effects`, `#/plan/s4_group_weights`.
 
 1. **Day-grid equality (Abort).**
    The set of `(merchant_id, utc_day)` in S4 equals the set in S3 (no missing/multi-map). 
@@ -316,22 +316,22 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 • Layer-1 **core logs**: `rng_audit_log`, `rng_trace_log` at `{seed,parameter_hash,run_id}` for reconciliation.
 
 1. **Trace row shape & lineage (Abort).**
-   Rows validate against their anchors; partitions are exactly `[seed,parameter_hash,run_id,utc_day]`; `manifest_fingerprint` **byte-equals** the run fingerprint; **arrival order** preserved; write-once.
+   Rows validate against their anchors; partitions are exactly `[seed,parameter_hash,run_id,utc_day]`; `manifest_fingerprint` **byte-equals** the run manifest_fingerprint; **arrival order** preserved; write-once.
 2. **S5 draw law (Abort).**
    Reconcile that **two** single-uniform events per selection were emitted (`alias_pick_group` → `alias_pick_site`), in order, with one `rng_trace_log` append **after each** event append; counters strictly monotone, no wrap; streams match `route_rng_policy_v1`. *(S5 spec; Layer-1 envelope).* 
 3. **S6 draw law (Abort).**
    Reconcile **one** single-uniform `cdn_edge_pick` per **virtual** arrival, with one trace append after each event; counters strictly monotone; streams match `route_rng_policy_v1`. *(S6 spec; Layer-1 envelope).* 
 4. **Mapping & attribute coherence (Abort if violated).**
-   • **S5:** for a bounded, deterministic sample of rows (min(1 000, 1%) per `(merchant, day)`), assert the log’s `tz_group_id` equals the site’s time-zone group if `site_timezones@{seed,fingerprint}` is available; if not available, record `WARN` that external mapping could not be verified.
+   • **S5:** for a bounded, deterministic sample of rows (min(1 000, 1%) per `(merchant, day)`), assert the log’s `tz_group_id` equals the site’s time-zone group if `site_timezones@{seed,manifest_fingerprint}` is available; if not available, record `WARN` that external mapping could not be verified.
    • **S6:** for every sampled row, ensure `ip_country` is ISO-3166-1 alpha-2 and `edge_lat ∈ [−90,90]`, `edge_lon ∈ (−180,180]` (domain from S6 trace anchor); attributes exist for the chosen `edge_id`. 
 
 ### D. Report assembly (authoritative, RNG-free)
 
-**Output:** `s7_audit_report@{seed,fingerprint}` (shape `#/validation/s7_audit_report_v1`). The report SHALL include:
+**Output:** `s7_audit_report@{seed,manifest_fingerprint}` (shape `#/validation/s7_audit_report_v1`). The report SHALL include:
 • `catalogue_resolution`; `inputs_digest` echoing sealed S2/S3/S4/policies (IDs, version_tags, sha256_hex, path, partition).
 • `checks[]` with PASS/WARN/FAIL and code(s) per sub-check above.
 • `metrics` with: `{ merchants_total, groups_total, days_total, selections_checked?, draws_expected?, draws_observed?, alias_decode_max_abs_delta?, max_abs_mass_error_s4? }`.
-• `summary{ overall_status, warn_count, fail_count }`. *(Identity rules: path↔embed equality on `seed`/`fingerprint`; `created_utc =` S0.verified_at_utc.)* 
+• `summary{ overall_status, warn_count, fail_count }`. *(Identity rules: path↔embed equality on `seed`/`manifest_fingerprint`; `created_utc =` S0.verified_at_utc.)* 
 
 > These checks make S7 a **replayable, RNG-free** gate: S2 alias **parity + decode**, S3/S4 **grid/echo/Σ laws**, and—when present—S5/S6 **RNG budgets, counters, ordering, and coherence** against the Layer-1 envelope and the 2B trace anchors.
 
@@ -344,7 +344,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 * **Read surfaces (plan/egress):** `{ seed, manifest_fingerprint }` — used by **S2/S3/S4** inputs S7 reads:
   `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` **at exactly** `seed={seed}/manifest_fingerprint={manifest_fingerprint}` per the Dictionary. 
 * **Optional router logs (evidence only):** `{ seed, parameter_hash, run_id, utc_day }` — if present, S5 `s5_selection_log` and S6 `s6_edge_log` are **run-scoped** log partitions validated against the Layer-1 RNG envelope/core logs. 
-* **S7 output (authoritative):** `s7_audit_report` is **fingerprint-scoped** at `data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…` (Dictionary governs the path family; schema governs shape). 
+* **S7 output (authoritative):** `s7_audit_report` is **manifest_fingerprint-scoped** at `data/layer1/2B/s7_audit_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…` (Dictionary governs the path family; schema governs shape). 
 
 **8.2 Partition selection (binding)**
 
@@ -355,27 +355,27 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 **8.3 Path↔embed equality (binding)**
 Where lineage appears **both** in the path and in the payload, values **MUST** be byte-equal to the path tokens:
 
-* In `s7_audit_report`, JSON fields `seed` and `fingerprint` equal their path tokens; `created_utc` equals S0’s `verified_at_utc`. 
-* In optional S5/S6 logs, the `manifest_fingerprint` column equals the run fingerprint for those log partitions. 
+* In `s7_audit_report`, JSON fields `seed` and `manifest_fingerprint` equal their path tokens; `created_utc` equals S0’s `verified_at_utc`. 
+* In optional S5/S6 logs, the `manifest_fingerprint` column equals the run manifest_fingerprint for those log partitions. 
 
 **8.4 Writer order & file layout (binding)**
 
-* **S7 audit report:** one JSON file per `(seed, fingerprint)` partition. Inside the JSON, arrays (e.g., `checks[]`) **SHOULD** be ordered deterministically (e.g., by validator id) to guarantee idempotent bytes.
+* **S7 audit report:** one JSON file per `(seed, manifest_fingerprint)` partition. Inside the JSON, arrays (e.g., `checks[]`) **SHOULD** be ordered deterministically (e.g., by validator id) to guarantee idempotent bytes.
 * **Optional logs:** S7 does not write them, but when present they **must** preserve arrival order within each run-scoped partition; S7 enforces this in validation. 
 
 **8.5 Immutability & atomic publish (binding)**
 
-* `s7_audit_report` is **write-once** with a **single atomic move** into the final path; any retry **MUST** be byte-identical or target a new partition. Single logical writer per `(seed, fingerprint)`. (Registry carries write-once/atomic metadata; Dictionary governs the path family.) 
+* `s7_audit_report` is **write-once** with a **single atomic move** into the final path; any retry **MUST** be byte-identical or target a new partition. Single logical writer per `(seed, manifest_fingerprint)`. (Registry carries write-once/atomic metadata; Dictionary governs the path family.) 
 
 **8.6 Merge discipline (binding)**
 
-* **No cross-partition merges.** Never merge reports across different seeds or fingerprints. If compaction is needed, publish a brand-new file atomically with **identical bytes** (idempotent rule).
+* **No cross-partition merges.** Never merge reports across different seeds or manifest_fingerprints. If compaction is needed, publish a brand-new file atomically with **identical bytes** (idempotent rule).
 * **No writes** to S2/S3/S4 inputs or to S5/S6 log partitions (they are read-only for S7). 
 
 **8.7 Evidence hooks (what validators check)**
 S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** equality, **arrival-order** in optional logs, and **write-once/atomic** publish + idempotent re-emit for the audit report. These mirror the identity and catalogue laws already established for 2B.
 
-> Net: S7’s only write is a **fingerprint-scoped, fields-strict** audit JSON under Dictionary control; all reads are **sealed and partition-exact**; any optional router evidence is **run-scoped** and validated against the Layer-1 RNG envelope and its partitions.
+> Net: S7’s only write is a **manifest_fingerprint-scoped, fields-strict** audit JSON under Dictionary control; all reads are **sealed and partition-exact**; any optional router evidence is **run-scoped** and validated against the Layer-1 RNG envelope and its partitions.
 
 ---
 
@@ -388,7 +388,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 **Fail →** ⟨2B-S7-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 - S0-evidence & Dictionary-only resolution**
-**Check:** All cross-layer/policy assets appear in the **S0 sealed inventory** for this fingerprint; all within-segment inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) resolve **by Dataset Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literals / no network).
+**Check:** All cross-layer/policy assets appear in the **S0 sealed inventory** for this manifest_fingerprint; all within-segment inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) resolve **by Dataset Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literals / no network).
 **Fail →** ⟨2B-S7-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S7-021 PROHIBITED_LITERAL_PATH⟩ / ⟨2B-S7-023 NETWORK_IO_ATTEMPT⟩. 
 
 **V-03 — Exact partitions & policy selection**
@@ -440,7 +440,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 ### C. Router evidence *(only if logs are present & registered)*
 
 **V-12 — Trace row shape & lineage (S5/S6 logs)**
-**Check:** Rows validate (`#/trace/s5_selection_log_row` / `#/trace/s6_edge_log_row`); partitions are **`[seed,parameter_hash,run_id,utc_day]`**; `manifest_fingerprint` **byte-equals** the run fingerprint; **arrival order** preserved; write-once.
+**Check:** Rows validate (`#/trace/s5_selection_log_row` / `#/trace/s6_edge_log_row`); partitions are **`[seed,parameter_hash,run_id,utc_day]`**; `manifest_fingerprint` **byte-equals** the run manifest_fingerprint; **arrival order** preserved; write-once.
 **Fail →** ⟨2B-S7-400 TRACE_SCHEMA_INVALID⟩ / ⟨2B-S7-401 TRACE_ORDER_VIOLATION⟩ / ⟨2B-S7-503 PATH_EMBED_MISMATCH⟩. 
 
 **V-13 — S5 RNG budgets & ordering**
@@ -453,7 +453,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 
 **V-15 — Mapping & attribute coherence**
 **Check:**
-• **S5:** sampled rows map `site_id → tz_group_id` via 2A `site_timezones@{seed,fingerprint}` (when available); must equal logged `tz_group_id`.
+• **S5:** sampled rows map `site_id → tz_group_id` via 2A `site_timezones@{seed,manifest_fingerprint}` (when available); must equal logged `tz_group_id`.
 • **S6:** sampled rows carry `ip_country` (ISO-2), `edge_lat ∈ [−90,90]`, `edge_lon ∈ (−180,180]`; attributes exist for chosen `edge_id`.
 **Fail →** ⟨2B-S7-410 GROUP_SITE_MISMATCH⟩ / ⟨2B-S7-411 EDGE_ATTR_MISSING⟩. 
 
@@ -466,11 +466,11 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 ### D. Report identity & immutability
 
 **V-17 — Report shape & provenance**
-**Check:** `s7_audit_report` validates `#/validation/s7_audit_report_v1`; `seed`/`fingerprint` **byte-equal** path tokens; `created_utc` equals S0 `verified_at_utc`; `catalogue_resolution` populated; `inputs_digest` echoes sealed inputs (IDs, version_tags, sha256_hex, path, partition).
+**Check:** `s7_audit_report` validates `#/validation/s7_audit_report_v1`; `seed`/`manifest_fingerprint` **byte-equal** path tokens; `created_utc` equals S0 `verified_at_utc`; `catalogue_resolution` populated; `inputs_digest` echoes sealed inputs (IDs, version_tags, sha256_hex, path, partition).
 **Fail →** ⟨2B-S7-500 REPORT_SCHEMA_INVALID⟩ / ⟨2B-S7-503 PATH_EMBED_MISMATCH⟩.
 
 **V-18 — Write-once, atomic publish, idempotent re-emit**
-**Check:** The report is **write-once**; published via **atomic move**; any retry is byte-identical (otherwise new partition). Single logical writer per `(seed,fingerprint)`.
+**Check:** The report is **write-once**; published via **atomic move**; any retry is byte-identical (otherwise new partition). Single logical writer per `(seed,manifest_fingerprint)`.
 **Fail →** ⟨2B-S7-501 IMMUTABLE_OVERWRITE⟩ / ⟨2B-S7-502 NON_IDEMPOTENT_REEMIT⟩. 
 
 ---
@@ -492,7 +492,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 
 * **2B-S7-001 — S0_RECEIPT_MISSING** · *Abort*
   **Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[manifest_fingerprint]`.
-  **Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition. 
+  **Detect:** V-01. **Remedy:** publish valid S0 for this manifest_fingerprint; fix schema/partition. 
 
 * **2B-S7-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
   **Trigger:** Any input not resolved by **Dataset Dictionary ID** (wrong ID/path family/format).
@@ -619,7 +619,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
   **Detect:** V-18. **Remedy:** ensure exact bytes; else new partition.
 
 * **2B-S7-503 — PATH_EMBED_MISMATCH** · *Abort*
-  **Trigger:** Embedded `seed`/`fingerprint`/`created_utc` not equal to path tokens or S0 receipt.
+  **Trigger:** Embedded `seed`/`manifest_fingerprint`/`created_utc` not equal to path tokens or S0 receipt.
   **Detect:** V-17. **Remedy:** echo path tokens; use S0 timestamp. 
 
 * **2B-S7-504 — ATOMIC_PUBLISH_FAILED** · *Abort*
@@ -658,11 +658,11 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 ## 11. **Observability & run-report (Binding)**
 
 **11.1 Purpose**
-Emit (i) one **authoritative** fingerprint-scoped audit artefact `s7_audit_report` (see §5/§6), and (ii) one **diagnostic** STDOUT JSON run-report. The audit report is the only persisted, authoritative output of S7; the STDOUT run-report is for operator visibility and CI logs only. 
+Emit (i) one **authoritative** manifest_fingerprint-scoped audit artefact `s7_audit_report` (see §5/§6), and (ii) one **diagnostic** STDOUT JSON run-report. The audit report is the only persisted, authoritative output of S7; the STDOUT run-report is for operator visibility and CI logs only. 
 
 **11.2 Emission rules**
 
-* **Authoritative artefact:** write `s7_audit_report` once per `(seed, fingerprint)` (write-once + atomic publish; idempotent re-emit must be **byte-identical**). 
+* **Authoritative artefact:** write `s7_audit_report` once per `(seed, manifest_fingerprint)` (write-once + atomic publish; idempotent re-emit must be **byte-identical**). 
 * **Run-report (diagnostic):** print **exactly one** JSON object to **STDOUT** on success (and on abort, if possible). Any persisted copy is **non-authoritative**. 
 
 **11.3 Run-report (fields-strict shape)**
@@ -672,15 +672,15 @@ S7 MUST output a single JSON object with **exactly** these top-level keys (no ex
 {
   "component": "2B.S7",
   "seed": "<uint64>",
-  "fingerprint": "<hex64>",
+  "manifest_fingerprint": "<hex64>",
   "created_utc": "<rfc3339_micros>",                    // echo S0.receipt.verified_at_utc
   "catalogue_resolution": {
     "dictionary_version": "<semver>",
     "registry_version": "<semver>"
   },
   "inputs_digest": {                                     // echo sealed inputs from S0 inventory
-    "s2_alias_index": { "version_tag": "<str>", "sha256_hex": "<hex64>", "path": "<...>", "partition": {"seed":"…","fingerprint":"…"} },
-    "s2_alias_blob":  { "sha256_hex": "<hex64>", "path": "<...>", "partition": {"seed":"…","fingerprint":"…"} },
+    "s2_alias_index": { "version_tag": "<str>", "sha256_hex": "<hex64>", "path": "<...>", "partition": {"seed":"…","manifest_fingerprint":"…"} },
+    "s2_alias_blob":  { "sha256_hex": "<hex64>", "path": "<...>", "partition": {"seed":"…","manifest_fingerprint":"…"} },
     "s3_day_effects": { "version_tag": "<str>", "sha256_hex": "<hex64>", "path": "<...>" },
     "s4_group_weights": { "version_tag": "<str>", "sha256_hex": "<hex64>", "path": "<...>" },
     "policies": {
@@ -708,7 +708,7 @@ S7 MUST output a single JSON object with **exactly** these top-level keys (no ex
     "logs?": { "runs": [ { "parameter_hash": "<hex64>", "run_id": "<hex32>", "events_total": <uint64> } ... ] }
   },
   "summary": { "overall_status": "PASS|FAIL", "warn_count": <int>, "fail_count": <int> },
-  "target": { "audit_report_path": "data/layer1/2B/s7_audit_report/seed=<seed>/fingerprint=<fingerprint>/s7_audit_report.json" }
+  "target": { "audit_report_path": "data/layer1/2B/s7_audit_report/seed=<seed>/manifest_fingerprint=<manifest_fingerprint>/s7_audit_report.json" }
 }
 ```
 
@@ -726,13 +726,13 @@ S7 MUST output a single JSON object with **exactly** these top-level keys (no ex
 
 **11.6 Identity & lineage echo**
 
-* The run-report MUST echo `{seed, fingerprint}` and the `audit_report_path`; the authoritative report itself is partitioned `[seed, manifest_fingerprint]` and enforces **path↔embed equality** on `seed` and `fingerprint`. 
+* The run-report MUST echo `{seed, manifest_fingerprint}` and the `audit_report_path`; the authoritative report itself is partitioned `[seed, manifest_fingerprint]` and enforces **path↔embed equality** on `seed` and `manifest_fingerprint`. 
 
 **11.7 Prohibitions (binding)**
 
 * No literal paths; no network I/O; no writes besides `s7_audit_report`. Optional S5/S6 logs, if present, are **read-only** and **run-scoped** (`[seed,parameter_hash,run_id,utc_day]`) per their Dictionary entries. 
 
-> Net: observability consists of a **fields-strict** STDOUT run-report tied to the Dictionary and sealed inputs, plus one **authoritative** fingerprint-scoped `s7_audit_report` with S0-anchored provenance—no RNG, no extra writes, and full reconciliation when S5/S6 logs are present.
+> Net: observability consists of a **fields-strict** STDOUT run-report tied to the Dictionary and sealed inputs, plus one **authoritative** manifest_fingerprint-scoped `s7_audit_report` with S0-anchored provenance—no RNG, no extra writes, and full reconciliation when S5/S6 logs are present.
 
 ---
 
@@ -740,7 +740,7 @@ S7 MUST output a single JSON object with **exactly** these top-level keys (no ex
 
 **Goal.** Keep S7 **RNG-free**, single-pass, and **streaming**—so CI can audit large partitions with stable CPU/memory while producing one small JSON report.
 
-### 12.1 Asymptotic cost (per `(seed, fingerprint)`)
+### 12.1 Asymptotic cost (per `(seed, manifest_fingerprint)`)
 
 * **S2 alias checks.**
 
@@ -765,8 +765,8 @@ S7 MUST output a single JSON object with **exactly** these top-level keys (no ex
 ### 12.4 Concurrency & sharding
 
 * **Safe parallelism:** S7 is read-only; you may parallelise **independent checks** (e.g., S2 sample decodes vs S3/S4 scans) and/or **by merchant shards** for the S2 sample.
-* **Single writer:** only the final `s7_audit_report` is written; keep one logical writer per `(seed, fingerprint)` and assemble the JSON deterministically (e.g., sort `checks[]` by validator id) to guarantee idempotent bytes.
-* **Multi-run CI:** run different `(seed,fingerprint)` partitions concurrently; they are disjoint.
+* **Single writer:** only the final `s7_audit_report` is written; keep one logical writer per `(seed, manifest_fingerprint)` and assemble the JSON deterministically (e.g., sort `checks[]` by validator id) to guarantee idempotent bytes.
+* **Multi-run CI:** run different `(seed,manifest_fingerprint)` partitions concurrently; they are disjoint.
 
 ### 12.5 Determinism & sampling
 
@@ -806,7 +806,7 @@ Consumers MAY rely on the following remaining stable across 1.x:
   `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights` at **`[seed, manifest_fingerprint]`**; policies `alias_layout_policy_v1`, `route_rng_policy_v1`, `virtual_edge_policy_v1` are **token-less** and selected by **S0-sealed** `path+sha256_hex`.
   Optional logs (if present): `s5_selection_log`, `s6_edge_log` at **`[seed,parameter_hash,run_id,utc_day]`** (run-scoped).
 * **RNG posture:** S7 is **RNG-free**. When logs are present, S7 only **reads** Layer-1 evidence and expects budgets: **S5 = 2 events/selection** (group→site), **S6 = 1 event/virtual**; counters strictly monotone; one trace append after each event.
-* **Output identity:** exactly one authoritative `s7_audit_report` per `(seed,fingerprint)`, **fields-strict** per `s7_audit_report_v1`, with **path↔embed equality** and **write-once + atomic publish**.
+* **Output identity:** exactly one authoritative `s7_audit_report` per `(seed,manifest_fingerprint)`, **fields-strict** per `s7_audit_report_v1`, with **path↔embed equality** and **write-once + atomic publish**.
 * **Validator/Code IDs:** Validator IDs (`V-01…`) and error codes (`2B-S7-…`) are **reserved**; meanings stay stable within the major.
 
 **13.3 Backward-compatible (MINOR) changes**
@@ -840,13 +840,13 @@ Consumers MAY rely on the following remaining stable across 1.x:
 
 **13.8 Rollback policy**
 
-* S7 is **write-once**; rollback = publish a new `(seed,fingerprint)` that restores last-known-good behaviour (or revert to an earlier fingerprint). **No in-place mutation** of existing reports.
+* S7 is **write-once**; rollback = publish a new `(seed,manifest_fingerprint)` that restores last-known-good behaviour (or revert to an earlier manifest_fingerprint). **No in-place mutation** of existing reports.
 
 **13.9 No new authorities**
 
 * This section defines **no new datasets** beyond `s7_audit_report`. Shapes stay governed by the 2B pack (plans/policies/validation) and Layer-1 pack (RNG evidence, if read); **ID→paths/partitions** remain under the Dataset Dictionary; the **Artefact Registry** remains metadata-only.
 
-> Net: within a major, S7 stays a **RNG-free, streaming audit gate** producing a single fingerprint-scoped, fields-strict report; inputs/partitions and validator semantics are stable; any change that alters those guarantees requires a coordinated **MAJOR**.
+> Net: within a major, S7 stays a **RNG-free, streaming audit gate** producing a single manifest_fingerprint-scoped, fields-strict report; inputs/partitions and validator semantics are stable; any change that alters those guarantees requires a coordinated **MAJOR**.
 
 ---
 

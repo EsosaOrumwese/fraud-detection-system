@@ -19,7 +19,7 @@
 * Prior state evidence: **`s0_gate_receipt_2B`**, **`sealed_inputs_2B`**.
 * Upstream egress: **`site_locations`** (Layer-1 · 1B).
 * Policy: **`alias_layout_policy_v1`** (quantisation/floor/encoding constraints for S1/S2).
-* Optional pins (read-only): **`site_timezones`**, **`tz_timetable_cache`** (Layer-2 · 2A).
+* Optional pins (read-only): **`site_timezones`**, **`tz_timetable_cache`** (Layer-1 · 2A).
 * Segment overview: `state-flow-overview.2B.txt` (context only).
 
 **Segment invariants (Binding):**
@@ -101,11 +101,11 @@ S1 SHALL read **only** the following, for this run’s identity:
    `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
 2. **`alias_layout_policy_v1`** — policy pack governing **weight source**, floors/caps, normalisation tolerance `ε`, quantisation bit-depth and tolerance `ε_q`, and required metadata fields.
 
-> These assets **MUST** be resolvable via the Dictionary for the target partitions and **MUST** appear in the S0 inventory for the same fingerprint.
+> These assets **MUST** be resolvable via the Dictionary for the target partitions and **MUST** appear in the S0 inventory for the same manifest_fingerprint.
 
 ### 3.3 Optional pins (all-or-none; read-only)
 
-If S0 sealed them for this fingerprint, S1 MAY read **both** of:
+If S0 sealed them for this manifest_fingerprint, S1 MAY read **both** of:
 
 * **`site_timezones`** — at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
 * **`tz_timetable_cache`** — at `manifest_fingerprint={manifest_fingerprint}`
@@ -116,9 +116,9 @@ If exactly one is present in S0’s inventory, S1 MUST treat this as **mixed pin
 
 * **Exact partitioning.**
   • For `site_locations`: **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
-  • For `alias_layout_policy_v1`: **no partition tokens**; select the **exact S0-sealed path** (and digest) for this fingerprint.
+  • For `alias_layout_policy_v1`: **no partition tokens**; select the **exact S0-sealed path** (and digest) for this manifest_fingerprint.
   • For optional pins: as stated above.
-* **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0's `sealed_inputs_2B` for this fingerprint. Accessing any asset not listed there is an error.
+* **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0's `sealed_inputs_2B` for this manifest_fingerprint. Accessing any asset not listed there is an error.
 * **No re-hashing upstream gates.** S1 MUST NOT recompute the 1B bundle hash; the S0 receipt is the sole attestation.
 
 ### 3.5 Input field expectations (from policy; Abort if unmet)
@@ -154,7 +154,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
    * `site_timezones` — 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
    * `tz_timetable_cache` — 2A cache at `manifest_fingerprint={manifest_fingerprint}`
 
-> **Subset of S0:** Every asset S1 reads **MUST** appear in the S0 `sealed_inputs_2B` for the same fingerprint.
+> **Subset of S0:** Every asset S1 reads **MUST** appear in the S0 `sealed_inputs_2B` for the same manifest_fingerprint.
 
 ### 4.3 Prohibited resources & reads
 
@@ -179,7 +179,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 
 ### 4.6 Trust boundary & sequencing
 
-* S1 **operates only after** a valid S0 receipt exists for the target fingerprint.
+* S1 **operates only after** a valid S0 receipt exists for the target manifest_fingerprint.
 * Read order: resolve policy and inputs → group by merchant → process; no reads outside the sealed set.
 
 ---
@@ -194,7 +194,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
 * **Partitions (binding):** `[seed, manifest_fingerprint]`. No additional partition tokens are permitted.
-* **Path↔embed equality:** Any embedded `manifest_fingerprint` field in this dataset **MUST** byte-equal the `fingerprint=` path token.
+* **Path↔embed equality:** Any embedded `manifest_fingerprint` field in this dataset **MUST** byte-equal the `manifest_fingerprint=` path token.
 
 ### 5.3 Path family, format & authority
 
@@ -217,12 +217,12 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.6 Required provenance signals (owned by the schema anchor)
 
 * `p_weight` (probability), policy-declared `weight_source`, `quantised_bits`, `floor_applied` (boolean), and `created_utc`.
-* **Creation time:** `created_utc` **MUST** equal the canonical S0 time for this fingerprint (the S0 receipt’s `verified_at_utc`). 
+* **Creation time:** `created_utc` **MUST** equal the canonical S0 time for this manifest_fingerprint (the S0 receipt’s `verified_at_utc`). 
 
 ### 5.7 Coverage & FK discipline
 
-* **Coverage:** 1:1 with `site_locations` keys for this `{seed, fingerprint}`; every `(merchant_id, legal_country_iso, site_order)` appearing in `site_locations` **MUST** appear exactly once in `s1_site_weights`. (FK membership is enforced by the schema/validators.)
-* **No new keys:** S1 MUST NOT introduce keys that do not exist in `site_locations`@`seed, fingerprint`. 
+* **Coverage:** 1:1 with `site_locations` keys for this `{seed, manifest_fingerprint}`; every `(merchant_id, legal_country_iso, site_order)` appearing in `site_locations` **MUST** appear exactly once in `s1_site_weights`. (FK membership is enforced by the schema/validators.)
+* **No new keys:** S1 MUST NOT introduce keys that do not exist in `site_locations`@`seed, manifest_fingerprint`. 
 
 ### 5.8 Write-once, immutability & idempotency
 
@@ -233,7 +233,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.9 Downstream visibility & reliance
 
 * `s1_site_weights` is the **only** authoritative weight surface for 2B; S2–S6 MUST NOT recompute or derive alternate long-run weights.
-* Downstreams MUST **select by** `(seed, fingerprint)` via the Dictionary and rely on the schema anchor for shape; they MUST NOT assume any ordering beyond the PK. 
+* Downstreams MUST **select by** `(seed, manifest_fingerprint)` via the Dictionary and rely on the schema anchor for shape; they MUST NOT assume any ordering beyond the PK. 
 
 ---
 
@@ -259,7 +259,7 @@ This state requires the schema pack to expose this anchor; the anchor owns the e
 **Required provenance (owned by the anchor):**
 
 * `p_weight` (probability), `weight_source` (policy-declared), `quantised_bits` (int), `floor_applied` (boolean), `created_utc`.
-* `created_utc` **equals** the canonical time from S0’s receipt (`verified_at_utc`) for this fingerprint; timestamp typing reuses the layer pack’s RFC-3339 microseconds definition.
+* `created_utc` **equals** the canonical time from S0’s receipt (`verified_at_utc`) for this manifest_fingerprint; timestamp typing reuses the layer pack’s RFC-3339 microseconds definition.
 
 **Domain constraints (shape-level):**
 
@@ -274,10 +274,10 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 
 ### 6.3 Referenced input & policy anchors (read-only)
 
-* **`site_locations`** — `schemas.1B.yaml#/egress/site_locations` (seed+fingerprint egress from 1B; final-in-layer). S1 reads keys and policy-referenced fields only. 
+* **`site_locations`** — `schemas.1B.yaml#/egress/site_locations` (seed+manifest_fingerprint egress from 1B; final-in-layer). S1 reads keys and policy-referenced fields only. 
 * **`alias_layout_policy_v1`** — `schemas.2B.yaml#/policy/alias_layout_policy_v1` (declares weight source, floors/caps, ε/ε_q tolerances, bit-depth, and required provenance flags). 
 
-*(If S0 sealed optional pins for this fingerprint, they remain read-only context: `schemas.2A.yaml#/egress/site_timezones`, `schemas.2A.yaml#/cache/tz_timetable_cache`.)* 
+*(If S0 sealed optional pins for this manifest_fingerprint, they remain read-only context: `schemas.2A.yaml#/egress/site_timezones`, `schemas.2A.yaml#/cache/tz_timetable_cache`.)* 
 
 ---
 
@@ -290,7 +290,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 ### 6.5 Format & storage (Dictionary authority)
 
 * **Format:** bound by the Dictionary for `s1_site_weights` (Parquet is expected for plan/egress tables in this programme).
-* **Write posture:** single-writer, write-once per `(seed, fingerprint)`; atomic publish; **path↔embed equality** must hold where lineage is embedded (Dictionary governs path tokens). 
+* **Write posture:** single-writer, write-once per `(seed, manifest_fingerprint)`; atomic publish; **path↔embed equality** must hold where lineage is embedded (Dictionary governs path tokens). 
 
 ---
 
@@ -308,7 +308,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 ### 7.1 Resolve & sanity
 
 1. **Verify S0 evidence exists** for this `manifest_fingerprint`.
-2. **Resolve inputs by Dictionary IDs only:** `site_locations@{seed,fingerprint}`, `alias_layout_policy_v1` (and both optional pins iff S0 sealed both).
+2. **Resolve inputs by Dictionary IDs only:** `site_locations@{seed,manifest_fingerprint}`, `alias_layout_policy_v1` (and both optional pins iff S0 sealed both).
 3. **Assert required policy entries** are present (weight source, floor/cap spec, `normalisation_epsilon` = ε, `quantised_bits` = b, `quantisation_epsilon` = ε_q, required provenance flags). **Abort** if missing.
 4. **Discover canonical `created_utc`** from S0’s receipt; S1 SHALL echo this timestamp in its output rows.
 
@@ -393,7 +393,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 ### 8.2 Partitions & selection
 
 * **Partitioning (write):** `…/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
-* **Exact selection (read/write):** no wildcards, ranges, or multi-partition writes; a single `(seed,fingerprint)` partition per publish.
+* **Exact selection (read/write):** no wildcards, ranges, or multi-partition writes; a single `(seed,manifest_fingerprint)` partition per publish.
 
 ### 8.3 Path↔embed equality
 
@@ -423,7 +423,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 
 ### 8.8 Merge discipline
 
-* **No appends, compactions, or in-place updates.** Any change requires publishing to a **new** `(seed,fingerprint)` identity or a new fingerprint under the programme’s change-control rules.
+* **No appends, compactions, or in-place updates.** Any change requires publishing to a **new** `(seed,manifest_fingerprint)` identity or a new manifest_fingerprint under the programme’s change-control rules.
 
 ### 8.9 Determinism & replay
 
@@ -432,13 +432,13 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 
 ### 8.10 Token hygiene
 
-* Partition tokens **MUST** appear exactly once and in the declared order: `seed=…/fingerprint=…/`.
+* Partition tokens **MUST** appear exactly once and in the declared order: `seed=…/manifest_fingerprint=…/`.
 * Literal paths, env-injected overrides, or ad-hoc globbing are prohibited.
 
 ### 8.11 Provenance echo
 
-* `created_utc` **MUST** equal the canonical `verified_at_utc` from S0 for this fingerprint.
-* Any policy identifiers/digests echoed in metadata **MUST** match those sealed by S0 for this fingerprint.
+* `created_utc` **MUST** equal the canonical `verified_at_utc` from S0 for this manifest_fingerprint.
+* Any policy identifiers/digests echoed in metadata **MUST** match those sealed by S0 for this manifest_fingerprint.
 
 ### 8.12 Retention & ownership
 
@@ -472,7 +472,7 @@ No duplicate `(merchant_id, legal_country_iso, site_order)` in `s1_site_weights`
 Row emission order is exactly the PK order.
 
 **V-08 — Coverage 1:1 with `site_locations` (Abort).**
-Set of keys in `s1_site_weights` equals the set of keys in `site_locations` for this `{seed, fingerprint}` (no missing, no extras).
+Set of keys in `s1_site_weights` equals the set of keys in `site_locations` for this `{seed, manifest_fingerprint}` (no missing, no extras).
 
 **V-09 — `p_weight` domain (Abort).**
 Every `p_weight` is finite and `0 ≤ p_weight ≤ 1`.
@@ -496,7 +496,7 @@ If the policy declares a **floor**, rows that fell below the floor per `weight_s
 Column `weight_source` in every row equals the policy’s `weight_source` identifier.
 
 **V-15 — Creation time canonical (Abort).**
-`created_utc` in every row equals the S0 receipt’s `verified_at_utc` for this fingerprint.
+`created_utc` in every row equals the S0 receipt’s `verified_at_utc` for this manifest_fingerprint.
 
 **V-16 — Path↔embed equality (Abort).**
 Any embedded `manifest_fingerprint` (and, if echoed, `seed`) equals the dataset’s path tokens.
@@ -508,22 +508,22 @@ Target partition was empty before publish, or existing bytes are bit-identical.
 Re-running S1 with identical sealed inputs reproduces **byte-identical** output; otherwise abort rather than overwrite.
 
 **V-19 — No network & no extra reads (Abort).**
-Execution performed with network I/O disabled and only accessed assets listed in S0’s `sealed_inputs_2B` for this fingerprint.
+Execution performed with network I/O disabled and only accessed assets listed in S0’s `sealed_inputs_2B` for this manifest_fingerprint.
 
 **V-20 — Optional pins all-or-none (Warn).**
-If one of `{site_timezones, tz_timetable_cache}` is present for this fingerprint, both are present; otherwise neither.
+If one of `{site_timezones, tz_timetable_cache}` is present for this manifest_fingerprint, both are present; otherwise neither.
 
 ---
 
 ## 10. **Failure modes & canonical error codes (Binding)**
 
 **Code namespace.** `2B-S1-XYZ` where `XYZ` is a zero-padded integer. **Severity** ∈ {**Abort**, **Warn**}.
-Each failure **MUST** be logged with: `code`, `severity`, `message`, `fingerprint`, `seed`, and a `context{}` object (keys noted below).
+Each failure **MUST** be logged with: `code`, `severity`, `message`, `manifest_fingerprint`, `seed`, and a `context{}` object (keys noted below).
 
 ### 10.1 Gate & catalogue discipline
 
-* **2B-S1-001 S0_RECEIPT_MISSING (Abort)** — No `s0_gate_receipt_2B` found for the target fingerprint.
-  *Context:* `fingerprint`.
+* **2B-S1-001 S0_RECEIPT_MISSING (Abort)** — No `s0_gate_receipt_2B` found for the target manifest_fingerprint.
+  *Context:* `manifest_fingerprint`.
 
 * **2B-S1-020 DICTIONARY_RESOLUTION_ERROR (Abort)** — Input ID could not be resolved for the required partition(s).
   *Context:* `id`, `expected_partition`.
@@ -556,7 +556,7 @@ Each failure **MUST** be logged with: `code`, `severity`, `message`, `fingerprin
 * **2B-S1-041 PK_DUPLICATE (Abort)** — Duplicate `(merchant_id, legal_country_iso, site_order)`.
   *Context:* `key`.
 
-* **2B-S1-042 COVERAGE_MISMATCH (Abort)** — Keys missing/extra vs `site_locations` for this `{seed,fingerprint}`.
+* **2B-S1-042 COVERAGE_MISMATCH (Abort)** — Keys missing/extra vs `site_locations` for this `{seed,manifest_fingerprint}`.
   *Context:* `missing_keys[]`, `extra_keys[]`.
 
 * **2B-S1-083 WRITER_ORDER_NOT_PK (Abort)** — Row emission order differs from PK order.
@@ -588,12 +588,12 @@ Each failure **MUST** be logged with: `code`, `severity`, `message`, `fingerprin
 * **2B-S1-055 WEIGHT_SOURCE_MISMATCH (Abort)** — `weight_source` column value ≠ policy identifier.
   *Context:* `expected`, `observed`.
 
-* **2B-S1-056 CREATED_UTC_MISMATCH (Abort)** — `created_utc` ≠ S0 `verified_at_utc` for this fingerprint.
+* **2B-S1-056 CREATED_UTC_MISMATCH (Abort)** — `created_utc` ≠ S0 `verified_at_utc` for this manifest_fingerprint.
   *Context:* `created_utc`, `verified_at_utc`.
 
 ### 10.5 Identity, partitions & immutability
 
-* **2B-S1-070 PARTITION_SELECTION_INCORRECT (Abort)** — Read/write didn’t target exactly `seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` (or fingerprint-only for policies).
+* **2B-S1-070 PARTITION_SELECTION_INCORRECT (Abort)** — Read/write didn’t target exactly `seed={seed}/manifest_fingerprint={manifest_fingerprint}` (or manifest_fingerprint-only for policies).
   *Context:* `id`, `expected_partition`, `actual_partition`.
 
 * **2B-S1-071 PATH_EMBED_MISMATCH (Abort)** — Embedded identity differs from path token(s).
@@ -610,13 +610,13 @@ Each failure **MUST** be logged with: `code`, `severity`, `message`, `fingerprin
 
 ### 10.6 Optional pins & WARN class
 
-* **2B-S1-090 OPTIONAL_PINS_MIXED (Warn)** — Exactly one of `{site_timezones, tz_timetable_cache}` present for this fingerprint.
+* **2B-S1-090 OPTIONAL_PINS_MIXED (Warn)** — Exactly one of `{site_timezones, tz_timetable_cache}` present for this manifest_fingerprint.
   *Context:* `present_ids[]`, `absent_ids[]`.
 
 ### 10.7 Standard message fields (Binding)
 
 Every failure log entry **MUST** include:
-`code`, `severity`, `message`, `fingerprint`, `seed`, `context{…}`, and `validator` (e.g., `"V-10"`), or `"runtime"` if not tied to a validator.
+`code`, `severity`, `message`, `manifest_fingerprint`, `seed`, `context{…}`, and `validator` (e.g., `"V-10"`), or `"runtime"` if not tied to a validator.
 
 ### 10.8 Validator → code map (Binding)
 
@@ -661,7 +661,7 @@ Emit a **single structured run-report** that proves what S1 read, how it transfo
 A run-report **MUST** contain the following top-level fields:
 
 * `component`: `"2B.S1"`
-* `fingerprint`: `<hex64>`
+* `manifest_fingerprint`: `<hex64>`
 * `seed`: `<string>`
 * `created_utc`: ISO-8601 UTC (echo of S0 `verified_at_utc`)
 * `catalogue_resolution`: `{ dictionary_version: <semver>, registry_version: <semver> }`
@@ -756,9 +756,9 @@ For traceability, S1 **MUST** echo an `id_map` array of the exact Dictionary-res
 
 ```
 id_map: [
-  { id: "site_locations",        path: "<…/site_locations/seed=…/fingerprint=…/>" },
+  { id: "site_locations",        path: "<…/site_locations/seed=…/manifest_fingerprint=…/>" },
   { id: "alias_layout_policy_v1", path: "<…/config/layer1/2B/policy/alias_layout_policy_v1.json>" },
-  { id: "s1_site_weights",        path: "<…/s1_site_weights/seed=…/fingerprint=…/>" }
+  { id: "s1_site_weights",        path: "<…/s1_site_weights/seed=…/manifest_fingerprint=…/>" }
 ]
 ```
 
@@ -798,8 +798,8 @@ S1 is a single pass transform over **S** rows plus a per-merchant normalise+quan
 
 ### 12.4 I/O discipline
 
-* **Reads:** one sequential scan of `site_locations@{seed,fingerprint}`; small policy read.
-* **Writes:** one partition for `s1_site_weights@{seed,fingerprint}`; write-once + atomic publish.
+* **Reads:** one sequential scan of `site_locations@{seed,manifest_fingerprint}`; small policy read.
+* **Writes:** one partition for `s1_site_weights@{seed,manifest_fingerprint}`; write-once + atomic publish.
 * **Parquet tuning (non-binding guidance):** pick a row-group size that keeps a typical merchant within a few groups; avoid excessive tiny groups that hurt downstream scans.
 
 ---
@@ -808,7 +808,7 @@ S1 is a single pass transform over **S** rows plus a per-merchant normalise+quan
 
 * **Across merchants:** embarrassingly parallel if each worker owns a **disjoint, deterministic shard** of merchants and emits to **private staging**, followed by a deterministic concatenate in PK order before the single atomic publish.
 * **Within a merchant:** keep **serial reductions** (mass sums) to preserve numeric order; avoid parallel floating-point reductions.
-* **Forbidden:** concurrent writers to the same `{seed,fingerprint}` partition; any parallelism that changes PK order or reduction order.
+* **Forbidden:** concurrent writers to the same `{seed,manifest_fingerprint}` partition; any parallelism that changes PK order or reduction order.
 
 ---
 
@@ -849,7 +849,7 @@ Track and alert on:
 ### 12.10 Non-goals
 
 * No network I/O, compression fiddling, or probabilistic sampling in S1.
-* No record-level updates/merges post-publish; any change requires a new `{seed,fingerprint}` or a new fingerprint per change control.
+* No record-level updates/merges post-publish; any change requires a new `{seed,manifest_fingerprint}` or a new manifest_fingerprint per change control.
 
 ---
 
@@ -910,7 +910,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
 ### 13.6 Relationship to policy bytes
 
-* The **values** of `ε`, `ε_q`, `b`, floor/cap parameters, and `weight_source` are provided by **`alias_layout_policy_v1`**. Updating policy bytes **does not change this spec** and is **not** a spec version event; it results in different sealed inputs and therefore may produce different `s1_site_weights` under a new fingerprint or seed.
+* The **values** of `ε`, `ε_q`, `b`, floor/cap parameters, and `weight_source` are provided by **`alias_layout_policy_v1`**. Updating policy bytes **does not change this spec** and is **not** a spec version event; it results in different sealed inputs and therefore may produce different `s1_site_weights` under a new manifest_fingerprint or seed.
 * However, **removing** a required policy entry or changing its **meaning** such that S1’s acceptance changes is **breaking** and requires a new **major** of the spec & policy anchor.
 
 ---
@@ -933,7 +933,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
 ### 13.9 Rollback policy
 
-* Outputs are **write-once**; rollback means publishing a **new** `(seed,fingerprint)` (or reverting to a prior fingerprint) that reproduces the last known good behaviour. No in-place mutations.
+* Outputs are **write-once**; rollback means publishing a **new** `(seed,manifest_fingerprint)` (or reverting to a prior manifest_fingerprint) that reproduces the last known good behaviour. No in-place mutations.
 
 ---
 
@@ -975,17 +975,17 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
     * `s1_site_weights` → `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (format: parquet)
   * Inputs S1 resolves (Dictionary IDs):
 
-    * `site_locations` (seed,fingerprint)
-    * `alias_layout_policy_v1` (fingerprint)
-    * *(optional pins)* `site_timezones` (seed,fingerprint), `tz_timetable_cache` (fingerprint)
+    * `site_locations` (seed,manifest_fingerprint)
+    * `alias_layout_policy_v1` (manifest_fingerprint)
+    * *(optional pins)* `site_timezones` (seed,manifest_fingerprint), `tz_timetable_cache` (manifest_fingerprint)
 * **Artefact Registry (metadata authority):** `artefact_registry_2B.yaml`
 
   * Ownership/retention for the above IDs; cross-layer pointers (1B egress, 2A pins).
 
 ### A.2 Prior state evidence (2B.S0)
 
-* **`s0_gate_receipt_2B`** (JSON; fingerprint-scoped) — gate verification, identity, catalogue versions.
-* **`sealed_inputs_2B`** (JSON table; fingerprint-scoped) — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
+* **`s0_gate_receipt_2B`** (JSON; manifest_fingerprint-scoped) — gate verification, identity, catalogue versions.
+* **`sealed_inputs_2B`** (JSON table; manifest_fingerprint-scoped) — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S1 does not re-hash 1B; it relies on this evidence.)*
 
 ### A.3 Inputs consumed by S1 (read-only)
@@ -998,7 +998,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
   * `alias_layout_policy_v1` → `config/layer1/2B/policy/alias_layout_policy_v1.json`
   * **Shape:** `schemas.2B.yaml#/policy/alias_layout_policy_v1`
-* **Optional pins (Layer-2 · 2A) — all-or-none:**
+* **Optional pins (Layer-1 · 2A) — all-or-none:**
 
   * `site_timezones` → `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
     **Shape:** `schemas.2A.yaml#/egress/site_timezones`

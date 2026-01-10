@@ -57,7 +57,7 @@
 
 **S2 SHALL:**
 
-* **Rely on S1 weights** only: take `s1_site_weights@{seed,fingerprint}` and the policy **`alias_layout_policy_v1`** as the governing sources of truth.
+* **Rely on S1 weights** only: take `s1_site_weights@{seed,manifest_fingerprint}` and the policy **`alias_layout_policy_v1`** as the governing sources of truth.
 * **Reconstruct integer grid masses** deterministically from S1: `m_i = round_even(p_weight·2^b)` + policy’s deterministic Δ-adjust to ensure `Σ m_i = 2^b` (where `b = quantised_bits`).
 * **Build per-merchant alias tables** from `{m_i}` using the policy-declared **encode/decode law** (e.g., Walker/Vose style) — **RNG-free**.
 * **Serialise** all alias tables into a single **`s2_alias_blob`** using the exact **layout/endianness/alignment** declared by policy; emit a companion **`s2_alias_index`** with per-merchant `{offset, length, sites, quantised_bits, checksum}` and global `{blob_sha256, layout_version, created_utc}`.
@@ -92,9 +92,9 @@ S2 SHALL read **only** the following assets for this run’s identity:
 1. **`s1_site_weights`** — 2B · S1 output at
    `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
 2. **`alias_layout_policy_v1`** — policy pack declaring **layout/endianness/alignment**, **bit-depth** (`quantised_bits`), **encode/decode law**, and **checksumming/digest** rules for alias artefacts.
-   *This policy is a single file with **no partition tokens**; the selection is the exact path/digest sealed by S0 for this fingerprint.*
+   *This policy is a single file with **no partition tokens**; the selection is the exact path/digest sealed by S0 for this manifest_fingerprint.*
 
-> All required assets MUST be resolvable via the Dictionary and MUST appear in S0’s `sealed_inputs_2B` for the same fingerprint.
+> All required assets MUST be resolvable via the Dictionary and MUST appear in S0’s `sealed_inputs_2B` for the same manifest_fingerprint.
 
 ### 3.3 Policy minima (Abort if unmet)
 
@@ -116,7 +116,7 @@ Absence of any listed policy entry is an **Abort**.
 * **Exact partitions.**
   • `s1_site_weights`: **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
   • `alias_layout_policy_v1`: **no partition tokens** — select the **exact S0-sealed path** and validate its digest.
-* **Subset of S0.** Every asset S2 reads **MUST** be present in S0’s `sealed_inputs_2B` for this fingerprint. Accessing any asset not listed there is an error.
+* **Subset of S0.** Every asset S2 reads **MUST** be present in S0’s `sealed_inputs_2B` for this manifest_fingerprint. Accessing any asset not listed there is an error.
 * **No optional pins.** S2 SHALL NOT read 2A pins (`site_timezones`, `tz_timetable_cache`); they are not required for alias construction.
 
 ### 3.5 Integrity & provenance inputs
@@ -146,13 +146,13 @@ Absence of any listed policy entry is an **Abort**.
 Resolve **only** the following via the Dictionary (no literal paths):
 
 1. **`s1_site_weights`** — 2B · S1 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
-2. **`alias_layout_policy_v1`** — policy pack (**no partition tokens**); select the **exact S0-sealed path/digest** for this fingerprint.
+2. **`alias_layout_policy_v1`** — policy pack (**no partition tokens**); select the **exact S0-sealed path/digest** for this manifest_fingerprint.
 
 > S2 SHALL NOT read 2A pins (`site_timezones`, `tz_timetable_cache`) or any other artefacts.
 
 ### 4.3 S0-evidence rule
 
-Cross-layer/policy assets **MUST** appear in S0's `sealed_inputs_2B` for this fingerprint (token-less policies are selected by exact S0‑sealed `path+sha256_hex`, `partition={}`).
+Cross-layer/policy assets **MUST** appear in S0's `sealed_inputs_2B` for this manifest_fingerprint (token-less policies are selected by exact S0‑sealed `path+sha256_hex`, `partition={}`).
 Within-segment datasets (e.g., `s1_site_weights`, S2 outputs) are **NOT** S0‑sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed, manifest_fingerprint]`**. Literal paths and network I/O are forbidden.
 
 ### 4.4 Prohibited resources & behaviours
@@ -171,7 +171,7 @@ Within-segment datasets (e.g., `s1_site_weights`, S2 outputs) are **NOT** S0‑s
 
 ### 4.6 Trust boundary & sequencing
 
-1. Verify S0 evidence for the target fingerprint exists.
+1. Verify S0 evidence for the target manifest_fingerprint exists.
 2. Resolve `alias_layout_policy_v1` and `s1_site_weights` via the Dictionary.
 3. Perform alias construction strictly from these sealed inputs; do not consult any other sources.
 
@@ -225,14 +225,14 @@ Within-segment datasets (e.g., `s1_site_weights`, S2 outputs) are **NOT** S0‑s
 
 ### 5.6 Provenance & stamping
 
-* **Creation time:** `created_utc` **MUST** equal the canonical S0 time (`verified_at_utc`) for this fingerprint.
+* **Creation time:** `created_utc` **MUST** equal the canonical S0 time (`verified_at_utc`) for this manifest_fingerprint.
 * **Policy echo:** index **MUST** echo `{ policy_id="alias_layout_policy_v1", policy_digest=<hex64> }` taken from S0’s inventory row for that policy.
 * **Layout echo:** `layout_version`, `endianness`, `alignment_bytes` are copied from the policy bytes used.
 
 ### 5.7 Write-once, immutability & idempotency
 
 * **Single-writer, write-once:** target partitions **MUST** be empty before first publish.
-* **Idempotent re-emit:** re-publishing to the same `(seed,fingerprint)` is allowed **only** if **both** index and blob bytes are **bit-identical**; otherwise **Abort**.
+* **Idempotent re-emit:** re-publishing to the same `(seed,manifest_fingerprint)` is allowed **only** if **both** index and blob bytes are **bit-identical**; otherwise **Abort**.
 * **Atomic publish:** stage → fsync → atomic move for **both** artefacts; no partial files may become visible.
 
 ### 5.8 Downstream reliance
@@ -344,7 +344,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 1. **Verify S0 evidence** exists for this `manifest_fingerprint`.
 2. **Resolve inputs by Dictionary IDs only:**
 
-   * `s1_site_weights@{seed,fingerprint}`
+   * `s1_site_weights@{seed,manifest_fingerprint}`
    * `alias_layout_policy_v1` (single file; **no partition tokens**; select the **exact S0-sealed path/digest**).
 3. **Read policy minima** (must exist; else Abort): `layout_version`, `endianness`, `alignment_bytes`, `quantised_bits = b ≥ 1`, `encode_spec`, `decode_law`, checksum rules.
 4. **Discover canonical time:** `created_utc ← S0.verified_at_utc`.
@@ -456,7 +456,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 * **Write partitions:**
   `…/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json`
   `…/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin`
-* **Exact selection:** single `(seed,fingerprint)` partition per publish; no wildcards, ranges, or multi-partition writes.
+* **Exact selection:** single `(seed,manifest_fingerprint)` partition per publish; no wildcards, ranges, or multi-partition writes.
 
 ### 8.3 Path↔embed equality
 
@@ -487,7 +487,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 8.8 Merge discipline
 
-* **No appends, compactions, or in-place updates.** Any change requires publishing to a **new** `(seed,fingerprint)` identity (or a new fingerprint per change-control rules).
+* **No appends, compactions, or in-place updates.** Any change requires publishing to a **new** `(seed,manifest_fingerprint)` identity (or a new manifest_fingerprint per change-control rules).
 
 ### 8.9 Determinism & replay
 
@@ -496,7 +496,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 8.10 Token hygiene
 
-* Partition tokens **MUST** appear exactly once and in this order: `seed=…/fingerprint=…/`.
+* Partition tokens **MUST** appear exactly once and in this order: `seed=…/manifest_fingerprint=…/`.
 * Literal paths, environment-injected overrides, or ad-hoc globs are prohibited.
 
 ### 8.11 Cross-artefact coherence (binding)
@@ -508,7 +508,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 ### 8.12 Retention & provenance
 
 * Retention/licence/ownership are governed by the Registry; immutability is enforced by this section.
-* `created_utc` **MUST** equal the canonical S0 time (`verified_at_utc`) for this fingerprint.
+* `created_utc` **MUST** equal the canonical S0 time (`verified_at_utc`) for this manifest_fingerprint.
 
 ### 8.13 Downstream propagation
 
@@ -575,13 +575,13 @@ Decode each merchant’s slice from the blob per policy `decode_law`; let `p̂` 
 For every row, decoding the slice at `[offset, length)` yields exactly `sites` weights for that `merchant_id`; checksum in the row matches the slice checksum computed per policy.
 
 **V-19 — Policy echo & provenance (Abort).**
-Index `{ policy_id="alias_layout_policy_v1", policy_digest }` matches the ID and digest recorded in S0’s inventory for this fingerprint.
+Index `{ policy_id="alias_layout_policy_v1", policy_digest }` matches the ID and digest recorded in S0’s inventory for this manifest_fingerprint.
 
 **V-20 — Creation time canonical (Abort).**
-`index.created_utc` equals S0 receipt’s `verified_at_utc` for this fingerprint.
+`index.created_utc` equals S0 receipt’s `verified_at_utc` for this manifest_fingerprint.
 
 **V-21 — Path↔embed equality (Abort).**
-Any embedded identity in index/blob equals the dataset path tokens (`seed`, `fingerprint`).
+Any embedded identity in index/blob equals the dataset path tokens (`seed`, `manifest_fingerprint`).
 
 **V-22 — Write-once immutability (Abort).**
 Target partitions for index and blob were empty before publish, or existing bytes are **bit-identical**.
@@ -590,7 +590,7 @@ Target partitions for index and blob were empty before publish, or existing byte
 Re-running S2 with identical sealed inputs reproduces **bit-for-bit identical** index and blob; otherwise abort rather than overwrite.
 
 **V-24 — No network & no extra reads (Abort).**
-Execution performed with network I/O disabled and accessed **only** the assets listed in S0’s `sealed_inputs_2B` for this fingerprint.
+Execution performed with network I/O disabled and accessed **only** the assets listed in S0’s `sealed_inputs_2B` for this manifest_fingerprint.
 
 **V-25 — Endianness & alignment echo (Abort).**
 Header `endianness` and `alignment_bytes` equal the policy values; every merchant slice begins at an offset aligned to `alignment_bytes`.
@@ -608,12 +608,12 @@ During encode, equality cases (e.g., `m_i = M`) followed the documented determin
 ## 10. **Failure modes & canonical error codes (Binding)**
 
 **Code namespace.** `2B-S2-XYZ` (zero-padded). **Severity** ∈ {**Abort**, **Warn**}.
-Every failure log entry **MUST** include: `code`, `severity`, `message`, `fingerprint`, `seed`, `validator` (e.g., `"V-14"` or `"runtime"`), and a `context{…}` object with the keys listed below.
+Every failure log entry **MUST** include: `code`, `severity`, `message`, `manifest_fingerprint`, `seed`, `validator` (e.g., `"V-14"` or `"runtime"`), and a `context{…}` object with the keys listed below.
 
 ### 10.1 Gate & catalogue discipline
 
-* **2B-S2-001 S0_RECEIPT_MISSING (Abort)** — No `s0_gate_receipt_2B` for target fingerprint.
-  *Context:* `fingerprint`.
+* **2B-S2-001 S0_RECEIPT_MISSING (Abort)** — No `s0_gate_receipt_2B` for target manifest_fingerprint.
+  *Context:* `manifest_fingerprint`.
 * **2B-S2-020 DICTIONARY_RESOLUTION_ERROR (Abort)** — Input ID could not be resolved for required partition(s)/path.
   *Context:* `id`, `expected_partition_or_path`.
 * **2B-S2-021 PROHIBITED_LITERAL_PATH (Abort)** — Attempted read/write via a non-Dictionary path.
@@ -679,7 +679,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 
 ### 10.8 Identity, partitions & immutability
 
-* **2B-S2-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` (or wrong policy selection semantics).
+* **2B-S2-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/manifest_fingerprint={manifest_fingerprint}` (or wrong policy selection semantics).
   *Context:* `id`, `expected`, `actual`.
 * **2B-S2-071 PATH_EMBED_MISMATCH (Abort)** — Embedded identity differs from path token(s).
   *Context:* `embedded`, `path_token`.
@@ -752,7 +752,7 @@ Emit a **single structured run-report** that proves what S2 read, how it constru
 The run-report **MUST** contain these top-level fields:
 
 * `component`: `"2B.S2"`
-* `fingerprint`: `<hex64>`
+* `manifest_fingerprint`: `<hex64>`
 * `seed`: `<string>`
 * `created_utc`: ISO-8601 UTC (echo of S0 `verified_at_utc`)
 * `catalogue_resolution`: `{ dictionary_version: <semver>, registry_version: <semver> }`
@@ -767,7 +767,7 @@ The run-report **MUST** contain these top-level fields:
   * `quantised_bits`: `<int>` *(b)*
 * `inputs_summary`:
 
-  * `weights_path`: `<string>` *(Dictionary-resolved path to `s1_site_weights@seed,fingerprint`)*
+  * `weights_path`: `<string>` *(Dictionary-resolved path to `s1_site_weights@seed,manifest_fingerprint`)*
   * `merchants_total`: `<int>`
   * `sites_total`: `<int>`
 * `blob_index`:
@@ -845,10 +845,10 @@ For traceability, S2 **MUST** echo an `id_map` array of the exact Dictionary-res
 
 ```
 id_map: [
-  { id: "s1_site_weights",      path: "<…/s1_site_weights/seed=…/fingerprint=…/>" },
+  { id: "s1_site_weights",      path: "<…/s1_site_weights/seed=…/manifest_fingerprint=…/>" },
   { id: "alias_layout_policy_v1", path: "<…/config/layer1/2B/policy/alias_layout_policy_v1.json>" },
-  { id: "s2_alias_index",         path: "<…/s2_alias_index/seed=…/fingerprint=…/index.json>" },
-  { id: "s2_alias_blob",          path: "<…/s2_alias_blob/seed=…/fingerprint=…/alias.bin>" }
+  { id: "s2_alias_index",         path: "<…/s2_alias_index/seed=…/manifest_fingerprint=…/index.json>" },
+  { id: "s2_alias_blob",          path: "<…/s2_alias_blob/seed=…/manifest_fingerprint=…/alias.bin>" }
 ]
 ```
 
@@ -954,7 +954,7 @@ Track and alert on:
 ### 12.10 Non-goals
 
 * No network I/O, compression tricks, or probabilistic sampling.
-* No record-level updates/merges post-publish; any change requires a new `{seed,fingerprint}` (or new fingerprint per change-control).
+* No record-level updates/merges post-publish; any change requires a new `{seed,manifest_fingerprint}` (or new manifest_fingerprint per change-control).
 
 ---
 
@@ -1039,7 +1039,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 ### 13.9 Rollback policy
 
-* Outputs are **write-once**; rollback means publishing a **new** `(seed,fingerprint)` (or reverting to a prior fingerprint) that reproduces the last known good behaviour. No in-place mutation.
+* Outputs are **write-once**; rollback means publishing a **new** `(seed,manifest_fingerprint)` (or reverting to a prior manifest_fingerprint) that reproduces the last known good behaviour. No in-place mutation.
 
 ---
 
@@ -1099,7 +1099,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 ### A.2 Prior state evidence (2B.S0)
 
-* **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (fingerprint-scoped).
+* **`s0_gate_receipt_2B`** — gate verification, identity, catalogue versions (manifest_fingerprint-scoped).
 * **`sealed_inputs_2B`** — authoritative list of sealed assets (IDs, tags, digests, paths, partitions).
   *(S2 does not re-hash 1B; it relies on this evidence.)*
 
@@ -1113,7 +1113,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
   * `alias_layout_policy_v1` → `config/layer1/2B/policy/alias_layout_policy_v1.json`
   * **Shape:** `schemas.2B.yaml#/policy/alias_layout_policy_v1`
-  * **Selection:** single file, **no partition tokens**; use the **exact S0-sealed path/digest** for this fingerprint.
+  * **Selection:** single file, **no partition tokens**; use the **exact S0-sealed path/digest** for this manifest_fingerprint.
 
 > **Note:** S2 **does not** read 2A pins (`site_timezones`, `tz_timetable_cache`).
 

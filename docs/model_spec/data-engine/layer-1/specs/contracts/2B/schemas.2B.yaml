@@ -502,7 +502,7 @@ plan:
       - { name: floor_applied,      type: boolean,                                       nullable: false,
           description: "True if a floor or zero-mass fallback affected this row." }
       - { name: created_utc,        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros',   nullable: false,
-          description: "Echo of S0 verified_at_utc for this fingerprint." }
+          description: "Echo of S0 verified_at_utc for this manifest_fingerprint." }
 
 
   s2_alias_index:
