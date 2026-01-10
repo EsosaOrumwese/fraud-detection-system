@@ -290,7 +290,7 @@ Before doing any work, S3 MUST require a valid S0 gate for the target `manifest_
 3. **Identity consistency**
 
    * `s0_gate_receipt_5A.parameter_hash == parameter_hash`.
-   * All rows in `sealed_inputs_5A` for this fingerprint have:
+   * All rows in `sealed_inputs_5A` for this manifest_fingerprint have:
 
      * `parameter_hash == parameter_hash`, and
      * `manifest_fingerprint == manifest_fingerprint`.
@@ -340,7 +340,7 @@ If any of these S1/S2 conditions fail, S3 MUST treat this as a hard precondition
 
 ### 2.4 Required sealed inputs for S3
 
-Given a valid S0 gate, the **only inputs S3 may use** are those listed in `sealed_inputs_5A` for this fingerprint. For S3 to run, the following artefacts MUST be present and usable:
+Given a valid S0 gate, the **only inputs S3 may use** are those listed in `sealed_inputs_5A` for this manifest_fingerprint. For S3 to run, the following artefacts MUST be present and usable:
 
 #### 2.4.1 S1: merchant & zone demand profiles
 
@@ -355,7 +355,7 @@ Preconditions:
 
   * correct `schema_ref` → `schemas.5A.yaml#/model/merchant_zone_profile_5A`,
   * `read_scope="ROW_LEVEL"` (S3 must read rows),
-  * consistent `path_template` and `partition_keys` (fingerprint only).
+  * consistent `path_template` and `partition_keys` (manifest_fingerprint only).
 
 Role for S3:
 
@@ -432,7 +432,7 @@ The following boundaries are **binding**:
 
 1. **`sealed_inputs_5A` is the exclusive universe**
 
-   * S3 MUST treat `sealed_inputs_5A` as exhaustive for this fingerprint:
+   * S3 MUST treat `sealed_inputs_5A` as exhaustive for this manifest_fingerprint:
 
      * Only artefacts listed there may be read.
      * Datasets or configs not present in `sealed_inputs_5A` are out-of-bounds, even if physically present.
@@ -527,14 +527,14 @@ All of these MUST be discovered via `sealed_inputs_5A` and resolved via the data
 
   * which `(parameter_hash, manifest_fingerprint)` pair it is operating under,
   * whether upstream Layer-1 segments are `"PASS"`,
-  * which scenario pack is bound to this fingerprint.
+  * which scenario pack is bound to this manifest_fingerprint.
 * S3 MUST NOT re-validate upstream bundles at the bit-level (beyond reading egress shapes), and MUST NOT modify the receipt.
 
 #### 3.2.2 `sealed_inputs_5A`
 
 **Role for S3**
 
-* Defines the **complete set of artefacts** Segment 5A is allowed to read for this fingerprint, with:
+* Defines the **complete set of artefacts** Segment 5A is allowed to read for this manifest_fingerprint, with:
 
   * `owner_segment`, `artifact_id`, `role`, `status`, `read_scope`,
   * `schema_ref`, `path_template`, `sha256_hex`.
@@ -545,7 +545,7 @@ All of these MUST be discovered via `sealed_inputs_5A` and resolved via the data
 
   * derive its list of admissible datasets/configs **only** by scanning `sealed_inputs_5A`, and
   * respect each row’s `status` (`"REQUIRED"`, `"OPTIONAL"`, `"IGNORED"`) and `read_scope` (`"ROW_LEVEL"`, `"METADATA_ONLY"`).
-* Any dataset/config not listed in `sealed_inputs_5A` for this fingerprint is **out-of-bounds**.
+* Any dataset/config not listed in `sealed_inputs_5A` for this manifest_fingerprint is **out-of-bounds**.
 
 ---
 
@@ -851,7 +851,7 @@ This implies:
 
 `merchant_zone_baseline_local_5A` is **world + scenario scoped**:
 
-* `partition_keys: ["fingerprint","scenario_id"]`
+* `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 where:
 
@@ -862,7 +862,7 @@ This keeps S3 outputs aligned with the world-specific S1 inputs, while allowing 
 
 **Primary key**
 
-Within a `(fingerprint, scenario_id)` partition, the primary key MUST be:
+Within a `(manifest_fingerprint, scenario_id)` partition, the primary key MUST be:
 
 ```yaml
 primary_key:
@@ -879,7 +879,7 @@ If S3 also tracks channel as a dimension, add `channel` / `channel_group` to the
 
 Each row MUST embed:
 
-* `manifest_fingerprint` — non-null, equals the partition token `fingerprint`.
+* `manifest_fingerprint` — non-null, equals the partition token `manifest_fingerprint`.
 * `parameter_hash` — non-null, equals the run’s `parameter_hash` and S0’s value.
 * `scenario_id` — non-null, equals the partition token.
 
@@ -940,7 +940,7 @@ For a given `(parameter_hash, manifest_fingerprint, scenario_id)`:
 
 Partitioning:
 
-* `partition_keys: ["fingerprint","scenario_id"]`
+* `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 Primary key (if materialised):
 
@@ -958,7 +958,7 @@ Primary key (if materialised):
 
 * or with `zone_id` if used.
 
-`parameter_hash` MUST be embedded and constant within the `(fingerprint, scenario_id)` partition.
+`parameter_hash` MUST be embedded and constant within the `(manifest_fingerprint, scenario_id)` partition.
 
 #### 4.3.3 Derivability constraint
 
@@ -993,7 +993,7 @@ If implemented, for each `(parameter_hash, manifest_fingerprint, scenario_id)`:
 
 * Partitioning:
 
-  * e.g. `partition_keys: ["fingerprint","scenario_id"]` or `[ "fingerprint", "scenario_id", "utc_day" ]` depending on horizon design.
+  * e.g. `partition_keys: ["manifest_fingerprint","scenario_id"]` or `[ "manifest_fingerprint", "scenario_id", "utc_day" ]` depending on horizon design.
 
 * Primary key (illustrative):
 
@@ -1063,7 +1063,7 @@ S3 produces **only modelling datasets**, not new control-plane artefacts:
 Its outputs:
 
 * are deterministic functions of S1/S2 + S3 policies under `(parameter_hash, manifest_fingerprint, scenario_id)`,
-* are partitioned by `fingerprint` and `scenario_id` with `parameter_hash` embedded, and
+* are partitioned by `manifest_fingerprint` and `scenario_id` with `parameter_hash` embedded, and
 * are immutable once written, except for idempotent re-runs that produce identical content.
 
 Within this identity model, S3 provides a single, world-specific, parameter-pack-aware baseline intensity surface that anchors all later Layer-2 and Layer-3 behaviour.
@@ -1086,7 +1086,7 @@ The S3 baselines inherit their contracts from the 5A schema pack/dictionary/regi
 
 Binding notes:
 
-- Dictionary-defined partitioning (`fingerprint`/`scenario_id`) and PKs are mandatory; writer ordering ensures deterministic hashing.
+- Dictionary-defined partitioning (`manifest_fingerprint`/`scenario_id`) and PKs are mandatory; writer ordering ensures deterministic hashing.
 - Schema pack controls all columns (local/UTC bucket indices, baselines, audits, provenance). Optional UTC output, when present, must be a deterministic projection of the local baseline using 2A tz law.
 - Registry dependencies (S2 shapes, S1 profiles, sealed configs) define allowable inputs.
 
@@ -1157,7 +1157,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S3 — 
    * `s0_gate_receipt_5A` validates against `#/validation/s0_gate_receipt_5A`.
    * `sealed_inputs_5A` validates against `#/validation/sealed_inputs_5A`.
    * `s0_gate_receipt_5A.parameter_hash == parameter_hash`.
-   * All rows in `sealed_inputs_5A` for this fingerprint have:
+   * All rows in `sealed_inputs_5A` for this manifest_fingerprint have:
 
      * `manifest_fingerprint == manifest_fingerprint`,
      * `parameter_hash == parameter_hash`.
@@ -1626,15 +1626,15 @@ S3 outputs are **world+scenario partitioned**:
 
 * `merchant_zone_baseline_local_5A`:
 
-  * `partition_keys: ["fingerprint","scenario_id"]`
+  * `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 * `class_zone_baseline_local_5A` (if implemented):
 
-  * `partition_keys: ["fingerprint","scenario_id"]`
+  * `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 * `merchant_zone_baseline_utc_5A` (if implemented):
 
-  * `partition_keys: ["fingerprint","scenario_id"]`
+  * `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
     * (some designs MAY add an extra horizon partition like `utc_day`, but that MUST be encoded in the dictionary and then treated as binding.)
 
@@ -1767,7 +1767,7 @@ Primary keys (PKs) for S3 datasets are **binding**:
 In all cases:
 
 * PK fields MUST be required and non-null.
-* Duplicate PK tuples within a `(fingerprint, scenario_id)` partition MUST be treated as an S3 failure.
+* Duplicate PK tuples within a `(manifest_fingerprint, scenario_id)` partition MUST be treated as an S3 failure.
 
 #### 7.3.2 Logical ordering
 
@@ -1853,7 +1853,7 @@ Each `(manifest_fingerprint, scenario_id)` partition is self-contained.
 
 * `parameter_hash` MUST be embedded as a column in all S3 outputs.
 * It MUST be constant within any `(manifest_fingerprint, scenario_id)` partition.
-* It MUST equal the `parameter_hash` recorded in `s0_gate_receipt_5A` for that fingerprint.
+* It MUST equal the `parameter_hash` recorded in `s0_gate_receipt_5A` for that manifest_fingerprint.
 
 `parameter_hash` is **not** a partition key for S3 datasets; it is a binding identity attribute used to tie the baselines back to the parameter pack.
 
@@ -1893,7 +1893,7 @@ S3 outputs must align with S1 and S2 identities:
 
    * For each S3 row:
 
-     * `manifest_fingerprint` MUST match the world’s fingerprint;
+     * `manifest_fingerprint` MUST match the world’s manifest_fingerprint;
      * `parameter_hash` MUST match the pack used by S1/S2;
      * `scenario_id` MUST match the scenario used by S2 shapes.
 
@@ -1986,14 +1986,14 @@ If any of these checks fail, S3 MUST NOT be treated as green irrespective of its
      * exists in the canonical partition
        `manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`,
      * conforms to `#/model/merchant_zone_baseline_local_5A`,
-     * declares `partition_keys: ["fingerprint","scenario_id"]`,
+     * declares `partition_keys: ["manifest_fingerprint","scenario_id"]`,
      * declares the PK as per the spec (zone representation choice fixed in §5).
 
 8. **Identity consistency**
 
    * For all rows:
 
-     * `manifest_fingerprint` equals the partition token `fingerprint`,
+     * `manifest_fingerprint` equals the partition token `manifest_fingerprint`,
      * `scenario_id` equals the partition token `scenario_id`,
      * `parameter_hash` equals the S0 `parameter_hash` and S1/S2 `parameter_hash`.
 
@@ -2953,7 +2953,7 @@ Space:
 
 * `merchant_zone_baseline_local_5A`:
 
-  * single Parquet file for `(fingerprint, scenario_id)` of size O(`N_mz × T_week`) rows.
+  * single Parquet file for `(manifest_fingerprint, scenario_id)` of size O(`N_mz × T_week`) rows.
 * Optional S3 outputs:
 
   * additional single files of similar or smaller magnitude.
@@ -2999,7 +2999,7 @@ S3 parallelises naturally across the **merchant×zone domain** and over buckets:
      * a single `merchant_zone_baseline_local_5A` file, or
      * a small number of files, still obeying the partition/PK rules.
 
-S3 does **not** require extra partitioning in the storage layout; the spec prefers a simple `fingerprint + scenario_id` partition. Scaling is achieved via compute parallelism and internal chunking, not via fragmented on-disk partitions.
+S3 does **not** require extra partitioning in the storage layout; the spec prefers a simple `manifest_fingerprint + scenario_id` partition. Scaling is achieved via compute parallelism and internal chunking, not via fragmented on-disk partitions.
 
 ---
 
@@ -3027,7 +3027,7 @@ For large `N_mz × T_week`, a **chunked/streaming approach** is recommended:
 The spec doesn’t mandate how many files you produce internally, only that:
 
 * externally, the dataset identity and PK/partition rules are respected, and
-* the final view is logically a single `(fingerprint, scenario_id)` slice.
+* the final view is logically a single `(manifest_fingerprint, scenario_id)` slice.
 
 ---
 
@@ -3055,7 +3055,7 @@ it is safe to **retry** in some cases:
   * Indicates that S1/S2 outputs or S3 policies changed without minting a new `parameter_hash` or `manifest_fingerprint`.
   * Proper fix:
 
-    * update identity (new parameter pack and/or new manifest fingerprint),
+    * update identity (new parameter pack and/or new manifest manifest_fingerprint),
     * re-run S0/S1/S2/S3 under the new identity, and
     * leave old baselines as immutable artefacts for the old world/pack.
 
@@ -3253,7 +3253,7 @@ Incompatible:
 
 * Changing partition keys:
 
-  * e.g. switching from `["fingerprint","scenario_id"]` to `["parameter_hash","scenario_id"]` for `merchant_zone_baseline_local_5A`.
+  * e.g. switching from `["manifest_fingerprint","scenario_id"]` to `["parameter_hash","scenario_id"]` for `merchant_zone_baseline_local_5A`.
 
 Such changes break joins and identity assumptions downstream.
 
@@ -3355,7 +3355,7 @@ MUST be represented by a new **parameter pack** and thus a new `parameter_hash`.
 
 Under a new `parameter_hash`:
 
-* S0 must be re-run for that fingerprint (or new fingerprint),
+* S0 must be re-run for that manifest_fingerprint (or new manifest_fingerprint),
 * S1/S2 must be recomputed under the new pack,
 * then S3 must be run to produce baselines.
 
@@ -3483,7 +3483,7 @@ This appendix collects short-hands, symbols, and abbreviations used in the **5A.
 
 | Field name                                | Meaning                                                                                                 |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `manifest_fingerprint`                    | World identity; MUST match `fingerprint` partition token.                                               |
+| `manifest_fingerprint`                    | World identity; MUST match `manifest_fingerprint` partition token.                                               |
 | `parameter_hash`                          | Parameter pack identity; same as S0/S1/S2 for this run.                                                 |
 | `scenario_id`                             | Scenario for which baselines are computed.                                                              |
 | `merchant_id`                             | Merchant key (as in Layer-1).                                                                           |

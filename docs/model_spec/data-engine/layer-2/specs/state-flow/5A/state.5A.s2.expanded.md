@@ -73,7 +73,7 @@ The following tasks are **in scope** for 5A.S2 and MUST be handled here:
 
   * Verifying that:
 
-    * S0 gate / sealed inputs are valid for the fingerprint;
+    * S0 gate / sealed inputs are valid for the manifest_fingerprint;
     * S1 successfully produced `merchant_zone_profile_5A` for the same `(parameter_hash, manifest_fingerprint)`;
     * all required shape-related configs (time grid, base templates, modifiers) are present and schema-valid.
 
@@ -199,7 +199,7 @@ This specification imposes the following obligations on downstream states (5A.S3
 
 * **Do not mutate S2 outputs**
 
-  * No later state may modify or overwrite S2’s shape datasets for any fingerprint.
+  * No later state may modify or overwrite S2’s shape datasets for any manifest_fingerprint.
   * If different shapes are needed (e.g. new class definitions, different time-grid), these MUST be introduced via:
 
     * a new 5A shape policy / parameter pack (`parameter_hash`), and
@@ -320,7 +320,7 @@ S2 MUST NOT attempt to “rebuild” S1 logic; it can only proceed if S1 is pres
 
 ### 2.4 Required sealed inputs for S2
 
-Given a valid S0 gate, S2’s **input universe** is defined by `sealed_inputs_5A`. S2 MUST be able to resolve at least the following artefacts for this fingerprint.
+Given a valid S0 gate, S2’s **input universe** is defined by `sealed_inputs_5A`. S2 MUST be able to resolve at least the following artefacts for this manifest_fingerprint.
 
 #### 2.4.1 S1 output (domain discovery)
 
@@ -330,11 +330,11 @@ Required dataset:
 
 Preconditions:
 
-* At least one row MUST exist for the fingerprint (unless the engine explicitly allows an empty 5A domain and S2 is configured to handle it).
+* At least one row MUST exist for the manifest_fingerprint (unless the engine explicitly allows an empty 5A domain and S2 is configured to handle it).
 * The dataset MUST be resolvable via the 5A dictionary/registry with:
 
   * `schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A` (or equivalent anchor),
-  * `partition_keys: ["fingerprint"]`, and
+  * `partition_keys: ["manifest_fingerprint"]`, and
   * `primary_key: ["merchant_id","legal_country_iso","tzid"]`.
 
 Authority:
@@ -434,7 +434,7 @@ The following boundaries are binding:
 1. **`sealed_inputs_5A` is the only discovery mechanism**
 
    * S2 MUST use `sealed_inputs_5A` to determine **which** artefacts it may read.
-   * It MUST NOT read datasets or configs not present in `sealed_inputs_5A` for this fingerprint, even if they are physically present.
+   * It MUST NOT read datasets or configs not present in `sealed_inputs_5A` for this manifest_fingerprint, even if they are physically present.
 
 2. **S1 output is domain authority, not a free-form feature set**
 
@@ -495,7 +495,7 @@ All inputs MUST be:
 * discovered via `sealed_inputs_5A` for the current `manifest_fingerprint`, and
 * resolved via the dataset dictionary + artefact registry.
 
-S2 MUST NOT read artefacts that are **not** present in `sealed_inputs_5A` for this fingerprint.
+S2 MUST NOT read artefacts that are **not** present in `sealed_inputs_5A` for this manifest_fingerprint.
 
 ---
 
@@ -505,7 +505,7 @@ S2 MUST NOT read artefacts that are **not** present in `sealed_inputs_5A` for th
 
 **Logical input**
 
-* `s0_gate_receipt_5A` — the S0 control-plane record for this fingerprint.
+* `s0_gate_receipt_5A` — the S0 control-plane record for this manifest_fingerprint.
 
 **Role for S2**
 
@@ -520,7 +520,7 @@ S2 MUST NOT read artefacts that are **not** present in `sealed_inputs_5A` for th
 * S2 MUST treat `s0_gate_receipt_5A` as the **sole authority** for:
 
   * upstream segment status,
-  * `parameter_hash` for this fingerprint,
+  * `parameter_hash` for this manifest_fingerprint,
   * `sealed_inputs_digest` over `sealed_inputs_5A`.
 
 * S2 MUST NOT re-validate upstream segments directly (beyond what’s needed for its own inputs), nor modify `s0_gate_receipt_5A`.
@@ -529,7 +529,7 @@ S2 MUST NOT read artefacts that are **not** present in `sealed_inputs_5A` for th
 
 **Logical input**
 
-* `sealed_inputs_5A` — inventory of all artefacts that 5A is allowed to read for this fingerprint.
+* `sealed_inputs_5A` — inventory of all artefacts that 5A is allowed to read for this manifest_fingerprint.
 
 **Authority boundary**
 
@@ -745,7 +745,7 @@ These datasets are:
 
 * **parameter-pack + scenario scoped** (keyed by `parameter_hash` and, if used, `scenario_id`),
 * **not seed- or run-scoped**, and
-* **not fingerprint-partitioned** (they are reusable across manifests that share the same parameter pack and scenario).
+* **not manifest_fingerprint-partitioned** (they are reusable across manifests that share the same parameter pack and scenario).
 
 ---
 
@@ -1071,7 +1071,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S2 — 
 3. Check upstream segment statuses in `verified_upstream_segments`:
 
    * require `"PASS"` for `1A`, `1B`, `2A`, `2B`, `3A`, `3B`.
-4. Resolve `merchant_zone_profile_5A` for this `parameter_hash` via dictionary/registry (note: S2 is parameter-pack/scenario scoped; S1’s output is still keyed by fingerprint but contains `parameter_hash`).
+4. Resolve `merchant_zone_profile_5A` for this `parameter_hash` via dictionary/registry (note: S2 is parameter-pack/scenario scoped; S1’s output is still keyed by manifest_fingerprint but contains `parameter_hash`).
 5. Validate that `merchant_zone_profile_5A`:
 
    * exists and is schema-valid;
@@ -1178,7 +1178,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S2 — 
 
 **Procedure:**
 
-1. Scan `merchant_zone_profile_5A` for this `parameter_hash` and fingerprint, retrieving at least:
+1. Scan `merchant_zone_profile_5A` for this `parameter_hash` and manifest_fingerprint, retrieving at least:
 
    * `demand_class`,
    * `legal_country_iso`, `tzid` (or fields used to determine `zone_id`),
@@ -1520,7 +1520,7 @@ All S2 outputs are partitioned by **parameter pack + scenario**:
 
   * `partition_keys: ["parameter_hash","scenario_id"]`
 
-No other partition key (e.g. `fingerprint`, `seed`, `run_id`) is allowed for S2 outputs.
+No other partition key (e.g. `manifest_fingerprint`, `seed`, `run_id`) is allowed for S2 outputs.
 
 #### 7.2.2 Path templates
 
@@ -1739,7 +1739,7 @@ S2 outputs must align with S1 and 3A in the following ways:
 
    * For every `(parameter_hash, scenario_id, demand_class, zone[, channel])` in S2’s domain:
 
-     * There MUST exist at least one merchant×zone row in `merchant_zone_profile_5A` (for some fingerprint) with the same `parameter_hash` and `demand_class` and zone representation.
+     * There MUST exist at least one merchant×zone row in `merchant_zone_profile_5A` (for some manifest_fingerprint) with the same `parameter_hash` and `demand_class` and zone representation.
 
    * Conversely, for any `(parameter_hash, demand_class, zone[, channel])` actually used in `merchant_zone_profile_5A` for a world under this parameter pack and scenario, S2 MUST produce a shape in `class_zone_shape_5A`.
 
@@ -3184,7 +3184,7 @@ S2’s spec version (`s2_spec_version`) may remain unchanged if contracts and se
 If upstream changes alter domain or class labels:
 
 * Domain changes (e.g. new `demand_class`, new zones) will be picked up in S1 → S2 through `parameter_hash` and `sealed_inputs_5A`.
-* S2 must be re-run under any fingerprint whose S1 output changed.
+* S2 must be re-run under any manifest_fingerprint whose S1 output changed.
 
 Breaking structural changes in S1 (e.g. changing keys or semantics of `merchant_zone_profile_5A`) are governed by S1’s own spec; S2 must upgrade to a compatible `s1_spec_version` before consuming such outputs.
 

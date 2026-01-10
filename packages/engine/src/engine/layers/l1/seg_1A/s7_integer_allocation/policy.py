@@ -113,13 +113,20 @@ def load_policy(
     repo_root = get_repo_root()
     thresholds_file = Path(thresholds_path).expanduser().resolve() if thresholds_path else None
     if thresholds_file is None:
-        candidate = repo_root / "config" / "policy" / "s3.thresholds.yaml"
+        candidate = repo_root / "config" / "layer1" / "1A" / "policy" / "s3.thresholds.yaml"
         thresholds_file = candidate if candidate.exists() else None
 
     residual_file = (
         Path(residual_policy_path).expanduser().resolve()
         if residual_policy_path
-        else (repo_root / "config" / "numeric" / "residual_quantisation.yaml")
+        else (
+            repo_root
+            / "config"
+            / "layer1"
+            / "1A"
+            / "numeric"
+            / "residual_quantisation.yaml"
+        )
     )
     if not residual_file.exists():
         raise PolicyLoadingError(f"residual quantisation policy missing at {residual_file}")
@@ -127,7 +134,15 @@ def load_policy(
     dirichlet_file = (
         Path(dirichlet_policy_path).expanduser().resolve()
         if dirichlet_policy_path
-        else (repo_root / "config" / "models" / "allocation" / "dirichlet_alpha_policy.yaml")
+        else (
+            repo_root
+            / "config"
+            / "layer1"
+            / "1A"
+            / "models"
+            / "allocation"
+            / "dirichlet_alpha_policy.yaml"
+        )
     )
     if not dirichlet_file.exists():
         dirichlet_file = None

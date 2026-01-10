@@ -33,7 +33,7 @@ _SEGMENT1B_REFERENCE_SURFACES: Sequence[_ReferenceSurfaceSpec] = (
     ),
     _ReferenceSurfaceSpec(
         dataset_id="world_countries",
-        source=Path("reference/spatial/world_countries/2025-10-08/world_countries.parquet"),
+        source=Path("reference/spatial/world_countries/2024/world_countries.parquet"),
         relative_destination=Path("reference/spatial/world_countries/2024/world_countries.parquet"),
     ),
     _ReferenceSurfaceSpec(

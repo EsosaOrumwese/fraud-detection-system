@@ -35,7 +35,7 @@ For a given **world** identified by `manifest_fingerprint` (and, within that wor
 
   * `validation_bundle_5A` under
     `data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/…`
-  * `_passed.flag` in the same fingerprint partition, containing a digest over the bundle.
+  * `_passed.flag` in the same manifest_fingerprint partition, containing a digest over the bundle.
 
 5A.S5 is:
 
@@ -105,7 +105,7 @@ The following activities are **in scope** for 5A.S5 and MUST be performed in thi
 
 * **Discovery of 5A outputs to validate**
 
-  * Using `sealed_inputs_5A` and the 5A dataset dictionary/registry, discover all 5A outputs associated with this fingerprint, including:
+  * Using `sealed_inputs_5A` and the 5A dataset dictionary/registry, discover all 5A outputs associated with this manifest_fingerprint, including:
 
     * all `(parameter_hash, scenario_id)` combinations for which S1–S4 datasets exist.
 
@@ -204,7 +204,7 @@ The following activities are explicitly **out of scope** for 5A.S5 and MUST NOT 
 * **Partial PASS semantics**
 
   * S5 MUST NOT introduce partial “PASS for S1–S3 but FAIL for S4” semantics at the gate level.
-  * Its job is to express internal detail in the report, but the **gate itself** is binary per fingerprint: PASS or FAIL.
+  * Its job is to express internal detail in the report, but the **gate itself** is binary per manifest_fingerprint: PASS or FAIL.
 
 ---
 
@@ -216,7 +216,7 @@ This specification imposes the following obligations on all downstream segments 
 
   * Any component that reads Segment 5A modelling artefacts (S1–S4 outputs) for a given `manifest_fingerprint` MUST:
 
-    1. Locate `validation_bundle_5A` and `_passed.flag` for that fingerprint via the catalogue.
+    1. Locate `validation_bundle_5A` and `_passed.flag` for that manifest_fingerprint via the catalogue.
     2. Verify that `_passed.flag` is structurally valid and that its digest matches a recomputed `bundle_digest` over the bundle contents.
 
   * If `_passed.flag` is missing or invalid, the consumer MUST treat all 5A outputs for that world as **non-authoritative** and MUST NOT use them to drive simulations, decisions, or evaluations.
@@ -299,13 +299,13 @@ Preconditions here are about *being able to inspect* the world, not about the wo
 5A.S5 MUST only be invoked in the context of a well-defined **world**:
 
 * `manifest_fingerprint` — identifies the closed-world manifest whose 5A outputs S5 will validate.
-* `run_id` — identifies this execution of S5 for that fingerprint.
+* `run_id` — identifies this execution of S5 for that manifest_fingerprint.
 
 These values:
 
 * MUST be supplied by the orchestration layer;
 * MUST remain constant for the duration of the S5 run;
-* MUST be used to resolve all fingerprint-scoped artefacts (S0, sealed inputs, validation bundle paths).
+* MUST be used to resolve all manifest_fingerprint-scoped artefacts (S0, sealed inputs, validation bundle paths).
 
 > **Note:**
 > `parameter_hash` and `scenario_id` are *discovered* from S0/5A outputs, not fixed in the S5 invocation. A given `manifest_fingerprint` may have multiple scenarios; S5 validates *all* parameter packs / scenarios it discovers for that world.
@@ -357,8 +357,8 @@ S5 works over a **sealed world**; the minimum sealed inputs for a `manifest_fing
 
 1. **S0 gate & sealed inventory**
 
-   * `s0_gate_receipt_5A` — fingerprint-scoped, must exist and be schema-valid.
-   * `sealed_inputs_5A` — fingerprint-scoped, must exist and be schema-valid.
+   * `s0_gate_receipt_5A` — manifest_fingerprint-scoped, must exist and be schema-valid.
+   * `sealed_inputs_5A` — manifest_fingerprint-scoped, must exist and be schema-valid.
 
 These two artefacts are **non-negotiable preconditions**. Without them, S5 cannot even know what it is allowed to read.
 
@@ -366,13 +366,13 @@ These two artefacts are **non-negotiable preconditions**. Without them, S5 canno
 
    From `s0_gate_receipt_5A`, S5 MUST be able to read:
 
-   * `parameter_hash` — active parameter pack for this fingerprint.
+   * `parameter_hash` — active parameter pack for this manifest_fingerprint.
    * `verified_upstream_segments[1A..3B]` — upstream status map.
    * `sealed_inputs_digest` — digest over `sealed_inputs_5A`.
 
 And from `sealed_inputs_5A`, S5 MUST be able to resolve:
 
-* which 5A artefacts (S1–S4 outputs, 5A policies/configs) exist for this fingerprint, and
+* which 5A artefacts (S1–S4 outputs, 5A policies/configs) exist for this manifest_fingerprint, and
 * their `schema_ref`, `path_template`, `role`, `status`, `read_scope`, and `sha256_hex`.
 
 If either `s0_gate_receipt_5A` or `sealed_inputs_5A` is missing or cannot be parsed/schema-validated, S5 MUST fail immediately and MUST NOT attempt to inspect S1–S4 outputs.
@@ -440,7 +440,7 @@ If these policies/configs are not discoverable for the relevant `parameter_hash`
 
 S5 MAY be invoked in one of two logical modes (implementation detail), but its **preconditions** do not change:
 
-1. **Per-fingerprint mode (recommended)**
+1. **Per-manifest_fingerprint mode (recommended)**
 
    * Invocation context is just `manifest_fingerprint` + `run_id`.
    * S5:
@@ -450,7 +450,7 @@ S5 MAY be invoked in one of two logical modes (implementation detail), but its *
      * validates all of them,
      * emits a **single** `validation_bundle_5A` and `_passed.flag` summarising the entire world.
 
-2. **Per-fingerprint, multi-run mode**
+2. **Per-manifest_fingerprint, multi-run mode**
 
    * Implementation may internally batch-check each `(parameter_hash, scenario_id)` separately, but MUST still:
 
@@ -590,7 +590,7 @@ Each row provides:
 
 These are the artefacts whose invariants S5 checks. S5’s job is to validate them, not to regenerate or modify them.
 
-For each discovered `(parameter_hash, scenario_id)` in this fingerprint (deduced from S3/S4 entries in `sealed_inputs_5A` and the dictionary), S5 MAY read:
+For each discovered `(parameter_hash, scenario_id)` in this manifest_fingerprint (deduced from S3/S4 entries in `sealed_inputs_5A` and the dictionary), S5 MAY read:
 
 #### 3.3.1 S1 — `merchant_zone_profile_5A`
 
@@ -836,8 +836,8 @@ This section defines the **data products** of **5A.S5 — Segment Validation & H
 
 S5 produces **no new modelling surfaces**. Its outputs are purely **validation artefacts** for Segment 5A:
 
-1. A fingerprint-scoped **validation bundle** containing evidence, reports and an index.
-2. A fingerprint-scoped **pass flag** that cryptographically binds the bundle content.
+1. A manifest_fingerprint-scoped **validation bundle** containing evidence, reports and an index.
+2. A manifest_fingerprint-scoped **pass flag** that cryptographically binds the bundle content.
 
 ---
 
@@ -851,11 +851,11 @@ S5 produces **no new modelling surfaces**. Its outputs are purely **validation a
 2. **`_passed.flag` *(required)*
    – small flag file containing a digest over the bundle**
 
-Both are **fingerprint-only**:
+Both are **manifest_fingerprint-only**:
 
 * They are scoped to `manifest_fingerprint` (world),
 * They are **not** parameter-pack or scenario partitioned,
-* They describe and seal **all** 5A outputs for that fingerprint.
+* They describe and seal **all** 5A outputs for that manifest_fingerprint.
 
 ---
 
@@ -863,7 +863,7 @@ Both are **fingerprint-only**:
 
 #### 4.2.1 Semantic role
 
-`validation_bundle_5A` is a **directory-like artefact** that contains all evidence S5 uses to justify its PASS/FAIL verdict for the fingerprint. It typically includes:
+`validation_bundle_5A` is a **directory-like artefact** that contains all evidence S5 uses to justify its PASS/FAIL verdict for the manifest_fingerprint. It typically includes:
 
 * An **index** file (e.g. `validation_bundle_index_5A.json`), listing bundle members and their digests.
 * One or more **reports**:
@@ -880,10 +880,10 @@ S5 may include additional small evidence files (e.g. per-parameter-pack summarie
 
 **Partitioning**
 
-* The bundle is **fingerprint-scoped only**:
+* The bundle is **manifest_fingerprint-scoped only**:
 
   ```text
-  partition_keys: ["fingerprint"]
+  partition_keys: ["manifest_fingerprint"]
   path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
@@ -928,9 +928,9 @@ Files not listed in the index MUST be ignored for validation purposes.
 
 #### 4.3.1 Semantic role
 
-`_passed.flag` is a **tiny fingerprint-scoped artefact** that encodes a single digest:
+`_passed.flag` is a **tiny manifest_fingerprint-scoped artefact** that encodes a single digest:
 
-* It binds the **current contents of `validation_bundle_5A`** under that fingerprint to a single hash value.
+* It binds the **current contents of `validation_bundle_5A`** under that manifest_fingerprint to a single hash value.
 * Downstream consumers can:
 
   * read `_passed.flag`,
@@ -941,7 +941,7 @@ A verified `_passed.flag` is the **only acceptable indicator** that 5A is “gre
 
 #### 4.3.2 Identity & location
 
-* `_passed.flag` MUST live in the **same fingerprint partition** as the bundle, e.g.:
+* `_passed.flag` MUST live in the **same manifest_fingerprint partition** as the bundle, e.g.:
 
   ```text
   data/layer2/5A/validation/
@@ -951,10 +951,10 @@ A verified `_passed.flag` is the **only acceptable indicator** that 5A is “gre
       _passed.flag
   ```
 
-* `_passed.flag` MUST be fingerprint-only:
+* `_passed.flag` MUST be manifest_fingerprint-only:
 
   ```text
-  partition_keys: ["fingerprint"]
+  partition_keys: ["manifest_fingerprint"]
   ```
 
 * Its contents MUST conform to a small schema anchor (e.g. `schemas.layer2.yaml#/validation/passed_flag_5A`), which at minimum includes:
@@ -1037,7 +1037,7 @@ To emphasise:
 
 They are:
 
-* **fingerprint-scoped**,
+* **manifest_fingerprint-scoped**,
 * **immutable** once published, except in the idempotent case where recomputation yields identical bytes, and
 * the **only** objects that signal “5A is safe to use for this world”.
 
@@ -1103,10 +1103,10 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S5 — 
      * reproduce identical bundle + flag, or
      * no-op if S5 detects they already exist and match.
 
-5. **Binary gate per fingerprint**
+5. **Binary gate per manifest_fingerprint**
 
    * S5’s verdict is binary at the gate level: the world either has a **valid PASS bundle + flag** or it does not.
-   * Internal per-parameter-pack / per-scenario failures MUST be captured in the report, not hidden, but they do not change the gate from “one bundle per fingerprint” to “multiple partial bundles”.
+   * Internal per-parameter-pack / per-scenario failures MUST be captured in the report, not hidden, but they do not change the gate from “one bundle per manifest_fingerprint” to “multiple partial bundles”.
 
 ---
 
@@ -1117,7 +1117,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S5 — 
 **Inputs:**
 
 * `manifest_fingerprint` (run context).
-* `s0_gate_receipt_5A`, `sealed_inputs_5A` for this fingerprint.
+* `s0_gate_receipt_5A`, `sealed_inputs_5A` for this manifest_fingerprint.
 
 **Procedure:**
 
@@ -1206,7 +1206,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S5 — 
 
 **Invariants:**
 
-* S5 MUST be able to discover **all** 5A outputs that exist for this fingerprint via `sealed_inputs_5A` + dictionary/registry.
+* S5 MUST be able to discover **all** 5A outputs that exist for this manifest_fingerprint via `sealed_inputs_5A` + dictionary/registry.
 * S5 MUST NOT infer extra `(parameter_hash, scenario_id)` beyond what sealed inputs indicate.
 
 ---
@@ -1218,7 +1218,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S5 — 
 **Inputs:**
 
 * `RUNS` from Step 2.
-* S1–S4 datasets resolved via dictionary/registry for this fingerprint.
+* S1–S4 datasets resolved via dictionary/registry for this manifest_fingerprint.
 * 5A policies/configs referenced in S1–S4 specs.
 
 **Procedure (conceptual outline):**
@@ -1399,7 +1399,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
    ```json
    {
-     "manifest_fingerprint": "<fingerprint>",
+     "manifest_fingerprint": "<manifest_fingerprint>",
      "segment_id": "5A",
      "s5_spec_version": "<MAJOR.MINOR.PATCH>",
      "generated_utc": "<RFC3339 timestamp>",
@@ -1447,7 +1447,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
    ```json
    {
-     "manifest_fingerprint": "<fingerprint>",
+     "manifest_fingerprint": "<manifest_fingerprint>",
      "bundle_digest_sha256": "<64-char hex>"
    }
    ```
@@ -1462,7 +1462,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
 
 ### 6.8 Step 7 — Atomic write & idempotency
 
-**Goal:** Persist the validation bundle + flag atomically and idempotently for the fingerprint.
+**Goal:** Persist the validation bundle + flag atomically and idempotently for the manifest_fingerprint.
 
 **Inputs:**
 
@@ -1581,7 +1581,7 @@ Binding rules:
 
 #### 7.2.1 Partition keys
 
-All S5 artefacts are **fingerprint-partitioned only**:
+All S5 artefacts are **manifest_fingerprint-partitioned only**:
 
 * `validation_bundle_index_5A`
 * `validation_report_5A`
@@ -1591,7 +1591,7 @@ All S5 artefacts are **fingerprint-partitioned only**:
 Each MUST have:
 
 ```yaml
-partition_keys: ["fingerprint"]
+partition_keys: ["manifest_fingerprint"]
 ```
 
 No S5 artefact MAY be partitioned by `parameter_hash`, `scenario_id`, `seed`, or `run_id`.
@@ -1653,7 +1653,7 @@ For all S5 artefacts:
 For `_passed.flag`:
 
 * If the flag has a JSON structure, it MUST contain `manifest_fingerprint` with the same equality requirement.
-* The JSON object lives solely under `manifest_fingerprint={manifest_fingerprint}` and MUST NOT be copied elsewhere; the manifest fingerprint embedded in the object is binding.
+* The JSON object lives solely under `manifest_fingerprint={manifest_fingerprint}` and MUST NOT be copied elsewhere; the manifest manifest_fingerprint embedded in the object is binding.
 
 Any mismatch between partition token and embedded `manifest_fingerprint` MUST be treated as invalid and MUST be surfaced as a validation inconsistency.
 
@@ -1742,14 +1742,14 @@ Binding rules:
    * Any legitimate change in 5A world state (S1–S4 outputs or policies) MUST lead to:
 
      * a new `manifest_fingerprint` (new world), and
-     * a new S5 run for that new fingerprint,
-       rather than mutating the old fingerprint’s validation artefacts.
+     * a new S5 run for that new manifest_fingerprint,
+       rather than mutating the old manifest_fingerprint’s validation artefacts.
 
 5. **Partial prior state**
 
    * If S5 finds an inconsistent prior state (e.g. bundle index exists but flag missing; or flag exists but index missing/invalid), it MUST:
 
-     * record this as an issue for this fingerprint, and
+     * record this as an issue for this manifest_fingerprint, and
      * follow a governance-defined policy:
 
        * either treat this as a conflict that requires manual cleanup, or
@@ -1761,7 +1761,7 @@ Binding rules:
 
 #### 7.5.1 `parameter_hash` & `scenario_id`
 
-* S5 itself is fingerprint-scoped; its outputs do **not** partition by `parameter_hash` or `scenario_id`.
+* S5 itself is manifest_fingerprint-scoped; its outputs do **not** partition by `parameter_hash` or `scenario_id`.
 * However:
 
   * `validation_report_5A` MUST include lists of all `parameter_hash` and `(parameter_hash, scenario_id)` combinations discovered and validated.
@@ -1792,7 +1792,7 @@ S5’s artefacts MUST align cleanly with both upstream and downstream identity r
 
 2. **Alignment with S1–S4**
 
-   * Any issue referring to `(parameter_hash, scenario_id)` MUST correspond to an actual sealed combination discovered in 5A outputs for this fingerprint.
+   * Any issue referring to `(parameter_hash, scenario_id)` MUST correspond to an actual sealed combination discovered in 5A outputs for this manifest_fingerprint.
    * Any reference to artefacts (by `owner_segment`, `artifact_id`) MUST correspond to entries in `sealed_inputs_5A` and the dictionary.
 
 3. **Alignment with downstream consumers**
@@ -1820,7 +1820,7 @@ All rules here are **binding**.
 For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **all** the following hold:
 
 1. **S5 completed successfully (no internal fatal error)**
-   1.1 The 5A.S5 algorithm (Steps 1–7) ran to completion for this fingerprint without encountering:
+   1.1 The 5A.S5 algorithm (Steps 1–7) ran to completion for this manifest_fingerprint without encountering:
 
    * `S5_IO_READ_FAILED`,
    * `S5_IO_WRITE_FAILED`,
@@ -1833,7 +1833,7 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
 
    * exist for `manifest_fingerprint={manifest_fingerprint}`,
    * are schema-valid,
-   * embed `manifest_fingerprint` equal to this fingerprint,
+   * embed `manifest_fingerprint` equal to this manifest_fingerprint,
    * refer to a non-empty `parameter_hash`.
 
    2.2 Recomputed `sealed_inputs_digest` from `sealed_inputs_5A` matches `s0_gate_receipt_5A.sealed_inputs_digest`.
@@ -1841,7 +1841,7 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
    2.3 All Layer-1 segments 1A–3B in `verified_upstream_segments` have `status="PASS"`.
 
 3. **Per-parameter-pack & per-scenario checks are green**
-   For every discovered `(parameter_hash, scenario_id)` in this fingerprint (i.e. every combination for which S3/S4 outputs exist or are expected):
+   For every discovered `(parameter_hash, scenario_id)` in this manifest_fingerprint (i.e. every combination for which S3/S4 outputs exist or are expected):
 
    3.1 **S1 checks** for `merchant_zone_profile_5A` are acceptable:
 
@@ -1915,7 +1915,7 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
 
    6.3 The `bundle_digest_sha256` (or equivalent `sha256_hex`) stored in `_passed.flag` equals the SHA-256 digest recomputed from all files listed in `validation_bundle_index_5A.entries` in index order.
 
-**If any of these conditions fail, the world MUST NOT be treated as 5A-PASS**, even if a bundle exists; S5 MUST NOT (re)write `_passed.flag` for that fingerprint, or MUST clearly indicate that the existing flag is invalid.
+**If any of these conditions fail, the world MUST NOT be treated as 5A-PASS**, even if a bundle exists; S5 MUST NOT (re)write `_passed.flag` for that manifest_fingerprint, or MUST clearly indicate that the existing flag is invalid.
 
 ---
 
@@ -1931,7 +1931,7 @@ When 5A.S5 detects that one or more checks fail for a `manifest_fingerprint`:
      * a `validation_report_5A` with `overall_status="FAIL"`,
      * issue table(s) describing the problems.
 
-   * S5 MUST **NOT** write (or must remove/mark invalid) `_passed.flag` for this fingerprint.
+   * S5 MUST **NOT** write (or must remove/mark invalid) `_passed.flag` for this manifest_fingerprint.
 
 2. **Visibility of failure**
 
@@ -1956,7 +1956,7 @@ For a given `manifest_fingerprint`:
 
 * Before reading 5A modelling outputs (S1–S4) for **production** use (simulation, decisioning, external-facing evaluation, etc.), a consumer (5B, 6A, others) MUST:
 
-  1. Locate `validation_bundle_index_5A` and `_passed.flag` for that fingerprint via the catalogue.
+  1. Locate `validation_bundle_index_5A` and `_passed.flag` for that manifest_fingerprint via the catalogue.
 
   2. Verify that:
 
@@ -1973,7 +1973,7 @@ For a given `manifest_fingerprint`:
 
 #### 8.3.2 Handling multiple or conflicting flags/bundles
 
-* If more than one `_passed.flag` or multiple conflicting `validation_bundle_index_5A` files are found for the same fingerprint:
+* If more than one `_passed.flag` or multiple conflicting `validation_bundle_index_5A` files are found for the same manifest_fingerprint:
 
   * Consumers MUST treat this as an invalid state.
   * They MUST NOT choose an arbitrary one; instead, they MUST escalate to operators or validation tools.
@@ -1999,12 +1999,12 @@ For a given `manifest_fingerprint`:
 
 * Tools that surface 5A health MUST:
 
-  * read `validation_report_5A` and, if present, `validation_issue_table_5A` for a fingerprint,
+  * read `validation_report_5A` and, if present, `validation_issue_table_5A` for a manifest_fingerprint,
   * show `overall_status` and per-check statuses,
   * distinguish between:
 
-    * “S5 hasn’t been run yet for this fingerprint”, and
-    * “S5 has run and this fingerprint is FAIL”.
+    * “S5 hasn’t been run yet for this manifest_fingerprint”, and
+    * “S5 has run and this manifest_fingerprint is FAIL”.
 
 ---
 
@@ -2080,7 +2080,7 @@ S5 does **not** write a separate “errors dataset”; error reporting is via ru
 | `S5_OUTPUT_CONFLICT`              | FATAL    | Existing bundle/flag differ from recomputed |
 | `S5_INTERNAL_INVARIANT_VIOLATION` | FATAL    | Internal “should never happen” bug          |
 
-All of these codes indicate that **S5 could not reliably create or verify `validation_bundle_5A`/`_passed.flag` for this fingerprint**. They are not used to represent “the world failed validation”; that’s in the bundle report.
+All of these codes indicate that **S5 could not reliably create or verify `validation_bundle_5A`/`_passed.flag` for this manifest_fingerprint**. They are not used to represent “the world failed validation”; that’s in the bundle report.
 
 ---
 
@@ -2094,7 +2094,7 @@ Raised when S5 cannot read required inputs due to I/O or storage problems, for e
 
 * Filesystem or object-store read errors when accessing:
 
-  * `s0_gate_receipt_5A` or `sealed_inputs_5A` for this fingerprint,
+  * `s0_gate_receipt_5A` or `sealed_inputs_5A` for this manifest_fingerprint,
   * 5A outputs `merchant_zone_profile_5A`, `shape_grid_definition_5A`, `class_zone_shape_5A`, `merchant_zone_baseline_local_5A`, `merchant_zone_scenario_local_5A`,
   * required policies/configs needed to interpret contracts,
   * or an existing `validation_bundle_index_5A` / `_passed.flag` during idempotency checking.
@@ -2205,7 +2205,7 @@ Downstream MUST treat such a world as having an invalid 5A PASS state.
 
 **Trigger**
 
-Raised when S5 recomputes the validation bundle for a fingerprint and discovers that:
+Raised when S5 recomputes the validation bundle for a manifest_fingerprint and discovers that:
 
 * A canonical bundle and flag already exist, and
 * The **new** bundle it would build from current inputs is **different** from the existing one, for example:
@@ -2507,7 +2507,7 @@ Recommended metrics (per `manifest_fingerprint` run):
 
 3. **World coverage**
 
-   * `fraudengine_5A_s5_parameter_hash_count` — number of parameter packs discovered for this fingerprint.
+   * `fraudengine_5A_s5_parameter_hash_count` — number of parameter packs discovered for this manifest_fingerprint.
    * `fraudengine_5A_s5_scenario_count` — number of `(parameter_hash, scenario_id)` combinations validated.
 
 4. **Per-state validation status**
@@ -2555,7 +2555,7 @@ Validation & ops tools SHOULD:
 
 * Use S5’s run-report + metrics as the **first-cut view** of 5A health per world, e.g.:
 
-  * list of fingerprints,
+  * list of manifest_fingerprints,
   * their latest S5 run status,
   * `overall_status_5A`,
   * counts of PASS/WARN/FAIL runs.
@@ -2627,7 +2627,7 @@ Then S5 sees:
 
 * **Outputs:**
 
-  * `validation_report_5A`: ~single JSON object per fingerprint.
+  * `validation_report_5A`: ~single JSON object per manifest_fingerprint.
   * `validation_issue_table_5A`: `O(#issues)` rows, typically much smaller than modelling datasets.
   * `validation_bundle_index_5A`: single small JSON object.
   * `_passed.flag`: tiny file.
@@ -2675,7 +2675,7 @@ Because S5 is end-of-pipeline, the expectation is:
 
 **Writes**
 
-* A handful of small files per fingerprint:
+* A handful of small files per manifest_fingerprint:
 
   * `validation_report_5A.json`: O(10–100 KiB).
   * `validation_issue_table_5A.parquet`: O(#issues × (tens of bytes)) — often small-to-moderate.
@@ -3069,8 +3069,8 @@ If S5 is upgraded and run again for a `manifest_fingerprint` that already has a 
 * If S1–S4 outputs / policies changed legitimately:
 
   * they SHOULD have a new `manifest_fingerprint`;
-  * S5 SHOULD be run for the new fingerprint;
-  * old validation artefacts SHOULD remain with the old fingerprint (immutable history).
+  * S5 SHOULD be run for the new manifest_fingerprint;
+  * old validation artefacts SHOULD remain with the old manifest_fingerprint (immutable history).
 
 ---
 
@@ -3091,8 +3091,8 @@ S5 interacts with these as follows:
 
 2. **Parameter-pack changes**
 
-   * New parameter packs (`parameter_hash`) or scenario configs are reflected in S0 and `sealed_inputs_5A` for a fingerprint.
-   * S5 must discover and validate all `(parameter_hash, scenario_id)` under that fingerprint.
+   * New parameter packs (`parameter_hash`) or scenario configs are reflected in S0 and `sealed_inputs_5A` for a manifest_fingerprint.
+   * S5 must discover and validate all `(parameter_hash, scenario_id)` under that manifest_fingerprint.
    * A change in parameter packs for a world does **not** require an S5 spec change, only a new run of S5.
 
 ---
@@ -3119,7 +3119,7 @@ Any change to S5 contracts MUST be governed, versioned, and documented:
      * instructions on:
 
        * whether existing bundles remain valid,
-       * whether re-running S5 is required for existing fingerprints.
+       * whether re-running S5 is required for existing manifest_fingerprints.
 
 3. **Testing**
 
@@ -3193,7 +3193,7 @@ This appendix collects short-hands, symbols, and abbreviations used in the **5A.
 | `validation_issue_table_5A`  | Optional table of individual validation issues with codes, severity, and context.                                                                |
 | `_passed.flag`            | Tiny artefact holding `bundle_digest_sha256` for the corresponding `validation_bundle_5A`.                                                       |
 | `s0_gate_receipt_5A`         | S0 gate receipt (sealed inputs + upstream 1A–3B status) for this world.                                                                          |
-| `sealed_inputs_5A`           | S0 inventory of all artefacts 5A is allowed to read for this fingerprint.                                                                        |
+| `sealed_inputs_5A`           | S0 inventory of all artefacts 5A is allowed to read for this manifest_fingerprint.                                                                        |
 | S1–S4 artefacts              | Shorthand in S5 for 5A modelling outputs being validated (e.g. S1 `merchant_zone_profile_5A`, S2 shapes, S3 baselines, S4 scenario intensities). |
 
 ---

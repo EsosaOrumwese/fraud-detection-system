@@ -329,7 +329,7 @@ Before any work, S4 MUST require a valid S0 gate for the target `manifest_finger
 3. **Identity consistency**
 
    * `s0_gate_receipt_5A.parameter_hash == parameter_hash`.
-   * All `sealed_inputs_5A` rows for this fingerprint have:
+   * All `sealed_inputs_5A` rows for this manifest_fingerprint have:
 
      * `parameter_hash == parameter_hash`, and
      * `manifest_fingerprint == manifest_fingerprint`.
@@ -642,7 +642,7 @@ All of these MUST be discovered via `sealed_inputs_5A` and resolved via dataset 
   * build its list of inputs **only** from rows in `sealed_inputs_5A`, and
   * respect `status` (`"REQUIRED"`, `"OPTIONAL"`), `read_scope` (`"ROW_LEVEL"`, `"METADATA_ONLY"`).
 
-* Any dataset/config not listed in `sealed_inputs_5A` for this fingerprint is **out-of-bounds**, even if it exists in storage.
+* Any dataset/config not listed in `sealed_inputs_5A` for this manifest_fingerprint is **out-of-bounds**, even if it exists in storage.
 
 ---
 
@@ -899,7 +899,7 @@ The following high-level boundaries are **binding**:
 
 1. **Exclusive reliance on `sealed_inputs_5A`**
 
-   * S4 MUST NOT read any dataset/config not present as a row in `sealed_inputs_5A` for this fingerprint.
+   * S4 MUST NOT read any dataset/config not present as a row in `sealed_inputs_5A` for this manifest_fingerprint.
 
 2. **S3 as baseline authority**
 
@@ -1033,7 +1033,7 @@ That implies:
 
 `merchant_zone_scenario_local_5A` is **world + scenario scoped**:
 
-* `partition_keys: ["fingerprint","scenario_id"]`
+* `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 where:
 
@@ -1042,7 +1042,7 @@ where:
 
 **Primary key (logical)**
 
-Within a given `(fingerprint, scenario_id)` partition, the primary key MUST be:
+Within a given `(manifest_fingerprint, scenario_id)` partition, the primary key MUST be:
 
 * If zone is represented as `(legal_country_iso, tzid)`:
 
@@ -1148,7 +1148,7 @@ For a given `(parameter_hash, manifest_fingerprint, scenario_id)` and local hori
 
 Partitioning:
 
-* `partition_keys: ["fingerprint","scenario_id"]`
+* `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 Primary key:
 
@@ -1205,7 +1205,7 @@ For a given `(parameter_hash, manifest_fingerprint, scenario_id)` and a chosen U
 
 Partitioning:
 
-* `partition_keys: ["fingerprint","scenario_id"]`
+* `partition_keys: ["manifest_fingerprint","scenario_id"]`
   (optional additional UTC horizon partition(s), such as `utc_date`, MAY be introduced but then become binding).
 
 Primary key (illustrative if using explicit `(country,tz)`):
@@ -1311,7 +1311,7 @@ S4 produces **modelling datasets only**; it does not produce:
 All S4 outputs:
 
 * are deterministic functions of S3 baselines, S2 grids, scenario/calendar artefacts, overlay policies, `(parameter_hash, manifest_fingerprint, scenario_id)`, and horizon configs;
-* are partitioned by `fingerprint` and `scenario_id`, with `parameter_hash` embedded;
+* are partitioned by `manifest_fingerprint` and `scenario_id`, with `parameter_hash` embedded;
 * are immutable once written, except for idempotent re-runs that produce identical content.
 
 Within this identity model, S4 provides the single, world- and scenario-specific **scenario-intensity surface** that S5 validates and 5B uses to realise concrete arrival processes.
@@ -1334,7 +1334,7 @@ Contracts for the S4 scenario projections are defined in the 5A schema pack/dict
 
 Binding notes:
 
-- Dictionary partition rules (`fingerprint, scenario_id`) and PKs enforce deterministic ordering; S4 must follow them exactly.
+- Dictionary partition rules (`manifest_fingerprint, scenario_id`) and PKs enforce deterministic ordering; S4 must follow them exactly.
 - Schema pack is the only source of truth for columns (local/UTC buckets, overlays, audit fields).
 - Optional UTC surface may be omitted; when present it must be derived deterministically from the local surface and 2A civil-time law.
 - Registry dependencies (S3 baselines, overlay configs, sealed inputs) bound what S4 may read.
@@ -2006,15 +2006,15 @@ All S4 outputs are partitioned by **world + scenario**:
 
 * `merchant_zone_scenario_local_5A`:
 
-  * `partition_keys: ["fingerprint","scenario_id"]`
+  * `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 * `merchant_zone_overlay_factors_5A` (if implemented):
 
-  * `partition_keys: ["fingerprint","scenario_id"]`
+  * `partition_keys: ["manifest_fingerprint","scenario_id"]`
 
 * `merchant_zone_scenario_utc_5A` (if implemented):
 
-  * `partition_keys: ["fingerprint","scenario_id"]`
+  * `partition_keys: ["manifest_fingerprint","scenario_id"]`
   * (Optionally, an additional UTC horizon partition like `utc_date` MAY be introduced and then becomes binding and must be declared in the dictionary; if you do this, it must be treated as part of the partition law.)
 
 No S4 dataset may be partitioned by `parameter_hash`, `seed`, or `run_id`.
@@ -2053,7 +2053,7 @@ For every row in every S4 dataset:
 * Embedded `manifest_fingerprint` MUST:
 
   * be non-null, and
-  * exactly equal the `fingerprint` partition token.
+  * exactly equal the `manifest_fingerprint` partition token.
 
 * Embedded `scenario_id` MUST:
 
@@ -2063,7 +2063,7 @@ For every row in every S4 dataset:
 * Embedded `parameter_hash` MUST:
 
   * be non-null, and
-  * equal the `parameter_hash` recorded in `s0_gate_receipt_5A` for this fingerprint.
+  * equal the `parameter_hash` recorded in `s0_gate_receipt_5A` for this manifest_fingerprint.
 
 Any mismatch between:
 
@@ -2129,7 +2129,7 @@ Primary keys for S4 datasets are **binding**.
 Constraints (for all PKs):
 
 * All PK fields MUST be required and non-null.
-* No duplicate PK tuples are allowed within a `(fingerprint, scenario_id)` partition.
+* No duplicate PK tuples are allowed within a `(manifest_fingerprint, scenario_id)` partition.
 
 #### 7.3.2 Logical ordering
 
@@ -2371,7 +2371,7 @@ Let:
 
      * exists under `manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`,
      * validates against `#/model/merchant_zone_scenario_local_5A`,
-     * declares `partition_keys: ["fingerprint","scenario_id"]`,
+     * declares `partition_keys: ["manifest_fingerprint","scenario_id"]`,
      * declares a PK consistent with §5/§7.
 
 9. **Identity consistency**
@@ -3648,7 +3648,7 @@ The following changes are **backwards-incompatible** and MUST be accompanied by:
 Incompatible:
 
 * Changing `primary_key` definitions for any S4 dataset (e.g. dropping `local_horizon_bucket_index`, changing zone representation without new fields, adding/removing `channel` from the PK).
-* Changing `partition_keys` (e.g. from `["fingerprint","scenario_id"]` to `["parameter_hash","scenario_id"]`).
+* Changing `partition_keys` (e.g. from `["manifest_fingerprint","scenario_id"]` to `["parameter_hash","scenario_id"]`).
 
 Such changes break join and identity assumptions for downstream consumers.
 
@@ -3893,7 +3893,7 @@ This appendix collects short-hands, symbols, and abbreviations used in the **5A.
 
 | Field name                   | Meaning                                                                                            |
 | ---------------------------- | -------------------------------------------------------------------------------------------------- |
-| `manifest_fingerprint`       | World identity; MUST match `fingerprint` partition token.                                          |
+| `manifest_fingerprint`       | World identity; MUST match `manifest_fingerprint` partition token.                                          |
 | `parameter_hash`             | Parameter pack identity; same as in S0/S1/S2/S3 for this run.                                      |
 | `scenario_id`                | Scenario identifier; MUST match partition token.                                                   |
 | `merchant_id`                | Merchant key.                                                                                      |

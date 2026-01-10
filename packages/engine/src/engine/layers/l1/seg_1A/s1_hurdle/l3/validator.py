@@ -55,6 +55,8 @@ def validate_hurdle_run(
     events_path = (
         base_path
         / "logs"
+        / "layer1"
+        / "1A"
         / "rng"
         / "events"
         / HURDLE_SUBSTREAM_LABEL
@@ -66,6 +68,8 @@ def validate_hurdle_run(
     trace_path = (
         base_path
         / "logs"
+        / "layer1"
+        / "1A"
         / "rng"
         / "trace"
         / f"seed={seed}"

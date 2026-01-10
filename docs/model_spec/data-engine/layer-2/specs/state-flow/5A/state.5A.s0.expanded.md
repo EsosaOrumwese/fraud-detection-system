@@ -14,14 +14,14 @@ For a given `(parameter_hash, manifest_fingerprint)` it:
   Confirms that all required Layer-1 segments (1A–3B) have successfully completed and published their own validation bundles and `_passed.flag` artefacts for the same `manifest_fingerprint`.
 
 * **Pins the 5A input universe**
-  Resolves and records the **exact set of artefacts** that 5A is allowed to read for this fingerprint, across:
+  Resolves and records the **exact set of artefacts** that 5A is allowed to read for this manifest_fingerprint, across:
 
   * upstream Layer-1 outputs (e.g. merchant catalogue and world surfaces),
   * Layer-1 / engine-wide reference data,
   * Layer-2–wide configuration and policy packs (scenario calendar, classing rules, shape library configs, etc.).
 
 * **Emits control-plane datasets**
-  Produces small, fingerprint-scoped control datasets that downstream 5A states use as their *only* authority for:
+  Produces small, manifest_fingerprint-scoped control datasets that downstream 5A states use as their *only* authority for:
 
   * which upstream segments are considered valid for this run, and
   * which artefacts are in-scope for 5A (and under which schema/version/digest).
@@ -34,8 +34,9 @@ For a given `(parameter_hash, manifest_fingerprint)` it:
 
 * **Establish a clear trust boundary** for 5A by:
 
-  * enforcing **“No upstream PASS → No 5A read”** for the set of required Layer-1 segments; and
+  * enforcing **"No upstream PASS -> No 5A read"** for the set of required Layer-1 segments; and
   * refusing to proceed if any required upstream validation bundle or `_passed.flag` is missing, inconsistent, or invalid.
+  * S0 MAY complete while recording FAIL/MISSING upstream statuses, but S1+ MUST NOT run unless all required upstream segments are recorded as PASS.
 
 * **Define a sealed input universe** for 5A by:
 
@@ -76,7 +77,7 @@ The following activities are **in scope** for 5A.S0 and MUST be handled by this 
   * determine which of those belong to the current `parameter_hash` and `manifest_fingerprint`.
 
 * **Sealed inventory construction**
-  Constructing `sealed_inputs_5A` as a fingerprint-scoped inventory of all artefacts that 5A.S1+ MAY read, including:
+  Constructing `sealed_inputs_5A` as a manifest_fingerprint-scoped inventory of all artefacts that 5A.S1+ MAY read, including:
 
   * upstream egresses and references (e.g. merchant catalogue, zone allocation, civil-time surfaces),
   * scenario/calendar configs,
@@ -86,7 +87,7 @@ The following activities are **in scope** for 5A.S0 and MUST be handled by this 
   Constructing `s0_gate_receipt_5A` as a compact, schema-governed object that:
 
   * records which upstream segments were verified and at which catalog versions,
-  * records which scenario ID(s) and parameter pack(s) are bound to this fingerprint,
+  * records which scenario ID(s) and parameter pack(s) are bound to this manifest_fingerprint,
   * links to the corresponding `sealed_inputs_5A` inventory.
 
 ### 1.4 Out-of-scope behaviour
@@ -126,7 +127,7 @@ This specification sets the following obligations on downstream 5A states (to be
 * Any state **5A.S1 or later MUST**:
 
   * check for a valid `s0_gate_receipt_5A` for the target `manifest_fingerprint` before reading any upstream artefacts; and
-  * restrict itself to artefacts listed in `sealed_inputs_5A` for that fingerprint.
+  * restrict itself to artefacts listed in `sealed_inputs_5A` for that manifest_fingerprint.
 
 * If `s0_gate_receipt_5A` or `sealed_inputs_5A` is missing, invalid, or inconsistent for a given `(parameter_hash, manifest_fingerprint)`, later 5A states MUST treat this as a **hard precondition failure** and MUST NOT attempt to infer or widen their input universe.
 
@@ -332,7 +333,7 @@ If any required scenario or 5A policy artefact cannot be resolved for the given 
 
 Finally, the following environmental assumptions are binding for S0:
 
-* For a given `(parameter_hash, manifest_fingerprint)`, there MUST be at most **one active writer** of `s0_gate_receipt_5A` and `sealed_inputs_5A`. Concurrent writers against the same fingerprint are undefined behaviour and MUST be prevented by the surrounding orchestration layer.
+* For a given `(parameter_hash, manifest_fingerprint)`, there MUST be at most **one active writer** of `s0_gate_receipt_5A` and `sealed_inputs_5A`. Concurrent writers against the same manifest_fingerprint are undefined behaviour and MUST be prevented by the surrounding orchestration layer.
 
 * If `s0_gate_receipt_5A` and `sealed_inputs_5A` already exist for a `(parameter_hash, manifest_fingerprint)` and their contents are byte-for-byte identical to what S0 would produce, re-running S0 MAY no-op; otherwise, any attempt to overwrite MUST be treated as a configuration error.
 
@@ -424,7 +425,7 @@ The primary *data* inputs to 5A.S0 are the **validation artefacts** of upstream 
 * For each of: **1A, 1B, 2A, 2B, 3A, 3B**:
 
   * `validation_bundle_*` (directory containing `index.json` and evidence files).
-  * `_passed.flag` (fingerprint-scoped flag carrying the bundle hash).
+  * `_passed.flag` (manifest_fingerprint-scoped flag carrying the bundle hash).
 
 5A.S0 MUST:
 
@@ -592,7 +593,7 @@ Within these boundaries, 5A.S0 has a precise, catalogue-driven view of what it m
 
 This section defines the **control-plane outputs** of 5A.S0 and the identity rules that govern them. These requirements are **binding**.
 
-5A.S0 produces **no fact tables and no intensity surfaces**. Its outputs are small, fingerprint-scoped control datasets that:
+5A.S0 produces **no fact tables and no intensity surfaces**. Its outputs are small, manifest_fingerprint-scoped control datasets that:
 
 * define the **closed world** for Segment 5A, and
 * are the **only** authority later 5A states may use to decide what inputs are in-bounds.
@@ -605,7 +606,7 @@ This section defines the **control-plane outputs** of 5A.S0 and the identity rul
 
 1. **`s0_gate_receipt_5A`**
 
-   * A single-row, fingerprint-scoped “receipt” describing:
+   * A single-row, manifest_fingerprint-scoped “receipt” describing:
 
      * the run identity (`parameter_hash`, `manifest_fingerprint`, `run_id`),
      * upstream validation status for 1A–3B,
@@ -614,7 +615,7 @@ This section defines the **control-plane outputs** of 5A.S0 and the identity rul
 
 2. **`sealed_inputs_5A`**
 
-   * A fingerprint-scoped inventory table containing **one row per artefact** that 5A is permitted to read, including:
+   * A manifest_fingerprint-scoped inventory table containing **one row per artefact** that 5A is permitted to read, including:
 
      * upstream Layer-1 datasets (facts and references),
      * Layer-1 and Layer-2 contracts (schemas, dictionaries, registries),
@@ -624,7 +625,7 @@ Optionally, 5A.S0 MAY also produce:
 
 3. **`scenario_manifest_5A`** *(optional, but if present, MUST be spec’d)*
 
-   * A fingerprint-scoped, compact descriptor of the scenario(s) active for this run (e.g. IDs, horizon, key tags) derived from the sealed scenario configs.
+   * A manifest_fingerprint-scoped, compact descriptor of the scenario(s) active for this run (e.g. IDs, horizon, key tags) derived from the sealed scenario configs.
 
 If `scenario_manifest_5A` is not materialised as a separate dataset, its contents MUST still be representable within `s0_gate_receipt_5A`.
 
@@ -634,7 +635,7 @@ If `scenario_manifest_5A` is not materialised as a separate dataset, its content
 
 **Role**
 
-` s0_gate_receipt_5A` is a compact, fingerprint-scoped receipt that:
+` s0_gate_receipt_5A` is a compact, manifest_fingerprint-scoped receipt that:
 
 * binds the run identity to the set of upstream segments that were verified,
 * records which scenario and parameter pack are in force, and
@@ -684,7 +685,7 @@ At minimum, each row in `s0_gate_receipt_5A` MUST contain:
   * For each `manifest_fingerprint`, there MUST be **exactly one logical row**.
     A composite key such as `(manifest_fingerprint)` or `(manifest_fingerprint, parameter_hash)` MAY be used; in either case, the pair `(manifest_fingerprint, parameter_hash)` MUST be unique.
 
-5A.S1+ MUST treat the presence of exactly one valid `s0_gate_receipt_5A` row for a fingerprint as the **precondition** for proceeding.
+5A.S1+ MUST treat the presence of exactly one valid `s0_gate_receipt_5A` row for a manifest_fingerprint as the **precondition** for proceeding.
 
 ---
 
@@ -692,13 +693,13 @@ At minimum, each row in `s0_gate_receipt_5A` MUST contain:
 
 **Role**
 
-`sealed_inputs_5A` is the authoritative **inventory** of all artefacts that Segment 5A is allowed to read for a given fingerprint. It defines the **exact closed world** in which all later 5A states operate.
+`sealed_inputs_5A` is the authoritative **inventory** of all artefacts that Segment 5A is allowed to read for a given manifest_fingerprint. It defines the **exact closed world** in which all later 5A states operate.
 
 **Content (at a high level)**
 
 Each row in `sealed_inputs_5A` MUST represent one logical artefact and MUST include at least:
 
-* Run / fingerprint binding:
+* Run / manifest_fingerprint binding:
 
   * `manifest_fingerprint`
   * `parameter_hash`
@@ -719,7 +720,7 @@ Each row in `sealed_inputs_5A` MUST represent one logical artefact and MUST incl
 
 * Integrity:
 
-  * `sha256_hex` or equivalent digest for this artefact at this fingerprint
+  * `sha256_hex` or equivalent digest for this artefact at this manifest_fingerprint
   * `version` / `semver` (if managed separately from `parameter_hash`)
   * `source_dictionary` / `source_registry` (which dictionary/registry defined it)
 
@@ -747,7 +748,7 @@ Each row in `sealed_inputs_5A` MUST represent one logical artefact and MUST incl
 
   * Writers SHOULD produce rows in a deterministic order (e.g. lexicographically by `(owner_segment, artifact_id, role)`), but consumers MUST NOT rely on physical ordering; the PK/unique constraint is the only binding ordering rule.
 
-Later 5A states MUST treat the set of rows in `sealed_inputs_5A` for a fingerprint as the **complete and exclusive set** of artefacts they may read.
+Later 5A states MUST treat the set of rows in `sealed_inputs_5A` for a manifest_fingerprint as the **complete and exclusive set** of artefacts they may read.
 
 ---
 
@@ -757,7 +758,7 @@ If implemented, `scenario_manifest_5A` is a convenience projection of the scenar
 
 **Role**
 
-* Provide a small, fingerprint-scoped record of:
+* Provide a small, manifest_fingerprint-scoped record of:
 
   * `scenario_id`, `scenario_version`, `horizon_start_utc`, `horizon_end_utc`
   * high-level flags (e.g. `is_baseline`, `is_stress`, `has_black_friday_window`)
@@ -785,16 +786,16 @@ The following identity relationships are binding:
    * Every row in `s0_gate_receipt_5A`, `sealed_inputs_5A`, and (if present) `scenario_manifest_5A` MUST embed a `manifest_fingerprint` value that:
 
      * exactly matches the partition token `manifest_fingerprint={manifest_fingerprint}`; and
-     * matches the fingerprint used to locate upstream validation bundles for 1A–3B.
+     * matches the manifest_fingerprint used to locate upstream validation bundles for 1A–3B.
 
 2. **Parameter-hash consistency**
 
-   * For a given fingerprint, all rows in `sealed_inputs_5A` MUST agree on `parameter_hash` and it MUST equal the `parameter_hash` recorded in `s0_gate_receipt_5A`.
-   * If multiple parameter packs are theoretically visible to the engine, 5A.S0 MUST select exactly one `parameter_hash` per fingerprint and record that choice here.
+   * For a given manifest_fingerprint, all rows in `sealed_inputs_5A` MUST agree on `parameter_hash` and it MUST equal the `parameter_hash` recorded in `s0_gate_receipt_5A`.
+   * If multiple parameter packs are theoretically visible to the engine, 5A.S0 MUST select exactly one `parameter_hash` per manifest_fingerprint and record that choice here.
 
 3. **Digest linkage**
 
-   * If `s0_gate_receipt_5A` exposes a field such as `sealed_inputs_digest`, it MUST be a deterministic hash of the `sealed_inputs_5A` contents for that fingerprint (using the hashing law defined later in the spec).
+   * If `s0_gate_receipt_5A` exposes a field such as `sealed_inputs_digest`, it MUST be a deterministic hash of the `sealed_inputs_5A` contents for that manifest_fingerprint (using the hashing law defined later in the spec).
    * Any consumer that wishes to ensure catalogue stability MAY recompute this digest from `sealed_inputs_5A` and compare it to the value in `s0_gate_receipt_5A`.
 
 4. **Upstream PASS linkage**
@@ -803,7 +804,7 @@ The following identity relationships are binding:
    * Rows in `sealed_inputs_5A` that refer to upstream fact/egress datasets MUST only be present if:
 
      * the corresponding upstream segment’s status in `s0_gate_receipt_5A` is `"PASS"`; and
-     * the artefact’s digest matches what the upstream segment’s registry/dictionary declares for this fingerprint.
+     * the artefact’s digest matches what the upstream segment’s registry/dictionary declares for this manifest_fingerprint.
 
 Putting these together, a downstream consumer can:
 
@@ -827,8 +828,8 @@ The outputs of 5A.S0 participate in, but do not themselves constitute, the **seg
 
 * 5A.S1+ MUST treat:
 
-  * the existence of a valid `s0_gate_receipt_5A` row for a fingerprint, and
-  * a non-empty, schema-valid `sealed_inputs_5A` for the same fingerprint
+  * the existence of a valid `s0_gate_receipt_5A` row for a manifest_fingerprint, and
+  * a non-empty, schema-valid `sealed_inputs_5A` for the same manifest_fingerprint
 
   as **necessary preconditions** for any further computation in Segment 5A.
 
@@ -1026,10 +1027,10 @@ This map will be embedded into `s0_gate_receipt_5A` in Step 6.
 3. For each such artefact:
 
    * Resolve its `schema_ref`, `path_template`, `partition_keys`, and logical ID (`artifact_id`, `manifest_key`).
-   * Determine if it is parameter-scoped or fingerprint-scoped:
+   * Determine if it is parameter-scoped or manifest_fingerprint-scoped:
 
      * If the path template contains `parameter_hash={parameter_hash}`, treat it as parameter-scoped.
-     * If it contains `manifest_fingerprint={manifest_fingerprint}`, treat it as fingerprint-scoped.
+     * If it contains `manifest_fingerprint={manifest_fingerprint}`, treat it as manifest_fingerprint-scoped.
    * For parameter-scoped artefacts:
 
      * Ensure the resolved entry’s `parameter_hash` matches the run’s `parameter_hash`.
@@ -1055,7 +1056,7 @@ The result is a superset of all artefacts that might end up in `sealed_inputs_5A
 
 ### 6.5 Step 4 — Construct `sealed_inputs_5A` rows
 
-**Goal:** Turn the `CANDIDATES` list into a concrete, fingerprint-scoped inventory with digests and roles.
+**Goal:** Turn the `CANDIDATES` list into a concrete, manifest_fingerprint-scoped inventory with digests and roles.
 
 **Inputs:**
 
@@ -1089,7 +1090,7 @@ For each `candidate` in `CANDIDATES`:
      * Resolve the directory for the relevant partition(s) (commonly just `manifest_fingerprint={manifest_fingerprint}` and, for parameter-scoped, also `parameter_hash={parameter_hash}`).
    * Compute or read the integrity digest:
 
-     * If the registry already provides a `sha256_hex` for this artefact and fingerprint, use that.
+     * If the registry already provides a `sha256_hex` for this artefact and manifest_fingerprint, use that.
      * Otherwise, compute `sha256_hex` over the artefact content according to its spec (e.g. over file bytes, or over an index file if that’s the declared convention).
 
 3. **Assign role and read_scope**
@@ -1127,7 +1128,7 @@ After all candidates are processed:
 
 ### 6.6 Step 5 — Compute `sealed_inputs_digest`
 
-**Goal:** Derive a stable digest summarising the sealed input universe for this fingerprint.
+**Goal:** Derive a stable digest summarising the sealed input universe for this manifest_fingerprint.
 
 **Inputs:**
 
@@ -1303,7 +1304,7 @@ There are two distinct identity layers to keep straight:
 
 * **Dataset identity** (storage-level, persistent):
 
-  * For `s0_gate_receipt_5A` and `sealed_inputs_5A`, **dataset identity is keyed only by `manifest_fingerprint`**; these datasets represent “the sealed world for this fingerprint”, not “this run”.
+  * For `s0_gate_receipt_5A` and `sealed_inputs_5A`, **dataset identity is keyed only by `manifest_fingerprint`**; these datasets represent “the sealed world for this manifest_fingerprint”, not “this run”.
 
 Binding rules:
 
@@ -1321,23 +1322,23 @@ Binding rules:
 
 #### 7.2.1 Partitioning for 5A.S0 outputs
 
-Both control datasets are **fingerprint-partitioned only**:
+Both control datasets are **manifest_fingerprint-partitioned only**:
 
 * `s0_gate_receipt_5A`:
 
-  * `partition_keys: ["fingerprint"]`
+  * `partition_keys: ["manifest_fingerprint"]`
   * Path template:
     `data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json`
 
 * `sealed_inputs_5A`:
 
-  * `partition_keys: ["fingerprint"]`
+  * `partition_keys: ["manifest_fingerprint"]`
   * Path template:
     `data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json`
 
 If `scenario_manifest_5A` is implemented:
 
-* `partition_keys: ["fingerprint"]`
+* `partition_keys: ["manifest_fingerprint"]`
 * Path template:
   `data/layer2/5A/scenario_manifest/manifest_fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet`
 
@@ -1353,7 +1354,7 @@ For every row in every 5A.S0 output:
 * The embedded `parameter_hash` (where present):
 
   * MUST equal the `parameter_hash` in the run context, and
-  * MUST be consistent across all rows in `sealed_inputs_5A` for a given fingerprint.
+  * MUST be consistent across all rows in `sealed_inputs_5A` for a given manifest_fingerprint.
 
 An implementation MUST treat any mismatch between:
 
@@ -1401,7 +1402,7 @@ Consumers MUST NOT rely on any particular physical ordering beyond what is baked
 
 ### 7.4 Merge discipline & rewrite semantics
 
-5A.S0 is designed as a **single-writer, no-merge** control state per fingerprint.
+5A.S0 is designed as a **single-writer, no-merge** control state per manifest_fingerprint.
 
 Binding rules:
 
@@ -1412,28 +1413,28 @@ Binding rules:
      * append to an existing `sealed_inputs_5A` inventory,
      * partially overwrite rows, or
      * perform any row-level “merge” operation.
-   * The inventory for a fingerprint is conceptually **atomic**: it either exists and is final, or does not exist.
+   * The inventory for a manifest_fingerprint is conceptually **atomic**: it either exists and is final, or does not exist.
 
 2. **Idempotent re-runs are allowed**
 
-   * If `s0_gate_receipt_5A` and `sealed_inputs_5A` already exist for a fingerprint, and 5A.S0 recomputes identical content (same rows, same serialisation, same `sealed_inputs_digest`), then:
+   * If `s0_gate_receipt_5A` and `sealed_inputs_5A` already exist for a manifest_fingerprint, and 5A.S0 recomputes identical content (same rows, same serialisation, same `sealed_inputs_digest`), then:
 
      * S0 MAY treat this as a no-op and return successfully without changing storage.
      * This is the **only** allowed “rewrite”.
 
 3. **Conflicting rewrites are forbidden**
 
-   * If existing outputs for a fingerprint differ in any way from what S0 would produce (different rows, digests, upstream statuses, scenario IDs, etc.), S0 MUST:
+   * If existing outputs for a manifest_fingerprint differ in any way from what S0 would produce (different rows, digests, upstream statuses, scenario IDs, etc.), S0 MUST:
 
      * fail with a canonical error (e.g. `S0_OUTPUT_CONFLICT`), and
      * MUST NOT attempt to overwrite or merge the existing outputs.
 
-   * Any change to the sealed input universe or upstream state that should be visible to 5A MUST result in a **new `manifest_fingerprint`** and, therefore, a new fingerprint partition, not a mutation under the same fingerprint.
+   * Any change to the sealed input universe or upstream state that should be visible to 5A MUST result in a **new `manifest_fingerprint`** and, therefore, a new manifest_fingerprint partition, not a mutation under the same manifest_fingerprint.
 
-4. **No cross-fingerprint merging**
+4. **No cross-manifest_fingerprint merging**
 
-   * S0 MUST NOT aggregate or merge sealed inputs across different fingerprints.
-   * Each fingerprint partition’s `sealed_inputs_5A` and `s0_gate_receipt_5A` are **self-contained**; cross-fingerprint relationships (e.g. “same parameter pack, different scenario”) are the engine’s concern, not S0’s.
+   * S0 MUST NOT aggregate or merge sealed inputs across different manifest_fingerprints.
+   * Each manifest_fingerprint partition’s `sealed_inputs_5A` and `s0_gate_receipt_5A` are **self-contained**; cross-manifest_fingerprint relationships (e.g. “same parameter pack, different scenario”) are the engine’s concern, not S0’s.
 
 ---
 
@@ -1473,7 +1474,7 @@ Finally, 5A.S0 outputs MUST align with upstream identity in the following ways:
 
   * `(manifest_fingerprint, owner_segment, artifact_id, schema_ref, sha256_hex)`
 
-  MUST match what that segment’s artefact registry and dataset dictionary declare for this fingerprint.
+  MUST match what that segment’s artefact registry and dataset dictionary declare for this manifest_fingerprint.
 
 * `s0_gate_receipt_5A.verified_upstream_segments[seg].bundle_sha256_hex` and `.flag_sha256_hex` MUST match the digests computed in Step 2 of the algorithm, and those in turn MUST match the upstream segment’s own bundle/flag.
 
@@ -1481,7 +1482,7 @@ Any mismatch indicates catalogue drift or corruption and MUST be treated as a co
 
 ---
 
-Within these constraints, 5A.S0’s identity, partitions, ordering and merge discipline are fully specified: there is a single, immutable sealed inventory and gate receipt per fingerprint, with deterministic hashing and no cross-run or cross-fingerprint blending.
+Within these constraints, 5A.S0’s identity, partitions, ordering and merge discipline are fully specified: there is a single, immutable sealed inventory and gate receipt per manifest_fingerprint, with deterministic hashing and no cross-run or cross-manifest_fingerprint blending.
 
 ---
 
@@ -1505,12 +1506,12 @@ This section defines **when 5A.S0 itself is considered green**, and the **gating
    * A single `s0_gate_receipt_5A` row exists in the expected partition:
      `manifest_fingerprint={manifest_fingerprint}`
      and conforms to `schemas.5A.yaml#/validation/s0_gate_receipt_5A`.
-   * A `sealed_inputs_5A` dataset exists in the same fingerprint partition, conforms to `schemas.5A.yaml#/validation/sealed_inputs_5A`, and satisfies its primary-key and non-null constraints.
+   * A `sealed_inputs_5A` dataset exists in the same manifest_fingerprint partition, conforms to `schemas.5A.yaml#/validation/sealed_inputs_5A`, and satisfies its primary-key and non-null constraints.
 
 3. **Identity invariants hold**
 
    * Embedded `manifest_fingerprint` values in **all** rows equal the partition token `manifest_fingerprint={manifest_fingerprint}`.
-   * Embedded `parameter_hash` values in `sealed_inputs_5A` equal the run context `parameter_hash` and are constant for this fingerprint.
+   * Embedded `parameter_hash` values in `sealed_inputs_5A` equal the run context `parameter_hash` and are constant for this manifest_fingerprint.
    * `s0_gate_receipt_5A.parameter_hash` equals the same `parameter_hash`.
 
 4. **Sealed-input digest is consistent**
@@ -1542,7 +1543,7 @@ If any of these criteria fail, 5A.S0 MUST:
 
 ### 8.2 Minimal content requirements for `sealed_inputs_5A`
 
-Even if the general conditions above are satisfied, 5A.S0 MUST additionally enforce **content minima** for `sealed_inputs_5A`. For a given fingerprint, the inventory MUST include:
+Even if the general conditions above are satisfied, 5A.S0 MUST additionally enforce **content minima** for `sealed_inputs_5A`. For a given manifest_fingerprint, the inventory MUST include:
 
 1. **Scenario artefacts**
 
@@ -1570,7 +1571,7 @@ Even if the general conditions above are satisfied, 5A.S0 MUST additionally enfo
 
 The exact list is defined in the 5A dataset dictionary and artefact registry via `consumed_by: ["5A"]` and `status: "required"`.
 
-If **any** required artefact is missing from `sealed_inputs_5A` for a fingerprint, 5A.S0 MUST treat this as a failure and MUST NOT mark the state as successful for that fingerprint.
+If **any** required artefact is missing from `sealed_inputs_5A` for a manifest_fingerprint, 5A.S0 MUST treat this as a failure and MUST NOT mark the state as successful for that manifest_fingerprint.
 
 ---
 
@@ -1621,7 +1622,7 @@ Any later state in Segment 5A (S1, S2, S3, S4, and the eventual 5A validation st
 
 2. **Restrict input universe to `sealed_inputs_5A`**
 
-   * A 5A state MUST only read artefacts that appear as rows in `sealed_inputs_5A` for this fingerprint.
+   * A 5A state MUST only read artefacts that appear as rows in `sealed_inputs_5A` for this manifest_fingerprint.
    * If an artefact is not listed, it MUST be treated as out-of-bounds, even if it is physically present in storage.
    * A 5A state MUST respect the `read_scope` value:
 
@@ -1646,14 +1647,14 @@ Any later state in Segment 5A (S1, S2, S3, S4, and the eventual 5A validation st
 
      * `s0_gate_receipt_5A`, or
      * `sealed_inputs_5A`
-       for any fingerprint.
+       for any manifest_fingerprint.
    * These datasets are considered **sealed** once S0 has successfully committed them.
 
 ---
 
 ### 8.5 When 5A.S0 MUST fail (non-acceptance conditions)
 
-Regardless of catalogue state, 5A.S0 MUST treat the state as **failed** (non-accepted) for a fingerprint, and MUST NOT publish its outputs, if any of the following occur:
+Regardless of catalogue state, 5A.S0 MUST treat the state as **failed** (non-accepted) for a manifest_fingerprint, and MUST NOT publish its outputs, if any of the following occur:
 
 1. **Missing or inconsistent run identity**
 
@@ -1663,7 +1664,7 @@ Regardless of catalogue state, 5A.S0 MUST treat the state as **failed** (non-acc
 
    * Required schema anchors or dictionary/registry entries for 1A–3B or 5A cannot be resolved;
    * `schema_ref` in dictionary/registry does not point to a valid anchor;
-   * path templates are malformed or missing required tokens (`fingerprint`).
+   * path templates are malformed or missing required tokens (`manifest_fingerprint`).
 
 3. **Required 5A policies or scenario configs unresolved**
 
@@ -1675,7 +1676,7 @@ Regardless of catalogue state, 5A.S0 MUST treat the state as **failed** (non-acc
 
 5. **Output conflict**
 
-   * An existing `s0_gate_receipt_5A` / `sealed_inputs_5A` for this fingerprint exists and:
+   * An existing `s0_gate_receipt_5A` / `sealed_inputs_5A` for this manifest_fingerprint exists and:
 
      * differs from what S0 would produce (in any field or row), and
      * is not byte-identical under the canonical serialisation.
@@ -1794,7 +1795,7 @@ Raised when 5A.S0 cannot resolve required contracts from schema/dictionary/regis
 * One or more dataset dictionaries for 1A–3B or 5A are missing or invalid.
 * One or more artefact registries for 1A–3B or 5A are missing or invalid.
 
-This is **about contracts themselves**, not about specific artefacts for the current fingerprint.
+This is **about contracts themselves**, not about specific artefacts for the current manifest_fingerprint.
 
 **Effect**
 
@@ -1836,7 +1837,7 @@ Typically detected while building `CANDIDATES` or when trying to include scenari
 
 **Effect**
 
-* S0 MUST abort; it cannot bind this fingerprint to a well-defined scenario.
+* S0 MUST abort; it cannot bind this manifest_fingerprint to a well-defined scenario.
 * No S0 outputs MAY be written.
 * Downstream 5A states MUST NOT attempt to run; operator must fix scenario configuration.
 
@@ -1924,7 +1925,7 @@ This includes cases where:
 * Operator must:
 
   * either correct/replace the offending outputs manually and re-run, or
-  * recompute a new fingerprint for the changed manifest and rerun S0 under that new fingerprint.
+  * recompute a new manifest_fingerprint for the changed manifest and rerun S0 under that new manifest_fingerprint.
 
 This code enforces the **no-merge, no-rewrite** discipline under §7.4.
 
@@ -2228,7 +2229,7 @@ The eventual 5A segment-level validation state (e.g. `5A.SX_validation`) MUST:
 
 Operational dashboards SHOULD be able to answer, using S0’s observability signals:
 
-* For a given fingerprint:
+* For a given manifest_fingerprint:
 
   * Has 5A.S0 run?
   * Did it succeed?
@@ -2290,7 +2291,7 @@ In a healthy deployment, S0 should be **much cheaper** than any data-heavy state
 
 * `s0_gate_receipt_5A`:
 
-  * Single JSON object per fingerprint; typically <<10 KiB.
+  * Single JSON object per manifest_fingerprint; typically <<10 KiB.
 
 * `sealed_inputs_5A`:
 
@@ -2303,7 +2304,7 @@ S0 is therefore **latency-sensitive**, but not throughput-limited by data volume
 
 ### 11.3 Complexity bounds
 
-For a given **fingerprint** and **parameter pack**, the steady-state complexity is:
+For a given **manifest_fingerprint** and **parameter pack**, the steady-state complexity is:
 
 * Let:
 
@@ -2332,7 +2333,7 @@ Then:
 
   * O(`N_artifacts`) to serialise and hash; dominated by hashing speed, not row count.
 
-Overall, for a single fingerprint:
+Overall, for a single manifest_fingerprint:
 
 > **Time complexity** ≈ O(`N_artifacts + N_files_bundle`)
 > **Space complexity** ≈ O(`N_artifacts`) in memory.
@@ -2353,7 +2354,7 @@ Both are small under reasonable constraints on the catalogue/manifest.
 
 **Writes**
 
-* Two small, sequential writes per fingerprint:
+* Two small, sequential writes per manifest_fingerprint:
 
   * `sealed_inputs_5A` (single JSON file).
   * `s0_gate_receipt_5A` (single JSON file).
@@ -2370,14 +2371,14 @@ Both are small under reasonable constraints on the catalogue/manifest.
 
 * **Shared storage saturation**:
 
-  * If many fingerprints/runs run S0 concurrently, they will all read the same upstream bundles and contracts, potentially hitting shared storage.
+  * If many manifest_fingerprints/runs run S0 concurrently, they will all read the same upstream bundles and contracts, potentially hitting shared storage.
   * Caching—at the engine runtime or storage layer—can mitigate this.
 
 ---
 
 ### 11.5 Parallelisation & scheduling
 
-5A.S0 is naturally **embarrassingly parallel** across fingerprints:
+5A.S0 is naturally **embarrassingly parallel** across manifest_fingerprints:
 
 * For distinct `(parameter_hash, manifest_fingerprint)` pairs:
 
@@ -2386,22 +2387,22 @@ Both are small under reasonable constraints on the catalogue/manifest.
 
 Recommended practices:
 
-* **Per-fingerprint isolation**:
+* **Per-manifest_fingerprint isolation**:
 
-  * Schedule one S0 instance per fingerprint in parallel, subject to I/O constraints.
-  * Use single-writer semantics per fingerprint to avoid `S0_OUTPUT_CONFLICT`.
+  * Schedule one S0 instance per manifest_fingerprint in parallel, subject to I/O constraints.
+  * Use single-writer semantics per manifest_fingerprint to avoid `S0_OUTPUT_CONFLICT`.
 
 * **Warm-up / caching**:
 
   * Load schemas/dictionaries/registries into a shared cache at process startup to avoid re-parsing them per run.
-  * Consider caching upstream bundle indices (`index.json`) across runs for the same fingerprint.
+  * Consider caching upstream bundle indices (`index.json`) across runs for the same manifest_fingerprint.
 
 * **Batching**:
 
-  * If many fingerprints share the same `parameter_hash` and upstream contracts, an implementation MAY:
+  * If many manifest_fingerprints share the same `parameter_hash` and upstream contracts, an implementation MAY:
 
     * batch the contract loading & parsing, and
-    * then run the per-fingerprint S0 logic in parallel with shared in-memory contract state.
+    * then run the per-manifest_fingerprint S0 logic in parallel with shared in-memory contract state.
 
 ---
 
@@ -2433,7 +2434,7 @@ S0’s runtime is usually short; frequent retries on transient errors should be 
 
 Implementations may choose SLOs along these lines (non-binding suggestions):
 
-* **Latency per fingerprint**:
+* **Latency per manifest_fingerprint**:
 
   * p50: < 1–2 seconds
   * p95: < 5 seconds
@@ -2446,9 +2447,9 @@ Implementations may choose SLOs along these lines (non-binding suggestions):
 
 * **Scale expectations**:
 
-  * Hundreds or low thousands of fingerprints per day should be feasible on modest infrastructure, given S0’s lightweight profile.
+  * Hundreds or low thousands of manifest_fingerprints per day should be feasible on modest infrastructure, given S0’s lightweight profile.
 
-These values are illustrative; actual targets depend on environment, storage, and how often new fingerprints are minted.
+These values are illustrative; actual targets depend on environment, storage, and how often new manifest_fingerprints are minted.
 
 ---
 
@@ -2581,7 +2582,7 @@ The following changes are considered **backwards-compatible** for 5A.S0, provide
 
    is allowed, but:
 
-   * It will change `sealed_inputs_digest` and thus produce a new `s0_gate_receipt_5A` for affected fingerprints.
+   * It will change `sealed_inputs_digest` and thus produce a new `s0_gate_receipt_5A` for affected manifest_fingerprints.
    * It MUST be accompanied by a change in either:
 
      * the engine manifest (yielding a new `manifest_fingerprint`), or
@@ -2668,7 +2669,7 @@ Implementations of 5A.S0 and its consumers MUST be prepared to see **older data*
 
    * If `s0_spec_version.MAJOR` is **greater** than the implementation supports, the implementation MUST:
 
-     * refuse to process 5A for that fingerprint, and
+     * refuse to process 5A for that manifest_fingerprint, and
      * surface a clear “unsupported spec version” error in its own run-report.
 
 2. **Re-running S0 with a newer implementation**
@@ -2676,7 +2677,7 @@ Implementations of 5A.S0 and its consumers MUST be prepared to see **older data*
    * When re-running S0 with a new version for an existing `manifest_fingerprint`:
 
      * If the catalogue state and contracts are unchanged, outputs SHOULD remain byte-identical (idempotent).
-     * If catalogue state changed in a way that affects `sealed_inputs_5A`, a new `manifest_fingerprint` SHOULD be minted; reusing the old fingerprint is discouraged and may trigger `S0_OUTPUT_CONFLICT`.
+     * If catalogue state changed in a way that affects `sealed_inputs_5A`, a new `manifest_fingerprint` SHOULD be minted; reusing the old manifest_fingerprint is discouraged and may trigger `S0_OUTPUT_CONFLICT`.
 
 3. **Migrating to a new MAJOR**
 
@@ -2685,8 +2686,8 @@ Implementations of 5A.S0 and its consumers MUST be prepared to see **older data*
      * a new engine release, and
      * a process to either:
 
-       * re-run S0 for all active fingerprints under the new version, or
-       * treat old fingerprints (with old MAJOR) as “frozen” and unsupported for new downstream segments.
+       * re-run S0 for all active manifest_fingerprints under the new version, or
+       * treat old manifest_fingerprints (with old MAJOR) as “frozen” and unsupported for new downstream segments.
 
 ---
 
@@ -2737,7 +2738,7 @@ Finally, any change to 5A.S0 contracts MUST be governed and documented:
 
      * state the old and new version;
      * clarify whether the change is MAJOR, MINOR, or PATCH;
-     * describe any actions required for existing fingerprints (e.g. re-run S0, or treat old fingerprints as frozen).
+     * describe any actions required for existing manifest_fingerprints (e.g. re-run S0, or treat old manifest_fingerprints as frozen).
 
 3. **Testing**
 
@@ -2780,11 +2781,11 @@ This appendix standardises the short-hands, symbols and abbreviations used in th
 | `parameter_hash`       | Opaque identifier of the **parameter pack** (policies, configs, scenario pack) used for this run.       |
 | `manifest_fingerprint` | Opaque identifier of the **closed world manifest** (set of artefacts) for this run.                     |
 | `run_id`               | Unique identifier of this execution of 5A.S0 for a given `(parameter_hash, manifest_fingerprint)`.      |
-| `fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `manifest_fingerprint={manifest_fingerprint}`).        |
+| `manifest_fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `manifest_fingerprint={manifest_fingerprint}`).        |
 | `s0_spec_version`      | Semantic version of the 5A.S0 spec that the implementation claims to follow.                            |
-| `scenario_id`          | Identifier of the scenario active for this fingerprint (e.g. `"baseline"`, `"bf_2025_stress"`).         |
+| `scenario_id`          | Identifier of the scenario active for this manifest_fingerprint (e.g. `"baseline"`, `"bf_2025_stress"`).         |
 | `scenario_pack_id`     | Optional identifier of the scenario configuration pack / bundle.                                        |
-| `sealed_inputs_digest` | Digest (e.g. SHA-256) over the canonical serialisation of `sealed_inputs_5A` rows for this fingerprint. |
+| `sealed_inputs_digest` | Digest (e.g. SHA-256) over the canonical serialisation of `sealed_inputs_5A` rows for this manifest_fingerprint. |
 
 ---
 
@@ -2794,7 +2795,7 @@ This appendix standardises the short-hands, symbols and abbreviations used in th
 |-------------------------------------|--------------------------------------------------------------------------------------------------|
 | `s0_gate_receipt_5A`                | Fingerprint-scoped control dataset: one-row receipt summarising S0 run, upstream status, inputs. |
 | `sealed_inputs_5A`                  | Fingerprint-scoped inventory: one row per artefact 5A is allowed to read.                        |
-| `scenario_manifest_5A`              | Optional fingerprint-scoped summary of scenario horizon & labels.                                |
+| `scenario_manifest_5A`              | Optional manifest_fingerprint-scoped summary of scenario horizon & labels.                                |
 | `validation_bundle_*`               | Generic name for a segment’s validation bundle directory (Layer-1 or Layer-2).                   |
 | `_passed.flag`                    | Generic name for a segment’s PASS flag file (Layer-1 or Layer-2).                                |
 | `schemas.layer1.yaml`               | Layer-1 shared schema bundle (primitives, RNG, validation, etc.).                                |
@@ -2818,7 +2819,7 @@ This appendix standardises the short-hands, symbols and abbreviations used in th
 | `schema_ref`        | JSON-Schema anchor describing the artefact’s shape (e.g. `schemas.layer1.yaml#/egress/site_locations`).                                                                |
 | `path_template`     | Catalogue path template with tokens (e.g. `manifest_fingerprint={manifest_fingerprint}`).                                                                                       |
 | `partition_keys`    | List of partition columns for the artefact’s dataset (if applicable).                                                                                                  |
-| `sha256_hex`        | Integrity digest of the artefact content or index for this fingerprint.                                                                                                |
+| `sha256_hex`        | Integrity digest of the artefact content or index for this manifest_fingerprint.                                                                                                |
 | `version`           | Version string for the artefact (e.g. semver, data-version).                                                                                                           |
 | `source_dictionary` | Name of dataset dictionary that declares the artefact.                                                                                                                 |
 | `source_registry`   | Name of artefact registry that declares the artefact.                                                                                                                  |
@@ -2848,7 +2849,7 @@ For convenience, the canonical error codes from §9 are listed here:
 
 | Code                              | Brief description                                             |
 |-----------------------------------|---------------------------------------------------------------|
-| `S0_RUN_CONTEXT_INVALID`          | Run identity (parameter_hash / fingerprint / run_id) invalid. |
+| `S0_RUN_CONTEXT_INVALID`          | Run identity (parameter_hash / manifest_fingerprint / run_id) invalid. |
 | `S0_CONTRACT_RESOLUTION_FAILED`   | Schemas/dictionaries/registries cannot be resolved.           |
 | `S0_SCHEMA_ANCHOR_INVALID`        | `schema_ref` points to an invalid/mismatched anchor.          |
 | `S0_REQUIRED_SCENARIO_MISSING`    | Required scenario configuration missing.                      |

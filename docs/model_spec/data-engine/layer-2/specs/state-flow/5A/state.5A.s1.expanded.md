@@ -170,7 +170,7 @@ This specification imposes the following obligations on downstream states (5A.S2
 
 * **No back-writes to S1 outputs**
 
-  * No later state may modify or overwrite S1’s classification outputs for any fingerprint.
+  * No later state may modify or overwrite S1’s classification outputs for any manifest_fingerprint.
   * If a new classification logic or policy pack is needed, it MUST be introduced via:
 
     * a new `parameter_hash` and/or `manifest_fingerprint`, and
@@ -224,7 +224,7 @@ This section defines the conditions under which **5A.S1 — Merchant & Zone Dema
 These MUST:
 
 * be supplied by the engine orchestration layer;
-* match the values used when 5A.S0 ran for the same fingerprint; and
+* match the values used when 5A.S0 ran for the same manifest_fingerprint; and
 * be treated as immutable for the duration of S1.
 
 S1 MUST NOT attempt to recompute or override `parameter_hash` or `manifest_fingerprint`.
@@ -362,7 +362,7 @@ The following authority boundaries are binding:
 
 1. **Sealed inputs are the only source of truth**
 
-   * S1 MUST NOT read any dataset or artefact that is not listed in `sealed_inputs_5A` for the fingerprint.
+   * S1 MUST NOT read any dataset or artefact that is not listed in `sealed_inputs_5A` for the manifest_fingerprint.
    * If an upstream dataset is physically present but absent from `sealed_inputs_5A`, it is out-of-bounds.
 
 2. **Upstream semantics are not redefined**
@@ -426,7 +426,7 @@ S1 MUST NOT read any artefact that is **not** listed in `sealed_inputs_5A` for t
    * Shape: `schemas.5A.yaml#/validation/s0_gate_receipt_5A`.
    * Role:
 
-     * provides `parameter_hash`, `manifest_fingerprint`, `run_id` for this fingerprint;
+     * provides `parameter_hash`, `manifest_fingerprint`, `run_id` for this manifest_fingerprint;
      * provides `verified_upstream_segments` map (`1A`–`3B` → `"PASS"|"FAIL"|"MISSING"`);
      * provides `sealed_inputs_digest`;
      * provides `scenario_id` / `scenario_pack_id` used to contextualise S1’s decisions.
@@ -602,7 +602,7 @@ The following boundaries are binding for S1:
 
 1. **Sealed inputs as exclusive universe**
 
-   * S1 MUST treat `sealed_inputs_5A` as **exhaustive** for the current fingerprint:
+   * S1 MUST treat `sealed_inputs_5A` as **exhaustive** for the current manifest_fingerprint:
 
      * It MUST NOT read any artefact not listed there.
      * It MUST NOT assume that “if it exists on disk, it is allowed”.
@@ -709,7 +709,7 @@ For a given `(parameter_hash, manifest_fingerprint)`:
 
 * The **domain** of `merchant_zone_profile_5A` MUST be:
 
-  > all `(merchant_id, legal_country_iso, tzid)` triplets that appear in `zone_alloc` for this fingerprint and are declared in scope for 5A by policy.
+  > all `(merchant_id, legal_country_iso, tzid)` triplets that appear in `zone_alloc` for this manifest_fingerprint and are declared in scope for 5A by policy.
 
 * For each in-scope `(merchant_id, legal_country_iso, tzid)`:
 
@@ -726,7 +726,7 @@ For this dataset:
 
 * **Partitioning:**
 
-  * `partition_keys: ["fingerprint"]`
+  * `partition_keys: ["manifest_fingerprint"]`
   * Path template (illustrative):
     `data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet`
 
@@ -737,11 +737,11 @@ For this dataset:
 * **Embedded identity fields:**
 
   * `manifest_fingerprint` — required column; MUST equal the partition token.
-  * `parameter_hash` — required column; MUST equal the run’s `parameter_hash` and be constant across all rows for a given fingerprint.
+  * `parameter_hash` — required column; MUST equal the run’s `parameter_hash` and be constant across all rows for a given manifest_fingerprint.
 
 5A.S1 MUST ensure that:
 
-* The `(merchant_id, legal_country_iso, tzid)` key is unique per row within a fingerprint.
+* The `(merchant_id, legal_country_iso, tzid)` key is unique per row within a manifest_fingerprint.
 * Embedded `manifest_fingerprint` / `parameter_hash` values match the S0 gate.
 
 ---
@@ -768,7 +768,7 @@ All values MUST be derivable **purely** from `merchant_zone_profile_5A` plus det
 
 #### 4.3.2 Domain & cardinality
 
-For a given fingerprint:
+For a given manifest_fingerprint:
 
 * Domain: all merchants that appear in `merchant_zone_profile_5A`.
 * Exactly one row per `merchant_id` in that domain.
@@ -777,7 +777,7 @@ For a given fingerprint:
 
 If this dataset is materialised:
 
-* `partition_keys: ["fingerprint"]`
+* `partition_keys: ["manifest_fingerprint"]`
 
 * Path template (illustrative):
   `data/layer2/5A/merchant_class_profile/manifest_fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet`
@@ -835,7 +835,7 @@ Unlike 5A.S0, 5A.S1:
 * emits only **modelling outputs** (`merchant_zone_profile_5A`, optionally `merchant_class_profile_5A`) which:
 
   * are deterministic functions of sealed inputs + policies,
-  * are fingerprint-partitioned only, and
+  * are manifest_fingerprint-partitioned only, and
   * are immutable once written (no merge/partial updates; rewrites only allowed as idempotent re-runs producing identical content).
 
 Segment-level validation for 5A (a later state) will:
@@ -908,7 +908,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S1 — 
 
 5. **No partial outputs**
 
-   * On failure, S1 MUST NOT commit partial `merchant_zone_profile_5A` (or `merchant_class_profile_5A`) for the fingerprint.
+   * On failure, S1 MUST NOT commit partial `merchant_zone_profile_5A` (or `merchant_class_profile_5A`) for the manifest_fingerprint.
    * Successful runs MUST leave outputs present, schema-valid, and complete for the domain.
 
 ---
@@ -920,8 +920,8 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S1 — 
 **Inputs:**
 
 * `parameter_hash`, `manifest_fingerprint`, `run_id` (run context).
-* `s0_gate_receipt_5A` (for this fingerprint).
-* `sealed_inputs_5A` (for this fingerprint).
+* `s0_gate_receipt_5A` (for this manifest_fingerprint).
+* `sealed_inputs_5A` (for this manifest_fingerprint).
 
 **Procedure:**
 
@@ -957,7 +957,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S1 — 
 
 **Inputs:**
 
-* `sealed_inputs_5A` rows for this fingerprint.
+* `sealed_inputs_5A` rows for this manifest_fingerprint.
 
 **Procedure:**
 
@@ -1009,7 +1009,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S1 — 
 
 **Procedure:**
 
-1. Read `zone_alloc` rows for this fingerprint (ROW_LEVEL, as permitted) with at least:
+1. Read `zone_alloc` rows for this manifest_fingerprint (ROW_LEVEL, as permitted) with at least:
 
    * `merchant_id`
    * `legal_country_iso`
@@ -1032,7 +1032,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S1 — 
 4. Enforce that:
 
    * For each distinct `(merchant_id, legal_country_iso, tzid)` in `D`, there is exactly one `zone_alloc` row.
-   * `D` is non-empty for all merchants intended to be in scope for 5A (policy-driven; if empty, this may be acceptable for some fingerprints but should be logged).
+   * `D` is non-empty for all merchants intended to be in scope for 5A (policy-driven; if empty, this may be acceptable for some manifest_fingerprints but should be logged).
 
 **Invariants:**
 
@@ -1327,7 +1327,7 @@ This dataset MUST be a pure function of `PROFILE_ROWS` plus fixed policy; no add
 
      * schema conformance,
      * key uniqueness,
-     * identity fields (fingerprint, parameter_hash).
+     * identity fields (manifest_fingerprint, parameter_hash).
 
 4. **Atomic commit**
 
@@ -1378,7 +1378,7 @@ There are two layers of identity:
 
    * For S1 outputs, dataset identity is keyed by **`manifest_fingerprint` only**:
 
-     * each fingerprint has at most one `merchant_zone_profile_5A` instance,
+     * each manifest_fingerprint has at most one `merchant_zone_profile_5A` instance,
      * and, if implemented, one `merchant_class_profile_5A` instance.
 
 Binding rules:
@@ -1397,15 +1397,15 @@ For a given `manifest_fingerprint`, multiple S1 runs (different `run_id`s) MUST 
 
 #### 7.2.1 Partition keys
 
-Both S1 outputs are **partitioned only by fingerprint**:
+Both S1 outputs are **partitioned only by manifest_fingerprint**:
 
 * `merchant_zone_profile_5A`:
 
-  * `partition_keys: ["fingerprint"]`
+  * `partition_keys: ["manifest_fingerprint"]`
 
 * `merchant_class_profile_5A` (if implemented):
 
-  * `partition_keys: ["fingerprint"]`
+  * `partition_keys: ["manifest_fingerprint"]`
 
 No other partition key (e.g. `parameter_hash`, `seed`, `run_id`) is allowed for S1 outputs.
 
@@ -1439,7 +1439,7 @@ For every row in any S1 dataset:
 * Embedded `parameter_hash` column:
 
   * MUST exist and be non-null.
-  * MUST equal the `parameter_hash` recorded in `s0_gate_receipt_5A` for this fingerprint.
+  * MUST equal the `parameter_hash` recorded in `s0_gate_receipt_5A` for this manifest_fingerprint.
 
 Any mismatch between:
 
@@ -1472,7 +1472,7 @@ Dataset primary keys are binding and MUST be enforced:
   Constraints:
 
   * For a given `(manifest_fingerprint)`, at most one row per `merchant_id`.
-  * Every `merchant_id` here MUST appear at least once in `merchant_zone_profile_5A` for the same fingerprint.
+  * Every `merchant_id` here MUST appear at least once in `merchant_zone_profile_5A` for the same manifest_fingerprint.
 
 Violations of these PK constraints MUST cause S1 to fail (no partial or conflicting outputs).
 
@@ -1492,7 +1492,7 @@ Consumers MUST NOT rely on any particular physical ordering beyond what is impli
 
 ### 7.4 Merge discipline & rewrite semantics
 
-5A.S1 follows a **no-merge, single-writer** discipline per fingerprint.
+5A.S1 follows a **no-merge, single-writer** discipline per manifest_fingerprint.
 
 Binding rules:
 
@@ -1503,11 +1503,11 @@ Binding rules:
      * append to an existing `merchant_zone_profile_5A`,
      * update subsets of rows, or
      * perform any row-level “merge” operations.
-   * Outputs are conceptually **atomic** for that fingerprint.
+   * Outputs are conceptually **atomic** for that manifest_fingerprint.
 
 2. **Idempotent re-runs allowed**
 
-   * If S1 is re-run for the same `(parameter_hash, manifest_fingerprint)` and existing outputs for that fingerprint are present:
+   * If S1 is re-run for the same `(parameter_hash, manifest_fingerprint)` and existing outputs for that manifest_fingerprint are present:
 
      * S1 MUST recompute outputs in-memory;
      * if the recomputed outputs are byte-identical to existing files (under the same serialisation and ordering), S1 MAY:
@@ -1517,7 +1517,7 @@ Binding rules:
 
 3. **Conflicting rewrites forbidden**
 
-   * If existing outputs for this fingerprint differ in any way from what S1 would now produce—different rows, different class/scale values, different counts—S1 MUST:
+   * If existing outputs for this manifest_fingerprint differ in any way from what S1 would now produce—different rows, different class/scale values, different counts—S1 MUST:
 
      * treat this as an output conflict, and
      * fail with a canonical error (e.g. `S1_OUTPUT_CONFLICT`).
@@ -1528,12 +1528,12 @@ Binding rules:
      * scale policy, or
      * upstream inputs that affect S1 outputs
 
-     MUST be expressed via a new `parameter_hash` and/or `manifest_fingerprint`, not by mutating outputs under the same fingerprint.
+     MUST be expressed via a new `parameter_hash` and/or `manifest_fingerprint`, not by mutating outputs under the same manifest_fingerprint.
 
-4. **No cross-fingerprint merging**
+4. **No cross-manifest_fingerprint merging**
 
    * S1 MUST NOT aggregate or merge outputs across different `manifest_fingerprint` values.
-   * Each fingerprint partition is **self-contained** and represents a sealed world.
+   * Each manifest_fingerprint partition is **self-contained** and represents a sealed world.
 
 ---
 
@@ -1587,7 +1587,7 @@ S1 outputs must align with upstream identities:
 
 3. **Alignment with S0**
 
-   * `manifest_fingerprint` and `parameter_hash` in S1 outputs MUST match the values recorded in `s0_gate_receipt_5A` for this fingerprint.
+   * `manifest_fingerprint` and `parameter_hash` in S1 outputs MUST match the values recorded in `s0_gate_receipt_5A` for this manifest_fingerprint.
    * Any downstream consumer can use `(manifest_fingerprint, parameter_hash)` to join:
 
      * S0 control-plane outputs,
@@ -1598,7 +1598,7 @@ If any of these alignments fail (e.g. S1 produces a row for a `(merchant, zone)`
 
 ---
 
-Within these constraints, 5A.S1’s identity, partitioning, ordering and merge discipline are fully specified: there is a single, immutable demand profile per `(merchant, zone)` and per fingerprint, keyed and aligned with Layer-1, with no cross-run merging and only idempotent re-runs allowed.
+Within these constraints, 5A.S1’s identity, partitioning, ordering and merge discipline are fully specified: there is a single, immutable demand profile per `(merchant, zone)` and per manifest_fingerprint, keyed and aligned with Layer-1, with no cross-run merging and only idempotent re-runs allowed.
 
 ---
 
@@ -1634,20 +1634,20 @@ For a given `(parameter_hash, manifest_fingerprint)`, 5A.S1 is considered **succ
 
 2. **Required inputs for S1 are present in `sealed_inputs_5A`**
 
-   2.1 All artefacts required by S1 (as per §2–§3) are present in `sealed_inputs_5A` for this fingerprint, with:
+   2.1 All artefacts required by S1 (as per §2–§3) are present in `sealed_inputs_5A` for this manifest_fingerprint, with:
 
    * `status="REQUIRED"`,
    * appropriate `read_scope` (`"ROW_LEVEL"` where rows are needed), and
    * valid `schema_ref`, `path_template`, and `sha256_hex`.
 
-   2.2 No required artefact referenced in the 5A dictionaries/registries for S1 is missing or marked unusable for this fingerprint.
+   2.2 No required artefact referenced in the 5A dictionaries/registries for S1 is missing or marked unusable for this manifest_fingerprint.
 
 3. **`merchant_zone_profile_5A` exists and is schema-valid**
 
    3.1 A dataset `merchant_zone_profile_5A` exists under the canonical path for `manifest_fingerprint={manifest_fingerprint}` and:
 
    * conforms to `schemas.5A.yaml#/model/merchant_zone_profile_5A`,
-   * uses `partition_keys: ["fingerprint"]`, and
+   * uses `partition_keys: ["manifest_fingerprint"]`, and
    * declares `primary_key: ["merchant_id","legal_country_iso","tzid"]`.
 
    3.2 All rows embed:
@@ -1664,7 +1664,7 @@ For a given `(parameter_hash, manifest_fingerprint)`, 5A.S1 is considered **succ
 
    4.1 Let `D_zone_alloc` be the set of `(merchant_id, legal_country_iso, tzid)` chosen as in-scope domain in §6.5 (i.e. from `zone_alloc` after applying any 5A policy filters).
 
-   4.2 Let `D_profile` be the set of `(merchant_id, legal_country_iso, tzid)` present in `merchant_zone_profile_5A` for this fingerprint.
+   4.2 Let `D_profile` be the set of `(merchant_id, legal_country_iso, tzid)` present in `merchant_zone_profile_5A` for this manifest_fingerprint.
 
    Then S1 MUST ensure:
 
@@ -1701,10 +1701,10 @@ For a given `(parameter_hash, manifest_fingerprint)`, 5A.S1 is considered **succ
 
    6.1 The dataset exists and conforms to `schemas.5A.yaml#/model/merchant_class_profile_5A`, with:
 
-   * `partition_keys: ["fingerprint"]`,
+   * `partition_keys: ["manifest_fingerprint"]`,
    * `primary_key: ["merchant_id"]`.
 
-   6.2 Every `merchant_id` in `merchant_class_profile_5A` appears in `merchant_zone_profile_5A` for this fingerprint.
+   6.2 Every `merchant_id` in `merchant_class_profile_5A` appears in `merchant_zone_profile_5A` for this manifest_fingerprint.
 
    6.3 All fields (e.g. `primary_demand_class`, aggregate volumes) are deterministic functions of `merchant_zone_profile_5A` plus policy.
 
@@ -1715,12 +1715,12 @@ For a given `(parameter_hash, manifest_fingerprint)`, 5A.S1 is considered **succ
    * written both outputs (required-only if `merchant_class_profile_5A` omitted) atomically, or
    * written nothing in the canonical locations if any preceding step failed.
 
-   7.2 If existing outputs were present for this fingerprint, they MUST have been:
+   7.2 If existing outputs were present for this manifest_fingerprint, they MUST have been:
 
    * byte-identical to the newly computed results (idempotent re-run), or
    * treated as an output conflict (in which case S1 MUST fail and NOT overwrite).
 
-If **any** of these conditions fail, S1 MUST treat the state as **FAILED** for this fingerprint and MUST NOT leave partially updated S1 outputs in canonical locations.
+If **any** of these conditions fail, S1 MUST treat the state as **FAILED** for this manifest_fingerprint and MUST NOT leave partially updated S1 outputs in canonical locations.
 
 ---
 
@@ -1801,7 +1801,7 @@ Segments that sit **downstream of 5A as a whole** (e.g. 5B, 6A) have two levels 
 
      * reference `merchant_zone_profile_5A` as the authority;
      * enforce identity alignment (same `manifest_fingerprint` / `parameter_hash`);
-     * refuse to proceed if `merchant_zone_profile_5A` is missing or schema-invalid for the fingerprint, even if other 5A components appear present.
+     * refuse to proceed if `merchant_zone_profile_5A` is missing or schema-invalid for the manifest_fingerprint, even if other 5A components appear present.
 
 ---
 
@@ -1823,7 +1823,7 @@ Segments that sit **downstream of 5A as a whole** (e.g. 5B, 6A) have two levels 
 
 * Domain or FK inconsistencies:
 
-  * `merchant_zone_profile_5A` contains `(merchant, zone)` keys not in `zone_alloc` for this fingerprint, or
+  * `merchant_zone_profile_5A` contains `(merchant, zone)` keys not in `zone_alloc` for this manifest_fingerprint, or
   * omits keys that policy declares in-scope.
 
 * Classification/scale incompleteness:
@@ -1834,7 +1834,7 @@ Segments that sit **downstream of 5A as a whole** (e.g. 5B, 6A) have two levels 
 
 * Output conflict:
 
-  * existing `merchant_zone_profile_5A` (and `merchant_class_profile_5A`, if present) differ from recomputed values for this fingerprint.
+  * existing `merchant_zone_profile_5A` (and `merchant_class_profile_5A`, if present) differ from recomputed values for this manifest_fingerprint.
 
 In all such cases, S1 MUST:
 
@@ -1895,7 +1895,7 @@ S1 does **not** write a dedicated “error dataset”; errors live in run-report
 | `S1_IO_WRITE_FAILED`              | FATAL    | I/O / storage write/commit error        |
 | `S1_INTERNAL_INVARIANT_VIOLATION` | FATAL    | “Should never happen” guard             |
 
-All of these are **fatal** for S1: on any of them, S1 MUST NOT publish or modify S1 outputs for the fingerprint.
+All of these are **fatal** for S1: on any of them, S1 MUST NOT publish or modify S1 outputs for the manifest_fingerprint.
 
 ---
 
@@ -1905,10 +1905,10 @@ All of these are **fatal** for S1: on any of them, S1 MUST NOT publish or modify
 
 **Trigger**
 
-Raised when S1 cannot establish a valid S0 gate and sealed inventory for this fingerprint, for example:
+Raised when S1 cannot establish a valid S0 gate and sealed inventory for this manifest_fingerprint, for example:
 
 * `s0_gate_receipt_5A` missing for `manifest_fingerprint={manifest_fingerprint}`, or not discoverable via the dictionary/registry.
-* `sealed_inputs_5A` missing for this fingerprint.
+* `sealed_inputs_5A` missing for this manifest_fingerprint.
 * Schema validation failures for either dataset.
 * `parameter_hash` in `s0_gate_receipt_5A` or in `sealed_inputs_5A` rows does **not** equal the S1 run’s `parameter_hash`.
 * Recomputed `sealed_inputs_digest` from `sealed_inputs_5A` does not match `s0_gate_receipt_5A.sealed_inputs_digest`.
@@ -1917,7 +1917,7 @@ Raised when S1 cannot establish a valid S0 gate and sealed inventory for this fi
 
 * S1 MUST abort immediately.
 * No `merchant_zone_profile_5A` / `merchant_class_profile_5A` MAY be written or updated.
-* Downstream 5A states MUST NOT be invoked for this fingerprint.
+* Downstream 5A states MUST NOT be invoked for this manifest_fingerprint.
 
 ---
 
@@ -1993,7 +1993,7 @@ Detected in Step 4 (§6.5).
 
 **Effect**
 
-* S1 MUST abort and MUST NOT write any profile outputs for this fingerprint.
+* S1 MUST abort and MUST NOT write any profile outputs for this manifest_fingerprint.
 * The error `details` SHOULD include the offending `(merchant_id, legal_country_iso, tzid)` and missing fields.
 * Operator must fix upstream or adjust the policy to handle the missing case explicitly.
 
@@ -2053,7 +2053,7 @@ Raised when S1 detects a mismatch between:
 
 * Some `(merchant, zone)` in `zone_alloc` (that should be in-scope) has no corresponding row in `merchant_zone_profile_5A`.
 
-* `merchant_zone_profile_5A` contains extra rows for `(merchant, zone)` pairs not present in `zone_alloc` for this fingerprint.
+* `merchant_zone_profile_5A` contains extra rows for `(merchant, zone)` pairs not present in `zone_alloc` for this manifest_fingerprint.
 
 * Duplicate `(merchant_id, legal_country_iso, tzid)` rows exist in the output.
 
@@ -2079,7 +2079,7 @@ Detected in domain coverage checks (§6.8) or in a downstream validation state; 
 
 Raised when outputs already exist for `manifest_fingerprint={manifest_fingerprint}` and differ from what S1 would now compute, for example:
 
-* Existing `merchant_zone_profile_5A` under this fingerprint has different rows or values from the recomputed `PROFILE_ROWS`.
+* Existing `merchant_zone_profile_5A` under this manifest_fingerprint has different rows or values from the recomputed `PROFILE_ROWS`.
 * Existing `merchant_class_profile_5A` (if present) is inconsistent with recomputed aggregates.
 
 Detected in Step 9 (§6.10) when comparing recomputed outputs with existing ones.
@@ -2399,7 +2399,7 @@ The 5A segment-level validation state (e.g. `5A.SX_validation`) MUST:
 * treat `merchant_zone_profile_5A` as a **required input**, and
 * use S1’s run-report/logs to:
 
-  * confirm that S1 ran successfully for the fingerprint, and
+  * confirm that S1 ran successfully for the manifest_fingerprint, and
   * capture domain size, class distribution, and scale stats into the 5A validation bundle or higher-level health reports.
 
 Operational dashboards SHOULD be able to answer, for each active `(parameter_hash, manifest_fingerprint)`:
@@ -2466,7 +2466,7 @@ S1 is effectively a **single pass over `N` rows** with cheap joins + lookups.
 
 ### 11.3 Complexity bounds
 
-For a fixed fingerprint:
+For a fixed manifest_fingerprint:
 
 * **Feature assembly (Step 4)**
 
@@ -2516,7 +2516,7 @@ Given that `R_class` and `R_scale` are policy-bounded constants, S1 is essential
 
 * `merchant_zone_profile_5A`:
 
-  * Single Parquet file of O(`N`) rows, partitioned by fingerprint.
+  * Single Parquet file of O(`N`) rows, partitioned by manifest_fingerprint.
   * Optional `merchant_class_profile_5A`: single O(`M`) rows file.
 
 **Potential hotspots**
@@ -2534,7 +2534,7 @@ Recommended approach:
 
 * **Partition by merchant or zone range in memory**, not by additional storage partitions:
 
-  * Read `zone_alloc` for the fingerprint into a distributed or chunked structure (e.g. partition by merchant_id hash or by zone).
+  * Read `zone_alloc` for the manifest_fingerprint into a distributed or chunked structure (e.g. partition by merchant_id hash or by zone).
   * Broadcast or shard merchant attributes and virtual flags as needed.
 
 * **Per-chunk parallelism**:
@@ -2555,7 +2555,7 @@ Recommended approach:
 * For very large `N`, S1 can be run on distributed compute (e.g. Spark / Flink / Ray style environment) as long as:
 
   * identity & ordering rules from §7 are preserved, and
-  * the final outputs are reconciled into the single fingerprint partition defined in the dictionary.
+  * the final outputs are reconciled into the single manifest_fingerprint partition defined in the dictionary.
 
 ---
 
@@ -2581,7 +2581,7 @@ For very large `N`:
 The spec does not mandate a particular implementation strategy; it only requires:
 
 * deterministic results,
-* single fingerprint partition, and
+* single manifest_fingerprint partition, and
 * atomic commit semantics.
 
 ---
@@ -2593,7 +2593,7 @@ Because S1 is deterministic and idempotent for a given sealed world:
 * **Transient failures** (I/O read/write issues):
 
   * Safe to retry after backoff, as long as no canonical outputs were partially written.
-  * On retry, S1 will recompute the same `merchant_zone_profile_5A` for the same fingerprint.
+  * On retry, S1 will recompute the same `merchant_zone_profile_5A` for the same manifest_fingerprint.
 
 * **Deterministic / config failures** (e.g. `S1_REQUIRED_POLICY_MISSING`, `S1_CLASS_ASSIGNMENT_FAILED`, `S1_DOMAIN_ALIGNMENT_FAILED`):
 
@@ -2606,7 +2606,7 @@ Because S1 is deterministic and idempotent for a given sealed world:
 * **Output conflicts** (`S1_OUTPUT_CONFLICT`):
 
   * Indicates catalogue drift or policy changes without identity changes.
-  * Resolution is to **mint a new world identity** (new fingerprint / parameter hash) and re-run.
+  * Resolution is to **mint a new world identity** (new manifest_fingerprint / parameter hash) and re-run.
 
 ---
 
@@ -2614,7 +2614,7 @@ Because S1 is deterministic and idempotent for a given sealed world:
 
 Actual targets are environment-dependent, but as a rough guideline:
 
-* **Latency per fingerprint** (assuming `N` up to low millions):
+* **Latency per manifest_fingerprint** (assuming `N` up to low millions):
 
   * p50: < 10–30 seconds
   * p95: < 1–2 minutes
@@ -2789,8 +2789,8 @@ Incompatible:
 
 * Changing `primary_key` or `partition_keys` of:
 
-  * `merchant_zone_profile_5A` (currently `[merchant_id, legal_country_iso, tzid]` and `["fingerprint"]`),
-  * `merchant_class_profile_5A` (currently `[merchant_id]` and `["fingerprint"]`).
+  * `merchant_zone_profile_5A` (currently `[merchant_id, legal_country_iso, tzid]` and `["manifest_fingerprint"]`),
+  * `merchant_class_profile_5A` (currently `[merchant_id]` and `["manifest_fingerprint"]`).
 
 Any such change would break joins and identity assumptions; it MUST be treated as a new MAJOR.
 
@@ -2866,7 +2866,7 @@ Implementations of S1 and its consumers MUST handle **older S1 outputs** correct
 * Re-running S1 with a new implementation for an existing `(parameter_hash, manifest_fingerprint)`:
 
   * If **policies and upstream sealed inputs are unchanged**, S1 SHOULD produce byte-identical outputs (idempotent).
-  * If policies or sealed inputs **have changed**, a new `parameter_hash` and/or `manifest_fingerprint` SHOULD be minted. Using the old fingerprint and `parameter_hash` with changed inputs risks `S1_OUTPUT_CONFLICT`.
+  * If policies or sealed inputs **have changed**, a new `parameter_hash` and/or `manifest_fingerprint` SHOULD be minted. Using the old manifest_fingerprint and `parameter_hash` with changed inputs risks `S1_OUTPUT_CONFLICT`.
 
 #### 12.5.3 Downstream use of `demand_class`
 
@@ -2914,7 +2914,7 @@ Most “behavioural” changes in S1 are intended to be carried by **parameter p
 
   then S1 MUST be rerun under the new `manifest_fingerprint`.
 
-* S1’s job is to **follow upstream** via `sealed_inputs_5A`; it MUST NOT try to hide or compensate for upstream drift under the same fingerprint.
+* S1’s job is to **follow upstream** via `sealed_inputs_5A`; it MUST NOT try to hide or compensate for upstream drift under the same manifest_fingerprint.
 
 ---
 
@@ -2937,7 +2937,7 @@ Finally, any change to S1’s contracts MUST be governed and documented:
      * old → new version,
      * whether it is MAJOR / MINOR / PATCH,
      * summary of changes, and
-     * any required actions for existing fingerprints (e.g. re-run S1, or treat older fingerprints as frozen).
+     * any required actions for existing manifest_fingerprints (e.g. re-run S1, or treat older manifest_fingerprints as frozen).
 
 3. **Testing**
 
@@ -2981,9 +2981,9 @@ This appendix defines short-hands, symbols and abbreviations used in the **5A.S1
 | `parameter_hash`       | Opaque identifier of the **parameter pack** (S1 policies, scenario configs, etc.) in force.             |
 | `manifest_fingerprint` | Opaque identifier of the **closed-world manifest** of artefacts for this run.                           |
 | `run_id`               | Unique identifier of this execution of Segment 5A for a given `(parameter_hash, manifest_fingerprint)`. |
-| `fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `manifest_fingerprint={manifest_fingerprint}`).        |
+| `manifest_fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `manifest_fingerprint={manifest_fingerprint}`).        |
 | `s1_spec_version`      | Semantic version of the 5A.S1 spec that produced the profiles (e.g. `"1.0.0"`).                         |
-| `scenario_id`          | Scenario identifier active for this fingerprint (e.g. `"baseline"`, `"bf_2027_stress"`).                |
+| `scenario_id`          | Scenario identifier active for this manifest_fingerprint (e.g. `"baseline"`, `"bf_2027_stress"`).                |
 | `scenario_pack_id`     | Optional identifier of the scenario config bundle.                                                      |
 
 ---
@@ -2995,7 +2995,7 @@ This appendix defines short-hands, symbols and abbreviations used in the **5A.S1
 | `merchant_zone_profile_5A`  | Required S1 output: per `(merchant, zone)` demand class + base scale profile.             |
 | `merchant_class_profile_5A` | Optional S1 output: per-merchant aggregate view derived from `merchant_zone_profile_5A`.  |
 | `s0_gate_receipt_5A`        | S0 control-plane receipt: upstream statuses, scenario binding, sealed-input digest.       |
-| `sealed_inputs_5A`          | S0 inventory of all artefacts Segment 5A is allowed to read for this fingerprint.         |
+| `sealed_inputs_5A`          | S0 inventory of all artefacts Segment 5A is allowed to read for this manifest_fingerprint.         |
 | `zone_alloc`                | 3A egress (Layer-1): merchant×country×tzid zone allocation; S1’s domain authority.        |
 | `virtual_classification_3B` | 3B egress: virtual/hybrid flags per merchant (if virtual is in scope).                    |
 | `virtual_settlement_3B`     | 3B egress: settlement node per virtual merchant; used as a feature only.                  |
@@ -3017,7 +3017,7 @@ This appendix defines short-hands, symbols and abbreviations used in the **5A.S1
 | `legal_country_iso`      | ISO country for this merchant×zone, aligned with 3A’s `zone_alloc`.                   |
 | `tzid`                   | IANA timezone ID representing the zone, aligned with 3A / 2A.                         |
 | `manifest_fingerprint`   | Closed-world identity; MUST equal partition token.                                    |
-| `parameter_hash`         | Parameter pack identity; same for all rows in this fingerprint.                       |
+| `parameter_hash`         | Parameter pack identity; same for all rows in this manifest_fingerprint.                       |
 | `s1_spec_version`        | Version of the 5A.S1 spec that produced this row.                                     |
 | `demand_class`           | Primary demand class label for this merchant×zone (e.g. `"local_retail_daytime"`).    |
 | `demand_subclass`        | Optional refinement of `demand_class` (e.g. `"food_service"`), policy-defined.        |
