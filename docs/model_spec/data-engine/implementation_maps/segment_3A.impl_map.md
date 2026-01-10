@@ -29,7 +29,7 @@ Pinned upstream surfaces (used downstream)
 
 Pinned sealed policies / refs
   - zone_mixture_policy     (S1 escalation law)
-  - country_zone_alphas     (S2 alphalpha priors)
+  - country_zone_alphas     (S2 alpha priors)
   - zone_floor_policy       (S2 floor/bump)
   - day_effect_policy_v1    (S5 universe-hash component)
   - iso3166_canonical_2024, tz_world_2025a (domain/zone refs)
@@ -70,6 +70,10 @@ Consumer rule (binding): downstream MUST verify 3A final bundle gate for the sam
 manifest_fingerprint before reading `zone_alloc` / `zone_alloc_universe_hash`.
 ```
 
+Run-report surfaces (per dictionary):
+- segment_state_runs: one row per state invocation (S0-S7), scoped by utc_day.
+- per-state run reports: s1_run_report_3A .. s7_run_report_3A (S2 is parameter_hash-scoped; others are seed + manifest_fingerprint).
+
 ---
 
 ## 2) Gates and what they authorize
@@ -87,7 +91,7 @@ All use index.json-driven verification; S0 FAIL_CLOSED on any mismatch.
 - Rule: S1-S7 must fail-closed if receipt missing.
 
 ### Validation receipt (3A.S6.validation_receipt)
-- Evidence: `s6_receipt_3A` (fingerprint-scoped)
+- Evidence: `s6_receipt_3A` (manifest_fingerprint-scoped)
 - Meaning: "S6 structural validation verdict is PASS/FAIL"
 - Rule: S7 must not publish final gate unless S6 PASS.
 
@@ -113,7 +117,7 @@ S1 (escalation authority):
 - Downstream MUST NOT re-evaluate mixture policy; S1 is the sole authority.
 
 S2 (priors authority):
-- Deterministic alphalpha-vector construction per country over tzid domain plus deterministic floor/bump.
+- Deterministic alpha-vector construction per country over tzid domain plus deterministic floor/bump.
 - `s2_country_zone_priors` is the sole authority for priors used downstream.
 
 S3 (Dirichlet RNG):
@@ -160,7 +164,7 @@ Hotspot: hashing large upstream bundles.
 Safe levers: streaming hashing; avoid materializing evidence; parallel hashing only if deterministic ordering is preserved.
 
 ### S2 (priors construction)
-Hotspot: countryxtzid domain expansion + floor/bump.
+Hotspot: country x tzid domain expansion + floor/bump.
 Safe levers: precompute tzid domains per country; deterministic loops; vectorize arithmetic.
 
 ### S3 (Dirichlet draws)

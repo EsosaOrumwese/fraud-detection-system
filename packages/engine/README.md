@@ -108,7 +108,7 @@
 ---
 
 ## State S2 (Domestic Outlet Counts)
-- CLI: `python -m engine.cli.s2_nb_outlets --validation-policy contracts/policies/l1/seg_1A/s2_validation_policy.yaml …`  
+- CLI: `python -m engine.cli.s2_nb_outlets --validation-policy config/layer1/1A/policy/validation_policy.yaml …`  
 - Emits RNG streams (`gamma_component`, `poisson_component`, `nb_final`), a presence catalogue (`parameter_scoped/parameter_hash=*/s2_nb_catalogue.json`), and corridor metrics.  
 - Validation writes `metrics.csv` + `cusum_trace.csv` under `validation/parameter_hash=*/run_id=*/s2/` and mirrors them into the sealed bundle at `validation_bundle/manifest_fingerprint=*/s2_nb_outlets/`.  
 - Policy thresholds (`rho_reject_max=0.06`, `p99_max=3`, `cusum.threshold_h=8.0`) are enforced via `ERR_S2_CORRIDOR_BREACH`; runs skip `_passed.flag` on failure.

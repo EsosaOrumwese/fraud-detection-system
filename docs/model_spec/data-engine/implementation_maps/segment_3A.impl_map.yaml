@@ -56,6 +56,7 @@ path_tokens:
   manifest_fingerprint: manifest_fingerprint
   seed: seed
   run_id: run_id
+  utc_day: utc_day
 lineage:
   parameter_hash:
     role: parameter_scoped_anchor
@@ -168,7 +169,7 @@ gates:
     passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
   verification_method: indexed_bundle_digest_concat
   file_set_rule: Compute bundle_sha256_hex = SHA256(concat(entry.sha256_hex (ASCII hex) for index.json entries in canonical
-    order)); _passed.flag content is JSON `{ "sha256_hex": "<64-lowercase-hex>" }` equal to bundle_sha256_hex.
+    order)); _passed.flag content MUST be a single ASCII line `sha256_hex = <64-lowercase-hex>` equal to bundle_sha256_hex.
   authorizes_reads_of:
   - zone_alloc
   - zone_alloc_universe_hash
@@ -210,7 +211,7 @@ consumer_surfaces:
     scope_keys:
     - manifest_fingerprint
     address_template: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
-    schema_ref: schemas.3A.yaml#/egress/zone_alloc_universe_hash
+    schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
     ordering: []
     required_gates:
     - 3A.final.bundle_gate
@@ -295,6 +296,15 @@ states:
       ordering: []
       equality: ordered
       optional: false
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S0).
     gates_in:
     - 1A.final.bundle_gate
     - 1B.final.bundle_gate
@@ -367,6 +377,23 @@ states:
       - legal_country_iso
       equality: ordered
       optional: false
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S1).
+    - dataset_id: s1_run_report_3A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3A/state=S1/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: rowset
+      optional: false
     gates_in:
     - 3A.S0.gate_in_receipt
     gates_out: []
@@ -423,13 +450,29 @@ states:
       - tzid
       equality: ordered
       optional: false
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S2).
+    - dataset_id: s2_run_report_3A
+      scope_keys:
+      - parameter_hash
+      address_template: reports/layer1/3A/state=S2/parameter_hash={parameter_hash}/run_report.json
+      ordering: []
+      equality: rowset
+      optional: false
     gates_in:
     - 3A.S0.gate_in_receipt
     gates_out: []
     rng: null
     validation:
       performed_here:
-      - Construct alphalpha priors per country over its tzid/zone domain Z(c) and apply deterministic floor/bump rules.
+      - Construct alpha priors per country over its tzid/zone domain Z(c) and apply deterministic floor/bump rules.
     frozen_surfaces:
     - RNG-free; floor/bump and alpha construction are deterministic given sealed policies and tz domain.
     - s2_country_zone_priors is the sole authority for priors used by S3/S4/S5.
@@ -506,6 +549,23 @@ states:
       optional: false
       notes:
       - Append-only RNG trace log; trace-after-each-event discipline.
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S3).
+    - dataset_id: s3_run_report_3A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3A/state=S3/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: rowset
+      optional: false
     gates_in:
     - 3A.S0.gate_in_receipt
     gates_out: []
@@ -570,6 +630,23 @@ states:
       - legal_country_iso
       - tzid
       equality: ordered
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S4).
+    - dataset_id: s4_run_report_3A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3A/state=S4/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: rowset
       optional: false
     gates_in:
     - 3A.S0.gate_in_receipt
@@ -640,6 +717,23 @@ states:
       optional: false
       notes:
       - routing_universe_hash digest binding priors/policies + zone_alloc parquet digest.
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S5).
+    - dataset_id: s5_run_report_3A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3A/state=S5/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: rowset
+      optional: false
     gates_in:
     - 3A.S0.gate_in_receipt
     gates_out: []
@@ -722,17 +816,20 @@ states:
     - dataset_id: s6_validation_report_3A
       scope_keys:
       - manifest_fingerprint
-      address_template: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/s6_validation_report_3A.json
+      address_template: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json
       ordering: []
       equality: rowset
       optional: false
     - dataset_id: s6_issue_table_3A
       scope_keys:
       - manifest_fingerprint
-      address_template: data/layer1/3A/s6_issue_table/manifest_fingerprint={manifest_fingerprint}/
+      address_template: data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
       ordering:
       - severity
-      - issue_id
+      - issue_code
+      - merchant_id
+      - legal_country_iso
+      - tzid
       equality: ordered
       optional: true
       notes:
@@ -743,6 +840,23 @@ states:
       address_template: data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
       ordering: []
       equality: ordered
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S6).
+    - dataset_id: s6_run_report_3A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3A/state=S6/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: rowset
       optional: false
     gates_in:
     - 3A.S0.gate_in_receipt
@@ -827,7 +941,24 @@ states:
       equality: rowset
       optional: false
       notes:
-      - Text file containing JSON object { "sha256_hex": "<hex64>" } (per 3A.S7).
+      - Single-line ASCII file: `sha256_hex = <hex64>` (per 3A.S7).
+    - dataset_id: segment_state_runs
+      scope_keys:
+      - utc_day
+      address_template: reports/layer1/segment_state_runs/segment=3A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - One row per state invocation (segment=3A, state=S7).
+    - dataset_id: s7_run_report_3A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/3A/state=S7/seed={seed}/manifest_fingerprint={manifest_fingerprint}/run_report.json
+      ordering: []
+      equality: rowset
+      optional: false
     - emits_gate: 3A.final.bundle_gate
     gates_in:
     - 3A.S6.validation_receipt
@@ -837,10 +968,10 @@ states:
     validation:
       performed_here:
       - Precondition: s6_receipt_3A.overall_status must be PASS; then build bundle index and compute bundle_sha256_hex as SHA256(concat(entry.sha256_hex))
-        and write _passed.flag JSON.
+        and write _passed.flag as a single ASCII line `sha256_hex = <bundle_sha256_hex>`.
     frozen_surfaces:
     - Final gate computation uses digest-of-digests (concat sha256_hex strings from index.json), not raw-bytes concatenation.
-    - _passed.flag logical content is JSON object with sha256_hex field; must validate against passed_flag_3A schema.
+    - _passed.flag logical content is a single-line ASCII string; must validate against passed_flag_3A schema.
     - Write-once + idempotence: no partial/overwritten bundles for a manifest_fingerprint.
     flexible_choices:
     - Bundle construction may be streaming as long as index order and digest rules are deterministic.

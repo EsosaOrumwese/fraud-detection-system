@@ -15,7 +15,7 @@ Runtime code reads from `contracts/`, but **do not edit** these files by hand un
 
 **Policies:**
 - Policy bundles are defined under `config/` per model_spec and are **not** mirrored into `contracts/`.
-- Treat any files under `contracts/policies/` as legacy unless the model_spec contracts explicitly require them.
+- Treat any files under `contracts/_stale/policies/` as legacy unless the model_spec contracts explicitly require them.
 
 ---
 

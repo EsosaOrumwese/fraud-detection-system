@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/s6_membership.schema.json",
+  "title": "Layer 1 Segment 1A – State-6 Membership",
+  "description": "Convenience membership surface emitted by S6 foreign-set selection (re-derivable authority).",
+  "membership": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seed",
+        "parameter_hash",
+        "merchant_id",
+        "country_iso"
+      ],
+      "properties": {
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "parameter_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "merchant_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "country_iso": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        }
+      }
+    }
+  }
+}

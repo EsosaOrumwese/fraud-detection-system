@@ -24,11 +24,11 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
     - ISO canonical table: `reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet`.
      - GDP tables: `reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet`.
      - GDP bucket map: `reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet`.
-     - Policy YAMLs: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml`, `contracts/policies/l1/seg_1A/policy.s3.base_weight.yaml`, `contracts/policies/l1/seg_1A/policy.s3.thresholds.yaml`.
-     - Bounds policy: `contracts/policies/l1/seg_1A/policy.s3.bounds.yaml` (per-country caps feeding the bounded Hamilton redistribution).
+     - Policy YAMLs: `config/layer1/1A/policy/s3.rule_ladder.yaml`, `config/layer1/1A/policy/s3.base_weight.yaml`, `config/layer1/1A/policy/s3.thresholds.yaml`.
+     - Bounds policy (legacy): `contracts/_stale/policies/l1/seg_1A/policy.s3.bounds.yaml` (per-country caps feeding the bounded Hamilton redistribution).
      - Hurdle/NB-mean coefficients (sealed): `config/layer1/1A/models/hurdle/exports/version=2025-10-09/20251009T120000Z/hurdle_coefficients.yaml`.
      - NB dispersion coefficients (regenerated corridor-safe fit): `config/layer1/1A/models/hurdle/exports/version=2025-10-24/20251024T234923Z/nb_dispersion_coefficients.yaml`.
-     - Validation policy: `contracts/policies/l1/seg_1A/s2_validation_policy.yaml`.
+     - Validation policy: `config/layer1/1A/policy/validation_policy.yaml`.
      - Numeric policy attestations from the latest S0 run: `artefacts/s0_runs/2025-10-09_synthetic/validation_bundle/manifest_fingerprint=991c57a380d81d7ab9ba4901efb0d0db3eb7a82af59249d7cc71017126622709/numeric_policy_attest.json`.
    - Confirm Segment 1B shared artefacts (spatial priors, jitter policy) exist under the paths referenced by `contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml`, notably:
      - Dataset dictionary: `contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml`.
@@ -56,7 +56,7 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
        --param ... (repeat per governed artefact) \
        --git-commit <commit_sha> \
        --seed <seed_uint64> \
-       --validation-policy contracts/policies/l1/seg_1A/s2_validation_policy.yaml \
+       --validation-policy config/layer1/1A/policy/validation_policy.yaml \
        [--numeric-policy <path>] \
        [--math-profile <path>] \
        [--extra-manifest <path> ...] \
