@@ -8,8 +8,8 @@ MODULE_NAME = "1A.site_id_allocator"
 SUBSTREAM_SEQUENCE_FINALIZE = "sequence_finalize"
 SUBSTREAM_SITE_SEQUENCE_OVERFLOW = "site_sequence_overflow"
 
-EVENT_FAMILY_SEQUENCE_FINALIZE = "rng_event.sequence_finalize"
-EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW = "rng_event.site_sequence_overflow"
+EVENT_FAMILY_SEQUENCE_FINALIZE = "rng_event_sequence_finalize"
+EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW = "rng_event_site_sequence_overflow"
 
 SEQUENCE_FINALIZE_SCHEMA_REF = "schemas.layer1.yaml#/rng/events/sequence_finalize"
 SITE_SEQUENCE_OVERFLOW_SCHEMA_REF = "schemas.layer1.yaml#/rng/events/site_sequence_overflow"

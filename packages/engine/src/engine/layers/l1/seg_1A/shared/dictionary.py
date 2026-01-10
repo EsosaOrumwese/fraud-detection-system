@@ -170,8 +170,8 @@ _RNG_EVENT_DATASET_IDS: Mapping[str, str] = {
     "gumbel_key": "rng_event_gumbel_key",
     "residual_rank": "rng_event_residual_rank",
     "dirichlet_gamma_vector": "rng_event_dirichlet_gamma_vector",
-    "sequence_finalize": "rng_event.sequence_finalize",
-    "site_sequence_overflow": "rng_event.site_sequence_overflow",
+    "sequence_finalize": "rng_event_sequence_finalize",
+    "site_sequence_overflow": "rng_event_site_sequence_overflow",
 }
 
 

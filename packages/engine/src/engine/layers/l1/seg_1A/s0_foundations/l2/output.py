@@ -56,7 +56,11 @@ def _ensure_directory(path: Path) -> None:
 
 def _write_parquet(frame: pl.DataFrame, path: Path) -> None:
     """Write ``frame`` to ``path`` using zstd compression."""
-    frame.write_parquet(path, compression="zstd")
+    target = path
+    if target.suffix.lower() != ".parquet":
+        target = target / "part-00000.parquet"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frame.write_parquet(target, compression="zstd")
 
 
 def _write_json(payload: Mapping[str, object], path: Path) -> None:

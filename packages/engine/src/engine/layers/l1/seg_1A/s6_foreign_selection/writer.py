@@ -113,7 +113,7 @@ class GumbelEventWriter:
         selected: bool,
         selection_order: int | None,
     ) -> None:
-        """Persist a single `rng_event.gumbel_key` row."""
+        """Persist a single `rng_event_gumbel_key` row."""
 
         expected_blocks = _delta(counter_before, counter_after)
         if expected_blocks != blocks_used:
