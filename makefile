@@ -41,6 +41,11 @@ SKIP_SEG6B ?= 0
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
 # ---------------------------------------------------------------------------
+# Contracts pack defaults
+# ---------------------------------------------------------------------------
+CONTRACTS_PACK_TAG ?= latest
+
+# ---------------------------------------------------------------------------
 # External versions (defaults; override as needed)
 # ---------------------------------------------------------------------------
 MERCHANT_VERSION ?= 2026-01-03
@@ -1250,6 +1255,9 @@ receipt=data.get('s0_receipt',''); m=re.search(r'fingerprint=([a-f0-9]{64})', re
 
 paths-tree:
 	@$(PY_SCRIPT) scripts/build_paths_tree.py
+
+contracts-pack:
+	@$(PY_SCRIPT) tools/build_contracts_pack.py --tag "$(CONTRACTS_PACK_TAG)" --force
 
 profile-all:
 	$(PY_ENGINE) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
