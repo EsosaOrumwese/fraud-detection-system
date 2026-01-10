@@ -1308,7 +1308,7 @@ datasets:
     version: latest
     format: jsonl
     path: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
-    partitioning: []
+    partitioning: [utc_day]
     ordering: []
     schema_ref: schemas.layer2.yaml#/run_report/segment_state_run
     lineage:

@@ -705,6 +705,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: rng_event_anchor
+  status: approved
+  owner_subsegment: 1A
+  description: Non-consuming S0 RNG anchor event for run lineage.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/layer1/1A/rng/events/anchor/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/anchor
+  lineage:
+    produced_by: 1A.s0
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
+
 - id: rng_event_hurdle_bernoulli
   status: approved
   owner_subsegment: 1A
@@ -1018,7 +1036,7 @@ reports:
   version: latest
   format: jsonl
   path: reports/layer1/segment_state_runs/segment=1A/utc_day={utc_day}/segment_state_runs.jsonl
-  partitioning: []
+  partitioning: [utc_day]
   ordering: []
   schema_ref: schemas.layer1.yaml#/run_report/segment_state_run
   lineage:

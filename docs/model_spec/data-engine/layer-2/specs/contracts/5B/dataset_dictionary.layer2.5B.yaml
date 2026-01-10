@@ -1451,7 +1451,7 @@ datasets:
     version: v1
     format: jsonl
     path: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
-    partitioning: []
+    partitioning: [utc_day]
     primary_key: []
     ordering: []
     schema_ref: schemas.layer2.yaml#/run_report/segment_state_run

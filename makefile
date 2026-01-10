@@ -807,6 +807,7 @@ preflight-seg1a:
 	@echo "Preflight Segment 1A inputs"
 	$(call REQUIRE_DIR,reference)
 	$(call REQUIRE_DIR,config)
+	@$(PY) tools/preflight_seg1a_contracts.py
 	@missing=0; \
 	for path in $(SEG1A_REQUIRED_REFS); do \
 		if [ ! -f "$$path" ]; then \

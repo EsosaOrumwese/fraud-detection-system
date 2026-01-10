@@ -10,8 +10,8 @@
     },
     {
       "destination": "dataset_dictionary/l1/seg_1A/layer1.1A.yaml",
-      "sha256": "b229d6307ec319503cb5dcc8a961715d991207e388bbc9f6ad5a6caea67b1c5f",
-      "size_bytes": 35002,
+      "sha256": "5711a25fe5a357f6b4bf37b84c5d12a72ba327888affcaa6388e1a38cca3998a",
+      "size_bytes": 35557,
       "source": "layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml"
     },
     {
@@ -28,8 +28,8 @@
     },
     {
       "destination": "schemas/layer1/schemas.layer1.yaml",
-      "sha256": "c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf",
-      "size_bytes": 66890,
+      "sha256": "3e226da373864e00708c04e5ff702da6c06e81fa5663c6017184ce79ae91fdd7",
+      "size_bytes": 67327,
       "source": "layer-1/specs/contracts/1A/schemas.layer1.yaml"
     },
     {
@@ -100,8 +100,8 @@
     },
     {
       "destination": "schemas/layer1/schemas.3A.yaml",
-      "sha256": "49a3ac2606b09e5b12f88eeaabe82dc8f98574047e1c1d80a190116a0c08e4e5",
-      "size_bytes": 18520,
+      "sha256": "322ceb9f0abb34bd22e9d40704382fa870c3c25afc64e197a7426a9f2747944f",
+      "size_bytes": 18447,
       "source": "layer-1/specs/contracts/3A/schemas.3A.yaml"
     },
     {

@@ -477,6 +477,20 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    anchor:
+      description: "Segment 1A S0 RNG anchor event (non-consuming)."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, blocks, draws]
+        properties:
+          module: { const: 1A.s0 }
+          substream_label: { const: s0.anchor }
+          blocks: { const: 0 }
+          draws:  { const: "0" }
+      - type: object
+        unevaluatedProperties: false
+
     hurdle_bernoulli:
       allOf:
       - $ref: '#/$defs/rng_envelope'
