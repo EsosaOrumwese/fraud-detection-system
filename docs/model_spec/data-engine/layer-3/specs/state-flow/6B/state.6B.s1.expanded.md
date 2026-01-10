@@ -126,8 +126,8 @@ As a result, if S1 is implemented according to this specification:
 * S1 is the sole authority for arrival-to-entity attachment and sessionisation.
 
 **Outputs:**
-* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
 * `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 
@@ -141,7 +141,7 @@ As a result, if S1 is implemented according to this specification:
 
 This section defines **what must already be true** before 6B.S1 is allowed to run, and what upstream gates it **MUST** honour. If any precondition in this section is not satisfied for the target `manifest_fingerprint`, then S1 **MUST NOT** execute its attachment or sessionisation logic and **MUST** fail fast with a precondition error.
 
-S1 is a **data-plane** state, evaluated over `(manifest_fingerprint, seed, scenario_id)`, with all trust in upstream worlds and contracts delegated to:
+S1 is a **data-plane** state, evaluated over `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, with all trust in upstream worlds and contracts delegated to:
 
 * 6B.S0 (behavioural gate & sealed inputs), and
 * the upstream segments 1A–3B, 5A, 5B, and 6A (via their HashGates).
@@ -230,7 +230,7 @@ Before processing any `(seed, scenario_id)` partition, S1 MUST:
 3. Verify, for each of these rows, that:
 
    * `schema_ref` resolves into `schemas.5B.yaml` or `schemas.6A.yaml` as expected.
-   * `partition_keys` are consistent with the owning segment’s dictionary (e.g. arrivals partitioned by `[seed, fingerprint, scenario_id]`; 6A tables by `[seed, manifest_fingerprint]`).
+   * `partition_keys` are consistent with the owning segment's dictionary (e.g. arrivals partitioned by `[seed, manifest_fingerprint, scenario_id]`; 6A tables by `[seed, manifest_fingerprint, parameter_hash]`).
 
 If any required row is missing or malformed, S1 MUST fail with a precondition error (a concrete S1 error code will be defined in its failure section) and MUST NOT read any of the upstream datasets.
 
@@ -287,7 +287,7 @@ S1 itself does not initialise the RNG engine; it attaches to the existing Layer-
 * Against a world where one or more of `{1A,1B,2A,2B,3A,3B,5A,5B,6A}` are not PASS according to `s0_gate_receipt_6B.upstream_segments`.
 * In a “speculative” mode that permits continuing execution when required `sealed_inputs_6B` entries or 6A/5B partitions are missing.
 
-If such a situation occurs, the correct behaviour is for S1 to fail early with an appropriate precondition error (to be defined in its failure-mode section), leaving no partial S1 outputs for that `(manifest_fingerprint, seed, scenario_id)`.
+If such a situation occurs, the correct behaviour is for S1 to fail early with an appropriate precondition error (to be defined in its failure-mode section), leaving no partial S1 outputs for that `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 These preconditions are binding: any conforming implementation of 6B.S1 MUST check and enforce them before performing any arrival-to-entity attachment or sessionisation work.
 
@@ -371,7 +371,7 @@ All S1 outputs that refer to arrivals MUST do so via `arrival_events_5B`’s pri
 
 ### 3.4 Entity & posture inputs (Layer-3 / 6A)
 
-S1 reads the 6A entity graph and static fraud posture for the same `(seed, manifest_fingerprint)` world. These datasets MUST appear in `sealed_inputs_6B` with `status="REQUIRED"` and `read_scope="ROW_LEVEL"`:
+S1 reads the 6A entity graph and static fraud posture for the same `(seed, manifest_fingerprint, parameter_hash)` world. These datasets MUST appear in `sealed_inputs_6B` with `status="REQUIRED"` and `read_scope="ROW_LEVEL"`:
 
 * **Party base**
 
@@ -535,7 +535,7 @@ These outputs are:
 
 * **Layer-3 / 6B–owned** datasets (not cross-layer egress).
 * **Required** for downstream 6B states (S2–S4) and 6B validation (S5).
-* Partitioned on the same axes as 5B’s arrivals: `[seed, fingerprint, scenario_id]`.
+* Partitioned on the same axes as 5B’s arrivals, with `parameter_hash` added: `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
 
 No other datasets may be written by S1.
 
@@ -577,12 +577,13 @@ In the 6B dataset dictionary / artefact registry, this dataset MUST be registere
 * `path` (template):
 
   ```text
-  data/layer3/6B/s1_arrival_entities_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  data/layer3/6B/s1_arrival_entities_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
-The `manifest_fingerprint` column embedded in rows MUST match the `fingerprint` partition token. The `seed` and `scenario_id` columns MUST match the corresponding tokens in the path.
+The `manifest_fingerprint`, `parameter_hash`, `seed`, and `scenario_id` columns embedded in rows MUST match the corresponding
+partition tokens in the path.
 
 **Primary key & identity**
 
@@ -591,7 +592,7 @@ S1 MUST adopt and extend the **arrival identity** from 5B, not invent a new one.
 * Primary key:
 
   ```text
-  [seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
+  [seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]
   ```
 
   where:
@@ -603,10 +604,10 @@ S1 MUST adopt and extend the **arrival identity** from 5B, not invent a new one.
 The writer ordering MUST be:
 
 ```text
-[seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]
 ```
 
-(or equivalently, `scenario_id, merchant_id, ts_utc, arrival_seq` within a `(seed, fingerprint)` partition, as long as dictionary and schema agree). The key point is:
+(or equivalently, `scenario_id, merchant_id, ts_utc, arrival_seq` within a `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition, as long as dictionary and schema agree). The key point is:
 
 * every arrival from 5B appears exactly once in `s1_arrival_entities_6B`,
 * tied to the same PK columns, with new entity/session fields layered on top.
@@ -651,7 +652,7 @@ In `artefact_registry_6B.yaml`:
 
 `s1_session_index_6B` holds one row per session, summarising:
 
-* a stable `session_id` for the `(seed, manifest_fingerprint, scenario_id)` domain,
+* a stable `session_id` for the `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain,
 * the entity context for that session (e.g. primary party/account/instrument/device/ip),
 * key session-level aggregates:
 
@@ -677,28 +678,28 @@ The session index MUST be registered as:
 * `path` (template):
 
   ```text
-  data/layer3/6B/s1_session_index_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+  data/layer3/6B/s1_session_index_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 As with arrivals, the embedded `manifest_fingerprint`, `seed`, and `scenario_id` columns MUST match the path tokens.
 
 **Primary key & identity**
 
-Session identity for S1 outputs is defined per `(seed, manifest_fingerprint, scenario_id)`:
+Session identity for S1 outputs is defined per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key:
 
   ```text
-  [seed, manifest_fingerprint, scenario_id, session_id]
+  [seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]
   ```
 
 Where:
 
 * `session_id` is a stable, opaque identifier for the session (e.g. a 64-bit integer or id64 string) whose type is defined in `schemas.6B.yaml#/s1/session_index_6B` via a `$defs/id64`-style constraint.
 
-Within a given `(seed, manifest_fingerprint, scenario_id)`:
+Within a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Each session id MUST appear exactly once in `s1_session_index_6B`.
 * Every `session_id` referenced in `s1_arrival_entities_6B` MUST exist in `s1_session_index_6B`.
@@ -706,7 +707,7 @@ Within a given `(seed, manifest_fingerprint, scenario_id)`:
 Writer ordering MUST be:
 
 ```text
-[seed, manifest_fingerprint, scenario_id, session_id]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]
 ```
 
 **Schema anchor**
@@ -743,11 +744,11 @@ The artefact registry MUST mark it as `final_in_layer: false`.
 
 To avoid ambiguity:
 
-* `s1_arrival_entities_6B` and `s1_session_index_6B` MUST share the same identity axes (`seed`, `manifest_fingerprint`, `scenario_id`).
+* `s1_arrival_entities_6B` and `s1_session_index_6B` MUST share the same identity axes (`seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`).
 
-* Every arrival row in `arrival_events_5B@{seed,fingerprint,scenario_id}`:
+* Every arrival row in `arrival_events_5B@{seed,manifest_fingerprint,scenario_id}`:
 
-  * MUST produce exactly one row in `s1_arrival_entities_6B` with the same arrival key (`seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq`), and
+  * MUST produce exactly one row in `s1_arrival_entities_6B` with the same arrival key (`seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq`), and
   * MUST be assigned to exactly one `session_id` that appears in `s1_session_index_6B`.
 
 * No additional partition axes (e.g. `run_id`) may be introduced into S1’s outputs; `run_id` remains a runtime/RNG concern, not a partitioning key.
@@ -841,7 +842,7 @@ Given `manifest_fingerprint`:
 
 3. For each `(seed, scenario_id)` partition:
 
-   * Confirm that required 6A datasets for `(seed, manifest_fingerprint)` exist (as per §2.4).
+   * Confirm that required 6A datasets for `(seed, manifest_fingerprint, parameter_hash)` exist (as per §2.4).
    * Optionally apply a filter (e.g. only scenarios enabled by 6B policies).
 
 S1 MAY process different `(seed, scenario_id)` partitions in parallel, but each partition MUST be treated independently: no cross-partition attachment or session logic.
@@ -850,7 +851,7 @@ S1 MAY process different `(seed, scenario_id)` partitions in parallel, but each 
 
 ### 6.3 Step 1 — Load upstream entities & build indices
 
-For a fixed `(seed, manifest_fingerprint)`:
+For a fixed `(seed, manifest_fingerprint, parameter_hash)`:
 
 1. **Load 6A bases and links** with `status="REQUIRED"`, `read_scope="ROW_LEVEL"` from `sealed_inputs_6B`:
 
@@ -923,7 +924,7 @@ For each arrival `r` and each entity dimension marked as stochastic in Step 2:
    * Use `rng_event_entity_attach` (or equivalent family) with a key derived from:
 
      ```text
-     (manifest_fingerprint, seed, scenario_id, arrival_id, dimension)
+     (manifest_fingerprint, parameter_hash, seed, scenario_id, arrival_id, dimension)
      ```
 
      or another deterministic composition defined in the Layer-3 RNG spec.
@@ -991,13 +992,13 @@ With entity attachments fixed, S1 defines sessions.
 
 4. **Assign `session_id`s:**
 
-   * For each session fragment, assign a unique `session_id` within `(seed, manifest_fingerprint, scenario_id)`, using a deterministic scheme, e.g.:
+   * For each session fragment, assign a unique `session_id` within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, using a deterministic scheme, e.g.:
 
      ```text
-     session_id = hash64(manifest_fingerprint, seed, scenario_id, session_key_base, session_index) 
+     session_id = hash64(manifest_fingerprint, parameter_hash, seed, scenario_id, session_key_base, session_index) 
      ```
 
-     or a monotone counter stored per `(seed, fingerprint, scenario_id)` with a deterministic initialisation. The exact form is defined in `schemas.6B.yaml` and 6B identity law.
+     or a monotone counter stored per `(seed, manifest_fingerprint, parameter_hash, scenario_id)` with a deterministic initialisation. The exact form is defined in `schemas.6B.yaml` and 6B identity law.
 
    * Ensure that:
 
@@ -1033,7 +1034,7 @@ With entity attachments fixed, S1 defines sessions.
 
 ### 6.7 Step 5 — Emit outputs & enforce invariants
 
-For each `(seed, manifest_fingerprint, scenario_id)` partition:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition:
 
 1. **Construct `s1_arrival_entities_6B`:**
 
@@ -1045,9 +1046,9 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
 
    * Enforce:
 
-     * **Coverage:** there MUST be exactly one row in `s1_arrival_entities_6B` for each arrival in `arrival_events_5B@{seed,fingerprint,scenario_id}`.
+    * **Coverage:** there MUST be exactly one row in `s1_arrival_entities_6B` for each arrival in `arrival_events_5B@{seed,manifest_fingerprint,scenario_id}`.
      * **No extras:** no rows may exist for arrivals not present in 5B.
-     * **FKs:** all entity IDs must exist in 6A bases for `(seed, manifest_fingerprint)`.
+     * **FKs:** all entity IDs must exist in 6A bases for `(seed, manifest_fingerprint, parameter_hash)`.
 
 2. **Construct `s1_session_index_6B`:**
 
@@ -1065,8 +1066,8 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
    * Write `s1_arrival_entities_6B` and `s1_session_index_6B` to their respective paths:
 
      ```text
-     data/layer3/6B/s1_arrival_entities_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
-     data/layer3/6B/s1_session_index_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s1_arrival_entities_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s1_session_index_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
      ```
 
    * Use the ordering and partitioning specified in §4–§5.
@@ -1149,7 +1150,7 @@ Everything else (arrival keys, session_ids) is subordinate to these axes.
 
 Both S1 datasets are **partitioned identically**:
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 and use the following path templates:
 
@@ -1157,14 +1158,14 @@ and use the following path templates:
 
   ```text
   data/layer3/6B/s1_arrival_entities_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `s1_session_index_6B`:
 
   ```text
   data/layer3/6B/s1_session_index_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 Binding path↔embed rules:
@@ -1172,10 +1173,11 @@ Binding path↔embed rules:
 * For every row:
 
   * `seed` column MUST equal the `seed={seed}` path token.
+  * `parameter_hash` column MUST equal the `parameter_hash={parameter_hash}` path token.
   * `manifest_fingerprint` column MUST equal the `manifest_fingerprint={manifest_fingerprint}` path token.
   * `scenario_id` column MUST equal the `scenario_id={scenario_id}` path token.
 
-* No S1 dataset MAY be written outside this directory layout or without all three partition components.
+* No S1 dataset MAY be written outside this directory layout or without all four partition components.
 
 ---
 
@@ -1186,7 +1188,7 @@ Binding path↔embed rules:
 **Primary key** (binding):
 
 ```text
-[seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]
 ```
 
 where `(merchant_id, arrival_seq)` is exactly the arrival key from `arrival_events_5B`.
@@ -1194,10 +1196,10 @@ where `(merchant_id, arrival_seq)` is exactly the arrival key from `arrival_even
 **Writer ordering** (binding):
 
 ```text
-[seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]
 ```
 
-Within each `(seed, fingerprint, scenario_id)` partition:
+Within each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition:
 
 * Rows MUST be sorted by `merchant_id` then `arrival_seq` in ascending order.
 * There MUST be **exactly one** row for each arrival present in `arrival_events_5B` for that partition, and NO rows for arrivals that do not exist upstream.
@@ -1207,16 +1209,16 @@ Within each `(seed, fingerprint, scenario_id)` partition:
 **Primary key** (binding):
 
 ```text
-[seed, manifest_fingerprint, scenario_id, session_id]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]
 ```
 
 **Writer ordering** (binding):
 
 ```text
-[seed, manifest_fingerprint, scenario_id, session_id]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]
 ```
 
-Within each `(seed, fingerprint, scenario_id)` partition:
+Within each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition:
 
 * Each `session_id` MUST appear exactly once.
 * All `session_id` values referenced in `s1_arrival_entities_6B` for that partition MUST appear in the session index.
@@ -1227,17 +1229,17 @@ Downstream states MUST use these primary keys for joins; ordering is for determi
 
 ### 7.4 Coverage discipline vs `arrival_events_5B`
 
-For each `(manifest_fingerprint, seed, scenario_id)` where S1 runs:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` where S1 runs:
 
 * **Coverage (arrivals → S1 arrivals):**
 
-  * Let `A_5B(seed,fingerprint,scenario)` be the set of arrival keys in `arrival_events_5B`.
-  * Let `A_6B(seed,fingerprint,scenario)` be the set of arrival keys in `s1_arrival_entities_6B`.
+  * Let `A_5B(seed,manifest_fingerprint,scenario)` be the set of arrival keys in `arrival_events_5B`.
+  * Let `A_6B(seed,manifest_fingerprint,parameter_hash,scenario)` be the set of arrival keys in `s1_arrival_entities_6B`.
 
   S1 MUST ensure:
 
   ```text
-  A_6B(seed,fingerprint,scenario) == A_5B(seed,fingerprint,scenario)
+  A_6B(seed,manifest_fingerprint,parameter_hash,scenario) == A_5B(seed,manifest_fingerprint,scenario)
   ```
 
   i.e. one and only one enrichment row per upstream arrival.
@@ -1249,7 +1251,7 @@ For each `(manifest_fingerprint, seed, scenario_id)` where S1 runs:
 
 **Empty-partition semantics:**
 
-* If `arrival_events_5B` has **zero rows** for a `(seed, fingerprint, scenario_id)` partition and S1 is invoked for that partition, then:
+* If `arrival_events_5B` has **zero rows** for a `(seed, manifest_fingerprint, scenario_id)` partition and S1 is invoked for that partition, then:
 
   * It is acceptable for S1 to write **empty** partitions for both outputs (zero rows, valid schema), or
   * To write no files at all for that partition, provided this choice is documented and consistent.
@@ -1266,7 +1268,7 @@ Binding rules:
 
 1. **Per-partition atomicity**
 
-   For a given `(seed, fingerprint, scenario_id)`:
+   For a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
    * S1 MUST treat both `s1_arrival_entities_6B` and `s1_session_index_6B` as a **unit** for that partition.
    * It MUST NOT leave a state where one dataset is written and the other is missing or inconsistent for that partition.
@@ -1275,13 +1277,13 @@ Binding rules:
 
 2. **Single-writer per partition**
 
-   * For a given `(seed, fingerprint, scenario_id)`, at most one logical S1 writer may be active at a time.
+   * For a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, at most one logical S1 writer may be active at a time.
    * Parallel writers for *different* `(seed, scenario_id)` pairs are allowed as long as they write to disjoint partitions.
 
 3. **Idempotent re-runs**
 
    * If outputs for a partition **do not exist** yet, S1 writes them once.
-   * If outputs **do exist**, a re-run for the same `(seed, fingerprint, scenario_id, parameter_hash)` MUST either:
+   * If outputs **do exist**, a re-run for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)` MUST either:
 
      * reproduce byte-identical results (same rows, same ordering, same serialised parquet content modulo allowed physical encoding differences if the engine defines them as digest-equivalent), or
      * fail with an idempotence/merge error (e.g. `S1_IDEMPOTENCE_VIOLATION`) and MUST NOT overwrite the existing data.
@@ -1291,7 +1293,7 @@ Binding rules:
 4. **No incremental merges**
 
    * S1 MUST NOT support “incremental” updates for a partition where only a subset of arrivals is recomputed and merged.
-   * The unit of recomputation is the full `(seed, fingerprint, scenario_id)` domain.
+   * The unit of recomputation is the full `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain.
 
 Any “refresh” of S1 outputs due to contract changes (e.g. different attachment priors) MUST be treated as a new **spec/config version**, and should be accompanied by a new run of 5B or an explicit migration procedure; S1 MUST NOT silently change semantics for existing outputs.
 
@@ -1303,18 +1305,18 @@ Downstream 6B states (S2–S4) and S5 MUST follow these identity rules:
 
 * **World/run/scenario axes:**
 
-  * Always join S1 outputs using the triple `(seed, manifest_fingerprint, scenario_id)` as the outer join key.
+  * Always join S1 outputs using the triple `(seed, manifest_fingerprint, parameter_hash, scenario_id)` as the outer join key.
   * Never attempt to join across different `manifest_fingerprint` or `seed` values.
 
 * **Arrival identity:**
 
   * To move from S1 to 5B or vice versa, use the full arrival PK:
-    `[seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]`.
+    `[seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]`.
 
 * **Session identity:**
 
   * To move between S1 arrivals and S1 sessions:
-    `[seed, manifest_fingerprint, scenario_id, session_id]`.
+    `[seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]`.
 
 Downstream states MUST NOT rely on file names or ordering alone; identity is always expressed via columns + partition axes.
 
@@ -1348,7 +1350,7 @@ By adhering to these identity, partitioning, ordering, and merge rules, S1 remai
 This section defines:
 
 * When 6B.S1 is considered **PASS** vs **FAIL**, for a given
-  `(manifest_fingerprint, seed, scenario_id)`, and
+  `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, and
 * What obligations this places on **downstream 6B states** (S2–S4, S5) and orchestrators.
 
 All conditions here are **binding**. If they are not met, S1 MUST be treated as FAIL for that domain and downstream states MUST NOT proceed.
@@ -1360,7 +1362,7 @@ All conditions here are **binding**. If they are not met, S1 MUST be treated as 
 S1 is evaluated per triple:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
 For a given `manifest_fingerprint`, there may be many `(seed, scenario_id)` pairs.
@@ -1370,7 +1372,7 @@ Acceptance criteria apply **per pair**. S0’s gate covers the fingerprint; S1�
 
 ### 8.2 Acceptance criteria for S1 (per `(seed, scenario_id)`)
 
-For a fixed `(manifest_fingerprint, seed, scenario_id)`, S1 is considered **PASS** if and only if **all** the following hold:
+For a fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S1 is considered **PASS** if and only if **all** the following hold:
 
 #### 8.2.1 Preconditions satisfied
 
@@ -1388,7 +1390,7 @@ If any of these are not satisfied, S1 MUST not attempt data-plane work and MUST 
 Let:
 
 * `AE5B` = `arrival_events_5B` at
-  `(seed, fingerprint=manifest_fingerprint, scenario_id)`.
+  `(seed, manifest_fingerprint, scenario_id)`.
 * `AE6B` = `s1_arrival_entities_6B` at the same axes.
 
 Then:
@@ -1399,7 +1401,7 @@ Then:
 
 2. **Key equality (coverage):**
 
-   * If `K = [seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]` is the PK in both tables, then:
+   * If `K = [seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]` is the PK in both tables, then:
 
      ```text
      { K(AE6B) } == { K(AE5B) }
@@ -1429,7 +1431,7 @@ For every row in `s1_arrival_entities_6B`:
 
 1. **Existence in 6A bases:**
 
-   * Any non-null `party_id` MUST exist in `s1_party_base_6A` for `(seed, manifest_fingerprint)`.
+   * Any non-null `party_id` MUST exist in `s1_party_base_6A` for `(seed, manifest_fingerprint, parameter_hash)`.
    * Any non-null `account_id` MUST exist in `s2_account_base_6A`.
    * Any non-null `instrument_id` MUST exist in `s3_instrument_base_6A`.
    * Any non-null `device_id` MUST exist in `s4_device_base_6A`.
@@ -1454,7 +1456,7 @@ For every row in `s1_arrival_entities_6B`:
 
 Let:
 
-* `SESS` = `s1_session_index_6B` at `(seed, fingerprint, scenario_id)`.
+* `SESS` = `s1_session_index_6B` at `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 Then:
 
@@ -1500,7 +1502,7 @@ These checks may be implemented via local counters and do not require reading th
 
 ### 8.3 Conditions that MUST cause S1 to FAIL
 
-For a given `(manifest_fingerprint, seed, scenario_id)`, S1 MUST be treated as **FAIL** (and MUST NOT publish or must roll back partial outputs) if any of the following occurs:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S1 MUST be treated as **FAIL** (and MUST NOT publish or must roll back partial outputs) if any of the following occurs:
 
 * Preconditions in §2 or §8.2.1 are not met.
 * `s1_arrival_entities_6B` or `s1_session_index_6B` fail schema validation.
@@ -1510,19 +1512,19 @@ For a given `(manifest_fingerprint, seed, scenario_id)`, S1 MUST be treated as *
 
   * `session_id` in arrivals missing in the session index, or
   * sessions with zero arrivals or inconsistent `arrival_count` / time windows.
-* Axes mismatch: any row has `seed`, `manifest_fingerprint`, or `scenario_id` differing from its partition tokens.
+* Axes mismatch: any row has `seed`, `manifest_fingerprint`, `parameter_hash`, or `scenario_id` differing from its partition tokens.
 * Local RNG envelope checks reveal impossible usage (e.g. negative or clearly excessive counts relative to domain size).
 
 On FAIL, S1 MUST ensure that:
 
 * No partial outputs are left in a state that downstream states might misinterpret as PASS (see §7.5).
-* The run-report marks S1 as FAIL for this `(manifest_fingerprint, seed, scenario_id)` with an appropriate error code (to be defined in §9).
+* The run-report marks S1 as FAIL for this `(manifest_fingerprint, parameter_hash, seed, scenario_id)` with an appropriate error code (to be defined in §9).
 
 ---
 
 ### 8.4 Gating obligations for S2–S4 (downstream 6B states)
 
-For any `(manifest_fingerprint, seed, scenario_id)`:
+For any `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **S1 PASS is a hard precondition**
 
@@ -1587,7 +1589,7 @@ In summary, these acceptance criteria ensure that:
 
 This section defines the **canonical failure modes** for 6B.S1 and the **error codes** that MUST be used when they occur.
 
-For any `(manifest_fingerprint, seed, scenario_id)` domain that S1 attempts, the state MUST:
+For any `(manifest_fingerprint, parameter_hash, seed, scenario_id)` domain that S1 attempts, the state MUST:
 
 * End in exactly one of: `status="PASS"` or `status="FAIL"` for that domain.
 * If `status="FAIL"`, attach a **single primary error code** from the list below, and MAY attach secondary codes and diagnostics.
@@ -1598,7 +1600,7 @@ All codes here are **binding**. Downstream states and orchestrators MUST treat a
 
 ### 9.1 Error model & context
 
-For each failed `(manifest_fingerprint, seed, scenario_id)`:
+For each failed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * **Primary error code**
 
@@ -1681,7 +1683,7 @@ These indicate that S1 attempted to run but broke basic identity/schema guarante
 #### 9.3.1 `S1_ARRIVAL_COVERAGE_MISMATCH`
 
 **Definition**
-Emitted when the set of arrival keys in `s1_arrival_entities_6B` does not exactly match `arrival_events_5B` for the `(seed, fingerprint, scenario_id)` domain.
+Emitted when the set of arrival keys in `s1_arrival_entities_6B` does not exactly match `arrival_events_5B` for the `(seed, manifest_fingerprint, scenario_id)` domain.
 
 **Examples**
 
@@ -1918,7 +1920,7 @@ For any partition where S1 fails:
   * `primary_error_code` from the enumeration above,
   * optional `secondary_error_codes` and context.
 
-* S2–S4 MUST NOT run for that `(manifest_fingerprint, seed, scenario_id)` and SHOULD surface S1’s primary error code in their own precondition failures.
+* S2–S4 MUST NOT run for that `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and SHOULD surface S1’s primary error code in their own precondition failures.
 
 * The 6B validation/HashGate state (S5) MUST treat any S1 failure for a partition as a **segment-level FAIL** for the affected world and MUST reflect S1’s error codes in its own diagnostics.
 
@@ -1942,7 +1944,7 @@ Everything here is **binding** for 6B.S1.
 S1 is evaluated per:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
 The Layer-3 run-report **MUST** include an entry for each attempted `(seed, scenario_id)` under a given `manifest_fingerprint`, with at least:
@@ -1958,7 +1960,7 @@ The Layer-3 run-report **MUST** include an entry for each attempted `(seed, scen
 
 Additionally, the run-report **MUST** expose summary metrics for the partition (see §10.2).
 
-There MUST NOT be multiple S1 entries for the same `(manifest_fingerprint, seed, scenario_id)` in a single run-report.
+There MUST NOT be multiple S1 entries for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)` in a single run-report.
 
 ---
 
@@ -1970,7 +1972,7 @@ For each S1 partition (whether PASS or FAIL), the run-report MUST include a **su
 
   * `arrival_count_5B`
 
-    * Number of rows in `arrival_events_5B` for this `(seed, fingerprint, scenario_id)`.
+    * Number of rows in `arrival_events_5B` for this `(seed, manifest_fingerprint, scenario_id)`.
   * `arrival_count_S1`
 
     * Number of rows in `s1_arrival_entities_6B`.
@@ -2019,7 +2021,7 @@ If these conditions fail, S1 MUST be `status="FAIL"` with an appropriate primary
 
 ### 10.3 Logging requirements
 
-S1 MUST emit structured logs at key stages for each `(manifest_fingerprint, seed, scenario_id)`.
+S1 MUST emit structured logs at key stages for each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 At minimum:
 
@@ -2042,7 +2044,7 @@ At minimum:
 3. **Entity load & index build**
 
    * `event_type: "6B.S1.ENTITIES_LOADED"`
-   * counts per 6A dataset for this `(seed, fingerprint)`:
+   * counts per 6A dataset for this `(seed, manifest_fingerprint, parameter_hash)`:
 
      * `party_count`, `account_count`, `instrument_count`, `device_count`, `ip_count`.
 
@@ -2125,7 +2127,7 @@ Downstream states and layers MUST use S1’s run-report and logs as follows:
 
 * **S2–S4 (downstream 6B states)**
 
-  * Before running for `(manifest_fingerprint, seed, scenario_id)`, a downstream state MUST:
+  * Before running for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, a downstream state MUST:
 
     * check the run-report entry for S1 at those axes,
     * verify `status="PASS"`.
@@ -2150,7 +2152,7 @@ Downstream states and layers MUST use S1’s run-report and logs as follows:
 
 ### 10.6 Traceability & audit trail
 
-Together, S1’s outputs and observability signals MUST allow an auditor to answer, for any `(manifest_fingerprint, seed, scenario_id)`:
+Together, S1’s outputs and observability signals MUST allow an auditor to answer, for any `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * Did S1 run successfully?
 * If not, why not (via `primary_error_code` and logs)?
@@ -2173,7 +2175,7 @@ This section gives **non-binding** guidance on how to keep S1 practical at scale
 
 ### 11.1 Cost model — where S1 spends time
 
-For a given `(manifest_fingerprint, seed, scenario_id)`, S1 does three main things:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S1 does three main things:
 
 1. **Load & index 6A entities/posture**
 
@@ -2223,7 +2225,7 @@ S1 is embarrassingly parallel along a couple of axes:
 
 * **Within `(seed, scenario_id)`**
 
-  * After loading 6A entities once per `(seed, fingerprint)`, arrival processing can be:
+  * After loading 6A entities once per `(seed, manifest_fingerprint, parameter_hash)`, arrival processing can be:
 
     * parallelised by merchant,
     * or by chunks of arrival_id ranges,
@@ -2321,7 +2323,7 @@ Practical guidance:
 
 ### 11.6 Memory & footprint
 
-Per `(seed, fingerprint)` S1 needs memory primarily for:
+Per `(seed, manifest_fingerprint, parameter_hash)` S1 needs memory primarily for:
 
 * 6A indices and posture (~O(#entities_6A_for_seed)),
 * some working structures per `(seed, scenario_id)`:
@@ -2334,7 +2336,7 @@ Guidance:
 
 * **Reuse 6A indices across scenarios**
 
-  * Load 6A once per `(seed, fingerprint)`, then process all `scenario_id`s, then discard.
+  * Load 6A once per `(seed, manifest_fingerprint, parameter_hash)`, then process all `scenario_id`s, then discard.
   * Don’t reload 6A per scenario if you can avoid it.
 
 * **Keep per-arrival state minimal**
@@ -2376,7 +2378,7 @@ To keep S1’s I/O cost manageable:
     * too small (excess overhead), nor
     * so large they exceed memory/throughput targets.
 
-  * Partitioning at 5B is the primary lever; S1 follows that partitioning.
+* Partitioning at 5B is the primary lever; S1 extends it with `parameter_hash` to bind behaviour config.
 
 ---
 
@@ -2545,7 +2547,7 @@ Examples of **breaking** changes:
 
 1. **Identity / partition law changes**
 
-   * Changing S1 output partitioning from `[seed, fingerprint, scenario_id]` to anything else.
+   * Changing S1 output partitioning from `[seed, manifest_fingerprint, parameter_hash, scenario_id]` to anything else.
    * Introducing `run_id` (or any new axis) as a partition key for `s1_arrival_entities_6B` or `s1_session_index_6B`.
    * Changing primary keys (e.g. dropping `merchant_id, arrival_seq` from the arrival PK).
 
@@ -2640,7 +2642,7 @@ To support gradual rollout and replay of historical worlds:
 1. **Co-existence of spec versions**
 
    * Orchestrators MUST choose a single `spec_version_6B` per environment / deployment, or per `manifest_fingerprint` if multi-version support is needed.
-   * S1 implementations for different spec versions MUST NOT both write to the same dataset ids for the same `(manifest_fingerprint, seed, scenario_id)`.
+   * S1 implementations for different spec versions MUST NOT both write to the same dataset ids for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
    If multi-version support is required, it SHOULD be realised by:
 
@@ -2666,7 +2668,7 @@ To support gradual rollout and replay of historical worlds:
 For the lifetime of this `spec_version_6B`, the following aspects of S1 are **stable** and MUST NOT change without a major version bump:
 
 * S1 produces exactly two datasets: `s1_arrival_entities_6B` and `s1_session_index_6B`.
-* Both outputs are partitioned by `[seed, fingerprint, scenario_id]`.
+* Both outputs are partitioned by `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
 * `s1_arrival_entities_6B` has a one-to-one mapping with `arrival_events_5B` for each `(seed, scenario_id)` in a world.
 * Entity IDs in S1 outputs are drawn from and consistent with 6A bases/links (no “new” entities invented by S1).
 * Every `session_id` referenced in S1 arrivals appears exactly once in the session index with consistent aggregates.
@@ -2688,14 +2690,14 @@ This appendix collects the key symbols and shorthand used in the 6B.S1 spec. It 
 
 ### 13.1 Identity & axes
 
-* **`manifest_fingerprint` / `fingerprint`**
+* **`manifest_fingerprint`**
   World snapshot identifier; partitions S1 outputs at the “world” level and ties them to upstream HashGates.
 
 * **`seed`**
   Stochastic run axis shared with 5B and 6A. S1 outputs are partitioned by `seed` and are deterministic given `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and fixed inputs.
 
 * **`scenario_id`**
-  Scenario axis from 5A/5B (e.g. baseline, stress, campaign scenario). S1 outputs are partitioned by `scenario_id` alongside `seed` and `manifest_fingerprint`.
+  Scenario axis from 5A/5B (e.g. baseline, stress, campaign scenario). S1 outputs are partitioned by `scenario_id` alongside `seed`, `manifest_fingerprint`, and `parameter_hash`.
 
 * **`parameter_hash`**
   Hash of the 6B behavioural config pack (behaviour priors, sessionisation policy, etc.). Recorded in S1 outputs (via shared columns) and in S0 gate receipt; not a partition key.
@@ -2710,10 +2712,10 @@ This appendix collects the key symbols and shorthand used in the 6B.S1 spec. It 
 
 * **`AE6B`**
   Shorthand for `s1_arrival_entities_6B` — S1’s arrival→entity→session mapping.
-  One row per arrival in `AE5B` for a given `(seed, fingerprint, scenario_id)`.
+  One row per arrival in `AE5B` for a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 * **`SESS`**
-  Shorthand for `s1_session_index_6B` — one row per session for a `(seed, fingerprint, scenario_id)`.
+  Shorthand for `s1_session_index_6B` — one row per session for a `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 * **`SI6B`**
   Sometimes used as shorthand for `s1_session_index_6B` in comments/diagrams.
@@ -2736,13 +2738,13 @@ This appendix collects the key symbols and shorthand used in the 6B.S1 spec. It 
   The primary key for arrivals in 5B:
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq)
   ```
 
   S1 inherits this key unchanged in `s1_arrival_entities_6B`.
 
 * **`session_id`**
-  Opaque, S1-defined identifier for a session, unique within `(seed, manifest_fingerprint, scenario_id)`.
+  Opaque, S1-defined identifier for a session, unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
   Type is typically a constrained string or integer (e.g. “id64”) as defined in `schemas.6B.yaml`.
 
 * **Entity IDs (from 6A)**
@@ -2789,6 +2791,10 @@ S1 uses Layer-3 Philox RNG through event families (exact naming lives in the Lay
 * **`rng_event_session_boundary`**
   RNG family used when session boundary decisions are stochastic (e.g. randomised inactivity thresholds).
 
+**Contract mapping:** Segment 6B does not register dedicated S1 RNG event datasets. These S1 families MUST be recorded
+as `substream_label` values inside `rng_trace_log` (and reflected in `rng_audit_log`), rather than as standalone
+`rng_event_*` datasets.
+
 These names are used informally in this spec; the binding definitions (event envelope, `blocks`/`draws`) live in the Layer-3 RNG & numeric policy contracts.
 
 ---
@@ -2821,7 +2827,7 @@ Examples (see §9 for semantics):
   Informal term for a single `manifest_fingerprint` — a sealed snapshot of all upstream layers.
 
 * **“Partition”** (in S1 context)
-  Usually refers to a `(seed, manifest_fingerprint, scenario_id)` slice of the arrival stream and S1 outputs.
+  Usually refers to a `(seed, manifest_fingerprint, parameter_hash, scenario_id)` slice of the arrival stream and S1 outputs.
 
 * **“Plan surface”**
   Internal, non-egress dataset used as a plan or intermediate surface (both S1 outputs are plan surfaces; not final Layer-3 egress).

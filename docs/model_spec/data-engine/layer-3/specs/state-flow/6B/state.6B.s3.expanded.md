@@ -132,8 +132,8 @@ If S3 is implemented according to this specification:
 **Inputs (authoritative; see Section 2 for full list):**
 * `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
 * `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
-* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
-* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
+* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S2
+* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S2
 * `s5_party_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5
 * `s5_account_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5
 * `s5_merchant_fraud_roles_6A` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash]; source: 6A.S5 (optional)
@@ -147,9 +147,9 @@ If S3 is implemented according to this specification:
 * S3 is the sole authority for fraud/abuse campaign overlays.
 
 **Outputs:**
-* `s3_campaign_catalogue_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s3_campaign_catalogue_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
 * `rng_event_fraud_campaign_pick` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_event_fraud_overlay_apply` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
@@ -168,7 +168,7 @@ This section defines **what must already be true** before 6B.S3 is allowed to ru
 S3 is evaluated per triple:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
 If **any** precondition in this section is not satisfied for a given triple, then S3 **MUST NOT** overlay campaigns for that partition and **MUST** fail fast with a precondition error (defined in S3 failure modes).
@@ -221,7 +221,7 @@ S3 MUST NOT try to “work around” a non-PASS upstream segment. If S0 says the
 
 ### 2.3 S1 and S2 MUST be PASS for `(seed, scenario_id)`
 
-S3’s overlay logic sits on top of S1 and S2. For each `(manifest_fingerprint, seed, scenario_id)`:
+S3’s overlay logic sits on top of S1 and S2. For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * S3 MUST NOT run unless **both** 6B.S1 and 6B.S2 have successfully completed for that same triple.
 
@@ -238,10 +238,10 @@ Binding checks:
 
 2. Confirm that S1/S2 data-plane outputs exist and are schema-valid for that partition:
 
-   * `s1_arrival_entities_6B@{seed,fingerprint,scenario_id}`
-   * `s1_session_index_6B@{seed,fingerprint,scenario_id}`
-   * `s2_flow_anchor_baseline_6B@{seed,fingerprint,scenario_id}`
-   * `s2_event_stream_baseline_6B@{seed,fingerprint,scenario_id}`
+   * `s1_arrival_entities_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+   * `s1_session_index_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+   * `s2_flow_anchor_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+   * `s2_event_stream_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
 
    validated against their `schema_ref`s in `schemas.6B.yaml`.
 
@@ -257,7 +257,7 @@ All datasets and config packs S3 reads MUST be discoverable via `sealed_inputs_6
 
 Before processing any `(seed, scenario_id)` partition, S3 MUST:
 
-1. Load `sealed_inputs_6B@{fingerprint}` and validate it against `schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`.
+1. Load `sealed_inputs_6B@{manifest_fingerprint}` and validate it against `schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`.
 
 2. Confirm that the following artefacts exist as rows with:
 
@@ -312,14 +312,14 @@ Optional context artefacts (e.g. additional 6A attributes, 5A/5B/2B/3B context s
 
 S3 operates on the same `(seed, scenario_id)` partitions as S2 for a given world.
 
-For each `(manifest_fingerprint, seed, scenario_id)` that S3 intends to process, it MUST:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` that S3 intends to process, it MUST:
 
 1. Confirm that:
 
    * `s2_flow_anchor_baseline_6B` has a partition at:
 
      ```text
-     seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+     seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
      ```
 
    * `s2_event_stream_baseline_6B` has a partition at the same axes.
@@ -346,7 +346,7 @@ S3 is an RNG-consuming state. Before any campaign or overlay logic, S3 MUST ensu
 
   * The RNG family names reserved for S3 (e.g. `rng_event_campaign_activation`, `rng_event_campaign_targeting`, `rng_event_overlay_mutation`).
   * Per-family budgets (`blocks`, `draws` per event).
-  * Any substream keying law (e.g. keyed on `(seed, fingerprint, scenario_id, campaign_id, flow_id)`).
+  * Any substream keying law (e.g. keyed on `(seed, manifest_fingerprint, parameter_hash, scenario_id, campaign_id, flow_id)`).
 
 If the RNG policy for S3 is missing, inconsistent with the Layer-3 RNG spec, or otherwise invalid, S3 MUST fail preconditions and MUST NOT attempt to realise campaigns or mutate flows.
 
@@ -357,7 +357,7 @@ If the RNG policy for S3 is missing, inconsistent with the Layer-3 RNG spec, or 
 S3 MUST NOT be invoked in any of the following situations:
 
 * **Before** 6B.S0 has been run and recorded `status="PASS"` for the target `manifest_fingerprint`.
-* **Before** 6B.S1 and 6B.S2 have been run and recorded `status="PASS"` for the target `(manifest_fingerprint, seed, scenario_id)`.
+* **Before** 6B.S1 and 6B.S2 have been run and recorded `status="PASS"` for the target `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 * With a manually supplied list of inputs that bypasses `sealed_inputs_6B`.
 * Against a world where any required upstream HashGate (1A–3B, 5A, 5B, 6A) is not PASS according to `s0_gate_receipt_6B`.
 * When required S1/S2 surfaces, 6A static posture surfaces, or S3 config packs are missing from `sealed_inputs_6B` or fail their schemas.
@@ -365,7 +365,7 @@ S3 MUST NOT be invoked in any of the following situations:
 
 If any of these conditions hold, the correct behaviour is:
 
-* S3 MUST fail early with a precondition error for that `(manifest_fingerprint, seed, scenario_id)`.
+* S3 MUST fail early with a precondition error for that `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 * S3 MUST NOT emit any S3 outputs for that partition.
 
 These preconditions are **binding**. Any conformant implementation of 6B.S3 MUST enforce them before performing campaign activation, targeting, or overlay on the baseline flows/events.
@@ -437,7 +437,7 @@ These MUST appear in `sealed_inputs_6B` as `owner_layer=3`, `owner_segment="6B"`
 
 1. **`s1_arrival_entities_6B`**
 
-   * One row per arrival for `(seed, manifest_fingerprint, scenario_id)`.
+   * One row per arrival for `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
    * Contains:
 
      * arrival identity & routing (from 5B),
@@ -560,7 +560,7 @@ Indicative set (names to match your contracts):
 
    * RNG families reserved for S3 (`rng_event_campaign_activation`, `rng_event_campaign_targeting`, `rng_event_overlay_mutation`, etc.),
    * per-family `blocks`/`draws` budgets per decision,
-   * key structure (how `(manifest_fingerprint, seed, scenario_id, campaign_id, flow_id, event_seq)` feed into keys).
+   * key structure (how `(manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, flow_id, event_seq)` feed into keys).
 
 4. **Optional validation/tuning packs**
 
@@ -656,7 +656,7 @@ These are **Layer-3 / 6B owned** datasets:
 
 * They **do not** replace S1/S2 outputs; they sit alongside them as overlay surfaces.
 * They are required for S4 (labelling) and S5 (validation).
-* Flow/event overlays share the same partition axes as S2: `[seed, fingerprint, scenario_id]`.
+* Flow/event overlays share the same partition axes as S2: `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
 
 No other datasets may be written by S3.
 
@@ -674,7 +674,7 @@ No other datasets may be written by S3.
 
 One row per **realised campaign instance**, describing:
 
-* `campaign_id` — unique identifier for the campaign instance within `(seed, manifest_fingerprint)` (see identity below).
+* `campaign_id` — unique identifier for the campaign instance within `(seed, manifest_fingerprint, parameter_hash, scenario_id)` (see identity below).
 * `campaign_type` — e.g. `CARD_TESTING`, `ATO`, `REFUND_ABUSE`, `COLLUSION`, etc.
 * configuration references:
 
@@ -686,7 +686,7 @@ One row per **realised campaign instance**, describing:
   * indicates whether targeting is entity-centric (parties/accounts/devices/merchants), flow-centric, or session-centric.
 * scope:
 
-  * world axes: `manifest_fingerprint`, `seed`,
+  * world axes: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`,
   * scenario scope (single `scenario_id` or a set, depending on policy),
   * calendar/timeline: start/end windows.
 * realised intensity:
@@ -697,9 +697,9 @@ This catalogue is the **only authoritative list** of which campaigns S3 actually
 
 **Format, path & partitioning**
 
-Campaigns are realised per seed+world (even if they span multiple scenarios). The dataset MUST be registered with:
+Campaigns are realised per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`. The dataset MUST be registered with:
 
-* `version: '{seed}.{manifest_fingerprint}'`
+* `version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'`
 
 * `format: parquet`
 
@@ -707,24 +707,24 @@ Campaigns are realised per seed+world (even if they span multiple scenarios). Th
 
   ```text
   data/layer3/6B/s3_campaign_catalogue_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
   ```
 
-* `partitioning: [seed, manifest_fingerprint]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
-The `manifest_fingerprint` and `seed` columns in all rows MUST match the partition tokens.
+The `manifest_fingerprint`, `parameter_hash`, `seed`, and `scenario_id` columns in all rows MUST match the partition tokens.
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
   ```text
-  [seed, manifest_fingerprint, campaign_id]
+  [seed, manifest_fingerprint, scenario_id, campaign_id]
   ```
 
-`campaign_id` MUST be unique within `(seed, manifest_fingerprint)`.
+`campaign_id` MUST be unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 **Schema anchor & lineage**
 
@@ -759,7 +759,7 @@ For each `(seed, manifest_fingerprint)`:
 
 **Purpose**
 
-Flow-level overlay view for each `(seed, manifest_fingerprint, scenario_id)` domain. Each row represents:
+Flow-level overlay view for each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain. Each row represents:
 
 * a **flow after overlay**, with:
 
@@ -782,7 +782,7 @@ There MUST be exactly one row per **post-overlay flow**. That includes:
 
 This dataset MUST be registered with:
 
-* `version: '{seed}.{manifest_fingerprint}.{scenario_id}'`
+* `version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'`
 
 * `format: parquet`
 
@@ -790,12 +790,12 @@ This dataset MUST be registered with:
 
   ```text
   data/layer3/6B/s3_flow_anchor_with_fraud_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
-Columns `seed`, `manifest_fingerprint`, `scenario_id` MUST match the partition tokens.
+Columns `seed`, `parameter_hash`, `manifest_fingerprint`, `scenario_id` MUST match the partition tokens.
 
 **Primary key & identity**
 
@@ -816,7 +816,7 @@ where:
 
 * For “pure fraud” flows created by S3:
 
-  * `flow_id` MUST be a new identifier unique within `(seed, manifest_fingerprint, scenario_id)` that does **not** clash with any baseline `flow_id`, and
+  * `flow_id` MUST be a new identifier unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)` that does **not** clash with any baseline `flow_id`, and
   * `origin_type` MUST indicate `PURE_FRAUD_FLOW`, with `origin_flow_id` either null or pointing to a related baseline flow if the campaign semantics require that link.
 
 Ordering MUST be:
@@ -858,7 +858,7 @@ Ordering MUST be:
 
 **Purpose**
 
-Event-level overlay view for each `(seed, manifest_fingerprint, scenario_id)`. Each row represents a **post-overlay event** in a flow:
+Event-level overlay view for each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`. Each row represents a **post-overlay event** in a flow:
 
 * For flows derived from baseline:
 
@@ -885,7 +885,7 @@ Each row includes:
 
 MUST be registered with:
 
-* `version: '{seed}.{manifest_fingerprint}.{scenario_id}'`
+* `version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'`
 
 * `format: parquet`
 
@@ -893,16 +893,16 @@ MUST be registered with:
 
   ```text
   data/layer3/6B/s3_event_stream_with_fraud_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 Axes in each row MUST match the partition tokens.
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint, scenario_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
@@ -912,7 +912,7 @@ For each `(seed, manifest_fingerprint, scenario_id)`:
 
 Constraints:
 
-* For any given `(seed, fingerprint, scenario_id, flow_id)`:
+* For any given `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`:
 
   * `event_seq` MUST form a contiguous, strictly monotone sequence starting at a base defined in the schema (e.g. 0 or 1).
   * Every `flow_id` present in `s3_flow_anchor_with_fraud_6B` MUST have ≥1 event in this table.
@@ -956,16 +956,16 @@ To avoid ambiguity:
   * For flows and events, S3 uses the **same axes** as S2:
 
     ```text
-    (seed, manifest_fingerprint, scenario_id)
+    (seed, manifest_fingerprint, parameter_hash, scenario_id)
     ```
 
-  * For the campaign catalogue, axes are `(seed, manifest_fingerprint)`.
+  * For the campaign catalogue, axes are `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 * **Baseline vs overlay**
 
   * For flows that originate from baseline:
 
-    * `flow_id` in S3 MUST match `flow_id` in S2 for the same `(seed, fingerprint, scenario_id)`.
+    * `flow_id` in S3 MUST match `flow_id` in S2 for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
     * `origin_flow_id` MUST explicitly reference the baseline `flow_id`.
     * S3 may change per-flow amounts/timestamps/flags **in its own overlay anchor**, but S2’s anchor remains unchanged.
 
@@ -976,7 +976,7 @@ To avoid ambiguity:
 
 * **Events linkage**
 
-  * Every `(seed, fingerprint, scenario_id, flow_id)` in S3 events MUST exist in S3 flow anchor.
+  * Every `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` in S3 events MUST exist in S3 flow anchor.
 
   * For events derived from S2:
 
@@ -988,7 +988,7 @@ To avoid ambiguity:
 
 * **Campaign linkage**
 
-  * All non-null `campaign_id` values in S3 flow/event overlays MUST exist in `s3_campaign_catalogue_6B@{seed,fingerprint}`.
+  * All non-null `campaign_id` values in S3 flow/event overlays MUST exist in `s3_campaign_catalogue_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
   * For flows/events with `campaign_id = null`, `fraud_pattern_type` MUST be either `NONE` or a value consistent with “no campaign” as defined in S3’s schema.
 
 These relationships will be enforced by S3’s own acceptance criteria and by the 6B validation state. This section fixes the **identity and dataset surfaces**; subsequent sections describe how S3 populates and checks them.
@@ -1060,9 +1060,13 @@ If any step fails the constraints in this section, S3 MUST fail for the affected
 
    All random draws for S3 MUST use Philox through a small set of S3-specific RNG families defined in `fraud_rng_policy_6B`. Names are indicative (actual names live in the RNG spec):
 
-   * `rng_event_campaign_activation` — for realising campaign instances (e.g. how many, with what offsets).
-   * `rng_event_campaign_targeting` — for selecting targets (entities/sessions/flows/events).
-   * `rng_event_overlay_mutation` — for per-target overlay decisions (e.g. whether to mutate amount, timestamps, routing, or spawn extra events/flows).
+   * `rng_event_campaign_activation` - for realising campaign instances (e.g. how many, with what offsets).
+   * `rng_event_campaign_targeting` - for selecting targets (entities/sessions/flows/events).
+   * `rng_event_overlay_mutation` - for per-target overlay decisions (e.g. whether to mutate amount, timestamps, routing, or spawn extra events/flows).
+
+   **Contract mapping:** these conceptual families are recorded under the registered RNG datasets
+   `rng_event_fraud_campaign_pick` (campaign activation + targeting) and
+   `rng_event_fraud_overlay_apply` (overlay mutation), using `substream_label` to distinguish the family.
 
    S3 MUST NOT use RNG families reserved for other states, nor introduce undocumented families.
 
@@ -1140,7 +1144,7 @@ For each campaign template T:
 
      * If policy defines a distribution over `N_T` (e.g. Poisson, binomial, categorical), S3 MUST:
 
-       * use `rng_event_campaign_activation` with a key based on `(manifest_fingerprint, seed, template_id)`,
+       * use `rng_event_campaign_activation` with a key based on `(manifest_fingerprint, parameter_hash, seed, scenario_id, template_id)`,
        * draw the configured number of uniforms for that family,
        * map draws to `N_T` via the configured distribution.
 
@@ -1151,7 +1155,7 @@ For each campaign template T:
    * deterministically compute a **campaign_id**, e.g.:
 
      ```text
-     campaign_id = hash64(manifest_fingerprint, seed, template_id, i)
+     campaign_id = hash64(manifest_fingerprint, parameter_hash, seed, scenario_id, template_id, i)
      ```
 
      or an equivalent stable scheme (the exact law is fixed in the identity spec).
@@ -1162,7 +1166,7 @@ For each campaign template T:
      * per-instance intensity multipliers,
      * any per-instance variation (e.g. region focus, merchant subset).
 
-     For any stochastic instance parameters, S3 MUST use `rng_event_campaign_activation` keyed on `(manifest_fingerprint, seed, template_id, campaign_index)` and consume a fixed number of draws per parameter.
+     For any stochastic instance parameters, S3 MUST use `rng_event_campaign_activation` keyed on `(manifest_fingerprint, parameter_hash, seed, scenario_id, template_id, campaign_index)` and consume a fixed number of draws per parameter.
 
 3. **Populate campaign catalogue rows**
 
@@ -1229,7 +1233,7 @@ For each campaign instance C with non-empty domains:
    * `n_flows(C)` — number of flows to target, if flow-centric.
    * `n_sessions(C)` — number of sessions, if session-centric.
 
-   These may be deterministic or require RNG (e.g. sampling from binomial/Poisson distributions) using `rng_event_campaign_targeting` with a key based on `(manifest_fingerprint, seed, campaign_id)`.
+   These may be deterministic or require RNG (e.g. sampling from binomial/Poisson distributions) using `rng_event_campaign_targeting` with a key based on `(manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id)`.
 
 2. **Sample target sets**
 
@@ -1240,7 +1244,7 @@ For each campaign instance C with non-empty domains:
 
    For each target slot:
 
-   * use `rng_event_campaign_targeting` with a key that includes `(manifest_fingerprint, seed, campaign_id, target_index, target_kind)`;
+   * use `rng_event_campaign_targeting` with a key that includes `(manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, target_index, target_kind)`;
    * draw the configured number of uniforms;
    * map those draws to a candidate in the domain.
 
@@ -1278,7 +1282,7 @@ For each targeted object (flow/session/entity) in each campaign instance, S3 con
      * flow context (baseline outcome, amounts, entity types, channel, time),
      * entity posture from 6A.
 
-   * If multiple overlay templates are available, S3 MUST select one using `rng_event_overlay_mutation` with a key `(manifest_fingerprint, seed, campaign_id, flow_id, overlay_stage)` and fixed draw budget.
+   * If multiple overlay templates are available, S3 MUST select one using `rng_event_overlay_mutation` with a key `(manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, flow_id, overlay_stage)` and fixed draw budget.
 
    Examples:
 
@@ -1305,7 +1309,7 @@ For each targeted object (flow/session/entity) in each campaign instance, S3 con
      * number and shape of new flows to be created under a campaign (e.g. card tests that have no baseline counterpart),
      * their relation to existing sessions/entities (e.g. same account/device, new sessions).
 
-   For each stochastic choice (e.g. “do we spawn an extra auth here?”, “how many test transactions per card?”), S3 MUST use `rng_event_overlay_mutation` keyed by `(manifest_fingerprint, seed, campaign_id, flow_id, local_index)` with fixed draw budgets.
+   For each stochastic choice (e.g. “do we spawn an extra auth here?”, “how many test transactions per card?”), S3 MUST use `rng_event_overlay_mutation` keyed by `(manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, flow_id, local_index)` with fixed draw budgets.
 
 3. **Ensure local policy constraints**
 
@@ -1356,7 +1360,7 @@ After planning, S3 instantiates overlay flows and events into its S3 datasets.
 
    For each **pure fraud flow** `f_new` created in overlay planning:
 
-   * Choose `flow_id` deterministically (e.g. via hash combining `(manifest_fingerprint, seed, campaign_id, local_flow_index)`) ensuring no collision with S2 flow_ids.
+   * Choose `flow_id` deterministically (e.g. via hash combining `(manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, local_flow_index)`) ensuring no collision with S2 flow_ids.
    * Create a row with:
 
      * `origin_type = "PURE_FRAUD_FLOW"`,
@@ -1404,21 +1408,21 @@ If any of these checks fail, S3 MUST consider the partition FAIL and MUST NOT wr
 
 ### 6.8 Step 6 — Write outputs & enforce idempotence
 
-For each `(manifest_fingerprint, seed)` (for the campaign catalogue) and each `(manifest_fingerprint, seed, scenario_id)` (for flow/event overlays):
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (for the campaign catalogue) and each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (for flow/event overlays):
 
 1. **Write `s3_campaign_catalogue_6B`**
 
-   * For the `(seed, fingerprint)` pair, write a single parquet file per spec:
+   * For the `(seed, manifest_fingerprint, parameter_hash, scenario_id)` pair, write a single parquet file per spec:
 
      ```text
-     data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+     data/layer3/6B/s3_campaign_catalogue_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
      ```
 
    * Ensure PK uniqueness and schema validity.
 
 2. **Write `s3_flow_anchor_with_fraud_6B` and `s3_event_stream_with_fraud_6B` per partition**
 
-   * For each `(seed, fingerprint, scenario_id)`:
+   * For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
      * Write `s3_event_stream_with_fraud_6B` rows, sorted and PK-validated.
      * Write `s3_flow_anchor_with_fraud_6B` rows, sorted and PK-validated.
@@ -1429,7 +1433,7 @@ For each `(manifest_fingerprint, seed)` (for the campaign catalogue) and each `(
 
 3. **Idempotent re-runs**
 
-   For a given `(manifest_fingerprint, parameter_hash, seed)` / `(seed, fingerprint, scenario_id)`:
+   For a given `(manifest_fingerprint, parameter_hash, seed)` / `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
    * If outputs do not exist yet, S3 writes them once.
    * If outputs already exist, a re-run MUST either:
@@ -1492,32 +1496,32 @@ S3 has two natural identity scopes:
 * **World + seed** for campaign catalogue:
 
   ```text
-  (manifest_fingerprint, seed)
+  (manifest_fingerprint, parameter_hash, seed, scenario_id)
   ```
 
 * **World + seed + scenario** for flow/event overlays:
 
   ```text
-  (manifest_fingerprint, seed, scenario_id)
+  (manifest_fingerprint, parameter_hash, seed, scenario_id)
   ```
 
 Binding rules:
 
 1. **All S3 rows MUST carry their axes explicitly**:
 
-   * `s3_campaign_catalogue_6B`: `manifest_fingerprint`, `seed`.
-   * `s3_flow_anchor_with_fraud_6B`: `manifest_fingerprint`, `seed`, `scenario_id`.
-   * `s3_event_stream_with_fraud_6B`: `manifest_fingerprint`, `seed`, `scenario_id`.
+   * `s3_campaign_catalogue_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`.
+   * `s3_flow_anchor_with_fraud_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`.
+   * `s3_event_stream_with_fraud_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`.
 
 2. S3 MUST NOT introduce `run_id` or any other execution identifier as a partition key for these data-plane outputs. `run_id` is reserved for RNG/logging surfaces.
 
-3. For a given world (`manifest_fingerprint`) and seed, S3 operates on the same set of `scenario_id`s as S2 (i.e. those for which S2 outputs exist and are PASS).
+3. For a given world (`manifest_fingerprint`) and parameter set (`parameter_hash`) and seed, S3 operates on the same set of `scenario_id`s as S2 (i.e. those for which S2 outputs exist and are PASS).
 
 Within these axes:
 
-* `campaign_id` is unique per `(seed, manifest_fingerprint)`.
-* `flow_id` is unique per `(seed, manifest_fingerprint, scenario_id)`.
-* `(flow_id, event_seq)` is unique per `(seed, manifest_fingerprint, scenario_id)`.
+* `campaign_id` is unique per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
+* `flow_id` is unique per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
+* `(flow_id, event_seq)` is unique per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 ---
 
@@ -1527,32 +1531,32 @@ S3 datasets MUST use the following partitioning and path templates:
 
 * **Campaign catalogue**:
 
-  * `partitioning: [seed, manifest_fingerprint]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s3_campaign_catalogue_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_campaign_catalogue_6B.parquet
     ```
 
 * **Flow overlay anchor**:
 
-  * `partitioning: [seed, fingerprint, scenario_id]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s3_flow_anchor_with_fraud_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Event overlay stream**:
 
-  * `partitioning: [seed, fingerprint, scenario_id]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s3_event_stream_with_fraud_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 Binding path↔embed rules:
@@ -1586,7 +1590,7 @@ No S3 data-plane rows may be written outside these layouts or without the approp
 [seed, manifest_fingerprint, campaign_id]
 ```
 
-Per `(seed, manifest_fingerprint)`:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Each `campaign_id` MUST be unique.
 * Rows MUST be sorted by `campaign_id` in ascending order.
@@ -1605,7 +1609,7 @@ Per `(seed, manifest_fingerprint)`:
 [seed, manifest_fingerprint, scenario_id, flow_id]
 ```
 
-Per `(seed, manifest_fingerprint, scenario_id)`:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Each `flow_id` MUST be unique.
 * Rows MUST be sorted by `flow_id` ascending.
@@ -1632,7 +1636,7 @@ For pure-fraud flows:
 [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
 ```
 
-Per `(seed, manifest_fingerprint, scenario_id, flow_id)`:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`:
 
 * `(flow_id, event_seq)` MUST be unique.
 * `event_seq` MUST form a **contiguous**, strictly monotone sequence starting at a defined base (e.g. `0` or `1`, as the schema specifies).
@@ -1642,14 +1646,14 @@ Per `(seed, manifest_fingerprint, scenario_id, flow_id)`:
 
 ### 7.4 Coverage & relationship to S2 outputs
 
-For each `(manifest_fingerprint, seed, scenario_id)`:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 Let:
 
-* `FA2` = `s2_flow_anchor_baseline_6B@{seed,fingerprint,scenario_id}`,
-* `EV2` = `s2_event_stream_baseline_6B@{seed,fingerprint,scenario_id}`,
-* `FA3` = `s3_flow_anchor_with_fraud_6B@{seed,fingerprint,scenario_id}`,
-* `EV3` = `s3_event_stream_with_fraud_6B@{seed,fingerprint,scenario_id}`.
+* `FA2` = `s2_flow_anchor_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`,
+* `EV2` = `s2_event_stream_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`,
+* `FA3` = `s3_flow_anchor_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`,
+* `EV3` = `s3_event_stream_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
 Binding relationships:
 
@@ -1715,13 +1719,13 @@ Downstream states (S4, S5) MUST use the following join keys:
     * join `FA3` back to `FA2` via:
 
       ```text
-      [seed, manifest_fingerprint, scenario_id, origin_flow_id]
+      [seed, manifest_fingerprint, parameter_hash, scenario_id, origin_flow_id]
       ```
 
     * join `EV3` partial overlays back to `EV2` via:
 
       ```text
-      [seed, manifest_fingerprint, scenario_id, origin_flow_id, origin_event_seq]
+      [seed, manifest_fingerprint, parameter_hash, scenario_id, origin_flow_id, origin_event_seq]
       ```
 
   * For pure-fraud flows and events:
@@ -1740,7 +1744,7 @@ Downstream states (S4, S5) MUST use the following join keys:
 
   * Use the existing identity keys:
 
-    * Flows ↔ sessions: `[seed, manifest_fingerprint, scenario_id, session_id]`.
+    * Flows ↔ sessions: `[seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]`.
     * Flows ↔ S1 arrivals: via arrival linkage fields in `FA3` + S1’s arrival PK.
 
 Downstream states MUST NOT infer relationships from file names or ordering alone; they MUST use these explicit keys.
@@ -1757,8 +1761,8 @@ Binding rules:
 
 1. **Unit of work**
 
-   * For campaigns: the unit is `(manifest_fingerprint, seed)` (catalogue).
-   * For overlays: the unit is `(manifest_fingerprint, seed, scenario_id)` (flow/event overlays).
+   * For campaigns: the unit is `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (catalogue).
+   * For overlays: the unit is `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (flow/event overlays).
 
    Within each unit:
 
@@ -1768,8 +1772,8 @@ Binding rules:
 
    * At any point in time, at most one S3 instance may be responsible for writing:
 
-     * `s3_campaign_catalogue_6B` for a given `(seed, fingerprint)`, and
-     * `s3_flow_anchor_with_fraud_6B` / `s3_event_stream_with_fraud_6B` for a given `(seed, fingerprint, scenario_id)`.
+     * `s3_campaign_catalogue_6B` for a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, and
+     * `s3_flow_anchor_with_fraud_6B` / `s3_event_stream_with_fraud_6B` for a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
    * Parallelism across different seeds or scenarios is allowed, but concurrent writes to the same partition set by different instances are disallowed.
 
@@ -1837,16 +1841,16 @@ This section defines:
 
 S3 has two scopes:
 
-* **World + seed** for the campaign catalogue: `(manifest_fingerprint, seed)`.
-* **World + seed + scenario** for flow/event overlays: `(manifest_fingerprint, seed, scenario_id)`.
+* **World + seed** for the campaign catalogue: `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
+* **World + seed + scenario** for flow/event overlays: `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 S3 is only **globally acceptable** for a world if **both** scopes satisfy their criteria.
 
 ---
 
-### 8.1 Acceptance criteria — campaign catalogue (per `(manifest_fingerprint, seed)`)
+### 8.1 Acceptance criteria — campaign catalogue (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
-For a fixed `(manifest_fingerprint, seed)`, S3 is considered **PASS at the campaign catalogue scope** if and only if:
+For a fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S3 is considered **PASS at the campaign catalogue scope** if and only if:
 
 1. **Preconditions satisfied**
 
@@ -1856,7 +1860,7 @@ For a fixed `(manifest_fingerprint, seed)`, S3 is considered **PASS at the campa
 
 2. **`s3_campaign_catalogue_6B` exists and is schema-valid**
 
-   * The parquet file for `(seed, fingerprint)` exists at the expected path.
+   * The parquet file for `(seed, manifest_fingerprint, parameter_hash, scenario_id)` exists at the expected path.
    * It passes validation against `schemas.6B.yaml#/s3/campaign_catalogue_6B`.
    * PK/partition invariants hold:
 
@@ -1882,27 +1886,27 @@ For a fixed `(manifest_fingerprint, seed)`, S3 is considered **PASS at the campa
 
 5. **RNG envelope sanity for campaign activation/targeting**
 
-   * Local counts of RNG decisions associated with campaign activation/targeting (for this `(seed, fingerprint)`) are within the configured budgets in `fraud_rng_policy_6B`.
+   * Local counts of RNG decisions associated with campaign activation/targeting (for this `(seed, manifest_fingerprint, parameter_hash, scenario_id)`) are within the configured budgets in `fraud_rng_policy_6B`.
    * No campaign instance was partially realised due to RNG misconfiguration (e.g. missing draws partway through activation).
 
-If any of these catalogue-level criteria fail, S3 MUST be considered FAIL at the campaign scope for this `(manifest_fingerprint, seed)`, and all overlays that depend on those campaigns MUST be treated as invalid.
+If any of these catalogue-level criteria fail, S3 MUST be considered FAIL at the campaign scope for this `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, and all overlays that depend on those campaigns MUST be treated as invalid.
 
 ---
 
-### 8.2 Acceptance criteria — overlays (per `(manifest_fingerprint, seed, scenario_id)`)
+### 8.2 Acceptance criteria — overlays (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
-For a fixed `(manifest_fingerprint, seed, scenario_id)`, S3 is considered **PASS at the overlay scope** if and only if **all** of the following hold:
+For a fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S3 is considered **PASS at the overlay scope** if and only if **all** of the following hold:
 
 #### 8.2.1 Preconditions satisfied
 
 * S0 is PASS for `manifest_fingerprint`.
-* S1 and S2 are PASS for `(manifest_fingerprint, seed, scenario_id)` in the run-report.
+* S1 and S2 are PASS for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` in the run-report.
 * S1 datasets (`s1_arrival_entities_6B`, `s1_session_index_6B`) and S2 datasets (`s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`) exist and are schema-valid at this partition.
-* `s3_campaign_catalogue_6B` is PASS for `(manifest_fingerprint, seed)` per §8.1.
+* `s3_campaign_catalogue_6B` is PASS for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` per §8.1.
 
 #### 8.2.2 Schema & identity validity of S3 overlays
 
-At this `(seed, fingerprint, scenario_id)`:
+At this `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * `s3_flow_anchor_with_fraud_6B` exists and validates against `schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B`.
 * `s3_event_stream_with_fraud_6B` exists and validates against `schemas.6B.yaml#/s3/event_stream_with_fraud_6B`.
@@ -1929,7 +1933,7 @@ Let:
 * `EV2` = S2 events (`s2_event_stream_baseline_6B`),
 * `FA3` = S3 anchor (`s3_flow_anchor_with_fraud_6B`),
 * `EV3` = S3 events (`s3_event_stream_with_fraud_6B`)
-  for this `(seed, fingerprint, scenario_id)`.
+  for this `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 S3 MUST ensure:
 
@@ -1966,7 +1970,7 @@ Any violation of these coverage rules MUST cause S3 to fail for the partition.
 
 * For every non-null `campaign_id` in `FA3` or `EV3` at this partition:
 
-  * There MUST be a row in `s3_campaign_catalogue_6B@{seed,fingerprint}` with the same `campaign_id`.
+  * There MUST be a row in `s3_campaign_catalogue_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}` with the same `campaign_id`.
 
 * For flows/events with `campaign_id = null`:
 
@@ -2033,7 +2037,7 @@ Full RNG reconciliation is done in S5; S3 is only responsible for its own local 
 
 ### 8.3 Conditions that MUST cause S3 to FAIL
 
-S3 MUST mark the partition (and where applicable, the `(seed,fingerprint)` campaign scope) as **FAIL** if any of the following occur:
+S3 MUST mark the partition (and where applicable, the `(seed, manifest_fingerprint, parameter_hash, scenario_id)` campaign scope) as **FAIL** if any of the following occur:
 
 * Any precondition in §2 is not met (missing S0/S1/S2/PASS, incomplete sealed_inputs, missing/invalid config).
 * `s3_campaign_catalogue_6B`, `s3_flow_anchor_with_fraud_6B`, or `s3_event_stream_with_fraud_6B` fail schema or PK/partition validation.
@@ -2053,7 +2057,7 @@ On FAIL:
 
 ### 8.4 Gating obligations for S4 (labelling)
 
-For any `(manifest_fingerprint, seed, scenario_id)`:
+For any `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **S3 PASS is a hard precondition for S4**
 
@@ -2123,8 +2127,8 @@ This section defines the **canonical failure modes** for 6B.S3 and the **error c
 
 For any world/partition S3 attempts:
 
-* At the **campaign scope**: `(manifest_fingerprint, seed)`
-* At the **overlay scope**: `(manifest_fingerprint, seed, scenario_id)`
+* At the **campaign scope**: `(manifest_fingerprint, parameter_hash, seed, scenario_id)`
+* At the **overlay scope**: `(manifest_fingerprint, parameter_hash, seed, scenario_id)`
 
 S3 MUST:
 
@@ -2171,8 +2175,8 @@ These indicate S3 never legitimately entered campaign realisation or overlay for
 Emitted when any of the necessary S0/S1/S2 preconditions fail:
 
 * S0 not PASS for `manifest_fingerprint`, or
-* S1 not PASS for `(manifest_fingerprint, seed, scenario_id)`, or
-* S2 not PASS for `(manifest_fingerprint, seed, scenario_id)`.
+* S1 not PASS for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, or
+* S2 not PASS for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 **Examples**
 
@@ -2224,7 +2228,7 @@ Emitted when S3 cannot correctly load or validate its RNG or campaign config.
 
 ### 9.3 Campaign realisation & catalogue failures
 
-These failures apply at the **campaign catalogue** scope `(manifest_fingerprint, seed)`.
+These failures apply at the **campaign catalogue** scope `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 #### 9.3.1 `S3_CAMPAIGN_CATALOGUE_SCHEMA_VIOLATION`
 
@@ -2239,7 +2243,7 @@ Emitted when `s3_campaign_catalogue_6B` fails schema or identity validation.
 
 **Obligations**
 
-* Entire campaign catalogue for this `(seed, fingerprint)` is invalid.
+* Entire campaign catalogue for this `(seed, manifest_fingerprint, parameter_hash, scenario_id)` is invalid.
 * S3 MUST be considered FAIL for this scope; overlays depending on this catalogue MUST NOT be trusted.
 
 ---
@@ -2264,7 +2268,7 @@ Emitted when S3 cannot realise campaign instances as required by configuration.
 #### 9.3.3 `S3_CAMPAIGN_DUPLICATE_ID`
 
 **Definition**
-Emitted when S3 generates or observes duplicate `campaign_id`s for a given `(seed, manifest_fingerprint)`.
+Emitted when S3 generates or observes duplicate `campaign_id`s for a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 **Examples**
 
@@ -2341,7 +2345,7 @@ Emitted when `campaign_id` / `fraud_pattern_type` fields in S3 overlays are inco
 
 **Examples**
 
-* A non-null `campaign_id` in `s3_flow_anchor_with_fraud_6B` or `s3_event_stream_with_fraud_6B` does not exist in `s3_campaign_catalogue_6B` for the same `(seed, fingerprint)`.
+* A non-null `campaign_id` in `s3_flow_anchor_with_fraud_6B` or `s3_event_stream_with_fraud_6B` does not exist in `s3_campaign_catalogue_6B` for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 * `fraud_pattern_type` values in flows/events are not allowed by the campaign’s declared `campaign_type`.
 
 **Obligations**
@@ -2567,8 +2571,8 @@ This section specifies what 6B.S3 **must expose** for observability, and **how**
 
 There are two scopes:
 
-* **Campaign scope:** per `(manifest_fingerprint, seed)` — for `s3_campaign_catalogue_6B`.
-* **Overlay scope:** per `(manifest_fingerprint, seed, scenario_id)` — for `s3_flow_anchor_with_fraud_6B` and `s3_event_stream_with_fraud_6B`.
+* **Campaign scope:** per `(manifest_fingerprint, parameter_hash, seed, scenario_id)` — for `s3_campaign_catalogue_6B`.
+* **Overlay scope:** per `(manifest_fingerprint, parameter_hash, seed, scenario_id)` — for `s3_flow_anchor_with_fraud_6B` and `s3_event_stream_with_fraud_6B`.
 
 All requirements in this section are **binding**.
 
@@ -2578,7 +2582,7 @@ All requirements in this section are **binding**.
 
 #### 10.1.1 Campaign scope
 
-For every `(manifest_fingerprint, seed)` for which S3 attempts campaign realisation, the Layer-3 run-report **MUST** contain exactly one entry:
+For every `(manifest_fingerprint, parameter_hash, seed, scenario_id)` for which S3 attempts campaign realisation, the Layer-3 run-report **MUST** contain exactly one entry:
 
 * `segment` = `"6B"`
 * `state`   = `"S3_campaign"`  *(name indicative but stable within the implementation)*
@@ -2592,7 +2596,7 @@ Plus a **campaign summary** as in §10.2.1.
 
 #### 10.1.2 Overlay scope
 
-For every `(manifest_fingerprint, seed, scenario_id)` for which S3 attempts overlay, the run-report **MUST** contain exactly one entry:
+For every `(manifest_fingerprint, parameter_hash, seed, scenario_id)` for which S3 attempts overlay, the run-report **MUST** contain exactly one entry:
 
 * `segment` = `"6B"`
 * `state`   = `"S3_overlay"`
@@ -2611,9 +2615,9 @@ There MUST NOT be duplicate S3 entries for the same key in a single run-report.
 
 ### 10.2 Required summary metrics
 
-#### 10.2.1 Campaign summary (per `(manifest_fingerprint, seed)`)
+#### 10.2.1 Campaign summary (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
-For each `(manifest_fingerprint, seed)` S3 processes, the run-report MUST include:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` S3 processes, the run-report MUST include:
 
 * `campaign_count_total`
 
@@ -2647,7 +2651,7 @@ For `status="PASS"` at campaign scope, S3 MUST ensure basic consistency:
 
 If S3 cannot compute these metrics or finds clear inconsistencies, it MUST report `status="FAIL"` with an appropriate error code.
 
-#### 10.2.2 Overlay summary (per `(manifest_fingerprint, seed, scenario_id)`)
+#### 10.2.2 Overlay summary (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
 For each overlay scope, the run-report MUST include at least:
 
@@ -2732,7 +2736,7 @@ S3 MUST emit **structured logs** for each campaign and overlay scope. At minimum
 
 #### 10.3.1 Campaign scope logging (`S3_campaign`)
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **Start**
 
@@ -2766,7 +2770,7 @@ For each `(manifest_fingerprint, seed)`:
 
 #### 10.3.2 Overlay scope logging (`S3_overlay`)
 
-For each `(manifest_fingerprint, seed, scenario_id)`:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **Overlay start**
 
@@ -2855,7 +2859,7 @@ Implementations MAY expose more detailed metrics (e.g. per-segment fraud rates v
 
 * A **gate**:
 
-  * S4 MUST check the S3 overlay run-report entry for `(manifest_fingerprint, seed, scenario_id)` and ONLY proceed if `status="PASS"`.
+  * S4 MUST check the S3 overlay run-report entry for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and ONLY proceed if `status="PASS"`.
 
 * A **context source**:
 
@@ -2865,7 +2869,7 @@ Implementations MAY expose more detailed metrics (e.g. per-segment fraud rates v
 
 * Use S3 run-report entries and logs as evidence for its own validation:
 
-  * If any `(manifest_fingerprint, seed)` or `(manifest_fingerprint, seed, scenario_id)` scope has S3 `status="FAIL"`, S5 MUST mark the world as FAIL.
+  * If any `(manifest_fingerprint, parameter_hash, seed, scenario_id)` or `(manifest_fingerprint, parameter_hash, seed, scenario_id)` scope has S3 `status="FAIL"`, S5 MUST mark the world as FAIL.
   * Even if S3 reports `status="PASS"`, S5 MUST validate S3’s invariants using S3 outputs; any inconsistency found by S5 overrides S3’s self-reported status.
 
 * Include pointers to key S3 metrics (e.g. realised vs target fraud rate) in the 6B validation bundle, for downstream consumption.
@@ -2908,7 +2912,7 @@ This section gives **non-binding** guidance on how to keep S3 practical and pred
 
 ### 11.1 Where S3 actually spends time
 
-For a given world and run `(manifest_fingerprint, seed)` and its scenarios, S3’s cost breaks down roughly as:
+For a given world and run `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and its scenarios, S3’s cost breaks down roughly as:
 
 1. **Config + domain prep (light/medium)**
 
@@ -2962,12 +2966,12 @@ S3 has two natural parallel axes:
 
    * Campaign realisation and overlay for different seeds can run independently:
 
-     * separate `s3_campaign_catalogue_6B` per `(seed, fingerprint)`,
-     * separate overlay partitions per `(seed, fingerprint, scenario_id)`.
+     * separate `s3_campaign_catalogue_6B` per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`,
+     * separate overlay partitions per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 2. **Across `scenario_id` (overlay)**
 
-   * Once campaign instances exist for `(manifest_fingerprint, seed)`, overlay work can be run per `(seed, scenario_id)` partition:
+   * Once campaign instances exist for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, overlay work can be run per `(seed, scenario_id)` partition:
 
      * each partition reads S1/S2 for that scenario,
      * applies campaigns whose scope includes that scenario,
@@ -3195,14 +3199,14 @@ To stay safe:
 
 * **Always derive RNG keys from deterministic identifiers**
 
-  * e.g. `(fingerprint, seed, template_id, campaign_index, flow_id, event_seq)`;
+  * e.g. `(manifest_fingerprint, seed, template_id, campaign_index, flow_id, event_seq)`;
   * never from ephemeral thread ids or in-iteration counters that depend on ordering.
 
 * **Always sort before emit**
 
-  * For flows: sort by `[seed, fingerprint, scenario_id, flow_id]`.
-  * For events: sort by `[seed, fingerprint, scenario_id, flow_id, event_seq]`.
-  * For campaigns: sort by `[seed, fingerprint, campaign_id]`.
+  * For flows: sort by `[seed, manifest_fingerprint, scenario_id, flow_id]`.
+  * For events: sort by `[seed, manifest_fingerprint, scenario_id, flow_id, event_seq]`.
+  * For campaigns: sort by `[seed, manifest_fingerprint, campaign_id]`.
 
 If your implementation can run S3 twice for the same inputs and produce logically identical outputs (same keys, same fields), you’re respecting this spec; if not, any performance trick you added is out-of-bounds and must be revisited.
 
@@ -3329,7 +3333,7 @@ Examples of **breaking** changes:
    * Changing S3 dataset partitioning:
 
      * e.g. dropping `seed` from `s3_campaign_catalogue_6B` partitioning,
-     * changing flow/event overlays off `[seed, fingerprint, scenario_id]`.
+     * changing flow/event overlays off `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
    * Changing primary keys:
 
      * e.g. dropping `campaign_id` from campaign catalogue PK,
@@ -3461,7 +3465,7 @@ To support gradual rollout and historical replay:
 1. **Co-existence of S3 contracts**
 
    * Orchestrators MUST choose one `spec_version_6B` per **deployment / world** when running S3.
-   * Different S3 spec versions MUST NOT write to the same dataset ids for the same `(manifest_fingerprint, seed, scenario_id)` concurrently.
+   * Different S3 spec versions MUST NOT write to the same dataset ids for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)` concurrently.
 
    If you need side-by-side S3 versions:
 
@@ -3489,15 +3493,15 @@ For the lifetime of this `spec_version_6B`, the following aspects of S3 are **st
 
 * S3 produces exactly three datasets:
 
-  * `s3_campaign_catalogue_6B` (per `(seed, fingerprint)`),
-  * `s3_flow_anchor_with_fraud_6B` (per `(seed, fingerprint, scenario_id)`),
-  * `s3_event_stream_with_fraud_6B` (per `(seed, fingerprint, scenario_id)`).
+  * `s3_campaign_catalogue_6B` (per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`),
+  * `s3_flow_anchor_with_fraud_6B` (per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`),
+  * `s3_event_stream_with_fraud_6B` (per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`).
 
 * Partitioning and PKs MUST remain:
 
-  * `campaign_catalogue`: `[seed, fingerprint, campaign_id]` with partitioning `[seed, manifest_fingerprint]`.
-  * `flow_anchor_with_fraud`: `[seed, fingerprint, scenario_id, flow_id]` with partitioning `[seed, fingerprint, scenario_id]`.
-  * `event_stream_with_fraud`: `[seed, fingerprint, scenario_id, flow_id, event_seq]` with partitioning `[seed, fingerprint, scenario_id]`.
+  * `campaign_catalogue`: `[seed, manifest_fingerprint, parameter_hash, scenario_id, campaign_id]` with partitioning `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
+  * `flow_anchor_with_fraud`: `[seed, manifest_fingerprint, scenario_id, flow_id]` with partitioning `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
+  * `event_stream_with_fraud`: `[seed, manifest_fingerprint, scenario_id, flow_id, event_seq]` with partitioning `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
 
 * Baseline coverage MUST hold:
 
@@ -3506,7 +3510,7 @@ For the lifetime of this `spec_version_6B`, the following aspects of S3 are **st
 
 * Campaign identity MUST remain stable:
 
-  * every non-null `campaign_id` in overlays MUST map to exactly one row in the campaign catalogue for the same `(seed, fingerprint)`.
+  * every non-null `campaign_id` in overlays MUST map to exactly one row in the campaign catalogue for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 * Overlay semantics MUST preserve upstream facts:
 
@@ -3529,11 +3533,11 @@ This appendix collects the shorthand and symbols used in the 6B.S3 spec. It is *
 
 ### 13.1 Identity & axes
 
-* **`manifest_fingerprint` / `fingerprint`**
+* **`manifest_fingerprint`**
   Sealed world snapshot id. S3’s campaign catalogue and overlays are always scoped to this.
 
 * **`seed`**
-  Run axis shared with 5B, 6A, S1, S2. S3’s campaign catalogue is per `(manifest_fingerprint, seed)`, and overlays are per `(manifest_fingerprint, seed, scenario_id)`.
+  Run axis shared with 5B, 6A, S1, S2. S3’s campaign catalogue is per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, and overlays are per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 * **`scenario_id`**
   Scenario axis from 5A/5B (e.g. baseline/stress scenarios). S3 overlays are partitioned by `scenario_id` alongside `seed` and `manifest_fingerprint`.
@@ -3542,13 +3546,13 @@ This appendix collects the shorthand and symbols used in the 6B.S3 spec. It is *
   Hash of the 6B behavioural config pack (including S3’s campaign/overlay/RNG policies). S3 must be deterministic for fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 * **`campaign_id`**
-  Opaque identifier for a realised campaign instance, unique within `(seed, manifest_fingerprint)`.
+  Opaque identifier for a realised campaign instance, unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 * **`flow_id`**
-  Opaque identifier for a flow/transaction, unique within `(seed, manifest_fingerprint, scenario_id)` in both S2 and S3.
+  Opaque identifier for a flow/transaction, unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)` in both S2 and S3.
 
 * **`event_seq`**
-  Integer defining strict order of events within a flow in S2/S3; unique per `(seed, manifest_fingerprint, scenario_id, flow_id)`.
+  Integer defining strict order of events within a flow in S2/S3; unique per `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
 
 ---
 
@@ -3594,13 +3598,13 @@ These names are just shorthand for the spec; canonical ids live in the dataset d
 * **Flow PK (S3)**
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, flow_id)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)
   ```
 
 * **Event PK (S3)**
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, flow_id, event_seq)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)
   ```
 
 * **Origin keys (baseline → overlay link):**

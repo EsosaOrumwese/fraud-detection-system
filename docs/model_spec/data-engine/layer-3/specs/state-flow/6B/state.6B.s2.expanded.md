@@ -41,7 +41,7 @@ Within this segment, S2 is responsible for:
 * **Flow definition:**
 
   * Deciding, for each session (and its arrivals), how many **flows** exist and how arrivals map to those flows, according to 6B’s flow-shape priors (e.g. one flow per checkout vs multiple orders in a single visit).
-  * Defining a stable `flow_id` per `(seed, manifest_fingerprint, scenario_id)` and mapping each flow back to:
+  * Defining a stable `flow_id` per `(seed, manifest_fingerprint, parameter_hash, scenario_id)` and mapping each flow back to:
 
     * one or more arrivals, and
     * exactly one session in `s1_session_index_6B`.
@@ -129,8 +129,8 @@ If S2 is implemented according to this specification:
 **Inputs (authoritative; see Section 2 for full list):**
 * `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
 * `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
-* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
-* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
+* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S1
+* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S1
 * `behaviour_config_6B` - scope: UNPARTITIONED (sealed config); sealed_inputs: required
 * `behaviour_prior_pack_6B` - scope: UNPARTITIONED (sealed prior); sealed_inputs: required
 * `flow_shape_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
@@ -142,8 +142,8 @@ If S2 is implemented according to this specification:
 * S2 is the sole authority for baseline flow anchors and event streams.
 
 **Outputs:**
-* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
 * `rng_event_flow_anchor_baseline` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_event_event_stream_baseline` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
@@ -162,7 +162,7 @@ This section defines **what must already be true** before 6B.S2 is allowed to ru
 S2 is evaluated per triple:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
 If **any** precondition in this section is not satisfied for a given triple, then S2 **MUST NOT** build flows for that partition and **MUST** fail fast with a precondition error (to be defined in S2’s failure section).
@@ -214,7 +214,7 @@ S2 MUST NOT attempt to “fix” or ignore a non-PASS upstream segment. If S0 sa
 
 ### 2.3 S1 MUST be PASS for `(seed, scenario_id)`
 
-S2 builds flows **on top of** S1. For each `(manifest_fingerprint, seed, scenario_id)`:
+S2 builds flows **on top of** S1. For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * S2 MUST NOT run unless 6B.S1 has successfully completed for that same triple.
 
@@ -224,7 +224,7 @@ Binding checks:
 
    ```text
    segment = "6B", state = "S1",
-   manifest_fingerprint, seed, scenario_id
+   manifest_fingerprint, parameter_hash, seed, scenario_id
    ```
 
    with `status = "PASS"`.
@@ -238,7 +238,7 @@ Binding checks:
 
 If:
 
-* S1 is `status="FAIL"` or missing for `(manifest_fingerprint, seed, scenario_id)`, or
+* S1 is `status="FAIL"` or missing for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, or
 * either S1 dataset is missing or fails schema validation,
 
 then S2 MUST treat this as a hard precondition failure for that partition and MUST NOT attempt to generate flows.
@@ -290,19 +290,19 @@ Optional context artefacts (e.g. 5A intensity surfaces, 5B grouping grids) MAY a
 
 S2 operates on the same `(seed, scenario_id)` partitions as S1 and 5B:
 
-For a given `(manifest_fingerprint, seed, scenario_id)`:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. Using the S1 dictionary entries and `sealed_inputs_6B`, S2 MUST confirm that:
 
    * A partition of `s1_arrival_entities_6B` exists at:
 
      ```text
-     seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+     seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
      ```
 
    * A partition of `s1_session_index_6B` exists at the same axes.
 
-2. S2 MAY (optionally) confirm that `arrival_events_5B` has a partition for the same `(seed, fingerprint, scenario_id)`, but S1’s outputs are the canonical reference — S2 MUST NOT try to “fill in” partitions that S1 did not produce.
+2. S2 MAY (optionally) confirm that `arrival_events_5B` has a partition for the same `(seed, manifest_fingerprint, scenario_id)`, but S1’s outputs are the canonical reference — S2 MUST NOT try to “fill in” partitions that S1 did not produce.
 
 If S1 outputs are missing for a `(seed, scenario_id)` where 5B has arrivals, S2 MUST treat that as a precondition failure for that partition (S1 has not completed correctly).
 
@@ -337,13 +337,13 @@ If RNG policy is missing or invalid for S2, S2 MUST fail with an RNG preconditio
 S2 MUST NOT be invoked in the following situations:
 
 * **Before** S0 is PASS for `manifest_fingerprint`.
-* **Before** S1 is PASS for the target `(manifest_fingerprint, seed, scenario_id)`.
+* **Before** S1 is PASS for the target `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 * With a manually specified set of inputs that bypass `sealed_inputs_6B`.
 * When required S1 outputs or S2 config artefacts are missing from `sealed_inputs_6B`.
 * Against a world where any required upstream HashGate (`1A`–`3B`, `5A`, `5B`, `6A`) is not PASS according to `s0_gate_receipt_6B`.
 * In a “speculative” or “best effort” mode where S2 is allowed to proceed under missing or non-PASS preconditions.
 
-If any of these conditions hold, **the correct behaviour is for S2 to fail early** for that `(manifest_fingerprint, seed, scenario_id)` with an appropriate precondition error, and to produce no S2 outputs for that partition.
+If any of these conditions hold, **the correct behaviour is for S2 to fail early** for that `(manifest_fingerprint, parameter_hash, seed, scenario_id)` with an appropriate precondition error, and to produce no S2 outputs for that partition.
 
 These preconditions are **binding**: any conformant implementation of 6B.S2 MUST enforce them before performing any flow planning or event synthesis.
 
@@ -409,7 +409,7 @@ These MUST appear in `sealed_inputs_6B` with `owner_layer=3`, `owner_segment="6B
 
 1. **`s1_arrival_entities_6B`**
 
-   * One row per arrival for the `(seed, manifest_fingerprint, scenario_id)` domain.
+   * One row per arrival for the `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain.
    * Contains:
 
      * arrival identity and routing (inherited from 5B),
@@ -429,7 +429,7 @@ These MUST appear in `sealed_inputs_6B` with `owner_layer=3`, `owner_segment="6B
 
 2. **`s1_session_index_6B`**
 
-   * One row per session for the same `(seed, manifest_fingerprint, scenario_id)` domain.
+   * One row per session for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain.
    * Contains:
 
      * `session_id`,
@@ -624,7 +624,7 @@ These are **internal Layer-3 / 6B datasets**:
 
 * not cross-layer egress,
 * required by S3 (fraud overlay), S4 (labelling), and S5 (validation),
-* partitioned on the same axes as S1 and 5B: `[seed, fingerprint, scenario_id]`.
+* partitioned on the same axes as S1 and 5B: `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
 
 No other datasets may be written by S2.
 
@@ -642,7 +642,7 @@ No other datasets may be written by S2.
 
 ` s2_flow_anchor_baseline_6B` holds the **flow-level view** of baseline behaviour. Each row represents a single, legitimate transaction/flow generated from one or more arrivals in S1, and summarises:
 
-* identity of the flow (`flow_id`) within `(seed, manifest_fingerprint, scenario_id)`,
+* identity of the flow (`flow_id`) within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`,
 
 * linkage back to S1:
 
@@ -678,28 +678,28 @@ The dataset dictionary and artefact registry MUST register this dataset as:
 
   ```text
   data/layer3/6B/s2_flow_anchor_baseline_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 The `seed`, `manifest_fingerprint`, and `scenario_id` columns in each row MUST match their respective partition tokens exactly.
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint, scenario_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
   ```text
-  [seed, manifest_fingerprint, scenario_id, flow_id]
+  [seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id]
   ```
 
 where:
 
-* `flow_id` is an S2-defined identifier, unique within the `(seed, manifest_fingerprint, scenario_id)` domain. It MUST be stable (deterministic) given inputs, `parameter_hash`, and `seed`; its type and format (e.g. integer, id64 string) are defined in `schemas.6B.yaml`.
+* `flow_id` is an S2-defined identifier, unique within the `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain. It MUST be stable (deterministic) given inputs, `parameter_hash`, and `seed`; its type and format (e.g. integer, id64 string) are defined in `schemas.6B.yaml`.
 
-Every event in `s2_event_stream_baseline_6B` MUST reference exactly one `flow_id` in this table for the same `(seed, fingerprint, scenario_id)`.
+Every event in `s2_event_stream_baseline_6B` MUST reference exactly one `flow_id` in this table for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 **Schema anchor**
 
@@ -711,7 +711,7 @@ schemas.6B.yaml#/s2/flow_anchor_baseline_6B
 
 This schema MUST:
 
-* require the identity axes (`manifest_fingerprint`, `seed`, `scenario_id`, `flow_id`),
+* require the identity axes (`manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `flow_id`),
 * define the core fields described above (linkage to sessions/arrivals, entity context, amounts, timestamps, baseline outcome),
 * specify types and nullability, but it does **not** need to restate S1/S2 semantics (those are in this spec).
 
@@ -752,7 +752,7 @@ In `artefact_registry_6B.yaml`:
 
 Per event, S2 records:
 
-* the identity axes (`seed, manifest_fingerprint, scenario_id`),
+* the identity axes (`seed, manifest_fingerprint, parameter_hash, scenario_id`),
 * the `flow_id` that this event belongs to,
 * an `event_seq` integer specifying order within the flow,
 * event type, timestamp, and any event-specific fields (e.g. response code for auth, amount for clearing/refund),
@@ -773,21 +773,21 @@ In the dictionary/registry, register as:
 
   ```text
   data/layer3/6B/s2_event_stream_baseline_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 Again, the `seed`, `manifest_fingerprint`, and `scenario_id` columns MUST match the path tokens.
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint, scenario_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
   ```text
-  [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
+  [seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq]
   ```
 
 where:
@@ -798,7 +798,7 @@ where:
 Constraints:
 
 * For any `flow_id`, the sequence of `event_seq` values MUST form a contiguous, strictly increasing sequence starting from a defined base (e.g. `0` or `1`), as specified in the schema.
-* Every `(seed, fingerprint, scenario_id, flow_id)` appearing in `s2_event_stream_baseline_6B` MUST appear in `s2_flow_anchor_baseline_6B`.
+* Every `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` appearing in `s2_event_stream_baseline_6B` MUST appear in `s2_flow_anchor_baseline_6B`.
 
 **Schema anchor**
 
@@ -810,7 +810,7 @@ schemas.6B.yaml#/s2/event_stream_baseline_6B
 
 The schema MUST require, at minimum:
 
-* identity axes: `manifest_fingerprint`, `seed`, `scenario_id`, `flow_id`, `event_seq`,
+* identity axes: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `flow_id`, `event_seq`,
 * event fields: `event_type`, `event_ts_utc` (plus any mandatory routing/entity pointers),
 * and may add optional fields as needed by S2’s flow model.
 
@@ -842,7 +842,7 @@ To avoid ambiguity:
   * Both S2 outputs MUST share the same identity axes and partitioning as S1 outputs:
 
     ```text
-    (seed, manifest_fingerprint, scenario_id)
+    (seed, manifest_fingerprint, parameter_hash, scenario_id)
     ```
 
 * **Flows vs sessions**
@@ -860,7 +860,7 @@ To avoid ambiguity:
 * **Flows vs events**
 
   * Every flow MUST have one or more events in `s2_event_stream_baseline_6B`.
-  * Every event MUST reference exactly one flow via `{seed, manifest_fingerprint, scenario_id, flow_id}`.
+  * Every event MUST reference exactly one flow via `{seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id}`.
   * There MUST be no “orphan” events or flows (no flow without events, no event without a flow).
 
 * **S1 attachment immutability**
@@ -886,7 +886,7 @@ Exact YAML shape is implementation detail, but the semantics above are binding.
 * `manifest_key` matching the dictionary `id`,
 * `schema` equal to the same anchor used in the dictionary,
 * `path_template` consistent with `path`,
-* `partitioning: [seed, fingerprint, scenario_id]`,
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`,
 * `final_in_layer: false`.
 
 This section fixes the **what** and **where** for S2’s outputs. The subsequent sections define **how** they are populated (algorithm), **how** they are written (ordering/merge rules), and **how** they are validated downstream.
@@ -949,11 +949,15 @@ If any step fails to meet the constraints in this section, S2 MUST fail for that
 2. **RNG families reserved for S2**
    All random draws in S2 MUST use Philox via a small, fixed set of event families reserved for this state, for example (names indicative):
 
-   * `rng_event_flow_shape` — sampling how many flows per session and what flow types.
-   * `rng_event_event_timing` — sampling event time offsets inside flows.
-   * `rng_event_amount_draw` — sampling amounts/currencies for flows or events.
+   * `rng_event_flow_shape` - sampling how many flows per session and what flow types.
+   * `rng_event_event_timing` - sampling event time offsets inside flows.
+   * `rng_event_amount_draw` - sampling amounts/currencies for flows or events.
 
-   The exact family names, budgets (`blocks`, `draws` per event) and keying scheme are defined in the Layer-3 RNG/RNG-policy contracts; S2 MUST NOT introduce new RNG families outside that contract or re-use other states’ families.
+   **Contract mapping:** these conceptual families are recorded under the registered RNG datasets
+   `rng_event_flow_anchor_baseline` (flow-shape draws) and `rng_event_event_stream_baseline`
+   (event-timing + amount draws), using `substream_label` to distinguish the family.
+
+   The exact family names, budgets (`blocks`, `draws` per event) and keying scheme are defined in the Layer-3 RNG/RNG-policy contracts; S2 MUST NOT introduce new RNG families outside that contract or re-use other states' families.
 
 3. **Deterministic budgets per decision**
    For each RNG-consuming decision type, S2 MUST have a fixed, documented budget:
@@ -994,12 +998,12 @@ S2 MAY process different `(seed, scenario_id)` partitions in parallel, but each 
 
 ### 6.3 Step 1 — Load S1 outputs & optional context
 
-For each `(seed, manifest_fingerprint, scenario_id)` partition S2 intends to process:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition S2 intends to process:
 
 1. **Load S1 outputs**
 
-   * Read `s1_arrival_entities_6B@{seed,fingerprint,scenario_id}`.
-   * Read `s1_session_index_6B@{seed,fingerprint,scenario_id}`.
+   * Read `s1_arrival_entities_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
+   * Read `s1_session_index_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
    These MUST pass schema validation and S1’s invariants. If they do not, S2 MUST fail preconditions for this partition.
 
@@ -1046,7 +1050,7 @@ For each session `s` in `s1_session_index_6B`:
 
      * If policy prescribes a distribution (e.g. a discrete distribution over `{1,2,3,…}` flows per session), S2 MUST:
 
-       * use `rng_event_flow_shape` with a key derived from `(seed, fingerprint, scenario_id, session_id)`;
+       * use `rng_event_flow_shape` with a key derived from `(seed, manifest_fingerprint, parameter_hash, scenario_id, session_id)`;
        * draw exactly 1 uniform and map it via the configured distribution to `N_flows(s)`.
 
    S2 MUST ensure `N_flows(s) ≥ 0` and that the mapping from sessions to flows is deterministic given the RNG output.
@@ -1078,12 +1082,12 @@ For each session `s` in `s1_session_index_6B`:
    * Generate a `flow_id` deterministically from:
 
      ```text
-     (manifest_fingerprint, seed, scenario_id, session_id, flow_index_within_session)
+     (manifest_fingerprint, parameter_hash, seed, scenario_id, session_id, flow_index_within_session)
      ```
 
      or a similar stable scheme defined in the 6B identity law.
 
-   * Ensure that within `(seed, manifest_fingerprint, scenario_id)`, all `flow_id` values are unique.
+   * Ensure that within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, all `flow_id` values are unique.
 
 At the end of this step, S2 has a conceptual mapping:
 
@@ -1123,7 +1127,7 @@ For each flow `f` (with known `session_id` and arrivals):
    * Deterministic: if policy yields a single flow type given context (probability 1), no RNG is used.
    * Stochastic: if multiple flow types are available:
 
-     * Use `rng_event_flow_shape` with key derived from `(seed, fingerprint, scenario_id, flow_id)`;
+     * Use `rng_event_flow_shape` with key derived from `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`;
      * Draw a fixed number of uniforms (typically 1) to select flow type from the configured distribution.
 
 3. **Decide event count and event roles**
@@ -1144,7 +1148,7 @@ For each flow `f` (with known `session_id` and arrivals):
 
    Where RNG is used (e.g. “refund vs no refund”), S2 MUST:
 
-   * use the appropriate RNG family (`rng_event_flow_shape` or another S2 family) with a deterministic key based on `(seed, fingerprint, scenario_id, flow_id)`,
+   * use the appropriate RNG family (`rng_event_flow_shape` or another S2 family) with a deterministic key based on `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`,
    * consume a fixed, documented number of draws per decision.
 
 4. **Plan event timing offsets**
@@ -1163,7 +1167,7 @@ For each flow `f` (with known `session_id` and arrivals):
      * clearings relative to final successful auth,
      * refunds relative to clearing.
 
-   * RNG: use `rng_event_event_timing` with a key derived from `(seed, fingerprint, scenario_id, flow_id, event_index)`.
+   * RNG: use `rng_event_event_timing` with a key derived from `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_index)`.
 
    S2 MUST ensure:
 
@@ -1177,7 +1181,7 @@ For each flow `f` (with known `session_id` and arrivals):
    * the nominal transaction amount and currency for the flow, and
    * event-level amounts where required (e.g. clearing vs refund amounts).
 
-   RNG: use `rng_event_amount_draw` for all amount/currency draws, keyed by `(seed, fingerprint, scenario_id, flow_id)` and event index where relevant.
+   RNG: use `rng_event_amount_draw` for all amount/currency draws, keyed by `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` and event index where relevant.
 
    S2 MUST respect:
 
@@ -1274,7 +1278,7 @@ Once events for a flow have been instantiated, S2 constructs the corresponding a
 
    For each flow, S2 MUST locally verify:
 
-   * There is at least one event row in `s2_event_stream_baseline_6B` with this `(seed, fingerprint, scenario_id, flow_id)`.
+   * There is at least one event row in `s2_event_stream_baseline_6B` with this `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
    * Event timestamps are consistent with flow timestamps as per policy (e.g. `first_auth_ts_utc` ≤ all event_ts, etc.).
    * Amounts and currencies in the anchor are consistent with event-level amounts.
    * For flows that are supposed to represent a “typical” outcome (e.g. authorise+settle), the event sequence matches that outcome.
@@ -1285,20 +1289,20 @@ If any of these checks fail for any flow, S2 MUST treat the whole `(seed, scenar
 
 ### 6.8 Step 6 — Write outputs & idempotence
 
-For each `(seed, manifest_fingerprint, scenario_id)` partition:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition:
 
 1. **Write `s2_event_stream_baseline_6B`**
 
    * Write all event rows for the partition to the appropriate path under:
 
      ```text
-     data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s2_event_stream_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
      ```
 
    * Ensure:
 
      * partition keys embedded in rows match the path,
-     * rows are sorted by `[seed, manifest_fingerprint, scenario_id, flow_id, event_seq]`,
+     * rows are sorted by `[seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq]`,
      * primary key uniqueness holds.
 
 2. **Write `s2_flow_anchor_baseline_6B`**
@@ -1306,13 +1310,13 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
    * Write all flow anchor rows for the same partition under:
 
      ```text
-     data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
+     data/layer3/6B/s2_flow_anchor_baseline_6B/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/...
      ```
 
    * Ensure:
 
      * partition keys match,
-     * rows are sorted by `[seed, manifest_fingerprint, scenario_id, flow_id]`,
+     * rows are sorted by `[seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id]`,
      * primary key uniqueness holds.
 
 3. **Atomicity & re-run rules**
@@ -1322,7 +1326,7 @@ For each `(seed, manifest_fingerprint, scenario_id)` partition:
      * Either both are successfully written and schema-valid,
      * Or both are considered absent/invalid for that partition.
 
-   * On re-run for the same `(seed, fingerprint, scenario_id, parameter_hash)`:
+   * On re-run for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
      * If no outputs exist, S2 writes them.
      * If outputs exist, S2 MUST either:
@@ -1388,8 +1392,8 @@ Binding rules:
 
 Within these axes, the additional identity is:
 
-* `flow_id` — unique per `(seed, manifest_fingerprint, scenario_id)` in `s2_flow_anchor_baseline_6B`.
-* `(flow_id, event_seq)` — unique per `(seed, manifest_fingerprint, scenario_id)` in `s2_event_stream_baseline_6B`.
+* `flow_id` — unique per `(seed, manifest_fingerprint, parameter_hash, scenario_id)` in `s2_flow_anchor_baseline_6B`.
+* `(flow_id, event_seq)` — unique per `(seed, manifest_fingerprint, parameter_hash, scenario_id)` in `s2_event_stream_baseline_6B`.
 
 ---
 
@@ -1397,7 +1401,7 @@ Within these axes, the additional identity is:
 
 Both S2 datasets are **partitioned identically**:
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 and use the following path templates:
 
@@ -1405,14 +1409,14 @@ and use the following path templates:
 
   ```text
   data/layer3/6B/s2_flow_anchor_baseline_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `s2_event_stream_baseline_6B`:
 
   ```text
   data/layer3/6B/s2_event_stream_baseline_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 Binding path↔embed rules:
@@ -1434,28 +1438,28 @@ Binding path↔embed rules:
 **Primary key (binding):**
 
 ```text
-[seed, manifest_fingerprint, scenario_id, flow_id]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id]
 ```
 
-where `flow_id` is a unique identifier for the flow within `(seed, manifest_fingerprint, scenario_id)`.
+where `flow_id` is a unique identifier for the flow within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 **Writer ordering (binding):**
 
 ```text
-[seed, manifest_fingerprint, scenario_id, flow_id]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id]
 ```
 
-Within each `(seed, fingerprint, scenario_id)` partition:
+Within each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition:
 
 * Rows MUST be sorted by `flow_id` in ascending order.
-* The PK MUST be unique: no two rows may share the same `(seed, fingerprint, scenario_id, flow_id)`.
+* The PK MUST be unique: no two rows may share the same `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
 
 #### 7.3.2 `s2_event_stream_baseline_6B`
 
 **Primary key (binding):**
 
 ```text
-[seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq]
 ```
 
 where:
@@ -1466,17 +1470,17 @@ where:
 **Writer ordering (binding):**
 
 ```text
-[seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
+[seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq]
 ```
 
-Within each `(seed, fingerprint, scenario_id)` partition:
+Within each `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition:
 
 * Rows MUST first be grouped by `flow_id`, and within each group be sorted by `event_seq` in ascending order.
-* The PK MUST be unique: no two rows may share the same `(seed, fingerprint, scenario_id, flow_id, event_seq)`.
+* The PK MUST be unique: no two rows may share the same `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)`.
 
 **Event sequence discipline:**
 
-For each `(seed, fingerprint, scenario_id, flow_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`:
 
 * `event_seq` MUST form a contiguous, strictly monotone sequence starting from a defined base (e.g. 0 or 1) as specified in the schema and S2 identity law.
 * There MUST be at least one event per flow.
@@ -1485,7 +1489,7 @@ For each `(seed, fingerprint, scenario_id, flow_id)`:
 
 ### 7.4 Relationship to S1 and coverage discipline
 
-For a given `(manifest_fingerprint, seed, scenario_id)` partition:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)` partition:
 
 * S1 defines:
 
@@ -1507,7 +1511,7 @@ Binding relationships:
 
 2. **Flow/event linkage**
 
-   * For each flow_id in `s2_flow_anchor_baseline_6B`, there MUST be ≥1 event rows in `s2_event_stream_baseline_6B` with the same `(seed, fingerprint, scenario_id, flow_id)`.
+   * For each flow_id in `s2_flow_anchor_baseline_6B`, there MUST be ≥1 event rows in `s2_event_stream_baseline_6B` with the same `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
    * There MUST be no event rows for `flow_id`s that do not appear in the anchor.
 
 3. **Arrival linkage**
@@ -1527,7 +1531,7 @@ Binding rules:
 
 1. **Per-partition atomicity**
 
-   For each `(seed, fingerprint, scenario_id)`:
+   For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
    * S2 MUST treat `s2_flow_anchor_baseline_6B` and `s2_event_stream_baseline_6B` as a **unit of work**.
    * It MUST NOT leave a state where one dataset is written and the other is missing or inconsistent.
@@ -1536,7 +1540,7 @@ Binding rules:
 
 2. **Single logical writer per partition**
 
-   * At any given time, there MUST be at most one S2 instance responsible for a given `(seed, fingerprint, scenario_id)` in a deployment.
+   * At any given time, there MUST be at most one S2 instance responsible for a given `(seed, manifest_fingerprint, parameter_hash, scenario_id)` in a deployment.
    * Parallelism across different `(seed, scenario_id)` pairs is allowed, but concurrent writes to the same partition by multiple S2 instances are disallowed.
 
 3. **Idempotent re-runs**
@@ -1562,14 +1566,14 @@ Downstream states (S3, S4, S5) MUST join S2 outputs using the identity axes and 
 
 * **World/run/scenario axes:**
 
-  * Always include `(seed, manifest_fingerprint, scenario_id)` in join keys when moving between S1, S2 and upstream surfaces.
+  * Always include `(seed, manifest_fingerprint, parameter_hash, scenario_id)` in join keys when moving between S1, S2 and upstream surfaces.
 
 * **Flows vs events:**
 
   * To relate flow anchors and event stream:
 
     ```text
-    [seed, manifest_fingerprint, scenario_id, flow_id]
+    [seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id]
     ```
 
   * MUST be used as the join key; `event_seq` remains local to the event stream.
@@ -1579,7 +1583,7 @@ Downstream states (S3, S4, S5) MUST join S2 outputs using the identity axes and 
   * To relate flows and S1 sessions:
 
     ```text
-    [seed, manifest_fingerprint, scenario_id, session_id]
+    [seed, manifest_fingerprint, parameter_hash, scenario_id, session_id]
     ```
 
 * **Flows vs S1 arrivals:**
@@ -1587,7 +1591,7 @@ Downstream states (S3, S4, S5) MUST join S2 outputs using the identity axes and 
   * If a downstream state needs to inspect arrivals behind a flow, it MUST do so via whatever arrival linkage fields S2 defines in `s2_flow_anchor_baseline_6B` (e.g. `primary_arrival_key` or `arrival_keys`) combined with S1’s arrival PK:
 
     ```text
-    [seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq]
+    [seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq]
     ```
 
 Downstream states MUST NOT infer joins based on file paths or ordering alone; identity is always expressed through columns + partition axes.
@@ -1607,7 +1611,7 @@ Binding points:
 
 * S2’s deterministic mapping means that, given RNG logs and inputs, a validation state can reproduce:
 
-  * for each `(seed, manifest_fingerprint, scenario_id)`,
+  * for each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`,
   * which RNG decisions correspond to which flows/events.
 
 The only identity link between RNG logs and S2 outputs is via axes like `(seed, parameter_hash)` and any keys encoded in RNG event contexts (e.g. `flow_id`, `session_id`), not via partitioning of S2 datasets themselves.
@@ -1626,7 +1630,7 @@ By adhering to these identity, partitioning, ordering and merge rules, S2 remain
 This section defines:
 
 * When 6B.S2 is considered **PASS** vs **FAIL** for a given
-  `(manifest_fingerprint, seed, scenario_id)`, and
+  `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, and
 * What obligations this places on **downstream 6B states** (S3, S4, S5) and on orchestrators / 4A–4B.
 
 All conditions here are **binding**. If they are not met, S2 MUST be treated as FAIL for that domain and downstream states MUST NOT proceed.
@@ -1638,7 +1642,7 @@ All conditions here are **binding**. If they are not met, S2 MUST be treated as 
 S2 is evaluated per triple:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
 For a given `manifest_fingerprint`, there may be many `(seed, scenario_id)` pairs.
@@ -1648,7 +1652,7 @@ S0’s gate covers the world; S1’s gate covers `(seed, scenario_id)`; S2’s a
 
 ### 8.2 Acceptance criteria for S2 (per `(seed, scenario_id)`)
 
-For a fixed `(manifest_fingerprint, seed, scenario_id)`, S2 is **PASS** if and only if all of the following hold.
+For a fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S2 is **PASS** if and only if all of the following hold.
 
 #### 8.2.1 Preconditions satisfied
 
@@ -1657,13 +1661,13 @@ Before any flow is considered valid:
 * 6B.S0 is PASS for the world and `s0_gate_receipt_6B` / `sealed_inputs_6B` are present and schema-valid.
 * `s0_gate_receipt_6B.upstream_segments[SEG].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A,5B,6A}`.
 * 6B.S1 is PASS for this `(seed, scenario_id)` (as recorded in the run-report).
-* `s1_arrival_entities_6B@{seed,fingerprint,scenario_id}` and `s1_session_index_6B@{seed,fingerprint,scenario_id}` exist and pass their own schema validation.
+* `s1_arrival_entities_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}` and `s1_session_index_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}` exist and pass their own schema validation.
 
 If any of these are not satisfied, S2 MUST fail the partition as a precondition failure and MUST NOT write S2 outputs.
 
 #### 8.2.2 Schema validity of S2 outputs
 
-Both S2 datasets for this `(seed, fingerprint, scenario_id)` MUST:
+Both S2 datasets for this `(seed, manifest_fingerprint, parameter_hash, scenario_id)` MUST:
 
 * Exist at their expected paths and partitions.
 
@@ -1683,14 +1687,14 @@ If either dataset fails schema or PK/partition checks, S2 MUST be considered FAI
 
 Let:
 
-* `FA2` = `s2_flow_anchor_baseline_6B@{seed,fingerprint,scenario_id}`.
-* `EV2` = `s2_event_stream_baseline_6B@{seed,fingerprint,scenario_id}`.
+* `FA2` = `s2_flow_anchor_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
+* `EV2` = `s2_event_stream_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
 S2 MUST ensure:
 
 1. **Flow coverage in events**
 
-   * For every `flow_id` in `FA2`, there is at least one row in `EV2` with the same `(seed, fingerprint, scenario_id, flow_id)`.
+   * For every `flow_id` in `FA2`, there is at least one row in `EV2` with the same `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
 
 2. **No orphan events**
 
@@ -1725,8 +1729,8 @@ Any violation of these flow–event consistency rules MUST cause S2 to be marked
 
 Let:
 
-* `SESS` = `s1_session_index_6B@{seed,fingerprint,scenario_id}`.
-* `AE6B` = `s1_arrival_entities_6B@{seed,fingerprint,scenario_id}`.
+* `SESS` = `s1_session_index_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
+* `AE6B` = `s1_arrival_entities_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
 S2 MUST ensure:
 
@@ -1742,7 +1746,7 @@ S2 MUST ensure:
 
    * For each flow, S2 MUST encode its linkage to originating arrivals in a consistent way (e.g. a primary arrival or a list of contributing arrivals).
    * For every arrival referenced in the flow anchor, there MUST be a matching row in `AE6B`.
-   * S2 MUST NOT reference arrivals outside the `(seed,fingerprint,scenario_id)` domain of AE6B.
+   * S2 MUST NOT reference arrivals outside the `(seed, manifest_fingerprint, parameter_hash, scenario_id)` domain of AE6B.
 
 The exact mapping rules (one-flow-per-arrival, one-or-more flows per session, etc.) are defined in the flow policy; acceptance checks MUST verify that S2’s outputs are consistent with that policy.
 
@@ -1781,7 +1785,7 @@ Full RNG reconciliation against global RNG logs is done by S5; S2 only needs to 
 
 ### 8.3 Conditions that MUST cause S2 to FAIL
 
-For a given `(manifest_fingerprint, seed, scenario_id)`, S2 MUST be treated as **FAIL** (and its outputs considered unusable) if any of the following occurs:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S2 MUST be treated as **FAIL** (and its outputs considered unusable) if any of the following occurs:
 
 * Any precondition in §2 or §8.2.1 is not met.
 * Either S2 output fails schema validation or has PK/partition violations.
@@ -1802,7 +1806,7 @@ Downstream states MUST treat `status="FAIL"` as a hard gate for that partition.
 
 ### 8.4 Gating obligations for S3 and S4
 
-For any `(manifest_fingerprint, seed, scenario_id)`:
+For any `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **S2 PASS is a hard precondition for S3 and S4**
 
@@ -1870,7 +1874,7 @@ S2 by itself does not authorise external consumption; it is a prerequisite for S
 
 This section defines the **canonical failure modes** for 6B.S2 and the **error codes** that MUST be used when they occur.
 
-For any `(manifest_fingerprint, seed, scenario_id)` partition that S2 attempts, the state MUST:
+For any `(manifest_fingerprint, parameter_hash, seed, scenario_id)` partition that S2 attempts, the state MUST:
 
 * End in exactly one of: `status="PASS"` or `status="FAIL"`.
 * If `status="FAIL"`, attach a **single primary error code** from the list below, and MAY attach secondary codes and diagnostics.
@@ -1881,7 +1885,7 @@ Downstream states (S3, S4, S5) and orchestrators MUST treat any non-PASS S2 stat
 
 ### 9.1 Error model & context
 
-For each failed `(manifest_fingerprint, seed, scenario_id)`:
+For each failed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * **Primary error code**
 
@@ -1917,7 +1921,7 @@ These codes indicate S2 never legitimately entered flow/event synthesis for the 
 Emitted when either:
 
 * 6B.S0 is not PASS for `manifest_fingerprint`, or
-* 6B.S1 is not PASS for `(manifest_fingerprint, seed, scenario_id)`.
+* 6B.S1 is not PASS for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 **Examples**
 
@@ -1978,7 +1982,7 @@ Emitted when `s2_flow_anchor_baseline_6B` fails schema or key validation for the
 **Examples**
 
 * Missing required fields (e.g. `flow_id`, `session_id`, `auth_amount`).
-* Duplicate primary keys `(seed, manifest_fingerprint, scenario_id, flow_id)`.
+* Duplicate primary keys `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
 * Partition columns in rows do not match path tokens.
 
 **Obligations**
@@ -1996,7 +2000,7 @@ Emitted when `s2_event_stream_baseline_6B` fails schema or key validation.
 **Examples**
 
 * Missing `event_type` or `event_ts_utc`.
-* Duplicate `(seed, manifest_fingerprint, scenario_id, flow_id, event_seq)` keys.
+* Duplicate `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)` keys.
 * Partition axes mismatched with path.
 
 **Obligations**
@@ -2014,7 +2018,7 @@ Emitted when S2 finds rows in its outputs whose `seed`, `manifest_fingerprint`, 
 **Examples**
 
 * A row under `seed=A` directory containing `seed=B`.
-* Mixed `scenario_id` values inside a single `(seed, fingerprint, scenario_id)` partition.
+* Mixed `scenario_id` values inside a single `(seed, manifest_fingerprint, parameter_hash, scenario_id)` partition.
 
 **Obligations**
 
@@ -2050,7 +2054,7 @@ Emitted when per-flow event ordering/sequence constraints are violated.
 **Examples**
 
 * Non-contiguous `event_seq` values for a given flow (e.g. `0, 1, 3` with no `2`).
-* Duplicate `event_seq` values for the same `(seed, fingerprint, scenario_id, flow_id)`.
+* Duplicate `event_seq` values for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
 * Event timestamps that violate S2’s basic monotonicity rules (e.g. a later `event_seq` has an earlier `event_ts_utc` when policy forbids that).
 
 **Obligations**
@@ -2264,7 +2268,7 @@ Catch-all for failures not attributable to:
 
 ### 9.10 Surfaces & propagation
 
-For any `(manifest_fingerprint, seed, scenario_id)` where S2 fails:
+For any `(manifest_fingerprint, parameter_hash, seed, scenario_id)` where S2 fails:
 
 * The **Layer-3 run-report** MUST record:
 
@@ -2297,10 +2301,10 @@ Everything here is **binding** for S2.
 S2 is evaluated per:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
-For each `(manifest_fingerprint, seed, scenario_id)` that S2 attempts, the Layer-3 run-report **MUST** contain exactly one entry with at least:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` that S2 attempts, the Layer-3 run-report **MUST** contain exactly one entry with at least:
 
 * `segment` = `"6B"`
 * `state`   = `"S2"`
@@ -2313,13 +2317,13 @@ For each `(manifest_fingerprint, seed, scenario_id)` that S2 attempts, the Layer
 
 Additionally, the run-report **MUST** include a summary block for this partition (see §10.2).
 
-There MUST NOT be more than one S2 run-report entry per `(manifest_fingerprint, seed, scenario_id)` in a single run.
+There MUST NOT be more than one S2 run-report entry per `(manifest_fingerprint, parameter_hash, seed, scenario_id)` in a single run.
 
 ---
 
 ### 10.2 Required summary metrics (per `(seed, scenario_id)`)
 
-For each `(manifest_fingerprint, seed, scenario_id)` partition, the run-report MUST include a **summary object** with at least:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` partition, the run-report MUST include a **summary object** with at least:
 
 #### 10.2.1 Counts
 
@@ -2398,7 +2402,7 @@ If any of these flags would be `false`, S2 MUST NOT report `status="PASS"`; it M
 
 ### 10.3 Logging requirements
 
-S2 MUST emit structured logs at key stages for each `(manifest_fingerprint, seed, scenario_id)` partition. At minimum:
+S2 MUST emit structured logs at key stages for each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` partition. At minimum:
 
 1. **Partition start**
 
@@ -2533,7 +2537,7 @@ Downstream states MUST use S2’s run-report status and summary as part of gatin
 
 * **S3 (fraud/abuse overlay)**
 
-  * Before running for `(manifest_fingerprint, seed, scenario_id)`, S3 MUST:
+  * Before running for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S3 MUST:
 
     * check S2’s run-report entry and verify `status="PASS"`.
     * If S2 is `FAIL` or missing, S3 MUST fail early with a precondition error (e.g. `S3_PRECONDITION_S2_FAILED`) and MUST NOT read S2 outputs.
@@ -2570,7 +2574,7 @@ The combination of:
 * S2 run-report entries, and
 * S2 structured logs,
 
-MUST allow an auditor or operator to answer, for any `(manifest_fingerprint, seed, scenario_id)`:
+MUST allow an auditor or operator to answer, for any `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * Did S2 run, and did it succeed or fail?
 * How many flows/events were produced, and how do they compare to sessions/arrivals?
@@ -2592,7 +2596,7 @@ This section gives **non-binding** guidance on how to keep S2 practical at scale
 
 ### 11.1 Cost model — where S2 actually spends time
 
-For a given `(manifest_fingerprint, seed, scenario_id)`, S2 does three main things:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S2 does three main things:
 
 1. **Read S1 outputs**
 
@@ -2709,7 +2713,7 @@ Guidance:
 
 ### 11.5 Memory footprint
 
-Per `(seed, fingerprint, scenario_id)`, memory is mainly used for:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, memory is mainly used for:
 
 * S1 arrivals + sessions (loaded from parquet).
 * S2’s intermediate representation:
@@ -2920,7 +2924,7 @@ Examples of **breaking** changes:
 
 1. **Identity / partition law changes**
 
-   * Changing S2 output partitioning from `[seed, fingerprint, scenario_id]` to any other set (adding/removing axes).
+   * Changing S2 output partitioning from `[seed, manifest_fingerprint, parameter_hash, scenario_id]` to any other set (adding/removing axes).
    * Introducing `run_id` (or other axes) as partition keys for `s2_flow_anchor_baseline_6B` or `s2_event_stream_baseline_6B`.
    * Changing primary keys, e.g.:
 
@@ -2974,7 +2978,7 @@ Implications:
 
 * It is **not acceptable** to:
 
-  * silently change config or implementation in such a way that, under the same `parameter_hash` and `spec_version_6B`, the same `(manifest_fingerprint, seed, scenario_id)` yields different flow/event outputs, while still claiming idempotence.
+  * silently change config or implementation in such a way that, under the same `parameter_hash` and `spec_version_6B`, the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)` yields different flow/event outputs, while still claiming idempotence.
 
 Operationally:
 
@@ -3032,7 +3036,7 @@ To support gradual rollout and historical replay:
 1. **Co-existence of S2 versions**
 
    * Orchestrators MUST choose a single `spec_version_6B` per deployment / environment, or at least per `manifest_fingerprint`, when running S2.
-   * Implementations for different spec versions MUST NOT both write to the same dataset ids (`s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`) for the same `(manifest_fingerprint, seed, scenario_id)`.
+   * Implementations for different spec versions MUST NOT both write to the same dataset ids (`s2_flow_anchor_baseline_6B`, `s2_event_stream_baseline_6B`) for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
    If multi-version support is required, it SHOULD be implemented by:
 
@@ -3062,11 +3066,11 @@ For the lifetime of this `spec_version_6B`, the following aspects of S2 are **st
   * `s2_flow_anchor_baseline_6B` (one row per flow),
   * `s2_event_stream_baseline_6B` (one row per event).
 
-* Both datasets are partitioned by `[seed, fingerprint, scenario_id]` and use the PKs as specified in §§4–7.
+* Both datasets are partitioned by `[seed, manifest_fingerprint, parameter_hash, scenario_id]` and use the PKs as specified in §§4–7.
 
 * Every event belongs to exactly one flow and every flow has ≥1 event; there are no orphan flows/events.
 
-* Every flow is linked to a valid S1 `session_id` for the same `(seed, fingerprint, scenario_id)`.
+* Every flow is linked to a valid S1 `session_id` for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 * Entity and routing context in S2 outputs are consistent with S1 attachments and upstream surfaces; S2 never invents new entities or break upstream identity laws.
 
@@ -3088,7 +3092,7 @@ This appendix collects the shorthand and symbols used in the 6B.S2 spec. It is *
 
 ### 13.1 Identity & axes
 
-* **`manifest_fingerprint` / `fingerprint`**
+* **`manifest_fingerprint`**
   World snapshot identifier. Partitions S2 outputs at the “world” level and ties them to all upstream HashGates (1A–3B, 5A, 5B, 6A) and 6B.S0.
 
 * **`seed`**
@@ -3101,10 +3105,10 @@ This appendix collects the shorthand and symbols used in the 6B.S2 spec. It is *
   Hash of the active 6B behavioural configuration pack (flow-shape/amount/timing/RNG policies, etc.). Carried in control-plane and data-plane surfaces as part of identity, but **not** used as a partition key for S2 outputs.
 
 * **`flow_id`**
-  Opaque identifier for a baseline flow/transaction, unique within `(seed, manifest_fingerprint, scenario_id)`. Defined deterministically by S2.
+  Opaque identifier for a baseline flow/transaction, unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`. Defined deterministically by S2.
 
 * **`event_seq`**
-  Integer sequence number of an event within a flow; defines strict order of events for a given `(seed, manifest_fingerprint, scenario_id, flow_id)`.
+  Integer sequence number of an event within a flow; defines strict order of events for a given `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`.
 
 ---
 
@@ -3133,7 +3137,7 @@ This appendix collects the shorthand and symbols used in the 6B.S2 spec. It is *
   Inherited from 5B/S1 (shape indicative):
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, merchant_id, arrival_seq)
   ```
 
   S2 refers back to arrivals via fields in S1 outputs (e.g. `merchant_id, arrival_seq`) and any arrival-link fields in the flow anchor.
@@ -3141,7 +3145,7 @@ This appendix collects the shorthand and symbols used in the 6B.S2 spec. It is *
 * **Session key**
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, session_id)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, session_id)
   ```
 
   Primary key in `s1_session_index_6B`; referenced (FK) by each flow in `FA2`.
@@ -3149,7 +3153,7 @@ This appendix collects the shorthand and symbols used in the 6B.S2 spec. It is *
 * **Flow key**
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, flow_id)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)
   ```
 
   Primary key in `FA2`; referenced (FK) by each event in `EV2`.
@@ -3157,7 +3161,7 @@ This appendix collects the shorthand and symbols used in the 6B.S2 spec. It is *
 * **Event key**
 
   ```text
-  (seed, manifest_fingerprint, scenario_id, flow_id, event_seq)
+  (seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)
   ```
 
   Primary key in `EV2`.

@@ -711,7 +711,7 @@ datasets:
       Sealed list of all artefacts 6B is allowed to read for a given
       manifest_fingerprint, with roles, schema_refs and digests.
     version: '{manifest_fingerprint}'
-    format: parquet
+    format: json
     path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
     partitioning: [manifest_fingerprint]
     primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]

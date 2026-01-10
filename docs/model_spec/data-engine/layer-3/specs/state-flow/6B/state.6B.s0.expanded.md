@@ -8,7 +8,7 @@ This state defines the **behavioural universe gate** for Layer-3 / Segment 6B.
 
 * Verify that the **world below 6B is sealed and trustworthy** (Layer-1, Layer-2 and 6A HashGates are all PASS for this fingerprint).
 * Discover, via catalogues and upstream sealed-input manifests, **exactly which artefacts 6B is allowed to read**, and at what scope.
-* Materialise a **sealed, fingerprint-scoped manifest** of those artefacts (`sealed_inputs_6B`), and a compact **gate receipt** (`s0_gate_receipt_6B`) that downstream states and external orchestrators can rely on.
+* Materialise a **sealed, manifest_fingerprint-scoped manifest** of those artefacts (`sealed_inputs_6B`), and a compact **gate receipt** (`s0_gate_receipt_6B`) that downstream states and external orchestrators can rely on.
 * Do all of the above **without reading any data-plane rows** and **without consuming RNG**.
 
 Once 6B.S0 has succeeded for a given `manifest_fingerprint` (and spec version), the rest of the 6B segment may treat the upstream engine as a **closed behavioural universe**:
@@ -144,7 +144,7 @@ If 6B.S0 is implemented as specified, then for each `manifest_fingerprint`:
 
 This section defines **what must already be true** before 6B.S0 is allowed to run, and which upstream HashGates it is required to honour.
 
-6B.S0 is **fingerprint-scoped**: every invocation is parameterised by a single `manifest_fingerprint`. All preconditions below apply *per fingerprint*.
+6B.S0 is **manifest_fingerprint-scoped**: every invocation is parameterised by a single `manifest_fingerprint`. All preconditions below apply *per fingerprint*.
 
 ---
 
@@ -212,7 +212,7 @@ Before 6B.S0 runs, the **Layer-3 / 6B contract set** for the active `6B_spec_ver
 
 * That dictionary and registry both reference the same logical IDs for S0’s outputs.
 * That the schema refs declared in dictionary/registry resolve into `schemas.layer3.yaml` / `schemas.6B.yaml`.
-* That the declared partitioning and path templates for S0’s outputs are consistent with this specification (fingerprint-only partition, no extraneous keys).
+* That the declared partitioning and path templates for S0’s outputs are consistent with this specification (manifest_fingerprint-only partition, no extraneous keys).
 
 If the 6B contract set is missing or inconsistent, S0 **MUST** fail with a contract-related error and refrain from writing any outputs.
 
@@ -523,7 +523,7 @@ The gate receipt MUST be registered in the 6B dataset dictionary and artefact re
 * `ordering: []` (single logical row per fingerprint; writer is free to serialise fields in any JSON object order consistent with the schema)
 * `schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B`
 
-The `manifest_fingerprint` column embedded in the JSON **MUST** exactly match the `fingerprint` partition token.
+The `manifest_fingerprint` column embedded in the JSON **MUST** exactly match the `manifest_fingerprint` partition token.
 
 **Identity fields (non-exhaustive)**
 
@@ -550,7 +550,7 @@ Additional fields (timestamps, tooling metadata, free-form notes) MAY be added i
 
 **Purpose**
 
-The sealed-inputs manifest is a **fingerprint-scoped inventory** of all artefacts 6B is authorised to read for a given world. Each row describes exactly one artefact (dataset or file) that may be consumed by 6B.S1–S4.
+The sealed-inputs manifest is a **manifest_fingerprint-scoped inventory** of all artefacts 6B is authorised to read for a given world. Each row describes exactly one artefact (dataset or file) that may be consumed by 6B.S1–S4.
 
 For each artefact, the row MUST record:
 
@@ -584,7 +584,7 @@ Each row in `sealed_inputs_6B` MUST contain, at minimum:
 * `owner_segment` — the segment id (e.g. `1B`, `2A`, `5B`, `6A`, `6B`).
 * `manifest_key` — a logical identifier for the artefact, typically matching the id used in the owning segment’s artefact registry (e.g. `arrival_events_5B`, `s1_party_base_6A`, `behaviour_prior_pack_6B`).
 * `path_template` — the resolved path template for the artefact, with partition tokens such as `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}` as appropriate.
-* `partition_keys` — the list of partition columns required to access the artefact (e.g. `["seed","fingerprint","scenario_id"]` for `arrival_events_5B`).
+* `partition_keys` — the list of partition columns required to access the artefact (e.g. `["seed","manifest_fingerprint","scenario_id"]` for `arrival_events_5B`).
 * `schema_ref` — a JSON-Schema `$ref` into the owning layer’s schema pack (e.g. `schemas.5B.yaml#/s4/arrival_events_5B`, `schemas.6A.yaml#/s1/party_base`).
 * `role` — a short classification of the artefact’s role from 6B’s perspective (e.g. `arrival_stream`, `entity_graph`, `static_posture`, `behaviour_prior`, `campaign_config`, `labelling_policy`).
 * `status` — `REQUIRED`, `OPTIONAL`, or `IGNORED` in the context of 6B.
@@ -597,7 +597,7 @@ The schema MAY include additional fields (e.g. `upstream_bundle_id`, `notes`, `m
 
 ### 4.3 Relationship to identity axes
 
-The outputs of 6B.S0 are deliberately **fingerprint-only**:
+The outputs of 6B.S0 are deliberately **manifest_fingerprint-only**:
 
 * Neither `s0_gate_receipt_6B` nor `sealed_inputs_6B` are partitioned by `seed` or `run_id`.
 * Both datasets **MUST** include `manifest_fingerprint` as a first-class column and **MUST NOT** include `seed` or `run_id` columns.
@@ -868,7 +868,7 @@ At the end of Step 4, the `sealed_inputs_6B` dataset exists on disk, but no gate
 
 **Inputs**
 
-* The persisted `sealed_inputs_6B` parquet file.
+* The persisted `sealed_inputs_6B` JSON file.
 * A fixed, engine-wide rule for canonical row serialisation.
 
 **Algorithm**
@@ -995,7 +995,7 @@ Consequences:
 
 ### 7.2 Partitioning & file layout
 
-Both outputs of 6B.S0 are **fingerprint-partitioned control-plane datasets**:
+Both outputs of 6B.S0 are **manifest_fingerprint-partitioned control-plane datasets**:
 
 * `s0_gate_receipt_6B`:
 
@@ -1013,9 +1013,9 @@ Both outputs of 6B.S0 are **fingerprint-partitioned control-plane datasets**:
 
 Binding constraints:
 
-* The `fingerprint` path token MUST equal the `manifest_fingerprint` column value in all rows for that file.
+* The `manifest_fingerprint` path token MUST equal the `manifest_fingerprint` column value in all rows for that file.
 * No `seed`, `scenario_id`, `run_id` or other dimensions MAY appear in the partitioning list for these datasets.
-* There MUST be exactly one `sealed_inputs_6B` parquet file per `manifest_fingerprint`, and at most one `s0_gate_receipt_6B.json` file per `manifest_fingerprint`.
+* There MUST be exactly one `sealed_inputs_6B` JSON file per `manifest_fingerprint`, and at most one `s0_gate_receipt_6B.json` file per `manifest_fingerprint`.
 
 The presence or absence of `seed` and `scenario_id` is a property of **artefacts listed in** `sealed_inputs_6B`, not of S0’s own outputs.
 
@@ -1106,7 +1106,7 @@ The write discipline for S0 outputs is:
 
 1. **Write `sealed_inputs_6B` first.**
 
-   * Only after a complete, schema-valid parquet file has been written and flushed for the target fingerprint does S0 proceed to write the gate receipt.
+   * Only after a complete, schema-valid JSON file has been written and flushed for the target fingerprint does S0 proceed to write the gate receipt.
 
 2. **Compute `sealed_inputs_digest_6B` from the persisted file.**
 
@@ -1223,7 +1223,7 @@ All conditions below are **binding**. An implementation that deviates from them 
 
 5. **`sealed_inputs_digest_6B` is correctly computed**
 
-   * The `sealed_inputs_6B` parquet for this fingerprint has been read back using the canonical ordering and serialisation rules.
+   * The `sealed_inputs_6B` JSON for this fingerprint has been read back using the canonical ordering and serialisation rules.
    * `sealed_inputs_digest_6B` has been computed over the on-disk contents as specified in Section 6.6.
    * The computed digest is embedded into `s0_gate_receipt_6B.sealed_inputs_digest_6B`.
 
@@ -1250,7 +1250,7 @@ For clarity, the following conditions are **fatal** for 6B.S0:
 * Any required upstream sealed-inputs manifest (`sealed_inputs_5B`, `sealed_inputs_6A`, or others marked `REQUIRED` by 6B policy) is absent or fails schema validation.
 * The 6B contract set (schemas, dictionary, registry) is missing, inconsistent, or refers to invalid schema anchors.
 * A 6B configuration pack required by the active `6B_spec_version` is missing or fails schema validation.
-* `sealed_inputs_6B` cannot be materialised to a schema-valid parquet (schema violation, duplicate primary keys, inconsistent path/schema_ref for any `REQUIRED` artefact).
+* `sealed_inputs_6B` cannot be materialised to a schema-valid JSON (schema violation, duplicate primary keys, inconsistent path/schema_ref for any `REQUIRED` artefact).
 * The digest computed for `sealed_inputs_6B` cannot be computed (I/O errors, serialisation errors) or is inconsistent with an existing `s0_gate_receipt_6B`.
 * An existing `s0_gate_receipt_6B.json` for the same fingerprint exists on disk but differs byte-for-byte from the newly produced receipt (non-idempotent re-run).
 
@@ -2042,7 +2042,7 @@ To keep this manageable:
 
   * A single row in `sealed_inputs_6B` can describe:
 
-    * an entire dataset family (`arrival_events_5B`) with `partition_keys: ["seed", "fingerprint", "scenario_id"]`,
+    * an entire dataset family (`arrival_events_5B`) with `partition_keys: ["seed", "manifest_fingerprint", "scenario_id"]`,
     * rather than one row per `(seed, scenario_id)` file.
 
   * Detailed partition metadata (per-seed/per-scenario) can remain in upstream segments’ own manifests (e.g. 5B’s sealed-inputs).
@@ -2079,7 +2079,7 @@ To limit I/O overhead:
 
 ### 11.7 Concurrency & contention
 
-S0 is fingerprint-scoped and naturally parallelisable across worlds:
+S0 is manifest_fingerprint-scoped and naturally parallelisable across worlds:
 
 * It is safe to run **multiple S0 instances in parallel** for different `manifest_fingerprint` values, provided:
 
@@ -2366,7 +2366,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
 
 ### 13.1 Identity & versioning
 
-* **`manifest_fingerprint` / `fingerprint`**
+* **`manifest_fingerprint`**
   The world snapshot identifier. A stable hash (e.g. 64-char hex) that uniquely identifies a sealed engine “world” across Layers 1–3. Used as:
 
   * the partition key for S0 outputs, and
@@ -2414,7 +2414,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   A string with placeholder tokens (e.g. `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`) that describes where an artefact is stored.
 
 * **`partition_keys`**
-  Ordered list of logical partition columns required to read an artefact (e.g. `["seed","fingerprint"]`, `["fingerprint"]`).
+  Ordered list of logical partition columns required to read an artefact (e.g. `["seed","manifest_fingerprint"]`, `["manifest_fingerprint"]`).
 
 * **`schema_ref`**
   A JSON-Schema `$ref` string pointing into a schema pack (e.g. `schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`, `schemas.5B.yaml#/s4/arrival_events_5B`).
@@ -2485,7 +2485,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   * and `sealed_inputs_digest_6B`.
 
 * **`sealed_inputs_6B`**
-  Fingerprint-scoped parquet table where each row describes one artefact that 6B is authorised to read:
+  Fingerprint-scoped JSON table where each row describes one artefact that 6B is authorised to read:
 
   * identity (`manifest_fingerprint`, `owner_layer`, `owner_segment`, `manifest_key`),
   * location (`path_template`, `partition_keys`),

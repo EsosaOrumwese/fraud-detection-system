@@ -45,8 +45,8 @@ subsegments:
         schema: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B
         cross_layer: true
         notes: null
-  - name: sealed_inputs_6B
-    path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
+      - name: sealed_inputs_6B
+        path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json
         type: dataset
         category: validation
         semver: 1.0.0

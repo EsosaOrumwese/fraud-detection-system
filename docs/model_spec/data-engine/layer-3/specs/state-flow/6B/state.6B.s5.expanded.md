@@ -117,17 +117,17 @@ If S5 is implemented according to this specification, then for each world:
 **Inputs (authoritative; see Section 2 for full list):**
 * `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
 * `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
-* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
-* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S1
-* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
-* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S2
-* `s3_campaign_catalogue_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
-* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
-* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
-* `s4_flow_truth_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
-* `s4_flow_bank_view_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
-* `s4_event_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
-* `s4_case_timeline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S4
+* `s1_arrival_entities_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S1
+* `s1_session_index_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S1
+* `s2_flow_anchor_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S2
+* `s2_event_stream_baseline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S2
+* `s3_campaign_catalogue_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S3
+* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S3
+* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S3
+* `s4_flow_truth_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S4
+* `s4_flow_bank_view_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S4
+* `s4_event_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S4
+* `s4_case_timeline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S4
 * `segment_validation_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
 * `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_trace_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
@@ -183,7 +183,7 @@ Concretely, for the target `manifest_fingerprint`, S5 MUST:
 2. Validate it against `schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B`. This includes:
 
    * Required fields present (`manifest_fingerprint`, `parameter_hash`, `spec_version_6B`, `upstream_segments`, `contracts_6B`, `sealed_inputs_digest_6B`, etc.).
-   * Embedded `manifest_fingerprint` equals the fingerprint path token.
+   * Embedded `manifest_fingerprint` equals the manifest_fingerprint path token.
 
 3. Locate and load `sealed_inputs_6B` for this fingerprint using the paths and schema_ref recorded in S0 and the dictionary.
 
@@ -249,7 +249,7 @@ For the target `manifest_fingerprint`, S5 MUST:
    * `segment="6B", state="S3_overlay"` (S3 overlay PASS/FAIL)
    * `segment="6B", state="S4_labels"` (flow/event labels PASS/FAIL)
 
-3. For the case-level scope `(seed, fingerprint)`, confirm that a `segment="6B", state="S4_cases"` run-report entry exists for each seed for which S4 is expected to produce case timelines.
+3. For the case-level scope `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, confirm that a `segment="6B", state="S4_cases"` run-report entry exists for each seed for which S4 is expected to produce case timelines.
 
 Precondition vs validation:
 
@@ -627,7 +627,7 @@ But S5’s outputs are **purely validation artefacts**; the truth about behaviou
 3. `validation_bundle_6B` — a **directory** containing all selected 6B validation artefacts for the world, plus an `index.json`.
 4. `validation_passed_flag_6B` (`_passed.flag`) — the **HashGate flag** for Segment 6B.
 
-All S5 outputs are **fingerprint-scoped**:
+All S5 outputs are **manifest_fingerprint-scoped**:
 
 * They are partitioned only by `manifest_fingerprint` (exposed as `manifest_fingerprint={manifest_fingerprint}` in paths).
 * They do **not** partition by `seed`, `scenario_id`, or `run_id`.
@@ -675,7 +675,7 @@ Registered in the 6B dictionary/registry as:
 
 * `partitioning: [manifest_fingerprint]`
 
-The embedded `manifest_fingerprint` field in the JSON MUST equal the `fingerprint` partition token.
+The embedded `manifest_fingerprint` field in the JSON MUST equal the `manifest_fingerprint` partition token.
 
 **Primary key & identity**
 
@@ -934,7 +934,7 @@ In registry:
 
 The S5 outputs have the following identity relationships:
 
-* All S5 artefacts are **fingerprint-only**:
+* All S5 artefacts are **manifest_fingerprint-only**:
 
   * They do not vary by `seed` or `scenario_id` (though they may *summarise* those dimensions).
   * They apply to the entire 6B workload for the world.
@@ -1713,7 +1713,7 @@ For all 6B data-plane outputs (S1–S4) that `sealed_inputs_6B` and the spec mar
 
   * exist (or be explicitly allowed to be empty by spec/policy),
   * validate against their schema anchors,
-  * obey partitioning rules (`seed`, `fingerprint`, `scenario_id` path↔embed),
+  * obey partitioning rules (`seed`, `manifest_fingerprint`, `scenario_id` path↔embed),
   * obey primary key uniqueness,
   * satisfy ordering constraints defined in S1–S4 specs (where applicable).
 
@@ -3123,7 +3123,7 @@ This appendix collects shorthand and symbols used in the 6B.S5 spec. It is **inf
 
 ### 13.1 Identity & axes
 
-* **`manifest_fingerprint` / `fingerprint`**
+* **`manifest_fingerprint`**
   Sealed world snapshot identifier. All S5 artefacts are scoped to a single `manifest_fingerprint` and partitioned by `manifest_fingerprint={manifest_fingerprint}`.
 
 * **`parameter_hash`**

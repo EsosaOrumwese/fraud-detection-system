@@ -67,7 +67,7 @@ Within this contract, S4 is responsible for:
 
   * Emitting `s4_case_timeline_6B` (and any auxiliary case tables) that describe:
 
-    * case identity (`case_id` per `(seed, manifest_fingerprint)`),
+    * case identity (`case_id` per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`),
     * the set of flows/events in each case,
     * the ordered sequence of case actions (open, investigation, decisions, closure) with timestamps.
 
@@ -131,8 +131,8 @@ If S4 is implemented as specified here, then for each world/run/scenario:
 **Inputs (authoritative; see Section 2 for full list):**
 * `s0_gate_receipt_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
 * `sealed_inputs_6B` - scope: FINGERPRINT_SCOPED; source: 6B.S0
-* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
-* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]; source: 6B.S3
+* `s3_flow_anchor_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S3
+* `s3_event_stream_with_fraud_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]; source: 6B.S3
 * `truth_labelling_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
 * `bank_view_policy_6B` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
 * `delay_models_6B` - scope: UNPARTITIONED (sealed model); sealed_inputs: required
@@ -143,10 +143,10 @@ If S4 is implemented as specified here, then for each world/run/scenario:
 * S4 is the sole authority for truth labels and bank-view outcomes.
 
 **Outputs:**
-* `s4_flow_truth_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s4_flow_bank_view_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s4_event_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
-* `s4_case_timeline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, scenario_id]
+* `s4_flow_truth_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s4_flow_bank_view_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s4_event_labels_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
+* `s4_case_timeline_6B` - scope: FINGERPRINT_SCOPED; scope_keys: [seed, manifest_fingerprint, parameter_hash, scenario_id]
 * `rng_event_truth_label` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_event_bank_view_label` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
 * `rng_audit_log` - scope: LOG_SCOPED; scope_keys: [seed, parameter_hash, run_id]
@@ -165,7 +165,7 @@ This section defines **what must already be true** before 6B.S4 is allowed to ru
 S4 is evaluated per triple:
 
 ```text
-(manifest_fingerprint, seed, scenario_id)
+(manifest_fingerprint, parameter_hash, seed, scenario_id)
 ```
 
 and depends on:
@@ -224,7 +224,7 @@ S4 MUST NOT attempt to “work around” a non-PASS upstream segment: if S0 says
 
 ### 2.3 S1, S2 and S3 MUST be PASS for `(seed, scenario_id)`
 
-S4’s labelling sits on top of S1, S2 and S3. For each `(manifest_fingerprint, seed, scenario_id)`:
+S4’s labelling sits on top of S1, S2 and S3. For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 * S4 **MUST NOT** run unless:
 
@@ -237,27 +237,27 @@ Binding checks:
 1. Inspect the Layer-3 run-report for entries:
 
    ```text
-   (segment="6B", state="S1", manifest_fingerprint, seed, scenario_id, status="PASS")
-   (segment="6B", state="S2", manifest_fingerprint, seed, scenario_id, status="PASS")
-   (segment="6B", state="S3_overlay", manifest_fingerprint, seed, scenario_id, status="PASS")
+   (segment="6B", state="S1", manifest_fingerprint, parameter_hash, seed, scenario_id, status="PASS")
+   (segment="6B", state="S2", manifest_fingerprint, parameter_hash, seed, scenario_id, status="PASS")
+   (segment="6B", state="S3_overlay", manifest_fingerprint, parameter_hash, seed, scenario_id, status="PASS")
    ```
 
 2. Confirm that the required data-plane outputs exist and are schema-valid for this partition:
 
    * S1:
 
-     * `s1_arrival_entities_6B@{seed,fingerprint,scenario_id}`,
-     * `s1_session_index_6B@{seed,fingerprint,scenario_id}`.
+     * `s1_arrival_entities_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`,
+     * `s1_session_index_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
    * S2:
 
-     * `s2_flow_anchor_baseline_6B@{seed,fingerprint,scenario_id}`,
-     * `s2_event_stream_baseline_6B@{seed,fingerprint,scenario_id}`.
+     * `s2_flow_anchor_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`,
+     * `s2_event_stream_baseline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
    * S3:
 
-     * `s3_flow_anchor_with_fraud_6B@{seed,fingerprint,scenario_id}`,
-     * `s3_event_stream_with_fraud_6B@{seed,fingerprint,scenario_id}`.
+     * `s3_flow_anchor_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`,
+     * `s3_event_stream_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
 
 If any of these states are not PASS, or any of these datasets are missing or fail schema validation, S4 MUST treat this as a precondition failure and MUST NOT attempt labelling for that `(seed, scenario_id)` domain.
 
@@ -274,7 +274,7 @@ All artefacts S4 reads MUST be discoverable via `sealed_inputs_6B` for the targe
 
 Before processing any `(seed, scenario_id)` partition, S4 MUST:
 
-1. Load `sealed_inputs_6B@{fingerprint}` and validate it against `schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`.
+1. Load `sealed_inputs_6B@{manifest_fingerprint}` and validate it against `schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`.
 
 2. Confirm that the following rows exist with:
 
@@ -339,12 +339,12 @@ Optional context artefacts (e.g. additional 6A attributes, extra monitoring surf
 
 S4 operates on the same `(seed, scenario_id)` partitions as S3 overlays for a given world.
 
-For each `(manifest_fingerprint, seed, scenario_id)` that S4 intends to process, it MUST ensure:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` that S4 intends to process, it MUST ensure:
 
 1. `s3_flow_anchor_with_fraud_6B` has a partition at:
 
    ```text
-   seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+   seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
    ```
 
 2. `s3_event_stream_with_fraud_6B` has a partition at the same axes.
@@ -371,7 +371,7 @@ S4 is an RNG-consuming state (for probabilistic truth cases and delay modelling)
 
   * RNG family names reserved for S4 (e.g. `rng_event_truth_label_ambiguity`, `rng_event_detection_delay`, `rng_event_chargeback_delay`),
   * per-family budgets (draws per decision),
-  * substream keying rules (e.g. keys based on `(manifest_fingerprint, seed, scenario_id, flow_id, label_stage)`).
+  * substream keying rules (e.g. keys based on `(manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id, label_stage)`).
 
 If the S4 RNG policy is missing, inconsistent with the Layer-3 RNG spec, or invalid, S4 MUST fail preconditions and MUST NOT attempt stochastic labelling.
 
@@ -382,7 +382,7 @@ If the S4 RNG policy is missing, inconsistent with the Layer-3 RNG spec, or inva
 S4 MUST NOT be invoked in any of the following situations:
 
 * **Before** 6B.S0 has PASSed for the target `manifest_fingerprint`.
-* **Before** 6B.S1, 6B.S2, and 6B.S3 have PASSed for the target `(manifest_fingerprint, seed, scenario_id)`.
+* **Before** 6B.S1, 6B.S2, and 6B.S3 have PASSed for the target `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 * With a manually specified set of inputs that bypasses `sealed_inputs_6B`.
 * When required S1/S2/S3 surfaces, 6A posture surfaces, or S4 config packs are missing or schema-invalid.
 * Against a world where any required upstream HashGate (`1A–3B`, `5A`, `5B`, `6A`) is not PASS according to `s0_gate_receipt_6B`.
@@ -390,7 +390,7 @@ S4 MUST NOT be invoked in any of the following situations:
 
 If any of these conditions hold, the correct behaviour is:
 
-* S4 MUST fail early for the affected `(manifest_fingerprint, seed, scenario_id)` with a precondition error, and
+* S4 MUST fail early for the affected `(manifest_fingerprint, parameter_hash, seed, scenario_id)` with a precondition error, and
 * S4 MUST NOT emit any label or case outputs for that domain.
 
 These preconditions are **binding**: any conformant implementation of 6B.S4 MUST enforce them before performing any truth or bank-view labelling.
@@ -470,7 +470,7 @@ These MUST be listed in `sealed_inputs_6B` with `owner_layer=3`, `owner_segment=
 
 1. **`s3_flow_anchor_with_fraud_6B`** (`ROW_LEVEL`)
 
-   * One row per **post-overlay flow** for `(seed, manifest_fingerprint, scenario_id)`.
+   * One row per **post-overlay flow** for `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
    * Contains:
 
      * flow identity (`flow_id`),
@@ -492,7 +492,7 @@ These MUST be listed in `sealed_inputs_6B` with `owner_layer=3`, `owner_segment=
 
 2. **`s3_event_stream_with_fraud_6B`** (`ROW_LEVEL`)
 
-   * One row per **post-overlay event** for `(seed, manifest_fingerprint, scenario_id)`.
+   * One row per **post-overlay event** for `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
    * Contains:
 
      * event identity (`flow_id`, `event_seq`),
@@ -514,7 +514,7 @@ These MUST be listed in `sealed_inputs_6B` with `owner_layer=3`, `owner_segment=
 
 3. **`s3_campaign_catalogue_6B`** (`ROW_LEVEL` or `METADATA_ONLY`)
 
-   * Campaign catalogue for `(manifest_fingerprint, seed)`.
+   * Campaign catalogue for `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
    * Contains one row per realised `campaign_id` with type, parameters, scope, and intensity metrics.
 
    **Authority:** This defines:
@@ -709,8 +709,8 @@ These datasets:
 
 * Share axes with S3:
 
-  * flow/event labels: `[seed, fingerprint, scenario_id]`,
-  * case timeline: `[seed, manifest_fingerprint]`,
+  * flow/event labels: `[seed, manifest_fingerprint, parameter_hash, scenario_id]`,
+  * case timeline: `[seed, manifest_fingerprint, parameter_hash, scenario_id]`,
 
 * And are consumed by:
 
@@ -745,7 +745,7 @@ This table is the **sole authority** for truth labels at flow level. Downstream 
 
 Registered in dictionary/registry as:
 
-* `version: '{seed}.{manifest_fingerprint}.{scenario_id}'`
+* `version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'`
 
 * `format: parquet`
 
@@ -753,16 +753,16 @@ Registered in dictionary/registry as:
 
   ```text
   data/layer3/6B/s4_flow_truth_labels_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 Embedded `seed`, `manifest_fingerprint`, `scenario_id` columns MUST match path tokens.
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint, scenario_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
@@ -807,7 +807,7 @@ Every flow in S3 MUST have exactly one truth-label row here; no extra flow_ids a
 
 **Purpose**
 
-One row per **post-overlay flow** describing **how the bank sees and handles it** over time. For each `(seed, fingerprint, scenario_id, flow_id)`, this dataset records:
+One row per **post-overlay flow** describing **how the bank sees and handles it** over time. For each `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`, this dataset records:
 
 * auth-time outcome (approved, declined, stepped-up, sent to manual review),
 
@@ -835,7 +835,7 @@ This table is the **sole authority** on bank-view labels at flow level.
 
 Registered as:
 
-* `version: '{seed}.{manifest_fingerprint}.{scenario_id}'`
+* `version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'`
 
 * `format: parquet`
 
@@ -843,10 +843,10 @@ Registered as:
 
   ```text
   data/layer3/6B/s4_flow_bank_view_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 **Primary key & identity**
 
@@ -894,7 +894,7 @@ Constraints:
 
 **Purpose**
 
-One row per **post-overlay event** (from `s3_event_stream_with_fraud_6B`), providing event-level truth/bank-view flags. At minimum, for each `(seed, fingerprint, scenario_id, flow_id, event_seq)`, this dataset can encode:
+One row per **post-overlay event** (from `s3_event_stream_with_fraud_6B`), providing event-level truth/bank-view flags. At minimum, for each `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)`, this dataset can encode:
 
 * truth flags:
 
@@ -913,7 +913,7 @@ This table is optional for pure flow-level modelling, but required for fine-grai
 
 Registered as:
 
-* `version: '{seed}.{manifest_fingerprint}.{scenario_id}'`
+* `version: '{seed}.{manifest_fingerprint}.{parameter_hash}.{scenario_id}'`
 
 * `format: parquet`
 
@@ -921,14 +921,14 @@ Registered as:
 
   ```text
   data/layer3/6B/s4_event_labels_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint, scenario_id]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint, scenario_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
@@ -938,7 +938,7 @@ For each `(seed, manifest_fingerprint, scenario_id)`:
 
 Constraints:
 
-* For every `(seed, fingerprint, scenario_id, flow_id, event_seq)` present in `s3_event_stream_with_fraud_6B`, there MUST be exactly one row in `s4_event_labels_6B`.
+* For every `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)` present in `s3_event_stream_with_fraud_6B`, there MUST be exactly one row in `s4_event_labels_6B`.
 * No labels may exist for events not present in S3.
 
 **Schema anchor & lineage**
@@ -985,7 +985,7 @@ This dataset encodes the **lifecycle of cases** (disputes, chargebacks, investig
 
 For each case event, S4 records:
 
-* `case_id` — unique within `(seed, manifest_fingerprint)`,
+* `case_id` — unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)`,
 * event identity and ordering,
 * links to affected flows/events,
 * timestamps and event type.
@@ -1004,14 +1004,14 @@ Registered as:
 
   ```text
   data/layer3/6B/s4_case_timeline_6B/
-      seed={seed}/manifest_fingerprint={manifest_fingerprint}/part-*.parquet
+      seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
-* `partitioning: [seed, manifest_fingerprint]`
+* `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
 
 **Primary key & identity**
 
-For each `(seed, manifest_fingerprint)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Primary key (binding):
 
@@ -1026,7 +1026,7 @@ where:
 
 Constraints:
 
-* For each `(seed, fingerprint, case_id)`:
+* For each `(seed, manifest_fingerprint, case_id)`:
 
   * `case_event_seq` values form a contiguous sequence (e.g. `0..N-1` or `1..N`).
   * There is at least one event row (no empty cases).
@@ -1062,19 +1062,19 @@ To make the cross-surface relationships explicit:
 
 * **Flows:**
 
-  * Every `(seed, fingerprint, scenario_id, flow_id)` in `s3_flow_anchor_with_fraud_6B` MUST appear exactly once in both:
+  * Every `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` in `s3_flow_anchor_with_fraud_6B` MUST appear exactly once in both:
 
     * `s4_flow_truth_labels_6B`,
     * `s4_flow_bank_view_6B`.
 
 * **Events:**
 
-  * Every `(seed, fingerprint, scenario_id, flow_id, event_seq)` in `s3_event_stream_with_fraud_6B` MUST appear exactly once in `s4_event_labels_6B`.
+  * Every `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)` in `s3_event_stream_with_fraud_6B` MUST appear exactly once in `s4_event_labels_6B`.
 
 * **Cases:**
 
   * Any flow that has a non-null “case involvement” flag in `s4_flow_bank_view_6B` MUST appear in `s4_case_timeline_6B` via one or more case events.
-  * `case_id`s in `s4_case_timeline_6B` MUST be unique within `(seed, fingerprint)` and stable given inputs and config.
+  * `case_id`s in `s4_case_timeline_6B` MUST be unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)` and stable given inputs and config.
 
 These identity relationships are enforced by S4’s algorithm and invariants, and will be validated by S5. This section fixes **what** S4 outputs and **how** they are keyed; §5 will pin down their schema anchors and catalogue wiring in detail.
 
@@ -1154,9 +1154,13 @@ Any deviation from this algorithm’s constraints MUST result in S4 failing for 
 
    * `rng_event_truth_label_ambiguity` — for resolving ambiguous/ collateral truth cases.
    * `rng_event_detection_delay` — for sampling detection delays / whether detection occurs.
-   * `rng_event_dispute_delay` — for sampling customer dispute delays.
-   * `rng_event_chargeback_delay` — for sampling chargeback delays and outcomes.
-   * `rng_event_case_timeline` — for any residual stochasticity in case event timing/structure (if required).
+   * `rng_event_dispute_delay` - for sampling customer dispute delays.
+   * `rng_event_chargeback_delay` - for sampling chargeback delays and outcomes.
+   * `rng_event_case_timeline` - for any residual stochasticity in case event timing/structure (if required).
+
+   **Contract mapping:** these conceptual families are recorded under the registered RNG datasets
+   `rng_event_truth_label` (truth-label ambiguity) and `rng_event_bank_view_label`
+   (detection/dispute/chargeback delays and case-timeline randomness), using `substream_label` to distinguish the family.
 
    S4 MUST NOT use RNG families reserved for other states and MUST NOT invent new families outside `label_rng_policy_6B`.
 
@@ -1198,8 +1202,8 @@ For a given `manifest_fingerprint` and `(seed, scenario_id)`:
 
 2. **Resolve S3 behavioural domain**
 
-   * Identify flows in `s3_flow_anchor_with_fraud_6B@{seed,fingerprint,scenario_id}`.
-   * Identify events in `s3_event_stream_with_fraud_6B@{seed,fingerprint,scenario_id}`.
+   * Identify flows in `s3_flow_anchor_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
+   * Identify events in `s3_event_stream_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`.
    * Optionally read S2 baseline and 6A posture surfaces as context, per `sealed_inputs_6B` and S4 config.
 
 3. **Load S4 configuration packs**
@@ -1216,7 +1220,7 @@ All configs MUST pass schema validation before S4 proceeds.
 
 ### 6.3 Step 1 — Flow-level truth labelling
 
-For each flow `f` in `s3_flow_anchor_with_fraud_6B@{seed,fingerprint,scenario_id}`:
+For each flow `f` in `s3_flow_anchor_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`:
 
 1. **Construct flow context**
 
@@ -1351,7 +1355,7 @@ At the end of Step 2, every flow has a **single, consistent bank-view outcome** 
 
 ### 6.5 Step 3 — Event-level label assignment
 
-For each event `e` in `s3_event_stream_with_fraud_6B@{seed,fingerprint,scenario_id}`:
+For each event `e` in `s3_event_stream_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`:
 
 1. **Pull context**
 
@@ -1401,7 +1405,7 @@ S4 now constructs cases according to `case_policy_6B`, using flow-level truth an
    From `case_policy_6B`, S4 MUST have a deterministic definition of **case keys**, e.g.:
 
    ```text
-   case_key = { account_id, instrument_id, manifest_fingerprint, seed }
+   case_key = { account_id, instrument_id, manifest_fingerprint, parameter_hash, seed, scenario_id }
    ```
 
    or a richer structure including merchant/region/time windows, depending on policy.
@@ -1425,7 +1429,7 @@ S4 now constructs cases according to `case_policy_6B`, using flow-level truth an
    * Generate a `case_id` using a deterministic scheme, e.g.:
 
      ```text
-     case_id = hash64(manifest_fingerprint, seed, case_key, case_index_within_key)
+     case_id = hash64(manifest_fingerprint, parameter_hash, seed, scenario_id, case_key, case_index_within_key)
      ```
 
    * Ensure that `(seed, manifest_fingerprint, case_id)` is unique.
@@ -1457,7 +1461,7 @@ At the end of Step 4, case timelines are fully specified and consistent with flo
 
 ### 6.7 Step 5 — Write outputs & enforce idempotence
 
-For each `(seed, manifest_fingerprint, scenario_id)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 1. **Construct & validate per-partition label datasets**
 
@@ -1474,21 +1478,21 @@ For each `(seed, manifest_fingerprint, scenario_id)`:
    * Write `s4_flow_truth_labels_6B` and `s4_flow_bank_view_6B` to their respective partition paths.
    * Write `s4_event_labels_6B` likewise.
 
-3. **Construct & validate case timeline (per `(seed, fingerprint)`)**
+3. **Construct & validate case timeline (per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`)**
 
-   * Build `s4_case_timeline_6B` rows aggregating across all scenarios for the given `(seed, fingerprint)` if policy spans multiple scenarios.
+   * Build `s4_case_timeline_6B` rows aggregating across all scenarios for the given `(seed, manifest_fingerprint, parameter_hash, scenario_id)` if policy spans multiple scenarios.
    * Validate schema + PK/ordering constraints (`case_id`, `case_event_seq`).
 
 4. **Write case timeline**
 
-   * Write `s4_case_timeline_6B@{seed,fingerprint}` to its path.
+   * Write `s4_case_timeline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}` to its path.
 
 5. **Idempotence rules**
 
    For each unit:
 
-   * Per `(seed, fingerprint, scenario_id)`: flow/event label partitions.
-   * Per `(seed, fingerprint)`: case-timeline partition.
+   * Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`: flow/event label partitions.
+   * Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`: case-timeline partition.
 
    If outputs do **not** exist:
 
@@ -1552,21 +1556,21 @@ and is binding for any conforming implementation.
 
 S4 has two natural identity scopes:
 
-* **Flow/event labels** — per `(manifest_fingerprint, seed, scenario_id)`
-* **Case timeline** — per `(manifest_fingerprint, seed)`
+* **Flow/event labels** — per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`
+* **Case timeline** — per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`
 
 Binding rules:
 
 1. All S4 rows MUST carry their axes explicitly as columns:
 
-   * `s4_flow_truth_labels_6B`: `manifest_fingerprint`, `seed`, `scenario_id`, `flow_id`.
-   * `s4_flow_bank_view_6B`: `manifest_fingerprint`, `seed`, `scenario_id`, `flow_id`.
-   * `s4_event_labels_6B`: `manifest_fingerprint`, `seed`, `scenario_id`, `flow_id`, `event_seq`.
-   * `s4_case_timeline_6B`: `manifest_fingerprint`, `seed`, `case_id`, `case_event_seq`.
+   * `s4_flow_truth_labels_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `flow_id`.
+   * `s4_flow_bank_view_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `flow_id`.
+   * `s4_event_labels_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `flow_id`, `event_seq`.
+   * `s4_case_timeline_6B`: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `case_id`, `case_event_seq`.
 
 2. S4 MUST NOT introduce `run_id` or any other execution identifier as a partition key in these datasets. `run_id` is reserved for RNG/logging artefacts.
 
-3. For a given world (`manifest_fingerprint`) and run (`seed`), S4 operates on exactly the same set of `scenario_id`s as S3 overlays (i.e. those for which S3 is PASS).
+3. For a given world (`manifest_fingerprint`) and parameter set (`parameter_hash`) and run (`seed`), S4 operates on exactly the same set of `scenario_id`s as S3 overlays (i.e. those for which S3 is PASS).
 
 ---
 
@@ -1576,42 +1580,42 @@ The partitioning and path templates for S4 outputs are:
 
 * **Flow truth labels**:
 
-  * `partitioning: [seed, fingerprint, scenario_id]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s4_flow_truth_labels_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Flow bank-view labels**:
 
-  * `partitioning: [seed, fingerprint, scenario_id]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s4_flow_bank_view_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Event labels**:
 
-  * `partitioning: [seed, fingerprint, scenario_id]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s4_event_labels_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Case timeline**:
 
-  * `partitioning: [seed, manifest_fingerprint]`
+  * `partitioning: [seed, manifest_fingerprint, parameter_hash, scenario_id]`
   * `path`:
 
     ```text
     data/layer3/6B/s4_case_timeline_6B/
-        seed={seed}/manifest_fingerprint={manifest_fingerprint}/part-*.parquet
+        seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 **Path↔embed rules (binding):**
@@ -1641,7 +1645,7 @@ No S4 data-plane rows may be written outside these layouts or with mismatched ax
 [seed, manifest_fingerprint, scenario_id, flow_id]
 ```
 
-Per `(seed, manifest_fingerprint, scenario_id)`:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Each `flow_id` MUST be unique.
 * Rows MUST be sorted by `flow_id` ascending.
@@ -1660,11 +1664,11 @@ Per `(seed, manifest_fingerprint, scenario_id)`:
 [seed, manifest_fingerprint, scenario_id, flow_id]
 ```
 
-Per `(seed, manifest_fingerprint, scenario_id)`:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * Each `flow_id` MUST be unique.
 * Rows MUST be sorted by `flow_id` ascending.
-* The set of `(seed, fingerprint, scenario_id, flow_id)` keys MUST be identical to the set in `s4_flow_truth_labels_6B` and to `s3_flow_anchor_with_fraud_6B`.
+* The set of `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` keys MUST be identical to the set in `s4_flow_truth_labels_6B` and to `s3_flow_anchor_with_fraud_6B`.
 
 #### 7.3.3 `s4_event_labels_6B`
 
@@ -1680,7 +1684,7 @@ Per `(seed, manifest_fingerprint, scenario_id)`:
 [seed, manifest_fingerprint, scenario_id, flow_id, event_seq]
 ```
 
-Per `(seed, manifest_fingerprint, scenario_id, flow_id)`:
+Per `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)`:
 
 * `(flow_id, event_seq)` MUST be unique.
 * Rows MUST be grouped by `flow_id` and sorted by `event_seq` ascending.
@@ -1710,15 +1714,15 @@ Per `(seed, manifest_fingerprint, case_id)`:
 
 ### 7.4 Coverage & relationship to S3 overlays
 
-For each `(manifest_fingerprint, seed, scenario_id)` where S3 is PASS and S4 runs:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)` where S3 is PASS and S4 runs:
 
 Let:
 
-* `FA3` = `s3_flow_anchor_with_fraud_6B@{seed,fingerprint,scenario_id}`
-* `EV3` = `s3_event_stream_with_fraud_6B@{seed,fingerprint,scenario_id}`
-* `TL4` = `s4_flow_truth_labels_6B@{seed,fingerprint,scenario_id}`
-* `BV4` = `s4_flow_bank_view_6B@{seed,fingerprint,scenario_id}`
-* `EL4` = `s4_event_labels_6B@{seed,fingerprint,scenario_id}`
+* `FA3` = `s3_flow_anchor_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `EV3` = `s3_event_stream_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `TL4` = `s4_flow_truth_labels_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `BV4` = `s4_flow_bank_view_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `EL4` = `s4_event_labels_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
 
 Binding relationships:
 
@@ -1740,7 +1744,7 @@ Binding relationships:
 
 2. **Event coverage**
 
-   * For event keys `K = (seed, fingerprint, scenario_id, flow_id, event_seq)`:
+   * For event keys `K = (seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)`:
 
      ```text
      {K(EV3)} == {K(EL4)}
@@ -1750,7 +1754,7 @@ Binding relationships:
 
 3. **Case coverage**
 
-   * For any flow that S4 marks as “case-involved” in `BV4` (e.g. non-null case flags), there MUST be at least one row in `s4_case_timeline_6B@{seed,fingerprint}` with a `case_id` that references that flow (via `flow_id` or related linkage).
+   * For any flow that S4 marks as “case-involved” in `BV4` (e.g. non-null case flags), there MUST be at least one row in `s4_case_timeline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}` with a `case_id` that references that flow (via `flow_id` or related linkage).
 
 The detailed invariants are checked in S4’s acceptance criteria; here we fix that all such relationships are expressible via keys and that joins are unambiguous.
 
@@ -1766,8 +1770,8 @@ Binding rules:
 
 1. **Unit of work**
 
-   * For flow/event labels: the unit is `(manifest_fingerprint, seed, scenario_id)` — all three label tables for that partition.
-   * For the case timeline: the unit is `(manifest_fingerprint, seed)`.
+   * For flow/event labels: the unit is `(manifest_fingerprint, parameter_hash, seed, scenario_id)` — all three label tables for that partition.
+   * For the case timeline: the unit is `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
    Within each unit:
 
@@ -1777,8 +1781,8 @@ Binding rules:
 
    * At any time, only one S4 instance may be responsible for writing a given unit:
 
-     * `(seed, fingerprint, scenario_id)` for flow/event labels,
-     * `(seed, fingerprint)` for case timeline.
+     * `(seed, manifest_fingerprint, parameter_hash, scenario_id)` for flow/event labels,
+     * `(seed, manifest_fingerprint, parameter_hash, scenario_id)` for case timeline.
 
    * Parallelism across different seeds or scenarios is allowed; concurrent writes to the same unit by multiple instances are disallowed.
 
@@ -1872,8 +1876,8 @@ This section defines:
 
 S4 has two scopes:
 
-* **Flow/event labelling scope** — per `(manifest_fingerprint, seed, scenario_id)`.
-* **Case timeline scope** — per `(manifest_fingerprint, seed)`.
+* **Flow/event labelling scope** — per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
+* **Case timeline scope** — per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 S4 is only **acceptable for a world** if **both** scopes satisfy their acceptance criteria.
 
@@ -1882,24 +1886,24 @@ S4 is only **acceptable for a world** if **both** scopes satisfy their acceptanc
 ### 8.1 Domains of evaluation
 
 * **Partition-level (flows/events)**:
-  For each `(manifest_fingerprint, seed, scenario_id)`, S4 evaluates:
+  For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S4 evaluates:
 
-  * `s4_flow_truth_labels_6B@{seed,fingerprint,scenario_id}`
-  * `s4_flow_bank_view_6B@{seed,fingerprint,scenario_id}`
-  * `s4_event_labels_6B@{seed,fingerprint,scenario_id}`
+  * `s4_flow_truth_labels_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+  * `s4_flow_bank_view_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+  * `s4_event_labels_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
 
 * **Case-level (timeline)**:
-  For each `(manifest_fingerprint, seed)`, S4 evaluates:
+  For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S4 evaluates:
 
-  * `s4_case_timeline_6B@{seed,fingerprint}`
+  * `s4_case_timeline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
 
 Acceptance is decided separately per scope, but S5 will treat **any** failure in either as a segment-level failure for that world.
 
 ---
 
-### 8.2 Acceptance criteria — flow/event labelling (per `(manifest_fingerprint, seed, scenario_id)`)
+### 8.2 Acceptance criteria — flow/event labelling (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
-For a fixed `(manifest_fingerprint, seed, scenario_id)`, S4 is considered **PASS** for flow/event labelling if and only if all of the following hold.
+For a fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S4 is considered **PASS** for flow/event labelling if and only if all of the following hold.
 
 #### 8.2.1 Preconditions satisfied
 
@@ -1907,7 +1911,7 @@ For a fixed `(manifest_fingerprint, seed, scenario_id)`, S4 is considered **PASS
 
 * Upstream HashGates (`1A–3B`, `5A`, `5B`, `6A`) are `status="PASS"` in the S0 receipt.
 
-* S1, S2, and S3 are PASS for this `(manifest_fingerprint, seed, scenario_id)` in the run-report.
+* S1, S2, and S3 are PASS for this `(manifest_fingerprint, parameter_hash, seed, scenario_id)` in the run-report.
 
 * Required S1/S2/S3 datasets for this partition are present and schema-valid:
 
@@ -1921,7 +1925,7 @@ If any of these fail, S4 MUST **not** attempt labelling and MUST mark this parti
 
 #### 8.2.2 Schema & identity validity of S4 outputs
 
-For this `(seed, fingerprint, scenario_id)`:
+For this `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * `s4_flow_truth_labels_6B` MUST validate against `schemas.6B.yaml#/s4/flow_truth_labels_6B`.
 * `s4_flow_bank_view_6B` MUST validate against `schemas.6B.yaml#/s4/flow_bank_view_6B`.
@@ -1944,9 +1948,9 @@ Any schema or identity failure MUST cause S4 to FAIL this partition.
 
 Let:
 
-* `FA3` = `s3_flow_anchor_with_fraud_6B@{seed,fingerprint,scenario_id}`
-* `TL4` = `s4_flow_truth_labels_6B@{seed,fingerprint,scenario_id}`
-* `BV4` = `s4_flow_bank_view_6B@{seed,fingerprint,scenario_id}`
+* `FA3` = `s3_flow_anchor_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `TL4` = `s4_flow_truth_labels_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `BV4` = `s4_flow_bank_view_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
 
 Then:
 
@@ -1976,9 +1980,9 @@ If these sets differ in any way, S4 MUST FAIL the partition.
 
 Let:
 
-* `EV3` = `s3_event_stream_with_fraud_6B@{seed,fingerprint,scenario_id}`
-* `EL4` = `s4_event_labels_6B@{seed,fingerprint,scenario_id}`
-* Use `K = (seed, manifest_fingerprint, scenario_id, flow_id, event_seq)` as the event key.
+* `EV3` = `s3_event_stream_with_fraud_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* `EL4` = `s4_event_labels_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}`
+* Use `K = (seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id, event_seq)` as the event key.
 
 Then:
 
@@ -2053,14 +2057,14 @@ If S4 observes that RNG usage is inconsistent with domain size (e.g. zero draws 
 
 ---
 
-### 8.3 Acceptance criteria — case timeline (per `(manifest_fingerprint, seed)`)
+### 8.3 Acceptance criteria — case timeline (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
-For a fixed `(manifest_fingerprint, seed)`, S4 is considered **PASS** at the case level if and only if:
+For a fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S4 is considered **PASS** at the case level if and only if:
 
 1. **Preconditions satisfied**
 
-   * S4 flow/event labelling is PASS for all `(manifest_fingerprint, seed, scenario_id)` partitions that feed into this `(seed, fingerprint)`.
-   * `s4_case_timeline_6B@{seed,fingerprint}` exists and passes schema/PK/partition validation.
+   * S4 flow/event labelling is PASS for all `(manifest_fingerprint, parameter_hash, seed, scenario_id)` partitions that feed into this `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
+   * `s4_case_timeline_6B@{seed,manifest_fingerprint,parameter_hash,scenario_id}` exists and passes schema/PK/partition validation.
 
 2. **Case identity & coverage**
 
@@ -2076,7 +2080,7 @@ For a fixed `(manifest_fingerprint, seed)`, S4 is considered **PASS** at the cas
    * Event timestamps in the case timeline MUST be non-decreasing and consistent with the flow-level timestamps (e.g. case opening at or after detection/dispute, case closure at or after last case event).
    * Case-level outcomes MUST be consistent with affected flows’ bank-view labels (e.g. a case that ends in a bank-confirmed fraud decision MUST correspond to at least one flow with `BANK_CONFIRMED_FRAUD`).
 
-Any violation MUST cause S4 to FAIL the case scope for `(seed, fingerprint)`.
+Any violation MUST cause S4 to FAIL the case scope for `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
 
 ---
 
@@ -2146,8 +2150,8 @@ This section defines the **canonical failure modes** for 6B.S4 and the **error c
 
 For any scope S4 attempts:
 
-* **Flow/event-labelling scope**: `(manifest_fingerprint, seed, scenario_id)`
-* **Case-timeline scope**: `(manifest_fingerprint, seed)`
+* **Flow/event-labelling scope**: `(manifest_fingerprint, parameter_hash, seed, scenario_id)`
+* **Case-timeline scope**: `(manifest_fingerprint, parameter_hash, seed, scenario_id)`
 
 S4 MUST:
 
@@ -2196,7 +2200,7 @@ Emitted when S4 is invoked but any of S0, S1, S2, or S3 is not PASS for the nece
 **Examples**
 
 * S0 not PASS for `manifest_fingerprint` (world not sealed).
-* S1, S2, or S3 not PASS for `(manifest_fingerprint, seed, scenario_id)` in the run-report.
+* S1, S2, or S3 not PASS for `(manifest_fingerprint, parameter_hash, seed, scenario_id)` in the run-report.
 * Required S1/S2/S3 datasets missing or schema-invalid for that partition.
 
 **Obligations**
@@ -2260,7 +2264,7 @@ Emitted when any S4 label dataset fails schema or key validation.
 
 Or:
 
-* Duplicate PKs in any S4 dataset (e.g. same `(seed, fingerprint, scenario_id, flow_id)` appearing twice).
+* Duplicate PKs in any S4 dataset (e.g. same `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` appearing twice).
 * Partition columns in rows (`seed`, `manifest_fingerprint`, `scenario_id`) do not match path tokens.
 
 **Obligations**
@@ -2348,7 +2352,7 @@ Emitted when `s4_case_timeline_6B` is inconsistent with:
 
 **Obligations**
 
-* S4 MUST fail the case scope `(manifest_fingerprint, seed)` and relevant partitions.
+* S4 MUST fail the case scope `(manifest_fingerprint, parameter_hash, seed, scenario_id)` and relevant partitions.
 * Case construction logic must be corrected.
 
 ---
@@ -2414,7 +2418,7 @@ Emitted when S4 fails to persist one or more of its outputs due to I/O or infras
 #### 9.6.2 `S4_IDEMPOTENCE_VIOLATION`
 
 **Definition**
-Emitted when S4 detects that existing outputs for a scope would be overwritten by a re-run that produces different labels for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (or `(seed, fingerprint)` for case timeline).
+Emitted when S4 detects that existing outputs for a scope would be overwritten by a re-run that produces different labels for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (or `(seed, manifest_fingerprint, parameter_hash, scenario_id)` for case timeline).
 
 **Examples**
 
@@ -2484,8 +2488,8 @@ This section specifies what 6B.S4 **must expose** for observability, and **how**
 
 There are two scopes:
 
-* **Partition scope (flows/events):** per `(manifest_fingerprint, seed, scenario_id)`.
-* **Case scope (case timeline):** per `(manifest_fingerprint, seed)`.
+* **Partition scope (flows/events):** per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
+* **Case scope (case timeline):** per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
 All requirements in this section are **binding**.
 
@@ -2495,7 +2499,7 @@ All requirements in this section are **binding**.
 
 #### 10.1.1 Partition scope — flow/event labelling
 
-For every `(manifest_fingerprint, seed, scenario_id)` that S4 attempts to label, the Layer-3 run-report **MUST** contain exactly one entry:
+For every `(manifest_fingerprint, parameter_hash, seed, scenario_id)` that S4 attempts to label, the Layer-3 run-report **MUST** contain exactly one entry:
 
 * `segment` = `"6B"`
 * `state`   = `"S4_labels"`
@@ -2510,7 +2514,7 @@ Plus a **label summary** for that partition (see §10.2.1).
 
 #### 10.1.2 Case scope — case timeline
 
-For every `(manifest_fingerprint, seed)` for which S4 constructs case timelines, the run-report **MUST** contain exactly one entry:
+For every `(manifest_fingerprint, parameter_hash, seed, scenario_id)` for which S4 constructs case timelines, the run-report **MUST** contain exactly one entry:
 
 * `segment` = `"6B"`
 * `state`   = `"S4_cases"`
@@ -2520,7 +2524,7 @@ For every `(manifest_fingerprint, seed)` for which S4 constructs case timelines,
 * `primary_error_code` — from §9 (or `null` if `status="PASS"`)
 * `secondary_error_codes` — list (possibly empty)
 
-Plus a **case summary** for that `(manifest_fingerprint, seed)` (see §10.2.2).
+Plus a **case summary** for that `(manifest_fingerprint, parameter_hash, seed, scenario_id)` (see §10.2.2).
 
 There MUST NOT be duplicate S4 entries for the same scope in a single run-report.
 
@@ -2528,7 +2532,7 @@ There MUST NOT be duplicate S4 entries for the same scope in a single run-report
 
 ### 10.2 Required summary metrics
 
-#### 10.2.1 Partition summary (per `(manifest_fingerprint, seed, scenario_id)`)
+#### 10.2.1 Partition summary (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
 For each partition S4 processes, the run-report **MUST** include a summary object containing at least:
 
@@ -2625,9 +2629,9 @@ If S4 reports `status="PASS"` for a partition, then:
 
 If any of these would be false, S4 MUST instead report `status="FAIL"` with an appropriate primary error code (§9).
 
-#### 10.2.2 Case summary (per `(manifest_fingerprint, seed)`)
+#### 10.2.2 Case summary (per `(manifest_fingerprint, parameter_hash, seed, scenario_id)`)
 
-For each `(seed, fingerprint)`:
+For each `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
 * `case_count_total`
 
@@ -2666,7 +2670,7 @@ S4 MUST emit structured logs for traceability and debugging.
 
 #### 10.3.1 Partition scope logs (`S4_labels`)
 
-For each `(manifest_fingerprint, seed, scenario_id)`:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **Start**
 
@@ -2721,7 +2725,7 @@ For each `(manifest_fingerprint, seed, scenario_id)`:
 
 #### 10.3.2 Case scope logs (`S4_cases`)
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed, scenario_id)`:
 
 1. **Start**
 
@@ -2800,7 +2804,7 @@ Implementations MAY expose additional metrics (e.g. label distributions per merc
 
 * Use S4 run-report entries and logs as inputs to its validation logic:
 
-  * If any `(manifest_fingerprint, seed, scenario_id)` has `S4_labels` `status="FAIL"`, or any `(manifest_fingerprint, seed)` has `S4_cases` `status="FAIL"`, S5 MUST treat the world as FAIL.
+  * If any `(manifest_fingerprint, parameter_hash, seed, scenario_id)` has `S4_labels` `status="FAIL"`, or any `(manifest_fingerprint, parameter_hash, seed, scenario_id)` has `S4_cases` `status="FAIL"`, S5 MUST treat the world as FAIL.
   * Even if S4 reports `status="PASS"`, S5 MUST still validate schema/coverage/consistency invariants against S4 outputs.
 
 **4A/4B & model-training/evaluation pipelines** MUST:
@@ -2838,7 +2842,7 @@ This section gives **non-binding** guidance on how to keep S4 practical and pred
 
 ### 11.1 Where S4 actually spends time
 
-For a given `(manifest_fingerprint, seed, scenario_id)`, most of S4’s cost comes from:
+For a given `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, most of S4’s cost comes from:
 
 1. **Reading S3 overlays and context**
 
@@ -2897,7 +2901,7 @@ S4 parallelises naturally along existing partition axes:
 
 * **Across `seed` for cases**
 
-  * Case-timeline construction is per `(seed, fingerprint)`.
+  * Case-timeline construction is per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
   * Different seeds can be processed independently.
 
 Within a partition:
@@ -2910,7 +2914,7 @@ Within a partition:
 
 Case-level work (grouping flows into cases) is more coupled:
 
-* It’s often easier to run case construction in a single worker per `(seed, fingerprint)`, or at least shard on case keys that don’t overlap.
+* It’s often easier to run case construction in a single worker per `(seed, manifest_fingerprint, parameter_hash, scenario_id)`, or at least shard on case keys that don’t overlap.
 
 The rule: parallelise on **flows/cases**, not on arbitrary loop order, to preserve determinism.
 
@@ -3021,7 +3025,7 @@ Practical suggestions:
   * Unless case policy is extremely complex, case construction can be done in two phases:
 
     1. During flow labelling, write out simple link hints (e.g. `case_key_candidate` per flow).
-    2. Then run a separate case-timeline pass per `(seed, fingerprint)` that:
+    2. Then run a separate case-timeline pass per `(seed, manifest_fingerprint, parameter_hash, scenario_id)` that:
 
        * groups flows by `case_key_candidate`,
        * builds timelines and writes them as you go.
@@ -3041,7 +3045,7 @@ To keep I/O predictable and proportional:
     * read S3 overlays exactly once (plus any small context tables),
     * write S4 flow/event labels exactly once.
 
-  * For `(seed, fingerprint)`:
+  * For `(seed, manifest_fingerprint, parameter_hash, scenario_id)`:
 
     * read the minimal set of flow label summaries needed,
     * write S4 case timeline once.
@@ -3082,7 +3086,7 @@ Within S4, you can still:
 
 Operationally, you’ll want to monitor:
 
-* **S4 runtimes** per `(seed, scenario_id)` and per `(seed, fingerprint)` for cases.
+* **S4 runtimes** per `(seed, scenario_id)` and per `(seed, manifest_fingerprint, parameter_hash, scenario_id)` for cases.
 
 * **Label distributions**:
 
@@ -3260,7 +3264,7 @@ Examples of **breaking** changes:
 
    * Changing partitioning for S4 datasets:
 
-     * e.g. dropping `scenario_id` from flow/event labels, or changing case timeline partitioning off `[seed, manifest_fingerprint]`.
+     * e.g. dropping `scenario_id` from flow/event labels, or changing case timeline partitioning off `[seed, manifest_fingerprint, parameter_hash, scenario_id]`.
    * Changing primary keys:
 
      * e.g. removing `flow_id` from flow-label PKs,
@@ -3381,7 +3385,7 @@ To support rollouts and historical replay:
 1. **Co-existence of S4 versions**
 
    * Orchestrators MUST choose a single `spec_version_6B` per deployment/world when invoking S4.
-   * Different S4 implementations for different spec versions MUST NOT both write to the same dataset ids for the same `(manifest_fingerprint, seed, scenario_id)`.
+   * Different S4 implementations for different spec versions MUST NOT both write to the same dataset ids for the same `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
 
    If side-by-side S4 contracts are needed:
 
@@ -3451,7 +3455,7 @@ This appendix collects shorthand and symbols used in the 6B.S4 spec. It is **inf
 
 ### 13.1 Identity & axes
 
-* **`manifest_fingerprint` / `fingerprint`**
+* **`manifest_fingerprint`**
   Sealed world snapshot id. All S4 outputs are scoped to this.
 
 * **`seed`**
@@ -3464,13 +3468,13 @@ This appendix collects shorthand and symbols used in the 6B.S4 spec. It is **inf
   Hash of the 6B behavioural/config pack (including S4 policies). For fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`, S4 outputs MUST be deterministic.
 
 * **`flow_id`**
-  Flow/transaction identifier, unique within `(seed, manifest_fingerprint, scenario_id)` and inherited from S2/S3 overlays.
+  Flow/transaction identifier, unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)` and inherited from S2/S3 overlays.
 
 * **`event_seq`**
-  Integer defining strict order of events within a `(seed, manifest_fingerprint, scenario_id, flow_id)` in S3/S4.
+  Integer defining strict order of events within a `(seed, manifest_fingerprint, parameter_hash, scenario_id, flow_id)` in S3/S4.
 
 * **`case_id`**
-  Case identifier, unique within `(seed, manifest_fingerprint)` in `s4_case_timeline_6B`.
+  Case identifier, unique within `(seed, manifest_fingerprint, parameter_hash, scenario_id)` in `s4_case_timeline_6B`.
 
 * **`case_event_seq`**
   Integer defining strict order of events inside a `(seed, manifest_fingerprint, case_id)` in the case timeline.
@@ -3672,7 +3676,7 @@ These codes are part of S4’s external contract and are consumed by S5 and moni
   A multi-event object representing the bank’s investigation/dispute/chargeback process around one or more flows.
 
 * **“partition” (S4 context)**
-  Typically a `(seed, manifest_fingerprint, scenario_id)` slice for flow/event labels or `(seed, manifest_fingerprint)` for case timeline.
+  Typically a `(seed, manifest_fingerprint, parameter_hash, scenario_id)` slice for flow/event labels or `(seed, manifest_fingerprint, parameter_hash, scenario_id)` for case timeline.
 
 These symbols and abbreviations are provided purely for readability and do not introduce new obligations beyond what is already binding in §§1–12.
 
