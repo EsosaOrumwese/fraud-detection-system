@@ -895,7 +895,7 @@ This bundle root may contain multiple files and subdirectories, but must respect
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
       validation_bundle_index_5A.json
       reports/...
       issues/...
@@ -945,7 +945,7 @@ A verified `_passed.flag` is the **only acceptable indicator** that 5A is “gre
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
       validation_bundle_index_5A.json
       reports/...
       _passed.flag
@@ -1121,7 +1121,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S5 — 
 
 **Procedure:**
 
-1. Resolve `s0_gate_receipt_5A` and `sealed_inputs_5A` via the 5A dataset dictionary + artefact registry using `fingerprint={manifest_fingerprint}`.
+1. Resolve `s0_gate_receipt_5A` and `sealed_inputs_5A` via the 5A dataset dictionary + artefact registry using `manifest_fingerprint={manifest_fingerprint}`.
 
 2. Validate both datasets against their schemas:
 
@@ -1571,7 +1571,7 @@ Binding rules:
 * All S5 artefacts MUST embed:
 
   * `manifest_fingerprint` — as a field in index/report/issue table (and optionally in flag), and
-  * this value MUST equal the partition token `fingerprint={manifest_fingerprint}`.
+  * this value MUST equal the partition token `manifest_fingerprint={manifest_fingerprint}`.
 
 * S5 MUST treat each `manifest_fingerprint` as defining a **closed world** whose validation state is captured entirely by that bundle + flag.
 
@@ -1604,7 +1604,7 @@ Canonical paths MUST follow the patterns declared in the dataset dictionary. For
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
       validation_bundle_index_5A.json
       reports/...
       issues/...
@@ -1615,28 +1615,28 @@ Canonical paths MUST follow the patterns declared in the dataset dictionary. For
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+    manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
   ```
 
 * Report:
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
+    manifest_fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
   ```
 
 * Issue table (if present):
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
   ```
 
 * Flag:
 
   ```text
   data/layer2/5A/validation/
-    fingerprint={manifest_fingerprint}/_passed.flag
+    manifest_fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
 These templates are **binding** once defined in `dataset_dictionary.layer2.5A.yaml` / `artefact_registry_5A.yaml`.
@@ -1648,12 +1648,12 @@ For all S5 artefacts:
 * Embedded `manifest_fingerprint` (where present, e.g. in index/report/issue table) MUST:
 
   * be non-null, and
-  * exactly equal the `fingerprint={manifest_fingerprint}` partition token.
+  * exactly equal the `manifest_fingerprint={manifest_fingerprint}` partition token.
 
 For `_passed.flag`:
 
 * If the flag has a JSON structure, it MUST contain `manifest_fingerprint` with the same equality requirement.
-* The JSON object lives solely under `fingerprint={manifest_fingerprint}` and MUST NOT be copied elsewhere; the manifest fingerprint embedded in the object is binding.
+* The JSON object lives solely under `manifest_fingerprint={manifest_fingerprint}` and MUST NOT be copied elsewhere; the manifest fingerprint embedded in the object is binding.
 
 Any mismatch between partition token and embedded `manifest_fingerprint` MUST be treated as invalid and MUST be surfaced as a validation inconsistency.
 
@@ -1831,7 +1831,7 @@ For a given `manifest_fingerprint`, Segment 5A is considered **PASS** only if **
 2. **S0 gate & sealed inputs are internally consistent**
    2.1 `s0_gate_receipt_5A` and `sealed_inputs_5A`:
 
-   * exist for `fingerprint={manifest_fingerprint}`,
+   * exist for `manifest_fingerprint={manifest_fingerprint}`,
    * are schema-valid,
    * embed `manifest_fingerprint` equal to this fingerprint,
    * refer to a non-empty `parameter_hash`.

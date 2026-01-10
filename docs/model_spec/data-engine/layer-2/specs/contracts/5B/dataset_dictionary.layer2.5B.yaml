@@ -91,7 +91,7 @@ reference_data:
   - id: validation_bundle_2A
     status: approved
     owner_subsegment: 2A
-    description: Validation bundle for 2A publish (one per fingerprint).
+    description: Validation bundle for 2A publish (one per manifest_fingerprint).
     version: '{manifest_fingerprint}'
     format: files
     path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
@@ -271,7 +271,7 @@ reference_data:
   - id: site_locations
     status: approved
     owner_subsegment: 1B
-    description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.
+    description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/manifest_fingerprint.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
@@ -994,7 +994,7 @@ datasets:
   - id: sealed_inputs_5B
     status: required
     owner_subsegment: 5B
-    description: Inventory of artefacts 5B is allowed to read for a fingerprint.
+    description: Inventory of artefacts 5B is allowed to read for a manifest_fingerprint.
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
@@ -1375,7 +1375,7 @@ datasets:
   - id: validation_bundle_index_5B
     status: required
     owner_subsegment: 5B
-    description: Index/manifest for the 5B validation bundle (fingerprint scope).
+    description: Index/manifest for the 5B validation bundle (manifest_fingerprint scope).
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
@@ -1429,7 +1429,7 @@ datasets:
   - id: validation_passed_flag_5B
     status: required
     owner_subsegment: 5B
-    description: HashGate flag proving the validation bundle digest for a fingerprint.
+    description: HashGate flag proving the validation bundle digest for a manifest_fingerprint.
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag

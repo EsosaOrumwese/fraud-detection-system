@@ -237,8 +237,8 @@ Before performing any work, 5A.S1 MUST require:
 
 1. **Presence of S0 outputs**
 
-   * A `s0_gate_receipt_5A` dataset row for `fingerprint={manifest_fingerprint}`.
-   * A `sealed_inputs_5A` dataset for `fingerprint={manifest_fingerprint}`.
+   * A `s0_gate_receipt_5A` dataset row for `manifest_fingerprint={manifest_fingerprint}`.
+   * A `sealed_inputs_5A` dataset for `manifest_fingerprint={manifest_fingerprint}`.
 
    Both MUST be located via `dataset_dictionary.layer2.5A.yaml` and `artefact_registry_5A.yaml`, not via ad-hoc paths.
 
@@ -251,7 +251,7 @@ Before performing any work, 5A.S1 MUST require:
 
    * `s0_gate_receipt_5A.parameter_hash` MUST equal the run’s `parameter_hash`.
    * The `parameter_hash` embedded in all `sealed_inputs_5A` rows MUST equal the run’s `parameter_hash`.
-   * Embedded `manifest_fingerprint` MUST match the partition token `fingerprint={manifest_fingerprint}` in both outputs.
+   * Embedded `manifest_fingerprint` MUST match the partition token `manifest_fingerprint={manifest_fingerprint}` in both outputs.
 
 4. **Sealed inventory digest match**
 
@@ -925,7 +925,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S1 — 
 
 **Procedure:**
 
-1. Locate `s0_gate_receipt_5A` and `sealed_inputs_5A` via the 5A dataset dictionary and artefact registry using `fingerprint={manifest_fingerprint}`.
+1. Locate `s0_gate_receipt_5A` and `sealed_inputs_5A` via the 5A dataset dictionary and artefact registry using `manifest_fingerprint={manifest_fingerprint}`.
 
 2. Validate both datasets against their schemas:
 
@@ -1305,7 +1305,7 @@ This dataset MUST be a pure function of `PROFILE_ROWS` plus fixed policy; no add
 
    * Using the dictionary, locate the canonical paths for:
 
-     * `merchant_zone_profile_5A` under `fingerprint={manifest_fingerprint}`;
+     * `merchant_zone_profile_5A` under `manifest_fingerprint={manifest_fingerprint}`;
      * `merchant_class_profile_5A` (if implemented).
 
    * If outputs already exist:
@@ -1317,7 +1317,7 @@ This dataset MUST be a pure function of `PROFILE_ROWS` plus fixed policy; no add
 2. **Write to staging**
 
    * Write `PROFILE_ROWS` to a staging file, e.g.:
-     `.../merchant_zone_profile/fingerprint={manifest_fingerprint}/.staging/merchant_zone_profile_5A.parquet`.
+     `.../merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/.staging/merchant_zone_profile_5A.parquet`.
 
    * If `merchant_class_profile_5A` is implemented, write `CLASS_ROWS` to its own staging file under a `.staging/` directory.
 
@@ -1434,7 +1434,7 @@ For every row in any S1 dataset:
 * Embedded `manifest_fingerprint` column:
 
   * MUST exist and be non-null.
-  * MUST exactly equal the value used in the partition token `fingerprint={manifest_fingerprint}`.
+  * MUST exactly equal the value used in the partition token `manifest_fingerprint={manifest_fingerprint}`.
 
 * Embedded `parameter_hash` column:
 
@@ -1614,7 +1614,7 @@ For a given `(parameter_hash, manifest_fingerprint)`, 5A.S1 is considered **succ
 
 1. **S0 gate & sealed inputs are valid**
 
-   1.1 `s0_gate_receipt_5A` and `sealed_inputs_5A` exist for `fingerprint={manifest_fingerprint}` and are:
+   1.1 `s0_gate_receipt_5A` and `sealed_inputs_5A` exist for `manifest_fingerprint={manifest_fingerprint}` and are:
 
    * discoverable via the 5A dataset dictionary & artefact registry, and
    * schema-valid against
@@ -1644,7 +1644,7 @@ For a given `(parameter_hash, manifest_fingerprint)`, 5A.S1 is considered **succ
 
 3. **`merchant_zone_profile_5A` exists and is schema-valid**
 
-   3.1 A dataset `merchant_zone_profile_5A` exists under the canonical path for `fingerprint={manifest_fingerprint}` and:
+   3.1 A dataset `merchant_zone_profile_5A` exists under the canonical path for `manifest_fingerprint={manifest_fingerprint}` and:
 
    * conforms to `schemas.5A.yaml#/model/merchant_zone_profile_5A`,
    * uses `partition_keys: ["fingerprint"]`, and
@@ -1757,7 +1757,7 @@ Any downstream 5A state (S2, S3, S4, and the eventual 5A validation state) MUST 
    * validate S0 as in the S0 spec (present, schema-valid, digest-matching), and
    * validate that `merchant_zone_profile_5A`:
 
-     * exists for `fingerprint={manifest_fingerprint}`,
+     * exists for `manifest_fingerprint={manifest_fingerprint}`,
      * conforms to its schema,
      * embeds the same `parameter_hash` and `manifest_fingerprint` as S0, and
      * covers the expected domain (as per 3A’s `zone_alloc` or as defined in that state’s spec).
@@ -1907,7 +1907,7 @@ All of these are **fatal** for S1: on any of them, S1 MUST NOT publish or modify
 
 Raised when S1 cannot establish a valid S0 gate and sealed inventory for this fingerprint, for example:
 
-* `s0_gate_receipt_5A` missing for `fingerprint={manifest_fingerprint}`, or not discoverable via the dictionary/registry.
+* `s0_gate_receipt_5A` missing for `manifest_fingerprint={manifest_fingerprint}`, or not discoverable via the dictionary/registry.
 * `sealed_inputs_5A` missing for this fingerprint.
 * Schema validation failures for either dataset.
 * `parameter_hash` in `s0_gate_receipt_5A` or in `sealed_inputs_5A` rows does **not** equal the S1 run’s `parameter_hash`.
@@ -2077,7 +2077,7 @@ Detected in domain coverage checks (§6.8) or in a downstream validation state; 
 
 **Trigger**
 
-Raised when outputs already exist for `fingerprint={manifest_fingerprint}` and differ from what S1 would now compute, for example:
+Raised when outputs already exist for `manifest_fingerprint={manifest_fingerprint}` and differ from what S1 would now compute, for example:
 
 * Existing `merchant_zone_profile_5A` under this fingerprint has different rows or values from the recomputed `PROFILE_ROWS`.
 * Existing `merchant_class_profile_5A` (if present) is inconsistent with recomputed aggregates.
@@ -2981,7 +2981,7 @@ This appendix defines short-hands, symbols and abbreviations used in the **5A.S1
 | `parameter_hash`       | Opaque identifier of the **parameter pack** (S1 policies, scenario configs, etc.) in force.             |
 | `manifest_fingerprint` | Opaque identifier of the **closed-world manifest** of artefacts for this run.                           |
 | `run_id`               | Unique identifier of this execution of Segment 5A for a given `(parameter_hash, manifest_fingerprint)`. |
-| `fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `fingerprint={manifest_fingerprint}`).        |
+| `fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `manifest_fingerprint={manifest_fingerprint}`).        |
 | `s1_spec_version`      | Semantic version of the 5A.S1 spec that produced the profiles (e.g. `"1.0.0"`).                         |
 | `scenario_id`          | Scenario identifier active for this fingerprint (e.g. `"baseline"`, `"bf_2027_stress"`).                |
 | `scenario_pack_id`     | Optional identifier of the scenario config bundle.                                                      |

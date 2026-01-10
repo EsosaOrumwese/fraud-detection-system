@@ -270,7 +270,7 @@ This section fixes **what 3A.S0 is allowed to look at**, how it must treat each 
 
 1. **1A validation gate (required)**
 
-   * `validation_bundle_1A` for `fingerprint={manifest_fingerprint}`
+   * `validation_bundle_1A` for `manifest_fingerprint={manifest_fingerprint}`
    * `_passed.flag` in the same directory
      3A.S0 MUST:
    * read `index.json` from the bundle,
@@ -306,15 +306,15 @@ For the target `manifest_fingerprint`, 3A.S0 MAY include the following dataset I
 
 1. **1A egress and supporting surfaces**
 
-   * `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}`
+   * `outlet_catalogue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
    * Any 1A validation summary tables that later 3A states rely on diagnostically.
      Authority: 1A is the **sole owner** of merchant/site identity and per-merchant per-country outlet counts; 3A.S0 MUST NOT attempt to recompute or modify these.
 
 2. **2A egress and cache surfaces**
 
-   * `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}`
-   * `tz_timetable_cache@fingerprint={manifest_fingerprint}`
-   * `s4_legality_report@seed={seed}/fingerprint={manifest_fingerprint}` (if later used for diagnostics).
+   * `site_timezones@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+   * `tz_timetable_cache@manifest_fingerprint={manifest_fingerprint}`
+   * `s4_legality_report@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (if later used for diagnostics).
      Authority: 2A is the **sole owner** of per-site tzid assignments and tzdb compilation; 3A.S0 MUST NOT reinterpret geometry or tzdb.
 
 3. **Reference data from ingress layer (structural)**
@@ -438,7 +438,7 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 
   * Path pattern:
     `data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
-  * Partitioning: **`[fingerprint]`** only.
+  * Partitioning: **`[manifest_fingerprint]`** only.
 * The embedded `manifest_fingerprint` field in the JSON payload MUST equal the `{manifest_fingerprint}` path token (path↔embed equality).
 
 **Role**
@@ -484,8 +484,8 @@ No downstream consumer may treat the **presence** of `s0_gate_receipt_3A` alone 
 
   * Path pattern:
     `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json`
-    (filename and format are implementation details; the path **MUST** include `fingerprint={manifest_fingerprint}` as the only partition key).
-  * Partitioning: **`[fingerprint]`** only.
+    (filename and format are implementation details; the path **MUST** include `manifest_fingerprint={manifest_fingerprint}` as the only partition key).
+  * Partitioning: **`[manifest_fingerprint]`** only.
 * Each row MUST contain a `manifest_fingerprint` column whose value equals the path token.
 
 **Logical content**
@@ -495,7 +495,7 @@ Each row in `sealed_inputs_3A` describes exactly one artefact (dataset, bundle, 
 * A logical identifier (e.g. dataset ID or artefact ID).
 * The owning segment/layer (e.g. `1A`, `1B`, `2A`, `2B`, `3A`).
 * The artefact type (e.g. `dataset`, `bundle`, `policy`, `reference`).
-* The resolved catalogue path with tokens (e.g. `.../seed={seed}/fingerprint={manifest_fingerprint}/…` if applicable).
+* The resolved catalogue path with tokens (e.g. `.../seed={seed}/manifest_fingerprint={manifest_fingerprint}/…` if applicable).
 * The `schema_ref` anchor used to validate this artefact.
 * A content digest (at least SHA-256 hex over the on-disk representation).
 * A short role/usage tag (e.g. `upstream_gate`, `zone_prior`, `reference_geo`, `input_egress`).
@@ -526,7 +526,7 @@ For both outputs, 3A.S0 MUST uphold the following identity and lifecycle guarant
 
 2. **Fingerprint-only partitioning.**
 
-   * Both artefacts MUST be partitioned only by `fingerprint={manifest_fingerprint}`. They MUST NOT be partitioned by `seed`, `parameter_hash` or `run_id`.
+   * Both artefacts MUST be partitioned only by `manifest_fingerprint={manifest_fingerprint}`. They MUST NOT be partitioned by `seed`, `parameter_hash` or `run_id`.
    * The embedded `manifest_fingerprint` column MUST match the partition token exactly; this is used by later validators to assert path↔embed consistency.
 
 3. **Immutability post-PASS in later states.**
@@ -751,7 +751,7 @@ For each segment `S ∈ {1A,1B,2A}`:
 
 * Using the segment’s dataset dictionary and artefact registry, resolve:
 
-  * the dataset ID and concrete path for `validation_bundle_S` at `fingerprint={manifest_fingerprint}`, and
+  * the dataset ID and concrete path for `validation_bundle_S` at `manifest_fingerprint={manifest_fingerprint}`, and
   * the concrete path for `_passed.flag` in the same directory.
 
 * S0 MUST NOT guess or hard-code paths; it MUST use the catalogue mappings.
@@ -834,9 +834,9 @@ The sealed input set `𝕊` is the union of:
 
 2. **Upstream data-plane surfaces used by 3A** (even if not used by S0 itself):
 
-   * `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}` (1A egress),
-   * `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}` (2A egress),
-    * `tz_timetable_cache@fingerprint={manifest_fingerprint}` (2A cache),
+   * `outlet_catalogue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (1A egress),
+   * `site_timezones@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (2A egress),
+    * `tz_timetable_cache@manifest_fingerprint={manifest_fingerprint}` (2A cache),
     * ingress references required structurally by later 3A states (e.g. `iso3166_canonical_2024`, `tz_world_2025a`).
 
 3. **3A policies and priors**
@@ -906,7 +906,7 @@ Physical writer-sort MUST follow this key; readers MUST NOT infer additional mea
 
 S0 MUST:
 
-1. Expand `fingerprint={manifest_fingerprint}` in the path.
+1. Expand `manifest_fingerprint={manifest_fingerprint}` in the path.
 2. Assert that any existing dataset at that path either:
 
    * does not exist, or
@@ -949,7 +949,7 @@ S0 MUST construct a single JSON object conforming to `schemas.3A.yaml#/validatio
 **Step 14 – Write `s0_gate_receipt_3A`.**
 
 * Use the dictionary entry for `s0_gate_receipt_3A` to determine path, partition (`fingerprint`) and schema_ref.
-* Expand `fingerprint={manifest_fingerprint}` in the path.
+* Expand `manifest_fingerprint={manifest_fingerprint}` in the path.
 * Assert that any existing file at that path either:
 
   * does not exist, or
@@ -1070,7 +1070,7 @@ Both S0 artefacts are **fingerprint-scoped**. They MUST obey the same partitioni
 
    * For fingerprint-only artefacts (e.g. `tz_timetable_cache`, validation bundles, S0 outputs):
 
-     * The `path` column MUST include `fingerprint={manifest_fingerprint}` as the only partition token.
+     * The `path` column MUST include `manifest_fingerprint={manifest_fingerprint}` as the only partition token.
 
 `sealed_inputs_3A` is not allowed to invent new token schemes; it must mirror exactly what the dictionaries/registries define.
 
@@ -1189,7 +1189,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S0 is considered 
 
    For segments 1A, 1B and 2A:
 
-   * A `validation_bundle_S` and `_passed.flag` exist at `fingerprint={manifest_fingerprint}`.
+   * A `validation_bundle_S` and `_passed.flag` exist at `manifest_fingerprint={manifest_fingerprint}`.
    * The bundle’s `index.json` is schema-valid and self-consistent (every listed file exists; per-file `sha256_hex` matches the file’s bytes).
    * The composite SHA-256 of all bundle files (in ASCII-lex path order) matches the `_passed.flag` contents.
    * S0 records `status="PASS"` for that segment in `s0_gate_receipt_3A.upstream_gates.segment_S`.
@@ -1929,7 +1929,7 @@ The main cost drivers are:
 
 ### 11.3 Scaling with number of fingerprints
 
-3A.S0 is **per-manifest**, partitioned by `fingerprint={manifest_fingerprint}`. Scaling behaviour:
+3A.S0 is **per-manifest**, partitioned by `manifest_fingerprint={manifest_fingerprint}`. Scaling behaviour:
 
 * For a fixed infrastructure, increasing the number of fingerprints increases:
 

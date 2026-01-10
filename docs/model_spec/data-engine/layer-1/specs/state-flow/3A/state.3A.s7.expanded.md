@@ -9,7 +9,7 @@ State **3A.S7 — Segment Validation Bundle & PASS Flag** is the **final sealing
 Concretely, 3A.S7:
 
 * **Assembles the 3A validation bundle for a manifest.**
-  For a given `manifest_fingerprint`, S7 constructs a **3A validation bundle directory** (conceptually `validation_bundle_3A@fingerprint={manifest_fingerprint}`) that:
+  For a given `manifest_fingerprint`, S7 constructs a **3A validation bundle directory** (conceptually `validation_bundle_3A@manifest_fingerprint={manifest_fingerprint}`) that:
 
   * contains (by value or by canonical reference) the core 3A validation artefacts for this manifest, including at minimum:
 
@@ -38,7 +38,7 @@ Concretely, 3A.S7:
   This digest is the only value that appears in the `_passed.flag` file and is what orchestrator/consumers verify when deciding whether 3A is safe to read.
 
 * **Emits the segment-level PASS flag for 3A.**
-  S7 writes a small, fingerprint-scoped `_passed.flag` file colocated with the validation bundle (e.g. inside `validation_bundle_3A@fingerprint={manifest_fingerprint}`), whose content is:
+  S7 writes a small, fingerprint-scoped `_passed.flag` file colocated with the validation bundle (e.g. inside `validation_bundle_3A@manifest_fingerprint={manifest_fingerprint}`), whose content is:
 
   ```text
   sha256_hex = <bundle_sha256_hex>
@@ -142,7 +142,7 @@ S7 is invoked in the context of a 3A run identified by:
 S7 MUST treat these values as **inputs only**:
 
 * It MUST NOT alter or re-derive `parameter_hash`, `manifest_fingerprint`, `seed`, or `run_id`.
-* All bundle paths and artefacts S7 creates are scoped to `fingerprint={manifest_fingerprint}`; `seed` and `run_id` are used for correlation in logs/layer1/3A/run-report only.
+* All bundle paths and artefacts S7 creates are scoped to `manifest_fingerprint={manifest_fingerprint}`; `seed` and `run_id` are used for correlation in logs/layer1/3A/run-report only.
 
 ---
 
@@ -161,7 +161,7 @@ S7 MUST treat S6 as the **only authority** on segment-level structural health fo
 
 2. **S6’s segment verdict is PASS**
 
-   * The dataset `s6_receipt_3A@fingerprint={manifest_fingerprint}` MUST exist.
+   * The dataset `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}` MUST exist.
    * It MUST validate against `schemas.3A.yaml#/validation/s6_receipt_3A`.
    * It MUST have `overall_status = "PASS"`.
 
@@ -179,7 +179,7 @@ Although S7 does not perform new validations, it still operates under the S0 gat
 
    For `manifest_fingerprint`, S7 MUST:
 
-   * Resolve and read `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`.
+   * Resolve and read `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`.
    * Validate it against `schemas.3A.yaml#/validation/s0_gate_receipt_3A`.
    * Confirm that `upstream_gates.segment_1A/1B/2A.status == "PASS"`.
 
@@ -187,7 +187,7 @@ Although S7 does not perform new validations, it still operates under the S0 gat
 
 2. **Sealed external artefacts**
 
-   * Resolve and read `sealed_inputs_3A@fingerprint={manifest_fingerprint}`.
+   * Resolve and read `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`.
    * Validate it against `schemas.3A.yaml#/validation/sealed_inputs_3A`.
 
    S7 relies on S0 + `sealed_inputs_3A` to know which **external** policy/prior artefacts were in play (mixture policy, priors, floors, day-effect, references). S7 itself does not need to re-read their content (S5/S6 already did), but:
@@ -210,7 +210,7 @@ At minimum, for `manifest_fingerprint`, S7 MUST be able to resolve and read:
 
 * **S1:**
 
-  * `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`.
+  * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
 
 * **S2:**
 
@@ -218,23 +218,23 @@ At minimum, for `manifest_fingerprint`, S7 MUST be able to resolve and read:
 
 * **S3:**
 
-  * `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`.
+  * `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
   * Optionally, S3 RNG events/trace log digests, if the bundle includes RNG evidence or their digests (depending on the agreed bundle content).
 
 * **S4:**
 
-  * `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`.
+  * `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
 
 * **S5:**
 
-  * `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}`,
-  * `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`.
+  * `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}`,
+  * `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`.
 
 * **S6:**
 
-  * `s6_validation_report_3A@fingerprint={manifest_fingerprint}`,
-  * `s6_issue_table_3A@fingerprint={manifest_fingerprint}` (may be empty but MUST exist as a dataset),
-  * `s6_receipt_3A@fingerprint={manifest_fingerprint}`.
+  * `s6_validation_report_3A@manifest_fingerprint={manifest_fingerprint}`,
+  * `s6_issue_table_3A@manifest_fingerprint={manifest_fingerprint}` (may be empty but MUST exist as a dataset),
+  * `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}`.
 
 For each of these, S7 MUST:
 
@@ -388,9 +388,9 @@ Inputs in this class:
 
 1. **S6 artefacts**
 
-   * `s6_validation_report_3A@fingerprint={manifest_fingerprint}`
-   * `s6_issue_table_3A@fingerprint={manifest_fingerprint}` (dataset exists even if 0 rows)
-   * `s6_receipt_3A@fingerprint={manifest_fingerprint}`
+   * `s6_validation_report_3A@manifest_fingerprint={manifest_fingerprint}`
+   * `s6_issue_table_3A@manifest_fingerprint={manifest_fingerprint}` (dataset exists even if 0 rows)
+   * `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
 
    S7 MUST:
 
@@ -605,8 +605,8 @@ For each `manifest_fingerprint = F`, S7 MAY produce a bundle+flag pair **only** 
 
 If those preconditions are met, S7 MUST produce at most one instance of:
 
-* `validation_bundle_3A@fingerprint={F}` — a directory whose contents are fully described by an `index.json` file.
-* `_passed.flag@fingerprint={F}` — a text file whose value is derived solely from `index.json` and the digests of bundle members.
+* `validation_bundle_3A@manifest_fingerprint={F}` — a directory whose contents are fully described by an `index.json` file.
+* `_passed.flag@manifest_fingerprint={F}` — a text file whose value is derived solely from `index.json` and the digests of bundle members.
 
 No other S7 outputs are in scope in this contract version.
 
@@ -646,7 +646,7 @@ S7 MUST NOT create multiple different bundles for the same `manifest_fingerprint
 
 #### 4.2.2 Required contents of the bundle
 
-The directory `validation_bundle_3A@fingerprint={F}` MUST contain, at minimum:
+The directory `validation_bundle_3A@manifest_fingerprint={F}` MUST contain, at minimum:
 
 1. **An index file:**
 
@@ -1015,7 +1015,7 @@ datasets:
     version: '{manifest_fingerprint}'
     format: dir
     path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
     ordering: []
     lineage:
@@ -1029,7 +1029,7 @@ datasets:
 Binding points:
 
 * `id` MUST be `"validation_bundle_3A"`.
-* `path` MUST use `fingerprint={manifest_fingerprint}` as its only partition token.
+* `path` MUST use `manifest_fingerprint={manifest_fingerprint}` as its only partition token.
 * `schema_ref` MUST be `schemas.layer1.yaml#/validation/validation_bundle_index_3A` (index schema).
 * `format: "dir"` indicates this is a directory-style dataset; consumers know to look for `index.json` inside.
 
@@ -1042,7 +1042,7 @@ Binding points:
     version: '{manifest_fingerprint}'
     format: text
     path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
     ordering: []
     lineage:
@@ -1228,7 +1228,7 @@ S7 MUST:
 
 **Step 3 – Read and validate `s6_receipt_3A`**
 
-* Resolve `s6_receipt_3A@fingerprint={manifest_fingerprint}` via dictionary/registry.
+* Resolve `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}` via dictionary/registry.
 * Read the JSON and validate against `schemas.3A.yaml#/validation/s6_receipt_3A`.
 
 S7 MUST:
@@ -1240,8 +1240,8 @@ S7 MUST:
 
 * Resolve and read:
 
-  * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`,
-  * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`.
+  * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`,
+  * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`.
 
 * Validate both against their schemas.
 
@@ -1256,15 +1256,15 @@ Using dictionary/registry (see §5) S7 MUST resolve and validate, at minimum:
 
 * `s0_gate_receipt_3A`
 * `sealed_inputs_3A`
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * `s2_country_zone_priors@parameter_hash={parameter_hash}`
-* `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
-* `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`
-* `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}`
-* `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`
-* `s6_validation_report_3A@fingerprint={manifest_fingerprint}`
-* `s6_issue_table_3A@fingerprint={manifest_fingerprint}` (dataset may have 0 rows but MUST exist)
-* `s6_receipt_3A@fingerprint={manifest_fingerprint}`
+* `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+* `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+* `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+* `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`
+* `s6_validation_report_3A@manifest_fingerprint={manifest_fingerprint}`
+* `s6_issue_table_3A@manifest_fingerprint={manifest_fingerprint}` (dataset may have 0 rows but MUST exist)
+* `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
 
 Each artefact MUST:
 
@@ -1821,7 +1821,7 @@ For a given run `(parameter_hash, manifest_fingerprint, seed, run_id)`, 3A.S7 is
 
   * `status="PASS"` and `error_code=null` in the segment-state run-report.
 
-* `s6_receipt_3A@fingerprint={manifest_fingerprint}`:
+* `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}`:
 
   * exists and validates against `#/validation/s6_receipt_3A`,
   * has `overall_status="PASS"`.
@@ -2088,7 +2088,7 @@ Raised when S7 cannot proceed because S6 has not declared Segment 3A as PASS for
 * In the segment-state run-report, S6’s row has:
 
   * `status != "PASS"` **or** `error_code != null`.
-* `s6_receipt_3A@fingerprint={manifest_fingerprint}`:
+* `s6_receipt_3A@manifest_fingerprint={manifest_fingerprint}`:
 
   * is missing,
   * fails `#/validation/s6_receipt_3A`, or
@@ -2265,7 +2265,7 @@ S7 MUST NOT overwrite the existing flag to “fix” this mismatch.
 
 Raised when S7 determines that:
 
-* an existing `index.json` file for `validation_bundle_3A@fingerprint={F}` is logically different from the index S7 would produce now (with the current artefacts), **or**
+* an existing `index.json` file for `validation_bundle_3A@manifest_fingerprint={F}` is logically different from the index S7 would produce now (with the current artefacts), **or**
 * `_passed.flag` already exists and S7 would need to change its content to reflect the new composite digest, **and** the mismatch is not just a “flag vs index” mismatch (which is covered by `E3A_S7_005_*`), but a mismatch between **previously sealed** and **currently derived** bundle state.
 
 Typical causes:
@@ -2588,9 +2588,9 @@ S7 outputs MUST be easy to correlate with upstream and to verify:
 
    From S7’s run-report row and the catalogue, a tool MUST be able to:
 
-   * locate `validation_bundle_3A@fingerprint={manifest_fingerprint}`,
+   * locate `validation_bundle_3A@manifest_fingerprint={manifest_fingerprint}`,
    * load `index.json` via its `schema_ref`,
-   * locate `_passed.flag@fingerprint={manifest_fingerprint}`,
+   * locate `_passed.flag@manifest_fingerprint={manifest_fingerprint}`,
    * and then, via `index.json.members[]`, locate all bundle members (S0–S6 artefacts) and verify their digests.
 
 This ensures any validator can start from S7 and traverse:

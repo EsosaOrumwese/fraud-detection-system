@@ -267,7 +267,7 @@ S3 operates **only** on intensities realised by S2. For each `scenario_id` and `
 
 1. **S2 outputs MUST exist and be valid**
 
-   * `s2_realised_intensity_5B@seed={seed}/fingerprint={mf}/scenario_id={scenario_id}` MUST:
+   * `s2_realised_intensity_5B@seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={scenario_id}` MUST:
 
      * exist,
      * validate against `schemas.5B.yaml#/model/s2_realised_intensity_5B`, and
@@ -695,7 +695,7 @@ S3 emits a single dataset: `s3_bucket_counts_5B` (integer counts per `(seed, sce
 
 Binding rules:
 
-* Partitioning/path layout (`seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`) and the composite primary key are defined in the dictionary; S3 MUST adhere to them when writing shards.
+* Partitioning/path layout (`seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`) and the composite primary key are defined in the dictionary; S3 MUST adhere to them when writing shards.
 * Column meanings (counts, RNG receipts, integrity flags) are governed by the schema pack. This state spec only enforces that counts reflect the exact integerisation performed in §6 and that every in-scope entity appears exactly once per bucket.
 * Registry dependencies (realised intensities, grouping, RNG policy, scenario surfaces) are authoritative; no additional artefacts may be read unless they appear in `sealed_inputs_5B` and the registry first.
 * Determinism: for a fixed `(seed, parameter_hash, manifest_fingerprint, scenario_id)`, reruns MUST produce byte-identical output.
@@ -972,7 +972,7 @@ Once counts have been sampled for all `(s, key, b) ∈ D_s` for all `scenario_id
 
      ```text
      data/layer2/5B/s3_bucket_counts/
-       seed={seed}/fingerprint={mf}/scenario_id={s}/
+       seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={s}/
        s3_bucket_counts_5B.parquet
      ```
 
@@ -1070,7 +1070,7 @@ For fixed `(ph, mf, seed, scenario_id)` and fixed configs/inputs, `s3_bucket_cou
 
   ```text
   seed={seed}
-  fingerprint={manifest_fingerprint}
+  manifest_fingerprint={manifest_fingerprint}
   scenario_id={scenario_id}
   ```
 
@@ -1078,7 +1078,7 @@ Canonical path:
 
 ```text
 data/layer2/5B/s3_bucket_counts/
-  seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/
+  seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/
   s3_bucket_counts_5B.parquet
 ```
 

@@ -143,12 +143,12 @@ Before invoking 3A.S6 for a given tuple
 
    For `manifest_fingerprint`:
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
 
      * MUST exist and validate against `schemas.3A.yaml#/validation/s0_gate_receipt_3A`.
      * MUST encode `upstream_gates.segment_1A/1B/2A.status` and the catalogue/policy versions S0 used.
 
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`
 
      * MUST exist and validate against `schemas.3A.yaml#/validation/sealed_inputs_3A`.
      * MUST list all external policy/prior artefacts S1–S5 claim to use (mixture policy, prior pack, floor policy, day-effect policy, zone-universe references, etc.), with `sha256_hex` digests.
@@ -161,12 +161,12 @@ Before invoking 3A.S6 for a given tuple
 
    * Datasets MUST exist and be schema-valid:
 
-     * `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+     * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
      * `s2_country_zone_priors@parameter_hash={parameter_hash}`
-     * `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
-     * `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`
-     * `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}`
-     * `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`
+     * `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+     * `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+     * `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+     * `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`
 
    * Segment-state run-report entries MUST exist for S1–S5, each with at least:
 
@@ -392,8 +392,8 @@ S6 MAY read:
 
 1. **S0 — Gate & sealed inputs**
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`
 
    S6 uses these as **trust anchors** to:
 
@@ -405,7 +405,7 @@ S6 MAY read:
 
 2. **S1 — Escalation & merchant×country domain**
 
-   * `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+   * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
    * S1’s run-report row.
 
    S6 uses S1 as the authority on:
@@ -437,7 +437,7 @@ S6 MAY read:
 
 4. **S3 — Shares & RNG usage**
 
-   * `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
+   * `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
    * `rng_event_zone_dirichlet` events for `(seed, parameter_hash, run_id, module="3A.S3", substream_label="zone_dirichlet")`,
    * `rng_trace_log` entries for `("3A.S3", "zone_dirichlet")`,
    * S3’s run-report row.
@@ -456,7 +456,7 @@ S6 MAY read:
 
 5. **S4 — Integer zone counts**
 
-   * `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`
+   * `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
    * S4’s run-report row.
 
    S6 uses S4 as the authority on:
@@ -471,8 +471,8 @@ S6 MAY read:
 
 6. **S5 — Egress & universe hash**
 
-   * `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}`
-   * `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`
+   * `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+   * `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`
    * S5’s run-report row.
 
    S6 uses S5 as the authority on:
@@ -1087,7 +1087,7 @@ datasets:
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.3A.yaml#/validation/s6_validation_report_3A
     lineage:
@@ -1107,7 +1107,7 @@ datasets:
     version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     schema_ref: schemas.3A.yaml#/validation/s6_issue_table_3A
     ordering: [severity, issue_code, merchant_id, legal_country_iso, tzid]
     lineage:
@@ -1127,7 +1127,7 @@ datasets:
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     schema_ref: schemas.3A.yaml#/validation/s6_receipt_3A
     ordering: []
     lineage:
@@ -1141,7 +1141,7 @@ datasets:
 Binding requirements:
 
 * IDs MUST be exactly as declared (`"s6_validation_report_3A"`, `"s6_issue_table_3A"`, `"s6_receipt_3A"`).
-* Paths MUST include `fingerprint={manifest_fingerprint}` as the only partition token.
+* Paths MUST include `manifest_fingerprint={manifest_fingerprint}` as the only partition token.
 * `schema_ref` MUST reference the anchors defined above.
 
 ---
@@ -1336,12 +1336,12 @@ S6 MUST:
 
 Using the 3A dictionary & registry, resolve and read:
 
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * `s2_country_zone_priors@parameter_hash={parameter_hash}`
-* `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
-* `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`
-* `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}`
-* `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`
+* `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+* `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+* `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
+* `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`
 
 For each:
 
@@ -1626,7 +1626,7 @@ S6 builds the row set for `s6_issue_table_3A` (possibly empty) where each row co
 
 **Step 11 – Sort & validate**
 
-Within each `fingerprint={manifest_fingerprint}` partition, rows MUST be sorted deterministically (e.g.):
+Within each `manifest_fingerprint={manifest_fingerprint}` partition, rows MUST be sorted deterministically (e.g.):
 
 1. `severity` descending (`ERROR`, `WARN`, `INFO`),
 2. `issue_code` ascending,
@@ -1676,7 +1676,7 @@ For each S6 artefact (`s6_validation_report_3A`, `s6_issue_table_3A`, `s6_receip
 
 **Step 14 – Check for existing data**
 
-* Use the dataset dictionary/registry to resolve the expected path for `fingerprint={manifest_fingerprint}`.
+* Use the dataset dictionary/registry to resolve the expected path for `manifest_fingerprint={manifest_fingerprint}`.
 * If no prior artefact exists, proceed to write.
 * If a prior artefact exists:
 
@@ -1752,7 +1752,7 @@ For all three datasets:
 ["fingerprint"]
 ```
 
-* The partition token `fingerprint={manifest_fingerprint}` MUST match the embedded `manifest_fingerprint` field in each JSON object and each issue row.
+* The partition token `manifest_fingerprint={manifest_fingerprint}` MUST match the embedded `manifest_fingerprint` field in each JSON object and each issue row.
 
 ---
 
@@ -1776,7 +1776,7 @@ There is no notion of “multiple versions” of the report per fingerprint; if 
 
 #### 7.2.2 Partition & path↔embed equality
 
-* Partition key: `fingerprint={manifest_fingerprint}`.
+* Partition key: `manifest_fingerprint={manifest_fingerprint}`.
 * The JSON object’s `manifest_fingerprint` field MUST equal the partition token’s value.
 * Any mismatch is a schema/validation error and MUST be treated as such by S6 and any validator.
 
@@ -1824,13 +1824,13 @@ No partial or incremental update semantics are permitted.
   data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
   ```
 
-* There MUST be exactly one dataset partition under `fingerprint={manifest_fingerprint}`, even if it contains zero rows.
+* There MUST be exactly one dataset partition under `manifest_fingerprint={manifest_fingerprint}`, even if it contains zero rows.
 
 Each row corresponds to one **issue instance** as defined in `#/validation/s6_issue_table_3A`.
 
 #### 7.3.2 Partition & path↔embed equality
 
-* Partition key: `fingerprint={manifest_fingerprint}`.
+* Partition key: `manifest_fingerprint={manifest_fingerprint}`.
 * Every row in `s6_issue_table_3A` MUST have:
 
   * `manifest_fingerprint` equal to the partition token.
@@ -1839,7 +1839,7 @@ Any mismatch is a schema/validation error.
 
 #### 7.3.3 Ordering semantics
 
-* Within a `fingerprint={manifest_fingerprint}` partition, rows MUST be written in a deterministic **writer sort**, e.g.:
+* Within a `manifest_fingerprint={manifest_fingerprint}` partition, rows MUST be written in a deterministic **writer sort**, e.g.:
 
   1. `severity` (ordered `ERROR` > `WARN` > `INFO`),
   2. `issue_code` ascending (lexicographic),
@@ -1895,7 +1895,7 @@ Ordering exists only for reproducibility and stable digests.
 
 #### 7.4.2 Partition & path↔embed equality
 
-* Partition key: `fingerprint={manifest_fingerprint}`.
+* Partition key: `manifest_fingerprint={manifest_fingerprint}`.
 * The JSON object’s `manifest_fingerprint` MUST equal the partition token.
 * `parameter_hash` in the receipt MUST equal the `parameter_hash` for the run; while not a partition key, this forms part of the logical identity of the validated universe.
 

@@ -266,8 +266,8 @@ Before any work, 5A.S2 MUST require a valid S0 gate:
 
 1. **Presence**
 
-   * `s0_gate_receipt_5A` exists for `fingerprint={manifest_fingerprint}`.
-   * `sealed_inputs_5A` exists for `fingerprint={manifest_fingerprint}`.
+   * `s0_gate_receipt_5A` exists for `manifest_fingerprint={manifest_fingerprint}`.
+   * `sealed_inputs_5A` exists for `manifest_fingerprint={manifest_fingerprint}`.
 
    Both MUST be discovered via `dataset_dictionary.layer2.5A.yaml` and `artefact_registry_5A.yaml`, not via ad-hoc paths.
 

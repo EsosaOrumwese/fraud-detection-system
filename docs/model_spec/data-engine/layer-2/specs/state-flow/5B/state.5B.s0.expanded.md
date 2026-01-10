@@ -742,7 +742,7 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 
 * **Partitioning:**
 
-  * MUST be partitioned on `fingerprint={manifest_fingerprint}`.
+  * MUST be partitioned on `manifest_fingerprint={manifest_fingerprint}`.
 
 * **Primary key:**
 
@@ -792,7 +792,7 @@ Optional metadata (`notes`, `source_manifest`, `owner_team`, etc.) MAY appear bu
 
 * **Partitioning:**
 
-  * MUST be partitioned on `fingerprint={manifest_fingerprint}`.
+  * MUST be partitioned on `manifest_fingerprint={manifest_fingerprint}`.
 
 * **Primary key:**
 
@@ -881,7 +881,7 @@ This spec therefore states:
 
 **Partition / path / PK**
 
-* Partition key: `fingerprint={manifest_fingerprint}` (dictionary).
+* Partition key: `manifest_fingerprint={manifest_fingerprint}` (dictionary).
 * Logical PK: `manifest_fingerprint` (optionally `run_id` if multiple receipts per fingerprint are supported).
 * Write-once per `{manifest_fingerprint, run_id}`. Re-runs MUST be byte-identical or treated as conflicts.
 
@@ -1264,7 +1264,7 @@ Binding rules:
 The partitioning law for S5 outputs is:
 
 * **Partition key:** `manifest_fingerprint`
-* **Path token:** `fingerprint={manifest_fingerprint}`
+* **Path token:** `manifest_fingerprint={manifest_fingerprint}`
 
 Concretely:
 
@@ -1293,7 +1293,7 @@ Binding constraints:
 
 2. **Single world per directory**
 
-   * Each `fingerprint={mf}` directory for S5 outputs MUST contain artefacts **only** for that `mf`.
+   * Each `manifest_fingerprint={mf}` directory for S5 outputs MUST contain artefacts **only** for that `mf`.
    * It MUST NOT contain rows or files belonging to any other `manifest_fingerprint`.
 
 3. **No seed/parameter-based sub-partitions**
@@ -1343,7 +1343,7 @@ Binding constraints:
 
 * For a given `(parameter_hash, manifest_fingerprint)`:
 
-  * there MUST be **exactly one** `sealed_inputs_5B` file in `fingerprint={mf}`;
+  * there MUST be **exactly one** `sealed_inputs_5B` file in `manifest_fingerprint={mf}`;
   * it MUST describe the full closed world for 5B at that `(ph, mf)`.
 
 * Re-running S5 under a different `seed` or `run_id` but the same `(ph, mf)` MUST either:
@@ -1363,7 +1363,7 @@ Binding constraints:
     * produce a byte-identical receipt, or
     * fail with a “duplicate receipt” error.
 
-* If the engine allows multiple `run_id` values per `mf`, each MUST produce a separate receipt in the same `fingerprint={mf}` directory, but all receipts MUST point to the **same** `sealed_inputs_5B` digest for that `mf`.
+* If the engine allows multiple `run_id` values per `mf`, each MUST produce a separate receipt in the same `manifest_fingerprint={mf}` directory, but all receipts MUST point to the **same** `sealed_inputs_5B` digest for that `mf`.
 
 **No cross-fingerprint merges**
 
@@ -1381,7 +1381,7 @@ Downstream 5B states (S1+) MUST follow these identity/merge rules:
    * To determine “which world” they are operating in, S1+ MUST:
 
      * choose a single `manifest_fingerprint`,
-     * read the corresponding `s0_gate_receipt_5B` in `fingerprint={mf}`,
+     * read the corresponding `s0_gate_receipt_5B` in `manifest_fingerprint={mf}`,
      * read the single `sealed_inputs_5B` in the same directory.
 
    * They MUST NOT try to synthesise a world from multiple fingerprints or from multiple sealed-input tables.

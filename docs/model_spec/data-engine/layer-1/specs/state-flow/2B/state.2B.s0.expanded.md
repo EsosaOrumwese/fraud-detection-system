@@ -106,11 +106,11 @@ S0 seals the following assets into the run context (each with **`asset_id`**, **
 
 2. **Cross-segment egress (seed + fingerprint):**
 
-   * **`site_locations`** — Layer-1 · 1B egress at `seed={seed} / fingerprint={manifest_fingerprint}`
+   * **`site_locations`** — Layer-1 · 1B egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
 
 3. **Required pins from 2A (seed + fingerprint):**
 
-   * **`site_timezones`** - Layer-2 · 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (required for 2B v1)
+   * **`site_timezones`** - Layer-2 · 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (required for 2B v1)
 
 4. **Governed RNG policy pack(s) for 2B (fingerprint-only):**
 
@@ -126,7 +126,7 @@ S0 seals the following assets into the run context (each with **`asset_id`**, **
 
 If declared for this fingerprint, S0 MAY seal:
 
-* **`tz_timetable_cache`** - Layer-2 · 2A cache at `fingerprint={manifest_fingerprint}` (read-only)
+* **`tz_timetable_cache`** - Layer-2 · 2A cache at `manifest_fingerprint={manifest_fingerprint}` (read-only)
 
 This cache is used only for coherence/audit in later 2B states; it confers no additional read authority beyond the verified 1B gate.
 
@@ -138,7 +138,7 @@ This cache is used only for coherence/audit in later 2B states; it confers no ad
 
 ### 3.5 Partition selection & path↔embed equality (Binding)
 
-* **Partition law.** For `site_locations`, S0 MUST read **exactly** the partition `seed={seed} / fingerprint={manifest_fingerprint}`. For policy packs and bundle artefacts, selection is **fingerprint-only**.
+* **Partition law.** For `site_locations`, S0 MUST read **exactly** the partition `seed={seed} / manifest_fingerprint={manifest_fingerprint}`. For policy packs and bundle artefacts, selection is **fingerprint-only**.
 * **Equality.** All S0 outputs MUST embed the same `manifest_fingerprint` they are written under; any mismatch is an error.
 
 ### 3.6 Aliasing & duplicates (Binding)
@@ -152,7 +152,7 @@ This cache is used only for coherence/audit in later 2B states; it confers no ad
 ### 4.1 Catalogue authorities
 
 * **Schema pack** (`schemas.2B.yaml`) is the **shape authority** for all S0 outputs and any inputs it references.
-* **Dataset Dictionary** (`dataset_dictionary.layer1.2B.yaml`) is the **sole authority** for resolving **IDs → path templates, partitions, and formats**. Token expansion (e.g., `seed={seed}`, `fingerprint={manifest_fingerprint}`) MUST follow the Dictionary.
+* **Dataset Dictionary** (`dataset_dictionary.layer1.2B.yaml`) is the **sole authority** for resolving **IDs → path templates, partitions, and formats**. Token expansion (e.g., `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`) MUST follow the Dictionary.
 * **Artefact Registry** (`artefact_registry_2B.yaml`) declares **existence, licence, retention, and ownership**; it does **not** grant read authority or override Dictionary paths.
 
 ### 4.2 Inputs S0 MAY read (and nothing else)
@@ -165,10 +165,10 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
    * `_passed.flag` (companion flag co-located with the bundle root)
 2. **Cross-segment egress (seed + fingerprint):**
 
-   * `site_locations` — Layer-1 · 1B egress at `seed={seed} / fingerprint={manifest_fingerprint}`
+   * `site_locations` — Layer-1 · 1B egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
 3. **Required pins from 2A (seed + fingerprint):**
 
-   * `site_timezones` — Layer-2 · 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}`
+   * `site_timezones` — Layer-2 · 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
 4. **Governed policies for 2B (fingerprint-only):**
 
    * `route_rng_policy_v1`
@@ -178,7 +178,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
      *(Concrete IDs/names are those listed in the Dictionary for this fingerprint; each policy MUST carry `version_tag` and `sha256_hex`.)*
 5. **Optional cache (read-only):**
 
-   * `tz_timetable_cache` — Layer-2 · 2A cache at `fingerprint={manifest_fingerprint}`
+   * `tz_timetable_cache` — Layer-2 · 2A cache at `manifest_fingerprint={manifest_fingerprint}`
 
 ### 4.3 Prohibited resources & reads
 
@@ -189,8 +189,8 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 
 ### 4.4 Resolution & token discipline
 
-* **Token expansion** MUST produce paths that embed `fingerprint={manifest_fingerprint}` (for fingerprint-scoped artefacts) and `seed={seed}` where required.
-* **Partition selection** MUST be exact: for `site_locations` read **only** the partition `seed={seed} / fingerprint={manifest_fingerprint}`; for policies and bundle artefacts, selection is **fingerprint-only**.
+* **Token expansion** MUST produce paths that embed `manifest_fingerprint={manifest_fingerprint}` (for fingerprint-scoped artefacts) and `seed={seed}` where required.
+* **Partition selection** MUST be exact: for `site_locations` read **only** the partition `seed={seed} / manifest_fingerprint={manifest_fingerprint}`; for policies and bundle artefacts, selection is **fingerprint-only**.
 * **Path↔embed equality** MUST hold for all S0 outputs; any mismatch is an error.
 
 ### 4.5 Trust boundary & sequencing
@@ -219,7 +219,7 @@ S0 SHALL resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.2 Partitioning & identity law
 
 * **Partitioning:** Both outputs are **fingerprint-only** and SHALL be written under
-  `…/fingerprint={manifest_fingerprint}/`.
+  `…/manifest_fingerprint={manifest_fingerprint}/`.
 * **Run identity:** The run is identified by `{ seed, manifest_fingerprint }`. S0 outputs embed `manifest_fingerprint` and MAY echo `seed` as metadata, but **do not** partition by `seed`.
 * **Path↔embed equality:** The embedded `manifest_fingerprint` in each output **MUST** equal the fingerprint token in its path.
 
@@ -389,8 +389,8 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 ### 7.3 Resolve & seal required inputs
 
 9. **Resolve by ID** (no content reads yet):
-   a) `site_locations` at `seed={seed} / fingerprint={manifest_fingerprint}`;
-   b) `site_timezones` at `seed={seed} / fingerprint={manifest_fingerprint}`;
+   a) `site_locations` at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`;
+   b) `site_timezones` at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`;
    c) governed **2B policy pack(s)** (`route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, `virtual_edge_policy_v1`, as declared in the Dictionary).
 10. **Compute per-asset digests** for the inventory row (`sha256_hex`) using this rule, in order of preference:
     i) **Published canonical digest** provided by the producing segment (if present in its manifest/receipt); else
@@ -400,7 +400,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 ### 7.4 Optional cache (read-only)
 
 12. If the fingerprint declares the optional cache, resolve by ID:
-    a) `tz_timetable_cache` at `fingerprint={manifest_fingerprint}`.
+    a) `tz_timetable_cache` at `manifest_fingerprint={manifest_fingerprint}`.
 13. If present, include it in the inventory (apply the same digest/tag rules as §7.3); absence is permitted.
 
 ### 7.5 Materialise outputs (atomic; write-once)
@@ -442,9 +442,9 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 
 ### 8.2 Partitioning
 
-* **Receipt path:** `…/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json`
+* **Receipt path:** `…/s0_gate_receipt_2B/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json`
 * **Inventory path:** `…/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json`
-* **Selection:** exact match on `fingerprint={manifest_fingerprint}`. No wildcarding, globbing, or multi-partition writes.
+* **Selection:** exact match on `manifest_fingerprint={manifest_fingerprint}`. No wildcarding, globbing, or multi-partition writes.
 
 ### 8.3 Path↔embed equality
 
@@ -491,7 +491,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 
 ### 8.11 Token hygiene
 
-* Partition tokens **MUST** appear exactly once per path segment (`fingerprint={…}`); no additional, missing, or reordered tokens are allowed.
+* Partition tokens **MUST** appear exactly once per path segment (`manifest_fingerprint={…}`); no additional, missing, or reordered tokens are allowed.
 * Literal paths and environment-injected overrides are prohibited.
 
 ### 8.12 Retention & provenance
@@ -515,7 +515,7 @@ Recomputed SHA-256 over the bundle index (ASCII-lex by `index.path`, raw bytes; 
 Every input read/Trusted asset was resolved by **Dictionary ID**; zero literal paths.
 
 **V-04 - Minimum sealed set present (Abort).**
-Sealed assets include: bundle root, `_passed.flag`, `site_locations` and `site_timezones` at `seed={seed}/fingerprint={manifest_fingerprint}`, and all required 2B policy pack IDs declared for this fingerprint.
+Sealed assets include: bundle root, `_passed.flag`, `site_locations` and `site_timezones` at `seed={seed}/manifest_fingerprint={manifest_fingerprint}`, and all required 2B policy pack IDs declared for this fingerprint.
 
 **V-05 - Optional cache present (Warn).**
 If `tz_timetable_cache` is present, it must validate and be recorded in the inventory; absence is permitted (no WARN).
@@ -536,7 +536,7 @@ Every `sealed_inputs_2B` row has **non-empty** `version_tag` and `sha256_hex` (h
 `determinism_receipt.policy_ids`/`policy_digests` are present, equal-length, and each pair matches the corresponding `sealed_inputs_2B` rows for the 2B policy pack(s).
 
 **V-11 - Partition selection exact (Abort).**
-Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}`, `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}`, and fingerprint-only selection for bundle/flag/policies (and optional cache if present) with no wildcards or cross-seed reads.
+Reads used only `site_locations@seed={seed}/manifest_fingerprint={manifest_fingerprint}`, `site_timezones@seed={seed}/manifest_fingerprint={manifest_fingerprint}`, and fingerprint-only selection for bundle/flag/policies (and optional cache if present) with no wildcards or cross-seed reads.
 
 **V-12 — No duplicate IDs (Abort).**
 `sealed_inputs_2B.asset_id` has no duplicates. (Multiple IDs may reference identical bytes; same-ID duplicates are illegal.)
@@ -611,7 +611,7 @@ Execution performed with network I/O disabled and accessed **only** the assets e
 
 ### 10.4 Identity, partitions, immutability
 
-* **2B-S0-050 PARTITION_SELECTION_INCORRECT (Abort)** - Read didn't target exactly `site_locations@seed={seed}/fingerprint={fingerprint}` and `site_timezones@seed={seed}/fingerprint={fingerprint}`, or used non-fingerprint partitions for bundle/flag/policies/optional cache.
+* **2B-S0-050 PARTITION_SELECTION_INCORRECT (Abort)** - Read didn't target exactly `site_locations@seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` and `site_timezones@seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}`, or used non-fingerprint partitions for bundle/flag/policies/optional cache.
   *Context:* `id`, `expected_partition`, `actual_partition`.  *(V-11)*
 
 * **2B-S0-070 PATH_EMBED_MISMATCH (Abort)** — Embedded `fingerprint` in an S0 output ≠ the path token.
@@ -961,7 +961,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
   * Output IDs & path families:
 
-    * `s0_gate_receipt_2B` → `…/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json`
+    * `s0_gate_receipt_2B` → `…/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json`
     * `sealed_inputs_2B` → `…/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2B.json`
   * Input IDs S0 resolves:
 
@@ -1011,7 +1011,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
 ### A.7 Identity & tokens (path discipline)
 
-* **Tokens:** `seed={seed}`, `fingerprint={manifest_fingerprint}`
+* **Tokens:** `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`
 * **Partition law:** S0 outputs are **fingerprint-only**; `site_locations` reads require **seed + fingerprint**.
 * **Path↔embed equality:** embedded `fingerprint` in S0 outputs must equal the path token.
 

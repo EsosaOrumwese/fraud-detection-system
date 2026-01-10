@@ -92,7 +92,7 @@ reference_data:
 - id: validation_bundle_1A
   status: approved
   owner_subsegment: 1A
-  description: 1A validator outputs for the fingerprint (basis of consumer gate for outlet_catalogue).
+  description: 1A validator outputs for the manifest_fingerprint (basis of consumer gate for outlet_catalogue).
   version: '{manifest_fingerprint}'
   format: directory
   path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
@@ -473,7 +473,7 @@ datasets:
 - id: site_locations
   status: approved
   owner_subsegment: 1B
-  description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.
+  description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/manifest_fingerprint.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
   path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/

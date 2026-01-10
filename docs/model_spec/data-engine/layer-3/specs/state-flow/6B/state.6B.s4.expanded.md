@@ -344,7 +344,7 @@ For each `(manifest_fingerprint, seed, scenario_id)` that S4 intends to process,
 1. `s3_flow_anchor_with_fraud_6B` has a partition at:
 
    ```text
-   seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+   seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
    ```
 
 2. `s3_event_stream_with_fraud_6B` has a partition at the same axes.
@@ -710,7 +710,7 @@ These datasets:
 * Share axes with S3:
 
   * flow/event labels: `[seed, fingerprint, scenario_id]`,
-  * case timeline: `[seed, fingerprint]`,
+  * case timeline: `[seed, manifest_fingerprint]`,
 
 * And are consumed by:
 
@@ -753,7 +753,7 @@ Registered in dictionary/registry as:
 
   ```text
   data/layer3/6B/s4_flow_truth_labels_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -843,7 +843,7 @@ Registered as:
 
   ```text
   data/layer3/6B/s4_flow_bank_view_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -921,7 +921,7 @@ Registered as:
 
   ```text
   data/layer3/6B/s4_event_labels_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -1004,10 +1004,10 @@ Registered as:
 
   ```text
   data/layer3/6B/s4_case_timeline_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/part-*.parquet
   ```
 
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 
 **Primary key & identity**
 
@@ -1581,7 +1581,7 @@ The partitioning and path templates for S4 outputs are:
 
     ```text
     data/layer3/6B/s4_flow_truth_labels_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Flow bank-view labels**:
@@ -1591,7 +1591,7 @@ The partitioning and path templates for S4 outputs are:
 
     ```text
     data/layer3/6B/s4_flow_bank_view_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Event labels**:
@@ -1601,17 +1601,17 @@ The partitioning and path templates for S4 outputs are:
 
     ```text
     data/layer3/6B/s4_event_labels_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Case timeline**:
 
-  * `partitioning: [seed, fingerprint]`
+  * `partitioning: [seed, manifest_fingerprint]`
   * `path`:
 
     ```text
     data/layer3/6B/s4_case_timeline_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/part-*.parquet
     ```
 
 **Path↔embed rules (binding):**
@@ -3260,7 +3260,7 @@ Examples of **breaking** changes:
 
    * Changing partitioning for S4 datasets:
 
-     * e.g. dropping `scenario_id` from flow/event labels, or changing case timeline partitioning off `[seed, fingerprint]`.
+     * e.g. dropping `scenario_id` from flow/event labels, or changing case timeline partitioning off `[seed, manifest_fingerprint]`.
    * Changing primary keys:
 
      * e.g. removing `flow_id` from flow-label PKs,

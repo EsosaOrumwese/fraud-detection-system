@@ -238,10 +238,10 @@ If any of these statuses is not `"PASS"`, S3 MUST treat the 3B environment as **
 
 2.3.1 S3 MUST treat S1 and S2 as functional preconditions. For a given `{seed, manifest_fingerprint}`, S3 MAY proceed only if:
 
-* `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/virtual_classification_3B`;
-* `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/virtual_settlement_3B`;
-* `edge_catalogue_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_3B`;
-* `edge_catalogue_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_index_3B`.
+* `virtual_classification_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/virtual_classification_3B`;
+* `virtual_settlement_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/virtual_settlement_3B`;
+* `edge_catalogue_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_3B`;
+* `edge_catalogue_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_index_3B`.
 
 2.3.2 Before building alias tables, S3 MUST at least:
 
@@ -625,7 +625,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 * `edge_alias_blob_3B` MUST be partitioned by:
 
   * `seed={seed}`
-  * `fingerprint={manifest_fingerprint}`
+  * `manifest_fingerprint={manifest_fingerprint}`
 
 * The normative `path` SHALL be defined in `dataset_dictionary.layer1.3B.yaml`, i.e.:
   `data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
@@ -715,7 +715,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 * `edge_alias_index_3B` MUST be partitioned by:
 
   * `seed={seed}`
-  * `fingerprint={manifest_fingerprint}`
+  * `manifest_fingerprint={manifest_fingerprint}`
 
 * The normative `path` SHALL be defined in the 3B dictionary, i.e.:
   `data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
@@ -810,9 +810,9 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 4.7.1 For a fixed `{seed, parameter_hash, manifest_fingerprint}`, the following S3 artefacts are **logically immutable**:
 
-* `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-* `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-* `edge_universe_hash_3B@fingerprint={manifest_fingerprint}`.
+* `edge_alias_blob_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `edge_alias_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `edge_universe_hash_3B@manifest_fingerprint={manifest_fingerprint}`.
 
 4.7.2 Once S3 has successfully published these artefacts:
 
@@ -849,7 +849,7 @@ is **non-conformant** with this specification and MUST be corrected under the ch
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B`
 * `path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 * `ordering: []` (blob is a single binary file per `{seed,fingerprint}`; sort concept is N/A)
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -895,7 +895,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B`
 * `path: data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 * `ordering: ["scope","merchant_id"]`
 
   * or `["scope","merchant_key"]` if a composite key is used consistently across 3B; the spec MUST be explicit.
@@ -1033,7 +1033,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B`
 * `path: logs/layer1/3B/gamma_draw/seed={seed}/manifest_fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl`
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 * `ordering: [merchant_id, day_index]`
 
 5.4.2 S3 is RNG-free, so this dataset functions purely as a **guardrail**:
@@ -1578,7 +1578,7 @@ but it MUST NOT:
 7.2.1 `edge_alias_blob_3B` MUST be partitioned **exactly** by:
 
 * `seed={seed}`
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 The canonical path is of the form:
 
@@ -1591,7 +1591,7 @@ No additional partition keys (e.g. `parameter_hash`, `run_id`, or merchant-level
 7.2.2 `edge_alias_index_3B` MUST be partitioned **exactly** by:
 
 * `seed={seed}`
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 with a canonical path of the form:
 
@@ -1692,9 +1692,9 @@ for merchant or edge ordering.
 
 * Once S3 reports PASS and publishes:
 
-  * `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}`,
-  * `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}`,
-  * `edge_universe_hash_3B@fingerprint={manifest_fingerprint}`
+  * `edge_alias_blob_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`,
+  * `edge_alias_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`,
+  * `edge_universe_hash_3B@manifest_fingerprint={manifest_fingerprint}`
 * these artefacts MUST NOT be mutated in place.
 
 7.5.2 On re-execution of S3 for the same `{seed, parameter_hash, manifest_fingerprint}`:
@@ -1829,13 +1829,13 @@ m. S3 does **not** drop any merchant that has edges in `edge_catalogue_3B`: for 
 
 **Blob & index structure**
 
-n. `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and:
+n. `edge_alias_blob_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and:
 
 * has a header conforming to `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`;
 * encodes `layout_version`, `endianness`, `alignment_bytes`, `blob_length_bytes`, `blob_sha256_hex`, and policy IDs/versions as specified;
 * has `blob_sha256_hex` equal to the SHA-256 of the blob content as defined by the layout policy.
 
-o. `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and:
+o. `edge_alias_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and:
 
 * validates against `schemas.3B.yaml#/plan/edge_alias_index_3B`;
 * has one per-merchant row for each merchant that appears in `edge_catalogue_3B` with `edge_count_total > 0`, and no extra per-merchant rows;
@@ -1847,7 +1847,7 @@ o. `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists 
 
 **Edge universe hash descriptor**
 
-p. `edge_universe_hash_3B@fingerprint={manifest_fingerprint}` exists and:
+p. `edge_universe_hash_3B@manifest_fingerprint={manifest_fingerprint}` exists and:
 
 * validates against `schemas.3B.yaml#/validation/edge_universe_hash_3B`;
 * contains `manifest_fingerprint` (and `parameter_hash` if present) matching S0 and S3’s run identity;
@@ -1901,9 +1901,9 @@ q. S3 has emitted **no RNG events** and opened **no RNG streams**:
 
 * verify that S3 outputs exist and validate:
 
-  * `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-  * `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-  * `edge_universe_hash_3B@fingerprint={manifest_fingerprint}`;
+  * `edge_alias_blob_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+  * `edge_alias_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+  * `edge_universe_hash_3B@manifest_fingerprint={manifest_fingerprint}`;
 
 * verify that the alias layout version(s) used by S3 are compatible with the decode logic built into 2B (as indicated by the RNG/routing policy).
 

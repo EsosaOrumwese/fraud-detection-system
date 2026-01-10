@@ -138,8 +138,8 @@ Before 3A.S4 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 
 2. **3A.S0 has succeeded for this `manifest_fingerprint`.**
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` exists and is schema-valid.
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}` exists and is schema-valid.
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid.
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid.
    * `s0_gate_receipt_3A.upstream_gates.segment_1A.status == "PASS"`,
      `segment_1B.status == "PASS"`,
      `segment_2A.status == "PASS"`.
@@ -147,7 +147,7 @@ Before 3A.S4 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 
 3. **3A.S1 has produced a valid escalation queue for this `{seed, manifest_fingerprint}`.**
 
-   * `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}` exists.
+   * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists.
    * It validates against `schemas.3A.yaml#/plan/s1_escalation_queue`.
    * The S1 run-report row for this `{seed, manifest_fingerprint}` indicates `status="PASS"`.
    * If the dataset is missing, schema-invalid, or S1 is not PASS, S4 MUST NOT run.
@@ -161,7 +161,7 @@ Before 3A.S4 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 
 5. **3A.S3 has produced a valid share surface for this run.**
 
-   * `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}` exists and is schema-valid under `schemas.3A.yaml#/plan/s3_zone_shares`.
+   * `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid under `schemas.3A.yaml#/plan/s3_zone_shares`.
    * There is a corresponding S3 run-report row for this `(parameter_hash, manifest_fingerprint, seed, run_id)` (or, at minimum, for this `{seed, manifest_fingerprint}` under the relevant `parameter_hash`) with `status="PASS"`.
    * S4 MUST NOT attempt to “fix up” or re-derive shares; it only runs when S3 is green.
 
@@ -174,7 +174,7 @@ If any of the above are not true, S4 MUST treat the run as **invalid** and MUST 
 S4 is RNG-free but still operates under S0’s gate and sealed-input whitelist for **external** artefacts.
 
 1. **Gate descriptor: `s0_gate_receipt_3A`**
-   S4 MUST read `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` and:
+   S4 MUST read `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` and:
 
    * validate it against `schemas.3A.yaml#/validation/s0_gate_receipt_3A`,
    * confirm that upstream segment gates are `"PASS"` (as in §2.1),
@@ -304,8 +304,8 @@ S4 sits under the same Layer-1 catalogue and S0 gate as S0–S3. It MUST treat t
 
    S4 MUST treat:
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` as the **only evidence** that upstream segments (1A, 1B, 2A) are PASS and that the 3A parameter set is sealed for this manifest;
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}` as the **only list** of external reference/policy artefacts S4 may read directly.
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` as the **only evidence** that upstream segments (1A, 1B, 2A) are PASS and that the 3A parameter set is sealed for this manifest;
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` as the **only list** of external reference/policy artefacts S4 may read directly.
 
    S4 MUST NOT:
 
@@ -322,7 +322,7 @@ Within Segment 3A, S4 depends primarily on three internal datasets.
 
 Dataset:
 
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * Schema: `schemas.3A.yaml#/plan/s1_escalation_queue`.
 
 Authority:
@@ -397,7 +397,7 @@ S2 remains the **sole authority** on priors and the zone universe per country.
 
 Dataset:
 
-* `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * Schema: `schemas.3A.yaml#/plan/s3_zone_shares`.
 
 Authority:
@@ -916,7 +916,7 @@ datasets:
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
     lineage:
@@ -930,8 +930,8 @@ datasets:
 Binding points:
 
 * `id` MUST be `s4_zone_counts` under `owner_subsegment: 3A`.
-* `path` MUST include `seed={seed}` and `fingerprint={manifest_fingerprint}` and MUST NOT introduce additional partition tokens.
-* `partitioning` MUST be exactly `[seed, fingerprint]`.
+* `path` MUST include `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` and MUST NOT introduce additional partition tokens.
+* `partitioning` MUST be exactly `[seed, manifest_fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/plan/s4_zone_counts`.
 * `ordering` expresses the writer-sort key (merchant, then country, then tzid); consumers MUST NOT infer extra semantics from file order.
 
@@ -1039,8 +1039,8 @@ S4 MUST:
 
 Using 3A’s dictionary/registry, S4 resolves and reads:
 
-* `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`,
-* `sealed_inputs_3A@fingerprint={manifest_fingerprint}`.
+* `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`,
+* `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`.
 
 S4 MUST:
 
@@ -1053,11 +1053,11 @@ Failure ⇒ S4 MUST abort; no outputs may be written.
 
 Using dictionary/registry, S4 resolves:
 
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
   (`schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue`),
 * `s2_country_zone_priors@parameter_hash={parameter_hash}`
   (`schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors`),
-* `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
   (`schema_ref: schemas.3A.yaml#/plan/s3_zone_shares`).
 
 S4 MUST:
@@ -2425,7 +2425,7 @@ To support end-to-end tracing across the 3A pipeline:
 
    A 3A validation state MUST be able to:
 
-   * locate `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}` via the 3A dictionary/registry,
+   * locate `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}` via the 3A dictionary/registry,
    * join it to:
 
      * `s1_escalation_queue@{seed,fingerprint}` (for domain and `site_count`),
@@ -2949,7 +2949,7 @@ Different runs and parameter sets may see different S4 versions over time.
 
 3. **No retroactive upgrades.**
 
-   * Existing `s4_zone_counts/seed={s}/fingerprint={F}` artefacts MUST NOT be mutated to fit new contracts.
+   * Existing `s4_zone_counts/seed={s}/manifest_manifest_fingerprint={F}` artefacts MUST NOT be mutated to fit new contracts.
    * If a re-integerisation under a new S4 contract is required, it MUST be treated as a new run:
 
      * either with a new `{seed, manifest_fingerprint, run_id}`, or
@@ -2978,7 +2978,7 @@ This appendix records the symbols and shorthand used in the 3A.S4 design. It has
   Layer-1 hash over the governed parameter set 𝓟 (priors, floor policy, RNG policy, etc.). Fixed before any 3A state runs; S4 itself is not partitioned by it, but it defines which S2/S3 surfaces are in force.
 
 * **`manifest_fingerprint`**
-  Layer-1 manifest hash for a run, used by S0, and as a partition token for S1/S3/S4. For S4, appears as `fingerprint={manifest_fingerprint}`.
+  Layer-1 manifest hash for a run, used by S0, and as a partition token for S1/S3/S4. For S4, appears as `manifest_fingerprint={manifest_fingerprint}`.
 
 * **`seed`**
   Layer-1 global RNG seed (`uint64`). S4 does **not** consume RNG, but uses `seed` as part of its partition key and lineage.

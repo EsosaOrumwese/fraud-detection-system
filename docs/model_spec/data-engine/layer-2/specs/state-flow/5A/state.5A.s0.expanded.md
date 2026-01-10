@@ -279,7 +279,7 @@ If any of these catalogue/contract preconditions are not met, 5A.S0 MUST fail fa
   * `validation_bundle_*` and
   * `_passed.flag`
 
-  MUST resolve to a unique, concrete dataset definition (schema_ref, partitioning, manifest_key) which in turn maps to a physical location under `fingerprint={manifest_fingerprint}`.
+  MUST resolve to a unique, concrete dataset definition (schema_ref, partitioning, manifest_key) which in turn maps to a physical location under `manifest_fingerprint={manifest_fingerprint}`.
 
 It is **not** a precondition that all upstream segments have actually passed; S0’s job is to inspect and verify that status. It **is** a precondition that their validation artefacts are addressable in the catalogue.
 
@@ -404,7 +404,7 @@ Authority boundaries:
 * These contracts are the **sole authority** for:
 
   * dataset shapes (columns, types, keys, partitioning),
-  * path templates and partition tokens (e.g. `fingerprint={manifest_fingerprint}`),
+  * path templates and partition tokens (e.g. `manifest_fingerprint={manifest_fingerprint}`),
   * logical roles (e.g. “validation bundle”, “scenario calendar”, “merchant reference”).
 
 * 5A.S0:
@@ -428,7 +428,7 @@ The primary *data* inputs to 5A.S0 are the **validation artefacts** of upstream 
 
 5A.S0 MUST:
 
-* Discover these artefacts via the dataset dictionaries + artefact registries, filtered to `fingerprint={manifest_fingerprint}`.
+* Discover these artefacts via the dataset dictionaries + artefact registries, filtered to `manifest_fingerprint={manifest_fingerprint}`.
 * Read:
 
   * the `_passed.flag` file contents;
@@ -678,7 +678,7 @@ At minimum, each row in `s0_gate_receipt_5A` MUST contain:
 * Partitioning:
 
   * `s0_gate_receipt_5A` MUST be **partitioned only by**
-    `fingerprint={manifest_fingerprint}`.
+    `manifest_fingerprint={manifest_fingerprint}`.
 * Primary key:
 
   * For each `manifest_fingerprint`, there MUST be **exactly one logical row**.
@@ -714,7 +714,7 @@ Each row in `sealed_inputs_5A` MUST represent one logical artefact and MUST incl
 * Schema and location:
 
   * `schema_ref` (JSON-Schema anchor, e.g. `schemas.layer1.yaml#/egress/site_locations`)
-  * `path_template` (catalogue path template, with tokens like `fingerprint={manifest_fingerprint}`)
+  * `path_template` (catalogue path template, with tokens like `manifest_fingerprint={manifest_fingerprint}`)
   * `partition_keys` (list of partition columns for data files, if applicable)
 
 * Integrity:
@@ -737,7 +737,7 @@ Each row in `sealed_inputs_5A` MUST represent one logical artefact and MUST incl
 * Partitioning:
 
   * `sealed_inputs_5A` MUST be **partitioned only by**
-    `fingerprint={manifest_fingerprint}`.
+    `manifest_fingerprint={manifest_fingerprint}`.
 * Primary key:
 
   * The tuple
@@ -765,7 +765,7 @@ If implemented, `scenario_manifest_5A` is a convenience projection of the scenar
 
 **Identity**
 
-* Partitioned only by `fingerprint={manifest_fingerprint}`.
+* Partitioned only by `manifest_fingerprint={manifest_fingerprint}`.
 * Exactly one logical row per `manifest_fingerprint`.
 * If present, its values MUST be derivable entirely from:
 
@@ -784,7 +784,7 @@ The following identity relationships are binding:
 
    * Every row in `s0_gate_receipt_5A`, `sealed_inputs_5A`, and (if present) `scenario_manifest_5A` MUST embed a `manifest_fingerprint` value that:
 
-     * exactly matches the partition token `fingerprint={manifest_fingerprint}`; and
+     * exactly matches the partition token `manifest_fingerprint={manifest_fingerprint}`; and
      * matches the fingerprint used to locate upstream validation bundles for 1A–3B.
 
 2. **Parameter-hash consistency**
@@ -961,7 +961,7 @@ If any of these are missing or invalid, S0 MUST fail with an appropriate configu
 
    * the dataset representing `validation_bundle_seg` (bundle directory), and
    * the dataset representing `_passed.flag` (flag file),
-     for `fingerprint={manifest_fingerprint}`.
+     for `manifest_fingerprint={manifest_fingerprint}`.
 
 2. If either cannot be resolved in the catalogue:
 
@@ -1029,7 +1029,7 @@ This map will be embedded into `s0_gate_receipt_5A` in Step 6.
    * Determine if it is parameter-scoped or fingerprint-scoped:
 
      * If the path template contains `parameter_hash={parameter_hash}`, treat it as parameter-scoped.
-     * If it contains `fingerprint={manifest_fingerprint}`, treat it as fingerprint-scoped.
+     * If it contains `manifest_fingerprint={manifest_fingerprint}`, treat it as fingerprint-scoped.
    * For parameter-scoped artefacts:
 
      * Ensure the resolved entry’s `parameter_hash` matches the run’s `parameter_hash`.
@@ -1086,7 +1086,7 @@ For each `candidate` in `CANDIDATES`:
    * Instantiate the concrete path(s) from `path_template`, substituting `parameter_hash` and/or `manifest_fingerprint` as required.
    * If the artefact is a dataset with partitions:
 
-     * Resolve the directory for the relevant partition(s) (commonly just `fingerprint={manifest_fingerprint}` and, for parameter-scoped, also `parameter_hash={parameter_hash}`).
+     * Resolve the directory for the relevant partition(s) (commonly just `manifest_fingerprint={manifest_fingerprint}` and, for parameter-scoped, also `parameter_hash={parameter_hash}`).
    * Compute or read the integrity digest:
 
      * If the registry already provides a `sha256_hex` for this artefact and fingerprint, use that.
@@ -1225,8 +1225,8 @@ This digest will be embedded into `s0_gate_receipt_5A` and can be used by downst
 
    * Using the 5A dataset dictionary, determine the canonical locations for:
 
-     * `sealed_inputs_5A` under `fingerprint={manifest_fingerprint}`, and
-     * `s0_gate_receipt_5A` under `fingerprint={manifest_fingerprint}`.
+     * `sealed_inputs_5A` under `manifest_fingerprint={manifest_fingerprint}`, and
+     * `s0_gate_receipt_5A` under `manifest_fingerprint={manifest_fingerprint}`.
 
    * If both datasets already exist:
 
@@ -1348,7 +1348,7 @@ For every row in every 5A.S0 output:
 * The embedded column `manifest_fingerprint` MUST:
 
   * be present and non-null, and
-  * exactly equal the value used in the partition token `fingerprint={manifest_fingerprint}`.
+  * exactly equal the value used in the partition token `manifest_fingerprint={manifest_fingerprint}`.
 
 * The embedded `parameter_hash` (where present):
 
@@ -1503,13 +1503,13 @@ This section defines **when 5A.S0 itself is considered green**, and the **gating
 2. **Outputs exist and are schema-valid**
 
    * A single `s0_gate_receipt_5A` row exists in the expected partition:
-     `fingerprint={manifest_fingerprint}`
+     `manifest_fingerprint={manifest_fingerprint}`
      and conforms to `schemas.5A.yaml#/validation/s0_gate_receipt_5A`.
    * A `sealed_inputs_5A` dataset exists in the same fingerprint partition, conforms to `schemas.5A.yaml#/validation/sealed_inputs_5A`, and satisfies its primary-key and non-null constraints.
 
 3. **Identity invariants hold**
 
-   * Embedded `manifest_fingerprint` values in **all** rows equal the partition token `fingerprint={manifest_fingerprint}`.
+   * Embedded `manifest_fingerprint` values in **all** rows equal the partition token `manifest_fingerprint={manifest_fingerprint}`.
    * Embedded `parameter_hash` values in `sealed_inputs_5A` equal the run context `parameter_hash` and are constant for this fingerprint.
    * `s0_gate_receipt_5A.parameter_hash` equals the same `parameter_hash`.
 
@@ -2780,7 +2780,7 @@ This appendix standardises the short-hands, symbols and abbreviations used in th
 | `parameter_hash`       | Opaque identifier of the **parameter pack** (policies, configs, scenario pack) used for this run.       |
 | `manifest_fingerprint` | Opaque identifier of the **closed world manifest** (set of artefacts) for this run.                     |
 | `run_id`               | Unique identifier of this execution of 5A.S0 for a given `(parameter_hash, manifest_fingerprint)`.      |
-| `fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `fingerprint={manifest_fingerprint}`).        |
+| `fingerprint`          | Partition token derived from `manifest_fingerprint` (e.g. `manifest_fingerprint={manifest_fingerprint}`).        |
 | `s0_spec_version`      | Semantic version of the 5A.S0 spec that the implementation claims to follow.                            |
 | `scenario_id`          | Identifier of the scenario active for this fingerprint (e.g. `"baseline"`, `"bf_2025_stress"`).         |
 | `scenario_pack_id`     | Optional identifier of the scenario configuration pack / bundle.                                        |
@@ -2816,7 +2816,7 @@ This appendix standardises the short-hands, symbols and abbreviations used in th
 | `manifest_key`      | Manifest key used to address this artefact in the engine’s manifest (if defined by registry).                                                                          |
 | `role`              | 5A-local role classification, e.g. `"upstream_egress"`, `"reference_data"`, `"scenario_config"`, `"policy"`, `"contract"`, `"validation_bundle"`, `"validation_flag"`. |
 | `schema_ref`        | JSON-Schema anchor describing the artefact’s shape (e.g. `schemas.layer1.yaml#/egress/site_locations`).                                                                |
-| `path_template`     | Catalogue path template with tokens (e.g. `fingerprint={manifest_fingerprint}`).                                                                                       |
+| `path_template`     | Catalogue path template with tokens (e.g. `manifest_fingerprint={manifest_fingerprint}`).                                                                                       |
 | `partition_keys`    | List of partition columns for the artefact’s dataset (if applicable).                                                                                                  |
 | `sha256_hex`        | Integrity digest of the artefact content or index for this fingerprint.                                                                                                |
 | `version`           | Version string for the artefact (e.g. semver, data-version).                                                                                                           |

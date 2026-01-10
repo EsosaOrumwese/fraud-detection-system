@@ -194,7 +194,7 @@ For the target `manifest_fingerprint`, S5 MUST:
 
 1. **Validate S0 artefacts**
 
-   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `fingerprint={manifest_fingerprint}` partition.
+   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `manifest_fingerprint={manifest_fingerprint}` partition.
    * Validate both against their schema anchors in `schemas.layer3.yaml`:
 
      * `#/gate/6A/s0_gate_receipt_6A`
@@ -237,7 +237,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s1_party_base_6A` partition for `(seed={seed}, fingerprint={mf})`:
+* `s1_party_base_6A` partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s1/party_base`,
@@ -252,7 +252,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, fingerprint={mf})`:
+* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exist,
   * validate against `#/s2/account_base` and `#/s2/party_product_holdings`,
@@ -267,7 +267,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, fingerprint={mf})`:
+* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exist,
   * validate against their schema anchors,
@@ -282,7 +282,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` for `(seed={seed}, fingerprint={mf})`:
+* `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exist,
   * validate against their schema anchors,
@@ -1003,7 +1003,7 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
 * **Contents**
 
-  Under `validation/fingerprint={manifest_fingerprint}/`, S5 must materialise:
+  Under `validation/manifest_fingerprint={manifest_fingerprint}/`, S5 must materialise:
 
   * `validation_bundle_index_6A` - an index object that lists:
 
@@ -1747,7 +1747,7 @@ For each fraud-role dataset (`s5_*_fraud_roles_6A`):
 * Partition keys:
 
 ```text
-[seed, fingerprint]
+[seed, manifest_fingerprint]
 ```
 
 * Path template (schematic):
@@ -1755,12 +1755,12 @@ For each fraud-role dataset (`s5_*_fraud_roles_6A`):
 ```text
 data/layer3/6A/s5_party_fraud_roles_6A/
   seed={seed}/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
   s5_party_fraud_roles_6A.parquet
 
 data/layer3/6A/s5_account_fraud_roles_6A/
   seed={seed}/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
   s5_account_fraud_roles_6A.parquet
 
 ... etc for device/ip roles
@@ -1770,19 +1770,19 @@ For merchants, you must choose one of:
 
 * seed-independent roles:
 
-  * partitioning `[fingerprint]`,
-  * path like `.../fingerprint={mf}/s5_merchant_fraud_roles_6A.parquet`,
+  * partitioning `[manifest_fingerprint]`,
+  * path like `.../manifest_fingerprint={mf}/s5_merchant_fraud_roles_6A.parquet`,
   * and omit `seed` as an axis; **or**
 
 * seed-scoped roles:
 
-  * same `[seed, fingerprint]` partitioning as others.
+  * same `[seed, manifest_fingerprint]` partitioning as others.
 
 Whichever you choose, it becomes part of the contract and must be consistent with the dataset dictionary & PKs.
 
 **Binding rules:**
 
-* `seed={seed}` and `fingerprint={manifest_fingerprint}` tokens MUST match the columns inside the data.
+* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` tokens MUST match the columns inside the data.
 * No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be added.
 * Consumers MUST resolve locations via the catalogue and substitute these tokens; hard-coded paths are out of spec.
 
@@ -1793,14 +1793,14 @@ Validation & HashGate artefacts are **fingerprint-scoped**:
 * Partition keys:
 
 ```text
-[fingerprint]
+[manifest_fingerprint]
 ```
 
 * Path templates (schematic):
 
 ```text
 data/layer3/6A/validation/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
     s5_validation_report_6A.json
     s5_issue_table_6A.parquet          # optional
     validation_bundle_index_6A.json
@@ -1810,7 +1810,7 @@ data/layer3/6A/validation/
 
 **Binding rules:**
 
-* Only `fingerprint={manifest_fingerprint}` appears as a partition token here.
+* Only `manifest_fingerprint={manifest_fingerprint}` appears as a partition token here.
 * These artefacts represent *the* 6A validation state for that world, independent of seed.
 
 ---
@@ -2144,7 +2144,7 @@ For each entity type where S5 emits roles (party, account, merchant, device, IP)
 
    * `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A` (and `s5_merchant_fraud_roles_6A` if seed-scoped) MUST:
 
-     * exist for `(seed={seed}, fingerprint={mf})`,
+     * exist for `(seed={seed}, manifest_manifest_fingerprint={mf})`,
      * validate against their schema anchors in `schemas.6A.yaml`,
      * have `columns_strict: true` enforced.
 
@@ -2274,7 +2274,7 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 
 11. **`s5_validation_report_6A` exists, valid & complete**
 
-* `s5_validation_report_6A` exists under `validation/fingerprint={mf}/`, validates against its schema, and contains:
+* `s5_validation_report_6A` exists under `validation/manifest_fingerprint={mf}/`, validates against its schema, and contains:
 
   * all checks defined in S5 validation policy,
   * a well-defined `overall_status ∈ {PASS, WARN, FAIL}`.
@@ -3376,7 +3376,7 @@ The following are **breaking** and MUST NOT be introduced without:
 
    * Changing partitioning:
 
-     * altering `[seed, fingerprint]` to something else,
+     * altering `[seed, manifest_fingerprint]` to something else,
      * making HashGate artefacts seed-scoped instead of fingerprint-scoped.
 
 2. **Changing semantics or encoding of core role fields**
@@ -3456,7 +3456,7 @@ Downstream systems are not passive; they have obligations under this spec.
 
      * resolve S5 datasets via the dictionary/registry,
      * resolve schemas via `schema_ref` → `schemas.6A.yaml` / `schemas.layer3.yaml`,
-     * not assume raw file layouts beyond documented `seed={seed}` / `fingerprint={mf}` templates.
+     * not assume raw file layouts beyond documented `seed={seed}` / `manifest_fingerprint={mf}` templates.
 
 4. **No re-definition of S5 semantics**
 
@@ -3753,7 +3753,7 @@ S5’s validation layer uses:
 ### 13.6 HashGate & bundle symbols
 
 * **`validation_bundle_6A`**
-  Conceptual name for the directory `data/layer3/6A/validation/manifest_fingerprint={mf}/` containing:
+  Conceptual name for the directory `data/layer3/6A/validation/manifest_manifest_fingerprint={mf}/` containing:
 
   * `s5_validation_report_6A`,
   * `s5_issue_table_6A` (if present),

@@ -228,8 +228,8 @@ If any of these statuses is not `"PASS"`, S2 MUST treat the 3B environment as **
 
 2.3.1 S2 MUST treat 3B.S1 as a hard functional precondition. For a given `{seed, manifest_fingerprint}`, S2 MAY proceed only if:
 
-* `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and is schema-valid;
-* `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and is schema-valid.
+* `virtual_classification_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid;
+* `virtual_settlement_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid.
 
 2.3.2 Before constructing edges, S2 MUST:
 
@@ -696,7 +696,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 * `edge_catalogue_3B` MUST be partitioned by:
 
   * `seed={seed}`
-  * `fingerprint={manifest_fingerprint}`
+  * `manifest_fingerprint={manifest_fingerprint}`
 * The normative path pattern SHALL be defined in `dataset_dictionary.layer1.3B.yaml`, e.g.:
   `data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/…`
 * `writer_sort` MUST be defined in the dictionary and respected by S2. A recommended law is:
@@ -734,7 +734,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 * `owner_subsegment: 3B`;
 * `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B`;
 * `path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`;
-* `partitioning: [seed, fingerprint]`;
+* `partitioning: [seed, manifest_fingerprint]`;
 * `ordering` reflecting the key structure (e.g. `["scope","merchant_id"]`, as defined in the schema).
 
 4.3.4 Downstream obligations:
@@ -753,7 +753,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 
 4.4.2 On disk, identity SHALL be expressed via:
 
-* `seed={seed}` and `fingerprint={manifest_fingerprint}` in the directory path (exactly as declared in the dictionary);
+* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` in the directory path (exactly as declared in the dictionary);
 * a single set of files per `{seed, fingerprint}` for each dataset.
 
 4.4.3 The schemas for these datasets MAY include explicit columns:
@@ -853,7 +853,7 @@ is non-conformant with this specification and MUST be corrected or versioned app
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B`
 * `path: data/layer1/3B/edge_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 * `ordering: ["merchant_id","edge_id"]`
   (or `["merchant_key","edge_id"]` if a composite merchant key is adopted across 3B; in that case the spec MUST be explicit).
 
@@ -959,7 +959,7 @@ is non-conformant with this specification and MUST be corrected or versioned app
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B`
 * `path: data/layer1/3B/edge_catalogue_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 * `ordering`:
 
   * typically `["merchant_id"]` for per-merchant rows;
@@ -1417,14 +1417,14 @@ A separate substream (e.g. `edge_tile_assign`) MAY be used if S2 performs additi
 
 * construct in-memory edge rows populated with all required fields from §5.1;
 * sort them by `writer_sort` (e.g. `["merchant_id","edge_id"]`);
-* write them to `edge_catalogue_3B@seed={seed}, fingerprint={manifest_fingerprint}` using an atomic publish protocol.
+* write them to `edge_catalogue_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` using an atomic publish protocol.
 
 6.7.3.2 S2 MUST then construct `edge_catalogue_index_3B`:
 
 * derive per-merchant counts and digests from `edge_catalogue_3B` using the canonical key and ordering;
 * compute a global edge digest using a documented law (e.g. concatenating per-merchant digests in sorted merchant order and hashing that);
 * populate index rows in a stable order;
-* write `edge_catalogue_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` atomically.
+* write `edge_catalogue_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` atomically.
 
 6.7.3.3 S2 MUST ensure that:
 
@@ -1502,14 +1502,14 @@ but it MUST NOT:
 7.2.1 `edge_catalogue_3B` MUST be partitioned **exactly** by:
 
 * `seed={seed}`
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 and by no additional partition keys. Its `path_template` MUST embed these tokens and no others.
 
 7.2.2 `edge_catalogue_index_3B` MUST also be partitioned **exactly** by:
 
 * `seed={seed}`
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 with a `path_template` of the same form, and MUST share the same `{seed, manifest_fingerprint}` as the corresponding `edge_catalogue_3B`.
 
@@ -1692,7 +1692,7 @@ g. Any feature flags/modes that S2 depends on (e.g. virtual edges enabled/disabl
 
 **S1 contracts & virtual set**
 
-h. `virtual_classification_3B@seed={seed},fingerprint={manifest_fingerprint}` and `virtual_settlement_3B@seed={seed},fingerprint={manifest_fingerprint}` exist and validate against their schemas.
+h. `virtual_classification_3B@seed={seed},manifest_fingerprint={manifest_fingerprint}` and `virtual_settlement_3B@seed={seed},manifest_fingerprint={manifest_fingerprint}` exist and validate against their schemas.
 i. The virtual merchant set `V` is derived **only** from `virtual_classification_3B` as those rows with `is_virtual = 1` (or `classification = "VIRTUAL"`).
 j. For each `m ∈ V`, there is exactly one matching row in `virtual_settlement_3B` with the same merchant key.
 k. There are no rows in `virtual_settlement_3B` for merchants not in `V`, unless explicitly allowed by S1’s contract and documented.
@@ -1768,9 +1768,9 @@ z. `tz_source` is set to an allowed enum value and reflects the actual resolutio
 
 **Edge catalogue & index correctness (Phase F)**
 
-aa. `edge_catalogue_3B@seed={seed},fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_3B`.
+aa. `edge_catalogue_3B@seed={seed},manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_3B`.
 
-bb. `edge_catalogue_index_3B@seed={seed},fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_index_3B`.
+bb. `edge_catalogue_index_3B@seed={seed},manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_index_3B`.
 
 cc. Structural invariants:
 

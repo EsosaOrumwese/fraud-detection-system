@@ -91,7 +91,7 @@ reference_data:
     owner_layer: 1
     owner_segment: 2A
     status: required
-    description: Validation bundle for 2A publish (one per fingerprint).
+    description: Validation bundle for 2A publish (one per manifest_fingerprint).
     version: '{manifest_fingerprint}'
     path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [manifest_fingerprint]
@@ -1809,7 +1809,7 @@ datasets:
     pii_class: synthetic_customer
     retention_class: core_entity
 
-  # --- S5 validation & HashGate (fingerprint-scoped) ---
+  # --- S5 validation & HashGate (manifest_fingerprint-scoped) ---
 
   - id: s5_validation_report_6A
     owner_layer: 3

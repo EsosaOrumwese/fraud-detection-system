@@ -243,13 +243,13 @@ If any of these statuses is not `"PASS"`, S4 MUST treat the 3B environment as **
 
 2.3.1 S4 MUST treat S1–S3 as functional preconditions. For a given `{seed, manifest_fingerprint}`, S4 MAY proceed only if:
 
-* `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/virtual_classification_3B`;
-* `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/virtual_settlement_3B`;
-* `edge_catalogue_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_3B`;
-* `edge_catalogue_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_index_3B`;
-* `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and passes header-level validation against `schemas.3B.yaml#/egress/edge_alias_blob_3B`;
-* `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_alias_index_3B`;
-* `edge_universe_hash_3B@fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/validation/edge_universe_hash_3B`.
+* `virtual_classification_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/virtual_classification_3B`;
+* `virtual_settlement_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/virtual_settlement_3B`;
+* `edge_catalogue_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_3B`;
+* `edge_catalogue_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_index_3B`;
+* `edge_alias_blob_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and passes header-level validation against `schemas.3B.yaml#/egress/edge_alias_blob_3B`;
+* `edge_alias_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_alias_index_3B`;
+* `edge_universe_hash_3B@manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/validation/edge_universe_hash_3B`.
 
 2.3.2 Before compiling routing/validation contracts, S4 MUST at least:
 
@@ -739,11 +739,11 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 4.5.1 All S4 outputs are manifest-scoped control-plane artefacts. Their **on-disk identity** is:
 
-* `fingerprint={manifest_fingerprint}` as the only partition key.
+* `manifest_fingerprint={manifest_fingerprint}` as the only partition key.
 
 4.5.2 `virtual_routing_policy_3B` and `virtual_validation_contract_3B` MUST:
 
-* be stored under their respective `path`s with `fingerprint={manifest_fingerprint}`;
+* be stored under their respective `path`s with `manifest_fingerprint={manifest_fingerprint}`;
 * not include `seed` or `run_id` as partition keys.
 
 If a future version introduces per-seed variants, this MUST be treated as a change in partition law and go through change control.
@@ -823,7 +823,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
   * `manifest_fingerprint`
 
-    * type: string, MUST match `fingerprint={manifest_fingerprint}` partition;
+    * type: string, MUST match `manifest_fingerprint={manifest_fingerprint}` partition;
     * SHOULD reuse `schemas.layer1.yaml#/validation/manifest_fingerprint_resolved`.
 
   * `parameter_hash`
@@ -1044,7 +1044,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 5.5.2 The engine and downstream components (2B, validation harness) MUST:
 
 * resolve `virtual_routing_policy_3B` and `virtual_validation_contract_3B` via the dictionary, not via hard-coded paths;
-* respect partitioning (`fingerprint={manifest_fingerprint}`) and not infer additional partition keys or naming patterns.
+* respect partitioning (`manifest_fingerprint={manifest_fingerprint}`) and not infer additional partition keys or naming patterns.
 
 5.5.3 Any new S4-owned dataset introduced in the future (e.g. additional policy layers, scenario-specific routing contracts) MUST:
 
@@ -1285,7 +1285,7 @@ it MUST fail with a FATAL S1/S2-contract error and MUST NOT attempt to derive tz
 
 6.6.2 S4 MUST then publish outputs using an **atomic publish** protocol per `manifest_fingerprint`:
 
-1. Write `virtual_routing_policy_3B` to a temporary file under `fingerprint={manifest_fingerprint}`.
+1. Write `virtual_routing_policy_3B` to a temporary file under `manifest_fingerprint={manifest_fingerprint}`.
 2. Write `virtual_validation_contract_3B` to a temporary directory or file set under the same fingerprint.
 3. Validate both artefacts in place as per 6.6.1.
 4. Move/rename temporary artefacts into their canonical paths in a way that does not expose partial state (e.g. directory-level rename or carefully ordered renames).
@@ -1362,19 +1362,19 @@ but it MUST NOT:
 
 7.2.1 `virtual_routing_policy_3B` MUST be partitioned **exactly** by:
 
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 No additional partition keys (e.g. `seed`, `parameter_hash`, `run_id`) are allowed in its dataset `path`.
 
 7.2.2 `virtual_validation_contract_3B` MUST be partitioned **exactly** by:
 
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 Again, no additional partition keys are allowed unless explicitly introduced via a future, versioned contract change.
 
 7.2.3 If `s4_run_summary_3B` is produced, it MUST also be partitioned **exactly** by:
 
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 7.2.4 Any future change that introduces per-seed variants of these artefacts (e.g. per-seed routing policy) is a change in **partition law**, and MUST:
 
@@ -1589,7 +1589,7 @@ o. Any per-merchant routing modes (if supported) in `virtual_routing_policy_3B` 
 
 p. `virtual_validation_contract_3B`:
 
-* exists for `fingerprint={manifest_fingerprint}`;
+* exists for `manifest_fingerprint={manifest_fingerprint}`;
 * validates against `schemas.3B.yaml#/egress/virtual_validation_contract_3B`;
 * has unique `test_id` values across all rows.
 
@@ -2304,7 +2304,7 @@ Remediation:
 10.4.1 S4 MUST ensure that its outputs, logs and run-report entries are **correlatable** via identity:
 
 * Logs MUST include `{segment_id="3B", state_id="S4", manifest_fingerprint, seed, parameter_hash}` and optionally `run_id`;
-* S4 outputs MUST adhere to partition laws (`fingerprint={manifest_fingerprint}`);
+* S4 outputs MUST adhere to partition laws (`manifest_fingerprint={manifest_fingerprint}`);
 * Any identity echoes in `virtual_routing_policy_3B` and `virtual_validation_contract_3B` (e.g. `manifest_fingerprint`, `parameter_hash`, `edge_universe_hash`) MUST match S0 and S3.
 
 10.4.2 Given a manifest, an operator MUST be able to:
@@ -2814,7 +2814,7 @@ MUST be coordinated with S4:
   Tuple-hash over the governed 3B parameter set (including any S4-relevant flags and profiles). Echoed in S4 outputs for identity, but not a partition key.
 
 * **`manifest_fingerprint`**
-  Hash of the Layer-1 manifest (ingress, artefacts, code, policies) as defined by S0. Primary partition key for all S4 datasets (`fingerprint={manifest_fingerprint}`).
+  Hash of the Layer-1 manifest (ingress, artefacts, code, policies) as defined by S0. Primary partition key for all S4 datasets (`manifest_fingerprint={manifest_fingerprint}`).
 
 * **`run_id`**
   Optional, opaque identifier for a concrete S4 execution under a given `{seed, parameter_hash, manifest_fingerprint}`. Used for logging / run-report; MUST NOT affect semantics or hashes.

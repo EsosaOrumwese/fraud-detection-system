@@ -99,7 +99,7 @@ S1 only runs for a `(manifest_fingerprint, seed)` pair if **all** of the followi
 
 1. **S0 gate artefacts exist and are structurally valid** for the world:
 
-   * `s0_gate_receipt_6A` exists under the correct `fingerprint={manifest_fingerprint}` partition and validates against `schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A`.
+   * `s0_gate_receipt_6A` exists under the correct `manifest_fingerprint={manifest_fingerprint}` partition and validates against `schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A`.
    * `sealed_inputs_6A` exists under the same partition and validates against `schemas.layer3.yaml#/gate/6A/sealed_inputs_6A`.
 
 2. **Digest check passes**:
@@ -968,7 +968,7 @@ Implementation may vectorise draws for performance, but must preserve:
 
   with partitioning and ordering as per the dictionary:
 
-  * partitions: `[seed, fingerprint]`,
+  * partitions: `[seed, manifest_fingerprint]`,
   * writer sort, e.g.: `(country_iso, segment_id, party_type, party_id)`.
 
 * Enforce:
@@ -1076,7 +1076,7 @@ Both S1 datasets are **world+seed scoped**.
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path token usage (schematic):
@@ -1084,7 +1084,7 @@ Both S1 datasets are **world+seed scoped**.
   ```text
   data/layer3/6A/s1_party_base_6A/
     seed={seed}/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
     s1_party_base_6A.parquet
   ```
 
@@ -1093,7 +1093,7 @@ Both S1 datasets are **world+seed scoped**.
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path token usage (schematic):
@@ -1101,13 +1101,13 @@ Both S1 datasets are **world+seed scoped**.
   ```text
   data/layer3/6A/s1_party_summary_6A/
     seed={seed}/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
     s1_party_summary_6A.parquet
   ```
 
 **Binding rules:**
 
-* The **path tokens** `seed={seed}` and `fingerprint={manifest_fingerprint}` must match the corresponding columns inside the datasets (no “lying” partitions).
+* The **path tokens** `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` must match the corresponding columns inside the datasets (no “lying” partitions).
 
 * No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be introduced for S1 business datasets.
 

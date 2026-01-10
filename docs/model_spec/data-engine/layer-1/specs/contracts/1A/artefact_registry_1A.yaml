@@ -1234,7 +1234,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.1A.output.outlet_catalogue
     license: Proprietary-Internal
-    role: Final outlet stubs (one row per site), deterministic partitions by seed & fingerprint.
+    role: Final outlet stubs (one row per site), deterministic partitions by seed & manifest_fingerprint.
     dependencies: [s3_candidate_set, rng_event_residual_rank, rng_event_sequence_finalize]
     source: internal
     owner: {owner_team: null}
@@ -1242,7 +1242,7 @@ subsegments:
     environment: [runtime]
     schema: schemas.1A.yaml#/egress/outlet_catalogue
     cross_layer: true
-    notes: 'ZSTD level 3; path pattern enforced by `storage_path_pattern`. Consumption gate: 1B MUST verify that `_passed.flag` content hash equals SHA256(`validation_bundle_1A`) for the same `fingerprint` before reading this dataset.'
+    notes: 'ZSTD level 3; path pattern enforced by `storage_path_pattern`. Consumption gate: 1B MUST verify that `_passed.flag` content hash equals SHA256(`validation_bundle_1A`) for the same `manifest_fingerprint` before reading this dataset.'
 
   - name: s3_candidate_set
     path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
@@ -1433,7 +1433,7 @@ subsegments:
     environment: [ci, runtime]
     schema: schemas.layer1.yaml#/validation/passed_flag
     cross_layer: false
-    notes: Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to SHA256(bundle) for the same `fingerprint`; consumers must verify this prior to reading `outlet_catalogue`.
+    notes: Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to SHA256(bundle) for the same `manifest_fingerprint`; consumers must verify this prior to reading `outlet_catalogue`.
 
   - name: validation_bundle_index_1A
     path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json

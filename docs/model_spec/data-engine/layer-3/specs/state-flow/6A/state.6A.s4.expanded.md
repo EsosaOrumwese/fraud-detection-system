@@ -146,7 +146,7 @@ For the target `manifest_fingerprint`, S4 MUST:
 
 1. **Validate S0 artefacts**
 
-   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `fingerprint={manifest_fingerprint}` partitions.
+   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `manifest_fingerprint={manifest_fingerprint}` partitions.
    * Validate both against their schema anchors in `schemas.layer3.yaml`:
 
      * `#/gate/6A/s0_gate_receipt_6A`
@@ -189,7 +189,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s1_party_base_6A` partition for `(seed={seed}, fingerprint={mf})`:
+* `s1_party_base_6A` partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s1/party_base`,
@@ -204,7 +204,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, fingerprint={mf})`:
+* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exist,
   * validate against their schema anchors,
@@ -219,7 +219,7 @@ status     == "PASS"
 error_code == "" or null
 ```
 
-* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` partitions for `(seed={seed}, fingerprint={mf})`:
+* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exist,
   * validate against their schema anchors,
@@ -884,7 +884,7 @@ For `s4_device_base_6A`:
 
 * **World consistency:**
 
-  * All rows in a `(seed={seed}, fingerprint={mf})` partition MUST have those `seed` and `manifest_fingerprint` values.
+  * All rows in a `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST have those `seed` and `manifest_fingerprint` values.
   * All rows for `(mf, seed)` MUST share the same `parameter_hash`.
 
 * **Closed-world semantics for devices:**
@@ -967,7 +967,7 @@ For `s4_ip_base_6A`:
 
 * **World consistency:**
 
-  * All rows in a `(seed={seed}, fingerprint={mf})` partition MUST use those values.
+  * All rows in a `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST use those values.
   * All rows for `(mf, seed)` MUST share the same `parameter_hash`.
 
 * **Closed-world semantics for IPs:**
@@ -1754,7 +1754,7 @@ For each device instance:
 
 3. **Write dataset**
 
-   * To `data/layer3/6A/s4_device_base_6A/seed={seed}/manifest_fingerprint={mf}/...`
+   * To `data/layer3/6A/s4_device_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...`
    * Using canonical ordering from the dataset dictionary.
    * Validate against `schemas.6A.yaml#/s4/device_base`.
 
@@ -1938,7 +1938,7 @@ All S4 datasets are **world+seed scoped** and partitioned identically.
 * Partition keys:
 
 ```text
-[seed, fingerprint]
+[seed, manifest_fingerprint]
 ```
 
 * Path template (schematic):
@@ -1946,7 +1946,7 @@ All S4 datasets are **world+seed scoped** and partitioned identically.
 ```text
 data/layer3/6A/s4_device_base_6A/
   seed={seed}/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
   s4_device_base_6A.parquet
 ```
 
@@ -1955,7 +1955,7 @@ data/layer3/6A/s4_device_base_6A/
 * Partition keys:
 
 ```text
-[seed, fingerprint]
+[seed, manifest_fingerprint]
 ```
 
 * Path template:
@@ -1963,7 +1963,7 @@ data/layer3/6A/s4_device_base_6A/
 ```text
 data/layer3/6A/s4_ip_base_6A/
   seed={seed}/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
   s4_ip_base_6A.parquet
 ```
 
@@ -1972,7 +1972,7 @@ data/layer3/6A/s4_ip_base_6A/
 * Partition keys:
 
 ```text
-[seed, fingerprint]
+[seed, manifest_fingerprint]
 ```
 
 * Path templates (schematic):
@@ -1980,12 +1980,12 @@ data/layer3/6A/s4_ip_base_6A/
 ```text
 data/layer3/6A/s4_device_links_6A/
   seed={seed}/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
   s4_device_links_6A.parquet
 
 data/layer3/6A/s4_ip_links_6A/
   seed={seed}/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
   s4_ip_links_6A.parquet
 ```
 
@@ -1996,19 +1996,19 @@ If implemented:
 * Partition keys:
 
 ```text
-[seed, fingerprint]
+[seed, manifest_fingerprint]
 ```
 
 * Path templates:
 
 ```text
-data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/manifest_fingerprint={mf}/...
-data/layer3/6A/s4_network_summary_6A/seed={seed}/manifest_fingerprint={mf}/...
+data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+data/layer3/6A/s4_network_summary_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
 ```
 
 **Binding rules:**
 
-* `seed={seed}` and `fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns in the data.
+* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns in the data.
 * No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be introduced for S4 business datasets.
 * Consumers MUST discover locations via the catalogue (dictionary/registry) and substitute these tokens; hard-coded paths are out-of-spec.
 
@@ -2300,17 +2300,17 @@ For a given `(manifest_fingerprint, seed)`, 6A.S4 is **PASS** *iff* **all** of t
 3. **S1 sealed for this `(mf, seed)`**
 
    * Latest 6A.S1 run-report for `(mf, seed)` has `status="PASS"` and empty `error_code`.
-   * `s1_party_base_6A` for `(seed={seed}, fingerprint={mf})` exists, validates against `#/s1/party_base`, and `COUNT(*)` equals `total_parties` reported by S1.
+   * `s1_party_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists, validates against `#/s1/party_base`, and `COUNT(*)` equals `total_parties` reported by S1.
 
 4. **S2 sealed for this `(mf, seed)`**
 
    * Latest 6A.S2 run-report for `(mf, seed)` has `status="PASS"` and empty `error_code`.
-   * `s2_account_base_6A` for `(seed={seed}, fingerprint={mf})` exists, validates against `#/s2/account_base`, and `COUNT(*)` equals `total_accounts` reported by S2.
+   * `s2_account_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists, validates against `#/s2/account_base`, and `COUNT(*)` equals `total_accounts` reported by S2.
 
 5. **S3 sealed for this `(mf, seed)`**
 
    * Latest 6A.S3 run-report for `(mf, seed)` has `status="PASS"` and empty `error_code`.
-   * `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, fingerprint={mf})` exist, validate against their schemas, and counts are consistent with S3 run-report metrics (e.g. `total_instruments`).
+   * `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` exist, validate against their schemas, and counts are consistent with S3 run-report metrics (e.g. `total_instruments`).
 
 If any of 1–5 fail, S4 MUST NOT create devices/IPs for that `(mf, seed)` and MUST fail with `6A.S4.S0_S1_S2_S3_GATE_FAILED` (or equivalent).
 
@@ -2423,7 +2423,7 @@ as appropriate.
 
 11. **Device base exists and is schema-valid**
 
-* `s4_device_base_6A` partition for `(seed={seed}, fingerprint={mf})`:
+* `s4_device_base_6A` partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s4/device_base`,
@@ -2436,7 +2436,7 @@ as appropriate.
 
 12. **IP base exists and is schema-valid**
 
-* `s4_ip_base_6A` for `(seed={seed}, fingerprint={mf})`:
+* `s4_ip_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s4/ip_base`,
@@ -3040,10 +3040,10 @@ For a **PASS** S4 run on `(mf, seed)`:
 
 * The following partitions MUST exist and be schema-valid:
 
-  * `s4_device_base_6A` at `(seed={seed}, fingerprint={mf})`,
-  * `s4_ip_base_6A` at `(seed={seed}, fingerprint={mf})`,
-  * `s4_device_links_6A` at `(seed={seed}, fingerprint={mf})`,
-  * `s4_ip_links_6A` at `(seed={seed}, fingerprint={mf})`,
+  * `s4_device_base_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+  * `s4_ip_base_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+  * `s4_device_links_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+  * `s4_ip_links_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
   * any implemented optional views (`s4_entity_neighbourhoods_6A`, `s4_network_summary_6A`).
 
 * The run-report’s **binding metrics** MUST agree with queries over these datasets:
@@ -3576,7 +3576,7 @@ The following are **breaking changes** and MUST NOT be introduced without:
 
    * Changing partitioning:
 
-     * altering `[seed, fingerprint]` to something else,
+     * altering `[seed, manifest_fingerprint]` to something else,
      * adding `scenario_id` as a partition key (moving from scenario-independent to scenario-dependent devices/IPs),
      * or removing `seed` from partitioning.
 

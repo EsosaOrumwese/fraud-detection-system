@@ -130,7 +130,7 @@ validation:
     additionalProperties: false
     required:
       - component
-      - fingerprint
+      - manifest_fingerprint
       - seed
       - created_utc
       - catalogue_resolution
@@ -140,7 +140,7 @@ validation:
       - summary
     properties:
       component: { const: "2B.S7" }
-      fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       seed:        { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
       created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
 
@@ -486,7 +486,7 @@ plan:
     type: table
     description: "Per-merchant per-site frozen probability law (RNG-free)."
     primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:
@@ -550,7 +550,7 @@ plan:
     type: table
     description: "Per-merchant × per-UTC-day × per-tz-group gamma multipliers (log-normal; Philox provenance)."
     primary_key: [merchant_id, utc_day, tz_group_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, utc_day, tz_group_id]
     columns_strict: true
     columns:
@@ -568,7 +568,7 @@ plan:
     type: table
     description: "Per-merchant × per-UTC-day × per-tz-group day-specific routing mix (RNG-free)."
     primary_key: [merchant_id, utc_day, tz_group_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, utc_day, tz_group_id]
     columns_strict: true
     columns:

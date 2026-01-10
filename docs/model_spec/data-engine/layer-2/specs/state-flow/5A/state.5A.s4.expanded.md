@@ -316,8 +316,8 @@ Before any work, S4 MUST require a valid S0 gate for the target `manifest_finger
 
 1. **Presence**
 
-   * `s0_gate_receipt_5A` exists for `fingerprint={manifest_fingerprint}`.
-   * `sealed_inputs_5A` exists for `fingerprint={manifest_fingerprint}`.
+   * `s0_gate_receipt_5A` exists for `manifest_fingerprint={manifest_fingerprint}`.
+   * `sealed_inputs_5A` exists for `manifest_fingerprint={manifest_fingerprint}`.
 
    Both MUST be located via `dataset_dictionary.layer2.5A.yaml` and `artefact_registry_5A.yaml`, not via ad-hoc paths.
 
@@ -1037,7 +1037,7 @@ That implies:
 
 where:
 
-* `fingerprint={manifest_fingerprint}`,
+* `manifest_fingerprint={manifest_fingerprint}`,
 * `scenario_id` is the active scenario.
 
 **Primary key (logical)**
@@ -1411,7 +1411,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S4 — 
 
 1. **S0 validation**
 
-   * Resolve `s0_gate_receipt_5A`, `sealed_inputs_5A` for `fingerprint={manifest_fingerprint}` via dictionary/registry.
+   * Resolve `s0_gate_receipt_5A`, `sealed_inputs_5A` for `manifest_fingerprint={manifest_fingerprint}` via dictionary/registry.
    * Validate both against their schemas.
    * Check `s0_gate_receipt_5A.parameter_hash == parameter_hash`.
    * Check all rows in `sealed_inputs_5A` have:
@@ -1473,7 +1473,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S4 — 
 
 **Procedure:**
 
-1. Read `merchant_zone_baseline_local_5A` for `fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`, projecting:
+1. Read `merchant_zone_baseline_local_5A` for `manifest_fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`, projecting:
 
    * `merchant_id`,
    * zone representation (`legal_country_iso` + `tzid` or `zone_id`),
@@ -1886,7 +1886,7 @@ If UTC projection is implemented:
    * Using the dataset dictionary, compute canonical paths under:
 
      ```text
-     fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+     manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
      ```
 
      for:
@@ -1988,7 +1988,7 @@ Binding rules:
 
   as columns, and those values MUST be consistent with:
 
-  * the partition tokens (`fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`), and
+  * the partition tokens (`manifest_fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`), and
   * the parameter pack identity from S0.
 
 For any fixed `(manifest_fingerprint, parameter_hash, scenario_id)`, re-running S4 MUST either:
@@ -2027,21 +2027,21 @@ Canonical paths MUST follow the templates declared in the dataset dictionary. Fo
 
   ```text
   data/layer2/5A/merchant_zone_scenario_local/
-    fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
   ```
 
 * `merchant_zone_overlay_factors_5A`:
 
   ```text
   data/layer2/5A/merchant_zone_overlay_factors/
-    fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
   ```
 
 * `merchant_zone_scenario_utc_5A`:
 
   ```text
   data/layer2/5A/merchant_zone_scenario_utc/
-    fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
   ```
 
 These templates are **binding** once declared in `dataset_dictionary.layer2.5A.yaml` and `artefact_registry_5A.yaml`.
@@ -2286,7 +2286,7 @@ For a given triple `(parameter_hash, manifest_fingerprint, scenario_id)`, S4 is 
 
 1. **Valid S0 gate & sealed inputs**
 
-   * `s0_gate_receipt_5A` and `sealed_inputs_5A` for `fingerprint={manifest_fingerprint}`:
+   * `s0_gate_receipt_5A` and `sealed_inputs_5A` for `manifest_fingerprint={manifest_fingerprint}`:
 
      * exist and are discoverable via the catalogue,
      * validate against their schemas
@@ -2369,7 +2369,7 @@ Let:
 
    * `merchant_zone_scenario_local_5A`:
 
-     * exists under `fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`,
+     * exists under `manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`,
      * validates against `#/model/merchant_zone_scenario_local_5A`,
      * declares `partition_keys: ["fingerprint","scenario_id"]`,
      * declares a PK consistent with §5/§7.
@@ -2644,7 +2644,7 @@ Raised when S4 cannot establish a valid S0/S1–S3 context for this run, for exa
 
 * `s0_gate_receipt_5A` or `sealed_inputs_5A`:
 
-  * missing for `fingerprint={manifest_fingerprint}`,
+  * missing for `manifest_fingerprint={manifest_fingerprint}`,
   * schema-invalid,
   * `parameter_hash` mismatch, or
   * recomputed `sealed_inputs_digest` ≠ digest in receipt.
@@ -3371,7 +3371,7 @@ Good decomposition options:
 
 Whichever strategy you choose:
 
-* Preserve spec’d PK and partitioning: S4 outputs ultimately sit under `fingerprint={manifest_fingerprint}/scenario_id={scenario_id}` logically as a single dataset (even if physically stored in multiple files).
+* Preserve spec’d PK and partitioning: S4 outputs ultimately sit under `manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}` logically as a single dataset (even if physically stored in multiple files).
 * Maintain deterministic ordering within each partition (and deterministic concatenation order) to preserve idempotency and easy diffing.
 
 ---

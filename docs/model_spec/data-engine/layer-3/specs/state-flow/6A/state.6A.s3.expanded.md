@@ -138,7 +138,7 @@ For the target `manifest_fingerprint`, S3 MUST:
 
 1. **Validate S0 artefacts**
 
-   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `fingerprint={manifest_fingerprint}` partitions.
+   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `manifest_fingerprint={manifest_fingerprint}` partitions.
    * Validate both against their schema anchors in `schemas.layer3.yaml`:
 
      * `#/gate/6A/s0_gate_receipt_6A`
@@ -179,7 +179,7 @@ S3 sits directly downstream of S1 and S2. For each `(manifest_fingerprint, seed)
      error_code == "" or null
      ```
 
-   * Resolve `s1_party_base_6A` for `(seed={seed}, fingerprint={mf})` via the catalogue and:
+   * Resolve `s1_party_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` via the catalogue and:
 
      * validate it against `schemas.6A.yaml#/s1/party_base`,
      * verify that `COUNT(*)` equals `total_parties` in the S1 run-report.
@@ -193,7 +193,7 @@ S3 sits directly downstream of S1 and S2. For each `(manifest_fingerprint, seed)
      error_code == "" or null
      ```
 
-   * Resolve `s2_account_base_6A` and `s2_party_product_holdings_6A` for `(seed={seed}, fingerprint={mf})` and:
+   * Resolve `s2_account_base_6A` and `s2_party_product_holdings_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` and:
 
      * validate them against their schemas (`#/s2/account_base`, `#/s2/party_product_holdings`),
      * verify that `COUNT(*)` for the account base equals `total_accounts` in the S2 run-report.
@@ -777,7 +777,7 @@ For `s3_instrument_base_6A`:
 
 * **World consistency:**
 
-  * All rows in the `(seed={seed}, fingerprint={mf})` partition MUST have those values in their columns.
+  * All rows in the `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST have those values in their columns.
   * All rows for `(mf, seed)` MUST share the same `parameter_hash`.
 
 * **Closed-world semantics for instruments:**
@@ -1023,7 +1023,7 @@ No RNG is used for schema, identity axes, path construction, or partitioning.
      * read latest S1 run-report, require `status="PASS"` and empty `error_code`,
      * read latest S2 run-report, require `status="PASS"` and empty `error_code`.
 
-   * Locate `s1_party_base_6A`, `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, fingerprint={mf})` via the catalogue and:
+   * Locate `s1_party_base_6A`, `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})` via the catalogue and:
 
      * validate them against their schema anchors,
      * verify `COUNT(*)` for S1 and S2 match their run-report metrics.
@@ -1399,7 +1399,7 @@ Using allocations and attributes from Phases 4–5:
 * Write to:
 
   ```text
-  data/layer3/6A/s3_instrument_base_6A/seed={seed}/manifest_fingerprint={mf}/...
+  data/layer3/6A/s3_instrument_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
   ```
 
   using the canonical ordering defined in the dictionary (e.g. `account_id, instrument_type, scheme, instrument_id`).
@@ -1557,7 +1557,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path template (schematic):
@@ -1565,7 +1565,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
   ```text
   data/layer3/6A/s3_instrument_base_6A/
     seed={seed}/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
     s3_instrument_base_6A.parquet
   ```
 
@@ -1574,7 +1574,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path template (schematic):
@@ -1582,7 +1582,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
   ```text
   data/layer3/6A/s3_account_instrument_links_6A/
     seed={seed}/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
     s3_account_instrument_links_6A.parquet
   ```
 
@@ -1593,19 +1593,19 @@ If implemented:
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path templates:
 
   ```text
-  data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/manifest_fingerprint={mf}/...
-  data/layer3/6A/s3_instrument_summary_6A/seed={seed}/manifest_fingerprint={mf}/...
+  data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+  data/layer3/6A/s3_instrument_summary_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
   ```
 
 **Binding rules:**
 
-* `seed={seed}` and `fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns in the data.
+* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns in the data.
 * No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be introduced for S3 business datasets.
 * Consumers MUST resolve locations via the dictionary/registry and then substitute these tokens; hard-coded paths are out of spec.
 
@@ -1869,7 +1869,7 @@ For a given `(manifest_fingerprint, seed)`, 6A.S3 is **PASS** *iff* all of the f
      status     == "PASS"
      error_code == "" or null
      ```
-   * `s1_party_base_6A` exists for `(seed={seed}, fingerprint={mf})`, validates against its schema, and `COUNT(*)` equals `total_parties` in the S1 run-report.
+   * `s1_party_base_6A` exists for `(seed={seed}, manifest_manifest_fingerprint={mf})`, validates against its schema, and `COUNT(*)` equals `total_parties` in the S1 run-report.
 
 4. **S2 is sealed for this `(mf, seed)`:**
 
@@ -1879,7 +1879,7 @@ For a given `(manifest_fingerprint, seed)`, 6A.S3 is **PASS** *iff* all of the f
      status     == "PASS"
      error_code == "" or null
      ```
-   * `s2_account_base_6A` and `s2_party_product_holdings_6A` exist for `(seed={seed}, fingerprint={mf})`, validate against their schemas, and `COUNT(*)` of the account base equals `total_accounts` in the S2 run-report.
+   * `s2_account_base_6A` and `s2_party_product_holdings_6A` exist for `(seed={seed}, manifest_manifest_fingerprint={mf})`, validate against their schemas, and `COUNT(*)` of the account base equals `total_accounts` in the S2 run-report.
 
 If any of 1–4 fail, S3 MUST NOT construct an instrument universe for that `(mf, seed)` and MUST fail with a gate error (e.g. `6A.S3.S0_S1_S2_GATE_FAILED`).
 
@@ -1953,7 +1953,7 @@ If targets or integerisation violate these invariants, S3 MUST fail with `6A.S3.
 
 9. **`s3_instrument_base_6A` exists and is schema-valid:**
 
-   * The partition for `(seed={seed}, fingerprint={mf})` exists.
+   * The partition for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists.
    * It validates against `schemas.6A.yaml#/s3/instrument_base`.
    * The logical PK `(manifest_fingerprint, seed, instrument_id)` is unique:
 
@@ -2504,8 +2504,8 @@ For a **PASS** S3 run on `(mf, seed)`:
 
 * The following partitions MUST exist and be schema-valid:
 
-  * `s3_instrument_base_6A` for `(seed={seed}, fingerprint={mf})`,
-  * `s3_account_instrument_links_6A` for `(seed={seed}, fingerprint={mf})`,
+  * `s3_instrument_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+  * `s3_account_instrument_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`,
   * and any implemented optional S3 views (`s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`).
 
 * The run-report metrics MUST agree with dataset contents, in particular:
@@ -3023,7 +3023,7 @@ The following are **breaking** and MUST NOT be introduced without:
 
    * Changing partitioning:
 
-     * altering `[seed, fingerprint]` to anything else,
+     * altering `[seed, manifest_fingerprint]` to anything else,
      * adding `scenario_id` or other keys as partitions.
 
 2. **Changing semantics of core fields**
@@ -3094,7 +3094,7 @@ Downstream 6A states (S4–S5) and 6B have obligations under this spec:
 
      * resolve S3 datasets via dictionary/registry + `schema_ref`,
      * not rely on specific file names beyond the templated paths,
-     * not assume particular partition layouts other than `[seed, fingerprint]`.
+     * not assume particular partition layouts other than `[seed, manifest_fingerprint]`.
 
 4. **No re-definition of S3 semantics**
 

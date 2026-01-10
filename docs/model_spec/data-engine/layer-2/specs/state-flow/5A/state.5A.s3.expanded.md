@@ -277,8 +277,8 @@ Before doing any work, S3 MUST require a valid S0 gate for the target `manifest_
 
 1. **Presence**
 
-   * `s0_gate_receipt_5A` exists for `fingerprint={manifest_fingerprint}`.
-   * `sealed_inputs_5A` exists for `fingerprint={manifest_fingerprint}`.
+   * `s0_gate_receipt_5A` exists for `manifest_fingerprint={manifest_fingerprint}`.
+   * `sealed_inputs_5A` exists for `manifest_fingerprint={manifest_fingerprint}`.
 
    Both MUST be located via `dataset_dictionary.layer2.5A.yaml` and `artefact_registry_5A.yaml`, not via ad-hoc paths.
 
@@ -855,7 +855,7 @@ This implies:
 
 where:
 
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 * `scenario_id` is the scenario bound to this run (baseline/stress).
 
 This keeps S3 outputs aligned with the world-specific S1 inputs, while allowing multiple scenarios per world if needed.
@@ -1150,7 +1150,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S3 — 
 
 **Procedure:**
 
-1. Resolve `s0_gate_receipt_5A` and `sealed_inputs_5A` via the 5A dataset dictionary & registry using `fingerprint={manifest_fingerprint}`.
+1. Resolve `s0_gate_receipt_5A` and `sealed_inputs_5A` via the 5A dataset dictionary & registry using `manifest_fingerprint={manifest_fingerprint}`.
 
 2. Validate S0 outputs:
 
@@ -1170,7 +1170,7 @@ This section specifies the **ordered, deterministic algorithm** for **5A.S3 — 
 4. Resolve S1 output:
 
    * From `sealed_inputs_5A`, locate the `merchant_zone_profile_5A` artefact (status `"REQUIRED"`, `read_scope="ROW_LEVEL"`).
-   * Resolve path via dictionary (`fingerprint={manifest_fingerprint}`), then:
+   * Resolve path via dictionary (`manifest_fingerprint={manifest_fingerprint}`), then:
 
      * validate against `#/model/merchant_zone_profile_5A`,
      * verify `parameter_hash == parameter_hash`, `manifest_fingerprint == manifest_fingerprint`,
@@ -1512,7 +1512,7 @@ Mapping logic and UTC-grid details MUST be defined elsewhere; S3 only implements
    Using the dataset dictionary, compute canonical paths for:
 
    * `merchant_zone_baseline_local_5A` under:
-     `fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`.
+     `manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`.
    * `class_zone_baseline_local_5A` (if implemented).
    * `merchant_zone_baseline_utc_5A` (if implemented).
 
@@ -1532,7 +1532,7 @@ Mapping logic and UTC-grid details MUST be defined elsewhere; S3 only implements
 
      ```text
      data/layer2/5A/merchant_zone_baseline_local/
-       fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/.staging/merchant_zone_baseline_local_5A.parquet
+       manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/.staging/merchant_zone_baseline_local_5A.parquet
      ```
 
    * If implemented, write `CLASS_ROWS` and `UTC_ROWS` to analogous `.staging/` paths for their artefacts.
@@ -1648,21 +1648,21 @@ Paths MUST follow the templates declared in the dataset dictionary (already sket
 
   ```text
   data/layer2/5A/merchant_zone_baseline_local/
-    fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
   ```
 
 * `class_zone_baseline_local_5A` (optional):
 
   ```text
   data/layer2/5A/class_zone_baseline_local/
-    fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
   ```
 
 * `merchant_zone_baseline_utc_5A` (optional):
 
   ```text
   data/layer2/5A/merchant_zone_baseline_utc/
-    fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
+    manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
   ```
 
 These templates are binding once declared in the dictionary/registry.
@@ -1673,7 +1673,7 @@ For every row in any S3 dataset:
 
 * Embedded `manifest_fingerprint` column:
 
-  * MUST exist, be non-null, and equal the partition token `fingerprint={manifest_fingerprint}`.
+  * MUST exist, be non-null, and equal the partition token `manifest_fingerprint={manifest_fingerprint}`.
 
 * Embedded `scenario_id` column:
 
@@ -1919,7 +1919,7 @@ For a given triple `(parameter_hash, manifest_fingerprint, scenario_id)`, S3 is 
 
 1. **Valid S0 gate & sealed inputs**
 
-   * `s0_gate_receipt_5A` and `sealed_inputs_5A` for `fingerprint={manifest_fingerprint}`:
+   * `s0_gate_receipt_5A` and `sealed_inputs_5A` for `manifest_fingerprint={manifest_fingerprint}`:
 
      * exist and are discoverable via the catalogue,
      * conform to their schemas
@@ -1984,7 +1984,7 @@ If any of these checks fail, S3 MUST NOT be treated as green irrespective of its
    * `merchant_zone_baseline_local_5A`:
 
      * exists in the canonical partition
-       `fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`,
+       `manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`,
      * conforms to `#/model/merchant_zone_baseline_local_5A`,
      * declares `partition_keys: ["fingerprint","scenario_id"]`,
      * declares the PK as per the spec (zone representation choice fixed in §5).
@@ -2293,7 +2293,7 @@ Raised when S3 cannot establish a valid S0/S1/S2 context for this run, for examp
 
 * `s0_gate_receipt_5A` or `sealed_inputs_5A`:
 
-  * missing for `fingerprint={manifest_fingerprint}`,
+  * missing for `manifest_fingerprint={manifest_fingerprint}`,
   * schema-invalid,
   * `parameter_hash` mismatch, or
   * recomputed `sealed_inputs_digest` ≠ recorded digest.

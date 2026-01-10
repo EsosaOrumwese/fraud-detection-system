@@ -37,7 +37,7 @@ reference_data:
 - id: validation_bundle_1B
   status: approved
   owner_subsegment: 1B
-  description: 'Validation bundle for 1B publish (fingerprint-scoped). Gate evidence for 2A.S0.'
+  description: 'Validation bundle for 1B publish (manifest_fingerprint-scoped). Gate evidence for 2A.S0.'
   version: '{manifest_fingerprint}'
   format: files
   path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
@@ -225,7 +225,7 @@ datasets:
 - id: sealed_inputs_2A
   status: approved
   owner_subsegment: 2A
-  description: 'Diagnostic inventory of sealed inputs for a 2A fingerprint.'
+  description: 'Diagnostic inventory of sealed inputs for a 2A manifest_fingerprint.'
   version: '{manifest_fingerprint}'
   format: json
   path: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
@@ -297,7 +297,7 @@ datasets:
 - id: s4_legality_report
   status: approved
   owner_subsegment: 2A
-  description: Legality/DST report per seed×fingerprint (JSON summary).
+  description: Legality/DST report per seed×manifest_fingerprint (JSON summary).
   version: '{seed}.{manifest_fingerprint}'
   format: json
   path: data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
@@ -315,7 +315,7 @@ datasets:
 - id: validation_bundle_2A
   status: approved
   owner_subsegment: 2A
-  description: Validation bundle for 2A publish (one per fingerprint).
+  description: Validation bundle for 2A publish (one per manifest_fingerprint).
   version: '{manifest_fingerprint}'
   format: files
   path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/

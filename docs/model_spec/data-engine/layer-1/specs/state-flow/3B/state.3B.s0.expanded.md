@@ -197,12 +197,12 @@ It MUST verify that the versions of these catalogues are mutually compatible and
 
 2.4.1 S0 MUST confirm that the following upstream datasets are resolvable and readable via the dataset dictionary and artefact registry for the target `manifest_fingerprint` (and `seed` where applicable):
 
-* `outlet_catalogue` (Segment 1A) at `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `site_locations` (Segment 1B) at `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `site_timezones` (Segment 2A) at `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `tz_timetable_cache` (Segment 2A) at `fingerprint={manifest_fingerprint}`;
-* `zone_alloc` (Segment 3A) at `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `zone_alloc_universe_hash` (Segment 3A) at `fingerprint={manifest_fingerprint}`.
+* `outlet_catalogue` (Segment 1A) at `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `site_locations` (Segment 1B) at `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `site_timezones` (Segment 2A) at `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `tz_timetable_cache` (Segment 2A) at `manifest_fingerprint={manifest_fingerprint}`;
+* `zone_alloc` (Segment 3A) at `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `zone_alloc_universe_hash` (Segment 3A) at `manifest_fingerprint={manifest_fingerprint}`.
 
 2.4.2 In S0, these datasets are treated as **metadata-only** inputs:
 
@@ -271,12 +271,12 @@ It MUST verify that the versions of these catalogues are mutually compatible and
 
 3.1.1 For the target `{seed, manifest_fingerprint}`, S0 SHALL treat the following upstream **segment egress datasets** as **in-scope** but **metadata-only** inputs:
 
-* `outlet_catalogue` (Segment 1A), partitioned by `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `site_locations` (Segment 1B), partitioned by `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `site_timezones` (Segment 2A), partitioned by `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `tz_timetable_cache` (Segment 2A), partitioned by `fingerprint={manifest_fingerprint}` only;
-* `zone_alloc` (Segment 3A), partitioned by `seed={seed}, fingerprint={manifest_fingerprint}`;
-* `zone_alloc_universe_hash` (Segment 3A), partitioned by `fingerprint={manifest_fingerprint}` only.
+* `outlet_catalogue` (Segment 1A), partitioned by `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `site_locations` (Segment 1B), partitioned by `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `site_timezones` (Segment 2A), partitioned by `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `tz_timetable_cache` (Segment 2A), partitioned by `manifest_fingerprint={manifest_fingerprint}` only;
+* `zone_alloc` (Segment 3A), partitioned by `seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+* `zone_alloc_universe_hash` (Segment 3A), partitioned by `manifest_fingerprint={manifest_fingerprint}` only.
 
 3.1.2 S0 MAY open these datasets solely to:
 
@@ -432,7 +432,7 @@ They MUST, however, treat `s0_gate_receipt_3B` and `sealed_inputs_3B` as the **o
 * Schema reference (normative):
   `schemas.3B.yaml#/validation/sealed_inputs_3B`.
 
-4.1.4 Both outputs MUST be partitioned **only** by `fingerprint={manifest_fingerprint}`. They MUST NOT introduce `seed` or `parameter_hash` as partition keys.
+4.1.4 Both outputs MUST be partitioned **only** by `manifest_fingerprint={manifest_fingerprint}`. They MUST NOT introduce `seed` or `parameter_hash` as partition keys.
 
 ---
 
@@ -687,7 +687,7 @@ MUST be treated as a **breaking change** and MUST be accompanied by a major vers
 5.3.3 S0 MUST validate that any upstream dataset it seals has:
 
 * the `schema_ref` declared in its own segment’s dataset dictionary, and
-* the partition keys and path shape declared there (e.g. `seed={seed}, fingerprint={manifest_fingerprint}` for per-run egress; `fingerprint={manifest_fingerprint}` only for global caches and universe hashes).
+* the partition keys and path shape declared there (e.g. `seed={seed}, manifest_fingerprint={manifest_fingerprint}` for per-run egress; `manifest_fingerprint={manifest_fingerprint}` only for global caches and universe hashes).
 
 S0 MUST NOT substitute or guess schema anchors.
 
@@ -773,7 +773,7 @@ MUST be treated as a breaking change to the 3B.S0 contract and MUST be accompani
   Enumerate the exact set of artefacts (datasets, policies, schemas, RNG profiles, external assets) to be sealed, resolving paths and computing digests.
 
 * **Phase E — Output construction & atomic write**
-  Construct `s0_gate_receipt_3B` and `sealed_inputs_3B` from the enumerated artefacts, and write both atomically under `fingerprint={manifest_fingerprint}`.
+  Construct `s0_gate_receipt_3B` and `sealed_inputs_3B` from the enumerated artefacts, and write both atomically under `manifest_fingerprint={manifest_fingerprint}`.
 
 6.1.2 S0 MUST NOT:
 
@@ -812,8 +812,8 @@ MUST be treated as a breaking change to the 3B.S0 contract and MUST be accompani
 
 1. Use the segment’s dataset dictionary and artefact registry to resolve:
 
-   * `validation_bundle_seg@fingerprint={manifest_fingerprint}`, and
-   * `validation_passed_flag_<SEG>@fingerprint={manifest_fingerprint}` (file `_passed.flag` for each upstream segment).
+   * `validation_bundle_seg@manifest_fingerprint={manifest_fingerprint}`, and
+   * `validation_passed_flag_<SEG>@manifest_fingerprint={manifest_fingerprint}` (file `_passed.flag` for each upstream segment).
 
 2. Open `validation_passed_flag_<SEG>` and parse the expected bundle digest (e.g. `sha256_hex = <digest>`).
 
@@ -967,7 +967,7 @@ MUST be treated as a breaking change to the 3B.S0 contract and MUST be accompani
 
 6.6.3 S0 MUST serialize `sealed_inputs_3B` as a table dataset conforming to `schemas.3B.yaml#/validation/sealed_inputs_3B`, with:
 
-* partition directory `fingerprint={manifest_fingerprint}`;
+* partition directory `manifest_fingerprint={manifest_fingerprint}`;
 * rows exactly matching the sorted `SEALED` collection computed in 6.5.4;
 * writer sort exactly equal to `["owner_segment","artefact_kind","logical_id","path"]`.
 
@@ -1090,7 +1090,7 @@ No other partition keys (e.g. `seed`, `parameter_hash`, `run_id`) MAY appear in 
 7.2.4 Any downstream 3B state that materialises per-seed outputs MUST:
 
 * obtain `seed` and `parameter_hash` from `s0_gate_receipt_3B` (or from the enclosing run harness),
-* respect the **partition law of upstream datasets** as declared in their own dictionaries (e.g. `seed={seed}, fingerprint={manifest_fingerprint}` for 1B/2A/3A egress).
+* respect the **partition law of upstream datasets** as declared in their own dictionaries (e.g. `seed={seed}, manifest_fingerprint={manifest_fingerprint}` for 1B/2A/3A egress).
 
 S0 MUST NOT redefine or shadow upstream partition laws.
 
@@ -1205,7 +1205,7 @@ Where there is any conflict between this section and the JSON-Schema / dataset d
 
 * **Output correctness & self-consistency**
   n. `s0_gate_receipt_3B` validates against `schemas.3B.yaml#/validation/s0_gate_receipt_3B`.
-  o. `sealed_inputs_3B` validates against `schemas.3B.yaml#/validation/sealed_inputs_3B`, with correct partition (`fingerprint={manifest_fingerprint}`) and writer sort (`["owner_segment","artefact_kind","logical_id","path"]`).
+  o. `sealed_inputs_3B` validates against `schemas.3B.yaml#/validation/sealed_inputs_3B`, with correct partition (`manifest_fingerprint={manifest_fingerprint}`) and writer sort (`["owner_segment","artefact_kind","logical_id","path"]`).
   p. If `sealed_inputs_sha256` and/or `gate_receipt_sha256` are present in the gate receipt, they match the digests of the on-disk artefacts.
   q. No RNG events were emitted and no Philox streams were opened under 3B.S0 (verifiable via absence of 3B.S0 entries in `rng_audit_log` / `rng_trace_log`).
 

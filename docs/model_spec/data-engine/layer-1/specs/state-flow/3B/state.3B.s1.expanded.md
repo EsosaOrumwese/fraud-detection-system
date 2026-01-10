@@ -594,7 +594,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 4.4.2 On disk, identity SHALL be expressed primarily via **partition keys** and path:
 
-* `seed={seed}` and `fingerprint={manifest_fingerprint}` in the directory path;
+* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` in the directory path;
 * a single set of files per `{seed, fingerprint}` for each dataset.
 
 4.4.3 The schemas for these datasets MAY include explicit `seed` and/or `manifest_fingerprint` columns as identity echoes. If present:
@@ -1173,14 +1173,14 @@ There MUST be at most one `virtual_classification_3B` dataset and at most one `v
 7.2.1 `virtual_classification_3B` MUST be partitioned exactly by:
 
 * `seed={seed}`
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 and by no other keys. Its `path_template` MUST embed these tokens and no additional partition dimensions.
 
 7.2.2 `virtual_settlement_3B` MUST also be partitioned exactly by:
 
 * `seed={seed}`
-* `fingerprint={manifest_fingerprint}`
+* `manifest_fingerprint={manifest_fingerprint}`
 
 with a path template of the same form. It MUST share the same `seed` and `manifest_fingerprint` values as the `virtual_classification_3B` produced by the same S1 run.
 
@@ -1233,8 +1233,8 @@ S1 MUST sort records by these keys before writing. Any consumer that relies on s
 
 7.4.1 S1 outputs for a given `{seed, manifest_fingerprint}` are **logically immutable**. Once a successful S1 run has written both:
 
-* `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}`, and
-* `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}`,
+* `virtual_classification_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`, and
+* `virtual_settlement_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`,
 
 no subsequent run MAY mutate these datasets in place.
 

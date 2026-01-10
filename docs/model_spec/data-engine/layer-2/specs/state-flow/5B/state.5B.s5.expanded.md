@@ -452,7 +452,7 @@ Within this directory:
 
   * A small JSON file at the **root of this directory**, not referenced by `index.json`, containing the bundle digest in the format defined in §5.3.3 and §6.7.
 
-No S5 evidence file may live outside this `fingerprint={mf}` directory, and `_passed.flag` MUST NOT appear in any other location.
+No S5 evidence file may live outside this `manifest_fingerprint={mf}` directory, and `_passed.flag` MUST NOT appear in any other location.
 
 ---
 
@@ -728,7 +728,7 @@ S5 MUST then construct `index.json` and thereby the bundle:
 
      * entries sorted in **ASCII-lexicographic order of the `path`** field,
      * each entry containing `logical_id` (or role), `path`, `sha256_hex`, `schema_ref` where applicable.
-   * Write `index.json` into the same `fingerprint={mf}` directory.
+   * Write `index.json` into the same `manifest_fingerprint={mf}` directory.
 
 This completes the **bundle structure**; no hashing across files has been done yet.
 
@@ -756,7 +756,7 @@ Finally, S5 MUST compute a single **bundle digest** and write `_passed.flag`:
 
 2. **Write `_passed.flag`**
 
-   * Create `_passed.flag` at the root of the `fingerprint={mf}` directory with content conforming to the `passed_flag_5B` schema, e.g.:
+   * Create `_passed.flag` at the root of the `manifest_fingerprint={mf}` directory with content conforming to the `passed_flag_5B` schema, e.g.:
 
     ```json
     {
@@ -801,7 +801,7 @@ All S5 artefacts are **fingerprint-scoped** and MUST obey the same directory lay
 
 ```text
 data/layer2/5B/validation/
-  fingerprint={manifest_fingerprint}/
+  manifest_fingerprint={manifest_fingerprint}/
     index.json
     validation_report_5B.json
     validation_issue_table_5B.parquet       (optional)
@@ -812,7 +812,7 @@ data/layer2/5B/validation/
 
 Binding rules:
 
-* The directory **must** include `fingerprint={manifest_fingerprint}` as a path token.
+* The directory **must** include `manifest_fingerprint={manifest_fingerprint}` as a path token.
 * No additional partition tokens (e.g. `seed=`, `scenario_id=`, `parameter_hash=`) are allowed in the path for S5 artefacts.
 * Every file in the bundle for a given `manifest_fingerprint` MUST live inside this directory (or its subdirectories, referenced via relative paths in `index.json`).
 
@@ -855,7 +855,7 @@ Any change to the evidence set or its bytes for an `mf` requires recomputing the
 
 Within `index.json`:
 
-* Every bundle member MUST have a unique `path` (relative to the `fingerprint={mf}` directory).
+* Every bundle member MUST have a unique `path` (relative to the `manifest_fingerprint={mf}` directory).
 * S5 MUST store entries in an array sorted in **ASCII-lexicographic order of the `path` string**.
 * This ordering is **binding** and is the only order used for computing the bundle digest.
 
@@ -885,7 +885,7 @@ The digest written into `_passed.flag` MUST be computed as follows:
 
 `_passed.flag` MUST:
 
-* live at the root of `fingerprint={mf}`, and
+* live at the root of `manifest_fingerprint={mf}`, and
 * contain a JSON object conforming to `schemas.layer2.yaml#/validation/passed_flag_5B`, e.g.:
 
 ```json
@@ -915,8 +915,8 @@ Given the rules above:
     with no other partition tokens.
 * The **artefact registry** MUST mark:
 
-  * `validation_bundle_5B` as the container at `…/fingerprint={mf}/`, and
-  * `validation_passed_flag_5B` as the HashGate file at `…/fingerprint={mf}/_passed.flag`.
+  * `validation_bundle_5B` as the container at `…/manifest_fingerprint={mf}/`, and
+  * `validation_passed_flag_5B` as the HashGate file at `…/manifest_fingerprint={mf}/_passed.flag`.
 
 Downstream components (6A/6B, ingestion, operators) MUST be able to:
 
@@ -1086,7 +1086,7 @@ After all checks above pass:
 * The bundle digest computed according to the law in §7.4 matches the value written into `_passed.flag` at:
 
   ```text
-  data/layer2/5B/validation/manifest_fingerprint={mf}/_passed.flag
+  data/layer2/5B/validation/manifest_manifest_fingerprint={mf}/_passed.flag
   ```
 
 * If a previous `_passed.flag` already exists for `mf`, S5 recomputes the digest and confirms it is identical.
@@ -1821,7 +1821,7 @@ These are *metrics* S5 computes; authoritative definitions of N live in S3.
 
   where each `eᵢ` has at least a `path` and `sha256_hex`.
 
-* `path(eᵢ)` — relative path of bundle member `eᵢ` inside `fingerprint={mf}` directory.
+* `path(eᵢ)` — relative path of bundle member `eᵢ` inside `manifest_fingerprint={mf}` directory.
 
 * `bytes(eᵢ)` — **raw bytes** of the file at `path(eᵢ)`.
 

@@ -25,8 +25,8 @@
 **Segment invariants (Binding):**
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
-* **Partitioning for S3 outputs:** `[seed, fingerprint]`; **path↔embed equality** MUST hold.
-* **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden; **S0-evidence rule** enforced (policies in S0; within-segment reads by ID at `[seed,fingerprint]`).
+* **Partitioning for S3 outputs:** `[seed, manifest_fingerprint]`; **path↔embed equality** MUST hold.
+* **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden; **S0-evidence rule** enforced (policies in S0; within-segment reads by ID at `[seed, manifest_fingerprint]`).
 * **RNG posture:** **RNG-bounded, reproducible** — counter-based **Philox** with policy-declared sub-streams and draw budgets.
 * **Numeric discipline:** binary64, round-to-nearest-even; stable serial reductions.
 * **Gate law:** **No PASS → No read** remains in force across the segment.
@@ -64,7 +64,7 @@
 
   * Distribution: `log_gamma ~ Normal(μ, σ²)` with `σ = sigma_gamma` from policy and `μ = −½·σ²` so that **E[γ] = 1**.
   * Record RNG provenance per row: `rng_stream_id`, `rng_counter_lo`, `rng_counter_hi`.
-* **Publish a deterministic table** `s3_day_effects` (partitioned by `[seed, fingerprint]`) containing `{merchant_id, utc_day, tz_group_id, gamma, log_gamma, sigma_gamma, rng_* , created_utc}`.
+* **Publish a deterministic table** `s3_day_effects` (partitioned by `[seed, manifest_fingerprint]`) containing `{merchant_id, utc_day, tz_group_id, gamma, log_gamma, sigma_gamma, rng_* , created_utc}`.
 * **Preserve identity & determinism:** `created_utc =` S0 `verified_at_utc`; same sealed inputs + day range ⇒ **byte-identical** output.
 
 **Scope (included).**
@@ -91,14 +91,14 @@
 * **Run identity fixed.** The pair **`{ seed, manifest_fingerprint }`** is fixed at S3 start and MUST remain constant.
 * **RNG posture.** S3 is **RNG-bounded, reproducible** (counter-based Philox per governed policy).
 * **Catalogue discipline.** All inputs resolve by **Dataset Dictionary IDs**; literal paths are forbidden.
-* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for this fingerprint; within-segment datasets are **NOT** S0-sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`**.
+* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for this fingerprint; within-segment datasets are **NOT** S0-sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed, manifest_fingerprint]`**.
 
 ### 3.2 Required sealed inputs (must all be present)
 
 S3 SHALL read **only** the following assets for this run’s identity:
 
-1. **`s1_site_weights`** — 2B·S1 output at `seed={seed} / fingerprint={manifest_fingerprint}`.
-2. **`site_timezones`** — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` per site for tz-grouping).
+1. **`s1_site_weights`** — 2B·S1 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+2. **`site_timezones`** — 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `tzid` per site for tz-grouping).
 3. **`day_effect_policy_v1`** — policy pack declaring RNG/variance/day-range (single file; **no partition tokens** — selection is the **exact S0-sealed path + digest**).
 
 > All required assets MUST be resolvable via the Dictionary and MUST appear in S0’s inventory for the same fingerprint.
@@ -119,8 +119,8 @@ Absence of any listed entry is **Abort**.
 ### 3.4 Resolution & partition discipline (Binding)
 
 * **Exact partitions (reads):**
-  • `s1_site_weights` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `site_timezones` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
+  • `s1_site_weights` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+  • `site_timezones` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
   • `day_effect_policy_v1` → **no tokens**; select the **S0-sealed file path** and validate its digest.
 * **Key join basis:** tz-groups are formed by joining `s1_site_weights` keys `(merchant_id, legal_country_iso, site_order)` to `site_timezones` on the **same** key set, taking `tzid` as `tz_group_id`.
 * **No re-hash of 1B.** S3 MUST NOT recompute the 1B bundle hash; S0’s receipt is the sole gate attestation.
@@ -152,11 +152,11 @@ Absence of any listed entry is **Abort**.
 
 Resolve **only** these IDs via the Dictionary (no literal paths):
 
-1. **`s1_site_weights`** — at `seed={seed} / fingerprint={manifest_fingerprint}`.
-2. **`site_timezones`** — at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` for tz-grouping).
+1. **`s1_site_weights`** — at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+2. **`site_timezones`** — at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `tzid` for tz-grouping).
 3. **`day_effect_policy_v1`** — policy pack (**no partition tokens**); select the **exact S0-sealed path/digest** for this fingerprint.
 
-> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B`; within-segment datasets are **NOT** S0-sealed and are resolved by ID at **`[seed,fingerprint]`**.
+> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B`; within-segment datasets are **NOT** S0-sealed and are resolved by ID at **`[seed, manifest_fingerprint]`**.
 
 ### 4.3 Prohibited resources & behaviours
 
@@ -168,8 +168,8 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 4.4 Resolution & token discipline
 
 * **Exact partitions:**
-  • `s1_site_weights` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `site_timezones` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
+  • `s1_site_weights` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+  • `site_timezones` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
   • `day_effect_policy_v1` → **no tokens**; use the **S0-sealed** path and validate its digest.
 * **Path↔embed equality (outputs):** any embedded identity in S3 outputs **MUST** equal the Dictionary path tokens.
 
@@ -196,7 +196,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.2 Identity & partitions
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
-* **Partitions (binding):** `[seed, fingerprint]` only.
+* **Partitions (binding):** `[seed, manifest_fingerprint]` only.
 * **Path↔embed equality:** Any embedded `manifest_fingerprint` (and, if echoed, `seed`) **MUST** byte-equal the path tokens.
 
 ### 5.3 Path family, format & catalogue authority
@@ -259,7 +259,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 **Identity & keys (binding)**
 
 * **Primary key (PK):** `[merchant_id, utc_day, tz_group_id]`
-* **Partition keys:** `[seed, fingerprint]`
+* **Partition keys:** `[seed, manifest_fingerprint]`
 * **Writer sort:** `[merchant_id, utc_day, tz_group_id]`
 
 **Columns (all required unless marked “optional”)**
@@ -307,7 +307,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 * **ID:** `s3_day_effects`
 * **Path family:** `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * **Format:** `parquet`
-* **Partitioning:** `[seed, fingerprint]` (no other tokens)
+* **Partitioning:** `[seed, manifest_fingerprint]` (no other tokens)
 
 ---
 
@@ -378,7 +378,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 ### 7.7 Publish (write-once; atomic)
 
 19. **Target partition (Dictionary-resolved)**:
-    `s3_day_effects@seed={seed}/fingerprint={manifest_fingerprint}`.
+    `s3_day_effects@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
 20. **Immutability**: target must be empty; otherwise allow only **bit-identical** re-emit; else **Abort**.
 21. **Atomic publish**: write to staging on the same filesystem, `fsync`, then atomic rename. No partial files may become visible.
 
@@ -409,7 +409,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 8.2 Partitions & exact selection
 
-* **Write partition:** `…/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`.
+* **Write partition:** `…/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 * **Exact selection (read/write):** one and only one `(seed,fingerprint)` partition per publish; no wildcards, ranges, or multi-partition writes.
 
 ### 8.3 Path↔embed equality
@@ -474,7 +474,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 All inputs (`s1_site_weights`, `site_timezones`, `day_effect_policy_v1`) resolved by **Dictionary IDs**; zero literal paths.
 
 **V-03 — Partition/selection exact (Abort).**
-Reads used only `s1_site_weights@seed={seed}/fingerprint={manifest_fingerprint}`, `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}`, and the **exact S0-sealed path** for `day_effect_policy_v1` (no partition tokens).
+Reads used only `s1_site_weights@seed={seed}/manifest_fingerprint={manifest_fingerprint}`, `site_timezones@seed={seed}/manifest_fingerprint={manifest_fingerprint}`, and the **exact S0-sealed path** for `day_effect_policy_v1` (no partition tokens).
 
 **V-04 — Policy minima present (Abort).**
 `day_effect_policy_v1` declares `rng_engine`, `rng_stream_id`, `draws_per_row=1`, `sigma_gamma>0`, and a valid inclusive `day_range{start_day..end_day}` with `start_day ≤ end_day`.
@@ -618,7 +618,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 
 ### 10.5 Identity, partitions & immutability
 
-* **2B-S3-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/fingerprint={fingerprint}` (or wrong policy selection semantics).
+* **2B-S3-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` (or wrong policy selection semantics).
   *Context:* `id`, `expected`, `actual`.
 
 * **2B-S3-071 PATH_EMBED_MISMATCH (Abort)** - Embedded identity differs from path tokens.
@@ -854,7 +854,7 @@ Overall: `O(S + R)`.
 ### 12.4 I/O discipline
 
 * **Reads:** one sequential scan of `s1_site_weights@{seed,fingerprint}` (project PK only) and one of `site_timezones@{seed,fingerprint}` (project PK + `tzid`).
-* **Writes:** one partition at `…/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/`.
+* **Writes:** one partition at `…/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 * **Atomic publish:** write to staging on the same filesystem, `fsync`, atomic rename.
 
 ---
@@ -930,7 +930,7 @@ This section governs permitted changes to **2B.S3** after ratification and how t
 
 Within the same **major** version, S3 **MUST NOT** change:
 
-* **Output identity & partitions:** dataset ID `s3_day_effects`; partitions `[seed, fingerprint]`; **path↔embed equality**; write-once + atomic publish.
+* **Output identity & partitions:** dataset ID `s3_day_effects`; partitions `[seed, manifest_fingerprint]`; **path↔embed equality**; write-once + atomic publish.
 * **PK & keys:** primary key `[merchant_id, utc_day, tz_group_id]`; one row per `{merchant, tz_group, day}`; tz-group identity is the **IANA `tzid`** from `site_timezones`.
 * **Deterministic/RNG posture:** **counter-based Philox** with governed stream ID and one draw per row; draw accounting and counter monotonicity as specified.
 * **Distribution law:** `log_gamma ~ Normal(μ, σ²)` with `μ = −½·σ²` so **E[γ]=1**; `σ = sigma_gamma` from policy.
@@ -1078,7 +1078,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 ### A.4 Output produced by this state
 
-* **`s3_day_effects`** (Parquet; `[seed, fingerprint]`)
+* **`s3_day_effects`** (Parquet; `[seed, manifest_fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s3_day_effects`
   **Dictionary path:** `data/layer1/2B/s3_day_effects/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **PK:** `[merchant_id, utc_day, tz_group_id]`
@@ -1087,7 +1087,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** unless a ratified
 
 ### A.5 Identity & token discipline
 
-* **Tokens:** `seed={seed}`, `fingerprint={manifest_fingerprint}`
+* **Tokens:** `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`
 * **Partition law:** S3 output partitions by **both** tokens; inputs selected exactly as declared (policy is token-less).
 * **Path↔embed equality:** any embedded identity must equal the path tokens.
 

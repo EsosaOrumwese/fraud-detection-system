@@ -92,7 +92,7 @@ reference_data:
     owner_layer: 1
     owner_segment: 2A
     status: required
-    description: Validation bundle for 2A publish (one per fingerprint).
+    description: Validation bundle for 2A publish (one per manifest_fingerprint).
     version: '{manifest_fingerprint}'
     path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [manifest_fingerprint]
@@ -340,7 +340,7 @@ reference_data:
     owner_layer: 2
     owner_segment: 5A
     status: required
-    description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
+    description: Inventory of sealed artefacts 5A is allowed to read for a manifest_fingerprint.
     version: '{manifest_fingerprint}'
     path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
     partitioning: [manifest_fingerprint]
@@ -357,7 +357,7 @@ reference_data:
     owner_layer: 2
     owner_segment: 5B
     status: required
-    description: Inventory of artefacts 5B is allowed to read for a fingerprint.
+    description: Inventory of artefacts 5B is allowed to read for a manifest_fingerprint.
     version: '{manifest_fingerprint}'
     path: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
     partitioning: [manifest_fingerprint]
@@ -682,7 +682,7 @@ reference_data:
     pii_class: synthetic_customer
     retention_class: core_entity
 
-  # --- S5 validation & HashGate (fingerprint-scoped) ---
+  # --- S5 validation & HashGate (manifest_fingerprint-scoped) ---
 
 datasets:
   - id: s0_gate_receipt_6B

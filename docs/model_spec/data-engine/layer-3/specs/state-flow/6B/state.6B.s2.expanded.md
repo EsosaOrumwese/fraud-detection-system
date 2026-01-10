@@ -297,7 +297,7 @@ For a given `(manifest_fingerprint, seed, scenario_id)`:
    * A partition of `s1_arrival_entities_6B` exists at:
 
      ```text
-     seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+     seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
      ```
 
    * A partition of `s1_session_index_6B` exists at the same axes.
@@ -678,7 +678,7 @@ The dataset dictionary and artefact registry MUST register this dataset as:
 
   ```text
   data/layer3/6B/s2_flow_anchor_baseline_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -773,7 +773,7 @@ In the dictionary/registry, register as:
 
   ```text
   data/layer3/6B/s2_event_stream_baseline_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -1405,14 +1405,14 @@ and use the following path templates:
 
   ```text
   data/layer3/6B/s2_flow_anchor_baseline_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `s2_event_stream_baseline_6B`:
 
   ```text
   data/layer3/6B/s2_event_stream_baseline_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 Binding path↔embed rules:
@@ -1420,7 +1420,7 @@ Binding path↔embed rules:
 * For every row in either dataset:
 
   * `seed` column MUST equal the `seed={seed}` path token.
-  * `manifest_fingerprint` column MUST equal the `fingerprint={manifest_fingerprint}` path token.
+  * `manifest_fingerprint` column MUST equal the `manifest_fingerprint={manifest_fingerprint}` path token.
   * `scenario_id` column MUST equal the `scenario_id={scenario_id}` path token.
 
 * There MUST be no S2 data written outside this directory and partitioning scheme.

@@ -115,7 +115,7 @@ For the target `manifest_fingerprint`, S2 MUST:
 
 1. **Validate S0 artefacts**
 
-   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `fingerprint={manifest_fingerprint}` partitions.
+   * Confirm `s0_gate_receipt_6A` and `sealed_inputs_6A` exist under the correct `manifest_fingerprint={manifest_fingerprint}` partitions.
    * Validate both against their schema anchors in `schemas.layer3.yaml`:
 
      * `#/gate/6A/s0_gate_receipt_6A`,
@@ -162,7 +162,7 @@ For the target `(mf, seed)`:
 2. **Party base dataset**
 
    * Locate `s1_party_base_6A` via `dataset_dictionary.layer3.6A.yaml` and `artefact_registry_6A.yaml`.
-   * Ensure the partition for `(seed={seed}, fingerprint={mf})`:
+   * Ensure the partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
 
      * exists,
      * validates against `schemas.6A.yaml#/s1/party_base`,
@@ -681,7 +681,7 @@ For `s2_account_base_6A`:
 
 * **World consistency:**
 
-  * All rows in the `(seed={seed}, fingerprint={mf})` partition MUST share those values in their columns.
+  * All rows in the `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST share those values in their columns.
   * All rows for `(mf, seed)` MUST share the same `parameter_hash` value; if multiple parameter packs show up, that world+seed is invalid from S2’s perspective.
 
 * **Closed-world semantics for accounts:**
@@ -894,7 +894,7 @@ RNG **never** influences identity axes (`manifest_fingerprint`, `parameter_hash`
 2. **Verify S1 gate**
 
    * Read the latest 6A.S1 run-report for `(mf, seed)` and require `status="PASS"` and empty `error_code`.
-   * Resolve and validate `s1_party_base_6A` for `(seed={seed}, fingerprint={mf})` against its schema.
+   * Resolve and validate `s1_party_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` against its schema.
 
 3. **Identify S2-relevant sealed inputs**
 
@@ -1268,7 +1268,7 @@ Using the allocations and attributes from Phases 4–5:
 * Write to:
 
   ```text
-  data/layer3/6A/s2_account_base_6A/seed={seed}/manifest_fingerprint={mf}/...
+  data/layer3/6A/s2_account_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
   ```
 
   using the partitioning and ordering specified in the dictionary.
@@ -1415,7 +1415,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path template (schematic):
@@ -1423,7 +1423,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
   ```text
   data/layer3/6A/s2_account_base_6A/
     seed={seed}/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
     s2_account_base_6A.parquet
   ```
 
@@ -1432,7 +1432,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path template (schematic):
@@ -1440,7 +1440,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
   ```text
   data/layer3/6A/s2_party_product_holdings_6A/
     seed={seed}/
-    fingerprint={manifest_fingerprint}/
+    manifest_fingerprint={manifest_fingerprint}/
     s2_party_product_holdings_6A.parquet
   ```
 
@@ -1451,19 +1451,19 @@ If implemented, both follow the same partition scheme:
 * Partition keys:
 
   ```text
-  [seed, fingerprint]
+  [seed, manifest_fingerprint]
   ```
 
 * Path templates:
 
   ```text
-  data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/manifest_fingerprint={mf}/...
-  data/layer3/6A/s2_account_summary_6A/seed={seed}/manifest_fingerprint={mf}/...
+  data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+  data/layer3/6A/s2_account_summary_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
   ```
 
 **Binding rules:**
 
-* The `seed={seed}` and `fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns inside the data.
+* The `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns inside the data.
 * No additional partition keys shall be introduced for S2 business datasets (no `parameter_hash`, no `scenario_id`).
 * Any consumer that wants S2 data for `(mf, seed)` MUST resolve the dataset via the catalogue and then substitute these tokens; hard-coded path logic is out-of-spec.
 
@@ -1687,7 +1687,7 @@ For a given `(manifest_fingerprint, seed)`, 6A.S2 is **PASS** *iff* all of the f
      status     == "PASS"
      error_code == "" or null
      ```
-   * `s1_party_base_6A` exists for `(seed={seed}, fingerprint={mf})`, validates against its schema, and `COUNT(*)` equals `total_parties` reported by S1.
+   * `s1_party_base_6A` exists for `(seed={seed}, manifest_manifest_fingerprint={mf})`, validates against its schema, and `COUNT(*)` equals `total_parties` reported by S1.
 
 If any of these fail, S2 MUST NOT produce accounts for that `(mf, seed)` and MUST fail with an appropriate gate error (e.g. `6A.S2.S0_OR_S1_GATE_FAILED`).
 
@@ -1750,7 +1750,7 @@ If targets or integerisation fail these invariants, S2 MUST fail with `6A.S2.ACC
 
 8. **`s2_account_base_6A` exists and is schema-valid:**
 
-   * The partition for `(seed={seed}, fingerprint={mf})` exists.
+   * The partition for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists.
    * It validates against `schemas.6A.yaml#/s2/account_base`.
    * The logical PK `(manifest_fingerprint, seed, account_id)` is unique:
 

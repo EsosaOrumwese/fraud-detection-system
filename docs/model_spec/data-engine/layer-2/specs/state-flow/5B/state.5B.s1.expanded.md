@@ -691,7 +691,7 @@ Binding rules:
 
 * The grouping domain is fixed elsewhere in this spec; every in-scope entity MUST appear exactly once in this dataset with the deterministic `group_id` emitted by the current grouping policy pack.
 * Column set, allowed enums, and optional metadata fields are governed entirely by the schema pack. If the grouping policy introduces new tags, the schema/dictionary must be updated before S1 writes them.
-* Partitioning/ordering rules from the dictionary (`fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`; sorted by scenario then merchant→zone) are mandatory for deterministic hashing and MUST be honoured.
+* Partitioning/ordering rules from the dictionary (`manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`; sorted by scenario then merchant→zone) are mandatory for deterministic hashing and MUST be honoured.
 * Registry dependencies (sealed inputs, grouping policy config, upstream zone/intensity surfaces) define the only artefacts S1 may touch to build the grouping. Any new dependency requires a registry + sealed-inputs update first.
 
 With these references, downstream agents can always consult the contract files for exact shapes, while this state spec captures the behavioural guarantees (determinism, dependency boundaries, and identity law).
@@ -1011,7 +1011,7 @@ Binding rules:
 S1 uses a **two-key partitioning**:
 
 * Partition keys: `manifest_fingerprint`, `scenario_id`
-* Path token for world: `fingerprint={manifest_fingerprint}`
+* Path token for world: `manifest_fingerprint={manifest_fingerprint}`
 
 Canonical paths:
 

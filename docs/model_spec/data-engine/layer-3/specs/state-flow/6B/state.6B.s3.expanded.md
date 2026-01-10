@@ -319,7 +319,7 @@ For each `(manifest_fingerprint, seed, scenario_id)` that S3 intends to process,
    * `s2_flow_anchor_baseline_6B` has a partition at:
 
      ```text
-     seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
+     seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}
      ```
 
    * `s2_event_stream_baseline_6B` has a partition at the same axes.
@@ -707,10 +707,10 @@ Campaigns are realised per seed+world (even if they span multiple scenarios). Th
 
   ```text
   data/layer3/6B/s3_campaign_catalogue_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
   ```
 
-* `partitioning: [seed, fingerprint]`
+* `partitioning: [seed, manifest_fingerprint]`
 
 The `manifest_fingerprint` and `seed` columns in all rows MUST match the partition tokens.
 
@@ -790,7 +790,7 @@ This dataset MUST be registered with:
 
   ```text
   data/layer3/6B/s3_flow_anchor_with_fraud_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -893,7 +893,7 @@ MUST be registered with:
 
   ```text
   data/layer3/6B/s3_event_stream_with_fraud_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `partitioning: [seed, fingerprint, scenario_id]`
@@ -1527,12 +1527,12 @@ S3 datasets MUST use the following partitioning and path templates:
 
 * **Campaign catalogue**:
 
-  * `partitioning: [seed, fingerprint]`
+  * `partitioning: [seed, manifest_fingerprint]`
   * `path`:
 
     ```text
     data/layer3/6B/s3_campaign_catalogue_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/s3_campaign_catalogue_6B.parquet
     ```
 
 * **Flow overlay anchor**:
@@ -1542,7 +1542,7 @@ S3 datasets MUST use the following partitioning and path templates:
 
     ```text
     data/layer3/6B/s3_flow_anchor_with_fraud_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 * **Event overlay stream**:
@@ -1552,7 +1552,7 @@ S3 datasets MUST use the following partitioning and path templates:
 
     ```text
     data/layer3/6B/s3_event_stream_with_fraud_6B/
-        seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     ```
 
 Binding path↔embed rules:
@@ -1560,7 +1560,7 @@ Binding path↔embed rules:
 * For every row in `s3_campaign_catalogue_6B`:
 
   * `seed` column MUST equal the `seed={seed}` path token, and
-  * `manifest_fingerprint` MUST equal the `fingerprint={manifest_fingerprint}` token.
+  * `manifest_fingerprint` MUST equal the `manifest_fingerprint={manifest_fingerprint}` token.
 
 * For every row in `s3_flow_anchor_with_fraud_6B` and `s3_event_stream_with_fraud_6B`:
 
@@ -3495,7 +3495,7 @@ For the lifetime of this `spec_version_6B`, the following aspects of S3 are **st
 
 * Partitioning and PKs MUST remain:
 
-  * `campaign_catalogue`: `[seed, fingerprint, campaign_id]` with partitioning `[seed, fingerprint]`.
+  * `campaign_catalogue`: `[seed, fingerprint, campaign_id]` with partitioning `[seed, manifest_fingerprint]`.
   * `flow_anchor_with_fraud`: `[seed, fingerprint, scenario_id, flow_id]` with partitioning `[seed, fingerprint, scenario_id]`.
   * `event_stream_with_fraud`: `[seed, fingerprint, scenario_id, flow_id, event_seq]` with partitioning `[seed, fingerprint, scenario_id]`.
 

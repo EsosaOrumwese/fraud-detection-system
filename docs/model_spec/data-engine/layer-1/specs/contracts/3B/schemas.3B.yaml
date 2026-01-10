@@ -263,12 +263,12 @@ plan:
     type: table
     description: "Classification surface for merchants with virtual reason codes."
     primary_key: [merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: is_virtual, type: boolean, nullable: false }
       - { name: virtual_mode, type: string, enum: [NON_VIRTUAL, HYBRID, VIRTUAL_ONLY], nullable: false }
@@ -284,12 +284,12 @@ plan:
     type: table
     description: "Settlement node per virtual merchant."
     primary_key: [merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: settlement_site_id, type: string, nullable: false }
       - { name: lat_deg, type: number, nullable: false }
@@ -307,12 +307,12 @@ plan:
     type: table
     description: "Per-edge geometry and weights for CDN catalogue."
     primary_key: [merchant_id, edge_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, edge_id]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: edge_id, type: string, nullable: false }
       - { name: edge_seq_index, type: integer, minimum: 0, nullable: false }
@@ -335,13 +335,13 @@ plan:
     type: table
     description: "Digest summary for edge catalogue partition (per-merchant + global rows)."
     primary_key: [scope, merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [scope, merchant_id]
     columns_strict: true
     columns:
       - { name: scope, type: string, enum: [MERCHANT, GLOBAL], nullable: false }
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: true }
       - { name: edge_count_total, type: integer, minimum: 0, nullable: true }
       - { name: edge_digest, $ref: '#/$defs/hex64', nullable: true }
@@ -356,13 +356,13 @@ plan:
     type: table
     description: "Metadata for CDN alias tables per merchant plus global blob record."
     primary_key: [scope, merchant_id]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [scope, merchant_id]
     columns_strict: true
     columns:
       - { name: scope, type: string, enum: [MERCHANT, GLOBAL], nullable: false }
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: true }
       - { name: blob_offset_bytes, type: integer, minimum: 0, nullable: true }
       - { name: blob_length_bytes, type: integer, minimum: 0, nullable: true }
@@ -378,12 +378,12 @@ plan:
     type: table
     description: "Structured copy of gamma draw audit events."
     primary_key: [merchant_id, day_index]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, day_index]
     columns_strict: true
     columns:
       - { name: seed, $ref: '#/$defs/uint64', nullable: false }
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
       - { name: day_index, type: integer, minimum: 0, nullable: false }
       - { name: gamma_value, type: number, exclusiveMinimum: 0.0, nullable: false }
@@ -490,11 +490,11 @@ egress:
     type: table
     description: "Structured list of validation tests for virtual routing."
     primary_key: [test_id]
-    partition_keys: [fingerprint]
+    partition_keys: [manifest_fingerprint]
     sort_keys: [test_id]
     columns_strict: true
     columns:
-      - { name: fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: test_id, type: string, nullable: false }
       - { name: test_type, type: string, enum: [IP_COUNTRY_MIX, SETTLEMENT_CUTOFF, EDGE_USAGE_VS_WEIGHT, ROUTING_RECEIPT], nullable: false }
       - { name: scope, type: string, enum: [GLOBAL, PER_MERCHANT, PER_CLASS, PER_SCENARIO], nullable: false }

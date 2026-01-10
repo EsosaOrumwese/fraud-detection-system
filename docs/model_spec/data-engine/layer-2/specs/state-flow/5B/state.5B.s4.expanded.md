@@ -490,7 +490,7 @@ To align with existing Layer-1 egress patterns (e.g. `site_locations` dropping `
 
   ```text
   data/layer2/5B/arrival_events/
-    seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * Any optional S4 diagnostics SHOULD follow the same partitioning scheme or a coarser one (e.g. omit `scenario_id` if naturally aggregated).
@@ -840,7 +840,7 @@ For `s4_arrival_events_5B`:
 
   ```text
   data/layer2/5B/arrival_events/
-    seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `parameter_hash` MUST appear as a **column** in every row but MUST NOT be used as a partition token in the path. This mirrors the Layer-1 convention where egress drops `parameter_hash` from the directory structure.

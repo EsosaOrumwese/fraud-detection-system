@@ -24,7 +24,7 @@
 **Segment invariants (Binding):**
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
-* **Partitioning for S4 outputs:** `[seed, fingerprint]`; **path↔embed equality** MUST hold.
+* **Partitioning for S4 outputs:** `[seed, manifest_fingerprint]`; **path↔embed equality** MUST hold.
 * **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden.
   *Evidence rule:* Cross-layer/policy assets MUST appear in S0 `sealed_inputs_2B`;
   within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed but
@@ -68,7 +68,7 @@
 * **Renormalise across groups (per day, per merchant)**:
   `p_group = raw / Σ_groups raw`, requiring `Σ raw > 0` (Abort otherwise).
   Emit `{merchant_id, utc_day, tz_group_id, p_group, base_share, gamma, created_utc}`.
-* **Preserve determinism and identity**: operate **RNG-free**, write `s4_group_weights` partitioned by `[seed, fingerprint]`, emit rows in **PK order**, and set `created_utc =` S0 `verified_at_utc`.
+* **Preserve determinism and identity**: operate **RNG-free**, write `s4_group_weights` partitioned by `[seed, manifest_fingerprint]`, emit rows in **PK order**, and set `created_utc =` S0 `verified_at_utc`.
 
 **Scope (included).**
 
@@ -105,9 +105,9 @@
 
 S4 SHALL read **only** the following, for this run’s identity:
 
-1. **`s1_site_weights`** — 2B · S1 output at `seed={seed} / fingerprint={manifest_fingerprint}` (provides site-level `p_weight`).
-2. **`site_timezones`** — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` per site for tz-grouping).
-3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `gamma` factors per `{merchant_id, utc_day, tz_group_id}`).
+1. **`s1_site_weights`** — 2B · S1 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides site-level `p_weight`).
+2. **`site_timezones`** — 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `tzid` per site for tz-grouping).
+3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `gamma` factors per `{merchant_id, utc_day, tz_group_id}`).
 
 > All required assets MUST be resolvable via the Dictionary. Cross-layer/policy assets MUST
 > appear in S0’s inventory for the same fingerprint. Within-segment datasets (`s1_site_weights`,
@@ -116,9 +116,9 @@ S4 SHALL read **only** the following, for this run’s identity:
 ### 3.3 Resolution & partition discipline (Binding)
 
 * **Exact partitions (reads):**
-  • `s1_site_weights` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `site_timezones` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `s3_day_effects` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
+  • `s1_site_weights` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+  • `site_timezones` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+  • `s3_day_effects` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
 * **Day grid source.** The set of `utc_day` values S4 uses is **exactly** the inclusive day grid present in `s3_day_effects`; S4 **does not** materialise days independently.
 * **Key join basis.** Form tz-groups by joining `s1_site_weights` keys `(merchant_id, legal_country_iso, site_order)` to `site_timezones` on the **same** keys and taking `tzid` as `tz_group_id`.
 
@@ -149,9 +149,9 @@ S4 SHALL read **only** the following, for this run’s identity:
 
 Resolve **only** these IDs via the Dictionary (no literal paths):
 
-1. **`s1_site_weights`** — 2B · S1 output at `seed={seed} / fingerprint={manifest_fingerprint}`.
-2. **`site_timezones`** — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` per site).
-3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `{utc_day, tz_group_id, gamma}`).
+1. **`s1_site_weights`** — 2B · S1 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+2. **`site_timezones`** — 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `tzid` per site).
+3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / manifest_fingerprint={manifest_fingerprint}` (provides `{utc_day, tz_group_id, gamma}`).
 
 > **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B` for the same fingerprint.
 > Within-segment datasets (`s1_site_weights`, `s3_day_effects`) are not S0-sealed; select them
@@ -167,9 +167,9 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 4.4 Resolution & token discipline
 
 * **Exact partitions (reads):**
-  • `s1_site_weights` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `site_timezones` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `s3_day_effects` → **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
+  • `s1_site_weights` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+  • `site_timezones` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
+  • `s3_day_effects` → **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
 * **Day grid source:** S4 derives the set of `utc_day` values **only** from `s3_day_effects`; it MUST NOT synthesise or infer days independently.
 * **Path↔embed equality (outputs):** any embedded identity in `s4_group_weights` **MUST** equal the Dictionary path tokens.
 
@@ -201,7 +201,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.2 Identity & partitions
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
-* **Partitions (binding):** `[seed, fingerprint]` only.
+* **Partitions (binding):** `[seed, manifest_fingerprint]` only.
 * **Path↔embed equality:** Any embedded `manifest_fingerprint` (and, if echoed, `seed`) **MUST** byte-equal the path tokens.
 
 ### 5.3 Path family, format & catalogue authority
@@ -270,7 +270,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 **Identity & keys (binding)**
 
 * **Primary key (PK):** `[merchant_id, utc_day, tz_group_id]`
-* **Partition keys:** `[seed, fingerprint]`
+* **Partition keys:** `[seed, manifest_fingerprint]`
 * **Writer sort:** `[merchant_id, utc_day, tz_group_id]`
 
 **Columns (required unless marked “optional”)**
@@ -314,7 +314,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 * **ID:** `s4_group_weights`
 * **Path family:** `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
 * **Format:** `parquet`
-* **Partitioning:** `[seed, fingerprint]` (no other tokens)
+* **Partitioning:** `[seed, manifest_fingerprint]` (no other tokens)
 
 ---
 
@@ -371,7 +371,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 ### 7.6 Publish (write-once; atomic)
 
 18. **Target partition (Dictionary-resolved):**
-    `s4_group_weights@seed={seed}/fingerprint={manifest_fingerprint}`.
+    `s4_group_weights@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
 19. **Immutability.** Target must be empty; otherwise allow only **bit-identical** re-emit; else Abort.
 20. **Atomic publish.** Write to staging on the same filesystem, `fsync`, then atomic rename. No partial files may become visible.
 
@@ -400,7 +400,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 8.2 Partitions & exact selection
 
-* **Write partition:** `…/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/`.
+* **Write partition:** `…/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 * **Exact selection (read/write):** a single `(seed,fingerprint)` partition per publish; no wildcards, ranges, or multi-partition writes.
 
 ### 8.3 Path↔embed equality
@@ -465,7 +465,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 All inputs (`s1_site_weights`, `site_timezones`, `s3_day_effects`) were resolved by **Dictionary IDs**; zero literal paths.
 
 **V-03 — Partition/selection exact (Abort).**
-Reads used only `…@seed={seed}/fingerprint={manifest_fingerprint}` for all three inputs (no wildcards, no cross-seed/fingerprint reads).
+Reads used only `…@seed={seed}/manifest_fingerprint={manifest_fingerprint}` for all three inputs (no wildcards, no cross-seed/fingerprint reads).
 
 **V-04 — Join integrity (Abort).**
 Join on keys `(merchant_id, legal_country_iso, site_order)` between `s1_site_weights` and `site_timezones` is **1:1** for every key in S1; no missing partner and no multiple `tzid` per key.
@@ -548,7 +548,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S4-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
   *Context:* `endpoint`.
 
-* **2B-S4-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/fingerprint={fingerprint}` for one or more inputs/outputs.
+* **2B-S4-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` for one or more inputs/outputs.
   *Context:* `id`, `expected`, `actual`.
 
 ### 10.2 Join integrity & coverage
@@ -806,7 +806,7 @@ Overall: `O(S + R)` (or `O(S log S + R)` if a deterministic external sort is nee
 ### 12.4 I/O discipline
 
 * **Reads:** one scan of `s1_site_weights@{seed,fingerprint}` (project **PK + p_weight** only); one scan of `site_timezones@{seed,fingerprint}` (project **PK + tzid**); one scan of `s3_day_effects@{seed,fingerprint}` (project **PK + gamma**).
-* **Writes:** one partition `…/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (write-once).
+* **Writes:** one partition `…/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (write-once).
 * **Atomic publish:** stage on the same filesystem → `fsync` → atomic rename.
 
 ---
@@ -873,7 +873,7 @@ This section governs permitted changes to **2B.S4** and how they are versioned/r
 
 Within the same **major** version, S4 **MUST NOT** change:
 
-* **Output identity & partitions:** dataset ID `s4_group_weights`; partitions `[seed, fingerprint]`; **path↔embed equality**; write-once + atomic publish.
+* **Output identity & partitions:** dataset ID `s4_group_weights`; partitions `[seed, manifest_fingerprint]`; **path↔embed equality**; write-once + atomic publish.
 * **PK & keys:** primary key `[merchant_id, utc_day, tz_group_id]`; one row per `{merchant, tz_group (tzid), day}`.
 * **Group identity:** `tz_group_id` is the **IANA `tzid`** joined from `site_timezones`; no alternative grouping.
 * **Day grid source:** set of `utc_day` values comes **only** from `s3_day_effects` (inclusive grid); S4 does not synthesize days.
@@ -1017,7 +1017,7 @@ Validator IDs (`V-01`…`V-20`) and canonical codes (`2B-S4-…`) are **reserved
 
 ### A.4 Output produced by this state
 
-* **`s4_group_weights`** (Parquet; `[seed, fingerprint]`)
+* **`s4_group_weights`** (Parquet; `[seed, manifest_fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s4_group_weights`
   **Dictionary path:** `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **PK:** `[merchant_id, utc_day, tz_group_id]`
@@ -1026,7 +1026,7 @@ Validator IDs (`V-01`…`V-20`) and canonical codes (`2B-S4-…`) are **reserved
 
 ### A.5 Identity & token discipline
 
-* **Tokens:** `seed={seed}`, `fingerprint={manifest_fingerprint}`
+* **Tokens:** `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`
 * **Partition law:** S4 output partitions by **both** tokens; inputs selected exactly as declared.
 * **Day grid:** The set of `utc_day` values **must equal** the inclusive grid present in `s3_day_effects`.
 * **Path↔embed equality:** any embedded identity in `s4_group_weights` must equal the path tokens.

@@ -318,7 +318,7 @@ These parameters are treated as **given** by the orchestration layer. S0 **MUST 
    Dictionaries are authoritative for:
 
    * Dataset IDs and roles.
-   * Partitioning keys and path templates (with `fingerprint={manifest_fingerprint}`, `parameter_hash={parameter_hash}`, `seed={seed}`, etc.).
+   * Partitioning keys and path templates (with `manifest_fingerprint={manifest_fingerprint}`, `parameter_hash={parameter_hash}`, `seed={seed}`, etc.).
    * `schema_ref` anchors into the schema packs.
 
    S0 uses dictionaries to locate upstream validation bundles/flags and sealed-inputs tables for the target `manifest_fingerprint`, and to register its own outputs. If a dictionary entry contradicts its schema (wrong `schema_ref`, missing `manifest_fingerprint` column where required), S0 **MUST** treat that as a contract error and fail.
@@ -379,7 +379,7 @@ Within the authority stack above, 6B.S0 is allowed to read the following **upstr
 
    and any other Layer-1 sealed-inputs surfaces that are relevant for 6B), S0 may read:
 
-   * The entire sealed-inputs tables under `[fingerprint]`.
+   * The entire sealed-inputs tables under `[manifest_fingerprint]`.
    * Any digests, roles, and `read_scope` annotations stored there.
 
    These manifests are the **primary authority** for:
@@ -518,7 +518,7 @@ The gate receipt MUST be registered in the 6B dataset dictionary and artefact re
 * `version: '{manifest_fingerprint}'`
 * `format: json`
 * `path: data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
-* `partitioning: [fingerprint]`
+* `partitioning: [manifest_fingerprint]`
 * `primary_key: [manifest_fingerprint]`
 * `ordering: []` (single logical row per fingerprint; writer is free to serialise fields in any JSON object order consistent with the schema)
 * `schema_ref: schemas.layer3.yaml#/gate/6B/s0_gate_receipt_6B`
@@ -568,7 +568,7 @@ The sealed-inputs manifest MUST be registered in the 6B dataset dictionary and a
 * `version: '{manifest_fingerprint}'`
 * `format: parquet`
 * `path: data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json`
-* `partitioning: [fingerprint]`
+* `partitioning: [manifest_fingerprint]`
 * `primary_key: [manifest_fingerprint, owner_layer, owner_segment, manifest_key]`
 * `ordering: [owner_layer, owner_segment, manifest_key]`
 * `schema_ref: schemas.layer3.yaml#/gate/6B/sealed_inputs_6B`
@@ -583,7 +583,7 @@ Each row in `sealed_inputs_6B` MUST contain, at minimum:
 * `owner_layer` — the layer that owns the artefact (1, 2, or 3).
 * `owner_segment` — the segment id (e.g. `1B`, `2A`, `5B`, `6A`, `6B`).
 * `manifest_key` — a logical identifier for the artefact, typically matching the id used in the owning segment’s artefact registry (e.g. `arrival_events_5B`, `s1_party_base_6A`, `behaviour_prior_pack_6B`).
-* `path_template` — the resolved path template for the artefact, with partition tokens such as `seed={seed}`, `fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}` as appropriate.
+* `path_template` — the resolved path template for the artefact, with partition tokens such as `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}` as appropriate.
 * `partition_keys` — the list of partition columns required to access the artefact (e.g. `["seed","fingerprint","scenario_id"]` for `arrival_events_5B`).
 * `schema_ref` — a JSON-Schema `$ref` into the owning layer’s schema pack (e.g. `schemas.5B.yaml#/s4/arrival_events_5B`, `schemas.6A.yaml#/s1/party_base`).
 * `role` — a short classification of the artefact’s role from 6B’s perspective (e.g. `arrival_stream`, `entity_graph`, `static_posture`, `behaviour_prior`, `campaign_config`, `labelling_policy`).
@@ -629,7 +629,7 @@ The dataset dictionary and artefact registry for Layer-3 / Segment 6B **MUST** r
 The eventual 6B validation bundle (`validation_bundle_6B`) and flag (`validation_passed_flag_6B`) are **not** produced by S0, but they will:
 
 * Depend on the correctness of `s0_gate_receipt_6B` and `sealed_inputs_6B`.
-* Be registered in the same dictionary/registry and sit under `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/…` with `partitioning: [fingerprint]`.
+* Be registered in the same dictionary/registry and sit under `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/…` with `partitioning: [manifest_fingerprint]`.
 
 This section fully defines the output surfaces and identity model for 6B.S0. Subsequent sections describe how these outputs are populated (algorithm), how their partitions are written (merge discipline), and how downstream states are required to use them.
 
@@ -1001,14 +1001,14 @@ Both outputs of 6B.S0 are **fingerprint-partitioned control-plane datasets**:
 
   * Path (template):
     `data/layer3/6B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6B.json`
-  * Partitioning: `[fingerprint]`
+  * Partitioning: `[manifest_fingerprint]`
   * Primary key: `[manifest_fingerprint]`
 
 * `sealed_inputs_6B`:
 
   * Path (template):
     `data/layer3/6B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6B.json`
-  * Partitioning: `[fingerprint]`
+  * Partitioning: `[manifest_fingerprint]`
   * Primary key: `[manifest_fingerprint, owner_layer, owner_segment, manifest_key]`
 
 Binding constraints:
@@ -1399,7 +1399,7 @@ Emitted when S0 cannot locate the required upstream validation bundle and/or `_p
 
 **Examples**
 
-* Bundle directory not found at the expected `fingerprint={manifest_fingerprint}` path.
+* Bundle directory not found at the expected `manifest_fingerprint={manifest_fingerprint}` path.
 * `_passed.flag` file missing inside an otherwise present bundle directory.
 
 **Obligations**
@@ -2083,7 +2083,7 @@ S0 is fingerprint-scoped and naturally parallelisable across worlds:
 
 * It is safe to run **multiple S0 instances in parallel** for different `manifest_fingerprint` values, provided:
 
-  * each instance writes only to its own `fingerprint={manifest_fingerprint}` partitions, and
+  * each instance writes only to its own `manifest_fingerprint={manifest_fingerprint}` partitions, and
   * the underlying storage permits such concurrent writes.
 
 * Implementations SHOULD avoid parallel S0 runs for the **same** fingerprint:
@@ -2233,7 +2233,7 @@ A change is **breaking** if it can cause:
 
 3. **Changing identity / partition laws**
 
-   * Changing the partitioning of S0 outputs from `[fingerprint]` to any other key set.
+   * Changing the partitioning of S0 outputs from `[manifest_fingerprint]` to any other key set.
    * Introducing `seed` or `scenario_id` as additional partitioning dimensions for `s0_gate_receipt_6B` or `sealed_inputs_6B`.
    * Making `manifest_fingerprint` nullable or non-unique in S0 outputs.
 
@@ -2345,7 +2345,7 @@ Consumers SHOULD be written to:
 The following aspects of 6B.S0 are explicitly designated as **stable** for the lifetime of this `spec_version_6B` and MUST NOT change without a major version bump:
 
 * S0 produces exactly two datasets: `s0_gate_receipt_6B` and `sealed_inputs_6B`.
-* Both are partitioned solely by `[fingerprint]`.
+* Both are partitioned solely by `[manifest_fingerprint]`.
 * `sealed_inputs_6B` is the **exclusive** inventory of artefacts that 6B is allowed to read.
 * S1–S5 MUST gate on S0 PASS and use `sealed_inputs_6B` to resolve inputs.
 * S0 is RNG-free, metadata-only, and treats upstream HashGates as authoritative.
@@ -2411,7 +2411,7 @@ This appendix collects the symbols and abbreviations used in the 6B.S0 specifica
   * `final_in_layer` / `cross_layer` flags.
 
 * **`path_template`**
-  A string with placeholder tokens (e.g. `seed={seed}`, `fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`) that describes where an artefact is stored.
+  A string with placeholder tokens (e.g. `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`, `scenario_id={scenario_id}`) that describes where an artefact is stored.
 
 * **`partition_keys`**
   Ordered list of logical partition columns required to read an artefact (e.g. `["seed","fingerprint"]`, `["fingerprint"]`).

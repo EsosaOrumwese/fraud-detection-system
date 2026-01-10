@@ -27,7 +27,7 @@ S6 SHALL treat the following surfaces as authoritative:
 
 * **When S6 triggers.** S6 is a *branch* that runs **only** for arrivals where the merchant is flagged `is_virtual=1`; non-virtual arrivals are fully handled by S5 and **bypass** S6 (no draw, no edge). *(Consistent with S5’s runtime role and layer RNG law.)* 
 * **Run identity (logs/layer1/2B/evidence):** RNG **core logs** and **event streams** are always partitioned by **`[seed, parameter_hash, run_id]`**; S6 appends **one** trace row after **each** event append, per the layer law. 
-* **Plan/egress reads:** Any 2B/2A tables S6 references (context) are selected at **`[seed, fingerprint]`** via **Dictionary-only** resolution (no literal paths, no network I/O). *(Same catalogue discipline as S5.)*  
+* **Plan/egress reads:** Any 2B/2A tables S6 references (context) are selected at **`[seed, manifest_fingerprint]`** via **Dictionary-only** resolution (no literal paths, no network I/O). *(Same catalogue discipline as S5.)*  
 * **Gate law:** **No PASS → No read.** S6 must see valid S0 receipt + sealed inventory for this fingerprint before any read. 
 
 > With this header, S6 is anchored to the same authorities and identity rails as S0-S5: schemas govern **shape**, the Dictionary governs **selection & partitions**, the Registry governs **metadata**, and the **layer RNG envelope** governs evidence and counters.
@@ -79,8 +79,8 @@ S6 SHALL treat the following surfaces as authoritative:
 
 **3.1 Gate & run-identity (must hold before any read)**
 
-* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and validate against the 2B schema pack; S6 **relies** on this receipt and **does not** re-hash upstream bundles. 
-* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (e.g., `s2_alias_index`, `s2_alias_blob`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, fingerprint]`** (no literal paths). 
+* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and validate against the 2B schema pack; S6 **relies** on this receipt and **does not** re-hash upstream bundles. 
+* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (e.g., `s2_alias_index`, `s2_alias_blob`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`** (no literal paths). 
 
 **3.2 Inputs required by S6 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed at S0.
@@ -94,7 +94,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 
 * **Context (read-only; optional in v1):**
   S6 **does not require** S2/S4 tables to run. If present, S6 may reference S2 alias artefacts **for integrity echo only** (no decoding in S6):
-  `s2_alias_index@seed={seed}/fingerprint={manifest_fingerprint}` (**shape:** `#/plan/s2_alias_index`) and
+  `s2_alias_index@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (**shape:** `#/plan/s2_alias_index`) and
   `s2_alias_blob@…` (**shape:** `#/binary/s2_alias_blob`). 
 
 * **Runtime inputs (not sealed artefacts):**
@@ -103,7 +103,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 **3.3 Selection & partition discipline (binding)**
 
 * **Token-less policies** (`route_rng_policy_v1`, **`virtual_edge_policy_v1`**) **must** be selected by the **exact S0-sealed** `path` **and** `sha256_hex`; their `partition` in S0 inventories is `{}` (schema allows empty maps). 
-* **Partitioned datasets** (if consulted for echo) use **exactly** `[seed, fingerprint]` per the Dictionary; any embedded identity **must** byte-equal the path tokens. 
+* **Partitioned datasets** (if consulted for echo) use **exactly** `[seed, manifest_fingerprint]` per the Dictionary; any embedded identity **must** byte-equal the path tokens. 
 
 **3.4 Integrity & compatibility pre-checks (abort on failure)**
 
@@ -122,7 +122,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 
 * **Option-A only in v1.** S6 derives the edge distribution **from `virtual_edge_policy_v1`**; there are **no** approved prebuilt S6 edge-alias artefacts in the current Dictionary. If a future minor introduces `s6_edge_alias_index/blob`, S6 MAY read them without changing outcomes. 
 
-> Net: S6 only runs when **`is_virtual=1`**, reads **token-less, S0-sealed policies** by **Dictionary ID**, emits RNG evidence under the **layer log envelope**, and never touches `[seed,fingerprint]` plan/egress surfaces. With `virtual_edge_policy_v1` registered in the catalogue, this section is **green** against your existing 2B contracts.
+> Net: S6 only runs when **`is_virtual=1`**, reads **token-less, S0-sealed policies** by **Dictionary ID**, emits RNG evidence under the **layer log envelope**, and never touches `[seed, manifest_fingerprint]` plan/egress surfaces. With `virtual_edge_policy_v1` registered in the catalogue, this section is **green** against your existing 2B contracts.
 
 ---
 
@@ -133,20 +133,20 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 * **JSON-Schema packs** are the **sole shape authorities**: 2B pack for S6 policies/trace; **Layer-1 pack** for RNG envelope/core logs; **2A pack** for `site_timezones` (context only).
 * **Dataset Dictionary** is the **catalogue authority** (IDs → paths/partitions/format). **Resolve by ID only.** 
 * **Artefact Registry** supplies ownership/licensing and does **not** override shapes/partitions. 
-* **Gate law (S0-evidence):** Cross-layer/policy assets are sealed in S0; any within-segment, partitioned reads are selected by **Dictionary ID** at exactly **`[seed, fingerprint]`**. 
+* **Gate law (S0-evidence):** Cross-layer/policy assets are sealed in S0; any within-segment, partitioned reads are selected by **Dictionary ID** at exactly **`[seed, manifest_fingerprint]`**. 
 
 **4.2 Inputs (read-only), partitions, shapes & exact use**
-S6 SHALL read **only** the assets below. Token-less policies are **S0-sealed** (selected by exact `path + sha256_hex`); any partitioned reads used for context are read at **`[seed, fingerprint]`** via **Dictionary-only** resolution:
+S6 SHALL read **only** the assets below. Token-less policies are **S0-sealed** (selected by exact `path + sha256_hex`); any partitioned reads used for context are read at **`[seed, manifest_fingerprint]`** via **Dictionary-only** resolution:
 
 * **`route_rng_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares the **routing_edge** stream/substreams and **one single-uniform draw per virtual arrival**. **Shape:** `schemas.2B.yaml#/policy/route_rng_policy_v1`. 
 * **`virtual_edge_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares eligible `edge_id`s, edge weights (or country→edge weights), and attributes `{ip_country, edge_lat, edge_lon}`. **Catalogue note:** this ID is **present** in the **2B Dictionary/Registry** (token-less; selection by S0-sealed path + digest).
-* **Context (optional, no decode in v1):** `s2_alias_index` / `s2_alias_blob` at **`[seed,fingerprint]`** may be inspected **only** for sealed integrity echo; S6 does **not** scan/guess inside the blob. **Shapes:** `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. 
+* **Context (optional, no decode in v1):** `s2_alias_index` / `s2_alias_blob` at **`[seed, manifest_fingerprint]`** may be inspected **only** for sealed integrity echo; S6 does **not** scan/guess inside the blob. **Shapes:** `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. 
 * **Runtime fields (from S5):** `{merchant_id, utc_timestamp, utc_day, tz_group_id, site_id, is_virtual}` are **not catalogue assets**; they carry run lineage `{seed, parameter_hash, run_id}`.
 
 **4.3 Partition & identity discipline (binding)**
 
 * **Token-less policies** (`route_rng_policy_v1`, `virtual_edge_policy_v1`) have `partition = {}` in receipts; selection is by the **exact S0-sealed** `path` **and** `sha256_hex`. 
-* **Any partitioned read** (e.g., S2 context) MUST use **exactly** `[seed, fingerprint]` and obey **path↔embed equality** where identities appear. 
+* **Any partitioned read** (e.g., S2 context) MUST use **exactly** `[seed, manifest_fingerprint]` and obey **path↔embed equality** where identities appear. 
 
 **4.4 RNG evidence boundary (binding)**
 
@@ -194,7 +194,7 @@ If diagnostics are enabled and the **Dataset Dictionary registers** an ID, S6 **
 
 **5.4 Identity & immutability (binding)**
 
-* **Run-scoped evidence only:** all RNG logs/layer1/2B/events (and the optional `s6_edge_log`) are **run-scoped** under `[seed, parameter_hash, run_id]`; plan/egress reads remain at `[seed, fingerprint]`.
+* **Run-scoped evidence only:** all RNG logs/layer1/2B/events (and the optional `s6_edge_log`) are **run-scoped** under `[seed, parameter_hash, run_id]`; plan/egress reads remain at `[seed, manifest_fingerprint]`.
 * **Write-once + atomic publish:** no partial files; retries must be **byte-identical** or use a **new `run_id`**. Path↔embed equality holds wherever lineage is embedded. 
 
 **5.5 No other persisted outputs**
@@ -219,7 +219,7 @@ S6 SHALL resolve and consume exactly these shapes by **Dictionary ID**:
 * **Virtual edge policy:** **`schemas.2B.yaml#/policy/virtual_edge_policy_v1`** — declares eligible `edge_id`s, edge weights / country→edge weights, and attributes `{ip_country, edge_lat, edge_lon}`.
   **Catalogue note:** `virtual_edge_policy_v1` is **present** in the 2B Dictionary/Registry (token-less; selection by S0-sealed path + digest).  
 
-* **(Context only, optional in v1)** S2 alias artefacts: `schemas.2B.yaml#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. Dict IDs: `s2_alias_index`, `s2_alias_blob` at `[seed, fingerprint]`. **S6 does not decode** them; parity checks only if consulted.  
+* **(Context only, optional in v1)** S2 alias artefacts: `schemas.2B.yaml#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. Dict IDs: `s2_alias_index`, `s2_alias_blob` at `[seed, manifest_fingerprint]`. **S6 does not decode** them; parity checks only if consulted.  
 
 ---
 
@@ -260,7 +260,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 **6.6 Format & storage (Dictionary authority)**
 
 * **Policies (token-less):** `route_rng_policy_v1` (present) and **`virtual_edge_policy_v1`** (present) — single files; selection by **exact S0-sealed path + digest**. 
-* **S2 artefacts (context):** `s2_alias_index` (JSON) and `s2_alias_blob` (binary) at **`[seed, fingerprint]`**. 
+* **S2 artefacts (context):** `s2_alias_index` (JSON) and `s2_alias_blob` (binary) at **`[seed, manifest_fingerprint]`**. 
 * **Optional `s6_edge_log` (if registered):** `jsonl` at **`[seed, parameter_hash, run_id, utc_day]`** with schema-ref `schemas.2B.yaml#/trace/s6_edge_log_row`. *(If the Dictionary does not register it, S6 MUST NOT write it.)* 
 
 ---
@@ -376,7 +376,7 @@ If `is_virtual = 0` → **bypass**: do **not** pick an edge; **no** RNG draws; *
 **8.1 Lineage tokens & where they live (authoritative)**
 
 * **Run identity (RNG logs/layer1/2B/events):** `{ seed, parameter_hash, run_id }`. All RNG **core logs** and **event streams** are partitioned by this triple under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. S6 follows the same envelope and partitions. 
-* **Plan/egress identity (read surfaces):** `{ seed, manifest_fingerprint }`. S6 reads S1/S2/S3/S4 (and 2A `site_timezones` if consulted) strictly at **`[seed, fingerprint]`** per the Dictionary. 
+* **Plan/egress identity (read surfaces):** `{ seed, manifest_fingerprint }`. S6 reads S1/S2/S3/S4 (and 2A `site_timezones` if consulted) strictly at **`[seed, manifest_fingerprint]`** per the Dictionary. 
 * **Optional S6 diagnostics:** if `s6_edge_log` is registered, it is **run-scoped** at **`[seed, parameter_hash, run_id, utc_day]`** and includes `manifest_fingerprint` as a **column** (not a partition key). This mirrors S5’s optional selection log.
 
 **8.2 Partition selection (binding)**
@@ -421,17 +421,17 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 
 **V-01 — Gate evidence present (S0)**
 
-* **Check:** For this fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and are schema-valid.
+* **Check:** For this fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and are schema-valid.
 * **Fail →** ⟨2B-S6-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 - S0-evidence + token-less policy selection**
 
-* **Check:** Cross-layer/policy assets appear in the **S0 sealed inventory** and are selected by **exact S0-sealed `path` + `sha256_hex`** (token-less, `partition = {}`); any partitioned reads (context) use **exactly** `[seed,fingerprint]` via **Dictionary-only** resolution. 
+* **Check:** Cross-layer/policy assets appear in the **S0 sealed inventory** and are selected by **exact S0-sealed `path` + `sha256_hex`** (token-less, `partition = {}`); any partitioned reads (context) use **exactly** `[seed, manifest_fingerprint]` via **Dictionary-only** resolution. 
 * **Fail →** ⟨2B-S6-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S6-070 PARTITION_SELECTION_INCORRECT⟩. 
 
 **V-03 — Dictionary-only resolution & exact partitions**
 
-* **Check:** No literal paths; no network I/O. Any partitioned reads (context) use **exactly** `[seed,fingerprint]`. Policies are token-less.
+* **Check:** No literal paths; no network I/O. Any partitioned reads (context) use **exactly** `[seed, manifest_fingerprint]`. Policies are token-less.
 * **Fail →** ⟨2B-S6-020⟩ / ⟨2B-S6-021 PROHIBITED_LITERAL_PATH⟩ / ⟨2B-S6-023 NETWORK_IO_ATTEMPT⟩. 
 
 **V-04 — Policy minima (virtual edges)**
@@ -486,7 +486,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 
 **V-14 — No writes to fingerprint-scoped plan/egress surfaces**
 
-* **Check:** S6 writes **only** run-scoped evidence; it does **not** write to `[seed,fingerprint]` datasets (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`).
+* **Check:** S6 writes **only** run-scoped evidence; it does **not** write to `[seed, manifest_fingerprint]` datasets (`s1_site_weights`, `s2_alias_*`, `s3_day_effects`, `s4_group_weights`, `site_timezones`).
 * **Fail →** ⟨2B-S6-090 PROHIBITED_WRITE⟩. 
 
 **V-15 — Deterministic replay (spot-check)**
@@ -514,7 +514,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 ### 10.1 Gate & catalogue discipline
 
 **2B-S6-001 — S0_RECEIPT_MISSING** · *Abort*
-**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[fingerprint]`.
+**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent/invalid at `[manifest_fingerprint]`.
 **Detect:** V-01. **Remedy:** publish valid S0 for this fingerprint; fix schema/partition. 
 
 **2B-S6-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
@@ -530,7 +530,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 **Detect:** V-03. **Remedy:** remove network I/O; consume only sealed artefacts. 
 
 **2B-S6-070 — PARTITION_SELECTION_INCORRECT** · *Abort*
-**Trigger:** A partitioned read isn’t **exactly** `[seed,fingerprint]`, or a token-less policy isn’t selected by **S0-sealed** `path`+`sha256_hex`.
+**Trigger:** A partitioned read isn’t **exactly** `[seed, manifest_fingerprint]`, or a token-less policy isn’t selected by **S0-sealed** `path`+`sha256_hex`.
 **Detect:** V-02/V-03. **Remedy:** fix partition tokens / policy selection semantics. 
 
 **2B-S6-071 — PATH_EMBED_MISMATCH** · *Abort*
@@ -635,7 +635,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 | **V-14 No writes to plan/egress surfaces**          | 2B-S6-090                                  |
 | **V-15 Deterministic replay**                       | 2B-S6-095                                  |
 
-These codes align S6 with your existing **Dictionary** (IDs/partitions), **2B schema pack** (policy anchors), and **Layer-1 RNG envelope** (core logs/layer1/2B/events), ensuring sealed reads at `[seed,fingerprint]` and run-scoped evidence at `[seed,parameter_hash,run_id]`.
+These codes align S6 with your existing **Dictionary** (IDs/partitions), **2B schema pack** (policy anchors), and **Layer-1 RNG envelope** (core logs/layer1/2B/events), ensuring sealed reads at `[seed, manifest_fingerprint]` and run-scoped evidence at `[seed,parameter_hash,run_id]`.
 
 ---
 
@@ -766,7 +766,7 @@ Then:
 ### 12.3 I/O pattern
 
 * **Cold start:** load token-less policies (`route_rng_policy_v1`, `virtual_edge_policy_v1`) by **Dictionary ID** (selected via S0-sealed path + digest). No network I/O; no literal paths. 
-* **Hot loop:** only touches in-memory `EDGE_ALIAS[m]` and appends run-scoped RNG evidence (event row + trace). No reads of `[seed,fingerprint]` tables are required to run S6. 
+* **Hot loop:** only touches in-memory `EDGE_ALIAS[m]` and appends run-scoped RNG evidence (event row + trace). No reads of `[seed, manifest_fingerprint]` tables are required to run S6. 
 
 ### 12.4 RNG evidence overhead
 
@@ -836,7 +836,7 @@ Require a new S6 **major** and coordinated updates to packs:
 **13.5 Coordination with neighbouring states**
 
 * **S5** may evolve internally so long as its outputs (runtime `(tz_group_id, site_id)` and RNG evidence) and envelope rules remain stable; S6 only augments **virtual** arrivals and must not alter S5 decisions. 
-* **S2/S4/2A** changes are compatible if their anchors/partitions remain stable; S6 does **not** depend on them to run (policy-only), and any context reads remain `[seed,fingerprint]`. 
+* **S2/S4/2A** changes are compatible if their anchors/partitions remain stable; S6 does **not** depend on them to run (policy-only), and any context reads remain `[seed, manifest_fingerprint]`. 
 
 **13.6 Policy/Registry/Dictionary coordination**
 
@@ -902,9 +902,9 @@ This section adds **no** new dataset authorities. Shapes remain governed by **`s
 
 * `route_rng_policy_v1` *(policy; token-less)* — **present**. 
 * `virtual_edge_policy_v1` *(policy; token-less)* - **present** in Dictionary/Registry. 
-* `s2_alias_index` @ **`[seed, fingerprint]`** — **present**. 
-* `s2_alias_blob` @ **`[seed, fingerprint]`** — **present**. 
-* `site_timezones` @ **`[seed, fingerprint]`** *(context; 2A egress)* — **present**. 
+* `s2_alias_index` @ **`[seed, manifest_fingerprint]`** — **present**. 
+* `s2_alias_blob` @ **`[seed, manifest_fingerprint]`** — **present**. 
+* `site_timezones` @ **`[seed, manifest_fingerprint]`** *(context; 2A egress)* — **present**. 
 * *(Optional)* `s6_edge_log` @ **`[seed, parameter_hash, run_id, utc_day]`** — **register if diagnostics are desired**. 
 
 ---

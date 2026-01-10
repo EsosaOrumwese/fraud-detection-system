@@ -442,7 +442,7 @@ It is the “header page” for all later 6A work.
 **Scope & cardinality.**
 
 * Exactly one logical row per `manifest_fingerprint` where 6A.S0 has **completed successfully**.
-* Partitioned by `fingerprint={manifest_fingerprint}` (see §7 for full partition law).
+* Partitioned by `manifest_fingerprint={manifest_fingerprint}` (see §7 for full partition law).
 * Updates are **idempotent**: rerunning S0 for the same `(parameter_hash, manifest_fingerprint)` must either:
 
   * reproduce a byte-identical row, or
@@ -511,7 +511,7 @@ All later 6A states must treat this table as the **closed world of permissible i
 **Scope & cardinality.**
 
 * One logical table per `manifest_fingerprint`.
-* Partitioned by `fingerprint={manifest_fingerprint}`.
+* Partitioned by `manifest_fingerprint={manifest_fingerprint}`.
 * Rows cover:
 
   * upstream egress 6A is allowed to touch in S1–S5,
@@ -1058,10 +1058,10 @@ Both S0 outputs are **fingerprint-scoped control-plane datasets**.
 
   * Partition keys:
 
-    * `[fingerprint]`
+    * `[manifest_fingerprint]`
   * Path token:
 
-    * `fingerprint={manifest_fingerprint}`
+    * `manifest_fingerprint={manifest_fingerprint}`
   * Path template (schematic):
 
     * `data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json`
@@ -1070,10 +1070,10 @@ Both S0 outputs are **fingerprint-scoped control-plane datasets**.
 
   * Partition keys:
 
-    * `[fingerprint]`
+    * `[manifest_fingerprint]`
   * Path token:
 
-    * `fingerprint={manifest_fingerprint}`
+    * `manifest_fingerprint={manifest_fingerprint}`
   * Path template (schematic):
 
     * `data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json`
@@ -1085,7 +1085,7 @@ Binding rules:
 * Any consumer that needs S0 for a given world must locate it by:
 
   1. resolving the dataset via the dictionary/registry, then
-  2. substituting `fingerprint={manifest_fingerprint}`.
+  2. substituting `manifest_fingerprint={manifest_fingerprint}`.
 
 ---
 
@@ -2036,7 +2036,7 @@ The following are **breaking changes** and **must not** be introduced without an
 
    * Removing required fields from `s0_gate_receipt_6A` or `sealed_inputs_6A`.
    * Changing types or semantics of existing fields (e.g. changing `sealed_inputs_digest_6A` from SHA-256 to another hash without a new field name).
-   * Changing partitioning (e.g. adding `seed` as a partition key) or path token names (e.g. renaming `fingerprint={manifest_fingerprint}`).
+   * Changing partitioning (e.g. adding `seed` as a partition key) or path token names (e.g. renaming `manifest_fingerprint={manifest_fingerprint}`).
 
 2. **Changing the digest law** for `sealed_inputs_digest_6A`:
 
@@ -2218,7 +2218,7 @@ This appendix collects the short-hands and symbols used in 6A.S0 so an implement
 * **Validation bundle**
   For each upstream segment (1A–3B, 5A–5B) and eventually for 6A itself:
 
-  * a directory rooted at a segment-specific path (e.g. `.../validation/fingerprint={mf}/`),
+  * a directory rooted at a segment-specific path (e.g. `.../validation/manifest_fingerprint={mf}/`),
   * containing `index.json` / `validation_bundle_index_*` plus evidence files and `_passed.flag`.
 
 * **`_passed.flag` / `validation_passed_flag_*`**

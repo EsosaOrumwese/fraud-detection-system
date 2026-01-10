@@ -677,7 +677,7 @@ This section summarises the obligations for the two deterministic S2 egresses.
 
 Binding rules:
 
-* Partitioning/pathing (`seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`) and primary keys are governed entirely by the dictionary and MUST be honoured so hashes remain deterministic.
+* Partitioning/pathing (`seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}`) and primary keys are governed entirely by the dictionary and MUST be honoured so hashes remain deterministic.
 * Columns encode the realised λ per `(merchant, zone, channel_group, bucket_index)`; their meanings and types live in the schema pack. S2 MUST not add/drop columns without updating the schema.
 * Inputs and configs declared in the registry (time grid, grouping, λ surfaces, LGCP + RNG policies) are the ONLY artefacts allowed to influence these rows; introducing another dependency requires a registry + sealed-inputs update first.
 * For a fixed `(seed, parameter_hash, manifest_fingerprint, scenario_id)`, rerunning S2 MUST produce byte-identical shards.
@@ -948,7 +948,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
    * For each `(seed, mf, scenario_id)`, materialise a Parquet file at:
 
      ```text
-     data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+     data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
      ```
 
    * Enforce:
@@ -969,7 +969,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
      * For each `(seed, mf, scenario_id)`, write:
 
        ```text
-       data/layer2/5B/s2_latent_field/seed={seed}/manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+       data/layer2/5B/s2_latent_field/seed={seed}/manifest_manifest_fingerprint={mf}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
        ```
 
      * Enforce:
@@ -1064,7 +1064,7 @@ Both S2 datasets use the same partitioning law:
 * **Path tokens:**
 
   * `seed={seed}`
-  * `fingerprint={manifest_fingerprint}`
+  * `manifest_fingerprint={manifest_fingerprint}`
   * `scenario_id={scenario_id}`
 
 Canonical paths:
@@ -1073,7 +1073,7 @@ Canonical paths:
 
   ```text
   data/layer2/5B/s2_realised_intensity/
-    seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/
+    seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/
     s2_realised_intensity_5B.parquet
   ```
 
@@ -1081,7 +1081,7 @@ Canonical paths:
 
   ```text
   data/layer2/5B/s2_latent_field/
-    seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/
+    seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/
     s2_latent_field_5B.parquet
   ```
 

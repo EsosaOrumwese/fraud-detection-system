@@ -92,7 +92,7 @@ reference_data:
   - id: validation_bundle_2A
     status: approved
     owner_subsegment: 2A
-    description: Validation bundle for 2A publish (one per fingerprint).
+    description: Validation bundle for 2A publish (one per manifest_fingerprint).
     version: '{manifest_fingerprint}'
     format: files
     path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
@@ -236,7 +236,7 @@ reference_data:
   - id: outlet_catalogue
     status: approved
     owner_subsegment: 1A
-    description: "Immutable outlet stubs per merchant x legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9)."
+    description: "Immutable outlet stubs per merchant x legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same manifest_fingerprint (see S9.9)."
     version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
@@ -254,7 +254,7 @@ reference_data:
   - id: site_locations
     status: approved
     owner_subsegment: 1B
-    description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.
+    description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/manifest_fingerprint.
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
@@ -881,7 +881,7 @@ datasets:
   - id: sealed_inputs_5A
     status: required
     owner_subsegment: 5A
-    description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
+    description: Inventory of sealed artefacts 5A is allowed to read for a manifest_fingerprint.
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json

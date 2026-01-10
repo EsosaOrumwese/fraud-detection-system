@@ -139,7 +139,7 @@ Before 3A.S3 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 
 2. **3A.S0 has completed successfully for this `manifest_fingerprint`.**
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` and `sealed_inputs_3A@fingerprint={manifest_fingerprint}` MUST exist and be schema-valid.
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` and `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` MUST exist and be schema-valid.
    * `s0_gate_receipt_3A.upstream_gates.segment_1A.status == "PASS"`,
      `segment_1B.status == "PASS"`,
      `segment_2A.status == "PASS"`.
@@ -147,7 +147,7 @@ Before 3A.S3 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 
 3. **3A.S1 has produced an escalation queue for this `{seed, manifest_fingerprint}`.**
 
-   * `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}` MUST exist and be schema-valid under `schemas.3A.yaml#/plan/s1_escalation_queue`.
+   * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` MUST exist and be schema-valid under `schemas.3A.yaml#/plan/s1_escalation_queue`.
    * The orchestrator MUST only trigger S3 once the S1 run for this `{seed, fingerprint}` has completed successfully (per S1’s own run-report status).
    * S3 MUST treat the absence or schema-invalidity of `s1_escalation_queue` as a hard precondition failure.
 
@@ -168,7 +168,7 @@ Before 3A.S3 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 S3 MUST treat 3A.S0 outputs as its **gate** and **input whitelist** for external artefacts.
 
 1. **Gate descriptor: `s0_gate_receipt_3A`**
-   S3 MUST read `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` and:
+   S3 MUST read `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` and:
 
    * validate it against `schemas.3A.yaml#/validation/s0_gate_receipt_3A`,
    * confirm upstream gates for 1A/1B/2A are `"PASS"`,
@@ -179,7 +179,7 @@ S3 MUST treat 3A.S0 outputs as its **gate** and **input whitelist** for external
 2. **Sealed input inventory: `sealed_inputs_3A`**
    For **external** artefacts S3 reads directly (e.g. ISO/tz-universe references, RNG policy configs), S3 MUST:
 
-   * confirm there is at least one row in `sealed_inputs_3A@fingerprint={manifest_fingerprint}` with matching `logical_id` and `path`, and
+   * confirm there is at least one row in `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` with matching `logical_id` and `path`, and
    * recompute SHA-256 over the artefact bytes and assert equality with the `sha256_hex` recorded in that row.
 
    If any external artefact S3 intends to read is missing from `sealed_inputs_3A`, or if digests disagree, S3 MUST fail.
@@ -194,7 +194,7 @@ Within the sealed universe established by S0 and the 3A catalogue, S3 MAY read a
 
 1. **3A.S1 escalation queue (required)**
 
-   * Dataset: `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`.
+   * Dataset: `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
    * S3 MUST treat this as the sole authority on which merchant×country pairs are escalated:
 
      * Domain: all `(merchant_id, legal_country_iso)` with `site_count ≥ 1`.
@@ -366,7 +366,7 @@ Within the 3A segment, S3 depends on two internal surfaces:
 
 1. **Escalation queue from S1 (`s1_escalation_queue`)**
 
-   * Dataset: `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+   * Dataset: `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
    * Schema: `schemas.3A.yaml#/plan/s1_escalation_queue`
 
    Authority:
@@ -975,7 +975,7 @@ datasets:
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.3A.yaml#/plan/s3_zone_shares
     lineage:
@@ -989,8 +989,8 @@ datasets:
 Binding points:
 
 * `id` MUST be `s3_zone_shares` under `owner_subsegment: 3A`.
-* `partitioning` MUST be exactly `[seed, fingerprint]`.
-* `path` MUST contain `seed={seed}` and `fingerprint={manifest_fingerprint}` and no other partition tokens.
+* `partitioning` MUST be exactly `[seed, manifest_fingerprint]`.
+* `path` MUST contain `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` and no other partition tokens.
 * `schema_ref` MUST be `schemas.3A.yaml#/plan/s3_zone_shares`.
 * `ordering` expresses the deterministic writer-sort; consumers MUST NOT ascribe semantics beyond reproducibility.
 
@@ -1161,8 +1161,8 @@ S3 MUST:
 
 Using the 3A dictionary/registry, resolve and read:
 
-* `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`,
-* `sealed_inputs_3A@fingerprint={manifest_fingerprint}`.
+* `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`,
+* `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`.
 
 S3 MUST:
 
@@ -1175,7 +1175,7 @@ Failure ⇒ abort S3 (no outputs).
 
 Resolve and read:
 
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}` with `schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue`.
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` with `schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue`.
 
 S3 MUST:
 
@@ -2655,7 +2655,7 @@ To allow auditors and operators to trace behaviour across the 3A pipeline and RN
    A 3A validation state MUST be able to:
 
    * go from S3’s run-report row →
-   * locate `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}` via the dictionary/registry →
+   * locate `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}` via the dictionary/registry →
    * locate S1 and S2 artefacts via their own manifest keys →
    * locate RNG logs (`rng_event_zone_dirichlet` and relevant `rng_trace_log` entries) via `(seed, parameter_hash, run_id, module="3A.S3", substream_label="zone_dirichlet")`.
 

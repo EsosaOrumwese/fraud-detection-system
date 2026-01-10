@@ -210,7 +210,7 @@ Segment 6B rests on sealed worlds in Layers 1–2 and 6A. For a given `manifest_
 
    use the owning dictionaries/registries + `sealed_inputs_6B` to locate:
 
-   * the `validation_bundle_*` directory for that segment at `fingerprint={manifest_fingerprint}`,
+   * the `validation_bundle_*` directory for that segment at `manifest_fingerprint={manifest_fingerprint}`,
    * the corresponding `_passed.flag` artefact.
 
 2. Re-validate each upstream HashGate according to that segment’s own spec:
@@ -629,7 +629,7 @@ But S5’s outputs are **purely validation artefacts**; the truth about behaviou
 
 All S5 outputs are **fingerprint-scoped**:
 
-* They are partitioned only by `manifest_fingerprint` (exposed as `fingerprint={manifest_fingerprint}` in paths).
+* They are partitioned only by `manifest_fingerprint` (exposed as `manifest_fingerprint={manifest_fingerprint}` in paths).
 * They do **not** partition by `seed`, `scenario_id`, or `run_id`.
 
 No other datasets or artefacts may be written by S5.
@@ -673,7 +673,7 @@ Registered in the 6B dictionary/registry as:
   data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json
   ```
 
-* `partitioning: [fingerprint]`
+* `partitioning: [manifest_fingerprint]`
 
 The embedded `manifest_fingerprint` field in the JSON MUST equal the `fingerprint` partition token.
 
@@ -737,7 +737,7 @@ Registered as:
   data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6B.parquet
   ```
 
-* `partitioning: [fingerprint]`
+* `partitioning: [manifest_fingerprint]`
 
 Embedded `manifest_fingerprint` MUST match the partition token.
 
@@ -804,7 +804,7 @@ Registered as:
   data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
   ```
 
-* `partitioning: [fingerprint]`
+* `partitioning: [manifest_fingerprint]`
 
 Within that directory, S5 owns the layout of validation artefacts. It MUST at least produce:
 
@@ -898,7 +898,7 @@ Registered as:
   data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
   ```
 
-* `partitioning: [fingerprint]`
+* `partitioning: [manifest_fingerprint]`
 
 Contents (binding):
 
@@ -1398,7 +1398,7 @@ Binding rules:
 
 ### 7.2 Partitioning & path discipline
 
-All S5 artefacts are partitioned solely by `fingerprint={manifest_fingerprint}`:
+All S5 artefacts are partitioned solely by `manifest_fingerprint={manifest_fingerprint}`:
 
 * `s5_validation_report_6B`:
 
@@ -1428,7 +1428,7 @@ All S5 artefacts are partitioned solely by `fingerprint={manifest_fingerprint}`:
 
 **Path↔embed equality (binding):**
 
-* Wherever `manifest_fingerprint` appears as a field in S5 artefacts, its value MUST equal the `fingerprint={manifest_fingerprint}` path token.
+* Wherever `manifest_fingerprint` appears as a field in S5 artefacts, its value MUST equal the `manifest_fingerprint={manifest_fingerprint}` path token.
 * S5 MUST NOT write any of its artefacts outside the `data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/` directory for that world.
 
 ---
@@ -2966,7 +2966,7 @@ Examples of breaking changes:
 
 3. **Changing identity/partitioning of S5 artefacts**
 
-   * Moving S5 outputs out of the `fingerprint={manifest_fingerprint}` partitioning scheme (e.g. adding `seed` as a partition axis).
+   * Moving S5 outputs out of the `manifest_fingerprint={manifest_fingerprint}` partitioning scheme (e.g. adding `seed` as a partition axis).
    * Allowing multiple `s5_validation_report_6B` or `_passed.flag` for the same `(manifest_fingerprint, spec_version_6B)`.
 
 4. **Changing PASS/WARN/FAIL semantics for existing checks**
@@ -3091,7 +3091,7 @@ For the lifetime of a given `spec_version_6B`, the following aspects of S5 are *
   * `validation_bundle_6B` with an index,
   * `validation_passed_flag_6B`.
 
-* All S5 artefacts are partitioned by `[fingerprint]` only.
+* All S5 artefacts are partitioned by `[manifest_fingerprint]` only.
 
 * The hashing law for `validation_bundle_6B`:
 
@@ -3124,7 +3124,7 @@ This appendix collects shorthand and symbols used in the 6B.S5 spec. It is **inf
 ### 13.1 Identity & axes
 
 * **`manifest_fingerprint` / `fingerprint`**
-  Sealed world snapshot identifier. All S5 artefacts are scoped to a single `manifest_fingerprint` and partitioned by `fingerprint={manifest_fingerprint}`.
+  Sealed world snapshot identifier. All S5 artefacts are scoped to a single `manifest_fingerprint` and partitioned by `manifest_fingerprint={manifest_fingerprint}`.
 
 * **`parameter_hash`**
   Hash of the 6B configuration pack used to produce S0–S4 outputs for this world. S5 records it in its report and index to document the configuration context under which validation was performed.

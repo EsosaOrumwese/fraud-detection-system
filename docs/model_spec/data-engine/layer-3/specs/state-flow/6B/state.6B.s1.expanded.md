@@ -230,7 +230,7 @@ Before processing any `(seed, scenario_id)` partition, S1 MUST:
 3. Verify, for each of these rows, that:
 
    * `schema_ref` resolves into `schemas.5B.yaml` or `schemas.6A.yaml` as expected.
-   * `partition_keys` are consistent with the owning segment’s dictionary (e.g. arrivals partitioned by `[seed, fingerprint, scenario_id]`; 6A tables by `[seed, fingerprint]`).
+   * `partition_keys` are consistent with the owning segment’s dictionary (e.g. arrivals partitioned by `[seed, fingerprint, scenario_id]`; 6A tables by `[seed, manifest_fingerprint]`).
 
 If any required row is missing or malformed, S1 MUST fail with a precondition error (a concrete S1 error code will be defined in its failure section) and MUST NOT read any of the upstream datasets.
 
@@ -244,14 +244,14 @@ On the **arrival side**, S1 operates over the set of `(seed, scenario_id)` parti
 
 Before processing a given partition `(seed, scenario_id)` for 6B.S1, the state MUST ensure:
 
-1. That the combination `(seed, fingerprint={manifest_fingerprint}, scenario_id)` exists as a partition of `arrival_events_5B` according to:
+1. That the combination `(seed, manifest_fingerprint={manifest_fingerprint}, scenario_id)` exists as a partition of `arrival_events_5B` according to:
 
    * the 5B dataset dictionary (`dataset_dictionary.layer2.5B.yaml`), and
    * the `path_template` / `partition_keys` recorded in the corresponding `sealed_inputs_6B` row.
 
 2. That 6A has produced entity surfaces for the same `seed` and `manifest_fingerprint`:
 
-   * Each required 6A dataset listed in §2.3 MUST have a partition for `[seed, fingerprint={manifest_fingerprint}]`.
+   * Each required 6A dataset listed in §2.3 MUST have a partition for `[seed, manifest_fingerprint={manifest_fingerprint}]`.
    * If any of those partitions is missing, S1 MUST treat this as a precondition failure for that `(seed, scenario_id)` domain and fail (or skip) the entire S1 run for that `(seed, scenario_id)` according to the orchestration contract.
 
 Semantics for **empty arrivals**:
@@ -1157,14 +1157,14 @@ and use the following path templates:
 
   ```text
   data/layer3/6B/s1_arrival_entities_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 * `s1_session_index_6B`:
 
   ```text
   data/layer3/6B/s1_session_index_6B/
-      seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
   ```
 
 Binding path↔embed rules:
@@ -1172,7 +1172,7 @@ Binding path↔embed rules:
 * For every row:
 
   * `seed` column MUST equal the `seed={seed}` path token.
-  * `manifest_fingerprint` column MUST equal the `fingerprint={manifest_fingerprint}` path token.
+  * `manifest_fingerprint` column MUST equal the `manifest_fingerprint={manifest_fingerprint}` path token.
   * `scenario_id` column MUST equal the `scenario_id={scenario_id}` path token.
 
 * No S1 dataset MAY be written outside this directory layout or without all three partition components.

@@ -15,7 +15,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.2A.validation.s0_gate_receipt
     license: Proprietary-Internal
-    role: "Receipt proving 1B PASS for fingerprint; enumerates sealed inputs for 2A."
+    role: "Receipt proving 1B PASS for manifest_fingerprint; enumerates sealed inputs for 2A."
     dependencies: [validation_bundle_1B, validation_passed_flag_1B]
     source: internal
     owner: {owner_team: "mlr-2a-core"}
@@ -365,7 +365,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.2A.manifests.sealed_inputs_2A
     license: Proprietary-Internal
-    role: "Row-wise inventory of sealed assets for 2A fingerprint."
+    role: "Row-wise inventory of sealed assets for 2A manifest_fingerprint."
     dependencies: [s0_gate_receipt_2A]
     source: internal
     owner: { owner_team: "mlr-2a-core" }

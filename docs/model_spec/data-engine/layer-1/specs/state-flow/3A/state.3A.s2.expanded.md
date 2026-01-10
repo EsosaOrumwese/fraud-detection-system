@@ -122,8 +122,8 @@ Before 3A.S2 is invoked for a given `parameter_hash`, the orchestrator MUST ensu
 2. **3A.S0 has completed successfully for the chosen manifest.**
    For at least one `manifest_fingerprint` compatible with `parameter_hash` (and typically for the specific manifest for which the engine is being prepared):
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` exists and is schema-valid.
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}` exists and is schema-valid.
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid.
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` exists and is schema-valid.
    * `s0_gate_receipt_3A.upstream_gates.segment_1A.status == "PASS"`,
      `segment_1B.status == "PASS"`,
      `segment_2A.status == "PASS"`.
@@ -158,7 +158,7 @@ S2 does **not** require 3A.S1 to have run: priors are defined at the **country×
 2. **Sealed input inventory: `sealed_inputs_3A`**
    For each artefact S2 intends to read, it MUST:
 
-   * find at least one row in `sealed_inputs_3A@fingerprint={manifest_fingerprint}` with matching `logical_id` and `path`,
+   * find at least one row in `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` with matching `logical_id` and `path`,
    * recompute the SHA-256 digest over the artefact bytes, and
    * assert equality with the `sha256_hex` recorded in that row.
 
@@ -308,8 +308,8 @@ S2 stands on the same catalogue + gate foundation as S0 and S1. It MUST treat th
 
 3. **3A.S0 outputs (gate & whitelist)**
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`
 
    These artefacts are **authoritative for**:
 
@@ -428,7 +428,7 @@ Within the sealed inputs, S2 MAY read:
 
 3. **2A tzdb cache (optional structural check)**
 
-   * `tz_timetable_cache@fingerprint={manifest_fingerprint}` from 2A.
+   * `tz_timetable_cache@manifest_fingerprint={manifest_fingerprint}` from 2A.
 
    Authority:
 
@@ -1010,8 +1010,8 @@ S2 MUST:
 
 Using 3A’s dictionary/registry, S2:
 
-* resolves `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`,
-* resolves `sealed_inputs_3A@fingerprint={manifest_fingerprint}`.
+* resolves `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`,
+* resolves `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`.
 
 S2 MUST:
 

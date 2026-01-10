@@ -20,13 +20,13 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 * **Alias artefacts (2B.S2):** `s2_alias_index` (directory & decode invariants) and `s2_alias_blob` (raw bytes; digest echoed in index). 
 * **Day effects (2B.S3):** `s3_day_effects` (γ per merchant×UTC-day×tz-group). 
 * **Group mixes (2B.S4):** `s4_group_weights` (RNG-free probabilities used to pick tz-group). 
-* **Time-zone mapping (2A egress):** `site_timezones` (per-site IANA `tzid`, `[seed,fingerprint]`). 
+* **Time-zone mapping (2A egress):** `site_timezones` (per-site IANA `tzid`, `[seed, manifest_fingerprint]`). 
 * **Policies (captured/sealed at S0):** `route_rng_policy_v1` (Philox sub-streams/budgets for routing), `alias_layout_policy_v1` (alias layout/endianness/alignment). 
 
 **Segment invariants (Binding):**
 
 * **Run identity:** `{ seed, manifest_fingerprint }` fixed by S0; S5 resolves all IDs via the **Dictionary only** (no literal paths), enforcing Dictionary-only resolution and the **S0-evidence rule** (see §3.1).
-* **Partition posture (referenced inputs):** `s4_group_weights`, `s3_day_effects`, `s1_site_weights`, and `site_timezones` are selected at **`[seed, fingerprint]`**; `s2_alias_index` and `s2_alias_blob` likewise sit under **`[seed, fingerprint]`**.
+* **Partition posture (referenced inputs):** `s4_group_weights`, `s3_day_effects`, `s1_site_weights`, and `site_timezones` are selected at **`[seed, manifest_fingerprint]`**; `s2_alias_index` and `s2_alias_blob` likewise sit under **`[seed, manifest_fingerprint]`**.
 * **Gate law:** **No PASS → No read** remains in force across the segment; S5 relies on the S0 receipt (does **not** re-hash bundles). 
 * **RNG posture:** **RNG-bounded, reproducible** — counter-based **Philox** with governed sub-streams per `route_rng_policy_v1`; reconciliation against the programme’s RNG trace/audit posture (events → trace totals) follows the layer-1 logs convention.
 * **Numeric discipline:** binary64, round-to-nearest-even; stable serial reductions (as in S3/S4).
@@ -89,23 +89,23 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 
 **3.1 Gate & run-identity (must be true before any read)**
 
-* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B`, partitioned by `[fingerprint]`. Path↔embed equality **must** hold. S5 **relies** on this receipt; it does **not** re-hash upstream bundles.  
+* **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_2B`, partitioned by `[manifest_fingerprint]`. Path↔embed equality **must** hold. S5 **relies** on this receipt; it does **not** re-hash upstream bundles.  
 * **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_2B`;
   within-segment datasets (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`,
   `s4_group_weights`, `site_timezones`) are **NOT** S0-sealed but **MUST** be read by
-  Dictionary ID at exactly `[seed,fingerprint]`. Literal paths are forbidden.
+  Dictionary ID at exactly `[seed, manifest_fingerprint]`. Literal paths are forbidden.
 
 **3.2 Inputs required by S5 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed at S0.
 
 * **Day mixes (group stage):**
-  `s4_group_weights@seed={seed}/fingerprint={manifest_fingerprint}` (Parquet; PK `[merchant_id, utc_day, tz_group_id]`). **Shape:** `schemas.2B.yaml#/plan/s4_group_weights`. Used as the **sole** probability law to pick the tz-group.  
+  `s4_group_weights@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (Parquet; PK `[merchant_id, utc_day, tz_group_id]`). **Shape:** `schemas.2B.yaml#/plan/s4_group_weights`. Used as the **sole** probability law to pick the tz-group.  
 
 * **Per-site masses (site stage):**
-  `s1_site_weights@seed={seed}/fingerprint={manifest_fingerprint}` (Parquet; writer order = PK). **Shape:** `#/plan/s1_site_weights`. Used to build the **per-group alias** (v1). 
+  `s1_site_weights@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (Parquet; writer order = PK). **Shape:** `#/plan/s1_site_weights`. Used to build the **per-group alias** (v1). 
 
 * **Site → tz mapping (coherence):**
-  `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}` (Parquet; 2A egress). **Shape:** `schemas.2A.yaml#/egress/site_timezones`. Used to (i) filter S1 masses to the chosen group and (ii) assert `tz_group_id(site_id) == chosen tz_group_id`. 
+  `site_timezones@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (Parquet; 2A egress). **Shape:** `schemas.2A.yaml#/egress/site_timezones`. Used to (i) filter S1 masses to the chosen group and (ii) assert `tz_group_id(site_id) == chosen tz_group_id`. 
 
 * **Alias policy (layout/endianness/alignment/bit-depth):**
   `alias_layout_policy_v1` (single file; **no partition tokens**). **Shape:** `schemas.2B.yaml#/policy/alias_layout_policy_v1`. S5 uses it as the **encode/decode law** and compatibility surface for alias mechanics (even though v1 builds per-group alias in-process). Selection is by the **exact S0-sealed path + digest**.  
@@ -114,12 +114,12 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
   `route_rng_policy_v1` (single file; **no partition tokens**). **Shape:** `schemas.2B.yaml#/policy/route_rng_policy_v1`. Declares the Philox stream/sub-stream layout and budgets for **two single-uniform draws per arrival** (group pick, site pick). Selection is by the **exact S0-sealed path + digest**.  
 
 * **Alias artefacts (compatibility echo; presence & integrity):**
-  `s2_alias_index@seed={seed}/fingerprint={manifest_fingerprint}` (JSON) and `s2_alias_blob@seed={seed}/fingerprint={manifest_fingerprint}` (binary). **Shapes:** `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. S5 **does not** decode merchant tables in v1, but **must** verify header parity and blob integrity (pre-flight):
+  `s2_alias_index@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (JSON) and `s2_alias_blob@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (binary). **Shapes:** `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. S5 **does not** decode merchant tables in v1, but **must** verify header parity and blob integrity (pre-flight):
   `index.policy_digest == digest(alias_layout_policy_v1)` and `index.blob_sha256 == SHA256(raw bytes of s2_alias_blob)`. Abort on mismatch.  
 
 **3.3 Selection & partition discipline (binding rules)**
 
-* **Partitioned datasets** (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `site_timezones`) **must** be selected at **exactly** `[seed={seed}, fingerprint={manifest_fingerprint}]`; path tokens **must** equal any embedded identity.  
+* **Partitioned datasets** (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `site_timezones`) **must** be selected at **exactly** `[seed={seed}, manifest_fingerprint={manifest_fingerprint}]`; path tokens **must** equal any embedded identity.  
 * **Token-less policies** (`route_rng_policy_v1`, `alias_layout_policy_v1`) carry `partition = {}` in receipts/inventories (per schema); selection is by the **exact** S0-sealed `path` **and** `sha256_hex`.  
 
 **3.4 Integrity & compatibility pre-checks (abort on failure)**
@@ -150,7 +150,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 * **JSON-Schema** is the **sole shape authority**: S5 binds to anchors in `schemas.2B.yaml` (S1/S2/S4 shapes) and `schemas.2A.yaml` (2A egress). Fields, domains, PK/partitions, and strictness come **only** from these anchors. 
 * **Dataset Dictionary** is the **catalogue authority** (IDs → path families, partitions, formats). S5 SHALL resolve every input **by ID only** (no literal paths). 
 * **Artefact Registry** carries **existence/licence/retention/ownership**; it does **not** change shapes or partitions. 
-* **Gate & S0-evidence rule.** S5 reads **only** cross-layer/policy assets sealed in **S0** for this fingerprint; evidence is the S0 receipt + sealed-inputs inventory. Within-segment reads are Dictionary-only at `[seed,fingerprint]` (S5 does **not** re-hash 1B bundles.) 
+* **Gate & S0-evidence rule.** S5 reads **only** cross-layer/policy assets sealed in **S0** for this fingerprint; evidence is the S0 receipt + sealed-inputs inventory. Within-segment reads are Dictionary-only at `[seed, manifest_fingerprint]` (S5 does **not** re-hash 1B bundles.) 
 
 **4.2 Inputs (Dictionary IDs), partitions, shapes, and exact use (read-only)**
 S5 SHALL read **exactly** these inputs, under the run identity `{seed, manifest_fingerprint}`:
@@ -173,9 +173,9 @@ S5 SHALL read **exactly** these inputs, under the run identity `{seed, manifest_
 
 **4.3 Partition & identity discipline (binding)**
 
-* **Exact partitions:** All partitioned reads use **exactly** `[seed, fingerprint]` per the Dictionary; token-less policies carry `partition = {}` in receipts/inventory (schema allows empty maps). **Path↔embed equality** MUST hold wherever identity is embedded.
+* **Exact partitions:** All partitioned reads use **exactly** `[seed, manifest_fingerprint]` per the Dictionary; token-less policies carry `partition = {}` in receipts/inventory (schema allows empty maps). **Path↔embed equality** MUST hold wherever identity is embedded.
 * **Evidence:** Cross-layer/policy assets appear in `sealed_inputs_2B`; within-segment datasets are
-  selected exactly at `[seed,fingerprint]` by ID (no literals, no wildcards). 
+  selected exactly at `[seed, manifest_fingerprint]` by ID (no literals, no wildcards). 
 
 **4.4 Authority boundaries (what S5 SHALL NOT do)**
 
@@ -229,7 +229,7 @@ S5 **SHALL** print a **STDOUT JSON** run-report (non-authoritative): policy ids/
 
 * **Logs/events (required):** `[seed, parameter_hash, run_id]`; **write-once**, **atomic publish**, record-append only; append exactly one `rng_trace_log` row **after each** event append. 
 * **Optional `s5_selection_log` (if enabled):** `[seed, parameter_hash, run_id, utc_day]`; writer order = arrival order; **write-once + atomic publish**; **path↔embed equality** wherever lineage appears. 
-* **No other persisted egress** is produced by S5; probability/alias authority remains S4/S2 respectively (selected by `[seed, fingerprint]`). 
+* **No other persisted egress** is produced by S5; probability/alias authority remains S4/S2 respectively (selected by `[seed, manifest_fingerprint]`). 
 
 > Net effect: S5 leaves authoritative state in **S2/S3/S4**, emits **RNG evidence** under the layer log envelope, and (optionally) a **diagnostic selection log** with run-scoped partitions. This stays perfectly aligned with your existing Dictionary/Registry posture and Layer-1 identity rules.
 
@@ -245,10 +245,10 @@ JSON-Schema is the **sole** shape authority. S5 binds to anchors in **`schemas.2
 **6.2 Referenced input anchors (read-only)**
 S5 SHALL resolve and consume exactly these shapes:
 
-* **Group mixes (S4):** `schemas.2B.yaml#/plan/s4_group_weights` — per-merchant×day×tz-group probabilities. Dict ID `s4_group_weights` at `[seed,fingerprint]`. 
-* **Per-site masses (S1):** `#/plan/s1_site_weights` — long-run site weights used to build per-group alias (v1). Dict ID `s1_site_weights` at `[seed,fingerprint]`. 
-* **Alias artefacts (S2):** `#/plan/s2_alias_index` (directory) and `#/binary/s2_alias_blob` (raw bytes). Dict IDs `s2_alias_index`/`s2_alias_blob` at `[seed,fingerprint]`. 
-* **Site→tz mapping (2A egress):** `schemas.2A.yaml#/egress/site_timezones` — membership + provenance. Dict ID `site_timezones` at `[seed,fingerprint]`. 
+* **Group mixes (S4):** `schemas.2B.yaml#/plan/s4_group_weights` — per-merchant×day×tz-group probabilities. Dict ID `s4_group_weights` at `[seed, manifest_fingerprint]`. 
+* **Per-site masses (S1):** `#/plan/s1_site_weights` — long-run site weights used to build per-group alias (v1). Dict ID `s1_site_weights` at `[seed, manifest_fingerprint]`. 
+* **Alias artefacts (S2):** `#/plan/s2_alias_index` (directory) and `#/binary/s2_alias_blob` (raw bytes). Dict IDs `s2_alias_index`/`s2_alias_blob` at `[seed, manifest_fingerprint]`. 
+* **Site→tz mapping (2A egress):** `schemas.2A.yaml#/egress/site_timezones` — membership + provenance. Dict ID `site_timezones` at `[seed, manifest_fingerprint]`. 
 * **Policies (S0-sealed, token-less):** `#/policy/route_rng_policy_v1`, `#/policy/alias_layout_policy_v1`. Selection is by **exact S0-sealed path+digest**. 
 
 ---
@@ -295,7 +295,7 @@ From **`schemas.layer1.yaml`** unless otherwise stated:
 
 **6.6 Format & storage (Dictionary authority)**
 
-* **Referenced inputs:** `s4_group_weights`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `site_timezones` — all partitioned by **`[seed, fingerprint]`**; formats per their entries (parquet/json/binary). 
+* **Referenced inputs:** `s4_group_weights`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `site_timezones` — all partitioned by **`[seed, manifest_fingerprint]`**; formats per their entries (parquet/json/binary). 
 * **Optional `s5_selection_log` (if registered):** `jsonl` at **`[seed, parameter_hash, run_id, utc_day]`** with schema-ref `schemas.2B.yaml#/trace/s5_selection_log_row`. (If not registered, S5 **MUST NOT** write it.) 
 
 ---
@@ -420,7 +420,7 @@ Given arrival `(m, t)`:
 **8.1 Lineage tokens & where they live (authoritative)**
 
 * **Run identity (routing/log lineage):** `{ seed, parameter_hash, run_id }` — used by **RNG core logs** and **RNG events**. These surfaces are *never* fingerprint-partitioned; they sit under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. 
-* **Plan/egress identity (read surfaces):** `{ seed, manifest_fingerprint }` — used by **S1/S2/S3/S4 tables** (and 2A `site_timezones`). S5 reads them at **exactly** `[seed, fingerprint]` per the Dictionary. 
+* **Plan/egress identity (read surfaces):** `{ seed, manifest_fingerprint }` — used by **S1/S2/S3/S4 tables** (and 2A `site_timezones`). S5 reads them at **exactly** `[seed, manifest_fingerprint]` per the Dictionary. 
 * **Optional selection log (if enabled):** partitions are **`[seed, parameter_hash, run_id, utc_day]`**, and the row **must carry** `manifest_fingerprint` as a column with **path↔embed equality**. (Aligns with your Layer-1 RNG envelope.) 
 
 **8.2 Partition selection (binding)**
@@ -452,7 +452,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 
 **8.8 Prohibitions (binding)**
 
-* **No literal paths**; **no network I/O**; **no writes** outside the log envelope (and optional selection log) for S5. Input plan tables remain read-only at `[seed, fingerprint]`. 
+* **No literal paths**; **no network I/O**; **no writes** outside the log envelope (and optional selection log) for S5. Input plan tables remain read-only at `[seed, manifest_fingerprint]`. 
 
 **8.9 Evidence hooks (what validators will check)**
 
@@ -468,12 +468,12 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 
 **V-01 — Gate evidence present (S0)**
 
-* **Checks:** For this `manifest_fingerprint`, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[fingerprint]` and are schema-valid; path↔embed equality holds.
+* **Checks:** For this `manifest_fingerprint`, `s0_gate_receipt_2B` **and** `sealed_inputs_2B` exist at `[manifest_fingerprint]` and are schema-valid; path↔embed equality holds.
 * **Fail →** ⟨2B-S5-001 S0_RECEIPT_MISSING⟩. 
 
 **V-02 — S0-evidence & exact selection**
 
-* **Checks:** All cross-layer/policy assets appear in **S0’s sealed inventory** for this fingerprint; all within-segment inputs are resolved by **Dictionary ID** at exactly `[seed,fingerprint]`. Policies (`route_rng_policy_v1`, `alias_layout_policy_v1`) must match the **exact** S0-sealed `path` and `sha256_hex` (token-less → `partition={}`).
+* **Checks:** All cross-layer/policy assets appear in **S0’s sealed inventory** for this fingerprint; all within-segment inputs are resolved by **Dictionary ID** at exactly `[seed, manifest_fingerprint]`. Policies (`route_rng_policy_v1`, `alias_layout_policy_v1`) must match the **exact** S0-sealed `path` and `sha256_hex` (token-less → `partition={}`).
 * **Fail →** ⟨2B-S5-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S5-070 PARTITION_SELECTION_INCORRECT⟩. 
 
 **V-03 — Dictionary-only resolution & exact partitions**
@@ -534,7 +534,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 
 **V-14 — No mutation of plan surfaces**
 
-* **Checks:** S5 performs **no writes** to `[seed,fingerprint]` plan/egress datasets (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`).
+* **Checks:** S5 performs **no writes** to `[seed, manifest_fingerprint]` plan/egress datasets (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`).
 * **Fail →** ⟨2B-S5-090 PROHIBITED_WRITE⟩.
 
 **V-15 — Deterministic replay (spot-check)**
@@ -569,7 +569,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 ### 10.1 Gate & catalogue discipline
 
 **2B-S5-001 — S0_RECEIPT_MISSING** · *Abort*
-**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent or schema-invalid at `[fingerprint]`.
+**Trigger:** `s0_gate_receipt_2B` and/or `sealed_inputs_2B` absent or schema-invalid at `[manifest_fingerprint]`.
 **Detect:** V-01. **Remedy:** (i) produce S0 for this fingerprint; (ii) fix schema/partition; re-run. 
 
 **2B-S5-020 — DICTIONARY_RESOLUTION_ERROR** · *Abort*
@@ -585,7 +585,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 **Detect:** V-03. **Remedy:** remove network I/O; use sealed artefacts only. 
 
 **2B-S5-070 — PARTITION_SELECTION_INCORRECT** · *Abort*
-**Trigger:** A partitioned read is not **exactly** `[seed, fingerprint]`, or a token-less policy is not selected by **S0-sealed** `path`+`sha256_hex`.
+**Trigger:** A partitioned read is not **exactly** `[seed, manifest_fingerprint]`, or a token-less policy is not selected by **S0-sealed** `path`+`sha256_hex`.
 **Detect:** V-02/V-03. **Remedy:** fix partition tokens / policy selection semantics. 
 
 **2B-S5-071 — PATH_EMBED_MISMATCH** · *Abort*
@@ -651,7 +651,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 **Detect:** V-12. **Remedy:** stamp created time from S0 receipt. 
 
 **2B-S5-090 — PROHIBITED_WRITE** · *Abort*
-**Trigger:** Any write to plan/egress tables at `[seed,fingerprint]` (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`).
+**Trigger:** Any write to plan/egress tables at `[seed, manifest_fingerprint]` (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`).
 **Detect:** V-14. **Remedy:** treat these as read-only; S5 writes only logs/layer1/2B/events (and optional `s5_selection_log`). 
 
 ---
@@ -711,7 +711,7 @@ The run-report **MUST** contain exactly these top-level keys:
 * `policy`:
   `{ id: "route_rng_policy_v1", version_tag: <string>, sha256_hex: <hex64>, rng_engine: <string>, rng_stream_id: <string>, draws_per_selection: 2 }`
 * `inputs_summary`:
-  `{ group_weights_path, site_weights_path, site_timezones_path, alias_index_path, alias_blob_path }` — **Dictionary-resolved** paths at `[seed,fingerprint]` (policies are token-less and selected by S0-sealed path + digest).
+  `{ group_weights_path, site_weights_path, site_timezones_path, alias_index_path, alias_blob_path }` — **Dictionary-resolved** paths at `[seed, manifest_fingerprint]` (policies are token-less and selected by S0-sealed path + digest).
 * `rng_accounting`:
   `{ events_group: <uint64>, events_site: <uint64>, events_total: <uint64>, draws_total: <uint64>, first_counter: {hi,lo}, last_counter: {hi,lo} }`
   *Invariant:* `draws_total == 2 × selections_logged`. Core logs’ partitioning is `[seed, parameter_hash, run_id]`. 
@@ -767,7 +767,7 @@ Then the **total work** over a run is:
 * **Per-group site alias builds (first use):** `∑_{(m,d,g) actually visited} O(N_{m,d,g})` from **S1** filtered by **site_timezones**.
 * **Per selection:** `O(1) + O(1)` (one group decode, one site decode).
 
-So **end-to-end:** `O(S) + O(∑ G_{m,d}) + O(∑ N_{m,d,g}^{visited})`, with the last two terms amortised by caching. Inputs are selected at **exactly** `[seed, fingerprint]` per the Dictionary. 
+So **end-to-end:** `O(S) + O(∑ G_{m,d}) + O(∑ N_{m,d,g}^{visited})`, with the last two terms amortised by caching. Inputs are selected at **exactly** `[seed, manifest_fingerprint]` per the Dictionary. 
 
 ### 12.2 Caching strategy (deterministic, RNG-free)
 
@@ -778,7 +778,7 @@ So **end-to-end:** `O(S) + O(∑ G_{m,d}) + O(∑ N_{m,d,g}^{visited})`, with th
 
 ### 12.3 I/O pattern
 
-* **Cold start:** open once per input at `[seed,fingerprint]`; stream **S4** rows by `(merchant_id, utc_day)`; stream **S1** rows by `(merchant_id)`; probe **site_timezones** by `site_id → tzid` (join or prebuilt keyed reader). 
+* **Cold start:** open once per input at `[seed, manifest_fingerprint]`; stream **S4** rows by `(merchant_id, utc_day)`; stream **S1** rows by `(merchant_id)`; probe **site_timezones** by `site_id → tzid` (join or prebuilt keyed reader). 
 * **S2 pre-flight (once/run):** verify `blob_sha256` of **s2_alias_blob** against **s2_alias_index** and the policy echo—**streaming** hash is fine; do **not** scan inside the blob beyond integrity.
 * **Hot loop:** per arrival reads only the cached `(m,d)` group-alias and (if needed) builds/reads the `(m,d,g)` site-alias.
 
@@ -822,7 +822,7 @@ So **end-to-end:** `O(S) + O(∑ G_{m,d}) + O(∑ N_{m,d,g}^{visited})`, with th
 * **Memory pressure:** evict aliases (LRU) and rebuild on demand; determinism preserved.
 * **Blob mismatch (S2 parity):** fail fast at pre-flight before hot routing; no partial logs. 
 
-> Summary: Use **on-demand, deterministic caches** to amortise the one-time `O(G)`/`O(N)` builds; keep the hot path to **two uniform draws + two O(1) decodes**; partition all evidence by the **run-scoped RNG envelope** and read plan tables at **`[seed, fingerprint]`** only. This aligns exactly with S2/S4 contracts and the layer logging law.
+> Summary: Use **on-demand, deterministic caches** to amortise the one-time `O(G)`/`O(N)` builds; keep the hot path to **two uniform draws + two O(1) decodes**; partition all evidence by the **run-scoped RNG envelope** and read plan tables at **`[seed, manifest_fingerprint]`** only. This aligns exactly with S2/S4 contracts and the layer logging law.
 
 ---
 
@@ -837,12 +837,12 @@ So **end-to-end:** `O(S) + O(∑ G_{m,d}) + O(∑ N_{m,d,g}^{visited})`, with th
 **13.2 Compatibility surface (stable in S5 v1)**
 Consumers **MAY rely** on the following remaining stable within a major:
 
-* **Inputs & partitions:** S5 reads exactly `s4_group_weights`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `site_timezones` at **`[seed, fingerprint]`**; policies `route_rng_policy_v1`, `alias_layout_policy_v1` are **token-less** and selected by the **S0-sealed** path+digest.
+* **Inputs & partitions:** S5 reads exactly `s4_group_weights`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `site_timezones` at **`[seed, manifest_fingerprint]`**; policies `route_rng_policy_v1`, `alias_layout_policy_v1` are **token-less** and selected by the **S0-sealed** path+digest.
 * **Authority boundaries:** JSON-Schema = shape authority (`schemas.2B.yaml`, `schemas.2A.yaml`); Dictionary = IDs→paths/partitions; Registry = metadata only. 
 * **Algorithmic contract:** two-stage router (group then site), **two single-uniform events per arrival** (`alias_pick_group`, `alias_pick_site`), **order = group→site**, counters strictly monotone, open-interval `u∈(0,1)`. 
 * **Decode authority:** S2 index is the sole directory; `blob_sha256` must match raw blob bytes; S5 does **not** scan/guess inside the blob. 
 * **Group probabilities:** S4 `p_group` is authoritative; S5 must not re-derive beyond alias construction. 
-* **Identity & logs:** RNG evidence and core logs partition under **`[seed, parameter_hash, run_id]`**; plan/egress reads stay at **`[seed, fingerprint]`**. 
+* **Identity & logs:** RNG evidence and core logs partition under **`[seed, parameter_hash, run_id]`**; plan/egress reads stay at **`[seed, manifest_fingerprint]`**. 
 
 **13.3 Backward-compatible (MINOR) changes**
 Allowed without breaking consumers:
@@ -908,11 +908,11 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
 
 * **Dataset Dictionary (catalogue authority):** `dataset_dictionary.layer1.2B.yaml`
   **IDs & path families S5 resolves (all read-only):**
-  • `s4_group_weights` → `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (Parquet; `[seed,fingerprint]`) 
-  • `s1_site_weights` → `…/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/` (Parquet; `[seed,fingerprint]`) 
-  • `s2_alias_index` → `…/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json` (JSON; `[seed,fingerprint]`) 
-  • `s2_alias_blob` → `…/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin` (binary; `[seed,fingerprint]`) 
-  • Cross-segment `site_timezones` (2A egress) → `…/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/` (Parquet; `[seed,fingerprint]`) 
+  • `s4_group_weights` → `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (Parquet; `[seed, manifest_fingerprint]`) 
+  • `s1_site_weights` → `…/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (Parquet; `[seed, manifest_fingerprint]`) 
+  • `s2_alias_index` → `…/2B/s2_alias_index/seed={seed}/manifest_fingerprint={manifest_fingerprint}/index.json` (JSON; `[seed, manifest_fingerprint]`) 
+  • `s2_alias_blob` → `…/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin` (binary; `[seed, manifest_fingerprint]`) 
+  • Cross-segment `site_timezones` (2A egress) → `…/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (Parquet; `[seed, manifest_fingerprint]`) 
   • Policies (token-less, single files): `route_rng_policy_v1`, `alias_layout_policy_v1` (selected by **S0-sealed path + digest**). 
 
 * **Artefact Registry (metadata only):** `artefact_registry_2B.yaml`
@@ -930,10 +930,10 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
 
 ### A.3 Inputs consumed by S5 (read-only)
 
-* **Day mixes (group stage):** `s4_group_weights` → `schemas.2B.yaml#/plan/s4_group_weights` (PK `[merchant_id, utc_day, tz_group_id]`; `[seed,fingerprint]`). 
-* **Per-site masses (site stage):** `s1_site_weights` → `#/plan/s1_site_weights` (writer order = PK; `[seed,fingerprint]`). 
-* **Alias artefacts (parity checks):** `s2_alias_index` → `#/plan/s2_alias_index`; `s2_alias_blob` → `#/binary/s2_alias_blob` (both `[seed,fingerprint]`). 
-* **Site→tz mapping (coherence):** `site_timezones` → `schemas.2A.yaml#/egress/site_timezones` (2A egress; `[seed,fingerprint]`). 
+* **Day mixes (group stage):** `s4_group_weights` → `schemas.2B.yaml#/plan/s4_group_weights` (PK `[merchant_id, utc_day, tz_group_id]`; `[seed, manifest_fingerprint]`). 
+* **Per-site masses (site stage):** `s1_site_weights` → `#/plan/s1_site_weights` (writer order = PK; `[seed, manifest_fingerprint]`). 
+* **Alias artefacts (parity checks):** `s2_alias_index` → `#/plan/s2_alias_index`; `s2_alias_blob` → `#/binary/s2_alias_blob` (both `[seed, manifest_fingerprint]`). 
+* **Site→tz mapping (coherence):** `site_timezones` → `schemas.2A.yaml#/egress/site_timezones` (2A egress; `[seed, manifest_fingerprint]`). 
 * **Policies (captured at S0; token-less):** `route_rng_policy_v1`, `alias_layout_policy_v1` → `schemas.2B.yaml#/policy/*`. Selection by **exact S0-sealed path + sha256**. 
 
 ---
@@ -962,7 +962,7 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
 
 ### A.7 Token & identity law (where to look)
 
-* **Plan/egress inputs:** selected at **`[seed, fingerprint]`** exactly as per the Dictionary entries above. 
+* **Plan/egress inputs:** selected at **`[seed, manifest_fingerprint]`** exactly as per the Dictionary entries above. 
 * **RNG logs/layer1/2B/events:** produced at **`[seed, parameter_hash, run_id]`** with the layer RNG envelope. 
 
 ---

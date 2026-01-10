@@ -215,12 +215,12 @@ plan:
     type: table
     description: "Per-merchant escalation decisions prior to zone sampling."
     primary_key: [merchant_id, legal_country_iso]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: site_count,          type: integer, minimum: 1,       nullable: false }
@@ -261,12 +261,12 @@ plan:
     type: table
     description: "Dirichlet share draws per merchant×country×zone."
     primary_key: [merchant_id, legal_country_iso, tzid]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, tzid]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: tzid,                $ref: '#/$defs/iana_tzid',       nullable: false }
@@ -287,12 +287,12 @@ plan:
     type: table
     description: "Integer outlet counts per merchant×country×zone after floors/bump."
     primary_key: [merchant_id, legal_country_iso, tzid]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, tzid]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: tzid,                $ref: '#/$defs/iana_tzid',       nullable: false }
@@ -313,12 +313,12 @@ egress:
     type: table
     description: "Cross-layer zone allocation egress per merchant×country×zone."
     primary_key: [merchant_id, legal_country_iso, tzid]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, tzid]
     columns_strict: true
     columns:
       - { name: seed,                $ref: '#/$defs/uint64',          nullable: false }
-      - { name: fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
+      - { name: manifest_fingerprint,         $ref: '#/$defs/hex64',           nullable: false }
       - { name: merchant_id,         $ref: '#/$defs/id64',            nullable: false }
       - { name: legal_country_iso,   $ref: '#/$defs/iso2',            nullable: false }
       - { name: tzid,                $ref: '#/$defs/iana_tzid',       nullable: false }

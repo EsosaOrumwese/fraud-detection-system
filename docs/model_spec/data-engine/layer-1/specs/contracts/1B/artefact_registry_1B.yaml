@@ -12,7 +12,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.1B.validation.s0_gate_receipt
     license: Proprietary-Internal
-    role: Receipt proving 1A PASS for fingerprint; enumerates sealed inputs authorised for 1B.
+    role: Receipt proving 1A PASS for manifest_fingerprint; enumerates sealed inputs authorised for 1B.
     dependencies: [validation_bundle_1A, validation_passed_flag_1A]
     source: internal
     owner: {owner_team: "mlr-1b-core"}

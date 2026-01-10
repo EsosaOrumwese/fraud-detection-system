@@ -22,7 +22,7 @@ Concretely, 3A.S5:
     [
     zone_site_count(m,c,z)
     ]
-    from `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`, where `c` corresponds to `legal_country_iso` and `z ∈ Z(c)` from S2.
+    from `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`, where `c` corresponds to `legal_country_iso` and `z ∈ Z(c)` from S2.
   * It optionally derives or copies per-merchant/country totals (e.g. `zone_site_count_sum(m,c)` and `site_count(m,c)`), but it MUST NOT change any counts.
   * It then writes a **zone allocation egress dataset** (`zone_alloc`) in a form suitable for 2B and cross-layer consumers, with:
 
@@ -148,8 +148,8 @@ Before 3A.S5 is invoked for a given tuple
 
 2. **3A.S0 has completed successfully for this `manifest_fingerprint`.**
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` exists and validates against `schemas.3A.yaml#/validation/s0_gate_receipt_3A`.
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}` exists and validates against `schemas.3A.yaml#/validation/sealed_inputs_3A`.
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3A.yaml#/validation/s0_gate_receipt_3A`.
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` exists and validates against `schemas.3A.yaml#/validation/sealed_inputs_3A`.
    * `s0_gate_receipt_3A.upround_gates.segment_1A.status == "PASS"`,
      `segment_1B.status == "PASS"`,
      `segment_2A.status == "PASS"`.
@@ -157,10 +157,10 @@ Before 3A.S5 is invoked for a given tuple
 
 3. **3A.S1–S4 have produced PASS outputs for this run.**
 
-   * `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}` exists, validates, and the S1 run-report row for this `{seed,fingerprint}` has `status = "PASS"`.
+   * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S1 run-report row for this `{seed,fingerprint}` has `status = "PASS"`.
    * `s2_country_zone_priors@parameter_hash={parameter_hash}` exists, validates, and the S2 run-report row for this `parameter_hash` has `status = "PASS"`.
-   * `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}` exists, validates, and the S3 run-report row for `(parameter_hash, manifest_fingerprint, seed, run_id)` (or equivalent identifier for this run) has `status = "PASS"`.
-   * `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}` exists, validates, and the S4 run-report row for this run has `status = "PASS"`.
+   * `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S3 run-report row for `(parameter_hash, manifest_fingerprint, seed, run_id)` (or equivalent identifier for this run) has `status = "PASS"`.
+   * `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S4 run-report row for this run has `status = "PASS"`.
 
    If any of S1–S4 is missing, schema-invalid, or its run-report status is not PASS, S5 MUST NOT run.
 
@@ -180,7 +180,7 @@ Before 3A.S5 is invoked for a given tuple
 Although S5 does not consume RNG or raw business data, it still operates under 3A.S0’s gate and whitelist for external artefacts.
 
 1. **Gate descriptor: `s0_gate_receipt_3A` (trust anchor)**
-   S5 MUST read `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}` and:
+   S5 MUST read `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}` and:
 
    * confirm upstream gates (1A/1B/2A) are `status="PASS"` as per §2.1;
    * extract IDs and digests for all 3A policy/prior artefacts it will include in the routing universe hash, at least:
@@ -195,7 +195,7 @@ Although S5 does not consume RNG or raw business data, it still operates under 3
 2. **Sealed input inventory: `sealed_inputs_3A` (external whitelist)**
    For each **external** artefact used in digest computation, S5 MUST:
 
-   * locate exactly one row in `sealed_inputs_3A@fingerprint={manifest_fingerprint}` with the expected `logical_id` and `path`, and
+   * locate exactly one row in `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}` with the expected `logical_id` and `path`, and
    * recompute SHA-256 over the artefact bytes and assert equality with `sha256_hex` recorded in that row.
 
 This applies, at minimum, to:
@@ -265,8 +265,8 @@ For a given S5 invocation:
 
 * S5’s outputs are:
 
-  * `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}` — cross-layer egress of zone counts, and
-  * `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}` (optionally with an embedded `parameter_hash` field) — digest summary and `routing_universe_hash` for this manifest.
+  * `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}` — cross-layer egress of zone counts, and
+  * `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}` (optionally with an embedded `parameter_hash` field) — digest summary and `routing_universe_hash` for this manifest.
 
 S5 MUST be invoked only after S4 has produced a stable `s4_zone_counts` snapshot and the upstream policy/prior configuration has been fully sealed via S0. If any prerequisite is missing or not PASS, S5 MUST not attempt to “patch around” it and MUST fail fast with an appropriate precondition error.
 
@@ -347,7 +347,7 @@ Within Segment 3A, S5 consumes only the final, already-authoritative surfaces. I
 
 Dataset:
 
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * Schema: `schemas.3A.yaml#/plan/s1_escalation_queue`.
 
 Authority:
@@ -409,7 +409,7 @@ S2 remains the **sole authority** on zone universes and priors.
 
 Dataset:
 
-* `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * Schema: `schemas.3A.yaml#/plan/s3_zone_shares`.
 
 Authority:
@@ -435,7 +435,7 @@ S3 remains the **sole authority** on stochastic realisations.
 
 Dataset:
 
-* `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 * Schema: `schemas.3A.yaml#/plan/s4_zone_counts`.
 
 Authority:
@@ -1125,7 +1125,7 @@ datasets:
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.3A.yaml#/egress/zone_alloc
     lineage:
@@ -1139,8 +1139,8 @@ datasets:
 Binding points:
 
 * `id` MUST be `zone_alloc` with `owner_subsegment: 3A`.
-* `path` MUST include `seed={seed}` and `fingerprint={manifest_fingerprint}`, and no other partition tokens.
-* `partitioning` MUST be exactly `[seed, fingerprint]`.
+* `path` MUST include `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}`, and no other partition tokens.
+* `partitioning` MUST be exactly `[seed, manifest_fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/egress/zone_alloc`.
 * `ordering` expresses the writer-sort key; consumers MUST NOT infer additional semantics from file order.
 
@@ -1154,7 +1154,7 @@ datasets:
     version: '{manifest_fingerprint}'
     format: json
     path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
-    partitioning: [fingerprint]
+    partitioning: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
     lineage:
@@ -1168,8 +1168,8 @@ datasets:
 Binding points:
 
 * `id` MUST be `zone_alloc_universe_hash`.
-* `path` MUST include `fingerprint={manifest_fingerprint}` as the only partition token.
-* `partitioning` MUST be exactly `[fingerprint]`.
+* `path` MUST include `manifest_fingerprint={manifest_fingerprint}` as the only partition token.
+* `partitioning` MUST be exactly `[manifest_fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/validation/zone_alloc_universe_hash`.
 * `ordering` MAY be an empty list or omitted; there is logically one row per fingerprint.
 
@@ -1307,8 +1307,8 @@ S5 MUST:
 
 Using the 3A dictionary/registry, S5 resolves and reads:
 
-* `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`,
-* `sealed_inputs_3A@fingerprint={manifest_fingerprint}`.
+* `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`,
+* `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`.
 
 S5 MUST:
 
@@ -1322,13 +1322,13 @@ Failure at this step ⇒ S5 FAIL; no outputs may be written.
 
 Using the 3A dataset dictionary and registries, S5 resolves and reads:
 
-* `s1_escalation_queue@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
   (`schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue`),
 * `s2_country_zone_priors@parameter_hash={parameter_hash}`
   (`schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors`),
-* `s3_zone_shares@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
   (`schema_ref: schemas.3A.yaml#/plan/s3_zone_shares`),
-* `s4_zone_counts@seed={seed}/fingerprint={manifest_fingerprint}`
+* `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}`
   (`schema_ref: schemas.3A.yaml#/plan/s4_zone_counts`).
 
 S5 MUST validate each dataset against its schema. Any schema failure, or absence of a required dataset, is an `E3A_S4/S5_001_PRECONDITION_FAILED` and S5 MUST NOT proceed.
@@ -1644,8 +1644,8 @@ Throughout the algorithm, S5 MUST:
   * S5 MUST NOT modify S1–S4 datasets or S0/policy artefacts.
   * It only writes to:
 
-    * `zone_alloc@seed={seed}/fingerprint={manifest_fingerprint}`,
-    * `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`.
+    * `zone_alloc@seed={seed}/manifest_fingerprint={manifest_fingerprint}`,
+    * `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`.
 
 * **Fail atomically**
 
@@ -2034,7 +2034,7 @@ Any schema violation, path↔embed mismatch, negative counts, or inconsistent li
 
 Let:
 
-* `U` be the JSON object read from `zone_alloc_universe_hash@fingerprint={manifest_fingerprint}`.
+* `U` be the JSON object read from `zone_alloc_universe_hash@manifest_fingerprint={manifest_fingerprint}`.
 
 S5 is PASS only if:
 
@@ -2446,7 +2446,7 @@ Raised when S5 detects that an artefact already exists for the run identity and 
 
   * existing dataset, when normalised and sorted, differs in any row or field from the newly computed `zone_alloc`.
 
-* For `zone_alloc_universe_hash` at `fingerprint={manifest_fingerprint}`:
+* For `zone_alloc_universe_hash` at `manifest_fingerprint={manifest_fingerprint}`:
 
   * existing JSON object differs in any field from the newly computed universe-hash object.
 

@@ -41,7 +41,7 @@
   * S4 invariants (routing policy and validation contract consistent with S1–S3 and event schema);
   * RNG-accounting invariants for S2 (Philox streams, draws/blocks vs expectations);
 
-* construct a **validation bundle directory** for 3B under `fingerprint={manifest_fingerprint}` containing:
+* construct a **validation bundle directory** for 3B under `manifest_fingerprint={manifest_fingerprint}` containing:
 
   * 3B.S5 manifest/receipt;
   * structural check reports and metrics;
@@ -241,24 +241,24 @@ If any of these statuses is not `"PASS"`, S5 MUST treat the 3B environment as **
 
 * **S1 outputs**:
 
-  * `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-  * `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}`.
+  * `virtual_classification_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+  * `virtual_settlement_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`.
 
 * **S2 outputs**:
 
-  * `edge_catalogue_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-  * `edge_catalogue_index_3B@seed={seed}, fingerprint={manifest_fingerprint}`.
+  * `edge_catalogue_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+  * `edge_catalogue_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`.
 
 * **S3 outputs**:
 
-  * `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}` (at least header-level validation);
-  * `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}`;
-  * `edge_universe_hash_3B@fingerprint={manifest_fingerprint}`.
+  * `edge_alias_blob_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}` (at least header-level validation);
+  * `edge_alias_index_3B@seed={seed}, manifest_fingerprint={manifest_fingerprint}`;
+  * `edge_universe_hash_3B@manifest_fingerprint={manifest_fingerprint}`.
 
 * **S4 outputs**:
 
-  * `virtual_routing_policy_3B@fingerprint={manifest_fingerprint}`;
-  * `virtual_validation_contract_3B@fingerprint={manifest_fingerprint}`.
+  * `virtual_routing_policy_3B@manifest_fingerprint={manifest_fingerprint}`;
+  * `virtual_validation_contract_3B@manifest_fingerprint={manifest_fingerprint}`.
 
 2.3.2 S5 MUST validate each artefact against its registered `schema_ref` (in `schemas.3B.yaml` and/or `schemas.layer1.yaml`). If any artefact is missing or schema-invalid, S5 MUST treat this as a S1/S2/S3/S4 contract violation and fail, rather than attempting to continue or repair.
 
@@ -653,7 +653,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `_passed.flag`;
 * `s5_manifest_3B` (if present).
 
-Their on-disk identity is fully determined by `fingerprint={manifest_fingerprint}` and the dataset IDs / filenames.
+Their on-disk identity is fully determined by `manifest_fingerprint={manifest_fingerprint}` and the dataset IDs / filenames.
 
 4.6.2 S5 MAY include identity echoes (`manifest_fingerprint`, `parameter_hash`, `seed`) within its manifest or summary files. Where present:
 
@@ -1244,7 +1244,7 @@ and MUST equal the partition `fingerprint` and upstream S0 identity.
 7.2.3 S5 MUST NOT:
 
 * introduce `seed`, `parameter_hash`, `run_id` or any other dimension as a partition key for S5 datasets;
-* shard the validation bundle into additional sub-partitions beyond `fingerprint={manifest_fingerprint}`.
+* shard the validation bundle into additional sub-partitions beyond `manifest_fingerprint={manifest_fingerprint}`.
 
 Any future change to partitioning (e.g. per-seed validation bundles) is a **change in partition law** and MUST go through change control (§12).
 
@@ -1276,8 +1276,8 @@ Any other ordering (e.g. filesystem listing order) is non-conformant.
 
 7.4.1 S5 outputs are **logically immutable** for a given `manifest_fingerprint`. Once S5 has successfully published:
 
-* `validation_bundle_3B@fingerprint={manifest_fingerprint}` (including `index.json` and evidence files), and
-* `_passed.flag@fingerprint={manifest_fingerprint}`,
+* `validation_bundle_3B@manifest_fingerprint={manifest_fingerprint}` (including `index.json` and evidence files), and
+* `_passed.flag@manifest_fingerprint={manifest_fingerprint}`,
 
 these artefacts define the segment-level validation state for 3B under the current contracts.
 
@@ -1335,7 +1335,7 @@ MUST be treated as a **3B.S5 failure** or environment corruption, not a valid PA
 
 7.7.1 Any implementation that:
 
-* uses partition keys other than `fingerprint={manifest_fingerprint}` for S5 outputs;
+* uses partition keys other than `manifest_fingerprint={manifest_fingerprint}` for S5 outputs;
 * writes unordered or duplicate entries in `index.json`;
 * computes the bundle digest over a different ordering or file set than specified;
 * silently overwrites an existing bundle/flag with differing contents;
@@ -2151,7 +2151,7 @@ but it MUST contain at least:
 
 * All S5 logs MUST include `{segment_id="3B", state_id="S5", manifest_fingerprint, seed, parameter_hash}` and optionally `run_id`.
 * S5’s manifest/summary evidence (if present) SHOULD embed the same identity.
-* S5 outputs MUST adhere to the partitioning rules in §7 (`fingerprint={manifest_fingerprint}` only).
+* S5 outputs MUST adhere to the partitioning rules in §7 (`manifest_fingerprint={manifest_fingerprint}` only).
 
 10.4.2 Given a `manifest_fingerprint`, an operator or tool MUST be able to:
 
@@ -2685,7 +2685,7 @@ Operators MUST then:
 
 * **`manifest_fingerprint`**
   Hash of the Layer-1 manifest (ingress, artefacts, code, policies). Primary partition key for S5 outputs:
-  `validation/fingerprint={manifest_fingerprint}/…`.
+  `validation/manifest_fingerprint={manifest_fingerprint}/…`.
 
 * **`run_id`**
   Optional, opaque identifier for a specific execution of S5 under a given identity triple. Used only for logging / run-report, never for hashing or partitioning.

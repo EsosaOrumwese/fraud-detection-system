@@ -101,8 +101,8 @@ Before 3A.S1 is invoked for a given triple `(parameter_hash, manifest_fingerprin
 
    * Artefacts:
 
-     * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`
-     * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`
+     * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
+     * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`
        MUST exist and MUST be schema-valid under `schemas.3A.yaml#/validation/s0_gate_receipt_3A` and `#/validation/sealed_inputs_3A`.
    * S1 MUST treat the absence or invalidity of either artefact as a **hard precondition failure**; it MUST NOT attempt to reconstruct or bypass them.
 
@@ -158,7 +158,7 @@ Within the sealed universe defined by S0, S1 is allowed to read and interpret th
 
 1. **1A outlet counts (aggregated only).**
 
-   * 1A egress dataset: `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}`.
+   * 1A egress dataset: `outlet_catalogue@seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
    * S1 MAY read this dataset but MUST only use it to derive **merchant×country counts**:
 
      * For each `(merchant_id, legal_country_iso)`, compute `N(m,c) = COUNT(*)`.
@@ -272,8 +272,8 @@ This section fixes **exactly what 3A.S1 is allowed to read**, how it must treat 
 
 3. **3A.S0 outputs (gate authority)**
 
-   * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`
-   * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`
+   * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
+   * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`
 
    S1 MUST:
 
@@ -293,7 +293,7 @@ Within the sealed set from S0, S1 MAY read:
 1. **1A outlet catalogue (for counts only)**
 
    * Dataset ID: `outlet_catalogue`
-   * Scope: `seed={seed}/fingerprint={manifest_fingerprint}`
+   * Scope: `seed={seed}/manifest_fingerprint={manifest_fingerprint}`
 
    S1’s allowed use:
 
@@ -467,7 +467,7 @@ No other persistent outputs are in scope for 3A.S1. In particular, S1:
 For a given `{seed, manifest_fingerprint}`, the **domain** of `s1_escalation_queue` is:
 
 * all pairs `(merchant_id, legal_country_iso)` such that there exists at least one row in
-  `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}` with those keys.
+  `outlet_catalogue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` with those keys.
 
 Identity and cardinality:
 
@@ -699,7 +699,7 @@ datasets:
     version: '{seed}.{manifest_fingerprint}'
     format: parquet
     path: data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
+    partitioning: [seed, manifest_fingerprint]
     ordering: [merchant_id, legal_country_iso]
     schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
     lineage:
@@ -713,8 +713,8 @@ datasets:
 Binding points:
 
 * **`id`** MUST be `"s1_escalation_queue"`; no other dataset may reuse this ID.
-* **`path`** MUST contain both `seed={seed}` and `fingerprint={manifest_fingerprint}` tokens and no additional partition tokens.
-* **`partitioning`** MUST be exactly `["seed", "fingerprint"]`; the `fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
+* **`path`** MUST contain both `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` tokens and no additional partition tokens.
+* **`partitioning`** MUST be exactly `["seed", "fingerprint"]`; the `manifest_fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
 * **`schema_ref`** MUST point to `schemas.3A.yaml#/plan/s1_escalation_queue`.
 * **`ordering`** expresses the writer-sort key; readers MUST NOT assign semantics to physical file order beyond reproducibility.
 
@@ -820,8 +820,8 @@ No phase may call the RNG or read wall-clock time.
 
 * Using the Layer-1 dictionary and registry for 3A, S1 resolves paths for:
 
-  * `s0_gate_receipt_3A@fingerprint={manifest_fingerprint}`
-  * `sealed_inputs_3A@fingerprint={manifest_fingerprint}`
+  * `s0_gate_receipt_3A@manifest_fingerprint={manifest_fingerprint}`
+  * `sealed_inputs_3A@manifest_fingerprint={manifest_fingerprint}`
 
 S1 MUST:
 
@@ -845,7 +845,7 @@ If any status differs from `"PASS"`, S1 MUST fail and MUST NOT attempt to run it
 
 Using `sealed_inputs_3A`, S1 MUST confirm the presence of rows for:
 
-* 1A egress: `outlet_catalogue` at `seed={seed}, fingerprint={manifest_fingerprint}`.
+* 1A egress: `outlet_catalogue` at `seed={seed}, manifest_fingerprint={manifest_fingerprint}`.
 * Ingress references:
 
   * `iso3166_canonical_2024` (or equivalent),
@@ -1269,7 +1269,7 @@ This ensures that there is never ambiguity about which escalation decisions appl
 
 ` s1_escalation_queue` makes **no claims** about relationships between different `manifest_fingerprint` values:
 
-* Each partition `seed={s}/fingerprint={F}` describes escalation decisions only for that manifest.
+* Each partition `seed={s}/manifest_manifest_fingerprint={F}` describes escalation decisions only for that manifest.
 * It is out-of-spec to combine rows from different fingerprints and treat them as a single logical plan for any one run.
 
 Cross-fingerprint unions are allowed **only for analytics**, e.g.:

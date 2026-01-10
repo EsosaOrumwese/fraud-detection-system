@@ -25,7 +25,7 @@
 **Segment invariants (Binding):**
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
-* **Partitioning for S1 outputs:** `[seed, fingerprint]`; **path↔embed equality** MUST hold.
+* **Partitioning for S1 outputs:** `[seed, manifest_fingerprint]`; **path↔embed equality** MUST hold.
 * **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden.
 * **RNG posture:** **S1 is RNG-free**; later RNG-bounded states in 2B use governed Philox per policy.
 * **Gate law:** Downstreams rely on S0; **No PASS → No read** remains in force across the segment.
@@ -98,7 +98,7 @@
 S1 SHALL read **only** the following, for this run’s identity:
 
 1. **`site_locations`** — Layer-1 · 1B egress at
-   `seed={seed} / fingerprint={manifest_fingerprint}`.
+   `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
 2. **`alias_layout_policy_v1`** — policy pack governing **weight source**, floors/caps, normalisation tolerance `ε`, quantisation bit-depth and tolerance `ε_q`, and required metadata fields.
 
 > These assets **MUST** be resolvable via the Dictionary for the target partitions and **MUST** appear in the S0 inventory for the same fingerprint.
@@ -107,15 +107,15 @@ S1 SHALL read **only** the following, for this run’s identity:
 
 If S0 sealed them for this fingerprint, S1 MAY read **both** of:
 
-* **`site_timezones`** — at `seed={seed} / fingerprint={manifest_fingerprint}`
-* **`tz_timetable_cache`** — at `fingerprint={manifest_fingerprint}`
+* **`site_timezones`** — at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
+* **`tz_timetable_cache`** — at `manifest_fingerprint={manifest_fingerprint}`
 
 If exactly one is present in S0’s inventory, S1 MUST treat this as **mixed pins** (WARN) and proceed **without** using either.
 
 ### 3.4 Resolution & partition discipline
 
 * **Exact partitioning.**
-  • For `site_locations`: **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
+  • For `site_locations`: **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
   • For `alias_layout_policy_v1`: **no partition tokens**; select the **exact S0-sealed path** (and digest) for this fingerprint.
   • For optional pins: as stated above.
 * **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0's `sealed_inputs_2B` for this fingerprint. Accessing any asset not listed there is an error.
@@ -147,12 +147,12 @@ S1 SHALL abort if any required policy entry is missing or if `site_locations` la
 
 Resolve **only** these IDs via the Dictionary (no literal paths):
 
-1. **`site_locations`** — Layer-1 · 1B egress at `seed={seed} / fingerprint={manifest_fingerprint}`.
+1. **`site_locations`** — Layer-1 · 1B egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
 2. **`alias_layout_policy_v1`** — policy governing weight source, floors/caps, normalisation/quantisation tolerances, and required provenance fields.
 3. **Optional pins (all-or-none; read-only):**
 
-   * `site_timezones` — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}`
-   * `tz_timetable_cache` — 2A cache at `fingerprint={manifest_fingerprint}`
+   * `site_timezones` — 2A egress at `seed={seed} / manifest_fingerprint={manifest_fingerprint}`
+   * `tz_timetable_cache` — 2A cache at `manifest_fingerprint={manifest_fingerprint}`
 
 > **Subset of S0:** Every asset S1 reads **MUST** appear in the S0 `sealed_inputs_2B` for the same fingerprint.
 
@@ -166,7 +166,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 4.4 Resolution & token discipline
 
 * **Exact partitioning:**
-  • `site_locations`: **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
+  • `site_locations`: **exactly** `seed={seed} / manifest_fingerprint={manifest_fingerprint}`.
   • `alias_layout_policy_v1`: **no partition tokens**; selection is by the **exact S0-sealed path** (and digest).
   • Optional pins: as declared above (all-or-none).
 * **Path↔embed equality** MUST hold for S1 outputs; token expansion follows the Dictionary exactly.
@@ -193,7 +193,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 ### 5.2 Identity & partitions
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
-* **Partitions (binding):** `[seed, fingerprint]`. No additional partition tokens are permitted.
+* **Partitions (binding):** `[seed, manifest_fingerprint]`. No additional partition tokens are permitted.
 * **Path↔embed equality:** Any embedded `manifest_fingerprint` field in this dataset **MUST** byte-equal the `fingerprint=` path token.
 
 ### 5.3 Path family, format & authority
@@ -253,7 +253,7 @@ This state requires the schema pack to expose this anchor; the anchor owns the e
 **Identity & keys (binding):**
 
 * **PK:** `[merchant_id, legal_country_iso, site_order]` (site identity carried over from 1B).
-* **Partitions:** `[seed, fingerprint]` (no additional tokens).
+* **Partitions:** `[seed, manifest_fingerprint]` (no additional tokens).
 * **Writer order:** exactly the PK order; file order remains non-authoritative.
 
 **Required provenance (owned by the anchor):**
@@ -268,7 +268,7 @@ This state requires the schema pack to expose this anchor; the anchor owns the e
 * `quantised_bits` conforms to the bit-depth declared by policy.
 
 **Catalogue binding (Dictionary authority):**
-The **Dataset Dictionary** binds `s1_site_weights` to its path family and format and **must** partition by `[seed, fingerprint]`. (Do not write via literal paths.) 
+The **Dataset Dictionary** binds `s1_site_weights` to its path family and format and **must** partition by `[seed, manifest_fingerprint]`. (Do not write via literal paths.) 
 
 ---
 
@@ -370,7 +370,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 
 ### 7.8 Output write & immutability
 
-23. **Partition target:** `s1_site_weights@seed={seed}/fingerprint={manifest_fingerprint}` from the Dictionary.
+23. **Partition target:** `s1_site_weights@seed={seed}/manifest_fingerprint={manifest_fingerprint}` from the Dictionary.
 24. **Write-once:** target must be empty; otherwise **Abort**, unless the existing bytes are **bit-identical** (idempotent re-emit).
 25. **Atomic publish:** stage → fsync → atomic move; then re-open to assert **path↔embed equality**.
 
@@ -392,7 +392,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 
 ### 8.2 Partitions & selection
 
-* **Partitioning (write):** `…/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/`.
+* **Partitioning (write):** `…/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
 * **Exact selection (read/write):** no wildcards, ranges, or multi-partition writes; a single `(seed,fingerprint)` partition per publish.
 
 ### 8.3 Path↔embed equality
@@ -457,7 +457,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 All inputs (`site_locations`, `alias_layout_policy_v1`, optional pins if used) were resolved by **Dictionary IDs**; zero literal paths.
 
 **V-03 — Partition selection exact (Abort).**
-Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}` and the **exact S0-sealed path** for `alias_layout_policy_v1` (no partition tokens). For optional pins (if present), use the exact partitions declared here.
+Reads used only `site_locations@seed={seed}/manifest_fingerprint={manifest_fingerprint}` and the **exact S0-sealed path** for `alias_layout_policy_v1` (no partition tokens). For optional pins (if present), use the exact partitions declared here.
 
 **V-04 — Policy shape & minima present (Abort).**
 `alias_layout_policy_v1` provides at least: `weight_source`, `floor_spec`, `normalisation_epsilon` (= ε), `quantised_bits` (= b), `quantisation_epsilon` (= ε_q), and the required provenance flags.
@@ -593,7 +593,7 @@ Each failure **MUST** be logged with: `code`, `severity`, `message`, `fingerprin
 
 ### 10.5 Identity, partitions & immutability
 
-* **2B-S1-070 PARTITION_SELECTION_INCORRECT (Abort)** — Read/write didn’t target exactly `seed={seed}/fingerprint={fingerprint}` (or fingerprint-only for policies).
+* **2B-S1-070 PARTITION_SELECTION_INCORRECT (Abort)** — Read/write didn’t target exactly `seed={seed}/manifest_manifest_fingerprint={manifest_fingerprint}` (or fingerprint-only for policies).
   *Context:* `id`, `expected_partition`, `actual_partition`.
 
 * **2B-S1-071 PATH_EMBED_MISMATCH (Abort)** — Embedded identity differs from path token(s).
@@ -865,7 +865,7 @@ This section governs permitted changes to **2B.S1** after ratification and how t
 
 S1 **MUST NOT** change the following within the same major version:
 
-* **Output identity & partitions:** dataset ID `s1_site_weights`; partitions `[seed, fingerprint]`; **path↔embed equality**; write-once + atomic publish.
+* **Output identity & partitions:** dataset ID `s1_site_weights`; partitions `[seed, manifest_fingerprint]`; **path↔embed equality**; write-once + atomic publish.
 * **PK & keys:** primary key `[merchant_id, legal_country_iso, site_order]`; no new keys; 1:1 coverage with `site_locations`.
 * **Deterministic posture:** S1 is **RNG-free**; no network I/O; Dictionary-only resolution.
 * **Normalisation law:** per-merchant Σ `p_weight` = 1 (within policy ε), serial reductions, numeric guardrails (binary64, ties-to-even where applicable).
@@ -1007,7 +1007,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
 ### A.4 Output produced by this state
 
-* **`s1_site_weights`** (Parquet; `[seed, fingerprint]`)
+* **`s1_site_weights`** (Parquet; `[seed, manifest_fingerprint]`)
   **Shape:** `schemas.2B.yaml#/plan/s1_site_weights`
   **Dictionary path:** `data/layer1/2B/s1_site_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
   **PK:** `[merchant_id, legal_country_iso, site_order]`
@@ -1015,7 +1015,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
 ### A.5 Identity & token discipline
 
-* **Tokens:** `seed={seed}`, `fingerprint={manifest_fingerprint}`
+* **Tokens:** `seed={seed}`, `manifest_fingerprint={manifest_fingerprint}`
 * **Partition law:** S1 output partitions by **both** tokens; inputs selected exactly as declared (no wildcards).
 * **Path↔embed equality:** Any embedded `manifest_fingerprint` (and, if echoed, `seed`) must equal the path tokens.
 
