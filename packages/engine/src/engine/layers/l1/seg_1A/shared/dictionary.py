@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Mapping, MutableMapping
+from typing import Iterable, Mapping, MutableMapping
 
 import yaml
 
@@ -85,17 +85,7 @@ def resolve_dataset_path(
     """
 
     dictionary = dictionary or load_dictionary()
-    for section in dictionary.values():
-        if not isinstance(section, Mapping):
-            continue
-        entry = section.get(dataset_id)
-        if entry is None:
-            continue
-        if not isinstance(entry, Mapping):
-            raise err(
-                "E_DATASET_INVALID",
-                f"dataset '{dataset_id}' entry must be a mapping",
-            )
+    for entry in _iter_entries(dictionary, dataset_id):
         raw_path = entry.get("path")
         if not isinstance(raw_path, str) or not raw_path:
             raise err(
@@ -142,6 +132,30 @@ def _format_template(
         path = path.with_name(path.name.replace("*", "00000"))
 
     return path
+
+
+def _iter_entries(
+    dictionary: Mapping[str, object],
+    dataset_id: str,
+) -> Iterable[Mapping[str, object]]:
+    for section in dictionary.values():
+        if isinstance(section, Mapping):
+            entry = section.get(dataset_id)
+            if entry is None:
+                continue
+            if not isinstance(entry, Mapping):
+                raise err(
+                    "E_DATASET_INVALID",
+                    f"dataset '{dataset_id}' entry must be a mapping",
+                )
+            yield entry
+            continue
+        if isinstance(section, list):
+            for item in section:
+                if not isinstance(item, Mapping):
+                    continue
+                if item.get("id") == dataset_id:
+                    yield item
 
 
 _RNG_EVENT_DATASET_IDS: Mapping[str, str] = {
