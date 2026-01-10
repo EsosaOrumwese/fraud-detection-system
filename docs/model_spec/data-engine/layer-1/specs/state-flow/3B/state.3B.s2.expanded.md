@@ -187,7 +187,7 @@ has already been resolved by the enclosing engine and is consistent with the Lay
 
 * `seed` — the Layer-1 Philox seed for this run;
 * `parameter_hash` — the governed parameter-hash for the 3B configuration;
-* `manifest_fingerprint` — the enclosing manifest fingerprint.
+* `manifest_fingerprint` — the enclosing manifest_fingerprint.
 
 2.1.3 S2 MUST NOT recompute or override these identity values. It MUST:
 
@@ -200,8 +200,8 @@ has already been resolved by the enclosing engine and is consistent with the Lay
 
 2.2.1 For a given `manifest_fingerprint`, S2 MAY proceed only if the following artefacts exist and are schema-valid:
 
-* `s0_gate_receipt_3B` at its canonical fingerprint-partitioned path;
-* `sealed_inputs_3B` at its canonical fingerprint-partitioned path.
+* `s0_gate_receipt_3B` at its canonical manifest_fingerprint-partitioned path;
+* `sealed_inputs_3B` at its canonical manifest_fingerprint-partitioned path.
 
 2.2.2 Before performing any data-plane work, S2 MUST:
 
@@ -396,8 +396,8 @@ SHALL define the **closed input universe** for 3B.S2.
 
 3.1.1 S2 SHALL treat the following 3B.S0 artefacts as required control-plane inputs for the target `manifest_fingerprint`:
 
-* `s0_gate_receipt_3B` (fingerprint-scoped JSON);
-* `sealed_inputs_3B` (fingerprint-scoped table).
+* `s0_gate_receipt_3B` (manifest_fingerprint-scoped JSON);
+* `sealed_inputs_3B` (manifest_fingerprint-scoped table).
 
 3.1.2 For S2, `s0_gate_receipt_3B` is the **sole authority** on:
 
@@ -721,7 +721,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
   * optional `edge_count_by_country` (map or structured fields per country),
   * `edge_catalogue_digest_merchant` — deterministic digest (e.g. SHA-256) of all edge rows for this merchant, computed using a documented ordering (e.g. sorted by `edge_id`).
 
-* **Global summary row(s)** (e.g. one row per `{seed, fingerprint}`), containing:
+* **Global summary row(s)** (e.g. one row per `{seed, manifest_fingerprint}`), containing:
 
   * `edge_count_total_all_merchants`,
   * `edge_count_by_country_overall`,
@@ -748,13 +748,13 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 
 4.4.1 Both `edge_catalogue_3B` and `edge_catalogue_index_3B` are **run-scoped** datasets. Their identity is determined by:
 
-* the `{seed, fingerprint}` partition declared in the dictionary (the `fingerprint` token equals the run’s `manifest_fingerprint`);
+* the `{seed, manifest_fingerprint}` partition declared in the dictionary (the `manifest_fingerprint` token equals the run’s `manifest_fingerprint`);
 * the fact that they are produced by 3B.S2 for that run under the 3B contracts version in effect.
 
 4.4.2 On disk, identity SHALL be expressed via:
 
 * `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` in the directory path (exactly as declared in the dictionary);
-* a single set of files per `{seed, fingerprint}` for each dataset.
+* a single set of files per `{seed, manifest_fingerprint}` for each dataset.
 
 4.4.3 The schemas for these datasets MAY include explicit columns:
 
@@ -826,7 +826,7 @@ as identity echoes. If present, S2 MUST:
   * either recompute the outputs and confirm that they are bit-identical to the existing datasets (idempotent no-op), or
   * detect a conflict due to environment drift and fail, without overwriting, according to the error rules in §9.
 
-4.7.2 S2 MUST write both datasets using an **atomic publish** protocol per `{seed, fingerprint}`:
+4.7.2 S2 MUST write both datasets using an **atomic publish** protocol per `{seed, manifest_fingerprint}`:
 
 * S2 MUST NOT expose a state where one of the two datasets has been updated but the other has not;
 * if publishing fails for either dataset, both MUST be considered invalid and S2 MUST report a failure.
@@ -879,7 +879,7 @@ is non-conformant with this specification and MUST be corrected or versioned app
   * `edge_id`
 
     * type: e.g. `hex64` / `id64` (referencing `schemas.layer1.yaml#/id/id64` or equivalent);
-    * semantics: deterministic, unique identifier within `{seed,fingerprint}`;
+    * semantics: deterministic, unique identifier within `{seed,manifest_fingerprint}`;
     * MUST be non-null and unique for each `(merchant_id, edge_id)` pair.
 
 * **Geography**
@@ -944,7 +944,7 @@ is non-conformant with this specification and MUST be corrected or versioned app
 
 5.1.5 Structural constraints for acceptance (enforced either via schema or via S2/validation logic):
 
-* `(merchant_id, edge_id)` MUST be unique within `{seed,fingerprint}`;
+* `(merchant_id, edge_id)` MUST be unique within `{seed,manifest_fingerprint}`;
 * `country_iso`, `edge_latitude_deg`, `edge_longitude_deg`, `tzid_operational`, and `edge_weight` MUST be non-null;
 * `edge_weight` MUST satisfy any declared normalisation (e.g. per-merchant weights summing to 1.0 within tolerance or to a fixed integer grid);
 * `tzid_operational` MUST be valid according to tz assets sealed in `sealed_inputs_3B`.
@@ -1043,7 +1043,7 @@ and referenced by `schema_ref` in the relevant catalogues or internal config.
 
 * `edge_catalogue_3B` primary key: `(merchant_id, edge_id)` (or `(merchant_key, edge_id)`);
 * natural join from `edge_catalogue_3B` to S1 outputs: join key = `merchant_id`/`merchant_key`;
-* natural join from `edge_catalogue_index_3B` to `edge_catalogue_3B`: join key = `merchant_id` and, when necessary, `seed`/`fingerprint`.
+* natural join from `edge_catalogue_index_3B` to `edge_catalogue_3B`: join key = `merchant_id` and, when necessary, `seed`/`manifest_fingerprint`.
 
 5.5.2 Writer sort:
 
@@ -1539,7 +1539,7 @@ If future performance requirements demand additional sharding, such sharding MUS
 * `PK_edge_catalogue = (merchant_id, edge_id)`
   (or `(merchant_key, edge_id)` if a composite merchant key is adopted consistently across 3B).
 
-Within each `{seed, fingerprint}` partition, there MUST be at most one row for any `(merchant_id, edge_id)` pair.
+Within each `{seed, manifest_fingerprint}` partition, there MUST be at most one row for any `(merchant_id, edge_id)` pair.
 
 7.3.2 `edge_catalogue_index_3B` MUST have a key structure consistent with its schema, typically:
 
@@ -1551,7 +1551,7 @@ The exact keying MUST be defined in `schemas.3B.yaml#/plan/edge_catalogue_index_
 7.3.3 Natural join keys:
 
 * From `edge_catalogue_3B` to S1 outputs: join on `merchant_id` (or the adopted merchant key).
-* From `edge_catalogue_index_3B` to `edge_catalogue_3B`: join on `merchant_id` and the shared `{seed, fingerprint}` partition.
+* From `edge_catalogue_index_3B` to `edge_catalogue_3B`: join on `merchant_id` and the shared `{seed, manifest_fingerprint}` partition.
 
 Downstream states MUST use these join keys and MUST NOT rely on incidental fields for joining.
 
@@ -1585,7 +1585,7 @@ S2 MUST NOT rely on filesystem iteration order, shard ordering or any other non-
 * If they are identical, S2 MAY treat the run as idempotent and return PASS without modifying the outputs.
 * If they differ, S2 MUST fail with a FATAL conflict (e.g. `E3B_S2_OUTPUT_INCONSISTENT_REWRITE`) and MUST NOT overwrite existing outputs.
 
-7.4.3 S2 MUST use an **atomic publish** protocol per `{seed, fingerprint}`:
+7.4.3 S2 MUST use an **atomic publish** protocol per `{seed, manifest_fingerprint}`:
 
 * write `edge_catalogue_3B` to a temporary location;
 * write `edge_catalogue_index_3B` to a temporary location;
@@ -1617,7 +1617,7 @@ S2 MUST NOT introduce a different merchant identifier scheme without explicit ch
 MUST:
 
 * respect the declared keys and partition law on both sides;
-* use `{seed, fingerprint}` to ensure joins are within the same run;
+* use `{seed, manifest_fingerprint}` to ensure joins are within the same run;
 * treat missing or extra rows as data-quality or contract violations, not as “optional” noise.
 
 7.5.3 S2 MUST NOT:
@@ -1891,7 +1891,7 @@ they MUST:
 8.6.1 Any violation of the binding requirements in §§8.1–8.5 MUST result in:
 
 * S2 returning **FAIL** for that `{seed, parameter_hash, manifest_fingerprint}`;
-* no S2 outputs being considered valid for that `{seed, fingerprint}` (partial artefacts MUST be treated as invalid);
+* no S2 outputs being considered valid for that `{seed, manifest_fingerprint}` (partial artefacts MUST be treated as invalid);
 * a canonical `E3B_S2_*` error code being logged with sufficient diagnostic context.
 
 8.6.2 The run harness MUST:
@@ -1931,7 +1931,7 @@ All codes in this section are reserved for 3B.S2 and MUST NOT be reused by other
 
 9.1.3 Unless explicitly marked as `WARN`, all codes below are **FATAL** for S2:
 
-* **FATAL** ⇒ S2 MUST NOT publish `edge_catalogue_3B` or `edge_catalogue_index_3B` as valid outputs for that `{seed,fingerprint}`; the virtual edge universe MUST be considered **not constructed** for that manifest.
+* **FATAL** ⇒ S2 MUST NOT publish `edge_catalogue_3B` or `edge_catalogue_index_3B` as valid outputs for that `{seed,manifest_fingerprint}`; the virtual edge universe MUST be considered **not constructed** for that manifest.
 * **WARN** ⇒ S2 MAY complete and publish outputs, but the condition MUST be observable via logs / run-report and SHOULD be visible in metrics.
 
 ---
@@ -1959,7 +1959,7 @@ Remediation:
 9.2.2 **E3B_S2_GATE_MISSING_OR_INVALID** *(FATAL)*
 Raised when S2 cannot treat S0 outputs as a valid gate:
 
-* `s0_gate_receipt_3B` or `sealed_inputs_3B` missing for the fingerprint;
+* `s0_gate_receipt_3B` or `sealed_inputs_3B` missing for the manifest_fingerprint;
 * OR either artefact fails schema validation.
 
 Typical triggers:
@@ -2600,7 +2600,7 @@ but the payload MUST contain at least:
 
 10.4.1 S2 MUST ensure that its outputs, logs and run-report records are **correlatable** via the identity triple. Concretely:
 
-* `edge_catalogue_3B` and `edge_catalogue_index_3B` paths MUST include `seed` and `fingerprint`;
+* `edge_catalogue_3B` and `edge_catalogue_index_3B` paths MUST include `seed` and `manifest_fingerprint`;
 * any identity echo columns in these datasets MUST match `{seed, manifest_fingerprint, parameter_hash}`;
 * S2 logs MUST include `{seed, parameter_hash, manifest_fingerprint}` and `run_id` (if available).
 
@@ -3019,7 +3019,7 @@ S2 MUST:
 
 Operators MUST then:
 
-* either preserve the old outputs as belonging to their older contract version and refrain from re-running S2 under the same fingerprint, or
+* either preserve the old outputs as belonging to their older contract version and refrain from re-running S2 under the same manifest_fingerprint, or
 * explicitly migrate and re-emit S2 outputs under a **new** manifest and/or schema version.
 
 ---
@@ -3225,7 +3225,7 @@ the 3B contracts and S2 spec MUST be updated. S2 MUST:
   S2 egress. Per-merchant and global index/digest surface summarising edge counts and digests for `edge_catalogue_3B`.
 
 * **`edge_id`**
-  Deterministic identifier for an edge node, typically derived from a hash of `(merchant_id, edge_seq_index, "3B.EDGE")`. Unique per `(seed, fingerprint)`.
+  Deterministic identifier for an edge node, typically derived from a hash of `(merchant_id, edge_seq_index, "3B.EDGE")`. Unique per `(seed, manifest_fingerprint)`.
 
 * **`edge_weight`**
   Per-edge weight used for alias-table construction and apparent traffic mix. Usually normalised per merchant so that Σ₍e∈E_m₎ `edge_weight(e)` follows a declared law (e.g. = 1 or = fixed integer grid).

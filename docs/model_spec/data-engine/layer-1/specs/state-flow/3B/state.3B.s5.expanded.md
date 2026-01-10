@@ -196,7 +196,7 @@ has been resolved by the enclosing engine and is consistent with the Layer-1 ide
 
 * `seed` — the Layer-1 Philox seed for this run;
 * `parameter_hash` — the governed 3B parameter hash;
-* `manifest_fingerprint` — the enclosing manifest fingerprint.
+* `manifest_fingerprint` — the enclosing manifest_fingerprint.
 
 2.1.3 S5 MUST NOT recompute or override these values. It MUST:
 
@@ -209,8 +209,8 @@ has been resolved by the enclosing engine and is consistent with the Layer-1 ide
 
 2.2.1 For a given `manifest_fingerprint`, S5 MAY proceed only if both:
 
-* `s0_gate_receipt_3B` exists at its canonical fingerprint-partitioned path; and
-* `sealed_inputs_3B` exists at its canonical fingerprint-partitioned path,
+* `s0_gate_receipt_3B` exists at its canonical manifest_fingerprint-partitioned path; and
+* `sealed_inputs_3B` exists at its canonical manifest_fingerprint-partitioned path,
 
 and both artefacts validate against their schemas.
 
@@ -492,7 +492,7 @@ S5 MUST treat this as a **contract violation** and fail, rather than silently co
 
 4.1.1 For each successfully audited `manifest_fingerprint`, S5 SHALL emit the following 3B-owned artefacts:
 
-* **`validation_bundle_3B`** — a fingerprint-scoped directory containing 3B-specific validation evidence (manifests, structural check reports, RNG accounting summaries, digest summaries, etc.) and an index file.
+* **`validation_bundle_3B`** — a manifest_fingerprint-scoped directory containing 3B-specific validation evidence (manifests, structural check reports, RNG accounting summaries, digest summaries, etc.) and an index file.
 * **`validation_bundle_index_3B`** — an `index.json` file inside the bundle that enumerates all evidence files and their per-file digests.
 * **`_passed.flag`** — a small text file at the root of the 3B validation directory, storing the combined digest of the validation bundle, as per the canonical HashGate law.
 
@@ -518,7 +518,7 @@ S5 MUST treat this as a **contract violation** and fail, rather than silently co
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias) - for the index shape;
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []` (directory artefact; sort semantics are handled inside `index.json`).
 
 4.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -552,7 +552,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias)
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 4.3.2 The registry entry MUST:
@@ -593,7 +593,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 4.4.2 The registry entry MUST:
@@ -629,7 +629,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 * `owner_subsegment: 3B`;
 * `schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B`;
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 5.5.2 The schema for `s5_manifest_3B` SHOULD include:
@@ -646,7 +646,7 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 
 4.6 **Identity & partitioning for S5 outputs**
 
-4.6.1 All S5 artefacts are **fingerprint-only**:
+4.6.1 All S5 artefacts are **manifest_fingerprint-only**:
 
 * `validation_bundle_3B` root directory;
 * `validation_bundle_index_3B/index.json`;
@@ -660,7 +660,7 @@ Their on-disk identity is fully determined by `manifest_fingerprint={manifest_fi
 * they MUST match the values in `s0_gate_receipt_3B`;
 * they MUST NOT be used as partition keys or to shard the bundle.
 
-4.6.3 There MUST be at most one validation bundle and one `_passed.flag` for a given `manifest_fingerprint` under the S5 contracts in effect. Re-runs of S5 for the same fingerprint MUST follow the idempotence rules defined in §7.
+4.6.3 There MUST be at most one validation bundle and one `_passed.flag` for a given `manifest_fingerprint` under the S5 contracts in effect. Re-runs of S5 for the same manifest_fingerprint MUST follow the idempotence rules defined in §7.
 
 ---
 
@@ -695,7 +695,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (for the index shape; the bundle itself is a directory)
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -723,8 +723,8 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B`
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json`
-* `partitioning: ["fingerprint"]`
-* `ordering: []` (single JSON document per fingerprint)
+* `partitioning: ["manifest_fingerprint"]`
+* `ordering: []` (single JSON document per manifest_fingerprint)
 
 5.2.2 The corresponding registry entry MUST:
 
@@ -767,7 +767,7 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 5.3.2 The registry entry MUST:
@@ -803,7 +803,7 @@ Any deviation MUST be treated as a schema violation.
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B`
 * `path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 5.4.2 The corresponding registry entry MUST:
@@ -918,11 +918,11 @@ those contracts SHALL be treated as authoritative. This section MUST be updated 
 
 6.2.2 S5 MUST then load and validate (using dictionary + schema):
 
-* `virtual_classification_3B` and `virtual_settlement_3B` for `{seed,fingerprint}`;
-* `edge_catalogue_3B` and `edge_catalogue_index_3B` for `{seed,fingerprint}`;
-* `edge_alias_blob_3B` (header at minimum) and `edge_alias_index_3B` for `{seed,fingerprint}`;
-* `edge_universe_hash_3B` for `fingerprint`;
-* `virtual_routing_policy_3B` and `virtual_validation_contract_3B` for `fingerprint`.
+* `virtual_classification_3B` and `virtual_settlement_3B` for `{seed,manifest_fingerprint}`;
+* `edge_catalogue_3B` and `edge_catalogue_index_3B` for `{seed,manifest_fingerprint}`;
+* `edge_alias_blob_3B` (header at minimum) and `edge_alias_index_3B` for `{seed,manifest_fingerprint}`;
+* `edge_universe_hash_3B` for `manifest_fingerprint`;
+* `virtual_routing_policy_3B` and `virtual_validation_contract_3B` for `manifest_fingerprint`.
 
 6.2.3 S5 MUST resolve, from `sealed_inputs_3B`, and validate:
 
@@ -1145,7 +1145,7 @@ data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
 so that:
 
 * at no point is a partially written bundle visible under the canonical path;
-* any existing bundle for this fingerprint is only replaced after idempotence checks (see §7), not blindly overwritten.
+* any existing bundle for this manifest_fingerprint is only replaced after idempotence checks (see §7), not blindly overwritten.
 
 6.7.5 If any I/O or validation error occurs during flag creation or atomic move, S5 MUST:
 
@@ -1202,13 +1202,13 @@ and MUST match the values recorded in `s0_gate_receipt_3B` for the same 3B run.
 * `s5_manifest_3B` (if present);
 * any internal evidence files that embed identity;
 
-and MUST equal the partition `fingerprint` and upstream S0 identity.
+and MUST equal the partition `manifest_fingerprint` and upstream S0 identity.
 
 ---
 
 7.2 **Partition law**
 
-7.2.1 All S5 outputs are **fingerprint-only**:
+7.2.1 All S5 outputs are **manifest_fingerprint-only**:
 
 * `validation_bundle_3B` directory;
 * `validation_bundle_index_3B/index.json`;
@@ -1325,7 +1325,7 @@ MUST be treated as a **3B.S5 failure** or environment corruption, not a valid PA
 * S5 does not impose any relationship between validation bundles of different manifests;
 * Cross-manifest comparisons (e.g. drift analysis) are out of scope for S5 and belong to higher-level tooling.
 
-7.6.2 When a new manifest is created (new `manifest_fingerprint`), S5 MUST produce a **new** bundle and flag under that fingerprint; it MUST NOT reuse bundles from previous manifests.
+7.6.2 When a new manifest is created (new `manifest_fingerprint`), S5 MUST produce a **new** bundle and flag under that manifest_fingerprint; it MUST NOT reuse bundles from previous manifests.
 
 7.6.3 If the environment changes (e.g. policies, upstream data) in a way that affects S1–S4 outputs without changing `manifest_fingerprint`, this is a violation of the manifest/identity discipline. S5 MUST detect this as an inconsistent rewrite when re-run and refuse to overwrite the existing bundle/flag.
 
@@ -1375,7 +1375,7 @@ f. All S5-mandatory artefacts are present in `sealed_inputs_3B`, readable and sc
 * routing/RNG policy;
 * CDN/spatial/tz/alias-layout policies;
 * RNG logs / RNG governance for S2.
-  g. All S1–S4 outputs required by S5 exist for the target `{seed, fingerprint}` and validate against their schemas:
+  g. All S1–S4 outputs required by S5 exist for the target `{seed, manifest_fingerprint}` and validate against their schemas:
 * S1: `virtual_classification_3B`, `virtual_settlement_3B`;
 * S2: `edge_catalogue_3B`, `edge_catalogue_index_3B`;
 * S3: `edge_alias_blob_3B`, `edge_alias_index_3B`, `edge_universe_hash_3B`;
@@ -1389,7 +1389,7 @@ h. **S1**: For all virtual merchants in `virtual_classification_3B` (or in the s
 * `tzid_settlement` fields are non-null and valid IANA tzids;
 * S1’s own key/shape invariants are satisfied.
 
-i. **S2**: For `edge_catalogue_3B` and `edge_catalogue_index_3B` for `{seed,fingerprint}`:
+i. **S2**: For `edge_catalogue_3B` and `edge_catalogue_index_3B` for `{seed,manifest_fingerprint}`:
 
 * schema-invariants hold (keys, partitioning, non-nullness constraints as per S2 spec);
 * for each merchant `m`, the row count in `edge_catalogue_3B` with `merchant_id = m` equals `edge_count_total(m)` in `edge_catalogue_index_3B`;
@@ -1410,7 +1410,7 @@ k. **S4**: For routing and validation contracts:
 * all artefact manifest keys referenced in `virtual_routing_policy_3B` exist in the registry and resolve to the expected S2/S3 outputs;
 * routing field bindings reference valid event-schema anchors;
 * `virtual_validation_contract_3B` validates against its schema;
-* `test_id` values are unique per fingerprint;
+* `test_id` values are unique per manifest_fingerprint;
 * all `test_type`, `scope`, `severity` values are legal per validation-policy schema;
 * all dataset/field references in `inputs` point to existing datasets and fields.
 
@@ -1959,7 +1959,7 @@ Typical triggers:
 Remediation:
 
 * treat as manifest/identity violation;
-* either restore original environment to match original bundle, or generate a new manifest (new fingerprint) and re-run S0–S5 under that new identity.
+* either restore original environment to match original bundle, or generate a new manifest (new manifest_fingerprint) and re-run S0–S5 under that new identity.
 
 ---
 
@@ -2250,7 +2250,7 @@ Dry-run mode MUST be clearly indicated (e.g. `mode = "dry_run"`) in lifecycle lo
 11.2.1 Let:
 
 * `|V|` = number of virtual merchants (S1),
-* `E_total` = total number of edges in `edge_catalogue_3B` for `{seed,fingerprint}`,
+* `E_total` = total number of edges in `edge_catalogue_3B` for `{seed,manifest_fingerprint}`,
 * `L_rng` = number of RNG events in S2’s RNG logs for the target streams/substreams,
 * `F` = number of evidence files S5 writes into `validation_bundle_3B`.
 
@@ -2585,7 +2585,7 @@ S5 MUST:
 
 Operators MUST then:
 
-* either treat the existing bundle as historical under its original contract and avoid re-running S5 under the new contract for that fingerprint; or
+* either treat the existing bundle as historical under its original contract and avoid re-running S5 under the new contract for that manifest_fingerprint; or
 * compute a new manifest (new `manifest_fingerprint`) and re-run S0–S5 under the updated contracts.
 
 ---
@@ -2705,7 +2705,7 @@ Operators MUST then:
   `n_m = |E_m| = edge_count_total(m)` in `edge_catalogue_index_3B`.
 
 * **`E_total`**
-  Total number of edges in the 3B edge universe for `{seed,fingerprint}`:
+  Total number of edges in the 3B edge universe for `{seed,manifest_fingerprint}`:
   `E_total = Σ₍m∈V_edge₎ n_m`,
   where `V_edge` is the set of merchants that have edges in S2.
 

@@ -142,7 +142,7 @@ Its sole mandate is to **classify merchants** and to construct a **single, legal
 
 * `seed` — the Layer-1 Philox seed for this run;
 * `parameter_hash` — the governed parameter-hash for the 3B configuration;
-* `manifest_fingerprint` — the enclosing manifest fingerprint.
+* `manifest_fingerprint` — the enclosing manifest_fingerprint.
 
 2.1.3 S1 MUST NOT attempt to recompute or override these values. It MUST treat them as read-only identity inputs and MUST ensure that any identity it embeds in its outputs exactly matches the values recorded in `s0_gate_receipt_3B` for the same `manifest_fingerprint`.
 
@@ -152,8 +152,8 @@ Its sole mandate is to **classify merchants** and to construct a **single, legal
 
 2.2.1 S1 MUST treat **3B.S0** as a hard gate. For a given `manifest_fingerprint`, S1 MAY proceed only if both of the following artefacts exist and are schema-valid:
 
-* `s0_gate_receipt_3B` at its canonical fingerprint-partitioned path;
-* `sealed_inputs_3B` at its canonical fingerprint-partitioned path.
+* `s0_gate_receipt_3B` at its canonical manifest_fingerprint-partitioned path;
+* `sealed_inputs_3B` at its canonical manifest_fingerprint-partitioned path.
 
 2.2.2 Before performing any data-plane work, S1 MUST:
 
@@ -317,8 +317,8 @@ as listed in `sealed_inputs_3B`, SHALL define the **closed input universe** for 
 
 3.1.1 S1 SHALL treat the following 3B.S0 artefacts as **required control-plane inputs** for the target `manifest_fingerprint`:
 
-* `s0_gate_receipt_3B` (fingerprint-scoped JSON);
-* `sealed_inputs_3B` (fingerprint-scoped table).
+* `s0_gate_receipt_3B` (manifest_fingerprint-scoped JSON);
+* `sealed_inputs_3B` (manifest_fingerprint-scoped table).
 
 3.1.2 `s0_gate_receipt_3B` is the **sole authority** for:
 
@@ -540,7 +540,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 4.2.4 Partitioning and path:
 
-* `virtual_classification_3B` MUST be partitioned by `{seed, fingerprint}` and written under a path of the form:
+* `virtual_classification_3B` MUST be partitioned by `{seed, manifest_fingerprint}` and written under a path of the form:
   `data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`
 * The exact `path_template`, `partition_keys` and `writer_sort` are binding and SHALL be defined in `dataset_dictionary.layer1.3B.yaml` and referenced in §5.
 
@@ -574,7 +574,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 4.3.4 Partitioning and path:
 
-* `virtual_settlement_3B` MUST be partitioned by `{seed, fingerprint}` and written under a path of the form:
+* `virtual_settlement_3B` MUST be partitioned by `{seed, manifest_fingerprint}` and written under a path of the form:
   `data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`
 * The exact `path_template`, `partition_keys` and `writer_sort` SHALL be defined in `dataset_dictionary.layer1.3B.yaml` and referenced in §5.
 
@@ -595,7 +595,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 4.4.2 On disk, identity SHALL be expressed primarily via **partition keys** and path:
 
 * `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` in the directory path;
-* a single set of files per `{seed, fingerprint}` for each dataset.
+* a single set of files per `{seed, manifest_fingerprint}` for each dataset.
 
 4.4.3 The schemas for these datasets MAY include explicit `seed` and/or `manifest_fingerprint` columns as identity echoes. If present:
 
@@ -630,7 +630,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 * Once `virtual_classification_3B` and `virtual_settlement_3B` have been successfully written, re-running S1 with the same inputs MUST either:
 
   * confirm that the existing dataset contents are bit-identical to the newly computed results, and treat the run as a no-op; or
-  * detect a conflict (e.g. environment drift under stable fingerprint) and fail, without overwriting the existing data.
+  * detect a conflict (e.g. environment drift under stable manifest_fingerprint) and fail, without overwriting the existing data.
 
 4.6.2 No other state MAY mutate `virtual_classification_3B` or `virtual_settlement_3B` in place. Any derived views or projections MUST be written to separate datasets with their own IDs and contracts.
 
@@ -667,7 +667,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 * `dataset_id: virtual_classification_3B`
 * `schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B`
 * `path_template: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["seed","fingerprint"]`
+* `partition_keys: ["seed","manifest_fingerprint"]`
 * `writer_sort: ["merchant_id"]` (or a stricter sort if required; see 5.1.4)
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -705,7 +705,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 * `source_policy_id`
 
   * string, logical ID of the classification policy pack (e.g. `"mlr.3B.mcc_channel_rules_v1"`),
-  * MUST be consistent across all rows for a given `{seed,fingerprint}`.
+  * MUST be consistent across all rows for a given `{seed,manifest_fingerprint}`.
 
 * `source_policy_version`
 
@@ -720,10 +720,10 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 5.1.5 Structural constraints (expressed via schema or acceptance criteria):
 
-* `merchant_id` MUST be unique within a given `{seed,fingerprint}` partition.
+* `merchant_id` MUST be unique within a given `{seed,manifest_fingerprint}` partition.
 * `is_virtual` / `classification` MUST be non-null for all rows.
 * `decision_reason` MUST be non-null and one of the enumerated values.
-* `source_policy_id` and `source_policy_version` MUST be constant (or piecewise constant in a documented way) within each `{seed,fingerprint}` partition.
+* `source_policy_id` and `source_policy_version` MUST be constant (or piecewise constant in a documented way) within each `{seed,manifest_fingerprint}` partition.
 
 ---
 
@@ -734,7 +734,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 * `dataset_id: virtual_settlement_3B`
 * `schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B`
 * `path_template: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["seed","fingerprint"]`
+* `partition_keys: ["seed","manifest_fingerprint"]`
 * `writer_sort: ["merchant_id"]` (or `[merchant_key,…]` if a composite key is used)
 
 5.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -756,7 +756,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
   * string, deterministic identifier of the settlement node,
   * MUST be generated via a documented, deterministic function of the key (e.g. `settlement_site_id = SHA1(merchant_id || ":SETTLEMENT")`),
-  * MUST be unique within `{seed,fingerprint}` and, preferably, globally unique within Layer-1.
+  * MUST be unique within `{seed,manifest_fingerprint}` and, preferably, globally unique within Layer-1.
 
 * `settlement_latitude_deg`
 
@@ -796,7 +796,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 
 * For each row in `virtual_settlement_3B`, there MUST exist exactly one row in `virtual_classification_3B` with the same key and `is_virtual = 1` / `classification = "VIRTUAL"`.
 * There MUST be no rows in `virtual_settlement_3B` for merchants that are not virtual.
-* `(merchant_id, settlement_site_id)` MUST be unique within a `{seed,fingerprint}` partition.
+* `(merchant_id, settlement_site_id)` MUST be unique within a `{seed,manifest_fingerprint}` partition.
 * `(settlement_latitude_deg, settlement_longitude_deg)` MUST lie within valid ranges, and `tzid_settlement` MUST be non-null.
 
 ---
@@ -1111,9 +1111,9 @@ The vocabulary MUST be closed and declared in `schemas.3B.yaml`.
 * `virtual_classification_3B` rows MUST be sorted by `merchant_id` (or composite `merchant_key`) ascending;
 * `virtual_settlement_3B` rows MUST be sorted by the same key, and optionally by `settlement_site_id` as secondary sort, exactly as declared in `writer_sort`.
 
-6.8.3 S1 MUST write both datasets under the declared `path_template` and `partition_keys` (`seed`, `fingerprint`) using an atomic write or move procedure to avoid partial observability.
+6.8.3 S1 MUST write both datasets under the declared `path_template` and `partition_keys` (`seed`, `manifest_fingerprint`) using an atomic write or move procedure to avoid partial observability.
 
-6.8.4 If datasets already exist for the same `{seed, fingerprint}`:
+6.8.4 If datasets already exist for the same `{seed, manifest_fingerprint}`:
 
 * S1 MAY recompute the expected contents and compare them byte-for-byte;
 * If identical, S1 MAY treat the run as a no-op;
@@ -1203,7 +1203,7 @@ If additional sharding is needed for performance reasons, it MUST be modelled an
 * `PK_virtual_classification = (merchant_id)`
   (or `(merchant_key, …)` if a composite key is explicitly adopted).
 
-Within a `{seed, fingerprint}` partition, there MUST be at most one row per primary key.
+Within a `{seed, manifest_fingerprint}` partition, there MUST be at most one row per primary key.
 
 7.3.2 `virtual_settlement_3B` MUST have a logical **primary key**:
 
@@ -1247,8 +1247,8 @@ no subsequent run MAY mutate these datasets in place.
 
 7.4.3 S1 MUST ensure that writing outputs is **atomic** at the dataset level:
 
-* It MUST NOT leave a state where `virtual_classification_3B` for a `{seed, fingerprint}` has been updated but `virtual_settlement_3B` has not (or vice versa);
-* It MUST either publish both datasets successfully, or publish neither, for that `{seed, fingerprint}`.
+* It MUST NOT leave a state where `virtual_classification_3B` for a `{seed, manifest_fingerprint}` has been updated but `virtual_settlement_3B` has not (or vice versa);
+* It MUST either publish both datasets successfully, or publish neither, for that `{seed, manifest_fingerprint}`.
 
 7.4.4 Any partial or inconsistent state detected by downstream consumers (e.g. one dataset exists while the other is missing, or primary keys do not align) MUST be treated as an S1 failure, not as valid output. Such conditions MUST be reported using S1’s error namespace.
 
@@ -1337,7 +1337,7 @@ g. The merchant reference dataset is present, readable, and satisfies minimum st
 h. For every merchant in the classification universe `M`, S1 produces exactly one classification record in `virtual_classification_3B` (unless the spec is explicitly in “virtual-only surface” mode; see 8.2.2).
 i. All rows in `virtual_classification_3B` validate against `schemas.3B.yaml#/plan/virtual_classification_3B` and obey:
 
-* `merchant_id` uniqueness within `{seed,fingerprint}`;
+* `merchant_id` uniqueness within `{seed,manifest_fingerprint}`;
 * non-null `is_virtual` / `classification`;
 * non-null `decision_reason` in the allowed enum;
 * consistent `source_policy_id` / `source_policy_version` within the partition.
@@ -1351,7 +1351,7 @@ k. Let `V = {m ∈ M | classification(m) = VIRTUAL}`. For each `m ∈ V`, S1 res
 l. `virtual_settlement_3B` contains exactly one row per `m ∈ V`, and no rows for `m ∉ V`.
 m. All rows in `virtual_settlement_3B` validate against `schemas.3B.yaml#/plan/virtual_settlement_3B` and obey:
 
-* `(merchant_id, settlement_site_id)` uniqueness within `{seed,fingerprint}`;
+* `(merchant_id, settlement_site_id)` uniqueness within `{seed,manifest_fingerprint}`;
 * `settlement_latitude_deg` ∈ `[-90,90]`, `settlement_longitude_deg` in the declared longitude range;
 * non-null, schema-conformant `tzid_settlement` (IANA tzid);
 * non-null `coord_source_id` / `coord_source_version` consistent with sealed coordinate artefacts;
@@ -1362,7 +1362,7 @@ m. All rows in `virtual_settlement_3B` validate against `schemas.3B.yaml#/plan/v
 
 **Output structure & identity**
 
-o. Both `virtual_classification_3B` and `virtual_settlement_3B` are written under their canonical `path_template` with `partition_keys = ["seed","fingerprint"]` and with the declared `writer_sort`.
+o. Both `virtual_classification_3B` and `virtual_settlement_3B` are written under their canonical `path_template` with `partition_keys = ["seed","manifest_fingerprint"]` and with the declared `writer_sort`.
 p. If identity echo columns (`seed`, `manifest_fingerprint`, `parameter_hash`) are present, they match the run identity and S0 receipt.
 q. No RNG events are emitted and no 3B.S1 entries appear in RNG audit/trace logs; S1 has **zero** observable RNG activity.
 
@@ -1398,7 +1398,7 @@ Until such a mode is explicitly introduced, **S1 PASS requires full settlement c
 
 8.3.1 For a given `{seed, manifest_fingerprint}`, every downstream 3B state (e.g. edge catalogue, CDN alias, 3B validation) MUST, before performing data-plane work:
 
-* verify that `virtual_classification_3B` and `virtual_settlement_3B` exist at their canonical locations for that `{seed, fingerprint}`;
+* verify that `virtual_classification_3B` and `virtual_settlement_3B` exist at their canonical locations for that `{seed, manifest_fingerprint}`;
 * validate these datasets against their schemas;
 * check basic invariants:
 
@@ -1465,7 +1465,7 @@ it MUST treat this as an S1 failure / environment inconsistency and:
 but the semantics are:
 
 * `virtual_classification_3B` MUST explicitly encode that no merchants are virtual (e.g. `is_virtual = 0` for all `m ∈ M`, or `V = ∅` and the dataset clearly documented as “no virtuals”);
-* `virtual_settlement_3B` MUST be empty for that `{seed, fingerprint}`;
+* `virtual_settlement_3B` MUST be empty for that `{seed, manifest_fingerprint}`;
 * these behaviours MUST be documented and encoded in `schemas.3B.yaml` and the state spec (i.e. an empty `virtual_settlement_3B` under “virtual-disabled” is **PASS**, not error).
 
 8.5.3 Any other configuration-sensitive behaviour (e.g. special handling for mixed virtual/physical merchants) MUST:
@@ -1481,7 +1481,7 @@ but the semantics are:
 8.6.1 Any violation of S1’s acceptance criteria (8.1–8.5) MUST result in:
 
 * S1 returning a **FAIL** status for that run;
-* no S1 outputs being published as “valid” for that `{seed, fingerprint}` (and partial artefacts removed or quarantined according to implementation policy);
+* no S1 outputs being published as “valid” for that `{seed, manifest_fingerprint}` (and partial artefacts removed or quarantined according to implementation policy);
 * a canonical S1 error code being logged (namespace `E3B_S1_*`, see §9).
 
 8.6.2 The Layer-1 run harness and any higher-level validation harness MUST treat an S1 failure as:
@@ -1517,7 +1517,7 @@ All codes in this section are reserved for 3B.S1 and MUST NOT be reused by other
 
 9.1.3 Unless explicitly marked as `WARN`, all codes below are **FATAL** for S1:
 
-* **FATAL** ⇒ S1 MUST NOT publish `virtual_classification_3B` or `virtual_settlement_3B` as valid outputs for that `{seed, fingerprint}`; the 3B segment MUST be considered **not classified / not settled** for that manifest.
+* **FATAL** ⇒ S1 MUST NOT publish `virtual_classification_3B` or `virtual_settlement_3B` as valid outputs for that `{seed, manifest_fingerprint}`; the 3B segment MUST be considered **not classified / not settled** for that manifest.
 * **WARN** ⇒ S1 MAY complete and publish outputs, but the condition MUST be observable via logs / run-report and SHOULD be visible in metrics.
 
 ---
@@ -1545,7 +1545,7 @@ Remediation:
 9.2.2 **E3B_S1_GATE_MISSING_OR_INVALID** *(FATAL)*
 Raised when S1 cannot use S0 outputs:
 
-* `s0_gate_receipt_3B` or `sealed_inputs_3B` missing for the target fingerprint;
+* `s0_gate_receipt_3B` or `sealed_inputs_3B` missing for the target manifest_fingerprint;
 * or either artefact fails schema validation.
 
 Typical triggers:
@@ -1960,7 +1960,7 @@ For production, this SHOULD be treated as FATAL until determinism is proven.
 9.8.1 Whenever S1 raises a FATAL error code, it MUST:
 
 * log a structured error event including the fields in 9.1.2;
-* ensure that neither `virtual_classification_3B` nor `virtual_settlement_3B` is exposed as **valid** for that `{seed, fingerprint}` (partially written artefacts MUST be treated as invalid).
+* ensure that neither `virtual_classification_3B` nor `virtual_settlement_3B` is exposed as **valid** for that `{seed, manifest_fingerprint}` (partially written artefacts MUST be treated as invalid).
 
 9.8.2 The run harness MUST surface S1 FATAL errors as **“3B.S1 classification/settlement failure”** for the affected manifest and MUST:
 
@@ -2084,13 +2084,13 @@ so that it is clear the error is due to an S1 contract violation but was detecte
 
 10.4.1 S1 MUST ensure that outputs, logs and run-reports are **correlatable** via a consistent identity:
 
-* `virtual_classification_3B` and `virtual_settlement_3B` paths embed `{seed, fingerprint}`;
+* `virtual_classification_3B` and `virtual_settlement_3B` paths embed `{seed, manifest_fingerprint}`;
 * logs and run-reports include `{seed, parameter_hash, manifest_fingerprint}` and `run_id` (if present);
 * `s0_gate_receipt_3B` path and identity are referenced explicitly in S1’s run-report record.
 
 10.4.2 Given a specific merchant of interest (`merchant_id`), an operator MUST be able to:
 
-* find its row in `virtual_classification_3B` for a given `{seed, fingerprint}`;
+* find its row in `virtual_classification_3B` for a given `{seed, manifest_fingerprint}`;
 * find its corresponding row in `virtual_settlement_3B` (if `is_virtual = 1`);
 * determine from S1 logs and run-report which rule / policy version led to its classification and which coordinate / tz source was used for its settlement node.
 
@@ -2426,7 +2426,7 @@ S1 MUST NOT silently interpret old outputs as if they conformed to the new schem
 Operators MUST then either:
 
 * treat the old outputs as belonging to a different contract version and stop reusing the same `manifest_fingerprint`; or
-* explicitly migrate and re-emit S1 outputs under the new schema and a new fingerprint.
+* explicitly migrate and re-emit S1 outputs under the new schema and a new manifest_fingerprint.
 
 ---
 
@@ -2500,7 +2500,7 @@ If repurposing is unavoidable, the change MUST be treated as a breaking change.
   * downstream 3B states and validation harnesses remain compatible.
 * explicitly test **idempotence**:
 
-  * re-run S1 under the same `{seed, parameter_hash, manifest_fingerprint}` and confirm outputs are unchanged (or that any change is intentional and reflected in a new fingerprint).
+  * re-run S1 under the same `{seed, parameter_hash, manifest_fingerprint}` and confirm outputs are unchanged (or that any change is intentional and reflected in a new manifest_fingerprint).
 
 12.7.3 Where this section conflicts with `schemas.3B.yaml`, `dataset_dictionary.layer1.3B.yaml` or `artefact_registry_3B.yaml`, those artefacts SHALL be treated as **authoritative**, and this section MUST be updated as part of the next non-editorial version bump to reflect the contracts actually in force.
 

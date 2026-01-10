@@ -12,7 +12,7 @@
 1.1.2 S3’s primary role is to take the **static edge universe** produced by S2 and transform it into:
 
 * per-merchant **alias tables** over edges, in a layout that 2B can decode efficiently at routing time; and
-* a fingerprint-scoped **virtual edge universe hash** that cryptographically ties those alias tables back to S2’s edge catalogue and to the sealed edge-related policies.
+* a manifest_fingerprint-scoped **virtual edge universe hash** that cryptographically ties those alias tables back to S2’s edge catalogue and to the sealed edge-related policies.
 
 1.1.3 S3 does **not** introduce any new business semantics about merchants, settlement, geography or timezones. It is a **representation & integrity layer**: given the edge universe and policies that S2 produced under the sealed environment, S3 creates the alias representation and a hash that 2B and validation can trust.
 
@@ -42,7 +42,7 @@
   * basic counts (number of edges, table length);
   * layout version and checksums needed for safe decode;
 
-* compute a fingerprint-scoped **virtual edge universe hash** that combines digests of:
+* compute a manifest_fingerprint-scoped **virtual edge universe hash** that combines digests of:
 
   * the edge-budget / geography policies (e.g. `cdn_country_weights` and any overrides);
   * the spatial and RNG/alias-layout policies relevant to edge placement and alias construction;
@@ -152,7 +152,7 @@
 
 1.5.3 S3’s defined scope is therefore:
 
-> **Given a sealed environment and the static edge universe from S2, S3 deterministically constructs per-merchant alias tables plus a fingerprint-scoped virtual edge universe hash, with no new randomness and no change to the underlying edges.**
+> **Given a sealed environment and the static edge universe from S2, S3 deterministically constructs per-merchant alias tables plus a manifest_fingerprint-scoped virtual edge universe hash, with no new randomness and no change to the underlying edges.**
 
 ---
 
@@ -197,7 +197,7 @@ has already been resolved by the enclosing engine and is consistent with the Lay
 
 * `seed` — the Layer-1 Philox seed for this run;
 * `parameter_hash` — the governed parameter hash for the 3B configuration;
-* `manifest_fingerprint` — the enclosing manifest fingerprint.
+* `manifest_fingerprint` — the enclosing manifest_fingerprint.
 
 2.1.3 S3 MUST NOT recompute or override these identity values. It MUST:
 
@@ -210,8 +210,8 @@ has already been resolved by the enclosing engine and is consistent with the Lay
 
 2.2.1 For a given `manifest_fingerprint`, S3 MAY proceed only if both of the following artefacts exist and are schema-valid:
 
-* `s0_gate_receipt_3B` at its canonical fingerprint-partitioned path;
-* `sealed_inputs_3B` at its canonical fingerprint-partitioned path.
+* `s0_gate_receipt_3B` at its canonical manifest_fingerprint-partitioned path;
+* `sealed_inputs_3B` at its canonical manifest_fingerprint-partitioned path.
 
 2.2.2 Before performing any work, S3 MUST:
 
@@ -373,8 +373,8 @@ SHALL define the **closed input universe** for 3B.S3.
 
 3.1.1 S3 SHALL treat the following S0 artefacts as **required control-plane inputs** for the target `manifest_fingerprint`:
 
-* `s0_gate_receipt_3B` (fingerprint-scoped JSON);
-* `sealed_inputs_3B` (fingerprint-scoped table).
+* `s0_gate_receipt_3B` (manifest_fingerprint-scoped JSON);
+* `sealed_inputs_3B` (manifest_fingerprint-scoped table).
 
 3.1.2 For S3, `s0_gate_receipt_3B` is the **sole authority** on:
 
@@ -573,7 +573,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 * **`edge_alias_blob_3B`** — a contiguous binary blob containing all per-merchant alias tables over the S2 edge universe.
 * **`edge_alias_index_3B`** — a structured index describing how to locate each merchant’s alias table within the blob, and how to interpret it.
 
-4.1.2 In addition, for each `manifest_fingerprint`, S3 SHALL emit a **fingerprint-scoped universe descriptor**:
+4.1.2 In addition, for each `manifest_fingerprint`, S3 SHALL emit a **manifest_fingerprint-scoped universe descriptor**:
 
 * **`edge_universe_hash_3B`** — a JSON document that records:
 
@@ -724,7 +724,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 4.3.4 Structural invariants:
 
-* There MUST be exactly one per-merchant index row for each `merchant_id` that appears in `edge_catalogue_3B` for that `{seed, fingerprint}`.
+* There MUST be exactly one per-merchant index row for each `merchant_id` that appears in `edge_catalogue_3B` for that `{seed, manifest_fingerprint}`.
 * `edge_count_total_all_merchants` MUST equal the sum of `edge_count_total` over all per-merchant rows and the row count in `edge_catalogue_3B`.
 * For each merchant, `(blob_offset_bytes, blob_length_bytes)` MUST refer to a contiguous alias segment inside `edge_alias_blob_3B` that decodes without error under the alias layout.
 * Checksums MUST verify when recomputed over those segments.
@@ -733,7 +733,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 4.4 **Universe hash descriptor: `edge_universe_hash_3B`**
 
-4.4.1 `edge_universe_hash_3B` SHALL be a fingerprint-scoped JSON descriptor that defines the **virtual edge universe hash** and records the component digests that contribute to it. It is the binding contract for “what edge + alias universe 2B should see” for this manifest.
+4.4.1 `edge_universe_hash_3B` SHALL be a manifest_fingerprint-scoped JSON descriptor that defines the **virtual edge universe hash** and records the component digests that contribute to it. It is the binding contract for “what edge + alias universe 2B should see” for this manifest.
 
 4.4.2 At minimum, `edge_universe_hash_3B` MUST include:
 
@@ -757,11 +757,11 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 4.4.4 Identity & partitioning:
 
-* `edge_universe_hash_3B` MUST be fingerprint-only:
+* `edge_universe_hash_3B` MUST be manifest_fingerprint-only:
 
   * `path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
 
-  * `partitioning: ["fingerprint"]`.
+  * `partitioning: ["manifest_fingerprint"]`.
 
 * No `seed` partition is allowed. The descriptor is **global to the manifest** (and implicit across all seeds) for the virtual edge universe; if multiple seeds are used, S3 MUST define and document whether `edge_universe_hash` is expected to be seed-invariant or per-seed and adjust the design accordingly.
 
@@ -778,7 +778,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 * `schema_ref: schemas.3B.yaml#/validation/s3_run_summary_3B`;
 * `path: data/layer1/3B/s3_run_summary/manifest_fingerprint={manifest_fingerprint}/s3_run_summary_3B.json` (or similar);
-* `partitioning: ["fingerprint"]`.
+* `partitioning: ["manifest_fingerprint"]`.
 
 4.5.2 Such a summary MAY capture:
 
@@ -800,7 +800,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 * populate them with values matching the run identity;
 * ensure that they match the values in `s0_gate_receipt_3B`;
-* not use them as partition keys (except `fingerprint` for `edge_universe_hash_3B`).
+* not use them as partition keys (except `manifest_fingerprint` for `edge_universe_hash_3B`).
 
 4.6.2 Path↔embed equality checks (i.e. confirming that embedded identity equals partition identity) are typically enforced by the 3B validation state, not by S3 itself, but S3 MUST write outputs in a way that makes such checks pass.
 
@@ -850,7 +850,7 @@ is **non-conformant** with this specification and MUST be corrected under the ch
 * `schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B`
 * `path: data/layer1/3B/edge_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
 * `partitioning: [seed, manifest_fingerprint]`
-* `ordering: []` (blob is a single binary file per `{seed,fingerprint}`; sort concept is N/A)
+* `ordering: []` (blob is a single binary file per `{seed,manifest_fingerprint}`; sort concept is N/A)
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
@@ -966,7 +966,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 
 5.2.4 Structural constraints:
 
-* `(merchant_id)` MUST be unique over merchant rows within a `{seed,fingerprint}` partition.
+* `(merchant_id)` MUST be unique over merchant rows within a `{seed,manifest_fingerprint}` partition.
 * For each merchant row, `(blob_offset_bytes, blob_length_bytes)` MUST refer to a contiguous region of `edge_alias_blob_3B` within the data length specified by the blob header.
 * `edge_count_total_all_merchants` MUST equal Σ `edge_count_total` over merchant rows and MUST equal S2’s global edge count for that partition.
 
@@ -980,8 +980,8 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B`
 * `path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
-* `partitioning: ["fingerprint"]`
-* `ordering: []` (single JSON doc per fingerprint)
+* `partitioning: ["manifest_fingerprint"]`
+* `ordering: []` (single JSON doc per manifest_fingerprint)
 
 5.3.2 The registry entry MUST:
 
@@ -995,7 +995,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 * `manifest_fingerprint`
 
   * type: as per `schemas.layer1.yaml#/validation/manifest_fingerprint_resolved`;
-  * MUST equal partition `fingerprint`.
+  * MUST equal partition `manifest_fingerprint`.
 
 * `parameter_hash` (optional but recommended)
 
@@ -1601,9 +1601,9 @@ data/layer1/3B/edge_alias_index/seed={seed}/manifest_fingerprint={manifest_finge
 
 Again, no additional partition keys are allowed without a versioned contract change.
 
-7.2.3 `edge_universe_hash_3B` MUST be **fingerprint-only**:
+7.2.3 `edge_universe_hash_3B` MUST be **manifest_fingerprint-only**:
 
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * canonical path of the form:
 
 ```text
@@ -1625,7 +1625,7 @@ Partial partitions (e.g. only some files, or incomplete index shards) MUST be tr
 
 7.3.1 **Alias index primary keys**
 
-Within a `{seed, fingerprint}` partition, `edge_alias_index_3B` MUST have:
+Within a `{seed, manifest_fingerprint}` partition, `edge_alias_index_3B` MUST have:
 
 * per-merchant rows keyed by `merchant_id` (or composite `merchant_key` if adopted consistently across 3B);
 * zero or more global rows distinguished by a dedicated `scope` field or a special key value (e.g. `merchant_id = "__GLOBAL__"`), as defined in the schema.
@@ -1669,7 +1669,7 @@ for merchant or edge ordering.
 
 7.4.1 Natural join keys:
 
-* Between `edge_alias_index_3B` and `edge_catalogue_3B`: join on `merchant_id` (and implicitly `{seed, fingerprint}` via partition);
+* Between `edge_alias_index_3B` and `edge_catalogue_3B`: join on `merchant_id` (and implicitly `{seed, manifest_fingerprint}` via partition);
 * Between `edge_alias_index_3B` and S1 outputs: join on `merchant_id`;
 * Between alias tables (as represented in `edge_alias_blob_3B`) and S2 edges: “alias table index” maps to the canonical per-merchant edge order `(e₀,…,eₙ₋₁)` defined from `edge_catalogue_3B`.
 
@@ -1677,7 +1677,7 @@ for merchant or edge ordering.
 
 * use these join keys;
 * not rely on incidental join conditions (e.g. relying on numeric ordering of `edge_id` without using the canonical order definition);
-* respect partition boundaries — joins MUST occur only between artefacts with the same `{seed, fingerprint}` (or same `fingerprint` for universe-hash joins).
+* respect partition boundaries — joins MUST occur only between artefacts with the same `{seed, manifest_fingerprint}` (or same `manifest_fingerprint` for universe-hash joins).
 
 7.4.3 S3 MUST ensure **no edges are “lost” in alias representation**:
 
@@ -1710,7 +1710,7 @@ for merchant or edge ordering.
 
 * If different, S3 MUST fail with an “inconsistent rewrite” style error and MUST NOT overwrite previous results.
 
-7.5.3 S3 MUST treat **blob + index + universe-hash** as an **all-or-nothing group** for a `{seed, fingerprint}`:
+7.5.3 S3 MUST treat **blob + index + universe-hash** as an **all-or-nothing group** for a `{seed, manifest_fingerprint}`:
 
 * It MUST NOT expose a state where:
 
@@ -1734,7 +1734,7 @@ MUST be treated as a 3B.S3 failure or environment corruption, not as a valid S3 
 * S3 does not impose any relationship between alias blobs for different seeds under the same manifest;
 * S3 does not impose any relationship between different manifests.
 
-7.6.2 `edge_universe_hash_3B` is fingerprint-only and MUST be defined in a way that matches the intended semantics:
+7.6.2 `edge_universe_hash_3B` is manifest_fingerprint-only and MUST be defined in a way that matches the intended semantics:
 
 * If the design is **seed-invariant** (preferred), the hash MUST be formed from artefacts that are seed-independent or whose digests are intentionally aggregated across seeds;
 * If, in a more complex design, the hash is seed-dependent, this MUST be documented explicitly and encoded in the schema and combination law. By default, this spec assumes **seed-invariant** universe hash for a manifest.
@@ -1795,7 +1795,7 @@ g. Any policy digest artefacts that must be included in the edge-universe hash (
 
 **S1 / S2 input contracts**
 
-h. `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, and `edge_catalogue_index_3B` for the target `{seed, fingerprint}` exist and validate against their schemas.
+h. `virtual_classification_3B`, `virtual_settlement_3B`, `edge_catalogue_3B`, and `edge_catalogue_index_3B` for the target `{seed, manifest_fingerprint}` exist and validate against their schemas.
 i. S1/S2 invariants that S3 relies on hold, at minimum:
 
 * All merchants appearing in `edge_catalogue_3B` are virtual according to `virtual_classification_3B` (or conform to any explicitly documented “no-edge-virtual” mode).
@@ -2002,7 +2002,7 @@ All codes in this section are reserved for 3B.S3 and MUST NOT be reused by other
 
 9.1.3 Unless explicitly marked as `WARN`, all codes defined below are **FATAL** for S3:
 
-* **FATAL** ⇒ S3 MUST NOT publish `edge_alias_blob_3B`, `edge_alias_index_3B` or `edge_universe_hash_3B` as valid canonical outputs for that `{seed,fingerprint}`. The virtual edge alias universe MUST be considered **not constructed** for that manifest.
+* **FATAL** ⇒ S3 MUST NOT publish `edge_alias_blob_3B`, `edge_alias_index_3B` or `edge_universe_hash_3B` as valid canonical outputs for that `{seed,manifest_fingerprint}`. The virtual edge alias universe MUST be considered **not constructed** for that manifest.
 * **WARN** ⇒ S3 MAY complete and publish outputs, but the condition MUST be observable via logs/layer1/3B/run-report and SHOULD be visible in metrics; WARNs MUST NOT be used to hide conditions that this spec treats as FATAL.
 
 ---
@@ -2030,7 +2030,7 @@ Remediation:
 9.2.2 **E3B_S3_GATE_MISSING_OR_INVALID** *(FATAL)*
 Raised when S3 cannot use S0 outputs as a valid gate:
 
-* `s0_gate_receipt_3B` or `sealed_inputs_3B` is missing for the fingerprint; or
+* `s0_gate_receipt_3B` or `sealed_inputs_3B` is missing for the manifest_fingerprint; or
 * either artefact fails schema validation.
 
 Typical triggers:
@@ -2643,7 +2643,7 @@ Remediation:
 10.4.1 S3 MUST ensure that its outputs, logs and run-report entries are **correlatable** by identity. Concretely:
 
 * all S3 logs MUST include `{segment_id="3B", state_id="S3", manifest_fingerprint, seed, parameter_hash}` and optionally `run_id`;
-* S3 outputs MUST adhere to the partition laws in §7 (blob/index keyed by `{seed,fingerprint}`, universe hash keyed by `fingerprint`);
+* S3 outputs MUST adhere to the partition laws in §7 (blob/index keyed by `{seed,manifest_fingerprint}`, universe hash keyed by `manifest_fingerprint`);
 * any identity echo fields in schemas (e.g. `manifest_fingerprint` in `edge_universe_hash_3B`) MUST match partition identity and S0.
 
 10.4.2 Given a particular merchant (`merchant_id`) and manifest, an operator MUST be able to:
@@ -2901,7 +2901,7 @@ Memory usage is roughly:
 
 * `edge_alias_blob_3B`:
 
-  * one binary file per `{seed, fingerprint}`;
+  * one binary file per `{seed, manifest_fingerprint}`;
   * size roughly:
 
     ```text
@@ -3145,7 +3145,7 @@ S3 MUST:
 
 Operators MUST either:
 
-* keep using the old artefacts under tools that understand their old version, and avoid re-running S3 for that fingerprint; or
+* keep using the old artefacts under tools that understand their old version, and avoid re-running S3 for that manifest_fingerprint; or
 * migrate and re-emit S3 artefacts under a **new** manifest (and/or schema version), then update consumers to use the new contract.
 
 ---
@@ -3363,7 +3363,7 @@ MUST be reflected in the validation spec and tests.
 ### 13.5 Blob/index notation
 
 * **`edge_alias_blob_3B`**
-  S3 egress. Single binary blob per `{seed, fingerprint}` containing a header and concatenated per-merchant alias segments.
+  S3 egress. Single binary blob per `{seed, manifest_fingerprint}` containing a header and concatenated per-merchant alias segments.
 
 * **`edge_alias_index_3B`**
   S3 egress. Table dataset that indexes per-merchant alias segments in the blob (offsets, lengths, checksums) plus a global summary row.

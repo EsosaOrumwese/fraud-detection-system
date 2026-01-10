@@ -202,7 +202,7 @@ has already been resolved by the enclosing engine and is consistent with the Lay
 
 * `seed` — the Layer-1 Philox seed for this run;
 * `parameter_hash` — the governed 3B parameter hash (including S4-relevant configuration);
-* `manifest_fingerprint` — the enclosing manifest fingerprint.
+* `manifest_fingerprint` — the enclosing manifest_fingerprint.
 
 2.1.3 S4 MUST NOT recompute or override these values. It MUST:
 
@@ -215,8 +215,8 @@ has already been resolved by the enclosing engine and is consistent with the Lay
 
 2.2.1 For a given `manifest_fingerprint`, S4 MAY proceed only if both of the following artefacts exist and are schema-valid:
 
-* `s0_gate_receipt_3B` at its canonical fingerprint-partitioned path;
-* `sealed_inputs_3B` at its canonical fingerprint-partitioned path.
+* `s0_gate_receipt_3B` at its canonical manifest_fingerprint-partitioned path;
+* `sealed_inputs_3B` at its canonical manifest_fingerprint-partitioned path.
 
 2.2.2 Before performing any work, S4 MUST:
 
@@ -365,8 +365,8 @@ SHALL define the **closed input universe** for 3B.S4.
 
 3.1.1 S4 SHALL treat the following S0 artefacts as **required control-plane inputs** for the target `manifest_fingerprint`:
 
-* `s0_gate_receipt_3B` (fingerprint-scoped JSON);
-* `sealed_inputs_3B` (fingerprint-scoped table).
+* `s0_gate_receipt_3B` (manifest_fingerprint-scoped JSON);
+* `sealed_inputs_3B` (manifest_fingerprint-scoped table).
 
 3.1.2 For S4, `s0_gate_receipt_3B` is the **sole authority** on:
 
@@ -574,7 +574,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B`
 * `path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []` (single JSON document; no row sort concept)
 
 4.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -642,7 +642,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B`
 * `path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: ["test_id"]`
 
 4.3.2 The corresponding registry entry MUST:
@@ -656,7 +656,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 * `test_id`
 
-  * string identifier, unique per `fingerprint`;
+  * string identifier, unique per `manifest_fingerprint`;
   * stable across runs for the same manifest.
 
 * `test_type`
@@ -712,7 +712,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B`
 * `path: data/layer1/3B/s4_run_summary/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 4.4.2 `s4_run_summary_3B` MAY capture at least:
@@ -781,7 +781,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
 4.7.1 For a fixed `{seed, parameter_hash, manifest_fingerprint}`, S4 outputs are **logically immutable**:
 
-* Once S4 reports PASS and publishes `virtual_routing_policy_3B` and `virtual_validation_contract_3B` for a fingerprint, subsequent S4 runs with the same identity triple MUST NOT change their contents.
+* Once S4 reports PASS and publishes `virtual_routing_policy_3B` and `virtual_validation_contract_3B` for a manifest_fingerprint, subsequent S4 runs with the same identity triple MUST NOT change their contents.
 
 4.7.2 On re-execution for the same identity triple:
 
@@ -790,7 +790,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * If identical, S4 MAY treat the run as idempotent and leave artefacts unchanged;
 * If different, S4 MUST fail with a conflict error (e.g. `E3B_S4_OUTPUT_INCONSISTENT_REWRITE`) and MUST NOT overwrite existing artefacts.
 
-4.7.3 S4 MUST publish its outputs atomically per fingerprint:
+4.7.3 S4 MUST publish its outputs atomically per manifest_fingerprint:
 
 * It MUST NOT expose a state where `virtual_routing_policy_3B` exists but `virtual_validation_contract_3B` does not (or vice versa) for the same `manifest_fingerprint`;
 * Any partial or mismatched state MUST be treated as failure by downstream components, not as valid configuration.
@@ -807,8 +807,8 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B`
 * `path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
-* `partitioning: ["fingerprint"]`
-* `ordering: []` (single JSON document per fingerprint)
+* `partitioning: ["manifest_fingerprint"]`
+* `ordering: []` (single JSON document per manifest_fingerprint)
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
@@ -912,7 +912,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B`
 * `path: data/layer1/3B/virtual_validation_contract/manifest_fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: ["test_id"]`
 
 5.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
@@ -927,7 +927,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `test_id`
 
   * type: string;
-  * unique per `fingerprint`;
+  * unique per `manifest_fingerprint`;
   * stable identifier that the validation harness uses for reporting and gating.
 
 * `test_type`
@@ -995,7 +995,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 * `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B`
 * `path: data/layer1/3B/s4_run_summary/manifest_fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
-* `partitioning: ["fingerprint"]`
+* `partitioning: ["manifest_fingerprint"]`
 * `ordering: []`
 
 5.3.2 `schemas.3B.yaml#/validation/s4_run_summary_3B` MUST define a JSON object with fields such as:
@@ -1279,14 +1279,14 @@ it MUST fail with a FATAL S1/S2-contract error and MUST NOT attempt to derive tz
 * **`virtual_validation_contract_3B`**:
 
   * validates against `schemas.3B.yaml#/egress/virtual_validation_contract_3B`;
-  * `test_id` is unique per fingerprint;
+  * `test_id` is unique per manifest_fingerprint;
   * `test_type` values are drawn from the policy-defined enum;
   * referenced datasets/fields exist and are consistent with schemas/dictionaries.
 
 6.6.2 S4 MUST then publish outputs using an **atomic publish** protocol per `manifest_fingerprint`:
 
 1. Write `virtual_routing_policy_3B` to a temporary file under `manifest_fingerprint={manifest_fingerprint}`.
-2. Write `virtual_validation_contract_3B` to a temporary directory or file set under the same fingerprint.
+2. Write `virtual_validation_contract_3B` to a temporary directory or file set under the same manifest_fingerprint.
 3. Validate both artefacts in place as per 6.6.1.
 4. Move/rename temporary artefacts into their canonical paths in a way that does not expose partial state (e.g. directory-level rename or carefully ordered renames).
 
@@ -1385,7 +1385,7 @@ Again, no additional partition keys are allowed unless explicitly introduced via
 
 7.3 **Ordering & writer sort**
 
-7.3.1 `virtual_routing_policy_3B` is a single JSON document per fingerprint and has no row-level sort semantics. Its ordering constraints apply to:
+7.3.1 `virtual_routing_policy_3B` is a single JSON document per manifest_fingerprint and has no row-level sort semantics. Its ordering constraints apply to:
 
 * the **internal representation** of structured fields, where S4 MUST ensure deterministic ordering when:
 
@@ -1442,7 +1442,7 @@ MUST be treated as an S4 contract error and MUST not be silently ignored or “b
 
 7.5.1 For a given `{seed, parameter_hash, manifest_fingerprint}`, S4 outputs are **logically immutable**:
 
-* Once S4 reports PASS and publishes `virtual_routing_policy_3B` and `virtual_validation_contract_3B` for a fingerprint, they define the only valid routing/validation semantics for that manifest under the current S4 contract version.
+* Once S4 reports PASS and publishes `virtual_routing_policy_3B` and `virtual_validation_contract_3B` for a manifest_fingerprint, they define the only valid routing/validation semantics for that manifest under the current S4 contract version.
 
 7.5.2 On re-execution of S4 for the same identity triple:
 
@@ -1463,7 +1463,7 @@ MUST be treated as an S4 contract error and MUST not be silently ignored or “b
 
 7.5.3 S4 MUST publish its outputs **atomically** per `manifest_fingerprint`:
 
-* It MUST NOT expose a state where `virtual_routing_policy_3B` exists but `virtual_validation_contract_3B` does not (or vice versa) for the same fingerprint;
+* It MUST NOT expose a state where `virtual_routing_policy_3B` exists but `virtual_validation_contract_3B` does not (or vice versa) for the same manifest_fingerprint;
 * It MUST NOT expose a state where either dataset is partially written or schema-invalid at its canonical path.
 
 7.5.4 Downstream components (2B, validation harness) MUST treat any partial or mismatched presence of S4 outputs (e.g. only one of the two datasets present, or identity echoes not matching path) as a **S4 failure**, not as a valid configuration.
@@ -1530,12 +1530,12 @@ f. The following artefacts are present in `sealed_inputs_3B`, readable and schem
 
 **S1–S3 inputs**
 
-h. S1 outputs for `{seed, fingerprint}` exist and validate:
+h. S1 outputs for `{seed, manifest_fingerprint}` exist and validate:
 
 * `virtual_classification_3B`;
 * `virtual_settlement_3B`.
 
-i. S2 outputs for `{seed, fingerprint}` exist and validate:
+i. S2 outputs for `{seed, manifest_fingerprint}` exist and validate:
 
 * `edge_catalogue_3B`;
 * `edge_catalogue_index_3B`.
@@ -2706,7 +2706,7 @@ then S4 MUST:
 
 Operators MUST then either:
 
-* preserve the old outputs and avoid re-running S4 under a newer contract for that fingerprint; or
+* preserve the old outputs and avoid re-running S4 under a newer contract for that manifest_fingerprint; or
 * migrate and re-emit S4 artefacts under a **new** manifest and/or schema version, then update consumers to use the new contract.
 
 ---
