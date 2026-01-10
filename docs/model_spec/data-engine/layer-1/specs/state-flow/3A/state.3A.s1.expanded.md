@@ -264,7 +264,7 @@ This section fixes **exactly what 3A.S1 is allowed to read**, how it must treat 
    For any dataset or artefact S1 reads, the dictionary/registry is the **only authority** on:
 
    * dataset/artefact ID,
-   * path template (including `seed=` / `fingerprint=` tokens),
+   * path template (including `seed=` / `manifest_fingerprint=` tokens),
    * partition keys and format,
    * `schema_ref` and role.
 
@@ -480,9 +480,9 @@ Identity and cardinality:
 
 #### 4.2.2 Partitioning & path (conceptual)
 
-` s1_escalation_queue` is a seed/fingerprint-scoped planning dataset:
+` s1_escalation_queue` is a seed/manifest_fingerprint-scoped planning dataset:
 
-* Partition key set: `["seed", "fingerprint"]`.
+* Partition key set: `["seed", "manifest_fingerprint"]`.
 
 * Path pattern (conceptual; final form in the dictionary):
 
@@ -490,9 +490,9 @@ Identity and cardinality:
   data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
-* The embedded `fingerprint` and `seed` columns (see below) MUST equal the corresponding path tokens (path↔embed equality).
+* The embedded `manifest_fingerprint` and `seed` columns (see below) MUST equal the corresponding path tokens (path↔embed equality).
 
-* There MUST be at most one partition for each `{seed, fingerprint}`.
+* There MUST be at most one partition for each `{seed, manifest_fingerprint}`.
 
 #### 4.2.3 Required columns & meaning
 
@@ -501,7 +501,7 @@ At minimum, each row in `s1_escalation_queue` MUST contain:
 * **Lineage / partitions**
 
   * `seed` — Layer-1 run seed (`uint64` via `schemas.layer1.yaml`), identical across all rows in this partition.
-  * `fingerprint` — `hex64`, identical across all rows in this partition.
+  * `manifest_fingerprint` — `hex64`, identical across all rows in this partition.
 
 * **Identity**
 
@@ -714,7 +714,7 @@ Binding points:
 
 * **`id`** MUST be `"s1_escalation_queue"`; no other dataset may reuse this ID.
 * **`path`** MUST contain both `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` tokens and no additional partition tokens.
-* **`partitioning`** MUST be exactly `["seed", "fingerprint"]`; the `manifest_fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
+* **`partitioning`** MUST be exactly `["seed", "manifest_fingerprint"]`; the `manifest_fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
 * **`schema_ref`** MUST point to `schemas.3A.yaml#/plan/s1_escalation_queue`.
 * **`ordering`** expresses the writer-sort key; readers MUST NOT assign semantics to physical file order beyond reproducibility.
 
@@ -1150,14 +1150,14 @@ There MUST NOT be duplicates of this pair.
 
 ### 7.2 Partitions & path tokens
 
-` s1_escalation_queue` is a **plan** dataset keyed by both `seed` and `fingerprint`.
+` s1_escalation_queue` is a **plan** dataset keyed by both `seed` and `manifest_fingerprint`.
 
 **Partition key set**
 
 * Partition keys MUST be exactly:
 
   ```text
-  ["seed", "fingerprint"]
+  ["seed", "manifest_fingerprint"]
   ```
 
 No additional partition keys (e.g. `parameter_hash`, `run_id`) are allowed for this dataset.
@@ -1175,7 +1175,7 @@ Binding rules:
 * For any concrete partition, the path MUST include:
 
   * `seed=<decimal-uint64>`,
-  * `fingerprint=<hex64>`.
+  * `manifest_fingerprint=<hex64>`.
 * There MUST be at most one `s1_escalation_queue` partition for any given `{seed, manifest_fingerprint}` pair.
 
 **Path↔embed equality**
@@ -1183,7 +1183,7 @@ Binding rules:
 Every row in a given partition MUST satisfy:
 
 * `row.seed == {seed_token}`
-* `row.manifest_fingerprint == {fingerprint_token}`
+* `row.manifest_fingerprint == {manifest_fingerprint_token}`
 
 Any mismatch between embedded values and path tokens is a hard schema/validation error for S1 and for downstream validators.
 
@@ -1265,14 +1265,14 @@ This ensures that there is never ambiguity about which escalation decisions appl
 
 ---
 
-### 7.6 Cross-fingerprint semantics
+### 7.6 Cross-manifest_fingerprint semantics
 
 ` s1_escalation_queue` makes **no claims** about relationships between different `manifest_fingerprint` values:
 
-* Each partition `seed={s}/manifest_manifest_fingerprint={F}` describes escalation decisions only for that manifest.
-* It is out-of-spec to combine rows from different fingerprints and treat them as a single logical plan for any one run.
+* Each partition `seed={s}/manifest_fingerprint={F}` describes escalation decisions only for that manifest.
+* It is out-of-spec to combine rows from different manifest_fingerprints and treat them as a single logical plan for any one run.
 
-Cross-fingerprint unions are allowed **only for analytics**, e.g.:
+Cross-manifest_fingerprint unions are allowed **only for analytics**, e.g.:
 
 * “What fraction of merchant×country pairs were escalated across all manifests this month?”
 
@@ -2292,7 +2292,7 @@ This section defines **how the 3A.S1 contract is allowed to evolve over time**, 
 * the mixture policy schema/content changes, or
 * upstream/layer-wide contracts evolve.
 
-The goal is that downstream 3A states (S2–S4), validation harnesses and operators can reason about compatibility from **version tags + fingerprints + `parameter_hash`**, without guessing.
+The goal is that downstream 3A states (S2–S4), validation harnesses and operators can reason about compatibility from **version tags + manifest_fingerprints + `parameter_hash`**, without guessing.
 
 ---
 
@@ -2396,7 +2396,7 @@ The following are **breaking changes** and MUST trigger a **MAJOR** bump of the 
 1. **Altering output identity, shape, or partitions.**
 
    * Changing the primary key semantics (e.g. dropping `legal_country_iso` or changing the domain from “merchant×country” to something else).
-   * Changing the partition key set (e.g. adding or removing `seed` or `fingerprint`).
+   * Changing the partition key set (e.g. adding or removing `seed` or `manifest_fingerprint`).
    * Renaming `s1_escalation_queue` or changing its path template in a way not expressible as a simple version bump in the dictionary.
    * Removing or changing the type of required columns (e.g. making `is_escalated` tri-state, dropping `site_count`).
 
@@ -2648,7 +2648,7 @@ This appendix records the symbols and shorthand used in the 3A.S1 design. It has
   Fingerprint-scoped table from 3A.S0. Each row describes one artefact (dataset/bundle/policy/reference/log) that 3A is allowed to read for this `manifest_fingerprint`.
 
 * **`outlet_catalogue` (1A egress)**
-  Seed+fingerprint-scoped table defining per-site outlet stubs with `(merchant_id, legal_country_iso, site_order)` identity and 1A outlet counts. S1 uses it only for aggregation to `site_count(m,c)`.
+  Seed+manifest_fingerprint-scoped table defining per-site outlet stubs with `(merchant_id, legal_country_iso, site_order)` identity and 1A outlet counts. S1 uses it only for aggregation to `site_count(m,c)`.
 
 * **`iso3166_canonical_2024`**
   Canonical country reference table used to validate `legal_country_iso`.
@@ -2657,7 +2657,7 @@ This appendix records the symbols and shorthand used in the 3A.S1 design. It has
   Ingress time-zone world geometry; used to derive `Z(c)` and `zone_count_country(c)`.
 
 * **`s1_escalation_queue`**
-  S1’s output table, partitioned by `seed` and `fingerprint`, with one row per `(merchant_id, legal_country_iso)` indicating `site_count`, `zone_count_country`, `is_escalated`, `decision_reason`, and policy lineage.
+  S1’s output table, partitioned by `seed` and `manifest_fingerprint`, with one row per `(merchant_id, legal_country_iso)` indicating `site_count`, `zone_count_country`, `is_escalated`, `decision_reason`, and policy lineage.
 
 ---
 

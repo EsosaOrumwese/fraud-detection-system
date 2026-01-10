@@ -20,7 +20,7 @@ Concretely, 3A.S6:
   * applies each check deterministically and records its outcome (`PASS` / `WARN` / `FAIL`) and summary metrics.
 
 * **Produces a structured validation report for Segment 3A.**
-  S6 emits a fingerprint-scoped **validation report** (`s6_validation_report_3A`) that:
+  S6 emits a manifest_fingerprint-scoped **validation report** (`s6_validation_report_3A`) that:
 
   * enumerates all defined check IDs (e.g. `CHK_S1_DOMAIN`, `CHK_S3_RNG_ACCOUNTING`, `CHK_S5_UNIVERSE_HASH`),
   * records, for each check:
@@ -43,7 +43,7 @@ Concretely, 3A.S6:
   This table is non-authoritative for business data but is the canonical place to look when diagnosing why a check failed or raised warnings.
 
 * **Publishes a compact validation receipt for S7 and cross-segment consumers.**
-  S6 produces a small, fingerprint-scoped **validation receipt** (`s6_receipt_3A`) that:
+  S6 produces a small, manifest_fingerprint-scoped **validation receipt** (`s6_receipt_3A`) that:
 
   * encodes the **overall segment status** (`overall_status ∈ {"PASS","FAIL"}`) for 3A on this manifest,
   * contains a stable map from check IDs to their final statuses,
@@ -576,7 +576,7 @@ S6 has up to **three** outputs:
 2. An optional but recommended **issue table** (`s6_issue_table_3A`).
 3. A compact **validation receipt** (`s6_receipt_3A`) used by S7 and cross-segment validators.
 
-All three are **fingerprint-scoped** and logically tied to a single `manifest_fingerprint`.
+All three are **manifest_fingerprint-scoped** and logically tied to a single `manifest_fingerprint`.
 
 ---
 
@@ -600,7 +600,7 @@ No other persistent artefacts are owned by S6 in this contract version.
 #### 4.2.1 Identity & scope
 
 * **Dataset ID (logical):** `s6_validation_report_3A`
-* **Partitioning:** `["fingerprint"]`
+* **Partitioning:** `["manifest_fingerprint"]`
 * **Scope:** exactly **one report object** per `manifest_fingerprint`.
 
 Conceptually:
@@ -615,7 +615,7 @@ Conceptually:
 
 * **Identity:**
 
-  * `manifest_fingerprint` — `hex64`, MUST match the path token `{fingerprint}`.
+  * `manifest_fingerprint` — `hex64`, MUST match the path token `{manifest_fingerprint}`.
   * `parameter_hash` — `hex64`, tying this report to the parameter set 𝓟.
 
 * **Overall summary:**
@@ -672,7 +672,7 @@ It is:
 #### 4.3.1 Identity & scope
 
 * **Dataset ID (logical):** `s6_issue_table_3A`
-* **Partitioning:** `["fingerprint"]`
+* **Partitioning:** `["manifest_fingerprint"]`
 * **Scope:** 0 or more rows per `manifest_fingerprint`, each describing a specific issue.
 
 Conceptual path:
@@ -725,7 +725,7 @@ Absence of rows for a given `manifest_fingerprint` is interpreted as “no issue
 #### 4.4.1 Identity & scope
 
 * **Dataset ID (logical):** `s6_receipt_3A`
-* **Partitioning:** `["fingerprint"]`
+* **Partitioning:** `["manifest_fingerprint"]`
 * **Scope:** exactly **one** receipt object per `manifest_fingerprint`.
 
 Conceptual path:
@@ -789,9 +789,9 @@ For all S6 outputs:
 
 * **Partitioning:**
 
-  * `s6_validation_report_3A` → `["fingerprint"]`
-  * `s6_issue_table_3A` → `["fingerprint"]`
-  * `s6_receipt_3A` → `["fingerprint"]`
+  * `s6_validation_report_3A` → `["manifest_fingerprint"]`
+  * `s6_issue_table_3A` → `["manifest_fingerprint"]`
+  * `s6_receipt_3A` → `["manifest_fingerprint"]`
 
 * **Identity:**
 
@@ -806,7 +806,7 @@ For all S6 outputs:
   * Once S6 has written its report and receipt for a given `manifest_fingerprint`, they MUST be treated as immutable.
   * If S6 is re-run for the same inputs and the newly computed report/receipt differs from existing ones, S6 MUST NOT overwrite and MUST raise an immutability error.
 
-Within these constraints, S6’s outputs form a stable, fingerprint-scoped validation layer on top of S0–S5: a structured report, a per-entity issue list, and a compact receipt that Segment 3A and cross-layer governance can safely rely on when deciding whether 3A is “green” for a given manifest.
+Within these constraints, S6’s outputs form a stable, manifest_fingerprint-scoped validation layer on top of S0–S5: a structured report, a per-entity issue list, and a compact receipt that Segment 3A and cross-layer governance can safely rely on when deciding whether 3A is “green” for a given manifest.
 
 ---
 
@@ -931,7 +931,7 @@ At minimum, the schema MUST enforce:
 
     * If flexible extension is desired, the spec can instead permit an `x_debug` or `extensions` object; in this version we forbid stray top-level fields.
 
-The `manifest_fingerprint` field MUST equal the partition token `{fingerprint}` when stored.
+The `manifest_fingerprint` field MUST equal the partition token `{manifest_fingerprint}` when stored.
 
 ---
 
@@ -1069,7 +1069,7 @@ At minimum, it MUST enforce:
 
   * `additionalProperties: false`.
 
-The `manifest_fingerprint` field MUST equal the `{fingerprint}` partition token.
+The `manifest_fingerprint` field MUST equal the `{manifest_fingerprint}` partition token.
 
 ---
 
@@ -1725,7 +1725,7 @@ Under this algorithm, S6 provides a **single, well-defined validation verdict** 
 
 This section fixes **how S6’s outputs are identified**, how they are **partitioned**, what (if any) **ordering** guarantees exist, and what is allowed in terms of **merge / overwrite** behaviour.
 
-All three S6 artefacts are **fingerprint-scoped** and are treated as immutable **snapshots**.
+All three S6 artefacts are **manifest_fingerprint-scoped** and are treated as immutable **snapshots**.
 
 The artefacts are:
 
@@ -1749,7 +1749,7 @@ For all three datasets:
 * Partitioning MUST be exactly:
 
 ```yaml
-["fingerprint"]
+["manifest_fingerprint"]
 ```
 
 * The partition token `manifest_fingerprint={manifest_fingerprint}` MUST match the embedded `manifest_fingerprint` field in each JSON object and each issue row.
@@ -1772,7 +1772,7 @@ For all three datasets:
 
   * exactly one `report.json` file that conforms to `#/validation/s6_validation_report_3A`.
 
-There is no notion of “multiple versions” of the report per fingerprint; if you need a different report version, that must be reflected via versioning and, if necessary, a new manifest.
+There is no notion of “multiple versions” of the report per manifest_fingerprint; if you need a different report version, that must be reflected via versioning and, if necessary, a new manifest.
 
 #### 7.2.2 Partition & path↔embed equality
 
@@ -1952,8 +1952,8 @@ These are **binding invariants**:
 
 S6 makes **no claims** about relationships between different `manifest_fingerprint` values:
 
-* Each fingerprint defines a self-contained validation world;
-* `s6_validation_report_3A`, `s6_issue_table_3A`, and `s6_receipt_3A` for different fingerprints MUST NOT be mixed and matched.
+* Each manifest_fingerprint defines a self-contained validation world;
+* `s6_validation_report_3A`, `s6_issue_table_3A`, and `s6_receipt_3A` for different manifest_fingerprints MUST NOT be mixed and matched.
 
 It is valid, however, for analytics tools to:
 
@@ -3279,7 +3279,7 @@ This appendix records the symbols and shorthand used in the 3A.S6 design. It has
   Layer-1 hash over the governed parameter set 𝓟 (priors, mixture, floor policy, day-effect policy, etc.). Fixed before any 3A state runs.
 
 * **`manifest_fingerprint`**
-  Layer-1 manifest hash for a run, including `parameter_hash` and sealed artefacts. S6 is fingerprint-scoped: all its outputs are keyed by this.
+  Layer-1 manifest hash for a run, including `parameter_hash` and sealed artefacts. S6 is manifest_fingerprint-scoped: all its outputs are keyed by this.
 
 * **`seed`**
   Layer-1 global RNG seed (`uint64`). S6 itself is RNG-free but uses `seed` in run-report entries and for correlating with S3/S4/S5 runs.

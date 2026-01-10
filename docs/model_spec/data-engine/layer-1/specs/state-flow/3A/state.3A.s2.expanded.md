@@ -116,7 +116,7 @@ Before 3A.S2 is invoked for a given `parameter_hash`, the orchestrator MUST ensu
 1. **Layer-1 identity is fixed.**
 
    * `parameter_hash` MUST already have been computed by the Layer-1 mechanism and MUST identify a closed governed parameter set 𝓟.
-   * A `manifest_fingerprint` that uses this `parameter_hash` MUST be available; S2 will use this fingerprint only to read 3A.S0 outputs and sealed inputs.
+   * A `manifest_fingerprint` that uses this `parameter_hash` MUST be available; S2 will use this manifest_fingerprint only to read 3A.S0 outputs and sealed inputs.
    * `seed` is irrelevant to S2’s *outputs* but may be present in the run context; S2 MUST NOT consume RNG.
 
 2. **3A.S0 has completed successfully for the chosen manifest.**
@@ -1408,7 +1408,7 @@ There MUST NOT be duplicates of this pair.
   ["parameter_hash"]
   ```
 
-No other partition keys (e.g. `seed`, `fingerprint`, `run_id`) are allowed for this dataset.
+No other partition keys (e.g. `seed`, `manifest_fingerprint`, `run_id`) are allowed for this dataset.
 
 **Path template (conceptual)**
 
@@ -1872,7 +1872,7 @@ Each category maps to a specific `E3A_S2_XXX_*` code.
 
 Raised when S2 cannot rely on 3A.S0 for the chosen `manifest_fingerprint`, e.g.:
 
-* `s0_gate_receipt_3A` or `sealed_inputs_3A` is missing for that fingerprint,
+* `s0_gate_receipt_3A` or `sealed_inputs_3A` is missing for that manifest_fingerprint,
 * either artefact fails its own schema validation,
 * embedded `manifest_fingerprint` or `parameter_hash` in S0 artefacts does not match the S2 invocation context,
 * the S0 artefacts indicate upstream segment gates (1A/1B/2A) are not `"PASS"`.
@@ -2218,7 +2218,7 @@ Required fields:
 * `segment = "3A"`
 * `state = "S2"`
 * `parameter_hash` (hex64)
-* `manifest_fingerprint_ref` (hex64) — the manifest fingerprint whose S0 outputs / sealed inputs were used as the trust anchor for this run
+* `manifest_fingerprint_ref` (hex64) — the manifest manifest_fingerprint whose S0 outputs / sealed inputs were used as the trust anchor for this run
 * `attempt` (integer, if provided by orchestration; otherwise default `1`)
 
 Optional fields:
@@ -2308,7 +2308,7 @@ Because S2 is parameter-scoped but run in the context of a specific manifest, th
   * `segment = "3A"`
   * `state = "S2"`
   * `parameter_hash`
-  * `manifest_fingerprint_ref` — the fingerprint of the manifest whose S0 outputs were used
+  * `manifest_fingerprint_ref` — the manifest_fingerprint of the manifest whose S0 outputs were used
   * `attempt` (if available)
 
 * **Outcome**

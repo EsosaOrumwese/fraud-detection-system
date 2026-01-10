@@ -23,7 +23,7 @@ Concretely, 3A.S0:
     S0 treats this sealed set as the *only* admissible input universe for 3A; later states MUST NOT reach outside this sealed set.
 
 * **Publishes 3A’s gate and sealed-input inventory as authority surfaces.**
-  S0 produces two small, fingerprint-scoped artefacts:
+  S0 produces two small, manifest_fingerprint-scoped artefacts:
 
   * A **gate receipt** (`s0_gate_receipt_3A`) that records which upstream validation bundles and flags were verified, which schema/dictionary/registry packs were used, and which policy/prior bundles were sealed.
   * A **sealed-inputs inventory** (`sealed_inputs_3A`) that lists, for this `manifest_fingerprint`, the exact catalogue paths, schema_refs, digests and logical roles of all artefacts 3A is allowed to touch.
@@ -33,7 +33,7 @@ Concretely, 3A.S0:
   S0 does not define `parameter_hash`, `seed` or `run_id`, but it **binds** 3A to the existing Layer 1 lineage and partition law by:
 
   * Requiring that `parameter_hash` and `manifest_fingerprint` have already been resolved according to the Layer 1 S0 design.
-  * Ensuring that all 3A artefacts it introduces obey the same partitioning regime (e.g. fingerprint-only for gate/validation surfaces) and path↔embed equality rules as 1A/1B/2A/2B.
+  * Ensuring that all 3A artefacts it introduces obey the same partitioning regime (e.g. manifest_fingerprint-only for gate/validation surfaces) and path↔embed equality rules as 1A/1B/2A/2B.
     S0’s outputs are therefore the root of 3A’s own authority chain, consistent with the rest of the layer.
 
 * **Remains deterministic and RNG-free.**
@@ -135,24 +135,24 @@ If any of the above are not true, 3A.S0 MUST NOT proceed and MUST fail with a ca
 
 ---
 
-### 2.2 Upstream segment gates for the target fingerprint
+### 2.2 Upstream segment gates for the target manifest_fingerprint
 
-For a given `manifest_fingerprint = F`, 3A.S0 assumes that 1A, 1B and 2A have already run (or been reused) for that fingerprint. As part of its execution, 3A.S0 is responsible for **re-verifying** the following upstream gates before it can declare its own gate surfaces valid:
+For a given `manifest_fingerprint = F`, 3A.S0 assumes that 1A, 1B and 2A have already run (or been reused) for that manifest_fingerprint. As part of its execution, 3A.S0 is responsible for **re-verifying** the following upstream gates before it can declare its own gate surfaces valid:
 
 1. **1A is gated and green for F.**
 
-   * A `validation_bundle_1A` directory for `fingerprint=F` and a corresponding `_passed.flag` MUST exist in the catalogue.
+   * A `validation_bundle_1A` directory for `manifest_fingerprint=F` and a corresponding `_passed.flag` MUST exist in the catalogue.
    * The `_passed.flag` content MUST match the bundle index and bytes according to the Layer-1 HashGate rule.
    * Only when this check passes MAY 3A.S0 treat 1A egress (`outlet_catalogue`) and 1A validation surfaces as eligible to appear in 3A’s sealed input set.
 
 2. **1B is gated and green for F.**
 
-   * A `validation_bundle_1B` and `_passed.flag` for `fingerprint=F` MUST exist and satisfy the same HashGate rule.
+   * A `validation_bundle_1B` and `_passed.flag` for `manifest_fingerprint=F` MUST exist and satisfy the same HashGate rule.
    * 3A.S0 does not itself read `site_locations`, but it MUST ensure that 2A’s dependence on 1B is sound by verifying the 1B gate before trusting any 2A surfaces (see next bullet).
 
 3. **2A is gated and green for F.**
 
-   * A `validation_bundle_2A` and `_passed.flag` for `fingerprint=F` MUST exist and be HashGate-valid.
+   * A `validation_bundle_2A` and `_passed.flag` for `manifest_fingerprint=F` MUST exist and be HashGate-valid.
    * Only when this check passes MAY 3A.S0 treat 2A outputs (`site_timezones`, `tz_timetable_cache`, `s4_legality_report`, etc.) as admissible sealed inputs for 3A.
 
 4. **2B is not an upstream dependency for 3A.S0.**
@@ -186,6 +186,7 @@ For a specific run of 3A.S0, the orchestrating system MUST satisfy the following
      * the **country→zone α-prior pack** (e.g. `country_zone_alphas.yaml`),
      * the **zone floor/bump rules** (e.g. `zone_floor.yml`), and
      * any **day-effect policy** that 3A treats as a governed input (e.g. `day_effect_policy_v1`).
+     * For Segment 3A, the governed parameter set (P) explicitly includes `country_zone_alphas` and `zone_floor_policy`; they MUST be sealed by S0 and included in `parameter_hash` even if they are not listed in the 1A base set.
    * 3A.S0 MUST NOT silently add freshly-discovered policy artefacts into 𝓟; any change to this set MUST occur via a new `parameter_hash`.
 
 3. **Catalogue consistency is assumed, but verified.**
@@ -201,7 +202,7 @@ The following are considered **out of scope** for 3A.S0 and are assumed to be ha
 
 * Container image selection, dependency management, and filesystem layout.
 * Low-level details of how the catalogue resolves IDs to concrete storage locations (object store vs filesystem).
-* Scheduling, retries, and orchestration of multiple 3A.S0 runs for different fingerprints or seeds.
+* Scheduling, retries, and orchestration of multiple 3A.S0 runs for different manifest_fingerprints or seeds.
 
 3A.S0 may rely on these services being available, but it MUST NOT encode any assumptions about them beyond what is already specified in Layer-1’s global S0 and the dataset dictionaries/artefact registries.
 
@@ -280,13 +281,13 @@ This section fixes **what 3A.S0 is allowed to look at**, how it must treat each 
 
 2. **1B validation gate (required)**
 
-   * `validation_bundle_1B` and `_passed.flag` for the same fingerprint.
+   * `validation_bundle_1B` and `_passed.flag` for the same manifest_fingerprint.
      3A.S0 MUST perform the same HashGate verification.
      On success, 1B egress (`site_locations`) and 1B validation artefacts MAY appear in 3A’s sealed input set (even if 3A later chooses not to read them).
 
 3. **2A validation gate (required)**
 
-   * `validation_bundle_2A` and `_passed.flag` for the same fingerprint.
+   * `validation_bundle_2A` and `_passed.flag` for the same manifest_fingerprint.
      3A.S0 MUST verify this bundle before treating any 2A outputs (`site_timezones`, `tz_timetable_cache`, `s4_legality_report`) as admissible sealed inputs.
 
 4. **2B validation gate (not an input dependency)**
@@ -294,7 +295,7 @@ This section fixes **what 3A.S0 is allowed to look at**, how it must treat each 
    * 3A.S0 MUST NOT depend on `validation_bundle_2B` or `_passed.flag`.
    * 2B may not have run yet; its status is explicitly **not** part of 3A.S0’s preconditions or inputs.
 
-These upstream gates are **authoritative for “is this segment green for this fingerprint?”**. 3A.S0 MUST NOT reinterpret their internal semantics; it only checks their integrity and presence.
+These upstream gates are **authoritative for “is this segment green for this manifest_fingerprint?”**. 3A.S0 MUST NOT reinterpret their internal semantics; it only checks their integrity and presence.
 
 ---
 
@@ -404,7 +405,7 @@ For each `manifest_fingerprint = F`, 3A.S0 MUST produce at most one instance of:
 
 1. **`s0_gate_receipt_3A`**
 
-   * A small, fingerprint-scoped JSON artefact that records:
+   * A small, manifest_fingerprint-scoped JSON artefact that records:
 
      * which upstream segment validation bundles and `_passed.flag`s were verified for F,
      * which schema packs, dictionaries, and registries were used, and
@@ -413,7 +414,7 @@ For each `manifest_fingerprint = F`, 3A.S0 MUST produce at most one instance of:
 
 2. **`sealed_inputs_3A`**
 
-   * A fingerprint-scoped, row-oriented dataset (typically a table) that enumerates the exact artefacts 3A is allowed to read for `F`, including:
+   * A manifest_fingerprint-scoped, row-oriented dataset (typically a table) that enumerates the exact artefacts 3A is allowed to read for `F`, including:
 
      * upstream segment outputs (1A, 1B, 2A) used by later 3A states,
      * ingress reference datasets required structurally (e.g. ISO, tz_world), and
@@ -428,7 +429,7 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 
 ---
 
-### 4.2 `s0_gate_receipt_3A` — gate descriptor (fingerprint-scoped)
+### 4.2 `s0_gate_receipt_3A` — gate descriptor (manifest_fingerprint-scoped)
 
 **Identity & path**
 
@@ -443,7 +444,7 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 
 **Role**
 
-` s0_gate_receipt_3A` is the **Segment-3A gate descriptor** for the given fingerprint. It MUST, at minimum:
+` s0_gate_receipt_3A` is the **Segment-3A gate descriptor** for the given manifest_fingerprint. It MUST, at minimum:
 
 * Record the set of upstream gates successfully verified:
 
@@ -457,7 +458,7 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 * Record the 3A policy/prior artefacts sealed into this run:
 
   * IDs and versions for zone mixture policy, country→zone α-priors, zone floor/bump policy, and any day-effect policy treated as a parameter input.
-* Record the timezone geometry/cache universe pinned for this fingerprint (tz-world release/digest, tz-index digest if present, `tz_timetable_cache` digest).
+* Record the timezone geometry/cache universe pinned for this manifest_fingerprint (tz-world release/digest, tz-index digest if present, `tz_timetable_cache` digest).
 * Record deterministic catalogue pins — the Layer-1 engine commit, dataset dictionary and artefact registry bundle hashes, and per-pack entries in `catalogue_versions`.
 
 **Consumers**
@@ -468,13 +469,13 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
   * The 3A segment-level validator (later state) MUST include `s0_gate_receipt_3A` in its own bundle.
 * **Optional consumers:**
 
-  * Cross-segment validation harnesses and run-report tooling MAY read it to reconstruct “what was sealed” for 3A at fingerprint F.
+  * Cross-segment validation harnesses and run-report tooling MAY read it to reconstruct “what was sealed” for 3A at manifest_fingerprint F.
 
 No downstream consumer may treat the **presence** of `s0_gate_receipt_3A` alone as equivalent to a 3A PASS; the formal PASS surface for 3A is a validation bundle produced by a later state. S0’s gate receipt is a **pre-run attestation**, not a final success indicator.
 
 ---
 
-### 4.3 `sealed_inputs_3A` — sealed input inventory (fingerprint-scoped)
+### 4.3 `sealed_inputs_3A` — sealed input inventory (manifest_fingerprint-scoped)
 
 **Identity & path**
 
@@ -490,7 +491,7 @@ No downstream consumer may treat the **presence** of `s0_gate_receipt_3A` alone 
 
 **Logical content**
 
-Each row in `sealed_inputs_3A` describes exactly one artefact (dataset, bundle, policy, log, reference) which 3A is allowed to read for this fingerprint. At minimum, rows MUST include:
+Each row in `sealed_inputs_3A` describes exactly one artefact (dataset, bundle, policy, log, reference) which 3A is allowed to read for this manifest_fingerprint. At minimum, rows MUST include:
 
 * A logical identifier (e.g. dataset ID or artefact ID).
 * The owning segment/layer (e.g. `1A`, `1B`, `2A`, `2B`, `3A`).
@@ -509,7 +510,7 @@ Each row in `sealed_inputs_3A` describes exactly one artefact (dataset, bundle, 
   * Later 3A states (S1–S7) MUST use `sealed_inputs_3A` as the authoritative list of admissible inputs; they MAY cross-check that any artefact they read appears in this table with matching digest.
 * **Optional consumers:**
 
-  * Cross-segment validators and audit tooling MAY use it to reconstruct the exact set of artefacts that influenced 3A’s behaviour for this fingerprint.
+  * Cross-segment validators and audit tooling MAY use it to reconstruct the exact set of artefacts that influenced 3A’s behaviour for this manifest_fingerprint.
 
 `sealed_inputs_3A` is **not** itself a gate flag; it is an inventory. It has no binary PASS/FAIL status; only the presence of a 3A validation bundle + `_passed.flag` (defined in a later state) can be used as a PASS signal for the segment.
 
@@ -519,7 +520,7 @@ Each row in `sealed_inputs_3A` describes exactly one artefact (dataset, bundle, 
 
 For both outputs, 3A.S0 MUST uphold the following identity and lifecycle guarantees:
 
-1. **Uniqueness per fingerprint.**
+1. **Uniqueness per manifest_fingerprint.**
 
    * For any given `manifest_fingerprint = F`, there MUST be at most one `s0_gate_receipt_3A` and at most one `sealed_inputs_3A` dataset visible in the catalogue.
    * If S0 is re-run for the same `F` under identical `parameter_hash` and catalogue state, the resulting artefacts MUST be byte-for-byte identical; any deviation MUST be treated as a configuration drift.
@@ -531,7 +532,7 @@ For both outputs, 3A.S0 MUST uphold the following identity and lifecycle guarant
 
 3. **Immutability post-PASS in later states.**
 
-   * Once 3A’s segment-level validation bundle (emitted by a later state) marks fingerprint `F` as PASS, `s0_gate_receipt_3A` and `sealed_inputs_3A` for `F` MUST be treated as immutable.
+   * Once 3A’s segment-level validation bundle (emitted by a later state) marks manifest_fingerprint `F` as PASS, `s0_gate_receipt_3A` and `sealed_inputs_3A` for `F` MUST be treated as immutable.
    * Any attempt to overwrite or mutate them after that point is out of spec and SHOULD be rejected by infrastructure.
 
 4. **No implicit identity by file order.**
@@ -642,7 +643,7 @@ At minimum, each row MUST have:
   * `owner_segment` — enum: `"1A" | "1B" | "2A" | "2B" | "3A" | "ingress"`
   * `artefact_kind` — enum: `"dataset" | "bundle" | "policy" | "reference" | "log"`
   * `logical_id` — `string` (dataset/artefact ID in the dictionary/registry)
-  * `path` — `string` (resolved concrete path including tokens like `seed=`/`fingerprint=` if present)
+  * `path` — `string` (resolved concrete path including tokens like `seed=`/`manifest_fingerprint=` if present)
   * `schema_ref` — `string` (`$ref` into a schema pack)
   * `sha256_hex` — `$ref: schemas.layer1.yaml#/$defs/hex64`
   * `role` — `string` (short tag; e.g. `"upstream_gate"`, `"zone_prior"`, `"input_egress"`, `"reference_geo"`)
@@ -655,7 +656,7 @@ At minimum, each row MUST have:
 
 The schema MUST ensure:
 
-* `manifest_fingerprint` is always present and tied to the current fingerprint.
+* `manifest_fingerprint` is always present and tied to the current manifest_fingerprint.
 * No free-form untyped payloads (e.g. `object` with `additionalProperties: true`) are allowed except where explicitly reserved (e.g. `notes`).
 
 This anchor MUST be used as the `schema_ref` for `sealed_inputs_3A` in the dataset dictionary (see next section).
@@ -666,8 +667,8 @@ This anchor MUST be used as the `schema_ref` for `sealed_inputs_3A` in the datas
 
 The authoritative IDs, paths, partition keys, schema anchors, owner metadata, and dependency listings for `s0_gate_receipt_3A` and `sealed_inputs_3A` live in the Layer-1 catalogue:
 
-* **Dataset dictionary** — `dataset_dictionary.layer1.3A.yaml` publishes the `datasets` entries for both outputs (IDs, `owner_subsegment`, fingerprint-scoped versions, paths, `partitioning`, `format`, `schema_ref`, writer ordering, lineage). Implementations MUST read these entries at runtime and MUST NOT hard-code path templates or schema references.
-* **Artefact registry** — `artefact_registry_3A.yaml` registers the same outputs per `manifest_fingerprint`, including manifest keys, categories, resolved paths, schema anchors, explicit dependency lists, and digests. Registry entries are the binding truth for “what was actually written” at a given fingerprint.
+* **Dataset dictionary** — `dataset_dictionary.layer1.3A.yaml` publishes the `datasets` entries for both outputs (IDs, `owner_subsegment`, manifest_fingerprint-scoped versions, paths, `partitioning`, `format`, `schema_ref`, writer ordering, lineage). Implementations MUST read these entries at runtime and MUST NOT hard-code path templates or schema references.
+* **Artefact registry** — `artefact_registry_3A.yaml` registers the same outputs per `manifest_fingerprint`, including manifest keys, categories, resolved paths, schema anchors, explicit dependency lists, and digests. Registry entries are the binding truth for “what was actually written” at a given manifest_fingerprint.
 
 This state document does **not** repeat those catalogue snippets to avoid double maintenance. Instead, treat the catalogue as the sole contract source for IDs/paths/partitions, and treat this section as a reminder that:
 
@@ -893,14 +894,14 @@ Physical writer-sort MUST follow this key; readers MUST NOT infer additional mea
 
 ---
 
-### 6.6 Materialise `sealed_inputs_3A` (fingerprint-only)
+### 6.6 Materialise `sealed_inputs_3A` (manifest_fingerprint-only)
 
 **Step 11 – Write `sealed_inputs_3A`.**
 
 * Use the `dataset_dictionary.layer1.3A.yaml` entry for `sealed_inputs_3A` to determine:
 
   * the path pattern,
-  * partition keys (`fingerprint`),
+  * partition keys (`manifest_fingerprint`),
   * file format (`parquet`),
   * `schema_ref` (`schemas.3A.yaml#/validation/sealed_inputs_3A`).
 
@@ -918,7 +919,7 @@ No RNG or wall-clock calls are permitted in this phase.
 
 ---
 
-### 6.7 Materialise `s0_gate_receipt_3A` (fingerprint-only)
+### 6.7 Materialise `s0_gate_receipt_3A` (manifest_fingerprint-only)
 
 **Step 12 – Derive `verified_at_utc` deterministically.**
 
@@ -948,7 +949,7 @@ S0 MUST construct a single JSON object conforming to `schemas.3A.yaml#/validatio
 
 **Step 14 – Write `s0_gate_receipt_3A`.**
 
-* Use the dictionary entry for `s0_gate_receipt_3A` to determine path, partition (`fingerprint`) and schema_ref.
+* Use the dictionary entry for `s0_gate_receipt_3A` to determine path, partition (`manifest_fingerprint`) and schema_ref.
 * Expand `manifest_fingerprint={manifest_fingerprint}` in the path.
 * Assert that any existing file at that path either:
 
@@ -979,7 +980,7 @@ Throughout the algorithm:
   * `sealed_inputs_3A` and `s0_gate_receipt_3A` MUST be identical at the byte level.
   * Any divergence MUST be treated as a configuration or environment drift and surfaced as an error rather than silently updating the artefacts.
 
-Under this algorithm, 3A.S0’s behaviour is fully determined by the Layer-1 catalogue state, the governed parameter set, and the resolved manifest fingerprint, and provides a clean, RNG-free foundation for all subsequent 3A states.
+Under this algorithm, 3A.S0’s behaviour is fully determined by the Layer-1 catalogue state, the governed parameter set, and the resolved manifest_fingerprint, and provides a clean, RNG-free foundation for all subsequent 3A states.
 
 ---
 
@@ -1010,7 +1011,7 @@ The two S0 outputs have the following **primary keys** at the logical level:
 * `s0_gate_receipt_3A`:
 
   * Logical PK: `manifest_fingerprint` (one row; one object)
-  * There MUST be at most one gate receipt per fingerprint.
+  * There MUST be at most one gate receipt per manifest_fingerprint.
 
 * `sealed_inputs_3A`:
 
@@ -1023,26 +1024,26 @@ Other columns (e.g. `role`, `schema_ref`, `sha256_hex`) are attributes, not iden
 
 ### 7.2 Partitioning law for 3A.S0 outputs
 
-Both S0 artefacts are **fingerprint-scoped**. They MUST obey the same partitioning law as upstream gate and sealed-inputs datasets in 2A/2B:
+Both S0 artefacts are **manifest_fingerprint-scoped**. They MUST obey the same partitioning law as upstream gate and sealed-inputs datasets in 2A/2B:
 
 1. **`s0_gate_receipt_3A`**
 
-   * Partition key set: `["fingerprint"]` only.
+   * Partition key set: `["manifest_fingerprint"]` only.
    * Physical layout MUST follow the dictionary entry (conceptually):
      `data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
    * No `seed`, `parameter_hash` or `run_id` partitions are allowed for this dataset.
 
 2. **`sealed_inputs_3A`**
 
-   * Partition key set: `["fingerprint"]` only.
+   * Partition key set: `["manifest_fingerprint"]` only.
    * Physical layout MUST follow the dictionary entry (conceptually):
      `data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json`
    * All rows in a given partition MUST have the same `manifest_fingerprint` value.
 
 **Partitioning invariants:**
 
-* For any `manifest_fingerprint = F`, there MUST be exactly one partition `fingerprint=F` per dataset.
-* No dataset writer may create additional partitions (e.g. `fingerprint=F, seed=…`) or change the partition key set; doing so violates the contract.
+* For any `manifest_fingerprint = F`, there MUST be exactly one partition `manifest_fingerprint=F` per dataset.
+* No dataset writer may create additional partitions (e.g. `manifest_fingerprint=F, seed=…`) or change the partition key set; doing so violates the contract.
 
 ---
 
@@ -1057,18 +1058,18 @@ Both S0 artefacts are **fingerprint-scoped**. They MUST obey the same partitioni
      * The JSON object MUST contain a field `manifest_fingerprint` whose value equals the `{manifest_fingerprint}` token in its path.
    * For `sealed_inputs_3A`:
 
-     * Every row MUST have `manifest_fingerprint = F` equal to the `fingerprint=F` partition token.
+     * Every row MUST have `manifest_fingerprint = F` equal to the `manifest_fingerprint=F` partition token.
 
    Any mismatch between embedded `manifest_fingerprint` and the partition token MUST be treated as a validation error by both 3A.S0 and downstream validators.
 
 2. **Paths recorded in `sealed_inputs_3A`**
 
-   * For artefacts that are themselves partitioned by `{seed}` and `{fingerprint}` (e.g. `outlet_catalogue`, `site_timezones`):
+   * For artefacts that are themselves partitioned by `{seed}` and `{manifest_fingerprint}` (e.g. `outlet_catalogue`, `site_timezones`):
 
-     * The `path` column MUST include **all** path tokens as resolved in the dictionary/registry (e.g. `.../seed=123/fingerprint=abcd.../...`).
+     * The `path` column MUST include **all** path tokens as resolved in the dictionary/registry (e.g. `.../seed=123/manifest_fingerprint=abcd.../...`).
      * The `sealed_inputs_3A` writer MUST NOT drop or re-order these tokens; it simply copies them from the catalogue entry or registry instance.
 
-   * For fingerprint-only artefacts (e.g. `tz_timetable_cache`, validation bundles, S0 outputs):
+   * For manifest_fingerprint-only artefacts (e.g. `tz_timetable_cache`, validation bundles, S0 outputs):
 
      * The `path` column MUST include `manifest_fingerprint={manifest_fingerprint}` as the only partition token.
 
@@ -1092,7 +1093,7 @@ For `sealed_inputs_3A`:
   3. `logical_id` (lexicographic)
   4. `path` (lexicographic)
 
-  Writers MUST produce files sorted by this key inside each `fingerprint` partition.
+  Writers MUST produce files sorted by this key inside each `manifest_fingerprint` partition.
 
 * **Semantic meaning:**
 
@@ -1103,20 +1104,20 @@ This matches the Layer-1 pattern: ordering is stable for replay and debugging, b
 
 ---
 
-### 7.5 Merge & append discipline (single-writer per fingerprint)
+### 7.5 Merge & append discipline (single-writer per manifest_fingerprint)
 
 3A.S0 acts as a **snapshot writer** for the sealed input universe. Merge behaviour is therefore tightly constrained:
 
-1. **No multi-writer append for the same fingerprint.**
+1. **No multi-writer append for the same manifest_fingerprint.**
 
    * For `s0_gate_receipt_3A`:
 
-     * There MUST NOT be multiple JSON files for the same partition `fingerprint=F`.
+     * There MUST NOT be multiple JSON files for the same partition `manifest_fingerprint=F`.
      * The file MUST be written atomically; partial writes are disallowed.
 
    * For `sealed_inputs_3A`:
 
-     * There MUST NOT be multiple independent row groups or files that together represent different “epochs” of the sealed set for the same `fingerprint`.
+     * There MUST NOT be multiple independent row groups or files that together represent different “epochs” of the sealed set for the same `manifest_fingerprint`.
      * The dataset MUST be treated as a single **snapshot** for `F`.
      * Overwriting an existing snapshot with different content is out of spec once any later 3A state has run.
 
@@ -1134,20 +1135,20 @@ This matches the Layer-1 pattern: ordering is stable for replay and debugging, b
 3. **No row-level merges.**
 
    * S0 MUST always construct `sealed_inputs_3A` as a full row set; it MAY NOT append or delete individual rows in-place.
-   * Any change to the sealed input universe for a fingerprint (e.g. adding a new policy artefact) MUST occur via:
+   * Any change to the sealed input universe for a manifest_fingerprint (e.g. adding a new policy artefact) MUST occur via:
 
      * a change in the governed parameter set → new `parameter_hash` / new `manifest_fingerprint`, and
      * a fresh S0 run producing a new, distinct partition.
 
 ---
 
-### 7.6 Cross-fingerprint usage & analytics
+### 7.6 Cross-manifest_fingerprint usage & analytics
 
-3A.S0 makes **no guarantees** about relationships between different `manifest_fingerprint` values. Cross-fingerprint behaviour is defined by Layer-1, but for S0:
+3A.S0 makes **no guarantees** about relationships between different `manifest_fingerprint` values. Cross-manifest_fingerprint behaviour is defined by Layer-1, but for S0:
 
-* Each `(fingerprint=F)` partition is a **complete, closed world** of sealed inputs for that manifest.
-* Consumers MUST NOT attempt to “union” sealed inputs across fingerprints and treat the result as meaningful for any single run.
-* Cross-fingerprint unions are allowed only for **analytics** (e.g. “how many manifests used this policy?”) and MUST NOT be used to infer runtime behaviour for a specific manifest.
+* Each `(manifest_fingerprint=F)` partition is a **complete, closed world** of sealed inputs for that manifest.
+* Consumers MUST NOT attempt to “union” sealed inputs across manifest_fingerprints and treat the result as meaningful for any single run.
+* Cross-manifest_fingerprint unions are allowed only for **analytics** (e.g. “how many manifests used this policy?”) and MUST NOT be used to infer runtime behaviour for a specific manifest.
 
 ---
 
@@ -1155,7 +1156,7 @@ This matches the Layer-1 pattern: ordering is stable for replay and debugging, b
 
 Finally, the **merge discipline between states**:
 
-* 3A.S1–S7 MUST treat `s0_gate_receipt_3A(F)` and `sealed_inputs_3A(F)` as **read-only**, **complete** descriptions of what they may touch for that fingerprint.
+* 3A.S1–S7 MUST treat `s0_gate_receipt_3A(F)` and `sealed_inputs_3A(F)` as **read-only**, **complete** descriptions of what they may touch for that manifest_fingerprint.
 * No later state is allowed to:
 
   * patch `sealed_inputs_3A` to “add” an artefact it forgot to seal,
@@ -1283,11 +1284,11 @@ Once 3A.S0 is PASS for a given `manifest_fingerprint`, it imposes the following 
 3. **No re-opening upstream gates.**
 
    * S1–S7 MUST NOT re-implement their own variant of the 1A/1B/2A HashGate check.
-   * They may **rely on** the `upstream_gates` section in `s0_gate_receipt_3A` as binding evidence that upstream gates have been verified for this fingerprint.
+   * They may **rely on** the `upstream_gates` section in `s0_gate_receipt_3A` as binding evidence that upstream gates have been verified for this manifest_fingerprint.
 
 4. **Fixed parameter set.**
 
-   * Later states MUST treat the set of policies/priors recorded in `sealed_policy_set` and `sealed_inputs_3A` as **closed** for this fingerprint.
+   * Later states MUST treat the set of policies/priors recorded in `sealed_policy_set` and `sealed_inputs_3A` as **closed** for this manifest_fingerprint.
    * They MUST NOT infer or load additional 3A policies/priors by scanning the filesystem or environment; any policy not sealed by S0 is out-of-bounds.
 
 ---
@@ -1336,7 +1337,7 @@ In summary, for a given `manifest_fingerprint`:
 
 * **3A.S0 FAIL** means:
 
-  * 3A MUST NOT proceed; any attempt by S1–S7 to run for this fingerprint is out of spec.
+  * 3A MUST NOT proceed; any attempt by S1–S7 to run for this manifest_fingerprint is out of spec.
 
 All later 3A work (Dirichlet zone allocation, integerisation, routing universe hashing, and the eventual segment-level PASS gate) is **conditional** on S0 having met the acceptance criteria in §8.1 and on all downstream states honouring the gating obligations in §8.2.
 
@@ -1596,7 +1597,7 @@ Raised when S0’s outputs are internally inconsistent, for example:
 
 Raised when S0 detects that artefacts already exist for `manifest_fingerprint` that differ from what it would produce for the same `(parameter_hash, manifest_fingerprint, seed)` and stable catalogue, for example:
 
-* Existing `s0_gate_receipt_3A` at `fingerprint=F` is not byte-identical to the newly assembled JSON object.
+* Existing `s0_gate_receipt_3A` at `manifest_fingerprint=F` is not byte-identical to the newly assembled JSON object.
 * Existing `sealed_inputs_3A` rows, when read and sorted by the canonical key, do not match the newly constructed row set.
 
 **Semantics**
@@ -1927,37 +1928,37 @@ The main cost drivers are:
 
 ---
 
-### 11.3 Scaling with number of fingerprints
+### 11.3 Scaling with number of manifest_fingerprints
 
 3A.S0 is **per-manifest**, partitioned by `manifest_fingerprint={manifest_fingerprint}`. Scaling behaviour:
 
-* For a fixed infrastructure, increasing the number of fingerprints increases:
+* For a fixed infrastructure, increasing the number of manifest_fingerprints increases:
 
   * the number of times S0 must verify upstream bundles, and
   * the number of times it must seal the same static references (e.g. `iso3166_canonical_2024`, `tz_world_2025a`).
 
 Mitigations / expectations:
 
-* Catalogue artefacts (schemas, dictionaries, registries) are **shared** across fingerprints and SHOULD be cached by the implementation (in memory or via a local cache layer).
-* Reference datasets that do not depend on `fingerprint` (e.g. ISO tables) MAY be hashed once and their digests reused across runs; S0 only needs to ensure that the **same version** is being referenced.
+* Catalogue artefacts (schemas, dictionaries, registries) are **shared** across manifest_fingerprints and SHOULD be cached by the implementation (in memory or via a local cache layer).
+* Reference datasets that do not depend on `manifest_fingerprint` (e.g. ISO tables) MAY be hashed once and their digests reused across runs; S0 only needs to ensure that the **same version** is being referenced.
 
-Under these assumptions, S0’s marginal cost per additional fingerprint is dominated by:
+Under these assumptions, S0’s marginal cost per additional manifest_fingerprint is dominated by:
 
 * reading three upstream validation bundles, and
-* re-digesting any fingerprint-specific artefacts it decides to seal (e.g. `tz_timetable_cache@fingerprint`).
+* re-digesting any manifest_fingerprint-specific artefacts it decides to seal (e.g. `tz_timetable_cache@manifest_fingerprint`).
 
 ---
 
 ### 11.4 Concurrency and lock contention
 
-3A.S0 is naturally **embarrassingly parallel** across fingerprints:
+3A.S0 is naturally **embarrassingly parallel** across manifest_fingerprints:
 
 * Each `(parameter_hash, manifest_fingerprint, seed)` triple can be processed independently.
 * There is no shared mutable state between runs at the logical level.
 
 Implementation guidance:
 
-* Writers MUST still enforce **atomic write** semantics per fingerprint for `s0_gate_receipt_3A` and `sealed_inputs_3A` to avoid immutability violations (§7, §9).
+* Writers MUST still enforce **atomic write** semantics per manifest_fingerprint for `s0_gate_receipt_3A` and `sealed_inputs_3A` to avoid immutability violations (§7, §9).
 * At the storage level, optimistic write-once or “create if not exists” patterns are preferred to global locks.
 
 As a result, large fleets of manifests can run 3A.S0 in parallel, constrained mainly by:
@@ -2027,7 +2028,7 @@ This section defines **how the 3A.S0 contract is allowed to evolve over time**, 
 * new sealed artefacts are introduced, or
 * upstream/layer-wide contracts evolve.
 
-The goal is to make S0 **stable enough** that downstream states (S1–S7), validation harnesses, and operators can reason about compatibility from **version tags + fingerprints**, without reverse-engineering behaviour.
+The goal is to make S0 **stable enough** that downstream states (S1–S7), validation harnesses, and operators can reason about compatibility from **version tags + manifest_fingerprints**, without reverse-engineering behaviour.
 
 ---
 
@@ -2088,7 +2089,7 @@ Rules:
 
 ---
 
-### 12.3 Backwards-compatible changes (allowed without new fingerprint semantics)
+### 12.3 Backwards-compatible changes (allowed without new manifest_fingerprint semantics)
 
 The following changes are considered **backwards-compatible** (MINOR or PATCH) for S0, provided they follow the rules below:
 
@@ -2139,9 +2140,9 @@ The following are **breaking changes** and MUST trigger a **MAJOR** version bump
 
 2. **Changing the partitioning or path law.**
 
-   * Removing or renaming the `fingerprint` partition for S0 outputs.
+   * Removing or renaming the `manifest_fingerprint` partition for S0 outputs.
    * Introducing additional partition keys (e.g. adding `seed` or `parameter_hash`) for S0 outputs.
-   * Changing token formats (e.g. renaming `fingerprint=` to `manifest=`).
+   * Changing token formats (e.g. renaming `manifest_fingerprint=` to `manifest=`).
 
 3. **Changing the normative sealed set in a way that invalidates old assumptions.**
 
@@ -2245,7 +2246,7 @@ Given that multiple 3A manifests may be produced under different S0 versions:
 1. **Per-manifest version binding.**
 
    * Each `s0_gate_receipt_3A` explicitly states its `version`.
-   * Consumers MUST treat the S0 version as **per-manifest**, not global; different fingerprints may legitimately have different S0 versions.
+   * Consumers MUST treat the S0 version as **per-manifest**, not global; different manifest_fingerprints may legitimately have different S0 versions.
 
 2. **Consumer strategy.**
 

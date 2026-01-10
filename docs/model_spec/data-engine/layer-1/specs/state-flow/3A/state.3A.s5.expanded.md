@@ -5,7 +5,7 @@
 State **3A.S5 — Zone Allocation Egress & Routing Universe Hash** is the **packaging and sealing** state for Segment 3A. It does **not** change any counts or shares; instead it takes the final zone-level allocation computed by S4, combines it with the priors and policies from S2 and the day-effect configuration used by 2B, and publishes:
 
 1. A **cross-layer egress dataset** that exposes each merchant’s zone allocations in a stable, well-typed shape that 2B and other layers can consume, and
-2. A small, fingerprint-scoped **routing universe hash artefact** that cryptographically ties together:
+2. A small, manifest_fingerprint-scoped **routing universe hash artefact** that cryptographically ties together:
 
    * the zone prior surface,
    * the escalation / mixture policy,
@@ -26,7 +26,7 @@ Concretely, 3A.S5:
   * It optionally derives or copies per-merchant/country totals (e.g. `zone_site_count_sum(m,c)` and `site_count(m,c)`), but it MUST NOT change any counts.
   * It then writes a **zone allocation egress dataset** (`zone_alloc`) in a form suitable for 2B and cross-layer consumers, with:
 
-    * stable primary keys (e.g. `(merchant_id, country_iso, tzid)` per `{seed,fingerprint}`),
+    * stable primary keys (e.g. `(merchant_id, country_iso, tzid)` per `{seed,manifest_fingerprint}`),
     * explicit counts and totals,
     * and embedded lineage to the 3A priors/policies and the universe hash.
 
@@ -49,7 +49,7 @@ Concretely, 3A.S5:
   These digests are the only sanctioned summary of the configuration and allocation universe that S5 exposes.
 
 * **Publishes a routing universe hash that ties all components together.**
-  Using the digests above, S5 constructs a single, fingerprint-scoped **routing universe hash**:
+  Using the digests above, S5 constructs a single, manifest_fingerprint-scoped **routing universe hash**:
 
   [
   routing_universe_hash = \mathrm{SHA256}\big(
@@ -59,7 +59,7 @@ Concretely, 3A.S5:
 
   where `∥` denotes a canonical byte concatenation. S5 then:
 
-  * embeds `routing_universe_hash` (and, where appropriate, its component digests) into a small, fingerprint-scoped artefact (`zone_alloc_universe_hash`), and
+  * embeds `routing_universe_hash` (and, where appropriate, its component digests) into a small, manifest_fingerprint-scoped artefact (`zone_alloc_universe_hash`), and
   * embeds the same `routing_universe_hash` into each `zone_alloc` row for convenient join-free checks.
 
   This combined hash is the **only** cross-layer handle that 2B and validation should use to decide “am I looking at the same zone allocation universe (priors + floors + mixture + day-effects + allocation) as the engine used when generating these counts?”.
@@ -157,7 +157,7 @@ Before 3A.S5 is invoked for a given tuple
 
 3. **3A.S1–S4 have produced PASS outputs for this run.**
 
-   * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S1 run-report row for this `{seed,fingerprint}` has `status = "PASS"`.
+   * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S1 run-report row for this `{seed,manifest_fingerprint}` has `status = "PASS"`.
    * `s2_country_zone_priors@parameter_hash={parameter_hash}` exists, validates, and the S2 run-report row for this `parameter_hash` has `status = "PASS"`.
    * `s3_zone_shares@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S3 run-report row for `(parameter_hash, manifest_fingerprint, seed, run_id)` (or equivalent identifier for this run) has `status = "PASS"`.
    * `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}` exists, validates, and the S4 run-report row for this run has `status = "PASS"`.
@@ -602,7 +602,7 @@ For a given run `{seed, manifest_fingerprint}` under `parameter_hash`, S5 MUST p
 
 1. **`zone_alloc`** (dataset)
 
-   * Seed+fingerprint-scoped table.
+   * Seed+manifest_fingerprint-scoped table.
    * One row per `(merchant_id, legal_country_iso, tzid)` for every **escalated** merchant×country×zone triple in `s4_zone_counts`.
    * Contains:
 
@@ -678,7 +678,7 @@ No duplicates of this triple are permitted.
 * Partition keys:
 
   ```text
-  ["seed", "fingerprint"]
+  ["seed", "manifest_fingerprint"]
   ```
 
 * Conceptual path template (finalised in the dataset dictionary):
@@ -691,13 +691,13 @@ Binding rules:
 
 * For each partition:
 
-  * The path MUST contain `seed=<uint64>` and `fingerprint=<hex64>`.
+  * The path MUST contain `seed=<uint64>` and `manifest_fingerprint=<hex64>`.
   * There MUST be at most one `zone_alloc` partition per `{seed, manifest_fingerprint}`.
 
 * **Path↔embed equality:**
 
   * Every row MUST have `seed` equal to the `seed` path token, and
-  * `fingerprint` equal to the `fingerprint` path token (this value carries the run’s `manifest_fingerprint`).
+  * `manifest_fingerprint` equal to the `manifest_fingerprint` path token (this value carries the run’s `manifest_fingerprint`).
 
 Any mismatch is a schema/validation error.
 
@@ -708,7 +708,7 @@ Each row in `zone_alloc` MUST contain at minimum:
 **Lineage / partitions**
 
 * `seed` — `uint64`, as above.
-* `fingerprint` — `hex64`; equal to the manifest fingerprint for this run.
+* `manifest_fingerprint` — `hex64`; equal to the manifest manifest_fingerprint for this run.
 
 **Identity**
 
@@ -721,7 +721,7 @@ Each row in `zone_alloc` MUST contain at minimum:
 * `zone_site_count`
 
   * Type: integer (`minimum: 1`).
-  * MUST equal `zone_site_count(m,c,z)` from `s4_zone_counts` for the same `(seed, fingerprint, merchant_id, legal_country_iso, tzid)`.
+  * MUST equal `zone_site_count(m,c,z)` from `s4_zone_counts` for the same `(seed, manifest_fingerprint, merchant_id, legal_country_iso, tzid)`.
 
 * `zone_site_count_sum`
 
@@ -742,7 +742,7 @@ Optionally (for convenience and consistency):
 * `mixture_policy_id`, `mixture_policy_version` — strings; identify the S1 mixture policy used (from S0/sealed policies).
 * `day_effect_policy_id`, `day_effect_policy_version` — strings; identify the 2B day-effect policy used (from S0/sealed policies).
 
-All lineage fields MUST be constant across all rows in a `{seed,fingerprint}` partition for a given `parameter_hash`.
+All lineage fields MUST be constant across all rows in a `{seed,manifest_fingerprint}` partition for a given `parameter_hash`.
 
 **Routing universe hash**
 
@@ -780,7 +780,7 @@ Once `zone_alloc` is written for a given `{seed, manifest_fingerprint}`:
 
 #### 4.3.1 Identity & scope
 
-` zone_alloc_universe_hash` is a **fingerprint-scoped** (optionally parameter-scoped) small artefact that summarises all configuration and allocation digests for this manifest.
+` zone_alloc_universe_hash` is a **manifest_fingerprint-scoped** (optionally parameter-scoped) small artefact that summarises all configuration and allocation digests for this manifest.
 
 * Scope: one row per `manifest_fingerprint` (potentially also storing `parameter_hash` as a column).
 * Logical identity:
@@ -792,10 +792,10 @@ Once `zone_alloc` is written for a given `{seed, manifest_fingerprint}`:
 
 * Partition keys:
 
-  * Minimum: `["fingerprint"]`.
-  * Optionally `["parameter_hash","fingerprint"]` if required by catalogue conventions.
+  * Minimum: `["manifest_fingerprint"]`.
+  * Optionally `["parameter_hash","manifest_fingerprint"]` if required by catalogue conventions.
 
-* Conceptual path template (fingerprint-only case):
+* Conceptual path template (manifest_fingerprint-only case):
 
   ```text
   data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_universe_hash.json
@@ -804,7 +804,7 @@ Once `zone_alloc` is written for a given `{seed, manifest_fingerprint}`:
 Binding rules:
 
 * For each `manifest_fingerprint`, there MUST be at most one `zone_alloc_universe_hash` artefact at the configured path.
-* The embedded `manifest_fingerprint` field in the JSON MUST equal the `{fingerprint}` token.
+* The embedded `manifest_fingerprint` field in the JSON MUST equal the `{manifest_fingerprint}` token.
 
 #### 4.3.3 Required fields & semantics
 
@@ -834,7 +834,7 @@ The JSON object (or single-row table) MUST contain at minimum:
 
 * `zone_alloc_parquet_digest`
 
-  * Digest over the `zone_alloc` egress dataset for this `{seed,fingerprint}`:
+  * Digest over the `zone_alloc` egress dataset for this `{seed,manifest_fingerprint}`:
 
     * computed as SHA-256 of a canonical concatenation of the data files listed in a small index (e.g. `index.json`) in lexicographic path order.
 
@@ -852,7 +852,7 @@ The JSON object (or single-row table) MUST contain at minimum:
     )
     ```
 
-  * This value MUST be identical to the `routing_universe_hash` field embedded in each row of `zone_alloc` for this `{seed,fingerprint}`.
+  * This value MUST be identical to the `routing_universe_hash` field embedded in each row of `zone_alloc` for this `{seed,manifest_fingerprint}`.
 
 **Optional metadata**:
 
@@ -1049,7 +1049,7 @@ Every row that S5 writes to `zone_alloc` MUST validate against this anchor.
 
 ### 5.3 Schema anchor: `schemas.3A.yaml#/validation/zone_alloc_universe_hash`
 
-This anchor defines the shape of the small, fingerprint-scoped **universe hash** artefact.
+This anchor defines the shape of the small, manifest_fingerprint-scoped **universe hash** artefact.
 
 It is a single-row (or logically single-row) `object` with:
 
@@ -1083,7 +1083,7 @@ It is a single-row (or logically single-row) `object` with:
 
   * `zone_alloc_parquet_digest`
 
-    * `type: "string"` — hex SHA-256 digest of the canonical concatenation of `zone_alloc` data files for this `{seed,fingerprint}` (as defined in the algorithm section).
+    * `type: "string"` — hex SHA-256 digest of the canonical concatenation of `zone_alloc` data files for this `{seed,manifest_fingerprint}` (as defined in the algorithm section).
 
   * `routing_universe_hash`
 
@@ -1171,7 +1171,7 @@ Binding points:
 * `path` MUST include `manifest_fingerprint={manifest_fingerprint}` as the only partition token.
 * `partitioning` MUST be exactly `[manifest_fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/validation/zone_alloc_universe_hash`.
-* `ordering` MAY be an empty list or omitted; there is logically one row per fingerprint.
+* `ordering` MAY be an empty list or omitted; there is logically one row per manifest_fingerprint.
 
 ---
 
@@ -1337,7 +1337,7 @@ S5 MUST validate each dataset against its schema. Any schema failure, or absence
 
 S5 MUST consult the 3A segment-state run-report (as defined in S1–S4) and assert that:
 
-* S1 `status="PASS"` for this `{seed,fingerprint}`,
+* S1 `status="PASS"` for this `{seed,manifest_fingerprint}`,
 * S2 `status="PASS"` for this `parameter_hash`,
 * S3 `status="PASS"` for this `(parameter_hash, manifest_fingerprint, seed, run_id)` (or equivalent identifier),
 * S4 `status="PASS"` for this `(parameter_hash, manifest_fingerprint, seed, run_id)`.
@@ -1405,7 +1405,7 @@ Any mismatch indicates a bug or data corruption in S1–S4 and MUST yield an S4/
 
 **Step 8 – Build `zone_alloc` row skeletons**
 
-For each row `(m,c,z)` in `s4_zone_counts@{seed,fingerprint}`:
+For each row `(m,c,z)` in `s4_zone_counts@{seed,manifest_fingerprint}`:
 
 * Construct a corresponding `zone_alloc` row with:
 
@@ -1577,7 +1577,7 @@ Using the idempotence rules from Step 10 with the final row set (including `rout
 
 * If no dataset exists at the target path, write `zone_alloc` with:
 
-  * partitioning `["seed","fingerprint"]`,
+  * partitioning `["seed","manifest_fingerprint"]`,
   * sorted by the writer-sort key.
 
 * If a dataset exists, verify it matches exactly; if not, raise `E3A_S5_007_IMMUTABILITY_VIOLATION`.
@@ -1731,7 +1731,7 @@ No duplicates for this triple are allowed.
 * The partition key set MUST be exactly:
 
 ```yaml
-["seed", "fingerprint"]
+["seed", "manifest_fingerprint"]
 ```
 
 **Path template**
@@ -1747,7 +1747,7 @@ Binding rules:
 * For any concrete partition, the physical path MUST include:
 
   * `seed=<uint64>` and
-  * `fingerprint=<hex64>`.
+  * `manifest_fingerprint=<hex64>`.
 * There MUST be at most one `zone_alloc` dataset for any `{seed, manifest_fingerprint}`.
 
 **Path↔embed equality**
@@ -1755,7 +1755,7 @@ Binding rules:
 Every row in the partition MUST satisfy:
 
 * `row.seed == <seed from path>`,
-* `row.manifest_fingerprint == <fingerprint from path>`.
+* `row.manifest_fingerprint == <manifest_fingerprint from path>`.
 
 Any mismatch is a schema/validation error.
 
@@ -1800,7 +1800,7 @@ The only purpose of the sort is to ensure that:
 
   * append new rows onto an existing snapshot,
   * delete or mutate individual rows in place, or
-  * split the same `{seed,fingerprint}` snapshot across multiple “versions” or subdirectories.
+  * split the same `{seed,manifest_fingerprint}` snapshot across multiple “versions” or subdirectories.
 
 **Idempotent re-writes only**
 
@@ -1824,7 +1824,7 @@ There is no concept of “merging” multiple different `zone_alloc` snapshots f
 
 ### 7.5 `zone_alloc_universe_hash`: identity & partitions
 
-` zone_alloc_universe_hash` is a **fingerprint-scoped** validation artefact summarising the configuration and allocation digests for this manifest.
+` zone_alloc_universe_hash` is a **manifest_fingerprint-scoped** validation artefact summarising the configuration and allocation digests for this manifest.
 
 **Logical identity**
 
@@ -1838,7 +1838,7 @@ There is no concept of “merging” multiple different `zone_alloc` snapshots f
 * The partition key set MUST be:
 
 ```yaml
-["fingerprint"]
+["manifest_fingerprint"]
 ```
 
 No other partition keys (e.g. `parameter_hash`, `seed`, `run_id`) are allowed.
@@ -1854,7 +1854,7 @@ data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_al
 Binding rules:
 
 * For each `manifest_fingerprint`, there MUST be at most one `zone_alloc_universe_hash` file at this path.
-* The JSON must contain a `manifest_fingerprint` field whose value equals the `{fingerprint}` token.
+* The JSON must contain a `manifest_fingerprint` field whose value equals the `{manifest_fingerprint}` token.
 
 ---
 
@@ -1888,8 +1888,8 @@ S5 makes no claims about relationships between different runs.
 
 * Each pair `(parameter_hash, manifest_fingerprint, seed, run_id)` defines a self-contained world with its own:
 
-  * `zone_alloc@{seed,fingerprint}`, and
-  * `zone_alloc_universe_hash@fingerprint`.
+  * `zone_alloc@{seed,manifest_fingerprint}`, and
+  * `zone_alloc_universe_hash@manifest_fingerprint`.
 
 Consumers MUST NOT:
 
@@ -1946,7 +1946,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed, run_id)`, 3A.S5 is **P
 
 * `s0_gate_receipt_3A` and `sealed_inputs_3A` exist for `manifest_fingerprint` and are schema-valid.
 * `upstream_gates.segment_1A/1B/2A.status == "PASS"`.
-* `s1_escalation_queue@{seed,fingerprint}`, `s2_country_zone_priors@parameter_hash`, `s3_zone_shares@{seed,fingerprint}`, `s4_zone_counts@{seed,fingerprint}` all exist and validate against their schemas.
+* `s1_escalation_queue@{seed,manifest_fingerprint}`, `s2_country_zone_priors@parameter_hash`, `s3_zone_shares@{seed,manifest_fingerprint}`, `s4_zone_counts@{seed,manifest_fingerprint}` all exist and validate against their schemas.
 * Segment-state run-report rows for S1, S2, S3, S4 indicate `status="PASS"` for the relevant identities.
 * The mixture policy, prior pack, floor policy and day-effect policy artefacts:
 
@@ -2023,7 +2023,7 @@ For every row in `zone_alloc`:
 * `zone_site_count` is integer ≥ 0.
 * `zone_site_count_sum` is integer ≥ 0.
 * `site_count` is integer ≥ 0 and equals `zone_site_count_sum` for that `(m,c)`.
-* `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`, `mixture_policy_id`, `mixture_policy_version`, `day_effect_policy_id`, `day_effect_policy_version` are non-empty strings and constant across the entire `{seed,fingerprint}` partition.
+* `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`, `mixture_policy_id`, `mixture_policy_version`, `day_effect_policy_id`, `day_effect_policy_version` are non-empty strings and constant across the entire `{seed,manifest_fingerprint}` partition.
 * `routing_universe_hash` is present, non-empty, and matches the value stored in `zone_alloc_universe_hash.routing_universe_hash`.
 
 Any schema violation, path↔embed mismatch, negative counts, or inconsistent lineage MUST cause FAIL.
@@ -2041,7 +2041,7 @@ S5 is PASS only if:
 1. **Schema & identity**
 
    * `U` validates against `schemas.3A.yaml#/validation/zone_alloc_universe_hash`.
-   * `U.manifest_fingerprint` equals the partition token `{fingerprint}`.
+   * `U.manifest_fingerprint` equals the partition token `{manifest_fingerprint}`.
    * `U.parameter_hash` equals the run’s `parameter_hash`.
 
 2. **Component digests match recomputed values**
@@ -2301,7 +2301,7 @@ Failure conditions include missing files, parse errors, or schema validation fai
 
 **Condition**
 
-Raised when `zone_alloc` is not domain-consistent with S1/S2/S3/S4 for this `{seed,fingerprint}`, including any of:
+Raised when `zone_alloc` is not domain-consistent with S1/S2/S3/S4 for this `{seed,manifest_fingerprint}`, including any of:
 
 * **Merchant×country domain mismatch vs S1 / S4:**
 
@@ -2380,7 +2380,7 @@ Raised when the **combined routing universe hash** is inconsistent, including:
 
 * `routing_universe_hash` in `zone_alloc_universe_hash` does not equal the recomputed `SHA256(zone_alpha_digest ∥ theta_digest ∥ zone_floor_digest ∥ day_effect_digest ∥ zone_alloc_parquet_digest)`.
 * `routing_universe_hash` embedded in `zone_alloc` rows does not match `zone_alloc_universe_hash.routing_universe_hash`.
-* Different `zone_alloc` rows in the same `{seed,fingerprint}` partition carry different `routing_universe_hash` values.
+* Different `zone_alloc` rows in the same `{seed,manifest_fingerprint}` partition carry different `routing_universe_hash` values.
 
 **Required fields**
 
@@ -2442,7 +2442,7 @@ Raised when either `zone_alloc` or `zone_alloc_universe_hash` fails validation a
 
 Raised when S5 detects that an artefact already exists for the run identity and is **not** equal to what S5 would produce:
 
-* For `zone_alloc` at the target `{seed, fingerprint}`:
+* For `zone_alloc` at the target `{seed, manifest_fingerprint}`:
 
   * existing dataset, when normalised and sorted, differs in any row or field from the newly computed `zone_alloc`.
 
@@ -2722,7 +2722,7 @@ At minimum:
 
 * `mlr_3a_s5_zone_alloc_rows_total` (gauge)
 
-  * Number of rows in `zone_alloc` for the most recent successful run (per `{seed,fingerprint}`).
+  * Number of rows in `zone_alloc` for the most recent successful run (per `{seed,manifest_fingerprint}`).
 
 * `mlr_3a_s5_pairs_escalated` (gauge)
 
@@ -2774,8 +2774,8 @@ S5’s artefacts must be easy to correlate with upstream and downstream componen
 
    * From the S5 run-report row, a validator MUST be able to locate:
 
-     * `zone_alloc` (via `dataset_dictionary.layer1.3A.yaml` + `artefact_registry_3A.yaml` + `{seed,fingerprint}`),
-     * `zone_alloc_universe_hash` (via `fingerprint`),
+     * `zone_alloc` (via `dataset_dictionary.layer1.3A.yaml` + `artefact_registry_3A.yaml` + `{seed,manifest_fingerprint}`),
+     * `zone_alloc_universe_hash` (via `manifest_fingerprint`),
      * S1/S2/S3/S4 artefacts referenced in the `dependencies` lists, and
      * sealed priors/policies (via `sealed_inputs_3A` and `s0_gate_receipt_3A`).
 
@@ -2954,7 +2954,7 @@ Constraints:
 * Parallel writers MUST respect:
 
   * the canonical writer-sort (or produce sorted output via a final shuffle/merge step),
-  * the idempotence and immutability rules (no conflicting writes to the same `{seed,fingerprint}` path).
+  * the idempotence and immutability rules (no conflicting writes to the same `{seed,manifest_fingerprint}` path).
 
 ---
 

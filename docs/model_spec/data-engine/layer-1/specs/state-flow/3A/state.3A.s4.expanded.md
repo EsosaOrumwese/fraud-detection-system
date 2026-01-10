@@ -64,7 +64,7 @@ Concretely, 3A.S4:
   Its authority is limited to turning `(N(m,c), Θ(m,c,·))` into integer counts.
 
 * **Publishes a stable zone-count surface for downstream 3A / Layer-2 logic.**
-  S4’s primary output is a seed+fingerprint-scoped dataset (e.g. `s4_zone_counts`) that, for each **escalated** `(m,c)` and each `z ∈ Z(c)`, records:
+  S4’s primary output is a seed+manifest_fingerprint-scoped dataset (e.g. `s4_zone_counts`) that, for each **escalated** `(m,c)` and each `z ∈ Z(c)`, records:
 
   * `zone_site_count(m,c,z)` — integer outlet count for that zone,
   * `zone_site_count_sum(m,c)` — per-pair integer sum (equal to `site_count(m,c)`),
@@ -121,7 +121,7 @@ Within these boundaries, 3A.S4’s purpose is to provide a **clean, deterministi
 
 This section defines **what MUST already hold** before 3A.S4 can run, and which gate artefacts it must honour. Anything outside these constraints is **out of scope** for S4.
 
-S4 is **run-scoped** over a triple `(parameter_hash, manifest_fingerprint, seed)` (plus `run_id` for tracking), and writes seed+fingerprint-scoped outputs. It is **RNG-free**.
+S4 is **run-scoped** over a triple `(parameter_hash, manifest_fingerprint, seed)` (plus `run_id` for tracking), and writes seed+manifest_fingerprint-scoped outputs. It is **RNG-free**.
 
 ---
 
@@ -251,7 +251,7 @@ For a specific S4 run:
 
 * S4’s outputs are:
 
-  * `s4_zone_counts` partitioned by `{seed, fingerprint}`, and
+  * `s4_zone_counts` partitioned by `{seed, manifest_fingerprint}`, and
   * contributions to run-report and logs; **no RNG logs** are produced by S4.
 
 If any of the preconditions in §2.1 or the gate/whitelist conditions in §2.2 are not met, S4 MUST treat the run as **FAIL** and MUST NOT write or modify `s4_zone_counts` for that `{seed, manifest_fingerprint}`.
@@ -527,7 +527,7 @@ For each run `{seed, manifest_fingerprint}` under a given `parameter_hash`, 3A.S
 
 1. **`s4_zone_counts`**
 
-   * A seed+fingerprint-scoped table that, for every **escalated** merchant×country pair `(merchant_id, legal_country_iso)` and every zone `tzid ∈ Z(legal_country_iso)`, records:
+   * A seed+manifest_fingerprint-scoped table that, for every **escalated** merchant×country pair `(merchant_id, legal_country_iso)` and every zone `tzid ∈ Z(legal_country_iso)`, records:
 
      * the **integer outlet count** assigned to that zone, and
      * per-pair summary and lineage fields.
@@ -593,7 +593,7 @@ There MUST NOT be duplicate rows for the same triple.
 * Partition key set MUST be exactly:
 
   ```text
-  ["seed", "fingerprint"]
+  ["seed", "manifest_fingerprint"]
   ```
 
 **Conceptual path template** (finalised in dictionary):
@@ -607,7 +607,7 @@ Binding rules:
 * For each partition, the path MUST include:
 
   * `seed=<uint64>`,
-  * `fingerprint=<hex64>`.
+  * `manifest_fingerprint=<hex64>`.
 * There MUST be at most one `s4_zone_counts` partition per `{seed, manifest_fingerprint}`.
 
 **Path↔embed equality**
@@ -615,7 +615,7 @@ Binding rules:
 Every row in a given partition MUST satisfy:
 
 * `row.seed == {seed_token}`,
-* `row.fingerprint == {fingerprint_token}`.
+* `row.manifest_fingerprint == {manifest_fingerprint_token}`.
 
 Any mismatch MUST be treated as a validation error by S4 and downstream validators.
 
@@ -632,7 +632,7 @@ Each row in `s4_zone_counts` MUST contain at least:
   * Type: `uint64` (`schemas.layer1.yaml#/$defs/uint64`).
   * Same for all rows in the partition.
 
-* `fingerprint`
+* `manifest_fingerprint`
 
   * Type: `hex64` (`schemas.layer1.yaml#/$defs/hex64`).
   * Same for all rows in the partition and equal to the run’s `manifest_fingerprint` token.
@@ -695,7 +695,7 @@ To preserve traceability:
 
   * Type: `string`.
   * Copied from S2 (`s2_country_zone_priors`).
-  * MUST be constant across all rows in this `{seed,fingerprint}` partition.
+  * MUST be constant across all rows in this `{seed,manifest_fingerprint}` partition.
 
 * `floor_policy_id`, `floor_policy_version`
 
@@ -820,7 +820,7 @@ At minimum, the schema MUST enforce:
 
     * `$ref: "schemas.layer1.yaml#/$defs/uint64"`
 
-  * `fingerprint`
+  * `manifest_fingerprint`
 
     * `$ref: "schemas.layer1.yaml#/$defs/hex64"`
 
@@ -1081,7 +1081,7 @@ Missing/malformed catalogue artefacts required by S4 MUST cause a failure.
 
 **Step 5 – Derive domain from S1**
 
-From `s1_escalation_queue` for this `{seed, fingerprint}`, S4 MUST derive:
+From `s1_escalation_queue` for this `{seed, manifest_fingerprint}`, S4 MUST derive:
 
 * `D = { (m,c) }` — all `(merchant_id, legal_country_iso)` pairs in S1,
 * `D_esc = { (m,c) ∈ D | is_escalated(m,c) = true }`.
@@ -1121,7 +1121,7 @@ obtained by sorting `Z(c)` lexicographically by `tzid`. This order MUST be used 
 
 **Step 7 – Check S3 coverage and align domains**
 
-From `s3_zone_shares@{seed,fingerprint}`, S4 MUST:
+From `s3_zone_shares@{seed,manifest_fingerprint}`, S4 MUST:
 
 * project onto `(merchant_id, legal_country_iso)` to get `D_S3`,
 * assert `D_S3 == D_esc`:
@@ -1316,7 +1316,7 @@ Any validation error (including path↔embed mismatch) MUST cause S4 to fail bef
 
 If no dataset exists yet for this `{seed, manifest_fingerprint}`:
 
-* S4 writes `s4_zone_counts` with partitioning `["seed","fingerprint"]` and the sorted row set.
+* S4 writes `s4_zone_counts` with partitioning `["seed","manifest_fingerprint"]` and the sorted row set.
 
 If a dataset already exists:
 
@@ -1441,7 +1441,7 @@ There MUST NOT be duplicate rows for the same triple.
 * Partition key set MUST be exactly:
 
 ```text
-["seed", "fingerprint"]
+["seed", "manifest_fingerprint"]
 ```
 
 No additional partition keys (e.g. `parameter_hash`, `run_id`) are allowed for this dataset.
@@ -1459,16 +1459,16 @@ Binding rules:
 * For each partition, the path MUST include:
 
   * `seed=<uint64>`,
-  * `fingerprint=<hex64>`.
+  * `manifest_fingerprint=<hex64>`.
 
 * There MUST be at most one `s4_zone_counts` partition for any `{seed, manifest_fingerprint}` pair.
 
 **Path↔embed equality**
 
-Every row in a given `{seed, fingerprint}` partition MUST satisfy:
+Every row in a given `{seed, manifest_fingerprint}` partition MUST satisfy:
 
 * `row.seed == {seed_token}`,
-* `row.fingerprint == {fingerprint_token}`.
+* `row.manifest_fingerprint == {manifest_fingerprint_token}`.
 
 Any mismatch between embedded values and path tokens is a schema/validation error.
 
@@ -1538,7 +1538,7 @@ Ordering exists solely to guarantee:
 
   * append additional rows to an existing snapshot,
   * delete or mutate individual rows in place, or
-  * treat multiple physical partitions under the same `{seed, fingerprint}` as distinct “epochs” for S4.
+  * treat multiple physical partitions under the same `{seed, manifest_fingerprint}` as distinct “epochs” for S4.
 
 **Idempotent re-writes only**
 
@@ -1562,7 +1562,7 @@ Under no circumstances may S4 silently replace one `s4_zone_counts` snapshot wit
 
 S4 makes **no claims** about relationships between different `{seed, manifest_fingerprint}` pairs:
 
-* Each partition `{seed, fingerprint}` describes a single run’s zone-count snapshot.
+* Each partition `{seed, manifest_fingerprint}` describes a single run’s zone-count snapshot.
 * Consumers MUST NOT combine rows from different runs and treat them as a single coherent allocation for any one run.
 
 Cross-run unions (e.g. aggregating counts across runs for analytics) are allowed only for:
@@ -1621,9 +1621,9 @@ For a given `(parameter_hash, manifest_fingerprint, seed, run_id)`, 3A.S4 is **P
 
 * `s0_gate_receipt_3A` and `sealed_inputs_3A` exist for this `manifest_fingerprint` and are schema-valid.
 * `s0_gate_receipt_3A.upstream_gates.segment_1A/1B/2A.status == "PASS"`.
-* `s1_escalation_queue@{seed,fingerprint}` exists and is schema-valid.
+* `s1_escalation_queue@{seed,manifest_fingerprint}` exists and is schema-valid.
 * `s2_country_zone_priors@parameter_hash` exists and is schema-valid.
-* `s3_zone_shares@{seed,fingerprint}` exists and is schema-valid.
+* `s3_zone_shares@{seed,manifest_fingerprint}` exists and is schema-valid.
 * Run-report rows for S1, S2 and S3 indicate `status="PASS"` for the relevant identities.
 
 Any failure here ⇒ S4 MUST be treated as FAIL.
@@ -1634,7 +1634,7 @@ Any failure here ⇒ S4 MUST be treated as FAIL.
 
 Let:
 
-* `D` = set of `(merchant_id, legal_country_iso)` in `s1_escalation_queue@{seed,fingerprint}`.
+* `D` = set of `(merchant_id, legal_country_iso)` in `s1_escalation_queue@{seed,manifest_fingerprint}`.
 * `D_esc` = `{ (m,c) ∈ D | is_escalated(m,c) = true }`.
 * `D_S4_proj` = projection of `s4_zone_counts` onto `(merchant_id, legal_country_iso)`.
 
@@ -1688,7 +1688,7 @@ For every row in `s4_zone_counts`:
 * `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`:
 
   * are non-empty strings, and
-  * are constant across all rows in this `{seed,fingerprint}` partition and match S2/S3.
+  * are constant across all rows in this `{seed,manifest_fingerprint}` partition and match S2/S3.
 
 Any schema violation or path↔embed mismatch MUST cause S4 to FAIL.
 
@@ -1739,7 +1739,7 @@ If a `s4_zone_counts` dataset already exists for `{seed, manifest_fingerprint}` 
   * find them identical (row set and field values) and leave the dataset unchanged, or
   * detect differences and treat this as an immutability violation, not overwrite.
 
-Any attempt to overwrite non-identical `s4_zone_counts` for the same `{seed,fingerprint}` MUST be treated as FAIL.
+Any attempt to overwrite non-identical `s4_zone_counts` for the same `{seed,manifest_fingerprint}` MUST be treated as FAIL.
 
 ---
 
@@ -1873,9 +1873,9 @@ Raised when any required upstream 3A artefact is missing or invalid for this `(p
 
 * `s0_gate_receipt_3A` or `sealed_inputs_3A` missing or schema-invalid,
 * S0 indicates any upstream segment gate (1A, 1B, or 2A) is not `"PASS"`,
-* `s1_escalation_queue@{seed,fingerprint}` missing or schema-invalid,
+* `s1_escalation_queue@{seed,manifest_fingerprint}` missing or schema-invalid,
 * `s2_country_zone_priors@parameter_hash` missing or schema-invalid,
-* `s3_zone_shares@{seed,fingerprint}` missing or schema-invalid,
+* `s3_zone_shares@{seed,manifest_fingerprint}` missing or schema-invalid,
 * or the run-report rows for S1/S2/S3 indicate `status != "PASS"` for the relevant identities.
 
 **Required fields**
@@ -1928,7 +1928,7 @@ Raised when S4 cannot load or validate required catalogue artefacts, e.g.:
 
 **Condition**
 
-Raised when the merchant×country domain of `s4_zone_counts` does not match S1’s escalated domain for this `{seed,fingerprint}`, i.e.:
+Raised when the merchant×country domain of `s4_zone_counts` does not match S1’s escalated domain for this `{seed,manifest_fingerprint}`, i.e.:
 
 * there exists `(m,c)` with `is_escalated=true` in `s1_escalation_queue` but no rows in `s4_zone_counts`, and/or
 * there exists `(m,c)` in `s4_zone_counts` where S1 either:
@@ -2056,7 +2056,7 @@ Raised when `s4_zone_counts` is schema-valid but internally inconsistent with th
 * For some `(m,c)`:
 
   * `zone_site_count_sum(m,c)` equals Σ counts, but `fractional_target` and/or `residual_rank` (if present) do not correspond to a valid floor+residual scheme applied to `T_z = N * share_drawn`,
-* Prior lineage fields (`prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`) are not constant across rows for a given `{seed,fingerprint}`, or do not match S2/S3 for this `parameter_hash`.
+* Prior lineage fields (`prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`) are not constant across rows for a given `{seed,manifest_fingerprint}`, or do not match S2/S3 for this `parameter_hash`.
 * `share_sum_country(m,c)` values copied into S4 do not match S3’s `share_sum_country` for the same `(m,c)`.
 
 **Required fields**
@@ -2369,7 +2369,7 @@ At minimum:
 
 * `mlr_3a_s4_pairs_escalated` (gauge)
 
-  * Number of escalated `(merchant_id, country)` pairs in the most recent successful run for a given `{seed,fingerprint}`.
+  * Number of escalated `(merchant_id, country)` pairs in the most recent successful run for a given `{seed,manifest_fingerprint}`.
 
 * `mlr_3a_s4_zone_rows_total` (gauge)
 
@@ -2428,8 +2428,8 @@ To support end-to-end tracing across the 3A pipeline:
    * locate `s4_zone_counts@seed={seed}/manifest_fingerprint={manifest_fingerprint}` via the 3A dictionary/registry,
    * join it to:
 
-     * `s1_escalation_queue@{seed,fingerprint}` (for domain and `site_count`),
-     * `s3_zone_shares@{seed,fingerprint}` (for `share_drawn`),
+     * `s1_escalation_queue@{seed,manifest_fingerprint}` (for domain and `site_count`),
+     * `s3_zone_shares@{seed,manifest_fingerprint}` (for `share_drawn`),
      * `s2_country_zone_priors@parameter_hash` (for `Z(c)` and prior lineage),
      * and S0 artefacts (for sealed input and gate provenance).
 
@@ -2591,7 +2591,7 @@ S4 is tied to a **specific run**:
 * Outputs depend on:
 
   * S1’s `site_count(m,c)`,
-  * S3’s realised shares `Θ(m,c,z)` for that `{seed,fingerprint}`.
+  * S3’s realised shares `Θ(m,c,z)` for that `{seed,manifest_fingerprint}`.
 
 So:
 
@@ -2612,7 +2612,7 @@ S4 is “embarrassingly parallel” over `(m,c)`:
 * Different merchant×country pairs can be processed independently, as long as:
 
   * S1/S3 inputs are partitioned consistently,
-  * each worker writes into the correct `{seed,fingerprint}` partition without conflicting writes (e.g. partitioned by merchant hash).
+  * each worker writes into the correct `{seed,manifest_fingerprint}` partition without conflicting writes (e.g. partitioned by merchant hash).
 
 Within a worker:
 
@@ -2698,7 +2698,7 @@ Change control for 3A.S4 covers:
 1. The **shape and semantics** of its output dataset:
 
    * `s4_zone_counts`
-   * partitioning by `["seed","fingerprint"]`
+   * partitioning by `["seed","manifest_fingerprint"]`
    * meaning of `zone_site_count`, `zone_site_count_sum`, `share_sum_country`, and lineage fields.
 
 2. The **deterministic mapping** from inputs to outputs:
@@ -2819,7 +2819,7 @@ The following are **breaking changes** for S4 and MUST trigger a **MAJOR** versi
 
 1. **Changing dataset identity or partitioning.**
 
-   * Altering the partition key set for `s4_zone_counts` (e.g. adding `parameter_hash` or `run_id`, dropping `seed` or `fingerprint`).
+   * Altering the partition key set for `s4_zone_counts` (e.g. adding `parameter_hash` or `run_id`, dropping `seed` or `manifest_fingerprint`).
    * Renaming the dataset ID away from `"s4_zone_counts"` or modifying the path template in a non-compatible way.
    * Changing the logical primary key `(merchant_id, legal_country_iso, tzid)`.
 
@@ -2949,7 +2949,7 @@ Different runs and parameter sets may see different S4 versions over time.
 
 3. **No retroactive upgrades.**
 
-   * Existing `s4_zone_counts/seed={s}/manifest_manifest_fingerprint={F}` artefacts MUST NOT be mutated to fit new contracts.
+   * Existing `s4_zone_counts/seed={s}/manifest_fingerprint={F}` artefacts MUST NOT be mutated to fit new contracts.
    * If a re-integerisation under a new S4 contract is required, it MUST be treated as a new run:
 
      * either with a new `{seed, manifest_fingerprint, run_id}`, or
@@ -3040,7 +3040,7 @@ For a fixed `{seed, manifest_fingerprint}`:
 
 * **`D_{\text{S4}}` (S4 domain)**
 
-  Domain of `s4_zone_counts` for this `{seed, fingerprint}`:
+  Domain of `s4_zone_counts` for this `{seed, manifest_fingerprint}`:
 
   [
   D_{\text{S4}} = { (m,c,z) \mid (m,c) \in D_{\text{esc}},\ z \in Z(c) }.
@@ -3207,7 +3207,7 @@ These fields are repeated on all rows of `s4_zone_counts` for a given run and sh
 
   S4 outcome in logs/layer1/3A/run-report:
 
-  * `"PASS"` — S4 met all acceptance criteria; `s4_zone_counts` is authoritative for this `{seed,fingerprint}`.
+  * `"PASS"` — S4 met all acceptance criteria; `s4_zone_counts` is authoritative for this `{seed,manifest_fingerprint}`.
   * `"FAIL"` — S4 terminated with one of the error codes above; its outputs for that run MUST NOT be used.
 
 * **`error_class`**

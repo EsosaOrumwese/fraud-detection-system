@@ -38,7 +38,7 @@ Concretely, 3A.S7:
   This digest is the only value that appears in the `_passed.flag` file and is what orchestrator/consumers verify when deciding whether 3A is safe to read.
 
 * **Emits the segment-level PASS flag for 3A.**
-  S7 writes a small, fingerprint-scoped `_passed.flag` file colocated with the validation bundle (e.g. inside `validation_bundle_3A@manifest_fingerprint={manifest_fingerprint}`), whose content is:
+  S7 writes a small, manifest_fingerprint-scoped `_passed.flag` file colocated with the validation bundle (e.g. inside `validation_bundle_3A@manifest_fingerprint={manifest_fingerprint}`), whose content is:
 
   ```text
   sha256_hex = <bundle_sha256_hex>
@@ -587,7 +587,7 @@ Within these boundaries, S7’s job is narrow but critical: it takes a 3A world 
 
 3A.S7 produces exactly **two** new artefacts for each validated manifest:
 
-1. A **3A validation bundle** (`validation_bundle_3A`) — a fingerprint-scoped directory with an index.
+1. A **3A validation bundle** (`validation_bundle_3A`) — a manifest_fingerprint-scoped directory with an index.
 2. A **segment PASS flag** (`_passed.flag`) — a small text file that encodes the composite HashGate digest over that bundle.
 
 S7 MUST NOT produce any business datasets or change any S0–S6 artefacts.
@@ -623,7 +623,7 @@ No other S7 outputs are in scope in this contract version.
 
 **Partitioning & path (conceptual)**
 
-* Partitioning: `["fingerprint"]`.
+* Partitioning: `["manifest_fingerprint"]`.
 * Path pattern (subject to dictionary in §5):
 
   ```text
@@ -773,7 +773,7 @@ If any mismatch is found between `index.json` and the actual artefacts, S7 MUST 
 
 **Partitioning & path**
 
-* Partitioning: `["fingerprint"]`.
+* Partitioning: `["manifest_fingerprint"]`.
 * Path pattern (conceptual):
 
   ```text
@@ -818,8 +818,8 @@ The combination of `validation_bundle_3A` and `_passed.flag` becomes the **Segme
 
 * Any component that wants to treat 3A surfaces for manifest `F` as **trusted** (e.g. read `zone_alloc` or other 3A egress) MUST:
 
-  1. Locate `validation_bundle_3A@fingerprint=F` and `index.json`.
-  2. Locate `_passed.flag@fingerprint=F`.
+  1. Locate `validation_bundle_3A@manifest_fingerprint=F` and `index.json`.
+  2. Locate `_passed.flag@manifest_fingerprint=F`.
   3. Validate both against their schemas (`validation_bundle_index_3A`, `passed_flag_3A`).
   4. Recompute `bundle_sha256_hex` from `index.json` and confirm it matches the value in `_passed.flag`.
 
@@ -850,7 +850,7 @@ All other 3A artefacts (S0–S6) are produced by their respective states; S7 onl
 Within this section’s constraints:
 
 * `validation_bundle_3A` and `_passed.flag` are the **only artefacts** produced by S7, and
-* they together form the **immutable, fingerprint-scoped authority surface** for “3A is validated and safe to be read for this manifest.”
+* they together form the **immutable, manifest_fingerprint-scoped authority surface** for “3A is validated and safe to be read for this manifest.”
 
 ---
 
@@ -971,7 +971,7 @@ These anchors define the **logical shape** of the artefacts; the on-disk represe
 
     * new top-level fields MUST go through schema/contract evolution per §12.
 
-`manifest_fingerprint` in the index MUST equal the `{fingerprint}` token in the bundle path.
+`manifest_fingerprint` in the index MUST equal the `{manifest_fingerprint}` token in the bundle path.
 
 ---
 
@@ -1558,12 +1558,12 @@ For S7 artefacts, the core identity is:
 
 * `manifest_fingerprint` — the Layer-1 manifest hash (`hex64`).
 
-All S7 outputs are **fingerprint-scoped only**:
+All S7 outputs are **manifest_fingerprint-scoped only**:
 
 * Partitioning MUST be exactly:
 
 ```yaml
-["fingerprint"]
+["manifest_fingerprint"]
 ```
 
 S7’s outputs are **not** keyed by `seed` or `run_id`:
@@ -1586,7 +1586,7 @@ Thus:
 
 **Partitioning & path**
 
-* Partitioning: `["fingerprint"]`.
+* Partitioning: `["manifest_fingerprint"]`.
 * Path pattern (from dictionary):
 
 ```text
@@ -1606,7 +1606,7 @@ data/layer1/3A/validation/manifest_fingerprint=F/
   * `manifest_fingerprint` equal to `F`,
   * `parameter_hash` equal to the `parameter_hash` for the manifest.
 
-Any mismatch between the embedded `manifest_fingerprint` in `index.json` and the `{fingerprint}` path token is a schema/validation error and MUST cause S7 (or validators) to treat the bundle as invalid.
+Any mismatch between the embedded `manifest_fingerprint` in `index.json` and the `{manifest_fingerprint}` path token is a schema/validation error and MUST cause S7 (or validators) to treat the bundle as invalid.
 
 ---
 
@@ -1664,7 +1664,7 @@ Again, key order is not semantically meaningful beyond digest stability.
 
 **Partitioning & path**
 
-* Partitioning: `["fingerprint"]`.
+* Partitioning: `["manifest_fingerprint"]`.
 * Path pattern:
 
 ```text
@@ -1768,7 +1768,7 @@ If upstream artefacts change, the correct response is to:
 S7 makes **no** claims about relationships between different `manifest_fingerprint` values:
 
 * Each bundle+flag pair is independent per manifest.
-* Consumers MUST NOT mix index entries or flags across different `fingerprint=` directories.
+* Consumers MUST NOT mix index entries or flags across different `manifest_fingerprint=` directories.
 
 Cross-segment semantics:
 
@@ -1787,7 +1787,7 @@ but at the 3A segment level. Other segments MUST treat 3A’s flag as:
 Under these rules, `validation_bundle_3A` and `_passed.flag` have:
 
 * clear identity (`manifest_fingerprint` only),
-* simple partitioning (`fingerprint=`),
+* simple partitioning (`manifest_fingerprint=`),
 * deterministic ordering (members and JSON keys), and
 * strict immutability and idempotence semantics,
 
@@ -1944,7 +1944,7 @@ For any `manifest_fingerprint = F`, the following MUST hold:
 
 1. **To treat 3A outputs as validated for F, a consumer MUST:**
 
-   1.1. Locate `validation_bundle_3A@fingerprint=F` and `_passed.flag@fingerprint=F`.
+   1.1. Locate `validation_bundle_3A@manifest_fingerprint=F` and `_passed.flag@manifest_fingerprint=F`.
 
    1.2. Validate both against their schemas:
 
@@ -3175,7 +3175,7 @@ This appendix records the notation and shorthand used in the 3A.S7 design. It ha
   Layer-1 hash over the governed parameter set 𝓟 (priors, mixture, floor policy, day-effect policy, etc.). Fixed before S0 and reused across S2/S3/S5/S6/S7.
 
 * **`manifest_fingerprint`**
-  Layer-1 manifest hash for a run. S7 is **fingerprint-scoped**: bundle and flag are keyed by this.
+  Layer-1 manifest hash for a run. S7 is **manifest_fingerprint-scoped**: bundle and flag are keyed by this.
 
 * **`seed`**
   Layer-1 RNG seed (`uint64`). S7 does not use RNG, but `seed` appears in run-report and as context for S1–S5.
@@ -3368,9 +3368,9 @@ These error codes are used on S7’s own run-report row; they **do not** represe
 
 A manifest `F` is considered **3A-validated and sealed** only when:
 
-* `s6_receipt_3A@fingerprint=F` has `overall_status="PASS"`,
+* `s6_receipt_3A@manifest_fingerprint=F` has `overall_status="PASS"`,
 * S7 run for `(parameter_hash, F, seed, run_id)` has `status="PASS", error_code=null`,
-* `validation_bundle_3A@fingerprint=F` and `_passed.flag@fingerprint=F` are present and a recomputation of `bundle_sha256_hex` from `index.json` matches the flag’s `sha256_hex`.
+* `validation_bundle_3A@manifest_fingerprint=F` and `_passed.flag@manifest_fingerprint=F` are present and a recomputation of `bundle_sha256_hex` from `index.json` matches the flag’s `sha256_hex`.
 
 Consumers must enforce:
 

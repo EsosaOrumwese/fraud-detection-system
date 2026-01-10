@@ -33,7 +33,7 @@ Concretely, 3A.S3:
     \Theta(m,c,z) \in (0,1), \quad z \in Z(c), \quad \sum_{z \in Z(c)} \Theta(m,c,z) = 1,
     $$
     where `Θ(m,c,·)` is the drawn zone-share vector for merchant×country `(m,c)`;
-  * records per-zone shares in a seed+fingerprint-scoped dataset (e.g. `s3_zone_shares`), with one row per `(merchant_id, legal_country_iso, tzid)` for escalated pairs only.
+  * records per-zone shares in a seed+manifest_fingerprint-scoped dataset (e.g. `s3_zone_shares`), with one row per `(merchant_id, legal_country_iso, tzid)` for escalated pairs only.
 
   Non-escalated `(m,c)` pairs are **not** sampled by S3; they do not appear in the Dirichlet RNG events or in `s3_zone_shares`.
 
@@ -122,7 +122,7 @@ Within these boundaries, 3A.S3’s scope is to provide a **reproducible, fully l
 This section defines **what MUST already hold** before 3A.S3 can run, and which inputs it is explicitly allowed to use. Anything outside these constraints is **out of spec** for S3.
 
 S3 is **run-scoped**: it operates for a concrete quadruple
-`(parameter_hash, manifest_fingerprint, seed, run_id)` and writes seed+fingerprint-scoped outputs plus RNG logs keyed by `(seed, parameter_hash, run_id)`.
+`(parameter_hash, manifest_fingerprint, seed, run_id)` and writes seed+manifest_fingerprint-scoped outputs plus RNG logs keyed by `(seed, parameter_hash, run_id)`.
 
 ---
 
@@ -148,7 +148,7 @@ Before 3A.S3 is invoked for a given `(parameter_hash, manifest_fingerprint, seed
 3. **3A.S1 has produced an escalation queue for this `{seed, manifest_fingerprint}`.**
 
    * `s1_escalation_queue@seed={seed}/manifest_fingerprint={manifest_fingerprint}` MUST exist and be schema-valid under `schemas.3A.yaml#/plan/s1_escalation_queue`.
-   * The orchestrator MUST only trigger S3 once the S1 run for this `{seed, fingerprint}` has completed successfully (per S1’s own run-report status).
+   * The orchestrator MUST only trigger S3 once the S1 run for this `{seed, manifest_fingerprint}` has completed successfully (per S1’s own run-report status).
    * S3 MUST treat the absence or schema-invalidity of `s1_escalation_queue` as a hard precondition failure.
 
 4. **3A.S2 has produced priors for this `parameter_hash`.**
@@ -301,12 +301,12 @@ For a specific S3 run on `(parameter_hash, manifest_fingerprint, seed, run_id)`:
 * The orchestrator MAY schedule S3 independently of S2/S1 as long as:
 
   * S0 has sealed inputs for `manifest_fingerprint`,
-  * S1 has successfully produced `s1_escalation_queue@{seed,fingerprint}`, and
+  * S1 has successfully produced `s1_escalation_queue@{seed,manifest_fingerprint}`, and
   * S2 has successfully produced `s2_country_zone_priors@parameter_hash`.
 
 * S3’s outputs are:
 
-  * `s3_zone_shares` partitioned by `{seed, fingerprint}`, and
+  * `s3_zone_shares` partitioned by `{seed, manifest_fingerprint}`, and
   * RNG events/logs partitioned by `{seed, parameter_hash, run_id}`.
 
 If any of these preconditions fail, S3 MUST treat the run as **invalid** and MUST NOT emit partial or approximate outputs.
@@ -586,7 +586,7 @@ S3 does **not** emit any final zone-allocation egress or validation bundles.
 
 For a given run `(parameter_hash, manifest_fingerprint, seed, run_id)`, S3 MUST produce:
 
-1. **`s3_zone_shares`** — A seed+fingerprint-scoped table with the **drawn zone share** for each `(merchant_id, legal_country_iso, tzid)` where the pair `(merchant_id, legal_country_iso)` is escalated. This is the **stochastic planning surface** for later zone integerisation (S4).
+1. **`s3_zone_shares`** — A seed+manifest_fingerprint-scoped table with the **drawn zone share** for each `(merchant_id, legal_country_iso, tzid)` where the pair `(merchant_id, legal_country_iso)` is escalated. This is the **stochastic planning surface** for later zone integerisation (S4).
 
 2. **Dirichlet RNG events** — A new RNG event family (e.g. `rng_event_zone_dirichlet`) appended to the Layer-1 RNG logs, with one event per escalated `(merchant_id, legal_country_iso)`; this records Philox counters and per-event budgets, enabling replay and accounting.
 
@@ -622,7 +622,7 @@ Binding requirements:
   * any `(m,c)` with `is_escalated = false`, or
   * any `tzid` not in `Z(c)` for that country.
 
-**Logical primary key** (within a `{seed, fingerprint}` partition):
+**Logical primary key** (within a `{seed, manifest_fingerprint}` partition):
 
 $$
 (\text{merchant\_id}, \text{legal\_country\_iso}, \text{tzid})
@@ -632,12 +632,12 @@ There MUST NOT be duplicate rows for a given `(merchant_id, legal_country_iso, t
 
 #### 4.2.2 Partitioning & path
 
-` s3_zone_shares` is **run-scoped** (seed+fingerprint), like other L1/L2 per-run plan tables.
+` s3_zone_shares` is **run-scoped** (seed+manifest_fingerprint), like other L1/L2 per-run plan tables.
 
 * Partition keys:
 
   ```text
-  ["seed", "fingerprint"]
+  ["seed", "manifest_fingerprint"]
   ```
 
 * Conceptual path template (final value in dataset dictionary):
@@ -719,7 +719,7 @@ Additional diagnostic columns (e.g. per-zone α-as-seen-by-S3) MAY be added in f
 
 #### 4.2.4 Writer-sort & immutability
 
-Within each `{seed, fingerprint}` partition, S3 MUST write `s3_zone_shares` rows in a deterministic order, e.g.:
+Within each `{seed, manifest_fingerprint}` partition, S3 MUST write `s3_zone_shares` rows in a deterministic order, e.g.:
 
 1. `merchant_id` ascending,
 2. `legal_country_iso` ascending,
@@ -729,7 +729,7 @@ Ordering is **not** semantically authoritative; all semantics come from keys and
 
 * re-running S3 with the same inputs yields byte-identical datasets.
 
-Once written for a given `{seed, fingerprint}`:
+Once written for a given `{seed, manifest_fingerprint}`:
 
 * `s3_zone_shares` MUST be treated as a **snapshot**,
 * re-runs MUST either:
@@ -1457,9 +1457,9 @@ Any validation failure MUST cause S3 to treat the run as failed before publishin
 
 **Step 20 – Idempotent write for `s3_zone_shares`**
 
-If no dataset exists yet at `{seed, fingerprint}`:
+If no dataset exists yet at `{seed, manifest_fingerprint}`:
 
-* S3 writes the new `s3_zone_shares` dataset with partitioning `["seed","fingerprint"]` and the defined writer-sort.
+* S3 writes the new `s3_zone_shares` dataset with partitioning `["seed","manifest_fingerprint"]` and the defined writer-sort.
 
 If a dataset already exists:
 
@@ -1520,7 +1520,7 @@ This section fixes, precisely, how 3A.S3’s artefacts are:
 
 There are two categories to consider:
 
-* the **`s3_zone_shares`** dataset (seed+fingerprint scoped, snapshot), and
+* the **`s3_zone_shares`** dataset (seed+manifest_fingerprint scoped, snapshot), and
 * S3’s contributions to the **Layer-1 RNG logs** (append-only, shared).
 
 ---
@@ -1599,7 +1599,7 @@ Within a given `{seed, manifest_fingerprint}` partition:
 * Partition key set MUST be exactly:
 
 ```text
-["seed", "fingerprint"]
+["seed", "manifest_fingerprint"]
 ```
 
 No other partition keys (e.g. `parameter_hash`, `run_id`) are allowed for this dataset.
@@ -1617,12 +1617,12 @@ Binding rules:
 * For each concrete partition, the path MUST include exactly:
 
   * `seed=<uint64>`,
-  * `fingerprint=<hex64>`.
+  * `manifest_fingerprint=<hex64>`.
 * There MUST be at most one `s3_zone_shares` partition for any `{seed, manifest_fingerprint}` pair.
 
 **Path↔embed equality**
 
-Every row in a given `{seed, fingerprint}` partition MUST satisfy:
+Every row in a given `{seed, manifest_fingerprint}` partition MUST satisfy:
 
 * `row.seed == {seed}` (from the path)
 * `row.manifest_fingerprint == {manifest_fingerprint}` (from the path)
@@ -1816,7 +1816,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed, run_id)`, 3A.S3 is **P
 
 * `s0_gate_receipt_3A` and `sealed_inputs_3A` for `manifest_fingerprint` exist, are schema-valid, and assert
   `segment_1A.status = segment_1B.status = segment_2A.status = "PASS"`.
-* `s1_escalation_queue@{seed,fingerprint}` exists and is schema-valid.
+* `s1_escalation_queue@{seed,manifest_fingerprint}` exists and is schema-valid.
 * `s2_country_zone_priors@parameter_hash` exists and is schema-valid.
 * `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version` used in S3 match those in S2.
 
@@ -1863,7 +1863,7 @@ For every row in `s3_zone_shares`:
 * `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`:
 
   * non-empty strings,
-  * constant across all rows in this `{seed,fingerprint}` partition, and
+  * constant across all rows in this `{seed,manifest_fingerprint}` partition, and
   * equal to the values in `s2_country_zone_priors` for this `parameter_hash`.
 * `rng_module`, `rng_substream_label`, `rng_stream_id` are present and consistent with the RNG policy.
 
@@ -1923,7 +1923,7 @@ Any discrepancy MUST cause S3 to be treated as FAIL.
 
 #### 8.1.8 Idempotence & immutability
 
-If a `s3_zone_shares` dataset already exists at `{seed, fingerprint}` when S3 runs:
+If a `s3_zone_shares` dataset already exists at `{seed, manifest_fingerprint}` when S3 runs:
 
 * After reconstructing the new row set for this run, S3 MUST confirm it is **byte-identical** (when normalised and sorted) to the existing dataset.
 * If not identical, S3 MUST:
@@ -2073,7 +2073,7 @@ Raised when any required upstream 3A artefact is missing or invalid for this `(p
 
 * `s0_gate_receipt_3A` or `sealed_inputs_3A` missing or schema-invalid,
 * `s0_gate_receipt_3A.upstream_gates.segment_1A/1B/2A.status != "PASS"`,
-* `s1_escalation_queue@{seed,fingerprint}` missing or schema-invalid,
+* `s1_escalation_queue@{seed,manifest_fingerprint}` missing or schema-invalid,
 * `s2_country_zone_priors@parameter_hash` missing or schema-invalid.
 
 **Required fields**
@@ -2147,7 +2147,7 @@ Raised when S3 detects that S2’s prior surface does not cover all countries th
 
 **Condition**
 
-Raised when the domain of `s3_zone_shares` does not match S1’s escalation decisions, for this `{seed,fingerprint}`:
+Raised when the domain of `s3_zone_shares` does not match S1’s escalation decisions, for this `{seed,manifest_fingerprint}`:
 
 * some `(m,c)` with `is_escalated=true` in S1 have no rows in `s3_zone_shares`, and/or
 * S3 contains rows for `(m,c)` where S1 has `is_escalated=false` (or `(m,c)` not present in S1 at all).
@@ -2595,7 +2595,7 @@ At minimum:
 
 * `mlr_3a_s3_pairs_escalated` (gauge)
 
-  * Number of escalated `(merchant_id, country_iso)` pairs in the most recent successful run for a given `{seed,fingerprint}`.
+  * Number of escalated `(merchant_id, country_iso)` pairs in the most recent successful run for a given `{seed,manifest_fingerprint}`.
 
 * `mlr_3a_s3_dirichlet_events_total` (gauge)
 
@@ -3079,7 +3079,7 @@ The following are **breaking changes** and MUST trigger a **MAJOR** version bump
 
 1. **Changing dataset identity or partitioning.**
 
-   * Altering the partition key set for `s3_zone_shares` (e.g. adding/removing `seed`, `fingerprint`).
+   * Altering the partition key set for `s3_zone_shares` (e.g. adding/removing `seed`, `manifest_fingerprint`).
    * Changing the dataset ID away from `"s3_zone_shares"` or modifying its path template in incompatible ways.
    * Changing the logical primary key `(merchant_id, legal_country_iso, tzid)`.
 
@@ -3248,7 +3248,7 @@ This appendix records the symbols and shorthand used in the 3A.S3 design. It has
 ### 13.2 Sets & domains
 
 * **`D` (S1 domain)**
-  Set of all merchant×country pairs with at least one outlet under this `{seed,fingerprint}`:
+  Set of all merchant×country pairs with at least one outlet under this `{seed,manifest_fingerprint}`:
 
   [
   D = {(m,c) \mid \text{site_count}(m,c) \ge 1 \text{ in } s1_escalation_queue}.
@@ -3387,13 +3387,13 @@ For a given escalated merchant×country pair `(m,c)`:
 ### 13.5 Datasets & artefacts
 
 * **`s1_escalation_queue`**
-  S1’s per-merchant×country classification dataset, partitioned by `{seed,fingerprint}`; S3 reads its `site_count`, `is_escalated`, `decision_reason`.
+  S1’s per-merchant×country classification dataset, partitioned by `{seed,manifest_fingerprint}`; S3 reads its `site_count`, `is_escalated`, `decision_reason`.
 
 * **`s2_country_zone_priors`**
   S2’s parameter-scoped prior surface, partitioned by `parameter_hash`; S3 reads `alpha_effective(c,z)`, `alpha_sum_country(c)`, prior/floor policy IDs/versions.
 
 * **`s3_zone_shares`**
-  S3’s per-merchant×country×zone share surface, partitioned by `{seed,fingerprint}`; each row has `(merchant_id, legal_country_iso, tzid)` plus `share_drawn`, `share_sum_country`, `alpha_sum_country`, RNG lineage, etc.
+  S3’s per-merchant×country×zone share surface, partitioned by `{seed,manifest_fingerprint}`; each row has `(merchant_id, legal_country_iso, tzid)` plus `share_drawn`, `share_sum_country`, `alpha_sum_country`, RNG lineage, etc.
 
 * **`s0_gate_receipt_3A` / `sealed_inputs_3A`**
   S0’s gate and sealed-input inventory; S3 reads them to verify upstream gates and find sealed policy artefacts.
