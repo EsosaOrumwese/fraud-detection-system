@@ -531,7 +531,7 @@ All later 6A states must treat this table as the **closed world of permissible i
 
   * `schema_ref` — JSON-Schema anchor (e.g. `schemas.layer1.yaml#/egress/site_locations`)
   * `path_template` — canonical path with tokens (e.g. `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...`)
-  * `partition_keys` — ordered list of partition tokens (e.g. `["seed", "fingerprint"]`)
+  * `partition_keys` — ordered list of partition tokens (e.g. `["seed", "manifest_fingerprint"]`)
 * Role & scope:
 
   * `role` — closed enum, e.g.:
@@ -1052,7 +1052,7 @@ at the dataset level. Those axes are relevant only for later 6A states and for u
 
 ### 7.2 Partitioning & path tokens
 
-Both S0 outputs are **fingerprint-scoped control-plane datasets**.
+Both S0 outputs are **manifest_fingerprint-scoped control-plane datasets**.
 
 * `s0_gate_receipt_6A`:
 
@@ -2218,7 +2218,7 @@ This appendix collects the short-hands and symbols used in 6A.S0 so an implement
 * **Validation bundle**
   For each upstream segment (1A–3B, 5A–5B) and eventually for 6A itself:
 
-  * a directory rooted at a segment-specific path (e.g. `.../validation/manifest_fingerprint={mf}/`),
+  * a directory rooted at a segment-specific path (e.g. `.../validation/manifest_fingerprint={manifest_fingerprint}/`),
   * containing `index.json` / `validation_bundle_index_*` plus evidence files and `_passed.flag`.
 
 * **`_passed.flag` / `validation_passed_flag_*`**

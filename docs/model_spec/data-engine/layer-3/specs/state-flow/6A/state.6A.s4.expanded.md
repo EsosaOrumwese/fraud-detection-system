@@ -3,7 +3,7 @@
 ## 1. Purpose & scope *(Binding)*
 
 6A.S4 is the **device, IP and network-graph realisation state** for Layer-3 / Segment 6A.
-Its job is to take the **party universe** (S1), the **account & product universe** (S2), and the **instrument universe** (S3), and turn them into a **closed-world device/IP graph** for each `(manifest_fingerprint, seed)`.
+Its job is to take the **party universe** (S1), the **account & product universe** (S2), and the **instrument universe** (S3), and turn them into a **closed-world device/IP graph** for each `(manifest_fingerprint, parameter_hash, seed)`.
 
 Concretely, S4 must:
 
@@ -29,7 +29,7 @@ Concretely, S4 must:
 
 Within 6A, S4 is the **sole authority** on:
 
-* **Device existence and identity** — which `device_id`s exist for a given `(manifest_fingerprint, seed)` and their static attributes (device_type, OS/UA families, simple risk tags).
+* **Device existence and identity** — which `device_id`s exist for a given `(manifest_fingerprint, parameter_hash, seed)` and their static attributes (device_type, OS/UA families, simple risk tags).
 * **IP / endpoint existence and identity** — which `ip_id`s exist (or endpoint IDs, if abstracted) and their static attributes (ip_type, ASN/ISP class, coarse geo, static risk tags).
 * **Static graph structure** — which devices/IPs are attached to which parties/accounts/instruments/merchants at initialisation (who appears to “share” what with whom, ignoring time).
 
@@ -51,7 +51,7 @@ Within Layer-3, S4 sits **downstream of S0–S3**:
 * It only runs for worlds where:
 
   * S0 has sealed the 6A input universe (`sealed_inputs_6A` + `s0_gate_receipt_6A` PASS), and
-  * S1, S2 and S3 are all PASS for the same `(manifest_fingerprint, seed)` and have produced consistent party, account and instrument universes.
+  * S1, S2 and S3 are all PASS for the same `(manifest_fingerprint, parameter_hash, seed)` and have produced consistent party, account and instrument universes.
 * It uses **device priors**, **IP priors**, **device/IP taxonomies**, and **graph/linkage rules** (sealed by S0) to:
 
   * decide how many devices and IPs exist per region/segment/product cell, and
@@ -61,7 +61,7 @@ All later 6A states (e.g. fraud posture) and 6B’s flow/fraud logic must treat 
 
 > “which devices and IPs exist in this world, and how they are statically wired to parties, accounts, instruments and merchants”
 
-for that `(manifest_fingerprint, seed)`.
+for that `(manifest_fingerprint, parameter_hash, seed)`.
 
 ---
 
@@ -176,20 +176,20 @@ If any of these checks fails, S4 MUST NOT attempt to read priors or generate any
 
 ### 2.3 6A.S1, 6A.S2 and 6A.S3 preconditions (party, account & instrument bases)
 
-S4 sits directly downstream of S1, S2 and S3. For each `(manifest_fingerprint, seed)` S4 will process, it MUST ensure that **all three** upstream 6A states are PASS and their bases are available and valid.
+S4 sits directly downstream of S1, S2 and S3. For each `(manifest_fingerprint, parameter_hash, seed)` S4 will process, it MUST ensure that **all three** upstream 6A states are PASS and their bases are available and valid.
 
-For the target `(mf, seed)`:
+For the target `(mf, ph, seed)`:
 
 1. **S1 (party base) preconditions**
 
-   * Latest 6A.S1 run-report for `(mf, seed)` has:
+   * Latest 6A.S1 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s1_party_base_6A` partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s1_party_base_6A` partition for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s1/party_base`,
@@ -197,14 +197,14 @@ error_code == "" or null
 
 2. **S2 (account base) preconditions**
 
-   * Latest 6A.S2 run-report for `(mf, seed)` has:
+   * Latest 6A.S2 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exist,
   * validate against their schema anchors,
@@ -212,20 +212,20 @@ error_code == "" or null
 
 3. **S3 (instrument base) preconditions**
 
-   * Latest 6A.S3 run-report for `(mf, seed)` has:
+   * Latest 6A.S3 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` partitions for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exist,
   * validate against their schema anchors,
   * have counts that match S3 run-report metrics (e.g. `total_instruments`).
 
-If **any** of S1, S2 or S3 is missing or not PASS for `(mf, seed)`, S4 MUST fail with `6A.S4.S0_S1_S2_S3_GATE_FAILED` (or equivalent) and MUST NOT construct any device/IP/graph outputs for that world+seed.
+If **any** of S1, S2 or S3 is missing or not PASS for `(mf, ph, seed)`, S4 MUST fail with `6A.S4.S0_S1_S2_S3_GATE_FAILED` (or equivalent) and MUST NOT construct any device/IP/graph outputs for that world+seed+parameter.
 
 ---
 
@@ -338,7 +338,7 @@ They are **hints**, not new authorities.
 
 ### 2.5 Axes of operation: world & seed
 
-S4’s natural domain is the pair `(manifest_fingerprint, seed)`:
+S4’s natural domain is the pair `(manifest_fingerprint, parameter_hash, seed)`:
 
 * `manifest_fingerprint` identifies the sealed upstream world and 6A input universe.
 * `seed` identifies the specific party+account+instrument+device/IP realisation for that world.
@@ -350,10 +350,10 @@ Per axis:
   * S0 MUST be PASS and upstream HashGates MUST be PASS,
   * S4 MUST only use inputs artefacts listed in `sealed_inputs_6A` for that world.
 
-* For each `(mf, seed)`:
+* For each `(mf, ph, seed)`:
 
   * S1, S2 and S3 MUST all be PASS and have produced their bases,
-  * S4 then constructs **one** device/IP graph on top of that world+seed.
+  * S4 then constructs **one** device/IP graph on top of that world+seed+parameter.
 
 Scenario identity (`scenario_id`) is **not** an axis for S4:
 
@@ -423,7 +423,7 @@ These are mandatory and **read-only**:
 
   * `s1_party_base_6A`
 
-    * authoritative party universe for `(mf, seed)`:
+    * authoritative party universe for `(mf, ph, seed)`:
 
       * `party_id`,
       * party type (retail/business/other),
@@ -434,7 +434,7 @@ These are mandatory and **read-only**:
 
   * `s2_account_base_6A`
 
-    * authoritative account/product universe for `(mf, seed)`:
+    * authoritative account/product universe for `(mf, ph, seed)`:
 
       * `account_id`,
       * `owner_party_id`, optional `owner_merchant_id`,
@@ -689,12 +689,12 @@ S4 exclusively owns:
 
 * **Device universe:**
 
-  * which `device_id` values exist per `(mf, seed)`,
+  * which `device_id` values exist per `(mf, ph, seed)`,
   * static device attributes (device_type, os_family, ua_family, static risk tags).
 
 * **IP / endpoint universe:**
 
-  * which `ip_id` (and masked endpoint representations) exist per `(mf, seed)`,
+  * which `ip_id` (and masked endpoint representations) exist per `(mf, ph, seed)`,
   * static IP attributes (ip_type, asn_class, geo hints, static risk tags).
 
 * **Static graph structure:**
@@ -808,7 +808,7 @@ S4 has:
 
 #### 4.1.1 Domain & scope
 
-For each `(manifest_fingerprint, seed)`, `s4_device_base_6A` contains **one row per device**.
+For each `(manifest_fingerprint, parameter_hash, seed)`, `s4_device_base_6A` contains **one row per device**.
 
 * Domain axes:
 
@@ -818,7 +818,7 @@ For each `(manifest_fingerprint, seed)`, `s4_device_base_6A` contains **one row 
 
 * S4 is **scenario-independent**:
 
-  * the same device universe is shared across all scenarios for that `(mf, seed)`.
+  * the same device universe is shared across all scenarios for that `(mf, ph, seed)`.
 
 #### 4.1.2 Required content (logical fields)
 
@@ -828,8 +828,8 @@ Schema names can vary, but semantics are fixed. Each device row MUST include at 
 
   * `device_id`
 
-    * stable identifier for the device within `(manifest_fingerprint, seed)`,
-    * globally unique per world+seed.
+    * stable identifier for the device within `(manifest_fingerprint, parameter_hash, seed)`,
+    * globally unique per world+seed+parameter.
   * `manifest_fingerprint`
   * `parameter_hash`
   * `seed`
@@ -874,22 +874,22 @@ For `s4_device_base_6A`:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, device_id)
+  (manifest_fingerprint, parameter_hash, seed, device_id)
   ```
 
 * **Uniqueness:**
 
-  * `device_id` MUST be unique within `(mf, seed)`.
+  * `device_id` MUST be unique within `(mf, ph, seed)`.
   * No duplicate `(mf, seed, device_id)` rows.
 
 * **World consistency:**
 
-  * All rows in a `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST have those `seed` and `manifest_fingerprint` values.
-  * All rows for `(mf, seed)` MUST share the same `parameter_hash`.
+  * All rows in a `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` partition MUST have those `seed` and `manifest_fingerprint` values.
+  * All rows for `(mf, ph, seed)` MUST share the same `parameter_hash`.
 
 * **Closed-world semantics for devices:**
 
-  For a given `(mf, seed)`, the set of `device_id` values in `s4_device_base_6A` is the **complete device universe**. No other dataset may introduce new devices.
+  For a given `(mf, ph, seed)`, the set of `device_id` values in `s4_device_base_6A` is the **complete device universe**. No other dataset may introduce new devices.
 
 ---
 
@@ -900,7 +900,7 @@ For `s4_device_base_6A`:
 
 #### 4.2.1 Domain & scope
 
-For each `(manifest_fingerprint, seed)`, `s4_ip_base_6A` contains **one row per IP / endpoint**.
+For each `(manifest_fingerprint, parameter_hash, seed)`, `s4_ip_base_6A` contains **one row per IP / endpoint**.
 
 * Domain axes:
 
@@ -918,7 +918,7 @@ Each row MUST include at least:
 
 * **Identity & axes**
 
-  * `ip_id` — stable identifier for the IP/endpoint within `(mf, seed)`.
+  * `ip_id` — stable identifier for the IP/endpoint within `(mf, ph, seed)`.
   * `manifest_fingerprint`
   * `parameter_hash`
   * `seed`
@@ -957,22 +957,22 @@ For `s4_ip_base_6A`:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, ip_id)
+  (manifest_fingerprint, parameter_hash, seed, ip_id)
   ```
 
 * **Uniqueness:**
 
-  * `ip_id` MUST be unique within `(mf, seed)`.
+  * `ip_id` MUST be unique within `(mf, ph, seed)`.
   * No duplicate `(mf, seed, ip_id)` rows.
 
 * **World consistency:**
 
-  * All rows in a `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST use those values.
-  * All rows for `(mf, seed)` MUST share the same `parameter_hash`.
+  * All rows in a `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` partition MUST use those values.
+  * All rows for `(mf, ph, seed)` MUST share the same `parameter_hash`.
 
 * **Closed-world semantics for IPs:**
 
-  For a given `(mf, seed)`, the set of `ip_id` values in `s4_ip_base_6A` is the **complete IP/endpoint universe**. No other dataset may create new IPs.
+  For a given `(mf, ph, seed)`, the set of `ip_id` values in `s4_ip_base_6A` is the **complete IP/endpoint universe**. No other dataset may create new IPs.
 
 ---
 
@@ -989,7 +989,7 @@ Depending on your design, you may have a single wide table or multiple narrower 
 
 ##### 4.3.1.1 Domain & scope
 
-For each `(mf, seed)`, `s4_device_links_6A` contains **zero or more rows per device** describing its links to entities such as:
+For each `(mf, ph, seed)`, `s4_device_links_6A` contains **zero or more rows per device** describing its links to entities such as:
 
 * parties (`party_id`),
 * accounts (`account_id`),
@@ -1025,7 +1025,7 @@ The exact set of link roles is part of the S4 taxonomy; this section just requir
 * Logical key (for a single unified link table), for example:
 
   ```text
-  (manifest_fingerprint, seed, device_id, party_id?, account_id?, instrument_id?, merchant_id?, link_role)
+  (manifest_fingerprint, parameter_hash, seed, device_id, party_id?, account_id?, instrument_id?, merchant_id?, link_role)
   ```
 
 * Invariants:
@@ -1045,7 +1045,7 @@ Again, this may be a single wide table or multiple narrower ones; the logical se
 
 ##### 4.3.2.1 Domain & scope
 
-For each `(mf, seed)`, `s4_ip_links_6A` contains **zero or more rows per IP** describing its links to:
+For each `(mf, ph, seed)`, `s4_ip_links_6A` contains **zero or more rows per IP** describing its links to:
 
 * devices (`device_id`),
 * parties (`party_id`),
@@ -1077,7 +1077,7 @@ Minimum fields:
 * Logical key example:
 
   ```text
-  (manifest_fingerprint, seed, ip_id, device_id?, party_id?, merchant_id?, link_role)
+  (manifest_fingerprint, parameter_hash, seed, ip_id, device_id?, party_id?, merchant_id?, link_role)
   ```
 
 * Invariants:
@@ -1096,7 +1096,7 @@ These datasets are **optional** but, if implemented, MUST be strictly derived fr
 
 **Role:** pre-aggregated graph neighbourhood metrics per entity; convenient for QA and fraud-feature modelling.
 
-* Domain: for each `(mf, seed)`, one or more rows per entity:
+* Domain: for each `(mf, ph, seed)`, one or more rows per entity:
 
   * `party_id`,
   * `account_id`,
@@ -1122,7 +1122,7 @@ These datasets are **optional** but, if implemented, MUST be strictly derived fr
 
 **Role:** global / per-segment diagnostics of the graph, used for QA and tuning.
 
-* Domain: for each `(mf, seed)`, table of summary rows keyed by:
+* Domain: for each `(mf, ph, seed)`, table of summary rows keyed by:
 
   * segment/region/product cell, or
   * global aggregate.
@@ -1218,7 +1218,7 @@ Implementers are free to choose data structures, batching and parallelism; they 
 
 ### 6.0 Overview & RNG discipline
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 1. Load gates, priors, taxonomies & graph rules (RNG-free).
 2. Define planning domains & derive **continuous targets** for devices/IPs per cell (RNG-free).
@@ -1234,7 +1234,7 @@ RNG discipline:
 * S4 uses the shared Layer-3 Philox envelope, with substreams keyed on:
 
   ```text
-  (manifest_fingerprint, seed, "6A.S4", substream_label, context...)
+  (manifest_fingerprint, parameter_hash, seed, "6A.S4", substream_label, context...)
   ```
 
 * S4 defines distinct RNG families (names indicative, semantics binding):
@@ -1266,7 +1266,7 @@ No RNG may be used for identity axes, schema, paths, or partitions.
    * Recompute `sealed_inputs_digest_6A` and verify equality.
    * Check `upstream_gates` shows `gate_status = "PASS"` for `{1A,1B,2A,2B,3A,3B,5A,5B}`.
 
-2. **Verify S1/S2/S3 gates for `(mf, seed)`**
+2. **Verify S1/S2/S3 gates for `(mf, ph, seed)`**
 
    * Latest S1 run-report: `status="PASS"`, `error_code` empty.
    * Latest S2 run-report: `status="PASS"`, `error_code` empty.
@@ -1742,7 +1742,7 @@ For each device instance:
      )
      ```
 
-   * Guaranteed injective within `(mf, seed)`.
+   * Guaranteed injective within `(mf, ph, seed)`.
 
 2. **Build record**
 
@@ -1754,7 +1754,7 @@ For each device instance:
 
 3. **Write dataset**
 
-   * To `data/layer3/6A/s4_device_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...`
+   * To `data/layer3/6A/s4_device_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...`
    * Using canonical ordering from the dataset dictionary.
    * Validate against `schemas.6A.yaml#/s4/device_base`.
 
@@ -1809,7 +1809,7 @@ If implemented:
 
 #### 6.7.5 Internal validation & RNG reconciliation
 
-Before marking S4 as PASS for `(mf, seed)`, S4 must:
+Before marking S4 as PASS for `(mf, ph, seed)`, S4 must:
 
 1. **Plan vs base consistency**
 
@@ -1836,7 +1836,7 @@ Before marking S4 as PASS for `(mf, seed)`, S4 must:
      * no overlapping or out-of-order Philox counter ranges,
      * budgets (if configured) are respected.
 
-Any failure in these checks yields an S4 **FAIL** with an appropriate `6A.S4.*` error code, and S4 must not be considered sealed for that `(mf, seed)`.
+Any failure in these checks yields an S4 **FAIL** with an appropriate `6A.S4.*` error code, and S4 must not be considered sealed for that `(mf, ph, seed)`.
 
 ---
 
@@ -1917,7 +1917,7 @@ S4 uses the same three primary identity axes as S1–S3:
   * `parameter_hash`
   * Identifies the priors/config pack (device/IP priors, taxonomies, graph rules).
   * Stored as a **column** in S4 outputs, **not** as a partition key.
-  * For a given `(manifest_fingerprint, seed)`, there MUST be exactly one `parameter_hash` present in S4 business datasets.
+  * For a given `(manifest_fingerprint, parameter_hash, seed)`, there MUST be exactly one `parameter_hash` present in S4 business datasets.
 
 * **RNG identity**
 
@@ -1931,14 +1931,14 @@ S4 uses the same three primary identity axes as S1–S3:
 
 ### 7.2 Partitioning & path tokens
 
-All S4 datasets are **world+seed scoped** and partitioned identically.
+All S4 datasets are **world+seed+parameter scoped** and partitioned identically.
 
 #### 7.2.1 `s4_device_base_6A`
 
 * Partition keys:
 
 ```text
-[seed, manifest_fingerprint]
+[seed, manifest_fingerprint, parameter_hash]
 ```
 
 * Path template (schematic):
@@ -1946,7 +1946,8 @@ All S4 datasets are **world+seed scoped** and partitioned identically.
 ```text
 data/layer3/6A/s4_device_base_6A/
   seed={seed}/
-  manifest_fingerprint={manifest_fingerprint}/
+    parameter_hash={parameter_hash}/
+    manifest_fingerprint={manifest_fingerprint}/
   s4_device_base_6A.parquet
 ```
 
@@ -1955,7 +1956,7 @@ data/layer3/6A/s4_device_base_6A/
 * Partition keys:
 
 ```text
-[seed, manifest_fingerprint]
+[seed, manifest_fingerprint, parameter_hash]
 ```
 
 * Path template:
@@ -1963,7 +1964,8 @@ data/layer3/6A/s4_device_base_6A/
 ```text
 data/layer3/6A/s4_ip_base_6A/
   seed={seed}/
-  manifest_fingerprint={manifest_fingerprint}/
+    parameter_hash={parameter_hash}/
+    manifest_fingerprint={manifest_fingerprint}/
   s4_ip_base_6A.parquet
 ```
 
@@ -1972,7 +1974,7 @@ data/layer3/6A/s4_ip_base_6A/
 * Partition keys:
 
 ```text
-[seed, manifest_fingerprint]
+[seed, manifest_fingerprint, parameter_hash]
 ```
 
 * Path templates (schematic):
@@ -1980,12 +1982,14 @@ data/layer3/6A/s4_ip_base_6A/
 ```text
 data/layer3/6A/s4_device_links_6A/
   seed={seed}/
-  manifest_fingerprint={manifest_fingerprint}/
+    parameter_hash={parameter_hash}/
+    manifest_fingerprint={manifest_fingerprint}/
   s4_device_links_6A.parquet
 
 data/layer3/6A/s4_ip_links_6A/
   seed={seed}/
-  manifest_fingerprint={manifest_fingerprint}/
+    parameter_hash={parameter_hash}/
+    manifest_fingerprint={manifest_fingerprint}/
   s4_ip_links_6A.parquet
 ```
 
@@ -1996,20 +2000,20 @@ If implemented:
 * Partition keys:
 
 ```text
-[seed, manifest_fingerprint]
+[seed, manifest_fingerprint, parameter_hash]
 ```
 
 * Path templates:
 
 ```text
-data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
-data/layer3/6A/s4_network_summary_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
+data/layer3/6A/s4_network_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
 ```
 
 **Binding rules:**
 
-* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns in the data.
-* No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be introduced for S4 business datasets.
+* `seed={seed}`, `parameter_hash={parameter_hash}`, and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the corresponding columns in the data.
+* No additional partition keys (e.g. `scenario_id`) may be introduced for S4 business datasets.
 * Consumers MUST discover locations via the catalogue (dictionary/registry) and substitute these tokens; hard-coded paths are out-of-spec.
 
 ---
@@ -2021,34 +2025,34 @@ data/layer3/6A/s4_network_summary_6A/seed={seed}/manifest_manifest_fingerprint={
 * **Logical primary key:**
 
 ```text
-(manifest_fingerprint, seed, device_id)
+(manifest_fingerprint, parameter_hash, seed, device_id)
 ```
 
 * **Uniqueness:**
 
-  * `device_id` MUST be unique within each `(manifest_fingerprint, seed)`.
+  * `device_id` MUST be unique within each `(manifest_fingerprint, parameter_hash, seed)`.
   * No duplicate `(mf, seed, device_id)` rows.
 
 * **Parameter consistency:**
 
-  * All rows for a given `(mf, seed)` MUST share the same `parameter_hash`.
+  * All rows for a given `(mf, ph, seed)` MUST share the same `parameter_hash`.
 
 #### 7.3.2 `s4_ip_base_6A`
 
 * **Logical primary key:**
 
 ```text
-(manifest_fingerprint, seed, ip_id)
+(manifest_fingerprint, parameter_hash, seed, ip_id)
 ```
 
 * **Uniqueness:**
 
-  * `ip_id` MUST be unique within each `(mf, seed)`.
+  * `ip_id` MUST be unique within each `(mf, ph, seed)`.
   * No duplicate `(mf, seed, ip_id)` rows.
 
 * **Parameter consistency:**
 
-  * All rows for a given `(mf, seed)` MUST share the same `parameter_hash`.
+  * All rows for a given `(mf, ph, seed)` MUST share the same `parameter_hash`.
 
 #### 7.3.3 `s4_device_links_6A`
 
@@ -2057,7 +2061,7 @@ Depending on whether you implement a unified link table or split by link type, t
 * **Logical key (example):**
 
 ```text
-(manifest_fingerprint, seed,
+(manifest_fingerprint, parameter_hash, seed,
  device_id,
  party_id?, account_id?, instrument_id?, merchant_id?,
  link_role)
@@ -2065,7 +2069,7 @@ Depending on whether you implement a unified link table or split by link type, t
 
 **Invariants:**
 
-* `device_id` MUST exist in `s4_device_base_6A` for the same `(mf, seed)`.
+* `device_id` MUST exist in `s4_device_base_6A` for the same `(mf, ph, seed)`.
 * Any `party_id` MUST exist in `s1_party_base_6A`.
 * Any `account_id` MUST exist in `s2_account_base_6A`.
 * Any `instrument_id` MUST exist in `s3_instrument_base_6A`.
@@ -2081,7 +2085,7 @@ Similarly, for a unified IP link table:
 * **Logical key (example):**
 
 ```text
-(manifest_fingerprint, seed,
+(manifest_fingerprint, parameter_hash, seed,
  ip_id,
  device_id?, party_id?, merchant_id?,
  link_role)
@@ -2089,7 +2093,7 @@ Similarly, for a unified IP link table:
 
 **Invariants:**
 
-* `ip_id` MUST exist in `s4_ip_base_6A` for the same `(mf, seed)`.
+* `ip_id` MUST exist in `s4_ip_base_6A` for the same `(mf, ph, seed)`.
 * Any `device_id` referenced MUST exist in `s4_device_base_6A`.
 * Any `party_id` / `merchant_id` MUST exist upstream.
 * Sharing patterns implied by links (devices per IP, parties per IP) MUST respect IP-sharing priors and degree constraints.
@@ -2103,7 +2107,7 @@ If implemented:
   * Logical key (example):
 
     ```text
-    (manifest_fingerprint, seed, entity_type, entity_id)
+    (manifest_fingerprint, parameter_hash, seed, entity_type, entity_id)
     ```
 
   * `entity_type` enumerates the kind of entity (PARTY, ACCOUNT, INSTRUMENT, MERCHANT).
@@ -2172,30 +2176,30 @@ Canonical ordering is a *writer invariance* for determinism; it is not a busines
 
 ### 7.5 Merge discipline & lifecycle
 
-S4 behaves as **replace-not-append** at the granularity of `(manifest_fingerprint, seed)`.
+S4 behaves as **replace-not-append** at the granularity of `(manifest_fingerprint, parameter_hash, seed)`.
 
-#### 7.5.1 Replace-not-append per world+seed
+#### 7.5.1 Replace-not-append per world+seed+parameter
 
-For each `(mf, seed)`:
+For each `(mf, ph, seed)`:
 
 * `s4_device_base_6A` is **one complete device universe snapshot**.
 * `s4_ip_base_6A` is **one complete IP/endpoint universe snapshot**.
-* `s4_device_links_6A` and `s4_ip_links_6A` are **complete graph edge sets** for that world+seed.
+* `s4_device_links_6A` and `s4_ip_links_6A` are **complete graph edge sets** for that world+seed+parameter.
 * Any optional neighbourhood/summary tables are complete derived views.
 
 Behavioural rules:
 
-* Re-running S4 for the same `(mf, seed)` with the same inputs (`ph`, sealed inputs, S1/S2/S3 bases and S4 priors) MUST either:
+* Re-running S4 for the same `(mf, ph, seed)` with the same inputs (`ph`, sealed inputs, S1/S2/S3 bases and S4 priors) MUST either:
 
   * produce **byte-identical** outputs for all S4 datasets, or
   * fail with `6A.S4.OUTPUT_CONFLICT` (or equivalent) and leave existing outputs untouched.
 
 * S4 MUST NOT:
 
-  * append “more devices/IPs” to an existing `(mf, seed)` universe,
-  * merge two independently computed S4 outputs for the same `(mf, seed)`.
+  * append “more devices/IPs” to an existing `(mf, ph, seed)` universe,
+  * merge two independently computed S4 outputs for the same `(mf, ph, seed)`.
 
-Any attempt to “top up” or partially re-run S4 for a world+seed is out-of-spec unless you explicitly design and version a new S4 mode to support that.
+Any attempt to “top up” or partially re-run S4 for a world+seed+parameter is out-of-spec unless you explicitly design and version a new S4 mode to support that.
 
 #### 7.5.2 No cross-world / cross-seed merges
 
@@ -2207,7 +2211,7 @@ Any attempt to “top up” or partially re-run S4 for a world+seed is out-of-sp
 * **No cross-seed merges within a world:**
 
   * Different `seed`s under the same `mf` correspond to different universes.
-  * S4 (and downstream modelling) must treat each `(mf, seed)` as a self-contained graph.
+  * S4 (and downstream modelling) must treat each `(mf, ph, seed)` as a self-contained graph.
   * Cross-seed analysis is allowed for QA, but not as a basis for building flows/fraud logic that assumes a single universe.
 
 ---
@@ -2218,9 +2222,9 @@ Downstream states **must** respect S4’s identity and merge discipline.
 
 #### 7.6.1 6A.S5 (fraud posture)
 
-For each `(mf, seed)` it operates on, S5 MUST:
+For each `(mf, ph, seed)` it operates on, S5 MUST:
 
-* Verify S0–S3 gates as per its own spec, **and** S4 PASS for `(mf, seed)` via S4’s run-report (`status="PASS"`, `error_code` empty).
+* Verify S0–S3 gates as per its own spec, **and** S4 PASS for `(mf, ph, seed)` via S4’s run-report (`status="PASS"`, `error_code` empty).
 * Confirm that:
 
   * `s4_device_base_6A` exists and is schema-valid,
@@ -2239,9 +2243,9 @@ Any fraud posture surfaces it creates must **reference** S4’s graph and treat 
 
 6B MUST:
 
-* treat `s4_device_base_6A` and `s4_ip_base_6A` as the **only** lists of devices/IPs for that `(mf, seed)`,
-* attach flows/sessions/transactions to `device_id`/`ip_id` only if those IDs exist in S4 for the same `(mf, seed)`,
-* treat any `device_id`/`ip_id` not present in S4 for `(mf, seed)` as an error (not as an “external” or “unknown” entity).
+* treat `s4_device_base_6A` and `s4_ip_base_6A` as the **only** lists of devices/IPs for that `(mf, ph, seed)`,
+* attach flows/sessions/transactions to `device_id`/`ip_id` only if those IDs exist in S4 for the same `(mf, ph, seed)`,
+* treat any `device_id`/`ip_id` not present in S4 for `(mf, ph, seed)` as an error (not as an “external” or “unknown” entity).
 
 6B is free to:
 
@@ -2262,15 +2266,15 @@ Storage format, execution strategy and data structures are implementation detail
 
 ## 8. Acceptance criteria & gating obligations *(Binding)*
 
-This section defines **when 6A.S4 is considered PASS** for a given `(manifest_fingerprint, seed)` and how **downstream states (S5, 6B)** must gate on S4 before using any device/IP/graph data.
+This section defines **when 6A.S4 is considered PASS** for a given `(manifest_fingerprint, parameter_hash, seed)` and how **downstream states (S5, 6B)** must gate on S4 before using any device/IP/graph data.
 
-If any condition here fails, S4 is **FAIL for that `(mf, seed)`**, and **no later 6A state nor 6B may treat S4 outputs as valid**.
+If any condition here fails, S4 is **FAIL for that `(mf, ph, seed)`**, and **no later 6A state nor 6B may treat S4 outputs as valid**.
 
 ---
 
 ### 8.1 Segment-local PASS / FAIL definition
 
-For a given `(manifest_fingerprint, seed)`, 6A.S4 is **PASS** *iff* **all** of the following hold.
+For a given `(manifest_fingerprint, parameter_hash, seed)`, 6A.S4 is **PASS** *iff* **all** of the following hold.
 
 #### 8.1.1 S0–S3 & upstream worlds are sealed
 
@@ -2297,22 +2301,22 @@ For a given `(manifest_fingerprint, seed)`, 6A.S4 is **PASS** *iff* **all** of t
      gate_status == "PASS"
      ```
 
-3. **S1 sealed for this `(mf, seed)`**
+3. **S1 sealed for this `(mf, ph, seed)`**
 
-   * Latest 6A.S1 run-report for `(mf, seed)` has `status="PASS"` and empty `error_code`.
-   * `s1_party_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists, validates against `#/s1/party_base`, and `COUNT(*)` equals `total_parties` reported by S1.
+   * Latest 6A.S1 run-report for `(mf, ph, seed)` has `status="PASS"` and empty `error_code`.
+   * `s1_party_base_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` exists, validates against `#/s1/party_base`, and `COUNT(*)` equals `total_parties` reported by S1.
 
-4. **S2 sealed for this `(mf, seed)`**
+4. **S2 sealed for this `(mf, ph, seed)`**
 
-   * Latest 6A.S2 run-report for `(mf, seed)` has `status="PASS"` and empty `error_code`.
-   * `s2_account_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists, validates against `#/s2/account_base`, and `COUNT(*)` equals `total_accounts` reported by S2.
+   * Latest 6A.S2 run-report for `(mf, ph, seed)` has `status="PASS"` and empty `error_code`.
+   * `s2_account_base_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` exists, validates against `#/s2/account_base`, and `COUNT(*)` equals `total_accounts` reported by S2.
 
-5. **S3 sealed for this `(mf, seed)`**
+5. **S3 sealed for this `(mf, ph, seed)`**
 
-   * Latest 6A.S3 run-report for `(mf, seed)` has `status="PASS"` and empty `error_code`.
-   * `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` exist, validate against their schemas, and counts are consistent with S3 run-report metrics (e.g. `total_instruments`).
+   * Latest 6A.S3 run-report for `(mf, ph, seed)` has `status="PASS"` and empty `error_code`.
+   * `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` exist, validate against their schemas, and counts are consistent with S3 run-report metrics (e.g. `total_instruments`).
 
-If any of 1–5 fail, S4 MUST NOT create devices/IPs for that `(mf, seed)` and MUST fail with `6A.S4.S0_S1_S2_S3_GATE_FAILED` (or equivalent).
+If any of 1–5 fail, S4 MUST NOT create devices/IPs for that `(mf, ph, seed)` and MUST fail with `6A.S4.S0_S1_S2_S3_GATE_FAILED` (or equivalent).
 
 ---
 
@@ -2423,11 +2427,11 @@ as appropriate.
 
 11. **Device base exists and is schema-valid**
 
-* `s4_device_base_6A` partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s4_device_base_6A` partition for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s4/device_base`,
-  * has a unique PK `(manifest_fingerprint, seed, device_id)`.
+  * has a unique PK `(manifest_fingerprint, parameter_hash, seed, device_id)`.
 
 * All rows in that partition:
 
@@ -2436,11 +2440,11 @@ as appropriate.
 
 12. **IP base exists and is schema-valid**
 
-* `s4_ip_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s4_ip_base_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s4/ip_base`,
-  * has a unique PK `(manifest_fingerprint, seed, ip_id)`.
+  * has a unique PK `(manifest_fingerprint, parameter_hash, seed, ip_id)`.
 
 * All rows:
 
@@ -2487,7 +2491,7 @@ Violations MUST surface as `6A.S4.TAXONOMY_COMPATIBILITY_FAILED`.
 
 * For every row:
 
-  * `device_id` exists in `s4_device_base_6A` for `(mf, seed)`,
+  * `device_id` exists in `s4_device_base_6A` for `(mf, ph, seed)`,
   * any `party_id` exists in `s1_party_base_6A`,
   * any `account_id` exists in `s2_account_base_6A`,
   * any `instrument_id` exists in `s3_instrument_base_6A`,
@@ -2550,7 +2554,7 @@ Any inconsistency here must be treated as `6A.S4.GRAPH_COUNTS_MISMATCH` or a mor
   * total draws and blocks,
   * no overlapping or out-of-order Philox counter ranges.
 
-* Any configured RNG budgets (max draws per family per `(mf, seed)`) are respected.
+* Any configured RNG budgets (max draws per family per `(mf, ph, seed)`) are respected.
 
 If these checks fail, S4 MUST fail with `6A.S4.RNG_ACCOUNTING_MISMATCH` or `6A.S4.RNG_STREAM_CONFIG_INVALID`.
 
@@ -2560,11 +2564,11 @@ If these checks fail, S4 MUST fail with `6A.S4.RNG_ACCOUNTING_MISMATCH` or `6A.S
 
 S5 (fraud posture / role assignment) MUST treat S4 as a **hard precondition** for any device/IP-based labelling or feature derivation.
 
-For each `(mf, seed)`:
+For each `(mf, ph, seed)`:
 
 1. S5 MUST confirm (via run-reports) that S0–S3 and S4 are PASS:
 
-   * in particular, the latest S4 run-report for `(mf, seed)` has:
+   * in particular, the latest S4 run-report for `(mf, ph, seed)` has:
 
      ```text
      status     == "PASS"
@@ -2578,7 +2582,7 @@ For each `(mf, seed)`:
 
 If any of these checks fails, S5 MUST NOT:
 
-* read or rely on S4 device/IP/graph data for that `(mf, seed)`,
+* read or rely on S4 device/IP/graph data for that `(mf, ph, seed)`,
 * produce fraud roles or risk signals that refer to non-existent or uncertified devices/IPs.
 
 Instead, it MUST fail its own gate with a state-local error (e.g. `6A.S5.S4_GATE_FAILED`).
@@ -2589,17 +2593,17 @@ Instead, it MUST fail its own gate with a state-local error (e.g. `6A.S5.S4_GATE
 
 6B and any external consumer that uses device/IP/graph information MUST:
 
-1. Require S4 PASS for each `(mf, seed)` they operate on:
+1. Require S4 PASS for each `(mf, ph, seed)` they operate on:
 
    * via S4’s run-report `status="PASS"` and empty `error_code`.
 
 2. Treat S4’s base/link datasets as **authoritative**:
 
-   * the only sources of `device_id` and `ip_id` for that `(mf, seed)`,
+   * the only sources of `device_id` and `ip_id` for that `(mf, ph, seed)`,
    * the only description of static device/IP attributes,
    * the only description of static device/IP→entity edges.
 
-3. Treat any `device_id` or `ip_id` not found in S4 for `(mf, seed)` as an **error**, not as an “external” or “unknown” entity, unless explicitly supported by a separate, versioned extension.
+3. Treat any `device_id` or `ip_id` not found in S4 for `(mf, ph, seed)` as an **error**, not as an “external” or “unknown” entity, unless explicitly supported by a separate, versioned extension.
 
 6B may build sessions/flows/transactions on top of S4’s graph and compute dynamic graph features, but it MUST NOT:
 
@@ -2610,10 +2614,10 @@ Instead, it MUST fail its own gate with a state-local error (e.g. `6A.S5.S4_GATE
 
 ### 8.4 Behaviour on failure & partial outputs
 
-If S4 fails for a given `(manifest_fingerprint, seed)`:
+If S4 fails for a given `(manifest_fingerprint, parameter_hash, seed)`:
 
 * Any partially written S4 datasets (`s4_device_base_6A`, `s4_ip_base_6A`, link tables, optional neighbourhood/summary) MUST NOT be treated as valid.
-* Downstream states (S5, 6B) MUST treat that world+seed as **having no S4 graph** and MUST NOT proceed.
+* Downstream states (S5, 6B) MUST treat that world+seed+parameter as **having no S4 graph** and MUST NOT proceed.
 
 S4’s run-report MUST be updated with:
 
@@ -2623,8 +2627,8 @@ S4’s run-report MUST be updated with:
 
 The only valid states are:
 
-* **S4 PASS →** S5 and 6B may operate on device/IP/graph data for that `(mf, seed)`.
-* **S4 FAIL →** S5 and 6B MUST NOT operate on device/IP/graph data for that `(mf, seed)` until S4 is re-run and PASS.
+* **S4 PASS →** S5 and 6B may operate on device/IP/graph data for that `(mf, ph, seed)`.
+* **S4 FAIL →** S5 and 6B MUST NOT operate on device/IP/graph data for that `(mf, ph, seed)` until S4 is re-run and PASS.
 
 These acceptance criteria and gating obligations are **binding** and define exactly what it means for S4 to be “done and safe to build on” within Layer-3 and for the enterprise shell.
 
@@ -2634,14 +2638,14 @@ These acceptance criteria and gating obligations are **binding** and define exac
 
 This section defines the **canonical error surface** for 6A.S4.
 
-Every failure for a given `(manifest_fingerprint, seed)` **must** be mapped to exactly one of these codes.
+Every failure for a given `(manifest_fingerprint, parameter_hash, seed)` **must** be mapped to exactly one of these codes.
 
 All codes here are:
 
-* **Fatal** for S4 for that `(manifest_fingerprint, seed)`.
-* **Blocking** for S5 and 6B for that `(manifest_fingerprint, seed)`.
+* **Fatal** for S4 for that `(manifest_fingerprint, parameter_hash, seed)`.
+* **Blocking** for S5 and 6B for that `(manifest_fingerprint, parameter_hash, seed)`.
 
-There is no “best effort” downgrade. If S4 fails, the device/IP graph for that world+seed is **not usable**.
+There is no “best effort” downgrade. If S4 fails, the device/IP graph for that world+seed+parameter is **not usable**.
 
 ---
 
@@ -2667,14 +2671,14 @@ Each class has a small, closed set of codes in the `6A.S4.*` namespace.
 These mean S4 cannot trust the world-level gate, the sealed input universe, or the upstream 6A bases.
 
 * `6A.S4.S0_S1_S2_S3_GATE_FAILED`
-  *Meaning:* At least one of the following holds for the `(mf, seed)` S4 is asked to process:
+  *Meaning:* At least one of the following holds for the `(mf, ph, seed)` S4 is asked to process:
 
   * S0 is missing or not PASS for this `manifest_fingerprint`, or
   * recomputed `sealed_inputs_digest_6A` does not match `s0_gate_receipt_6A.sealed_inputs_digest_6A`, or
   * one or more required upstream segments `{1A,1B,2A,2B,3A,3B,5A,5B}` have `gate_status != "PASS"` in `upstream_gates`, or
-  * S1 is missing or not PASS for this `(mf, seed)`, or
-  * S2 is missing or not PASS for this `(mf, seed)`, or
-  * S3 is missing or not PASS for this `(mf, seed)`.
+  * S1 is missing or not PASS for this `(mf, ph, seed)`, or
+  * S2 is missing or not PASS for this `(mf, ph, seed)`, or
+  * S3 is missing or not PASS for this `(mf, ph, seed)`.
 
 * `6A.S4.SEALED_INPUTS_MISSING_REQUIRED`
   *Meaning:* One or more artefacts that S4 considers **required** (device/IP priors, taxonomies, graph/linkage configs) do not appear as rows in `sealed_inputs_6A` for this `manifest_fingerprint`.
@@ -2760,13 +2764,13 @@ These mean that the **materialised S4 datasets** are inconsistent with the plan,
   *Meaning:* `s4_device_base_6A` exists but:
 
   * fails validation against `schemas.6A.yaml#/s4/device_base`, and/or
-  * violates PK/uniqueness `(manifest_fingerprint, seed, device_id)`.
+  * violates PK/uniqueness `(manifest_fingerprint, parameter_hash, seed, device_id)`.
 
 * `6A.S4.IP_BASE_SCHEMA_OR_KEY_INVALID`
   *Meaning:* `s4_ip_base_6A` exists but:
 
   * fails validation against `schemas.6A.yaml#/s4/ip_base`, and/or
-  * violates PK/uniqueness `(manifest_fingerprint, seed, ip_id)`.
+  * violates PK/uniqueness `(manifest_fingerprint, parameter_hash, seed, ip_id)`.
 
 * `6A.S4.GRAPH_COUNTS_MISMATCH`
   *Meaning:* Aggregate counts in S4 bases and/or link tables do not match the realised integer plans, e.g.:
@@ -2851,12 +2855,12 @@ These indicate storage issues, identity conflicts, or unexpected internal failur
   *Meaning:* S4 attempted to write one or more of its outputs (`s4_device_base_6A`, `s4_ip_base_6A`, link tables, neighbourhood/summary) and the write did not complete atomically/durably.
 
 * `6A.S4.OUTPUT_CONFLICT`
-  *Meaning:* For a given `(mf, seed)`, S4 outputs already exist and are **not** byte-identical to what S4 would produce from the current inputs. Under the replace-not-append law, S4 is not allowed to overwrite; this is treated as a conflict.
+  *Meaning:* For a given `(mf, ph, seed)`, S4 outputs already exist and are **not** byte-identical to what S4 would produce from the current inputs. Under the replace-not-append law, S4 is not allowed to overwrite; this is treated as a conflict.
 
 * `6A.S4.INTERNAL_ERROR`
   *Meaning:* A non-classified internal error occurred (e.g. assertion failure, unhandled exception) that cannot be mapped cleanly to any of the more specific codes above. This should be treated as a bug in the implementation rather than a normal operational condition.
 
-These all mean: **“This S4 run is structurally broken; its outputs must not be used for this world+seed.”**
+These all mean: **“This S4 run is structurally broken; its outputs must not be used for this world+seed+parameter.”**
 
 ---
 
@@ -2884,7 +2888,7 @@ If a situation cannot be cleanly mapped to a more specific code, `6A.S4.INTERNAL
 
 ### 9.4 Run-report integration & propagation
 
-On each S4 run for `(manifest_fingerprint, seed)`, the S4 run-report record **must** include:
+On each S4 run for `(manifest_fingerprint, parameter_hash, seed)`, the S4 run-report record **must** include:
 
 * `state_id = "6A.S4"`,
 * `manifest_fingerprint`, `parameter_hash`, `seed`,
@@ -2894,9 +2898,9 @@ On each S4 run for `(manifest_fingerprint, seed)`, the S4 run-report record **mu
 
 Downstream S5 and 6B MUST:
 
-* consult S4’s run-report for `(mf, seed)`,
+* consult S4’s run-report for `(mf, ph, seed)`,
 * treat any `status != "PASS"` or non-empty `error_code` as “S4 gate failed”,
-* refuse to use S4 outputs for that world+seed in that case.
+* refuse to use S4 outputs for that world+seed+parameter in that case.
 
 The `6A.S4.*` codes in this section are the **primary machine-readable signal** of S4’s failure modes; logs and stack traces are diagnostic only and are not part of the formal contract.
 
@@ -2918,7 +2922,7 @@ This section fixes:
 
 ### 10.1 Run-report record for 6A.S4
 
-For every attempted S4 run on a `(manifest_fingerprint, seed)`, the engine **MUST** emit exactly one run-report record with at least:
+For every attempted S4 run on a `(manifest_fingerprint, parameter_hash, seed)`, the engine **MUST** emit exactly one run-report record with at least:
 
 #### Identity
 
@@ -2953,8 +2957,8 @@ For a PASS run, at minimum:
 
 * **Universe sizes**
 
-  * `total_devices` — `COUNT(*)` over `s4_device_base_6A` for `(mf, seed)`.
-  * `total_ips` — `COUNT(*)` over `s4_ip_base_6A` for `(mf, seed)`.
+  * `total_devices` — `COUNT(*)` over `s4_device_base_6A` for `(mf, ph, seed)`.
+  * `total_ips` — `COUNT(*)` over `s4_ip_base_6A` for `(mf, ph, seed)`.
 
 * **Device splits**
 
@@ -3008,7 +3012,7 @@ These **must** reconcile with the RNG envelope/trace logs (see §8.1.6).
 
 ### 10.2 PASS vs FAIL semantics
 
-For a **PASS** S4 run on `(mf, seed)`:
+For a **PASS** S4 run on `(mf, ph, seed)`:
 
 * `status == "PASS"`
 * `error_code` is empty or null.
@@ -3036,14 +3040,14 @@ S4 MUST NOT report `status="PASS"` unless:
 
 ### 10.3 Relationship between run-report and S4 datasets
 
-For a **PASS** S4 run on `(mf, seed)`:
+For a **PASS** S4 run on `(mf, ph, seed)`:
 
 * The following partitions MUST exist and be schema-valid:
 
-  * `s4_device_base_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
-  * `s4_ip_base_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
-  * `s4_device_links_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
-  * `s4_ip_links_6A` at `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+  * `s4_device_base_6A` at `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
+  * `s4_ip_base_6A` at `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
+  * `s4_device_links_6A` at `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
+  * `s4_ip_links_6A` at `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
   * any implemented optional views (`s4_entity_neighbourhoods_6A`, `s4_network_summary_6A`).
 
 * The run-report’s **binding metrics** MUST agree with queries over these datasets:
@@ -3062,7 +3066,7 @@ If any of these basic reconciliations fails, S4 is not truly PASS and this is a 
 
 For a **FAIL** run:
 
-* S4 datasets (if present) MUST NOT be treated as valid for that `(mf, seed)`.
+* S4 datasets (if present) MUST NOT be treated as valid for that `(mf, ph, seed)`.
 * Orchestration may delete/quarantine them, but downstream gating MUST be based on run-report `status` & `error_code`, not on file presence.
 
 ---
@@ -3076,9 +3080,9 @@ All downstream states that depend on S4 — i.e.:
 
 **MUST** incorporate S4’s run-report into their gates.
 
-Before using S4 outputs for `(mf, seed)`, a downstream state MUST:
+Before using S4 outputs for `(mf, ph, seed)`, a downstream state MUST:
 
-1. Locate the **latest** 6A.S4 run-report record for that `(mf, seed)`.
+1. Locate the **latest** 6A.S4 run-report record for that `(mf, ph, seed)`.
 
 2. Require:
 
@@ -3095,7 +3099,7 @@ Before using S4 outputs for `(mf, seed)`, a downstream state MUST:
 
 If any of these checks fails, the downstream state MUST:
 
-* treat S4 as **not available** for that `(mf, seed)`, and
+* treat S4 as **not available** for that `(mf, ph, seed)`, and
 * fail its own gate with an appropriate state-local error (e.g. `6A.S5.S4_GATE_FAILED`, `6B.S0.S4_GATE_FAILED`).
 
 No downstream state may proceed on “partial” S4 outputs or on an S4 run that is not explicitly PASS.
@@ -3114,7 +3118,7 @@ While not binding for correctness, implementations **should** also provide:
 
 * INFO-level logs per S4 run summarising:
 
-  * `(manifest_fingerprint, seed, parameter_hash)`,
+  * `(manifest_fingerprint, parameter_hash, seed)`,
   * `status`, `error_code`,
   * `total_devices`, `total_ips`,
   * high-level splits (devices_by_type, ips_by_type, degree summaries).
@@ -3157,7 +3161,7 @@ These observability and run-report integration rules are **binding** for S4’s 
 
 ## 11. Performance & scalability *(Informative)*
 
-6A.S4 is the heaviest *graph* state in Layer-3: it can create **millions of devices**, **millions of IPs**, and **tens of millions of edges** per `(manifest_fingerprint, seed)` depending on how aggressive your priors are.
+6A.S4 is the heaviest *graph* state in Layer-3: it can create **millions of devices**, **millions of IPs**, and **tens of millions of edges** per `(manifest_fingerprint, parameter_hash, seed)` depending on how aggressive your priors are.
 
 This section is **non-binding** — it describes expected scaling, not behaviour. The binding bits are in §§1–10 & 12.
 
@@ -3165,7 +3169,7 @@ This section is **non-binding** — it describes expected scaling, not behaviour
 
 ### 11.1 Complexity profile
 
-For a given `(manifest_fingerprint, seed)`, define:
+For a given `(manifest_fingerprint, parameter_hash, seed)`, define:
 
 * `P` — number of parties in `s1_party_base_6A`.
 * `A` — number of accounts in `s2_account_base_6A`.
@@ -3241,7 +3245,7 @@ S4 is naturally parallelisable across several axes:
 
 1. **Across seeds**
 
-   * Each `(mf, seed)` is a hermetic universe; runs for different seeds can be fully parallel.
+   * Each `(mf, ph, seed)` is a hermetic universe; runs for different seeds can be fully parallel.
    * This is the primary horizontal sharding axis.
 
 2. **Across planning cells within a seed**
@@ -3335,7 +3339,7 @@ Guidance:
 
 * Design RNG events so they are coarse enough for performance (e.g. per cell or per `(cell, attribute_family)`), but fine-grained enough to give meaningful auditability.
 
-RNG budgets (max draws/events per family per `(mf, seed)`) should be tuned based on expected `D`, `I_ip`, `E_dev`, `E_ip`.
+RNG budgets (max draws/events per family per `(mf, ph, seed)`) should be tuned based on expected `D`, `I_ip`, `E_dev`, `E_ip`.
 
 ---
 
@@ -3365,7 +3369,7 @@ To keep S4 manageable across dev/CI/staging/prod, you can expose **non-semantic 
 
 * **Global safety caps**
 
-  * maximum allowed `D`, `I_ip`, `E_dev`, `E_ip` per `(mf, seed)`.
+  * maximum allowed `D`, `I_ip`, `E_dev`, `E_ip` per `(mf, ph, seed)`.
   * if integerised totals exceed caps (e.g. due to misconfigured priors), S4 fails early.
 
 * **Sharding hints**
@@ -3437,7 +3441,7 @@ Catalogue versions:
 * `dataset_dictionary.layer3.6A.yaml` entries for S4 datasets.
 * `artefact_registry_6A.yaml` entries with `produced_by: 6A.S4` and S4 priors/taxonomies/config.
 
-S4’s run-report **must** carry enough information (e.g. `spec_version_6A`, optional `spec_version_6A_S4`) for consumers to know **which S4 spec version** produced the graph for a given `(manifest_fingerprint, seed)`.
+S4’s run-report **must** carry enough information (e.g. `spec_version_6A`, optional `spec_version_6A_S4`) for consumers to know **which S4 spec version** produced the graph for a given `(manifest_fingerprint, parameter_hash, seed)`.
 
 ---
 
@@ -3538,7 +3542,7 @@ These changes can be made **compatible with care**, but require:
      * lower allowed parties per residential IP,
      * new disallowed `(device_type, segment_id)` or `(ip_type, asn_class)` combinations.
 
-   * This can change which `(mf, seed)` worlds are valid and may increase S4 FAILs if priors/worlds aren’t adjusted accordingly.
+   * This can change which `(mf, ph, seed)` worlds are valid and may increase S4 FAILs if priors/worlds aren’t adjusted accordingly.
 
 3. **New S4 outputs considered “required”**
 
@@ -3576,7 +3580,7 @@ The following are **breaking changes** and MUST NOT be introduced without:
 
    * Changing partitioning:
 
-     * altering `[seed, manifest_fingerprint]` to something else,
+     * altering `[seed, manifest_fingerprint, parameter_hash]` to something else,
      * adding `scenario_id` as a partition key (moving from scenario-independent to scenario-dependent devices/IPs),
      * or removing `seed` from partitioning.
 
@@ -3629,7 +3633,7 @@ Downstream S5 and 6B have explicit obligations:
    * Each state MUST declare a **minimum supported S4 spec version** (or version range), and:
 
      * inspect S4’s run-report,
-     * fail fast if the S4 spec version for `(mf, seed)` is older than this minimum,
+     * fail fast if the S4 spec version for `(mf, ph, seed)` is older than this minimum,
      * optionally reject or run in “legacy mode” for newer versions it does not yet understand.
 
 2. **Graceful handling of unknown fields/enums**
@@ -3644,7 +3648,7 @@ Downstream S5 and 6B have explicit obligations:
    * S5/6B MUST:
 
      * resolve S4 datasets via dictionary/registry and `schema_ref`,
-     * NOT assume fixed file names beyond templated `{seed, fingerprint}`,
+     * NOT assume fixed file names beyond templated `{seed, manifest_fingerprint, parameter_hash}`,
      * NOT assume particular physical shard layouts beyond what is declared in the dictionary.
 
 4. **No redefinition of S4 semantics**
@@ -3670,11 +3674,11 @@ When a **breaking** S4 change is introduced:
 
 Deployments that need to support multiple S4 versions concurrently can:
 
-* route different `(mf, seed)` universes to different downstream pipelines based on the S4 spec version,
+* route different `(mf, ph, seed)` universes to different downstream pipelines based on the S4 spec version,
 * run S5/6B in dual-mode for a time (supporting both old/new S4) if necessary,
 * restrict some downstream features to worlds with a minimum S4 spec version.
 
-A single `(manifest_fingerprint, seed)` MUST be internally consistent with **one** S4 spec version; mixing outputs from different S4 versions into one logical graph is not allowed.
+A single `(manifest_fingerprint, parameter_hash, seed)` MUST be internally consistent with **one** S4 spec version; mixing outputs from different S4 versions into one logical graph is not allowed.
 
 ---
 
@@ -3709,7 +3713,7 @@ If anything here appears to contradict §§1–12 or the JSON-Schemas, the bindi
 
 * **`ph`**
   Shorthand for **`parameter_hash`**.
-  Identifies the parameter / prior pack set (including S4 device/IP priors, taxonomies, graph/linkage configs). Must be consistent across all S4 outputs for a given `(mf, seed)`.
+  Identifies the parameter / prior pack set (including S4 device/IP priors, taxonomies, graph/linkage configs). Must be consistent across all S4 outputs for a given `(mf, ph, seed)`.
 
 * **`seed`**
   RNG identity for S4 (and Layer-3 more broadly).
@@ -3717,15 +3721,15 @@ If anything here appears to contradict §§1–12 or the JSON-Schemas, the bindi
 
 * **`party_id`**
   Identifier for a party/customer, defined by S1.
-  Unique within `(mf, seed)`; S4 treats `(mf, seed, party_id)` as FK into `s1_party_base_6A`.
+  Unique within `(mf, ph, seed)`; S4 treats `(mf, seed, party_id)` as FK into `s1_party_base_6A`.
 
 * **`account_id`**
   Identifier for an account/product, defined by S2.
-  Unique within `(mf, seed)`; S4 treats `(mf, seed, account_id)` as FK into `s2_account_base_6A`.
+  Unique within `(mf, ph, seed)`; S4 treats `(mf, seed, account_id)` as FK into `s2_account_base_6A`.
 
 * **`instrument_id`**
   Identifier for an instrument/credential, defined by S3.
-  Unique within `(mf, seed)`; S4 treats `(mf, seed, instrument_id)` as FK into `s3_instrument_base_6A`.
+  Unique within `(mf, ph, seed)`; S4 treats `(mf, seed, instrument_id)` as FK into `s3_instrument_base_6A`.
 
 * **`device_id`**
   Identifier for a device, created by S4.
@@ -3739,7 +3743,7 @@ If anything here appears to contradict §§1–12 or the JSON-Schemas, the bindi
 
 ### 13.2 Counts, sets & graph notation
 
-High-level counts (per `(mf, seed)`):
+High-level counts (per `(mf, ph, seed)`):
 
 * **`P`** — number of parties:
   `P = COUNT(*) in s1_party_base_6A`.
@@ -3829,7 +3833,7 @@ Key quantities:
 * **Realised counts:**
 
   * `N_device(c_dev, device_type)` — integer number of devices in cell `(c_dev, device_type)` after integerisation.
-  * `N_dev_world_int = Σ_{c_dev,type} N_device(c_dev, type)` — total devices for `(mf, seed)`.
+  * `N_dev_world_int = Σ_{c_dev,type} N_device(c_dev, type)` — total devices for `(mf, ph, seed)`.
 
 #### 13.3.2 IP planning cells
 
@@ -3850,7 +3854,7 @@ Key quantities:
 
 * **`N_ip(c_ip)`** — realised integer number of IPs/endpoints in `c_ip`.
 
-* **`N_ip_world_int = Σ_{c_ip} N_ip(c_ip)`** — total IPs for `(mf, seed)`.
+* **`N_ip_world_int = Σ_{c_ip} N_ip(c_ip)`** — total IPs for `(mf, ph, seed)`.
 
 * IP-sharing priors:
 
@@ -3998,10 +4002,10 @@ Each event records:
   Shorthand for “all artefacts tied to a single `manifest_fingerprint`”.
 
 * **“Device universe”**
-  The set of all `device_id` rows in `s4_device_base_6A` for `(mf, seed)`.
+  The set of all `device_id` rows in `s4_device_base_6A` for `(mf, ph, seed)`.
 
 * **“IP universe”**
-  The set of all `ip_id` rows in `s4_ip_base_6A` for `(mf, seed)`.
+  The set of all `ip_id` rows in `s4_ip_base_6A` for `(mf, ph, seed)`.
 
 * **“Graph” / “device/IP graph”**
   The combined structure defined by S4’s base and link datasets:

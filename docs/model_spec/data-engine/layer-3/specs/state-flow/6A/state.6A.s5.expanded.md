@@ -72,7 +72,7 @@ S5 is also the **closing gate** for 6A. Its second core purpose is to:
 
   * build `validation_bundle_index_6A` listing bundle members and their SHA-256 digests under a canonical law,
   * compute a final `bundle_digest_sha256` over indexed evidence,
-  * emit **`validation_passed_flag_6A`** (the `_passed.flag` artefact) as a fingerprint-scoped object carrying this digest.
+  * emit **`validation_passed_flag_6A`** (the `_passed.flag` artefact) as a manifest_fingerprint-scoped object carrying this digest.
 
 Downstream (6B, enterprise ingestion, any consumers of the fake bank) must treat:
 
@@ -224,20 +224,20 @@ If any of these checks fails, S5 MUST NOT attempt to assign fraud roles or build
 
 ### 2.3 6A.S1–S4 preconditions (party, account, instrument, device/IP bases)
 
-S5 sits on top of the entire 6A modelling stack. For each `(manifest_fingerprint, seed)` it will serve, S5 MUST ensure that **all** upstream 6A states are PASS and that their bases are present and valid.
+S5 sits on top of the entire 6A modelling stack. For each `(manifest_fingerprint, parameter_hash, seed)` it will serve, S5 MUST ensure that **all** upstream 6A states are PASS and that their bases are present and valid.
 
-For the target `(mf, seed)`:
+For the target `(mf, ph, seed)`:
 
 1. **S1 (party base)**
 
-   * Latest 6A.S1 run-report for `(mf, seed)` has:
+   * Latest 6A.S1 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s1_party_base_6A` partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s1_party_base_6A` partition for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exists,
   * validates against `schemas.6A.yaml#/s1/party_base`,
@@ -245,14 +245,14 @@ error_code == "" or null
 
 2. **S2 (account & holdings base)**
 
-   * Latest 6A.S2 run-report for `(mf, seed)` has:
+   * Latest 6A.S2 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exist,
   * validate against `#/s2/account_base` and `#/s2/party_product_holdings`,
@@ -260,14 +260,14 @@ error_code == "" or null
 
 3. **S3 (instrument & account-instrument links)**
 
-   * Latest 6A.S3 run-report for `(mf, seed)` has:
+   * Latest 6A.S3 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s3_instrument_base_6A` and `s3_account_instrument_links_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exist,
   * validate against their schema anchors,
@@ -275,20 +275,20 @@ error_code == "" or null
 
 4. **S4 (device/IP base & graph links)**
 
-   * Latest 6A.S4 run-report for `(mf, seed)` has:
+   * Latest 6A.S4 run-report for `(mf, ph, seed)` has:
 
 ```text
 status     == "PASS"
 error_code == "" or null
 ```
 
-* `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+* `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
   * exist,
   * validate against their schema anchors,
   * are consistent with S4 run-report metrics (e.g. `total_devices`, `total_ips`, degree summaries).
 
-If any of S1–S4 is missing or not PASS for `(mf, seed)`, S5 MUST fail with `6A.S5.S0_S1_S2_S3_S4_GATE_FAILED` (or equivalent) and MUST NOT assign fraud roles or emit a 6A HashGate for that world+seed.
+If any of S1–S4 is missing or not PASS for `(mf, ph, seed)`, S5 MUST fail with `6A.S5.S0_S1_S2_S3_S4_GATE_FAILED` (or equivalent) and MUST NOT assign fraud roles or emit a 6A HashGate for that world+seed+parameter.
 
 ---
 
@@ -393,13 +393,13 @@ Such artefacts MUST have appropriate `role` tags and `read_scope`, and their abs
 
 ---
 
-### 2.5 Axes of operation: world vs world+seed
+### 2.5 Axes of operation: world vs world+seed+parameter
 
 S5’s work naturally splits into:
 
 * **Per-seed artefacts** — fraud-role surfaces:
 
-  * each `(manifest_fingerprint, seed)` has its own:
+  * each `(manifest_fingerprint, parameter_hash, seed)` has its own:
 
     * `s5_party_fraud_roles_6A`,
     * `s5_account_fraud_roles_6A`,
@@ -407,11 +407,11 @@ S5’s work naturally splits into:
     * `s5_device_fraud_roles_6A`,
     * `s5_ip_fraud_roles_6A` (where those are in scope),
 
-  because fraud posture is defined over each specific universe `(mf, seed)`.
+  because fraud posture is defined over each specific universe `(mf, ph, seed)`.
 
 * **Per-world artefacts** — validation bundle & HashGate:
 
-  * `validation_bundle_6A` and `_passed.flag` are **fingerprint-scoped**, not seed-scoped:
+  * `validation_bundle_6A` and `_passed.flag` are **manifest_fingerprint-scoped**, not seed-scoped:
 
     * they summarise validation across all seeds and entity types for a given `mf`,
     * they tell 6B “this world as a whole is sealed”.
@@ -423,7 +423,7 @@ Preconditions per axis:
   * S0 MUST be PASS,
   * all upstream HashGates MUST be PASS.
 
-* For each `(mf, seed)` S5 labels:
+* For each `(mf, ph, seed)` S5 labels:
 
   * S1–S4 MUST be PASS,
   * S5’s role-assignment logic operates on that universe only.
@@ -461,7 +461,7 @@ so that 6B and any other consumers can trust that S5:
 S5 **must only** consume artefacts that:
 
 * appear in `sealed_inputs_6A` for its `manifest_fingerprint` with `status ∈ {"REQUIRED","OPTIONAL"}`, and appropriate `read_scope`, **plus**
-* the S1–S4 bases and links for the relevant `(manifest_fingerprint, seed)`.
+* the S1–S4 bases and links for the relevant `(manifest_fingerprint, parameter_hash, seed)`.
 
 Everything else is out of bounds.
 
@@ -498,7 +498,7 @@ These are mandatory and **read-only** for S5:
 
   * `s1_party_base_6A`
 
-    * authoritative party universe for `(mf, seed)`:
+    * authoritative party universe for `(mf, ph, seed)`:
 
       * `party_id`,
       * party type (retail/business/etc.),
@@ -509,7 +509,7 @@ These are mandatory and **read-only** for S5:
 
   * `s2_account_base_6A`
 
-    * authoritative account universe for `(mf, seed)`:
+    * authoritative account universe for `(mf, ph, seed)`:
 
       * `account_id`,
       * `owner_party_id`, optional `owner_merchant_id`,
@@ -673,7 +673,7 @@ Within 6A, S5 has exactly two kinds of authority:
 
 1. **Static fraud posture:**
 
-   * To assign, per world+seed, static fraud roles and risk posture over:
+   * To assign, per world+seed+parameter, static fraud roles and risk posture over:
 
      * parties,
      * accounts,
@@ -725,7 +725,7 @@ S5’s **effective input universe** is:
 
 > all rows in `sealed_inputs_6A` for its `manifest_fingerprint` with
 > `status ∈ {"REQUIRED","OPTIONAL"}`,
-> plus S1–S4 base/link datasets for the relevant `(mf, seed)`.
+> plus S1–S4 base/link datasets for the relevant `(mf, ph, seed)`.
 
 S5 MUST:
 
@@ -769,7 +769,7 @@ These outputs are **binding** contracts for 6B and any external consumer. This s
 
 ### 4.1 Fraud-posture surfaces (seed-scoped)
 
-For each `(manifest_fingerprint, seed)`, S5 emits fraud-role tables keyed by entity type. They all share:
+For each `(manifest_fingerprint, parameter_hash, seed)`, S5 emits fraud-role tables keyed by entity type. They all share:
 
 * `manifest_fingerprint` — world identity,
 * `parameter_hash` — parameter/prior pack identity,
@@ -784,13 +784,13 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Domain & scope**
 
-  For each `(mf, seed)`, contains **one row per party** in `s1_party_base_6A`.
+  For each `(mf, ph, seed)`, contains **one row per party** in `s1_party_base_6A`.
 
 * **Required content (logical fields)**
 
   * `manifest_fingerprint`, `parameter_hash`, `seed`
 
-  * `party_id` — FK to `s1_party_base_6A` for `(mf, seed)`
+  * `party_id` — FK to `s1_party_base_6A` for `(mf, ph, seed)`
 
   * `fraud_role_party` — enum from fraud taxonomy, e.g.:
 
@@ -806,7 +806,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Identity & invariants**
 
-  * Logical PK: `(manifest_fingerprint, seed, party_id)`.
+  * Logical PK: `(manifest_fingerprint, parameter_hash, seed, party_id)`.
   * Exactly one row per `party_id` in S1; no extra or missing parties.
   * `fraud_role_party` MUST be a valid enum value from the S5 taxonomy.
 
@@ -817,7 +817,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Domain & scope**
 
-  For each `(mf, seed)`, contains **one row per account** in `s2_account_base_6A`.
+  For each `(mf, ph, seed)`, contains **one row per account** in `s2_account_base_6A`.
 
 * **Required content**
 
@@ -838,7 +838,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Identity & invariants**
 
-  * PK: `(manifest_fingerprint, seed, account_id)`.
+  * PK: `(manifest_fingerprint, parameter_hash, seed, account_id)`.
   * Exactly one row per `account_id` in S2.
   * FK to S2 and (if present) S1 must resolve.
 
@@ -849,7 +849,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Domain & scope**
 
-  For each `(mf, seed)` (or per `mf` if merchant roles are seed-independent), contains **one row per merchant** in the upstream merchant universe.
+  For each `(mf, ph, seed)` (or per `mf` if merchant roles are seed-independent), contains **one row per merchant** in the upstream merchant universe.
 
 * **Required content**
 
@@ -868,7 +868,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Identity & invariants**
 
-  * PK: `(manifest_fingerprint, seed?, merchant_id)` as chosen in the schema.
+  * PK: `(manifest_fingerprint, parameter_hash, seed?, merchant_id)` as chosen in the schema.
   * Every `merchant_id` in this table must exist in upstream L1 egress.
   * No new merchants may be introduced here.
 
@@ -879,7 +879,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Domain & scope**
 
-  For each `(mf, seed)`, contains **one row per device** in `s4_device_base_6A`.
+  For each `(mf, ph, seed)`, contains **one row per device** in `s4_device_base_6A`.
 
 * **Required content**
 
@@ -898,7 +898,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Identity & invariants**
 
-  * PK: `(manifest_fingerprint, seed, device_id)`.
+  * PK: `(manifest_fingerprint, parameter_hash, seed, device_id)`.
   * Exactly one row per `device_id` in S4; no new devices created.
 
 #### 4.1.5 IP fraud roles
@@ -908,7 +908,7 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Domain & scope**
 
-  For each `(mf, seed)`, contains **one row per IP** in `s4_ip_base_6A`.
+  For each `(mf, ph, seed)`, contains **one row per IP** in `s4_ip_base_6A`.
 
 * **Required content**
 
@@ -927,19 +927,19 @@ S5 **must not** introduce new entity IDs here; every `party_id` / `account_id` /
 
 * **Identity & invariants**
 
-  * PK: `(manifest_fingerprint, seed, ip_id)`.
+  * PK: `(manifest_fingerprint, parameter_hash, seed, ip_id)`.
   * Exactly one row per `ip_id` in S4; no extra IPs created.
 
 ---
 
-### 4.2 Validation artefacts & 6A HashGate (fingerprint-scoped)
+### 4.2 Validation artefacts & 6A HashGate (manifest_fingerprint-scoped)
 
-These artefacts are **fingerprint-scoped**, not seed-scoped. They summarise:
+These artefacts are **manifest_fingerprint-scoped**, not seed-scoped. They summarise:
 
 * the outcome of S5’s validation checks across S1–S4 + fraud roles, and
 * the evidence files that constitute the 6A validation bundle.
 
-They live under a fingerprint-partitioned directory, for example:
+They live under a manifest_fingerprint-partitioned directory, for example:
 
 ```text
 data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/...
@@ -1021,7 +1021,7 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
 * **Identity & invariants**
 
-  * The index is **fingerprint-scoped**: only `manifest_fingerprint` matters, not `seed`.
+  * The index is **manifest_fingerprint-scoped**: only `manifest_fingerprint` matters, not `seed`.
   * The index order and digest law (which files are included, in what order) must be fixed and deterministic (details in later sections; here we only assert that there **is** such a law).
 
 #### 4.2.3 `_passed.flag` — 6A HashGate
@@ -1059,8 +1059,8 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
 * **Upstream alignment**
 
-  * Fraud-role surfaces are keyed by `(manifest_fingerprint, seed, entity_id)` and must reference existing IDs from S1–S4 (and L1 for merchants).
-  * Validation artefacts and `_passed.flag` are **fingerprint-scoped** and rely on the same `manifest_fingerprint` and `parameter_hash` as S0–S4.
+* Fraud-role surfaces are keyed by `(manifest_fingerprint, parameter_hash, seed, entity_id)` and must reference existing IDs from S1–S4 (and L1 for merchants).
+  * Validation artefacts and `_passed.flag` are **manifest_fingerprint-scoped** and rely on the same `manifest_fingerprint` and `parameter_hash` as S0–S4.
 
 * **Downstream alignment**
 
@@ -1076,7 +1076,7 @@ These datasets are **inputs** to the validation bundle, not stand-alone gates; t
 
 In summary:
 
-* Fraud-role datasets answer **“who is fraud-adjacent at the static entity level?”** for each `(mf, seed)`.
+* Fraud-role datasets answer **“who is fraud-adjacent at the static entity level?”** for each `(mf, ph, seed)`.
 * The validation bundle & `_passed.flag` answer **“is 6A sealed and safe to read?”** for each `manifest_fingerprint`.
 
 ---
@@ -1121,7 +1121,7 @@ Implementers can choose how to code it, but **not** change the observable behavi
 
 ### 6.0 Overview & RNG discipline
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 1. Load gates, priors, taxonomies & validation policy (RNG-free).
 2. Build deterministic **feature & cell surfaces** for each entity type (RNG-free).
@@ -1136,7 +1136,7 @@ RNG discipline:
 * S5 uses the Layer-3 Philox envelope; substreams keyed on:
 
   ```text
-  (manifest_fingerprint, seed, "6A.S5", substream_label, context...)
+  (manifest_fingerprint, parameter_hash, seed, "6A.S5", substream_label, context...)
   ```
 
 * At minimum, distinct RNG families MUST exist for:
@@ -1170,9 +1170,9 @@ No RNG is used for schemas, paths, partitioning, or the HashGate digest.
    * Recompute `sealed_inputs_digest_6A` and ensure it matches the digest in the gate receipt.
    * Confirm `upstream_gates` shows `gate_status="PASS"` for `{1A,1B,2A,2B,3A,3B,5A,5B}`.
 
-2. **Verify S1–S4 gates for `(mf, seed)`**
+2. **Verify S1–S4 gates for `(mf, ph, seed)`**
 
-   * Latest S1, S2, S3, S4 run-reports for `(mf, seed)` MUST each have `status="PASS"` and empty `error_code`.
+   * Latest S1, S2, S3, S4 run-reports for `(mf, ph, seed)` MUST each have `status="PASS"` and empty `error_code`.
    * For each:
 
      * locate their base/link datasets via the dictionary/registry,
@@ -1647,7 +1647,7 @@ Given:
 
 S5’s outputs:
 
-* fraud-role tables (`s5_*_fraud_roles_6A` per entity type, per `(mf, seed)`),
+* fraud-role tables (`s5_*_fraud_roles_6A` per entity type, per `(mf, ph, seed)`),
 * validation artefacts (`s5_validation_report_6A`, `s5_issue_table_6A`),
 * `validation_bundle_index_6A`,
 * `_passed.flag`,
@@ -1714,7 +1714,7 @@ S5 uses the same identity axes as the other 6A states, with a split between **se
   * `parameter_hash`
   * Identifies the priors/config pack (including S5 fraud priors and validation policy).
   * Stored as a **column** in S5 outputs; not used as a partition key.
-  * For a given `(manifest_fingerprint, seed)`, all S5 surfaces must share the same `parameter_hash`.
+  * For a given `(manifest_fingerprint, parameter_hash, seed)`, all S5 surfaces must share the same `parameter_hash`.
 
 * **RNG identity**
 
@@ -1724,7 +1724,7 @@ S5 uses the same identity axes as the other 6A states, with a split between **se
 
 * **Segment-level identity** (HashGate)
 
-  * The 6A validation bundle & `_passed.flag` are **fingerprint-scoped** only:
+  * The 6A validation bundle & `_passed.flag` are **manifest_fingerprint-scoped** only:
 
     * they summarise validation across *all* seeds for a given `manifest_fingerprint`,
     * they do not carry `seed` as a partition key.
@@ -1737,17 +1737,17 @@ S5 uses the same identity axes as the other 6A states, with a split between **se
 
 S5 outputs come in two partitioning regimes:
 
-1. **Fraud-role surfaces — world+seed scoped**
+1. **Fraud-role surfaces — world+seed+parameter scoped**
 2. **Validation artefacts & HashGate — world scoped**
 
-#### 7.2.1 Fraud-role surfaces (seed + fingerprint)
+#### 7.2.1 Fraud-role surfaces (seed + manifest_fingerprint + parameter_hash)
 
 For each fraud-role dataset (`s5_*_fraud_roles_6A`):
 
 * Partition keys:
 
 ```text
-[seed, manifest_fingerprint]
+[seed, manifest_fingerprint, parameter_hash]
 ```
 
 * Path template (schematic):
@@ -1755,11 +1755,13 @@ For each fraud-role dataset (`s5_*_fraud_roles_6A`):
 ```text
 data/layer3/6A/s5_party_fraud_roles_6A/
   seed={seed}/
+  parameter_hash={parameter_hash}/
   manifest_fingerprint={manifest_fingerprint}/
   s5_party_fraud_roles_6A.parquet
 
 data/layer3/6A/s5_account_fraud_roles_6A/
   seed={seed}/
+  parameter_hash={parameter_hash}/
   manifest_fingerprint={manifest_fingerprint}/
   s5_account_fraud_roles_6A.parquet
 
@@ -1771,24 +1773,24 @@ For merchants, you must choose one of:
 * seed-independent roles:
 
   * partitioning `[manifest_fingerprint]`,
-  * path like `.../manifest_fingerprint={mf}/s5_merchant_fraud_roles_6A.parquet`,
+  * path like `.../manifest_fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet`,
   * and omit `seed` as an axis; **or**
 
 * seed-scoped roles:
 
-  * same `[seed, manifest_fingerprint]` partitioning as others.
+  * same `[seed, manifest_fingerprint, parameter_hash]` partitioning as others.
 
 Whichever you choose, it becomes part of the contract and must be consistent with the dataset dictionary & PKs.
 
 **Binding rules:**
 
-* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` tokens MUST match the columns inside the data.
-* No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be added.
+* `seed={seed}`, `parameter_hash={parameter_hash}`, and `manifest_fingerprint={manifest_fingerprint}` tokens MUST match the columns inside the data.
+* No additional partition keys (e.g. `scenario_id`) may be added.
 * Consumers MUST resolve locations via the catalogue and substitute these tokens; hard-coded paths are out of spec.
 
-#### 7.2.2 Validation artefacts & HashGate (fingerprint only)
+#### 7.2.2 Validation artefacts & HashGate (manifest_fingerprint only)
 
-Validation & HashGate artefacts are **fingerprint-scoped**:
+Validation & HashGate artefacts are **manifest_fingerprint-scoped**:
 
 * Partition keys:
 
@@ -1826,12 +1828,12 @@ Each fraud-role table has a simple “one role per entity” law.
   * PK:
 
     ```text
-    (manifest_fingerprint, seed, party_id)
+    (manifest_fingerprint, parameter_hash, seed, party_id)
     ```
 
   * Invariants:
 
-    * `party_id` MUST exist in `s1_party_base_6A` for `(mf, seed)`.
+    * `party_id` MUST exist in `s1_party_base_6A` for `(mf, ph, seed)`.
     * Exactly one row per party in that base.
     * `fraud_role_party` must be in the party-role taxonomy.
 
@@ -1840,12 +1842,12 @@ Each fraud-role table has a simple “one role per entity” law.
   * PK:
 
     ```text
-    (manifest_fingerprint, seed, account_id)
+    (manifest_fingerprint, parameter_hash, seed, account_id)
     ```
 
   * Invariants:
 
-    * `account_id` MUST exist in `s2_account_base_6A` for `(mf, seed)`.
+    * `account_id` MUST exist in `s2_account_base_6A` for `(mf, ph, seed)`.
     * Exactly one row per account.
     * If `owner_party_id` is carried, it MUST match S2’s mapping.
 
@@ -1860,25 +1862,25 @@ Each fraud-role table has a simple “one role per entity” law.
   * If seed-scoped:
 
     ```text
-    PK = (manifest_fingerprint, seed, merchant_id)
+    PK = (manifest_fingerprint, parameter_hash, seed, merchant_id)
     ```
 
   * Invariants:
 
     * `merchant_id` MUST exist in L1 merchant universe.
-    * Exactly one row per merchant (per world or per world+seed per your choice).
+    * Exactly one row per merchant (per world or per world+seed+parameter per your choice).
 
 * **`s5_device_fraud_roles_6A`**
 
   * PK:
 
     ```text
-    (manifest_fingerprint, seed, device_id)
+    (manifest_fingerprint, parameter_hash, seed, device_id)
     ```
 
   * Invariants:
 
-    * `device_id` MUST exist in `s4_device_base_6A` for `(mf, seed)`.
+    * `device_id` MUST exist in `s4_device_base_6A` for `(mf, ph, seed)`.
     * Exactly one row per device.
 
 * **`s5_ip_fraud_roles_6A`**
@@ -1886,17 +1888,17 @@ Each fraud-role table has a simple “one role per entity” law.
   * PK:
 
     ```text
-    (manifest_fingerprint, seed, ip_id)
+    (manifest_fingerprint, parameter_hash, seed, ip_id)
     ```
 
   * Invariants:
 
-    * `ip_id` MUST exist in `s4_ip_base_6A` for `(mf, seed)`.
+    * `ip_id` MUST exist in `s4_ip_base_6A` for `(mf, ph, seed)`.
     * Exactly one row per IP.
 
 In all fraud-role tables:
 
-* Every row MUST carry `parameter_hash` consistent with S5’s run for that `(mf, seed)`.
+* Every row MUST carry `parameter_hash` consistent with S5’s run for that `(mf, ph, seed)`.
 * There MUST be no duplicate PK rows, no missing entities, and no foreign keys that fail to resolve.
 
 #### 7.3.2 Validation artefacts & HashGate
@@ -2007,12 +2009,12 @@ Canonical ordering is for **determinism and digest integrity**, not a semantic c
 
 S5 has two distinct replace-not-append disciplines:
 
-1. **Per `(mf, seed)` for fraud roles**
+1. **Per `(mf, ph, seed)` for fraud roles**
 2. **Per `mf` for validation bundle & HashGate**
 
-#### 7.5.1 Fraud-role surfaces — replace-not-append per `(mf, seed)`
+#### 7.5.1 Fraud-role surfaces — replace-not-append per `(mf, ph, seed)`
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 * `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A` (and, if seed-scoped, `s5_merchant_fraud_roles_6A`) are **single, complete posture surfaces**:
 
@@ -2021,7 +2023,7 @@ For each `(manifest_fingerprint, seed)`:
 
 **Binding rules:**
 
-* Re-running S5 for the same `(mf, seed)` with:
+* Re-running S5 for the same `(mf, ph, seed)` with:
 
   * identical S0–S4 inputs,
   * identical S5 priors/taxonomies/policy,
@@ -2035,7 +2037,7 @@ For each `(manifest_fingerprint, seed)`:
 * S5 MUST NOT:
 
   * “append more roles” to a partial previous run,
-  * mix multiple, incompatible role assignments for the same `(mf, seed)`.
+  * mix multiple, incompatible role assignments for the same `(mf, ph, seed)`.
 
 #### 7.5.2 Validation bundle & `_passed.flag` — replace-not-append per `mf`
 
@@ -2068,11 +2070,11 @@ Downstream systems must respect S5’s identity & merge discipline.
 
 #### 7.6.1 Using fraud-role surfaces
 
-For any `(mf, seed)`:
+For any `(mf, ph, seed)`:
 
 * 6B MUST:
 
-  * treat fraud roles in `s5_*_fraud_roles_6A` as **authoritative static posture** for that world+seed,
+  * treat fraud roles in `s5_*_fraud_roles_6A` as **authoritative static posture** for that world+seed+parameter,
   * join them by PK (`(mf, seed, id)`) to parties/accounts/merchants/devices/IPs,
   * NOT invent their own static roles that contradict S5.
 
@@ -2108,7 +2110,7 @@ This section defines exactly **when 6A.S5 is considered PASS**, and how **downst
 
 There are two levels:
 
-* **Seed-level**: fraud-role surfaces per `(manifest_fingerprint, seed)`.
+* **Seed-level**: fraud-role surfaces per `(manifest_fingerprint, parameter_hash, seed)`.
 * **World-level**: 6A validation bundle + `_passed.flag` per `manifest_fingerprint`.
 
 If any binding condition here fails, S5 is **FAIL**, and that world/seed **must not** be treated as a sealed 6A universe.
@@ -2117,7 +2119,7 @@ If any binding condition here fails, S5 is **FAIL**, and that world/seed **must 
 
 ### 8.1 Seed-level PASS / FAIL — fraud-posture surfaces
 
-For a given `(manifest_fingerprint, seed)`, S5’s fraud-role surfaces are **PASS** *iff* all of the following hold.
+For a given `(manifest_fingerprint, parameter_hash, seed)`, S5’s fraud-role surfaces are **PASS** *iff* all of the following hold.
 
 #### 8.1.1 Upstream gates & preconditions
 
@@ -2125,7 +2127,7 @@ For a given `(manifest_fingerprint, seed)`, S5’s fraud-role surfaces are **PAS
 
    * S0 gate & sealed-inputs check must still succeed (digest matches, `upstream_gates` all PASS).
 
-   * S1–S4 run-reports for `(mf, seed)` each have:
+   * S1–S4 run-reports for `(mf, ph, seed)` each have:
 
      ```text
      status     == "PASS"
@@ -2134,7 +2136,7 @@ For a given `(manifest_fingerprint, seed)`, S5’s fraud-role surfaces are **PAS
 
    * All S1–S4 bases/links resolve and validate as per their own specs.
 
-If any of these preconditions fails at S5 time (e.g. catalogue drift), S5 MUST treat that `(mf, seed)` as **not eligible** and fail with `6A.S5.S0_S1_S2_S3_S4_GATE_FAILED`.
+If any of these preconditions fails at S5 time (e.g. catalogue drift), S5 MUST treat that `(mf, ph, seed)` as **not eligible** and fail with `6A.S5.S0_S1_S2_S3_S4_GATE_FAILED`.
 
 #### 8.1.2 Fraud-role surfaces: shape, coverage & FK invariants
 
@@ -2144,7 +2146,7 @@ For each entity type where S5 emits roles (party, account, merchant, device, IP)
 
    * `s5_party_fraud_roles_6A`, `s5_account_fraud_roles_6A`, `s5_device_fraud_roles_6A`, `s5_ip_fraud_roles_6A` (and `s5_merchant_fraud_roles_6A` if seed-scoped) MUST:
 
-     * exist for `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+     * exist for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
      * validate against their schema anchors in `schemas.6A.yaml`,
      * have `columns_strict: true` enforced.
 
@@ -2239,7 +2241,7 @@ For each entity type where S5 emits roles (party, account, merchant, device, IP)
 
    * Where rules are labelled as WARN-level, S5 MUST reflect violations in the validation report but may still consider the world eligible for `_passed.flag` (if policy allows).
 
-If any of these seed-level conditions are not met, S5 MUST mark that `(mf, seed)` as FAIL in its run-report and treat the fraud-role surfaces as non-authoritative.
+If any of these seed-level conditions are not met, S5 MUST mark that `(mf, ph, seed)` as FAIL in its run-report and treat the fraud-role surfaces as non-authoritative.
 
 ---
 
@@ -2256,14 +2258,14 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 
 * For every `seed` that the world’s orchestrator declares as part of the 6A universe:
 
-  * There exists an S5 run-report for `(mf, seed)` with:
+  * There exists an S5 run-report for `(mf, ph, seed)` with:
 
     ```text
     status     == "PASS"
     error_code == "" or null
     ```
 
-  * If the policy allows some seeds to be WARN-level (e.g. partial test seeds), those rules must be defined and S5 must record them explicitly; by default, S5 should treat each target `(mf, seed)` as needing PASS to be included.
+  * If the policy allows some seeds to be WARN-level (e.g. partial test seeds), those rules must be defined and S5 must record them explicitly; by default, S5 should treat each target `(mf, ph, seed)` as needing PASS to be included.
 
 * The world-level validation report (`s5_validation_report_6A`) MUST reflect:
 
@@ -2274,7 +2276,7 @@ For a given `manifest_fingerprint`, S5’s **world-level closure** is **PASS** *
 
 11. **`s5_validation_report_6A` exists, valid & complete**
 
-* `s5_validation_report_6A` exists under `validation/manifest_fingerprint={mf}/`, validates against its schema, and contains:
+* `s5_validation_report_6A` exists under `validation/manifest_fingerprint={manifest_fingerprint}/`, validates against its schema, and contains:
 
   * all checks defined in S5 validation policy,
   * a well-defined `overall_status ∈ {PASS, WARN, FAIL}`.
@@ -2319,9 +2321,9 @@ Downstream components (6B and enterprise ingestion) MUST respect S5’s outputs 
 
 #### 8.3.1 Seed-level gating on fraud roles
 
-Before using fraud roles for a given `(mf, seed)`, 6B MUST:
+Before using fraud roles for a given `(mf, ph, seed)`, 6B MUST:
 
-1. Locate the latest S5 run-report for `(mf, seed)` and require:
+1. Locate the latest S5 run-report for `(mf, ph, seed)` and require:
 
    ```text
    status     == "PASS"
@@ -2330,12 +2332,12 @@ Before using fraud roles for a given `(mf, seed)`, 6B MUST:
 
 2. Confirm via the catalogue that:
 
-   * the relevant `s5_*_fraud_roles_6A` tables exist for `(mf, seed)`,
+   * the relevant `s5_*_fraud_roles_6A` tables exist for `(mf, ph, seed)`,
    * they have valid schemas and PK coverage (no missing or extra entities).
 
 If any of these checks fails, 6B MUST NOT:
 
-* use S5 fraud-role surfaces for that `(mf, seed)`,
+* use S5 fraud-role surfaces for that `(mf, ph, seed)`,
 * derive campaign seeds or ground-truth labels from missing/invalid roles.
 
 It MAY operate in a “roles unknown” mode for that seed if the design explicitly supports it, but MUST NOT treat S5 as PASS.
@@ -2374,7 +2376,7 @@ may 6B and external consumers treat the world as a sealed 6A universe.
 
 ### 8.4 Behaviour on failure & partial outputs
 
-If S5 fails for a given `(mf, seed)` or for a world `mf`:
+If S5 fails for a given `(mf, ph, seed)` or for a world `mf`:
 
 * Any partially written fraud-role surfaces or validation artefacts MUST NOT be treated as authoritative.
 * S5’s run-report for that seed/world MUST have:
@@ -2439,7 +2441,7 @@ These mean S5 cannot trust the world-level gate, the sealed input universe, or t
   * S0 is missing or not PASS for this `manifest_fingerprint`, or
   * recomputed `sealed_inputs_digest_6A` does not match `s0_gate_receipt_6A.sealed_inputs_digest_6A`, or
   * one or more required upstream segments `{1A,1B,2A,2B,3A,3B,5A,5B}` have `gate_status != "PASS"` in `upstream_gates`, or
-  * S1, S2, S3 **or** S4 is missing or not PASS for this `(manifest_fingerprint, seed)`.
+  * S1, S2, S3 **or** S4 is missing or not PASS for this `(manifest_fingerprint, parameter_hash, seed)`.
 
 * `6A.S5.SEALED_INPUTS_MISSING_REQUIRED`
   *Meaning:* One or more artefacts that S5 considers **required** (fraud-role priors, fraud taxonomies, validation policy) do not appear in `sealed_inputs_6A` for this `manifest_fingerprint`.
@@ -2623,7 +2625,7 @@ If no specific code fits, S5 MUST use `6A.S5.INTERNAL_ERROR` and the spec should
 
 ### 9.4 Run-report integration & propagation
 
-For each S5 run (per `(mf, seed)` and per `mf` world-level closure):
+For each S5 run (per `(mf, ph, seed)` and per `mf` world-level closure):
 
 * S5 run-report records MUST include:
 
@@ -2642,7 +2644,7 @@ For each S5 run (per `(mf, seed)` and per `mf` world-level closure):
 
 Downstream components (6B, ingestion, tooling) MUST:
 
-* treat any `status != "PASS"` or non-empty `error_code` as a **hard gate failure** for that `(mf, seed)` or world, regardless of whether S5 outputs exist on disk,
+* treat any `status != "PASS"` or non-empty `error_code` as a **hard gate failure** for that `(mf, ph, seed)` or world, regardless of whether S5 outputs exist on disk,
 * use `error_code` to reason about cause (e.g. modelling vs infra vs validation vs RNG),
 * never interpret presence/absence of files as sufficient evidence of S5 success.
 
@@ -2665,7 +2667,7 @@ This section fixes:
 
 ### 10.1 Seed-level run-report for 6A.S5 *(Binding)*
 
-For **every attempted S5 run on a given `(manifest_fingerprint, seed)`**, the engine **MUST** emit exactly one run-report record with at least the following fields:
+For **every attempted S5 run on a given `(manifest_fingerprint, parameter_hash, seed)`**, the engine **MUST** emit exactly one run-report record with at least the following fields:
 
 #### Identity
 
@@ -2698,7 +2700,7 @@ For **every attempted S5 run on a given `(manifest_fingerprint, seed)`**, the en
 
 #### Core fraud-posture metrics (binding for PASS)
 
-For a **PASS** S5 run on `(mf, seed)`, the run-report MUST include, for each entity type where S5 emits roles:
+For a **PASS** S5 run on `(mf, ph, seed)`, the run-report MUST include, for each entity type where S5 emits roles:
 
 * **Entity counts**
 
@@ -2746,19 +2748,19 @@ These MUST reconcile with Layer-3 RNG trace/audit logs (see §9.2.5 and §8.1.6)
 
 ### 10.2 PASS vs FAIL semantics in the run-report *(Binding)*
 
-For a **PASS** seed-level S5 run `(mf, seed)`:
+For a **PASS** seed-level S5 run `(mf, ph, seed)`:
 
 * `status == "PASS"`
 * `error_code` is empty / null.
 * All reported counts & proportions MUST be consistent with:
 
-  * `s5_*_fraud_roles_6A` tables for that `(mf, seed)`, and
+  * `s5_*_fraud_roles_6A` tables for that `(mf, ph, seed)`, and
   * S1–S4 bases for entity counts.
 
 Concretely:
 
-* `total_parties == COUNT(*)` over `s1_party_base_6A` for `(mf, seed)`.
-* `total_accounts == COUNT(*)` over `s2_account_base_6A` for `(mf, seed)`.
+* `total_parties == COUNT(*)` over `s1_party_base_6A` for `(mf, ph, seed)`.
+* `total_accounts == COUNT(*)` over `s2_account_base_6A` for `(mf, ph, seed)`.
 * `total_devices == COUNT(*)` over `s4_device_base_6A`, and so on.
 * For each entity type E:
 
@@ -2770,11 +2772,11 @@ For a **FAIL** run:
 * `status == "FAIL"`
 * `error_code` is a non-empty `6A.S5.*` code (see §9).
 * The numerical metrics MAY be omitted or set to sentinel values; they are **not** authoritative.
-* Downstream components MUST treat any `status="FAIL"` or non-empty `error_code` as “S5 seed-level gate failed” for that `(mf, seed)`.
+* Downstream components MUST treat any `status="FAIL"` or non-empty `error_code` as “S5 seed-level gate failed” for that `(mf, ph, seed)`.
 
 S5 MUST NOT set `status="PASS"` unless:
 
-* all preconditions & acceptance criteria in §§2, 3, 4, 6, 7, 8 are satisfied for that `(mf, seed)`, and
+* all preconditions & acceptance criteria in §§2, 3, 4, 6, 7, 8 are satisfied for that `(mf, ph, seed)`, and
 * fraud-role tables are fully written and schema/PK/FK-valid.
 
 ---
@@ -2817,8 +2819,8 @@ For a **fully PASS** 6A.S5 state over a world `mf`:
 
 * For every seed in the world’s seed-set:
 
-  * the S5 run-report for `(mf, seed)` MUST be PASS,
-  * fraud-role tables for `(mf, seed)` MUST be present and valid,
+  * the S5 run-report for `(mf, ph, seed)` MUST be PASS,
+  * fraud-role tables for `(mf, ph, seed)` MUST be present and valid,
   * metrics in the run-report MUST match actual counts in those tables and S1–S4 bases.
 
 * The world-level validation artefacts:
@@ -2846,9 +2848,9 @@ Downstream systems (6B, ingestion, tooling) MUST use S5 run-report as part of th
 
 #### 10.5.1 Using fraud-role surfaces
 
-Before using any S5 fraud-role tables for `(mf, seed)`, 6B MUST:
+Before using any S5 fraud-role tables for `(mf, ph, seed)`, 6B MUST:
 
-1. Read the latest S5 run-report for `(mf, seed)` and require:
+1. Read the latest S5 run-report for `(mf, ph, seed)` and require:
 
    ```text
    status     == "PASS"
@@ -2863,7 +2865,7 @@ Before using any S5 fraud-role tables for `(mf, seed)`, 6B MUST:
 
 If any of these checks fails, 6B MUST:
 
-* treat the fraud-posture surfaces as **non-authoritative** for that `(mf, seed)`,
+* treat the fraud-posture surfaces as **non-authoritative** for that `(mf, ph, seed)`,
 * either refuse to run or switch to a documented “no static posture” mode if such a mode is explicitly supported.
 
 #### 10.5.2 Gating on `_passed.flag`
@@ -2927,7 +2929,7 @@ This section is **non-binding**. It describes expected scale and tuning levers; 
 
 ### 11.1 Complexity profile
 
-For a given `(manifest_fingerprint, seed)`, define:
+For a given `(manifest_fingerprint, parameter_hash, seed)`, define:
 
 * `P` = number of parties: `|s1_party_base_6A|`.
 * `A` = number of accounts: `|s2_account_base_6A|`.
@@ -2940,7 +2942,7 @@ Let:
 * `N_party_cells`, `N_account_cells`, … = number of fraud “cells” per entity type.
 * `R_E` = number of fraud-role options per entity type E (small, typically ≤ 10).
 
-For each `(mf, seed)`:
+For each `(mf, ph, seed)`:
 
 * **Phase 1 – load gates, priors, taxonomies, policy**
 
@@ -3020,12 +3022,12 @@ S5 is naturally parallelisable.
 
 **Primary axis: seeds**
 
-* Each `(mf, seed)` is an independent 6A universe.
+* Each `(mf, ph, seed)` is an independent 6A universe.
 * S5 runs for different seeds can be fully parallel; this is typically the main horizontal scaling axis.
 
 **Within a seed: parallel per entity type and cell**
 
-For a single `(mf, seed)`:
+For a single `(mf, ph, seed)`:
 
 * You can run in parallel per **entity type**:
 
@@ -3376,8 +3378,8 @@ The following are **breaking** and MUST NOT be introduced without:
 
    * Changing partitioning:
 
-     * altering `[seed, manifest_fingerprint]` to something else,
-     * making HashGate artefacts seed-scoped instead of fingerprint-scoped.
+     * altering `[seed, manifest_fingerprint, parameter_hash]` to something else,
+     * making HashGate artefacts seed-scoped instead of manifest_fingerprint-scoped.
 
 2. **Changing semantics or encoding of core role fields**
 
@@ -3456,7 +3458,7 @@ Downstream systems are not passive; they have obligations under this spec.
 
      * resolve S5 datasets via the dictionary/registry,
      * resolve schemas via `schema_ref` → `schemas.6A.yaml` / `schemas.layer3.yaml`,
-     * not assume raw file layouts beyond documented `seed={seed}` / `manifest_fingerprint={mf}` templates.
+     * not assume raw file layouts beyond documented `seed={seed}` / `parameter_hash={parameter_hash}` / `manifest_fingerprint={manifest_fingerprint}` templates.
 
 4. **No re-definition of S5 semantics**
 
@@ -3520,35 +3522,35 @@ If anything here appears to conflict with §§1–12 or the JSON-Schemas, the bi
 
 * **`ph`**
   Shorthand for **`parameter_hash`**.
-  Identifies the full parameter/prior pack in effect (including S5 fraud-role priors and validation policy). For a given `(mf, seed)`, all S5 surfaces share the same `ph`.
+  Identifies the full parameter/prior pack in effect (including S5 fraud-role priors and validation policy). For a given `(mf, ph, seed)`, all S5 surfaces share the same `ph`.
 
 * **`seed`**
   RNG identity for 6A / Layer-3.
   Different seeds under the same `(mf, ph)` correspond to different realisations of the same structural world (different fraud-role assignments on the same S1–S4 graph).
 
 * **`party_id`**
-  Entity ID for a party/customer (S1). Unique per `(mf, seed)`.
+  Entity ID for a party/customer (S1). Unique per `(mf, ph, seed)`.
 
 * **`account_id`**
-  Entity ID for an account (S2). Unique per `(mf, seed)`.
+  Entity ID for an account (S2). Unique per `(mf, ph, seed)`.
 
 * **`merchant_id`**
   Entity ID for a merchant (L1). Typically world-scoped (per `mf`), optionally seed-scoped if you choose that model.
 
 * **`instrument_id`**
-  Entity ID for an instrument/credential (S3). Unique per `(mf, seed)`.
+  Entity ID for an instrument/credential (S3). Unique per `(mf, ph, seed)`.
 
 * **`device_id`**
-  Entity ID for a device (S4). Unique per `(mf, seed)`.
+  Entity ID for a device (S4). Unique per `(mf, ph, seed)`.
 
 * **`ip_id`**
-  Entity ID for an IP / endpoint (S4). Unique per `(mf, seed)`.
+  Entity ID for an IP / endpoint (S4). Unique per `(mf, ph, seed)`.
 
 ---
 
 ### 13.2 Entity counts & domains
 
-Per `(mf, seed)`:
+Per `(mf, ph, seed)`:
 
 * **`P`** — number of parties:
   `P = |s1_party_base_6A|`.
@@ -3566,7 +3568,7 @@ Per `(mf, seed)`:
 
 For each entity type **E ∈ {party, account, merchant, device, ip}**:
 
-* **`Entities_E`** — the set of entities of type E in the world+seed (e.g. `Entities_party` = all `party_id`s in S1 base).
+* **`Entities_E`** — the set of entities of type E in the world+seed+parameter (e.g. `Entities_party` = all `party_id`s in S1 base).
 
 * **`RoleSet_E`** — allowed fraud-role values for entity type E, from the S5 fraud taxonomy. Example:
 
@@ -3753,7 +3755,7 @@ S5’s validation layer uses:
 ### 13.6 HashGate & bundle symbols
 
 * **`validation_bundle_6A`**
-  Conceptual name for the directory `data/layer3/6A/validation/manifest_manifest_fingerprint={mf}/` containing:
+  Conceptual name for the directory `data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/` containing:
 
   * `s5_validation_report_6A`,
   * `s5_issue_table_6A` (if present),

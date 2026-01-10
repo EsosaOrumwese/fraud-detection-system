@@ -2,7 +2,7 @@
 
 ## 1. Purpose & scope *(Binding)*
 
-6A.S2 is the **account and product realisation state** for Layer-3 / Segment 6A. Its job is to take the **party universe** produced by S1 and turn it into a **closed-world account universe** for each `(manifest_fingerprint, seed)`. That means S2 decides:
+6A.S2 is the **account and product realisation state** for Layer-3 / Segment 6A. Its job is to take the **party universe** produced by S1 and turn it into a **closed-world account universe** for each `(manifest_fingerprint, parameter_hash, seed)`. That means S2 decides:
 
 * **Which accounts/products exist** (current accounts, savings, cards, loans, merchant settlement accounts, wallets, etc.).
 * **Who owns them** (which parties and, where applicable, which merchants).
@@ -12,7 +12,7 @@ Concretely, S2 must:
 
 * Construct `s2_account_base_6A`: the authoritative list of accounts in the world for 6A/6B, including:
 
-  * a stable `account_id` unique within `(manifest_fingerprint, seed)`,
+  * a stable `account_id` unique within `(manifest_fingerprint, parameter_hash, seed)`,
   * owner references (usually `party_id`, optionally `merchant_id` for merchant accounts),
   * account/product type (e.g. current, savings, credit card, loan, merchant settlement),
   * static attributes such as currency, region, risk tier and basic eligibility flags.
@@ -20,7 +20,7 @@ Concretely, S2 must:
 
 Within Layer-3, S2 is the **sole authority** on:
 
-* **Account existence**: how many accounts/products exist per world+seed, per region/segment/type.
+* **Account existence**: how many accounts/products exist per world+seed+parameter, per region/segment/type.
 * **Ownership topology**: which party (and merchant, if applicable) owns which account at initialisation.
 * **Static account-level attributes**: the attributes that characterise an account before any transactional behaviour or balances are simulated.
 
@@ -39,7 +39,7 @@ The scope of S2 is deliberately constrained:
 
 Within 6A, S2 sits **downstream of S0 and S1**:
 
-* It runs only when S0 has sealed the input universe and S1 has successfully created the party base for the same `(manifest_fingerprint, seed)`.
+* It runs only when S0 has sealed the input universe and S1 has successfully created the party base for the same `(manifest_fingerprint, parameter_hash, seed)`.
 * It uses 6A **product-mix priors**, **account taxonomies**, and any configured linkage rules to realise per-cell account counts and then allocate those accounts to parties/merchants in a way that is consistent with S1’s segmentation and the upstream world.
 
 All later 6A states (instruments, devices/IPs, fraud posture) and 6B's flow/fraud logic must treat S2's account base as **read-only ground truth** for "what accounts/products exist and who owns them" in the synthetic bank.
@@ -139,19 +139,19 @@ For the target `manifest_fingerprint`, S2 MUST:
      error_code == "" or null
      ```
 
-If any of these checks fails, S2 MUST NOT attempt to read priors or generate any accounts for that world+seed, and MUST fail with a gate/inputs error.
+If any of these checks fails, S2 MUST NOT attempt to read priors or generate any accounts for that world+seed+parameter, and MUST fail with a gate/inputs error.
 
 ---
 
 ### 2.3 6A.S1 preconditions (party base gate)
 
-S2 sits directly downstream of S1 in 6A. For each `(manifest_fingerprint, seed)` S2 will process, it MUST ensure that 6A.S1 is PASS and that the party base is available and valid.
+S2 sits directly downstream of S1 in 6A. For each `(manifest_fingerprint, parameter_hash, seed)` S2 will process, it MUST ensure that 6A.S1 is PASS and that the party base is available and valid.
 
-For the target `(mf, seed)`:
+For the target `(mf, ph, seed)`:
 
 1. **S1 run-report**
 
-   * Locate the latest 6A.S1 run-report entry for that `(mf, seed)`.
+   * Locate the latest 6A.S1 run-report entry for that `(mf, ph, seed)`.
    * Require:
 
      ```text
@@ -162,13 +162,13 @@ For the target `(mf, seed)`:
 2. **Party base dataset**
 
    * Locate `s1_party_base_6A` via `dataset_dictionary.layer3.6A.yaml` and `artefact_registry_6A.yaml`.
-   * Ensure the partition for `(seed={seed}, manifest_manifest_fingerprint={mf})`:
+   * Ensure the partition for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`:
 
      * exists,
      * validates against `schemas.6A.yaml#/s1/party_base`,
      * has `COUNT(*) == total_parties` reported in the S1 run-report.
 
-If S1 is missing or not PASS for the `(mf, seed)` S2 intends to process, S2 MUST fail with `6A.S2.S0_OR_S1_GATE_FAILED` and MUST NOT produce any accounts for that world+seed.
+If S1 is missing or not PASS for the `(mf, ph, seed)` S2 intends to process, S2 MUST fail with `6A.S2.S0_OR_S1_GATE_FAILED` and MUST NOT produce any accounts for that world+seed+parameter.
 
 ---
 
@@ -267,7 +267,7 @@ If S2 uses such context:
 
 ### 2.5 Axes of operation: world & seed
 
-S2’s natural domain is the pair `(manifest_fingerprint, seed)`:
+S2’s natural domain is the pair `(manifest_fingerprint, parameter_hash, seed)`:
 
 * `manifest_fingerprint` identifies the upstream world and sealed input universe (as in S0/S1).
 * `seed` identifies a specific population realisation within that world.
@@ -282,12 +282,12 @@ Preconditions per axis:
 
 * For each seed within `mf`:
 
-  * S1 must be PASS for `(mf, seed)` and `s1_party_base_6A` must exist and be valid,
+  * S1 must be PASS for `(mf, ph, seed)` and `s1_party_base_6A` must exist and be valid,
   * S2 may then generate accounts for exactly that party base and seed.
 
 Scenario identity (`scenario_id`) is not a direct axis for S2:
 
-* S2 creates a single account universe per `(mf, seed)`, shared across scenarios;
+* S2 creates a single account universe per `(mf, ph, seed)`, shared across scenarios;
 * if scenario-dependent accounts are ever introduced, that will be a breaking change and must be versioned under change control.
 
 ---
@@ -344,7 +344,7 @@ These are *mandatory* control-plane inputs and must be treated as read-only:
 
   * `s1_party_base_6A`
 
-    * the authoritative party universe for `(manifest_fingerprint, seed)`:
+    * the authoritative party universe for `(manifest_fingerprint, parameter_hash, seed)`:
       `party_id`, party type, segment, home geo, static attributes.
 
 S2 MUST:
@@ -479,7 +479,7 @@ Within Layer-3 / 6A:
 
 S1 is the single authority on:
 
-* which `party_id`s exist for a given `(mf, seed)`,
+* which `party_id`s exist for a given `(mf, ph, seed)`,
 * their party types, segments, home geography, and any S1-owned static attributes.
 
 S2 **must not**:
@@ -495,7 +495,7 @@ S2 is the sole authority on:
 
 * **Account existence & identity**
 
-  * number and type of accounts in the world per `(mf, seed)`,
+  * number and type of accounts in the world per `(mf, ph, seed)`,
   * assignment of `account_id` and any `product_id` if modeled,
   * mapping from `account_id` to owner `party_id` and/or `merchant_id`.
 
@@ -589,7 +589,7 @@ Everything else in S2 is either RNG logs or internal planning surfaces, not part
 
 #### 4.1.1 Domain & scope
 
-For each `(manifest_fingerprint, seed)`, `s2_account_base_6A` contains **one row per account** in that world+seed.
+For each `(manifest_fingerprint, parameter_hash, seed)`, `s2_account_base_6A` contains **one row per account** in that world+seed+parameter.
 
 * Domain axes:
 
@@ -599,7 +599,7 @@ For each `(manifest_fingerprint, seed)`, `s2_account_base_6A` contains **one row
 
 * S2 is **scenario-independent**:
 
-  * there is a single account universe per `(mf, seed)`, shared across all scenarios;
+  * there is a single account universe per `(mf, ph, seed)`, shared across all scenarios;
   * if scenario-specific accounts are ever introduced, that is a breaking change.
 
 #### 4.1.2 Required content (logical fields)
@@ -610,8 +610,8 @@ The base table MUST include, at minimum, the following logical fields (names can
 
   * `account_id`
 
-    * stable identifier for the account within `(manifest_fingerprint, seed)`,
-    * globally unique for that world+seed.
+    * stable identifier for the account within `(manifest_fingerprint, parameter_hash, seed)`,
+    * globally unique for that world+seed+parameter.
   * `manifest_fingerprint`
   * `parameter_hash`
   * `seed`
@@ -621,7 +621,7 @@ The base table MUST include, at minimum, the following logical fields (names can
   * `owner_party_id` (or `party_id`):
 
     * reference to the owning party in `s1_party_base_6A`,
-    * MUST match an existing `party_id` for the same `(mf, seed)`.
+    * MUST match an existing `party_id` for the same `(mf, ph, seed)`.
   * optional `owner_merchant_id` (for merchant settlement/acquiring accounts):
 
     * reference to a merchant in the Layer-1 merchant universe,
@@ -663,17 +663,17 @@ For `s2_account_base_6A`:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, account_id)
+  (manifest_fingerprint, parameter_hash, seed, account_id)
   ```
 
 * **Uniqueness invariants:**
 
-  * `account_id` MUST be unique within `(manifest_fingerprint, seed)`.
+  * `account_id` MUST be unique within `(manifest_fingerprint, parameter_hash, seed)`.
   * There MUST be no two rows with the same `(mf, seed, account_id)`.
 
 * **Ownership invariants:**
 
-  * Every `owner_party_id` MUST appear in `s1_party_base_6A` for the same `(mf, seed)`.
+  * Every `owner_party_id` MUST appear in `s1_party_base_6A` for the same `(mf, ph, seed)`.
   * If `owner_merchant_id` is present:
 
     * it MUST reference a valid upstream merchant,
@@ -681,12 +681,12 @@ For `s2_account_base_6A`:
 
 * **World consistency:**
 
-  * All rows in the `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST share those values in their columns.
-  * All rows for `(mf, seed)` MUST share the same `parameter_hash` value; if multiple parameter packs show up, that world+seed is invalid from S2’s perspective.
+  * All rows in the `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` partition MUST share those values in their columns.
+  * All rows for `(mf, ph, seed)` MUST share the same `parameter_hash` value; if multiple parameter packs show up, that world+seed+parameter is invalid from S2’s perspective.
 
 * **Closed-world semantics for accounts:**
 
-  For a given `(manifest_fingerprint, seed)`, the set of `account_id` values in `s2_account_base_6A` is the **full account universe** for that world+seed. No other dataset is allowed to introduce additional accounts; later states must treat this as read-only ground truth.
+  For a given `(manifest_fingerprint, parameter_hash, seed)`, the set of `account_id` values in `s2_account_base_6A` is the **full account universe** for that world+seed+parameter. No other dataset is allowed to introduce additional accounts; later states must treat this as read-only ground truth.
 
 ---
 
@@ -697,7 +697,7 @@ For `s2_account_base_6A`:
 
 #### 4.2.1 Domain & scope
 
-For each `(manifest_fingerprint, seed)`, `s2_party_product_holdings_6A` contains at most one row per party per product grouping.
+For each `(manifest_fingerprint, parameter_hash, seed)`, `s2_party_product_holdings_6A` contains at most one row per party per product grouping.
 
 A typical grouping is:
 
@@ -736,7 +736,7 @@ This table is **derived**: every row must correspond to a set of rows in `s2_acc
 
 * **Logical key:**
 
-  * `(manifest_fingerprint, seed, party_id, [grouping_keys…])`
+  * `(manifest_fingerprint, parameter_hash, seed, party_id, [grouping_keys…])`
 
 * **Derivation invariant:**
 
@@ -782,7 +782,7 @@ Whether you implement this as a separate table or just a documented filter on th
 Invariants:
 
 * For any grouping, `account_count` must equal the number of base-table rows that match that group.
-* Summing `account_count` over all groups must equal `COUNT(*)` of `s2_account_base_6A` for the `(mf, seed)`.
+* Summing `account_count` over all groups must equal `COUNT(*)` of `s2_account_base_6A` for the `(mf, ph, seed)`.
 
 Again, the summary is informative only; the base remains the source of truth.
 
@@ -802,7 +802,7 @@ S2 outputs are carefully aligned with identity axes upstream and in later states
 
   * Later 6A states (e.g. instruments, devices/IP, fraud posture) and 6B will attach further structure and behaviour to accounts using:
 
-    * `(manifest_fingerprint, seed, account_id)` as the primary key,
+    * `(manifest_fingerprint, parameter_hash, seed, account_id)` as the primary key,
     * `party_id` and `merchant_id` as foreign keys.
 
   * No downstream state is permitted to create accounts outside `s2_account_base_6A` or to change the static attributes S2 defines.
@@ -852,7 +852,7 @@ Implementers are free to choose data structures and optimisations, but **not** f
 
 ### 6.0 Overview & RNG discipline
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 1. Load gate, priors & taxonomies (RNG-free).
 2. Define population cells & derive **continuous account targets** per cell/product type (RNG-free).
@@ -863,7 +863,7 @@ For each `(manifest_fingerprint, seed)`:
 
 RNG discipline:
 
-* S2 uses the **Layer-3 Philox envelope**, with substreams keyed on `(manifest_fingerprint, seed, "6A.S2", substream_label, context…)`.
+* S2 uses the **Layer-3 Philox envelope**, with substreams keyed on `(manifest_fingerprint, parameter_hash, seed, "6A.S2", substream_label, context…)`.
 
 * S2 defines at least these RNG families (names indicative, but semantics binding):
 
@@ -893,8 +893,8 @@ RNG **never** influences identity axes (`manifest_fingerprint`, `parameter_hash`
 
 2. **Verify S1 gate**
 
-   * Read the latest 6A.S1 run-report for `(mf, seed)` and require `status="PASS"` and empty `error_code`.
-   * Resolve and validate `s1_party_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` against its schema.
+   * Read the latest 6A.S1 run-report for `(mf, ph, seed)` and require `status="PASS"` and empty `error_code`.
+   * Resolve and validate `s1_party_base_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` against its schema.
 
 3. **Identify S2-relevant sealed inputs**
 
@@ -1257,7 +1257,7 @@ Using the allocations and attributes from Phases 4–5:
   * account classification fields (account_type, product_family, …),
   * static attributes (currency, risk tier, flags, etc.).
 
-* Ensure `account_id` is generated by a deterministic, injective function within `(mf, seed)`, e.g.:
+* Ensure `account_id` is generated by a deterministic, injective function within `(mf, ph, seed)`, e.g.:
 
   ```text
   account_id = LOW64( SHA256( mf || seed || "account" || cell_key(c) || uint64(i) ) )
@@ -1268,7 +1268,7 @@ Using the allocations and attributes from Phases 4–5:
 * Write to:
 
   ```text
-  data/layer3/6A/s2_account_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+  data/layer3/6A/s2_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
   using the partitioning and ordering specified in the dictionary.
@@ -1305,7 +1305,7 @@ Using the allocations and attributes from Phases 4–5:
 
 #### 6.6.3 Internal validation
 
-Before marking S2 as PASS for `(mf, seed)`, S2 must perform internal checks, including:
+Before marking S2 as PASS for `(mf, ph, seed)`, S2 must perform internal checks, including:
 
 * **Plan vs base consistency:**
 
@@ -1393,8 +1393,8 @@ S2 is defined over the same three primary axes as S1:
 
   * `parameter_hash`
   * Identifies the parameter/prior pack set governing product mix, linkage rules, and account attributes.
-  * Stored as a column in S2 outputs, **not** as a partition key.
-  * For a given `(manifest_fingerprint, seed)`, there MUST be exactly one `parameter_hash` in S2 outputs.
+  * Stored as a column in S2 outputs and used as a partition key.
+  * For a given `(manifest_fingerprint, parameter_hash, seed)`, there MUST be exactly one `parameter_hash` in S2 outputs.
 
 * **RNG identity**
 
@@ -1408,14 +1408,14 @@ S2 is defined over the same three primary axes as S1:
 
 ### 7.2 Partitioning & path tokens
 
-All S2 datasets are **world+seed scoped** and partitioned identically.
+All S2 datasets are **world+seed+parameter scoped** and partitioned identically.
 
 #### 7.2.1 `s2_account_base_6A`
 
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path template (schematic):
@@ -1423,6 +1423,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
   ```text
   data/layer3/6A/s2_account_base_6A/
     seed={seed}/
+    parameter_hash={parameter_hash}/
     manifest_fingerprint={manifest_fingerprint}/
     s2_account_base_6A.parquet
   ```
@@ -1432,7 +1433,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path template (schematic):
@@ -1440,6 +1441,7 @@ All S2 datasets are **world+seed scoped** and partitioned identically.
   ```text
   data/layer3/6A/s2_party_product_holdings_6A/
     seed={seed}/
+    parameter_hash={parameter_hash}/
     manifest_fingerprint={manifest_fingerprint}/
     s2_party_product_holdings_6A.parquet
   ```
@@ -1451,21 +1453,21 @@ If implemented, both follow the same partition scheme:
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path templates:
 
   ```text
-  data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
-  data/layer3/6A/s2_account_summary_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+  data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
+  data/layer3/6A/s2_account_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 **Binding rules:**
 
-* The `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns inside the data.
-* No additional partition keys shall be introduced for S2 business datasets (no `parameter_hash`, no `scenario_id`).
-* Any consumer that wants S2 data for `(mf, seed)` MUST resolve the dataset via the catalogue and then substitute these tokens; hard-coded path logic is out-of-spec.
+* The `seed={seed}`, `parameter_hash={parameter_hash}`, and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the corresponding columns inside the data.
+* No additional partition keys shall be introduced for S2 business datasets (no `scenario_id`).
+* Any consumer that wants S2 data for `(mf, ph, seed)` MUST resolve the dataset via the catalogue and then substitute these tokens; hard-coded path logic is out-of-spec.
 
 ---
 
@@ -1476,31 +1478,31 @@ If implemented, both follow the same partition scheme:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, account_id)
+  (manifest_fingerprint, parameter_hash, seed, account_id)
   ```
 
 * **Uniqueness:**
 
-  * `account_id` MUST be unique within each `(manifest_fingerprint, seed)`.
-  * No duplicate `(mf, seed, account_id)` rows are permitted.
+  * `account_id` MUST be unique within each `(manifest_fingerprint, parameter_hash, seed)`.
+  * No duplicate `(mf, ph, seed, account_id)` rows are permitted.
 
 * **Foreign keys:**
 
-  * `owner_party_id` MUST reference an existing `party_id` in `s1_party_base_6A` for the same `(mf, seed)`.
+  * `owner_party_id` MUST reference an existing `party_id` in `s1_party_base_6A` for the same `(mf, ph, seed)`.
   * If present, `owner_merchant_id` MUST reference a valid upstream merchant (as defined by L1 dictionaries/registries).
   * Any account that cannot satisfy these FKs MUST be treated as an S2 failure (not silently dropped).
 
 * **Parameter consistency:**
 
-  * All rows for a given `(mf, seed)` MUST share the same `parameter_hash`.
-  * If multiple `parameter_hash` values appear for the same `(mf, seed)`, that is an identity/config error.
+  * All rows for a given `(mf, ph, seed)` MUST share the same `parameter_hash`.
+  * If multiple `parameter_hash` values appear for the same `(mf, ph, seed)`, that is an identity/config error.
 
 #### 7.3.2 `s2_party_product_holdings_6A`
 
 * **Logical key** (assuming grouping by `(party_id, account_type)`; adapt if you choose a different grouping):
 
   ```text
-  (manifest_fingerprint, seed, party_id, account_type)
+  (manifest_fingerprint, parameter_hash, seed, party_id, account_type)
   ```
 
 * **Derivation invariant:**
@@ -1522,7 +1524,7 @@ If implemented:
 
 * **`s2_merchant_account_base_6A`**
 
-  * Logical key: `(manifest_fingerprint, seed, account_id)` (same as base).
+  * Logical key: `(manifest_fingerprint, parameter_hash, seed, account_id)` (same as base).
   * MUST be a strict subset of `s2_account_base_6A` (typically accounts with `owner_merchant_id` non-null).
   * No rows may appear that are not also in the base table.
 
@@ -1530,7 +1532,7 @@ If implemented:
 
   * Key depends on grouping (e.g. `(mf, seed, country_iso, segment_id, account_type)`).
   * For each grouping key `g`, `account_count(g)` MUST equal the number of base rows matching `g`.
-  * Summing `account_count` over all groups MUST equal `COUNT(*)` of `s2_account_base_6A` for `(mf, seed)`.
+  * Summing `account_count` over all groups MUST equal `COUNT(*)` of `s2_account_base_6A` for `(mf, ph, seed)`.
 
 ---
 
@@ -1577,11 +1579,11 @@ Canonical ordering is a writer responsibility and may be used in internal audits
 
 ### 7.5 Merge discipline & lifecycle
 
-S2 behaves as **replace-not-append** at the granularity of `(manifest_fingerprint, seed)`.
+S2 behaves as **replace-not-append** at the granularity of `(manifest_fingerprint, parameter_hash, seed)`.
 
-#### 7.5.1 Replace-not-append per world+seed
+#### 7.5.1 Replace-not-append per world+seed+parameter
 
-For each `(mf, seed)`:
+For each `(mf, ph, seed)`:
 
 * There is **one logical account universe snapshot** in `s2_account_base_6A`.
 * Likewise, one derived holdings view and any optional derived views.
@@ -1593,7 +1595,7 @@ Behavioural rules:
   * produce **byte-identical** outputs for all S2 datasets, or
   * fail with an `OUTPUT_CONFLICT` (or equivalent) error and leave existing outputs unchanged.
 
-* There is no notion of appending or merging multiple S2 runs for the same `(mf, seed)`; any such attempt is a spec violation.
+* There is no notion of appending or merging multiple S2 runs for the same `(mf, ph, seed)`; any such attempt is a spec violation.
 
 #### 7.5.2 No cross-world / cross-seed merges
 
@@ -1605,7 +1607,7 @@ Behavioural rules:
 * **No cross-seed population merges:**
 
   * `seed` is a first-class identity axis.
-  * For business semantics (e.g. accounts → flows → fraud), each `(mf, seed)` defines a self-contained universe.
+  * For business semantics (e.g. accounts → flows → fraud), each `(mf, ph, seed)` defines a self-contained universe.
   * Cross-seed aggregations can exist for analysis, but no state may treat two seeds as “one big world”.
 
 If an implementation silently merges data from multiple seeds into a single S2 view, it is out-of-spec.
@@ -1618,9 +1620,9 @@ Downstream states MUST respect S2’s identity and merge discipline.
 
 #### 7.6.1 6A.S3–S5 (later 6A states)
 
-For each `(mf, seed)` they operate on, S3–S5 MUST:
+For each `(mf, ph, seed)` they operate on, S3–S5 MUST:
 
-* Verify S2 PASS for that `(mf, seed)` using S2’s run-report (status + error_code).
+* Verify S2 PASS for that `(mf, ph, seed)` using S2’s run-report (status + error_code).
 * Confirm that `s2_account_base_6A` exists and is schema-valid.
 * Treat:
 
@@ -1638,7 +1640,7 @@ They MUST NOT:
 6B MUST:
 
 * join flows and transactional entities to S2 via `(mf, seed, account_id)` (and via `party_id` / `merchant_id` as appropriate).
-* treat any reference to an `account_id` not found in `s2_account_base_6A` for the same `(mf, seed)` as an error, not “an unknown account”.
+* treat any reference to an `account_id` not found in `s2_account_base_6A` for the same `(mf, ph, seed)` as an error, not “an unknown account”.
 
 6B is free to generate dynamic attributes (balances, limits, flags, flow-level risk signals), but these MUST NOT alter the identity, ownership or static classification that S2 has defined.
 
@@ -1650,15 +1652,15 @@ These identity, partitioning, ordering, and merge rules are **binding**. Storage
 
 ## 8. Acceptance criteria & gating obligations *(Binding)*
 
-This section defines exactly **when 6A.S2 is considered PASS** for a given `(manifest_fingerprint, seed)`, and how **downstream states must gate** on S2 before using any account/product data.
+This section defines exactly **when 6A.S2 is considered PASS** for a given `(manifest_fingerprint, parameter_hash, seed)`, and how **downstream states must gate** on S2 before using any account/product data.
 
-If any condition here fails, S2 is **FAIL for that `(mf, seed)`**, and **no later 6A state (S3–S5) nor 6B may treat S2 outputs as valid**.
+If any condition here fails, S2 is **FAIL for that `(mf, ph, seed)`**, and **no later 6A state (S3–S5) nor 6B may treat S2 outputs as valid**.
 
 ---
 
 ### 8.1 Segment-local PASS / FAIL definition
 
-For a given `(manifest_fingerprint, seed)`, 6A.S2 is **PASS** *iff* all of the following hold.
+For a given `(manifest_fingerprint, parameter_hash, seed)`, 6A.S2 is **PASS** *iff* all of the following hold.
 
 #### 8.1.1 S0 / S1 / upstream worlds are sealed
 
@@ -1679,17 +1681,17 @@ For a given `(manifest_fingerprint, seed)`, 6A.S2 is **PASS** *iff* all of the f
      gate_status == "PASS"
      ```
 
-3. **S1 is sealed for this `(mf, seed)`:**
+3. **S1 is sealed for this `(mf, ph, seed)`:**
 
-   * Latest 6A.S1 run-report for `(mf, seed)` has:
+   * Latest 6A.S1 run-report for `(mf, ph, seed)` has:
 
      ```text
      status     == "PASS"
      error_code == "" or null
      ```
-   * `s1_party_base_6A` exists for `(seed={seed}, manifest_manifest_fingerprint={mf})`, validates against its schema, and `COUNT(*)` equals `total_parties` reported by S1.
+   * `s1_party_base_6A` exists for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`, validates against its schema, and `COUNT(*)` equals `total_parties` reported by S1.
 
-If any of these fail, S2 MUST NOT produce accounts for that `(mf, seed)` and MUST fail with an appropriate gate error (e.g. `6A.S2.S0_OR_S1_GATE_FAILED`).
+If any of these fail, S2 MUST NOT produce accounts for that `(mf, ph, seed)` and MUST fail with an appropriate gate error (e.g. `6A.S2.S0_OR_S1_GATE_FAILED`).
 
 ---
 
@@ -1750,18 +1752,18 @@ If targets or integerisation fail these invariants, S2 MUST fail with `6A.S2.ACC
 
 8. **`s2_account_base_6A` exists and is schema-valid:**
 
-   * The partition for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists.
+   * The partition for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` exists.
    * It validates against `schemas.6A.yaml#/s2/account_base`.
-   * The logical PK `(manifest_fingerprint, seed, account_id)` is unique:
+   * The logical PK `(manifest_fingerprint, parameter_hash, seed, account_id)` is unique:
 
-     * no duplicate `account_id` within the same `(mf, seed)`,
+     * no duplicate `account_id` within the same `(mf, ph, seed)`,
      * all rows in the partition carry the correct `manifest_fingerprint` and `seed`.
 
 9. **Foreign key & linkage invariants:**
 
    * For every row:
 
-     * `owner_party_id` exists in `s1_party_base_6A` for the same `(mf, seed)`.
+     * `owner_party_id` exists in `s1_party_base_6A` for the same `(mf, ph, seed)`.
      * if `owner_merchant_id` is present, it references a valid upstream merchant.
    * All account-owner relationships respect linkage rules:
 
@@ -1773,7 +1775,7 @@ If targets or integerisation fail these invariants, S2 MUST fail with `6A.S2.ACC
 10. **Counts match the integerisation plan:**
 
     * For each account cell `c` in the integer plan, the number of base-table rows in that cell equals `N_acc(c)`.
-    * Summing across all cells per `(mf, seed)` yields the global `N_accounts_world_int` computed in Phase 3.
+    * Summing across all cells per `(mf, ph, seed)` yields the global `N_accounts_world_int` computed in Phase 3.
 
     Any mismatch is `6A.S2.ACCOUNT_COUNTS_MISMATCH`.
 
@@ -1805,7 +1807,7 @@ If targets or integerisation fail these invariants, S2 MUST fail with `6A.S2.ACC
 13. **Optional views (if implemented) are consistent:**
 
     * `s2_merchant_account_base_6A` is a strict subset of the base (no extra or altered accounts).
-    * `s2_account_summary_6A` aggregates base-table rows exactly according to its grouping, and `Σ account_count` equals total base rows for `(mf, seed)`.
+    * `s2_account_summary_6A` aggregates base-table rows exactly according to its grouping, and `Σ account_count` equals total base rows for `(mf, ph, seed)`.
 
 ---
 
@@ -1825,7 +1827,7 @@ If targets or integerisation fail these invariants, S2 MUST fail with `6A.S2.ACC
       * total draws and blocks,
       * no overlapping or out-of-order Philox counter ranges.
 
-    * Any configured RNG budgets (e.g. max draws per family per world+seed) are respected.
+    * Any configured RNG budgets (e.g. max draws per family per world+seed+parameter) are respected.
 
 If RNG accounting fails, S2 must fail with `6A.S2.RNG_ACCOUNTING_MISMATCH` or `6A.S2.RNG_STREAM_CONFIG_INVALID`.
 
@@ -1833,15 +1835,15 @@ If RNG accounting fails, S2 must fail with `6A.S2.RNG_ACCOUNTING_MISMATCH` or `6
 
 ### 8.2 Gating obligations for downstream 6A states (S3–S5)
 
-For each `(manifest_fingerprint, seed)`, **6A.S3–S5 MUST treat S2 as a hard precondition**.
+For each `(manifest_fingerprint, parameter_hash, seed)`, **6A.S3–S5 MUST treat S2 as a hard precondition**.
 
 Before reading or using any account/product data, a downstream 6A state MUST:
 
 1. Verify S0 and S1 gates as per their own specs, **and**
 
-2. Verify S2 PASS for `(mf, seed)` by:
+2. Verify S2 PASS for `(mf, ph, seed)` by:
 
-   * reading the latest 6A.S2 run-report for `(mf, seed)`,
+   * reading the latest 6A.S2 run-report for `(mf, ph, seed)`,
    * requiring:
 
      ```text
@@ -1856,7 +1858,7 @@ Additionally, S3–S5 MUST:
 
 * NEVER create new accounts (`account_id`s) outside `s2_account_base_6A`.
 * NEVER modify static account fields that S2 owns.
-* ALWAYS join on `(manifest_fingerprint, seed, account_id)` (and through `party_id` / `owner_merchant_id` as needed) to attach their own structures.
+* ALWAYS join on `(manifest_fingerprint, parameter_hash, seed, account_id)` (and through `party_id` / `owner_merchant_id` as needed) to attach their own structures.
 
 ---
 
@@ -1864,7 +1866,7 @@ Additionally, S3–S5 MUST:
 
 6B and any external consumer that uses accounts/products for flows or decisioning must:
 
-1. Require S2 PASS for the target `(mf, seed)`:
+1. Require S2 PASS for the target `(mf, ph, seed)`:
 
    * consult S2’s run-report,
    * confirm `status="PASS"` and empty `error_code`.
@@ -1873,7 +1875,7 @@ Additionally, S3–S5 MUST:
 
 3. Treat `s2_party_product_holdings_6A` and any optional views as **derived**, not as independent definitions of ownership.
 
-4. Treat any reference to an `account_id` not present in `s2_account_base_6A` for the same `(mf, seed)` as an error, not as “an external/unknown account”.
+4. Treat any reference to an `account_id` not present in `s2_account_base_6A` for the same `(mf, ph, seed)` as an error, not as “an external/unknown account”.
 
 6B may build balances, transactional histories and labels on top of `s2_account_base_6A`, but it MUST NOT change S2’s identity, ownership, or static classification.
 
@@ -1881,10 +1883,10 @@ Additionally, S3–S5 MUST:
 
 ### 8.4 Behaviour on failure & partial outputs
 
-If S2 fails for a given `(manifest_fingerprint, seed)`:
+If S2 fails for a given `(manifest_fingerprint, parameter_hash, seed)`:
 
 * Any partially written S2 datasets (`s2_account_base_6A`, holdings, merchant views, summaries) **must not** be treated as valid.
-* Downstream states must treat that world+seed as **having no valid S2 account universe**, regardless of whether files exist.
+* Downstream states must treat that world+seed+parameter as **having no valid S2 account universe**, regardless of whether files exist.
 
 The 6A.S2 run-report MUST be updated with:
 
@@ -1894,8 +1896,8 @@ The 6A.S2 run-report MUST be updated with:
 
 The only valid states are:
 
-* **S2 PASS →** S3–S5 and 6B may operate on accounts/products for that `(mf, seed)`.
-* **S2 FAIL →** S3–S5 and 6B must NOT operate on accounts/products for that `(mf, seed)` until S2 is re-run and PASS.
+* **S2 PASS →** S3–S5 and 6B may operate on accounts/products for that `(mf, ph, seed)`.
+* **S2 FAIL →** S3–S5 and 6B must NOT operate on accounts/products for that `(mf, ph, seed)` until S2 is re-run and PASS.
 
 These acceptance criteria and gating obligations are **binding** and fully define what “S2 is done and safe to build on” means for the rest of Layer-3 and the enterprise shell.
 
@@ -1905,11 +1907,11 @@ These acceptance criteria and gating obligations are **binding** and fully defin
 
 This section defines the **canonical error surface** for 6A.S2.
 
-Every failure for a given `(manifest_fingerprint, seed)` **must** be mapped to exactly one of these codes.
+Every failure for a given `(manifest_fingerprint, parameter_hash, seed)` **must** be mapped to exactly one of these codes.
 All are:
 
-* **Fatal** for S2 for that `(manifest_fingerprint, seed)`.
-* **Blocking** for S3–S5 and 6B for that `(manifest_fingerprint, seed)`.
+* **Fatal** for S2 for that `(manifest_fingerprint, parameter_hash, seed)`.
+* **Blocking** for S3–S5 and 6B for that `(manifest_fingerprint, parameter_hash, seed)`.
 
 No “best-effort” downgrade is allowed.
 
@@ -1942,7 +1944,7 @@ These mean S2 cannot trust the world-level gate or party base.
   * S0 is missing or not PASS for this `manifest_fingerprint`,
   * `sealed_inputs_digest_6A` recomputed from `sealed_inputs_6A` does not match `s0_gate_receipt_6A`,
   * one or more required upstream segments `{1A,1B,2A,2B,3A,3B,5A,5B}` have `gate_status != "PASS"`, or
-  * S1 is missing or not PASS for this `(manifest_fingerprint, seed)`.
+  * S1 is missing or not PASS for this `(manifest_fingerprint, parameter_hash, seed)`.
 
 * `6A.S2.SEALED_INPUTS_MISSING_REQUIRED`
   *Meaning:* One or more artefacts that S2 considers **required** (e.g. product-mix priors, account taxonomy, linkage rules) do not appear in `sealed_inputs_6A` for this world.
@@ -2011,7 +2013,7 @@ These indicate the materialised S2 datasets are inconsistent with the plan, with
   *Meaning:* `s2_account_base_6A` exists but:
 
   * fails validation against `schemas.6A.yaml#/s2/account_base`, or
-  * violates the PK/uniqueness constraint `(manifest_fingerprint, seed, account_id)`.
+  * violates the PK/uniqueness constraint `(manifest_fingerprint, parameter_hash, seed, account_id)`.
 
 * `6A.S2.ACCOUNT_COUNTS_MISMATCH`
   *Meaning:* When aggregating `s2_account_base_6A`:
@@ -2022,7 +2024,7 @@ These indicate the materialised S2 datasets are inconsistent with the plan, with
 * `6A.S2.ORPHAN_ACCOUNT_OWNER`
   *Meaning:* One or more accounts reference owners that don’t exist:
 
-  * `owner_party_id` not found in `s1_party_base_6A` for `(mf, seed)`, or
+  * `owner_party_id` not found in `s1_party_base_6A` for `(mf, ph, seed)`, or
   * `owner_merchant_id` not found in the upstream merchant universe.
 
 * `6A.S2.LINKAGE_RULE_VIOLATION`
@@ -2084,12 +2086,12 @@ These indicate storage or generic runtime failures.
   *Meaning:* S2 attempted to write `s2_account_base_6A`, holdings, or optional views, and the write failed to complete atomically/durably.
 
 * `6A.S2.OUTPUT_CONFLICT`
-  *Meaning:* For a given `(mf, seed)`, outputs for S2 already exist and are **not** byte-identical to what S2 would produce from the current inputs (violating replace-not-append / idempotency). S2 must not silently overwrite.
+  *Meaning:* For a given `(mf, ph, seed)`, outputs for S2 already exist and are **not** byte-identical to what S2 would produce from the current inputs (violating replace-not-append / idempotency). S2 must not silently overwrite.
 
 * `6A.S2.INTERNAL_ERROR`
   *Meaning:* A non-classified, unexpected internal error occurred (e.g. assertion failure, unhandled exception) that doesn’t map cleanly to any code above. This should be treated as an implementation bug.
 
-These errors mean: **“This S2 run failed structurally; treat its outputs as unusable for this `(mf, seed)`.”**
+These errors mean: **“This S2 run failed structurally; treat its outputs as unusable for this `(mf, ph, seed)`.”**
 
 ---
 
@@ -2116,7 +2118,7 @@ If no specific code fits, implementations must use `6A.S2.INTERNAL_ERROR` and th
 
 ### 9.4 Run-report integration & propagation
 
-On every S2 run for `(manifest_fingerprint, seed)`, the run-report record **must** include:
+On every S2 run for `(manifest_fingerprint, parameter_hash, seed)`, the run-report record **must** include:
 
 * `state_id = "6A.S2"`
 * `manifest_fingerprint`, `parameter_hash`, `seed`
@@ -2131,7 +2133,7 @@ On **FAIL**, S2:
 
 Downstream S3–S5 and 6B **must**:
 
-* check S2’s run-report for `(mf, seed)` before consuming S2 outputs,
+* check S2’s run-report for `(mf, ph, seed)` before consuming S2 outputs,
 * refuse to proceed if `status != "PASS"` or `error_code` is non-empty.
 
 The error codes in this section are the **primary machine-readable signal** of S2’s failure reasons.
@@ -2141,7 +2143,7 @@ Logs and stack traces are for debugging only and are not part of the contract.
 
 ## 10. Observability & run-report integration *(Binding)*
 
-6A.S2 is a **core modelling state**: it defines the entire account/product universe for each `(manifest_fingerprint, seed)`. Its health and outputs must be **explicitly visible** via a run-report record, and downstream states must gate on that record rather than guessing from file presence.
+6A.S2 is a **core modelling state**: it defines the entire account/product universe for each `(manifest_fingerprint, parameter_hash, seed)`. Its health and outputs must be **explicitly visible** via a run-report record, and downstream states must gate on that record rather than guessing from file presence.
 
 This section fixes **what S2 must report**, how it is **keyed**, and how **downstream components must use it**.
 
@@ -2149,7 +2151,7 @@ This section fixes **what S2 must report**, how it is **keyed**, and how **downs
 
 ### 10.1 Run-report record for 6A.S2
 
-For every attempted S2 run on a `(manifest_fingerprint, seed)`, the engine **MUST** emit exactly one run-report record with at least:
+For every attempted S2 run on a `(manifest_fingerprint, parameter_hash, seed)`, the engine **MUST** emit exactly one run-report record with at least:
 
 #### Identity
 
@@ -2177,7 +2179,7 @@ For every attempted S2 run on a `(manifest_fingerprint, seed)`, the engine **MUS
 
 For a PASS run these fields are **binding** (must be consistent with the datasets):
 
-* `total_accounts` — total number of rows in `s2_account_base_6A` for `(mf, seed)`.
+* `total_accounts` — total number of rows in `s2_account_base_6A` for `(mf, ph, seed)`.
 * `accounts_by_type` — map/array summarising counts per `account_type`.
 * `accounts_by_product_family` — optional; counts per `product_family`.
 * `accounts_by_region` — counts per region/country (using whatever geography grain S2 uses).
@@ -2206,7 +2208,7 @@ These must reconcile with the RNG envelope/trace logs (see §8.1.6).
 
 ### 10.2 PASS vs FAIL semantics in the run-report
 
-For a **PASS** S2 run on `(manifest_fingerprint, seed)`:
+For a **PASS** S2 run on `(manifest_fingerprint, parameter_hash, seed)`:
 
 * `status == "PASS"`
 * `error_code` is empty or null.
@@ -2228,7 +2230,7 @@ Implementations must not emit `status="PASS"` unless:
 
 ### 10.3 Relationship between run-report and S2 datasets
 
-For a **PASS** S2 run on `(mf, seed)`:
+For a **PASS** S2 run on `(mf, ph, seed)`:
 
 * There **must exist** corresponding partitions of:
 
@@ -2243,7 +2245,7 @@ For a **PASS** S2 run on `(mf, seed)`:
 
 Concretely:
 
-* `total_accounts == COUNT(*)` over `s2_account_base_6A` for `(mf, seed)`.
+* `total_accounts == COUNT(*)` over `s2_account_base_6A` for `(mf, ph, seed)`.
 * `accounts_by_type` matches `GROUP BY account_type` counts on the base table.
 * `accounts_by_region`, `accounts_by_segment` match the appropriate groupings (joining S1 where needed).
 * `accounts_per_party_*` metrics correspond to aggregations of base accounts by `owner_party_id`.
@@ -2265,9 +2267,9 @@ All downstream states that depend on S2 — i.e.:
 
 **MUST** incorporate S2’s run-report into their gating logic.
 
-Before using S2 outputs for `(mf, seed)`, a downstream state MUST:
+Before using S2 outputs for `(mf, ph, seed)`, a downstream state MUST:
 
-1. Locate the **latest** 6A.S2 run-report record for `(mf, seed)`.
+1. Locate the **latest** 6A.S2 run-report record for `(mf, ph, seed)`.
 
 2. Require:
 
@@ -2278,14 +2280,14 @@ Before using S2 outputs for `(mf, seed)`, a downstream state MUST:
 
 3. Confirm that:
 
-   * `s2_account_base_6A` exists for `(mf, seed)` and validates against its schema,
+   * `s2_account_base_6A` exists for `(mf, ph, seed)` and validates against its schema,
    * `s2_party_product_holdings_6A` exists and validates,
    * `total_accounts` from the run-report matches `COUNT(*)` over `s2_account_base_6A`.
 
 If any of these checks fails, the downstream state **must not**:
 
-* read or rely on S2 account datasets for that `(mf, seed)`,
-* proceed to attach instruments/devices/fraud roles or flows to accounts for that world+seed.
+* read or rely on S2 account datasets for that `(mf, ph, seed)`,
+* proceed to attach instruments/devices/fraud roles or flows to accounts for that world+seed+parameter.
 
 Instead, it must fail with a state-local gate error (e.g. `6A.S3.S2_GATE_FAILED`, `6B.S0.S2_GATE_FAILED`).
 
@@ -2303,7 +2305,7 @@ While not binding for correctness, implementations **should** also:
 
 * At INFO level, log per-run:
 
-  * `(manifest_fingerprint, seed, parameter_hash)`,
+  * `(manifest_fingerprint, parameter_hash, seed)`,
   * `status`, `error_code`,
   * `total_accounts`,
   * basic splits by type/segment/region.
@@ -2351,7 +2353,7 @@ These observability and run-report requirements are **binding** for S2’s contr
 
 ### 11.1 Complexity profile
 
-For a given `(manifest_fingerprint, seed)`:
+For a given `(manifest_fingerprint, parameter_hash, seed)`:
 
 Let:
 
@@ -2401,7 +2403,7 @@ You can think of S2 scale as “S1 scale × product density”:
 
 * If S1 has:
 
-  * `P ≈ 10⁶–10⁷` parties per `(mf, seed)`, and
+  * `P ≈ 10⁶–10⁷` parties per `(mf, ph, seed)`, and
   * average accounts per party ≈ 1–5,
 
 * Then S2 will usually produce:
@@ -2427,7 +2429,7 @@ S2 is highly parallelisable. Natural axes:
 
 1. **Across seeds**
 
-   * Each `(manifest_fingerprint, seed)` is hermetic — different account universes.
+   * Each `(manifest_fingerprint, parameter_hash, seed)` is hermetic — different account universes.
    * Safest primary sharding axis for horizontal scale.
 
 2. **Across cells within a seed**
@@ -2537,7 +2539,7 @@ To make S2 manageable across environments (dev, CI, staging, prod), you can expo
   * Hard caps to avoid extreme outliers from tails of priors;
   * If caps are exceeded and no feasible allocation exists, S2 fails cleanly rather than generating absurdly dense holders.
 
-* **Maximum accounts per `(mf, seed)`**
+* **Maximum accounts per `(mf, ph, seed)`**
 
   * A global safety cap: if computed `N_acc_world_int` exceeds a configured threshold, S2 fails rather than overwhelming downstream resources.
 
@@ -2735,7 +2737,7 @@ The following are **breaking changes** and must not be introduced without:
    * Changing the *class* of law that maps priors → integer counts → allocation to parties in ways that violate downstream assumptions:
 
      * e.g. previously scenario-independent account universe becoming scenario-dependent,
-     * previously one account base per `(mf, seed)` becoming multiple overlapping bases.
+     * previously one account base per `(mf, ph, seed)` becoming multiple overlapping bases.
 
    * Changing the **RNG family mapping** (e.g. turning `account_count_realisation` into a different random operation with different distributional behaviour) is also behavioural and must be treated as breaking.
 
@@ -2769,7 +2771,7 @@ Downstream 6A states and 6B have responsibilities under this spec:
    * Each downstream state (S3, S4, S5, 6B) MUST declare a **minimum supported S2 spec version** / `spec_version_6A_S2`, and:
 
      * read S2’s run-report,
-     * fail fast if the S2 spec version for a given `(mf, seed)` is outside the supported range.
+     * fail fast if the S2 spec version for a given `(mf, ph, seed)` is outside the supported range.
 
 2. **Ignore unknown fields gracefully**
 
@@ -2814,7 +2816,7 @@ In environments that need to support **multiple S2 versions concurrently**:
 
 S2 itself MUST remain internally consistent per world:
 
-* A single `(manifest_fingerprint, seed)` MUST NOT be populated by two different S2 spec versions.
+* A single `(manifest_fingerprint, parameter_hash, seed)` MUST NOT be populated by two different S2 spec versions.
 
 ---
 
@@ -2856,11 +2858,11 @@ If anything here seems to contradict the binding sections (§1–§12), the bind
   Different seeds under the same `(mf, ph)` correspond to different population + account universes.
 
 * **`party_id`**
-  Stable identifier for a party/customer within `(mf, seed)`, created by S1.
+  Stable identifier for a party/customer within `(mf, ph, seed)`, created by S1.
   S2 must treat `(mf, seed, party_id)` as **foreign key** into `s1_party_base_6A`.
 
 * **`account_id`**
-  Stable identifier for an account within `(mf, seed)`, created by S2.
+  Stable identifier for an account within `(mf, ph, seed)`, created by S2.
   S2 guarantees uniqueness of `(mf, seed, account_id)`.
 
 * **`owner_party_id`**, **`owner_merchant_id`**
@@ -3036,7 +3038,7 @@ All RNG is counter-based (Philox-2x64-10), and per-event counter evolution is de
   As in S0/S1: shorthand for “everything tied to one `manifest_fingerprint`”.
 
 * **“Account universe”**
-  The set of all rows in `s2_account_base_6A` for a given `(mf, seed)` — the complete set of accounts/products that exist in that world+seed.
+  The set of all rows in `s2_account_base_6A` for a given `(mf, ph, seed)` — the complete set of accounts/products that exist in that world+seed+parameter.
 
 * **“Holdings”**
   Shorthand for `s2_party_product_holdings_6A` (and any equivalent merchant holdings views): per-entity, per-product-type aggregates of account ownership.

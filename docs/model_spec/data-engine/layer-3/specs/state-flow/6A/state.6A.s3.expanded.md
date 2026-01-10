@@ -3,7 +3,7 @@
 ## 1. Purpose & scope *(Binding)*
 
 6A.S3 is the **instrument & payment-credential realisation state** for Layer-3 / Segment 6A.
-Its job is to take the **account universe** from S2 (and the party universe from S1) and turn it into a **closed-world instrument universe** for each `(manifest_fingerprint, seed)`.
+Its job is to take the **account universe** from S2 (and the party universe from S1) and turn it into a **closed-world instrument universe** for each `(manifest_fingerprint, parameter_hash, seed)`.
 
 Concretely, S3 must:
 
@@ -27,7 +27,7 @@ Concretely, S3 must:
 
 Within 6A, S3 is the **sole authority** on:
 
-* **Instrument existence** — which instruments/credentials exist for a given `(manifest_fingerprint, seed)`, and in what quantity per segment/region/product.
+* **Instrument existence** — which instruments/credentials exist for a given `(manifest_fingerprint, parameter_hash, seed)`, and in what quantity per segment/region/product.
 * **Instrument ownership topology** — which accounts and parties each instrument belongs to at initialisation (and, where relevant, which merchants).
 * **Static instrument attributes** — type, scheme, brand, masked identifiers, expiry, and any other static properties that do not change over time.
 
@@ -52,7 +52,7 @@ Within Layer-3, S3 sits **downstream of S0, S1 and S2**:
 * It only runs for worlds where:
 
   * S0 has sealed the input universe (`sealed_inputs_6A` + `s0_gate_receipt_6A` PASS), and
-  * S1 and S2 are PASS for the same `(manifest_fingerprint, seed)` and have produced a consistent party and account universe.
+  * S1 and S2 are PASS for the same `(manifest_fingerprint, parameter_hash, seed)` and have produced a consistent party and account universe.
 * It uses the **instrument mix priors**, **instrument taxonomies**, and **linkage rules** sealed by S0 to:
 
   * decide how many instruments should exist per account cell (e.g. per `(region, party_type, segment, account_type)`), and
@@ -62,7 +62,7 @@ All later 6A states (e.g. device/IP graph, fraud posture) and 6B’s flow/fraud 
 
 > “which instruments/credentials exist, and which accounts/parties they belong to”
 
-within the synthetic bank for that `(manifest_fingerprint, seed)`.
+within the synthetic bank for that `(manifest_fingerprint, parameter_hash, seed)`.
 
 ---
 
@@ -168,37 +168,37 @@ If any of these checks fails, S3 MUST NOT attempt to read priors or generate any
 
 ### 2.3 6A.S1 and 6A.S2 preconditions (party & account gates)
 
-S3 sits directly downstream of S1 and S2. For each `(manifest_fingerprint, seed)` S3 will process, it MUST ensure that:
+S3 sits directly downstream of S1 and S2. For each `(manifest_fingerprint, parameter_hash, seed)` S3 will process, it MUST ensure that:
 
-1. **S1 is PASS for this `(mf, seed)`**
+1. **S1 is PASS for this `(mf, ph, seed)`**
 
-   * Locate the latest 6A.S1 run-report for `(mf, seed)` and require:
+   * Locate the latest 6A.S1 run-report for `(mf, ph, seed)` and require:
 
      ```text
      status     == "PASS"
      error_code == "" or null
      ```
 
-   * Resolve `s1_party_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` via the catalogue and:
+   * Resolve `s1_party_base_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` via the catalogue and:
 
      * validate it against `schemas.6A.yaml#/s1/party_base`,
      * verify that `COUNT(*)` equals `total_parties` in the S1 run-report.
 
-2. **S2 is PASS for this `(mf, seed)`**
+2. **S2 is PASS for this `(mf, ph, seed)`**
 
-   * Locate the latest 6A.S2 run-report for `(mf, seed)` and require:
+   * Locate the latest 6A.S2 run-report for `(mf, ph, seed)` and require:
 
      ```text
      status     == "PASS"
      error_code == "" or null
      ```
 
-   * Resolve `s2_account_base_6A` and `s2_party_product_holdings_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})` and:
+   * Resolve `s2_account_base_6A` and `s2_party_product_holdings_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` and:
 
      * validate them against their schemas (`#/s2/account_base`, `#/s2/party_product_holdings`),
      * verify that `COUNT(*)` for the account base equals `total_accounts` in the S2 run-report.
 
-If S1 or S2 is missing or not PASS for `(mf, seed)`, S3 MUST fail with `6A.S3.S0_S1_S2_GATE_FAILED` and MUST NOT create any instruments for that world+seed.
+If S1 or S2 is missing or not PASS for `(mf, ph, seed)`, S3 MUST fail with `6A.S3.S0_S1_S2_GATE_FAILED` and MUST NOT create any instruments for that world+seed+parameter.
 
 ---
 
@@ -295,7 +295,7 @@ If used, these artefacts MUST:
 
 ### 2.5 Axes of operation: world & seed
 
-S3’s natural domain is the pair `(manifest_fingerprint, seed)`:
+S3’s natural domain is the pair `(manifest_fingerprint, parameter_hash, seed)`:
 
 * `manifest_fingerprint` identifies the sealed upstream world and 6A input universe.
 * `seed` identifies a specific party+account+instrument realisation within that world.
@@ -308,14 +308,14 @@ Preconditions per axis:
   * all upstream HashGates MUST be PASS via S0,
   * S3 MUST only consider sealed inputs and priors for that `mf`.
 
-* For each `(mf, seed)`:
+* For each `(mf, ph, seed)`:
 
   * S1 and S2 MUST be PASS and have produced `s1_party_base_6A` and `s2_account_base_6A` for that pair,
   * S3 then constructs an instrument universe attached to exactly that party+account universe.
 
 Scenario identity (`scenario_id`) is NOT an axis for S3:
 
-* S3 builds a **scenario-independent instrument universe** per `(mf, seed)`;
+* S3 builds a **scenario-independent instrument universe** per `(mf, ph, seed)`;
 * all scenarios in 6B draw instruments from this same universe.
 
 If a future version introduces scenario-dependent instruments, that will be a breaking change and MUST be versioned accordingly.
@@ -378,13 +378,13 @@ These are mandatory and read-only:
 
   * `s1_party_base_6A`
 
-    * authoritative party universe for `(mf, seed)`: `party_id`, party type, segment, home geo, static attributes.
+    * authoritative party universe for `(mf, ph, seed)`: `party_id`, party type, segment, home geo, static attributes.
 
 * **From 6A.S2:**
 
   * `s2_account_base_6A`
 
-    * authoritative account universe for `(mf, seed)`: `account_id`, `owner_party_id`, optional `owner_merchant_id`, `account_type`, `product_family`, `currency_iso`, and static account attributes.
+    * authoritative account universe for `(mf, ph, seed)`: `account_id`, `owner_party_id`, optional `owner_merchant_id`, `account_type`, `product_family`, `currency_iso`, and static account attributes.
 
   * `s2_party_product_holdings_6A`
 
@@ -534,7 +534,7 @@ Within 6A, each state owns a distinct slice of the world.
 
 S1 is the sole authority on:
 
-* which `party_id`s exist for `(mf, seed)`,
+* which `party_id`s exist for `(mf, ph, seed)`,
 * party types, segments, home geography, and S1-owned static attributes.
 
 S3 **must not**:
@@ -548,7 +548,7 @@ It may only **reference** `party_id` and S1 attributes to condition instrument p
 
 S2 is the sole authority on:
 
-* which `account_id`s exist for `(mf, seed)`,
+* which `account_id`s exist for `(mf, ph, seed)`,
 * mapping from `account_id` to `owner_party_id` / `owner_merchant_id`,
 * static account attributes (account_type, product_family, currency, account-level flags).
 
@@ -566,7 +566,7 @@ S3 exclusively owns:
 
 * **Instrument universe**:
 
-  * how many instruments exist per `(mf, seed)`,
+  * how many instruments exist per `(mf, ph, seed)`,
   * their `instrument_id`s,
   * which accounts/parties (and optionally merchants) they belong to.
 
@@ -677,7 +677,7 @@ Everything else in S3 (RNG logs, planning matrices) is internal and not part of 
 
 #### 4.1.1 Domain & scope
 
-For each `(manifest_fingerprint, seed)`, `s3_instrument_base_6A` contains **one row per instrument** in that world+seed.
+For each `(manifest_fingerprint, parameter_hash, seed)`, `s3_instrument_base_6A` contains **one row per instrument** in that world+seed+parameter.
 
 * Domain axes:
 
@@ -687,7 +687,7 @@ For each `(manifest_fingerprint, seed)`, `s3_instrument_base_6A` contains **one 
 
 * S3 is **scenario-independent**:
 
-  * there is a single instrument universe per `(mf, seed)`;
+  * there is a single instrument universe per `(mf, ph, seed)`;
   * all scenarios in 6B draw from this same universe.
 
 #### 4.1.2 Required content (logical fields)
@@ -698,15 +698,15 @@ The base table MUST include, at minimum, the following logical fields (names can
 
   * `instrument_id`
 
-    * stable identifier for the instrument within `(manifest_fingerprint, seed)`,
-    * globally unique per world+seed.
+    * stable identifier for the instrument within `(manifest_fingerprint, parameter_hash, seed)`,
+    * globally unique per world+seed+parameter.
   * `manifest_fingerprint`
   * `parameter_hash`
   * `seed`
 
 * **Owner references**
 
-  * `account_id` — FK into `s2_account_base_6A` for the same `(mf, seed)`; every instrument attaches to a single primary account.
+  * `account_id` — FK into `s2_account_base_6A` for the same `(mf, ph, seed)`; every instrument attaches to a single primary account.
   * optional `owner_party_id` — FK into `s1_party_base_6A`; usually redundant (derivable via account→party) but may be carried for convenience.
   * optional `owner_merchant_id` — if you model merchant-owned instruments (e.g. merchant credentials, tokens tied to a merchant), this field must be FK into the upstream merchant universe.
 
@@ -756,17 +756,17 @@ For `s3_instrument_base_6A`:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, instrument_id)
+  (manifest_fingerprint, parameter_hash, seed, instrument_id)
   ```
 
 * **Uniqueness:**
 
-  * `instrument_id` MUST be unique within each `(manifest_fingerprint, seed)`.
+  * `instrument_id` MUST be unique within each `(manifest_fingerprint, parameter_hash, seed)`.
   * No duplicate `(mf, seed, instrument_id)` rows may exist.
 
 * **Foreign key invariants:**
 
-  * Every `account_id` MUST exist in `s2_account_base_6A` for the same `(mf, seed)`.
+  * Every `account_id` MUST exist in `s2_account_base_6A` for the same `(mf, ph, seed)`.
   * If `owner_party_id` is populated, it MUST exist in `s1_party_base_6A` and MUST be consistent with the party owning the referenced account (if you choose to enforce that redundancy).
   * If `owner_merchant_id` is populated, it MUST exist in the upstream merchant universe.
 
@@ -777,12 +777,12 @@ For `s3_instrument_base_6A`:
 
 * **World consistency:**
 
-  * All rows in the `(seed={seed}, manifest_manifest_fingerprint={mf})` partition MUST have those values in their columns.
-  * All rows for `(mf, seed)` MUST share the same `parameter_hash`.
+  * All rows in the `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` partition MUST have those values in their columns.
+  * All rows for `(mf, ph, seed)` MUST share the same `parameter_hash`.
 
 * **Closed-world semantics for instruments:**
 
-  For a given `(manifest_fingerprint, seed)`, the set of `instrument_id`s in `s3_instrument_base_6A` is the **complete instrument universe** for that world+seed. No other dataset is allowed to introduce additional instruments; later states must treat this as read-only ground truth.
+  For a given `(manifest_fingerprint, parameter_hash, seed)`, the set of `instrument_id`s in `s3_instrument_base_6A` is the **complete instrument universe** for that world+seed+parameter. No other dataset is allowed to introduce additional instruments; later states must treat this as read-only ground truth.
 
 ---
 
@@ -793,7 +793,7 @@ For `s3_instrument_base_6A`:
 
 #### 4.2.1 Domain & scope
 
-For each `(manifest_fingerprint, seed)`, `s3_account_instrument_links_6A` contains one or more rows per account, depending on your chosen shape:
+For each `(manifest_fingerprint, parameter_hash, seed)`, `s3_account_instrument_links_6A` contains one or more rows per account, depending on your chosen shape:
 
 * Either **one row per instrument** with a slim view of linkage (very close to projecting the base table).
 * Or **one row per account+instrument_type** (or per account+instrument_type+scheme) with counts and optional ID arrays.
@@ -834,7 +834,7 @@ In both cases, the table must be reproducible from joins between `s3_instrument_
 * **Logical key** (example if grouping by `account_id, instrument_type`):
 
   ```text
-  (manifest_fingerprint, seed, account_id, instrument_type)
+  (manifest_fingerprint, parameter_hash, seed, account_id, instrument_type)
   ```
 
 * **Derivation invariant:**
@@ -860,7 +860,7 @@ These are **optional** but, if implemented, must be strictly derived from the ba
 
 **Role:** per-party instrument holdings; convenience for downstream sizing/QA and some fraud features.
 
-* Domain: one or more rows per `(manifest_fingerprint, seed, party_id)` plus grouping keys.
+* Domain: one or more rows per `(manifest_fingerprint, parameter_hash, seed, party_id)` plus grouping keys.
 * Grouping keys: e.g. `(instrument_type)` or `(instrument_type, scheme)`.
 
 **Required content:**
@@ -899,7 +899,7 @@ These are **optional** but, if implemented, must be strictly derived from the ba
 **Invariants:**
 
 * For each grouping key `g`, `instrument_count(g)` MUST equal the count of base-table rows matching `g`.
-* Summing `instrument_count` over all groups MUST equal `COUNT(*)` of `s3_instrument_base_6A` for that `(mf, seed)`.
+* Summing `instrument_count` over all groups MUST equal `COUNT(*)` of `s3_instrument_base_6A` for that `(mf, ph, seed)`.
 
 ---
 
@@ -917,8 +917,8 @@ S3 outputs are aligned with upstream identity and downstream expectations:
 
   * Later 6A states (e.g. device/IP graph, fraud posture) and 6B will attach additional structure and behaviour to `instrument_id` and `account_id`, always using:
 
-    * `(manifest_fingerprint, seed, instrument_id)` as the instrument key,
-    * `(manifest_fingerprint, seed, account_id)` as the account key,
+    * `(manifest_fingerprint, parameter_hash, seed, instrument_id)` as the instrument key,
+    * `(manifest_fingerprint, parameter_hash, seed, account_id)` as the account key,
     * and `party_id`/`merchant_id` as owner context.
 
   * No downstream state is permitted to:
@@ -973,7 +973,7 @@ Implementation details (data structures, batching, parallelism) are free; **obse
 
 ### 6.0 Overview & RNG discipline
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 1. Load gates, priors & taxonomies (RNG-free).
 2. Define instrument-planning domain & derive **continuous instrument targets** per account cell (RNG-free).
@@ -987,7 +987,7 @@ RNG discipline:
 * S3 uses the Layer-3 Philox envelope, with substreams keyed on:
 
   ```text
-  (manifest_fingerprint, seed, "6A.S3", substream_label, context...)
+  (manifest_fingerprint, parameter_hash, seed, "6A.S3", substream_label, context...)
   ```
 
 * S3 defines (at least) these RNG families:
@@ -1018,12 +1018,12 @@ No RNG is used for schema, identity axes, path construction, or partitioning.
 
 2. **Verify S1 & S2 gates**
 
-   * For the given `(mf, seed)`:
+   * For the given `(mf, ph, seed)`:
 
      * read latest S1 run-report, require `status="PASS"` and empty `error_code`,
      * read latest S2 run-report, require `status="PASS"` and empty `error_code`.
 
-   * Locate `s1_party_base_6A`, `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_manifest_fingerprint={mf})` via the catalogue and:
+   * Locate `s1_party_base_6A`, `s2_account_base_6A` and `s2_party_product_holdings_6A` partitions for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` via the catalogue and:
 
      * validate them against their schema anchors,
      * verify `COUNT(*)` for S1 and S2 match their run-report metrics.
@@ -1399,7 +1399,7 @@ Using allocations and attributes from Phases 4–5:
 * Write to:
 
   ```text
-  data/layer3/6A/s3_instrument_base_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+  data/layer3/6A/s3_instrument_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
   using the canonical ordering defined in the dictionary (e.g. `account_id, instrument_type, scheme, instrument_id`).
@@ -1438,7 +1438,7 @@ Using allocations and attributes from Phases 4–5:
 
 #### 6.6.3 Internal validation checks
 
-Before marking S3 as PASS for `(mf, seed)`, S3 must perform internal checks (RNG-free):
+Before marking S3 as PASS for `(mf, ph, seed)`, S3 must perform internal checks (RNG-free):
 
 * **Plan vs base consistency:**
 
@@ -1536,7 +1536,7 @@ S3 uses the same three primary identity axes as S1/S2:
   * `parameter_hash`
   * Identifies the priors/config pack used for instrument mix, linkage rules, and instrument attributes.
   * Stored as a **column** in S3 outputs, **not** as a partition key.
-  * For a given `(manifest_fingerprint, seed)`, all S3 rows must share a single `parameter_hash`.
+  * For a given `(manifest_fingerprint, parameter_hash, seed)`, all S3 rows must share a single `parameter_hash`.
 
 * **RNG identity**
 
@@ -1550,14 +1550,14 @@ S3 uses the same three primary identity axes as S1/S2:
 
 ### 7.2 Partitioning & path tokens
 
-All S3 datasets are **world+seed scoped** with identical partitioning.
+All S3 datasets are **world+seed+parameter scoped** with identical partitioning.
 
 #### 7.2.1 `s3_instrument_base_6A`
 
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path template (schematic):
@@ -1565,6 +1565,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
   ```text
   data/layer3/6A/s3_instrument_base_6A/
     seed={seed}/
+    parameter_hash={parameter_hash}/
     manifest_fingerprint={manifest_fingerprint}/
     s3_instrument_base_6A.parquet
   ```
@@ -1574,7 +1575,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path template (schematic):
@@ -1582,6 +1583,7 @@ All S3 datasets are **world+seed scoped** with identical partitioning.
   ```text
   data/layer3/6A/s3_account_instrument_links_6A/
     seed={seed}/
+    parameter_hash={parameter_hash}/
     manifest_fingerprint={manifest_fingerprint}/
     s3_account_instrument_links_6A.parquet
   ```
@@ -1593,20 +1595,20 @@ If implemented:
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path templates:
 
   ```text
-  data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
-  data/layer3/6A/s3_instrument_summary_6A/seed={seed}/manifest_manifest_fingerprint={mf}/...
+  data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
+  data/layer3/6A/s3_instrument_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
 **Binding rules:**
 
-* `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the `seed` and `manifest_fingerprint` columns in the data.
-* No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be introduced for S3 business datasets.
+* `seed={seed}`, `parameter_hash={parameter_hash}`, and `manifest_fingerprint={manifest_fingerprint}` path tokens MUST match the corresponding columns in the data.
+* No additional partition keys (e.g. `scenario_id`) may be introduced for S3 business datasets.
 * Consumers MUST resolve locations via the dictionary/registry and then substitute these tokens; hard-coded paths are out of spec.
 
 ---
@@ -1618,29 +1620,29 @@ If implemented:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, instrument_id)
+  (manifest_fingerprint, parameter_hash, seed, instrument_id)
   ```
 
 * **Uniqueness:**
 
-  * `instrument_id` MUST be unique within each `(manifest_fingerprint, seed)`.
-  * No duplicate `(mf, seed, instrument_id)` rows are permitted.
+  * `instrument_id` MUST be unique within each `(manifest_fingerprint, parameter_hash, seed)`.
+  * No duplicate `(mf, ph, seed, instrument_id)` rows are permitted.
 
 * **Foreign keys:**
 
-  * `account_id` MUST reference an existing row in `s2_account_base_6A` for the same `(mf, seed)`.
+  * `account_id` MUST reference an existing row in `s2_account_base_6A` for the same `(mf, ph, seed)`.
 
   * If `owner_party_id` is present:
 
-    * it MUST reference an existing `party_id` in `s1_party_base_6A` for `(mf, seed)`, and
+    * it MUST reference an existing `party_id` in `s1_party_base_6A` for `(mf, ph, seed)`, and
     * if you choose to enforce the redundancy, it MUST be consistent with the party owning the referenced account.
 
   * If `owner_merchant_id` is present, it MUST reference a valid merchant in the Layer-1 merchant universe.
 
 * **Parameter consistency:**
 
-  * All rows for a given `(mf, seed)` MUST share the same `parameter_hash`.
-  * Multiple `parameter_hash` values within the same `(mf, seed)` partition are a config/identity error.
+  * All rows for a given `(mf, ph, seed)` MUST share the same `parameter_hash`.
+  * Multiple `parameter_hash` values within the same `(mf, ph, seed)` partition are a config/identity error.
 
 #### 7.3.2 `s3_account_instrument_links_6A`
 
@@ -1651,7 +1653,7 @@ The exact PK depends on whether you store per-instrument rows or grouped holding
   * Logical key:
 
     ```text
-    (manifest_fingerprint, seed, account_id, instrument_id)
+    (manifest_fingerprint, parameter_hash, seed, account_id, instrument_id)
     ```
 
   * This is effectively a projected, slim view of the base table.
@@ -1661,14 +1663,14 @@ The exact PK depends on whether you store per-instrument rows or grouped holding
   * Logical key (example):
 
     ```text
-    (manifest_fingerprint, seed, account_id, instrument_type, scheme?)
+    (manifest_fingerprint, parameter_hash, seed, account_id, instrument_type, scheme?)
     ```
 
   * `instrument_count` MUST equal the number of base instruments matching that grouping for that account.
 
 In both variants:
 
-* Every `account_id` MUST exist in `s2_account_base_6A` for the same `(mf, seed)`.
+* Every `account_id` MUST exist in `s2_account_base_6A` for the same `(mf, ph, seed)`.
 * No new `instrument_id` may appear here that is not in `s3_instrument_base_6A`.
 
 #### 7.3.3 Optional views
@@ -1680,7 +1682,7 @@ If implemented:
   * Logical key (example):
 
     ```text
-    (manifest_fingerprint, seed, party_id, instrument_type, scheme?)
+    (manifest_fingerprint, parameter_hash, seed, party_id, instrument_type, scheme?)
     ```
 
   * `instrument_count` per row MUST equal the number of base instruments reachable via that party’s accounts that match the grouping.
@@ -1748,26 +1750,26 @@ Canonical ordering is for idempotence/auditability; it is not a semantic contrac
 
 ### 7.5 Merge discipline & lifecycle
 
-S3 behaves as **replace-not-append** at the granularity of `(manifest_fingerprint, seed)`.
+S3 behaves as **replace-not-append** at the granularity of `(manifest_fingerprint, parameter_hash, seed)`.
 
-#### 7.5.1 Replace-not-append per world+seed
+#### 7.5.1 Replace-not-append per world+seed+parameter
 
-For each `(mf, seed)`:
+For each `(mf, ph, seed)`:
 
 * `s3_instrument_base_6A` is **one complete instrument universe snapshot**.
 * `s3_account_instrument_links_6A` and any optional holdings/summary views are **complete derived views** for the same universe.
 
 Behavioural rules:
 
-* Re-running S3 for the same `(mf, seed)` under the same `parameter_hash`, priors, and bases MUST either:
+* Re-running S3 for the same `(mf, ph, seed)` under the same `parameter_hash`, priors, and bases MUST either:
 
   * produce **byte-identical** outputs for all S3 datasets, or
   * fail with `6A.S3.OUTPUT_CONFLICT` (or equivalent) and leave existing outputs unchanged.
 
 * S3 MUST NOT:
 
-  * append instruments to an existing `(mf, seed)` universe,
-  * merge two independently computed instrument universes for the same `(mf, seed)`.
+  * append instruments to an existing `(mf, ph, seed)` universe,
+  * merge two independently computed instrument universes for the same `(mf, ph, seed)`.
 
 Any attempt to “top up” instruments across runs is out-of-spec.
 
@@ -1792,11 +1794,11 @@ Downstream states **must** respect S3’s identity and merge discipline.
 
 #### 7.6.1 6A.S4–S5 (later 6A states)
 
-For each `(mf, seed)` they operate on, S4–S5 MUST:
+For each `(mf, ph, seed)` they operate on, S4–S5 MUST:
 
 * Check S0/S1/S2 gates as per their own specs, **and**
 
-* Check S3 PASS for `(mf, seed)` via S3’s run-report:
+* Check S3 PASS for `(mf, ph, seed)` via S3’s run-report:
 
   * latest S3 run-report has `status="PASS"` and empty `error_code`.
 
@@ -1816,8 +1818,8 @@ Any graph edges, device/IP associations or fraud labels they define must referen
 
 6B MUST:
 
-* treat `s3_instrument_base_6A` as the **only** source of instruments/credentials for `(mf, seed)`,
-* only attach flows/transactions to `instrument_id` / `account_id` pairs that exist in S3/S2 for the same `(mf, seed)`,
+* treat `s3_instrument_base_6A` as the **only** source of instruments/credentials for `(mf, ph, seed)`,
+* only attach flows/transactions to `instrument_id` / `account_id` pairs that exist in S3/S2 for the same `(mf, ph, seed)`,
 * treat any reference to a non-existent `instrument_id`/`account_id` as an error (not as an “external” or “unknown” instrument).
 
 6B may introduce dynamic state (balances, authorisation history, labels) keyed off S3/S2 identifiers, but it MUST NOT alter S3’s identity or static attributes.
@@ -1830,15 +1832,15 @@ These identity, partition, ordering, and merge rules are **binding**. Storage fo
 
 ## 8. Acceptance criteria & gating obligations *(Binding)*
 
-This section defines **when 6A.S3 is considered PASS** for a given `(manifest_fingerprint, seed)` and how **downstream states must gate on S3** before using any instrument/credential data.
+This section defines **when 6A.S3 is considered PASS** for a given `(manifest_fingerprint, parameter_hash, seed)` and how **downstream states must gate on S3** before using any instrument/credential data.
 
-If any condition here fails, S3 is **FAIL for that `(mf, seed)`**, and **no later 6A state (S4–S5) nor 6B may treat S3 outputs as valid**.
+If any condition here fails, S3 is **FAIL for that `(mf, ph, seed)`**, and **no later 6A state (S4–S5) nor 6B may treat S3 outputs as valid**.
 
 ---
 
 ### 8.1 Segment-local PASS / FAIL definition
 
-For a given `(manifest_fingerprint, seed)`, 6A.S3 is **PASS** *iff* all of the following hold.
+For a given `(manifest_fingerprint, parameter_hash, seed)`, 6A.S3 is **PASS** *iff* all of the following hold.
 
 #### 8.1.1 S0 / S1 / S2 / upstream worlds are sealed
 
@@ -1861,27 +1863,27 @@ For a given `(manifest_fingerprint, seed)`, 6A.S3 is **PASS** *iff* all of the f
      gate_status == "PASS"
      ```
 
-3. **S1 is sealed for this `(mf, seed)`:**
+3. **S1 is sealed for this `(mf, ph, seed)`:**
 
-   * Latest 6A.S1 run-report for `(mf, seed)` has:
-
-     ```text
-     status     == "PASS"
-     error_code == "" or null
-     ```
-   * `s1_party_base_6A` exists for `(seed={seed}, manifest_manifest_fingerprint={mf})`, validates against its schema, and `COUNT(*)` equals `total_parties` in the S1 run-report.
-
-4. **S2 is sealed for this `(mf, seed)`:**
-
-   * Latest 6A.S2 run-report for `(mf, seed)` has:
+   * Latest 6A.S1 run-report for `(mf, ph, seed)` has:
 
      ```text
      status     == "PASS"
      error_code == "" or null
      ```
-   * `s2_account_base_6A` and `s2_party_product_holdings_6A` exist for `(seed={seed}, manifest_manifest_fingerprint={mf})`, validate against their schemas, and `COUNT(*)` of the account base equals `total_accounts` in the S2 run-report.
+   * `s1_party_base_6A` exists for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`, validates against its schema, and `COUNT(*)` equals `total_parties` in the S1 run-report.
 
-If any of 1–4 fail, S3 MUST NOT construct an instrument universe for that `(mf, seed)` and MUST fail with a gate error (e.g. `6A.S3.S0_S1_S2_GATE_FAILED`).
+4. **S2 is sealed for this `(mf, ph, seed)`:**
+
+   * Latest 6A.S2 run-report for `(mf, ph, seed)` has:
+
+     ```text
+     status     == "PASS"
+     error_code == "" or null
+     ```
+   * `s2_account_base_6A` and `s2_party_product_holdings_6A` exist for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`, validate against their schemas, and `COUNT(*)` of the account base equals `total_accounts` in the S2 run-report.
+
+If any of 1–4 fail, S3 MUST NOT construct an instrument universe for that `(mf, ph, seed)` and MUST fail with a gate error (e.g. `6A.S3.S0_S1_S2_GATE_FAILED`).
 
 ---
 
@@ -1953,18 +1955,18 @@ If targets or integerisation violate these invariants, S3 MUST fail with `6A.S3.
 
 9. **`s3_instrument_base_6A` exists and is schema-valid:**
 
-   * The partition for `(seed={seed}, manifest_manifest_fingerprint={mf})` exists.
+   * The partition for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})` exists.
    * It validates against `schemas.6A.yaml#/s3/instrument_base`.
-   * The logical PK `(manifest_fingerprint, seed, instrument_id)` is unique:
+   * The logical PK `(manifest_fingerprint, parameter_hash, seed, instrument_id)` is unique:
 
-     * no duplicate `instrument_id` within `(mf, seed)`,
-     * all rows have the correct `(mf, seed)` columns.
+     * no duplicate `instrument_id` within `(mf, ph, seed)`,
+     * all rows have the correct `(mf, ph, seed)` columns.
 
 10. **Foreign key & linkage invariants:**
 
     * For each row in the base:
 
-      * `account_id` exists in `s2_account_base_6A` for the same `(mf, seed)`.
+      * `account_id` exists in `s2_account_base_6A` for the same `(mf, ph, seed)`.
       * If `owner_party_id` is populated, it exists in `s1_party_base_6A` and, if you enforce redundancy, is consistent with the party owning the account.
       * If `owner_merchant_id` is populated, it exists in the upstream merchant universe.
 
@@ -1984,7 +1986,7 @@ If targets or integerisation violate these invariants, S3 MUST fail with `6A.S3.
     * Summed over all cells:
 
       ```text
-      COUNT(*) over s3_instrument_base_6A for (mf, seed) == N_instr_world_int
+      COUNT(*) over s3_instrument_base_6A for (mf, ph, seed) == N_instr_world_int
       ```
 
     Any mismatch MUST be reported as `6A.S3.INSTRUMENT_COUNTS_MISMATCH`.
@@ -2018,7 +2020,7 @@ If targets or integerisation violate these invariants, S3 MUST fail with `6A.S3.
 
     * Exists and validates against its schema anchor.
     * For each grouping key `g`, `instrument_count(g)` equals the number of base-table instruments matching `g`.
-    * Summing `instrument_count` over all rows equals `COUNT(*)` of `s3_instrument_base_6A` for `(mf, seed)`.
+    * Summing `instrument_count` over all rows equals `COUNT(*)` of `s3_instrument_base_6A` for `(mf, ph, seed)`.
 
 Any inconsistency between links/holdings/summaries and the base MUST result in a non-PASS S3 run (e.g. `6A.S3.INSTRUMENT_COUNTS_MISMATCH` or a more specific holdings/summary error).
 
@@ -2040,7 +2042,7 @@ Any inconsistency between links/holdings/summaries and the base MUST result in a
       * total draws and blocks per family,
       * no overlapping/out-of-order Philox counter ranges.
 
-    * Any configured RNG budgets (e.g. max draws per family per `(mf, seed)`) are respected.
+    * Any configured RNG budgets (e.g. max draws per family per `(mf, ph, seed)`) are respected.
 
 If RNG accounting fails, S3 MUST fail with `6A.S3.RNG_ACCOUNTING_MISMATCH` or `6A.S3.RNG_STREAM_CONFIG_INVALID`.
 
@@ -2048,14 +2050,14 @@ If RNG accounting fails, S3 MUST fail with `6A.S3.RNG_ACCOUNTING_MISMATCH` or `6
 
 ### 8.2 Gating obligations for downstream 6A states (S4–S5)
 
-For each `(manifest_fingerprint, seed)`, **6A.S4–S5 MUST treat S3 as a hard precondition**.
+For each `(manifest_fingerprint, parameter_hash, seed)`, **6A.S4–S5 MUST treat S3 as a hard precondition**.
 
 Before reading or using any instrument/credential data, a downstream 6A state MUST:
 
 1. Verify S0, S1, S2 gates as per its own spec, **and**
-2. Verify S3 PASS for `(mf, seed)` by:
+2. Verify S3 PASS for `(mf, ph, seed)` by:
 
-   * reading the latest 6A.S3 run-report for `(mf, seed)`,
+   * reading the latest 6A.S3 run-report for `(mf, ph, seed)`,
    * requiring:
 
      ```text
@@ -2066,14 +2068,14 @@ Before reading or using any instrument/credential data, a downstream 6A state MU
 
 If any of these checks fails, the downstream state MUST:
 
-* NOT read or rely on S3 instrument datasets for that `(mf, seed)`,
+* NOT read or rely on S3 instrument datasets for that `(mf, ph, seed)`,
 * fail its own gate with a state-local error such as `6A.S4.S3_GATE_FAILED`.
 
 Downstream 6A states MUST also:
 
 * NEVER create new `instrument_id`s; S3 is the sole authority on instrument existence.
 * NEVER change static instrument attributes; they may only read them as context.
-* ALWAYS reference instruments via `(manifest_fingerprint, seed, instrument_id)` and accounts / parties via S2/S1 PKs.
+* ALWAYS reference instruments via `(manifest_fingerprint, parameter_hash, seed, instrument_id)` and accounts / parties via S2/S1 PKs.
 
 ---
 
@@ -2081,9 +2083,9 @@ Downstream 6A states MUST also:
 
 6B and any other consumer that uses instruments/credentials for flows or decisions MUST:
 
-1. Require S3 PASS for the target `(mf, seed)`:
+1. Require S3 PASS for the target `(mf, ph, seed)`:
 
-   * consult S3’s run-report entry for `(mf, seed)`,
+   * consult S3’s run-report entry for `(mf, ph, seed)`,
    * ensure `status="PASS"` and `error_code` empty/null.
 
 2. Treat `s3_instrument_base_6A` as the **only source of truth** for:
@@ -2094,7 +2096,7 @@ Downstream 6A states MUST also:
 
 3. Treat `s3_account_instrument_links_6A` and optional holdings/summaries as **derived** convenience surfaces, not as independent definitions of reality.
 
-4. Treat any references to `instrument_id` or `account_id` not found in S3/S2 for the same `(mf, seed)` as errors, not as “external instruments”.
+4. Treat any references to `instrument_id` or `account_id` not found in S3/S2 for the same `(mf, ph, seed)` as errors, not as “external instruments”.
 
 6B may attach dynamic behaviour to `instrument_id`/`account_id` (flows, balances, authorisation events), but MUST NOT alter the underlying static instrument universe.
 
@@ -2102,10 +2104,10 @@ Downstream 6A states MUST also:
 
 ### 8.4 Behaviour on failure & partial outputs
 
-If S3 fails for a given `(manifest_fingerprint, seed)`:
+If S3 fails for a given `(manifest_fingerprint, parameter_hash, seed)`:
 
 * Any partially written S3 datasets (`s3_instrument_base_6A`, links, holdings, summaries) MUST NOT be treated as valid.
-* Downstream states MUST consider that world+seed as having **no valid S3 instrument universe**, regardless of file presence.
+* Downstream states MUST consider that world+seed+parameter as having **no valid S3 instrument universe**, regardless of file presence.
 
 S3’s run-report record MUST be updated with:
 
@@ -2115,8 +2117,8 @@ S3’s run-report record MUST be updated with:
 
 No state is allowed to “limp on” using partially generated instruments. The only valid states are:
 
-* **S3 PASS →** S4–S5 and 6B may operate on instruments for that `(mf, seed)`.
-* **S3 FAIL →** S4–S5 and 6B MUST NOT operate on instruments for that `(mf, seed)` until S3 is re-run and PASS.
+* **S3 PASS →** S4–S5 and 6B may operate on instruments for that `(mf, ph, seed)`.
+* **S3 FAIL →** S4–S5 and 6B MUST NOT operate on instruments for that `(mf, ph, seed)` until S3 is re-run and PASS.
 
 These acceptance criteria and gating obligations are **binding** and define exactly what “S3 is done and safe to build on” means for the rest of Layer-3 and the enterprise shell.
 
@@ -2126,14 +2128,14 @@ These acceptance criteria and gating obligations are **binding** and define exac
 
 This section defines the **canonical error surface** for 6A.S3.
 
-Every failure for a given `(manifest_fingerprint, seed)` **must** be mapped to exactly one of these codes.
+Every failure for a given `(manifest_fingerprint, parameter_hash, seed)` **must** be mapped to exactly one of these codes.
 
 All codes here are:
 
-* **Fatal** for S3 for that `(manifest_fingerprint, seed)`.
-* **Blocking** for all later 6A states (S4–S5) and 6B for that `(manifest_fingerprint, seed)`.
+* **Fatal** for S3 for that `(manifest_fingerprint, parameter_hash, seed)`.
+* **Blocking** for all later 6A states (S4–S5) and 6B for that `(manifest_fingerprint, parameter_hash, seed)`.
 
-There is no “best effort” downgrade. If S3 fails, the instrument universe for that world+seed is **not usable**.
+There is no “best effort” downgrade. If S3 fails, the instrument universe for that world+seed+parameter is **not usable**.
 
 ---
 
@@ -2164,8 +2166,8 @@ These mean S3 cannot trust the world-level gate, the sealed input universe, or t
   * S0 is missing or not PASS for this `manifest_fingerprint`, or
   * `sealed_inputs_digest_6A` recomputed from `sealed_inputs_6A` does not match `s0_gate_receipt_6A`, or
   * one or more required upstream segments `{1A,1B,2A,2B,3A,3B,5A,5B}` have `gate_status != "PASS"` in `upstream_gates`, or
-  * S1 is missing or not PASS for this `(manifest_fingerprint, seed)`, or
-  * S2 is missing or not PASS for this `(manifest_fingerprint, seed)`.
+  * S1 is missing or not PASS for this `(manifest_fingerprint, parameter_hash, seed)`, or
+  * S2 is missing or not PASS for this `(manifest_fingerprint, parameter_hash, seed)`.
 
 * `6A.S3.SEALED_INPUTS_MISSING_REQUIRED`
   *Meaning:* One or more artefacts S3 considers **required** (e.g. instrument-mix priors, instrument taxonomies, linkage rules) are not present as rows in `sealed_inputs_6A` for this `manifest_fingerprint`.
@@ -2238,7 +2240,7 @@ These indicate that the materialised S3 datasets are internally inconsistent, vi
   *Meaning:* `s3_instrument_base_6A` exists but:
 
   * fails validation against `schemas.6A.yaml#/s3/instrument_base`, or
-  * violates the PK/uniqueness constraint `(manifest_fingerprint, seed, instrument_id)`.
+  * violates the PK/uniqueness constraint `(manifest_fingerprint, parameter_hash, seed, instrument_id)`.
 
 * `6A.S3.INSTRUMENT_COUNTS_MISMATCH`
   *Meaning:* When comparing the base table to the integer plan:
@@ -2249,7 +2251,7 @@ These indicate that the materialised S3 datasets are internally inconsistent, vi
 * `6A.S3.ORPHAN_INSTRUMENT_OWNER`
   *Meaning:* One or more instruments:
 
-  * refer to an `account_id` that does not exist in `s2_account_base_6A` for `(mf, seed)`, and/or
+  * refer to an `account_id` that does not exist in `s2_account_base_6A` for `(mf, ph, seed)`, and/or
   * refer to an `owner_party_id` that does not exist in `s1_party_base_6A` (where that field is populated), and/or
   * refer to an `owner_merchant_id` that is not present in the upstream merchant universe.
 
@@ -2283,7 +2285,7 @@ These indicate that the materialised S3 datasets are internally inconsistent, vi
   *Meaning:* Summary counts do not match the base table:
 
   * `instrument_count` for a group key `g` does not equal the number of base-table rows matching `g`, or
-  * sum over all summary rows does not equal `COUNT(*)` over `s3_instrument_base_6A` for `(mf, seed)`.
+  * sum over all summary rows does not equal `COUNT(*)` over `s3_instrument_base_6A` for `(mf, ph, seed)`.
 
 All of these mean: **“The materialised instrument universe is not a valid reflection of S3’s plan, upstream entities, or taxonomies.”**
 
@@ -2322,7 +2324,7 @@ These indicate storage problems, identity conflicts, or unexpected internal fail
   *Meaning:* S3 attempted to write `s3_instrument_base_6A`, links, or holdings/summary datasets and the write failed to complete atomically/durably.
 
 * `6A.S3.OUTPUT_CONFLICT`
-  *Meaning:* For a given `(mf, seed)`, S3 outputs already exist and are **not** byte-identical to what S3 would produce given the current inputs (priors, taxonomies, bases). S3 is not allowed to silently overwrite; this is a replace-not-append violation.
+  *Meaning:* For a given `(mf, ph, seed)`, S3 outputs already exist and are **not** byte-identical to what S3 would produce given the current inputs (priors, taxonomies, bases). S3 is not allowed to silently overwrite; this is a replace-not-append violation.
 
 * `6A.S3.INTERNAL_ERROR`
   *Meaning:* A non-classified, unexpected internal error occurred (e.g. assertion failure, unhandled exception) that doesn’t map cleanly onto any of the more specific codes above. This should be treated as an implementation bug, not a normal operational state.
@@ -2354,7 +2356,7 @@ If no specific code fits, implementations must use `6A.S3.INTERNAL_ERROR` and th
 
 ### 9.4 Run-report integration & propagation
 
-On each S3 run for `(manifest_fingerprint, seed)`, the S3 run-report record MUST include:
+On each S3 run for `(manifest_fingerprint, parameter_hash, seed)`, the S3 run-report record MUST include:
 
 * `state_id = "6A.S3"`
 * `manifest_fingerprint`, `parameter_hash`, `seed`
@@ -2369,7 +2371,7 @@ For **FAIL**:
 
 Downstream S4–S5 and 6B MUST:
 
-* check S3’s run-report for `(mf, seed)` before consuming S3 outputs,
+* check S3’s run-report for `(mf, ph, seed)` before consuming S3 outputs,
 * refuse to proceed if `status != "PASS"` or `error_code` is non-empty.
 
 The `6A.S3.*` error codes are the **primary machine-readable signal** of S3’s failure mode. Logs and stack traces are diagnostic only and do not form part of the contract.
@@ -2391,7 +2393,7 @@ This section fixes:
 
 ### 10.1 Run-report record for 6A.S3
 
-For every attempted S3 run on a `(manifest_fingerprint, seed)`, the engine **MUST** emit exactly one run-report record with at least:
+For every attempted S3 run on a `(manifest_fingerprint, parameter_hash, seed)`, the engine **MUST** emit exactly one run-report record with at least:
 
 #### Identity
 
@@ -2426,7 +2428,7 @@ For a PASS run, at minimum:
 
 * `total_instruments`
 
-  * total number of rows in `s3_instrument_base_6A` for `(mf, seed)`.
+  * total number of rows in `s3_instrument_base_6A` for `(mf, ph, seed)`.
 
 * `instruments_by_type`
 
@@ -2482,7 +2484,7 @@ These MUST reconcile with the RNG envelope and trace logs (see §8.1.6).
 * `error_code` is empty / null.
 * All reported metrics **MUST** be consistent with S3 datasets:
 
-  * `total_instruments == COUNT(*)` over `s3_instrument_base_6A` for `(mf, seed)`.
+  * `total_instruments == COUNT(*)` over `s3_instrument_base_6A` for `(mf, ph, seed)`.
   * `instruments_by_type` matches `GROUP BY instrument_type` on the base.
   * `instruments_by_scheme`, `instruments_by_account_type`, `instruments_by_party_segment`, `instruments_by_region` match appropriate groupings via joins to S2/S1.
   * `instruments_per_account_*` metrics match the distribution of per-account instrument counts computed from `s3_account_instrument_links_6A` (or from the base if you don’t store counts there).
@@ -2500,17 +2502,17 @@ S3 MUST NOT emit `status="PASS"` unless all acceptance criteria in §8 are satis
 
 ### 10.3 Relationship between run-report and S3 datasets
 
-For a **PASS** S3 run on `(mf, seed)`:
+For a **PASS** S3 run on `(mf, ph, seed)`:
 
 * The following partitions MUST exist and be schema-valid:
 
-  * `s3_instrument_base_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`,
-  * `s3_account_instrument_links_6A` for `(seed={seed}, manifest_manifest_fingerprint={mf})`,
+  * `s3_instrument_base_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
+  * `s3_account_instrument_links_6A` for `(seed={seed}, manifest_fingerprint={manifest_fingerprint}, parameter_hash={parameter_hash})`,
   * and any implemented optional S3 views (`s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`).
 
 * The run-report metrics MUST agree with dataset contents, in particular:
 
-  * `total_instruments == COUNT(*)` over `s3_instrument_base_6A` for `(mf, seed)`.
+  * `total_instruments == COUNT(*)` over `s3_instrument_base_6A` for `(mf, ph, seed)`.
   * `instruments_by_type`/`scheme` match group-by queries on the base.
   * `instruments_by_account_type`, `instruments_by_party_segment`, `instruments_by_region` match group-by queries via joins to S2/S1.
   * `instruments_per_account_*` metrics match the distribution obtained from counting instruments per `account_id` in base/links.
@@ -2518,7 +2520,7 @@ For a **PASS** S3 run on `(mf, seed)`:
 
 For a **FAIL** run:
 
-* S3 datasets (if any exist) MUST NOT be treated as valid for that `(mf, seed)`.
+* S3 datasets (if any exist) MUST NOT be treated as valid for that `(mf, ph, seed)`.
 * Orchestration may choose to delete or quarantine partial data, but downstream states MUST base their gating on the run-report `status` and `error_code`, not on file existence.
 
 ---
@@ -2532,9 +2534,9 @@ All downstream states that depend on instruments — i.e.:
 
 **MUST** incorporate S3’s run-report in their gates.
 
-Before consuming S3 outputs for `(mf, seed)`, a downstream state MUST:
+Before consuming S3 outputs for `(mf, ph, seed)`, a downstream state MUST:
 
-1. Locate the **latest** 6A.S3 run-report record for that `(mf, seed)`.
+1. Locate the **latest** 6A.S3 run-report record for that `(mf, ph, seed)`.
 
 2. Require:
 
@@ -2550,7 +2552,7 @@ Before consuming S3 outputs for `(mf, seed)`, a downstream state MUST:
 
 If any of these checks fail, the downstream state MUST:
 
-* treat S3 as **not available** for that `(mf, seed)`, and
+* treat S3 as **not available** for that `(mf, ph, seed)`, and
 * fail its own gate with a state-local error (e.g. `6A.S4.S3_GATE_FAILED`, `6B.S0.S3_GATE_FAILED`).
 
 No downstream state may proceed on “partial” or unverified S3 outputs.
@@ -2569,7 +2571,7 @@ The following are recommended (but **non-binding**) to aid operators and model Q
 
 * INFO-level logs per S3 run summarising:
 
-  * `(manifest_fingerprint, seed, parameter_hash)`,
+  * `(manifest_fingerprint, parameter_hash, seed)`,
   * `status`, `error_code`,
   * `total_instruments`,
   * key splits (type, scheme, region, segment).
@@ -2595,7 +2597,7 @@ Higher-level monitoring / dashboards **MUST** be able to summarise S3’s health
 
 * Cross-world views:
 
-  * distribution of `total_instruments` across `(mf, seed)`,
+  * distribution of `total_instruments` across `(mf, ph, seed)`,
   * counts of S3 FAILs by `error_code`,
   * correlations between S3 failures and upstream (S1/S2) failures.
 
@@ -2619,7 +2621,7 @@ This section is **non-binding**. It describes how S3 is expected to scale and wh
 
 ### 11.1 Complexity profile
 
-For a given `(manifest_fingerprint, seed)`, define:
+For a given `(manifest_fingerprint, parameter_hash, seed)`, define:
 
 * `P`  — number of parties in `s1_party_base_6A`.
 * `A`  — number of accounts in `s2_account_base_6A`.
@@ -2690,7 +2692,7 @@ S3 is highly parallelisable; you should expect to exploit this for larger worlds
 
 1. **Across seeds**
 
-   * Each `(mf, seed)` is hermetic — independent universe.
+   * Each `(mf, ph, seed)` is hermetic — independent universe.
    * This is the primary axis for horizontal sharding across workers.
 
 2. **Across instrument cells within a seed**
@@ -2820,7 +2822,7 @@ To keep S3 manageable across environments and worlds, you can expose **non-seman
 
 * **Global safety cap on `I`**
 
-  * A ceiling on `N_instr_world_int` per `(mf, seed)`;
+  * A ceiling on `N_instr_world_int` per `(mf, ph, seed)`;
   * if exceeded due to misconfigured priors, S3 fails fast with a clear “too many instruments” error rather than overwhelming downstream stages.
 
 * **Sharding configuration**
@@ -2894,7 +2896,7 @@ S3 participates in the 6A versioning stack:
   * `dataset_dictionary.layer3.6A.yaml` entries for S3 datasets.
   * `artefact_registry_6A.yaml` entries with `produced_by: 6A.S3` and S3 priors/taxonomies.
 
-S3’s run-report MUST carry enough information (e.g. `spec_version_6A` and/or `spec_version_6A_S3`) that consumers can tell **which spec version** produced the instrument universe for a given `(manifest_fingerprint, seed)`.
+S3’s run-report MUST carry enough information (e.g. `spec_version_6A` and/or `spec_version_6A_S3`) that consumers can tell **which spec version** produced the instrument universe for a given `(manifest_fingerprint, parameter_hash, seed)`.
 
 ---
 
@@ -3019,11 +3021,11 @@ The following are **breaking** and MUST NOT be introduced without:
 
      * dropping or changing `instrument_id`,
      * removing `manifest_fingerprint` or `seed` from the logical PK,
-     * changing `instrument_id` from “unique per `(mf, seed)`” to some other uniqueness law.
+     * changing `instrument_id` from “unique per `(mf, ph, seed)`” to some other uniqueness law.
 
    * Changing partitioning:
 
-     * altering `[seed, manifest_fingerprint]` to anything else,
+     * altering `[seed, manifest_fingerprint, parameter_hash]` to anything else,
      * adding `scenario_id` or other keys as partitions.
 
 2. **Changing semantics of core fields**
@@ -3045,7 +3047,7 @@ The following are **breaking** and MUST NOT be introduced without:
    * Changing the **class of law** that maps priors → instrument counts → allocation → attributes in a way that invalidates downstream assumptions, for example:
 
      * introducing scenario-dependent instrument universes where S3 was originally scenario-independent,
-     * moving from “one instrument universe per `(mf, seed)`” to multiple overlapping instrument universes.
+     * moving from “one instrument universe per `(mf, ph, seed)`” to multiple overlapping instrument universes.
 
    * Changing the mapping between RNG families and operations (e.g. using `instrument_count_realisation` for something completely different) is also behavioural and must be treated as breaking.
 
@@ -3079,7 +3081,7 @@ Downstream 6A states (S4–S5) and 6B have obligations under this spec:
    * Each state MUST declare a **minimum supported S3 spec version** (or range of `spec_version_6A` / `spec_version_6A_S3`), and:
 
      * inspect S3’s run-report,
-     * fail fast if S3’s version for a given `(mf, seed)` is outside its supported band.
+     * fail fast if S3’s version for a given `(mf, ph, seed)` is outside its supported band.
 
 2. **Graceful handling of unknown fields**
 
@@ -3094,7 +3096,7 @@ Downstream 6A states (S4–S5) and 6B have obligations under this spec:
 
      * resolve S3 datasets via dictionary/registry + `schema_ref`,
      * not rely on specific file names beyond the templated paths,
-     * not assume particular partition layouts other than `[seed, manifest_fingerprint]`.
+     * not assume particular partition layouts other than `[seed, manifest_fingerprint, parameter_hash]`.
 
 4. **No re-definition of S3 semantics**
 
@@ -3116,13 +3118,13 @@ When a **breaking** S3 change is introduced:
 
 Deployments that need to support multiple S3 versions at once can:
 
-* Route different `(mf, seed)` universes to appropriate downstream pipelines based on their S3 spec version.
+* Route different `(mf, ph, seed)` universes to appropriate downstream pipelines based on their S3 spec version.
 * Run some downstream components in dual-mode, handling both old and new S3 versions.
 * Restrict certain features of downstream states (e.g. new fraud patterns) to worlds with a minimum S3 spec version.
 
 However:
 
-* A single `(manifest_fingerprint, seed)` MUST be internally consistent with a **single** S3 spec version.
+* A single `(manifest_fingerprint, parameter_hash, seed)` MUST be internally consistent with a **single** S3 spec version.
 * It is not permitted to merge S3 outputs from different spec versions into one logical universe.
 
 ---
@@ -3165,14 +3167,14 @@ If anything here appears to contradict the binding sections (§1–§12), the bi
   Different seeds under the same `(mf, ph)` correspond to different party+account+instrument universes.
 
 * **`party_id`**
-  A party/customer identifier from S1. Uniquely identifies a party within `(mf, seed)`.
+  A party/customer identifier from S1. Uniquely identifies a party within `(mf, ph, seed)`.
 
 * **`account_id`**
-  An account identifier from S2. Uniquely identifies an account within `(mf, seed)` and has a FK to `party_id`.
+  An account identifier from S2. Uniquely identifies an account within `(mf, ph, seed)` and has a FK to `party_id`.
 
 * **`instrument_id`**
   Instrument/credential identifier created by S3.
-  Uniquely identifies an instrument within `(mf, seed)`; S3 guarantees uniqueness of `(mf, seed, instrument_id)`.
+  Uniquely identifies an instrument within `(mf, ph, seed)`; S3 guarantees uniqueness of `(mf, seed, instrument_id)`.
 
 ---
 
@@ -3378,7 +3380,7 @@ All RNG usage must:
   Shorthand for “all artefacts tied to a single `manifest_fingerprint`”.
 
 * **“Instrument universe”**
-  The set of all `instrument_id` rows in `s3_instrument_base_6A` for a given `(mf, seed)`.
+  The set of all `instrument_id` rows in `s3_instrument_base_6A` for a given `(mf, ph, seed)`.
 
 * **“Cell (instrument cell)”**
   Unless otherwise qualified, refers to an instrument planning cell `c_instr` combining region, party_type, segment_id, account_type, and instrument_type (and possibly scheme).

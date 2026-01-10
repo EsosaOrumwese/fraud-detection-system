@@ -2,7 +2,7 @@
 
 ## 1. Purpose & scope *(Binding)*
 
-6A.S1 is the **population realisation state** for Layer-3 / Segment 6A. Its purpose is to construct, for each `(manifest_fingerprint, seed)`, the **closed-world party universe** that all later 6A and 6B states operate on.
+6A.S1 is the **population realisation state** for Layer-3 / Segment 6A. Its purpose is to construct, for each `(manifest_fingerprint, parameter_hash, seed)`, the **closed-world party universe** that all later 6A and 6B states operate on.
 
 Concretely, S1:
 
@@ -13,7 +13,7 @@ Concretely, S1:
   * and any other party types defined in 6A’s taxonomies (e.g. “organisation”, “non-profit”) as needed.
 * Assigns each party:
 
-  * a stable **party identifier** (`party_id` / `customer_id`) that is globally unique within `(manifest_fingerprint, seed)`,
+  * a stable **party identifier** (`party_id` / `customer_id`) that is globally unique within `(manifest_fingerprint, parameter_hash, seed)`,
   * a **home geography** (e.g. country/region, optionally zone representation),
   * a **segment** (e.g. student, salaried, SME, corporate) and other static classification attributes derived from 6A’s priors and taxonomies,
   * optional static attributes that later states may use as context (e.g. income band, lifecycle stage, channel affinity flags), without fixing any dynamic behaviour.
@@ -32,7 +32,7 @@ S1’s scope is deliberately limited:
 Within 6A, S1 sits directly downstream of S0:
 
 * It only runs for worlds where 6A.S0 is PASS and has sealed the input universe via `sealed_inputs_6A` and `s0_gate_receipt_6A`.
-* It uses the **6A population and segmentation priors** (and, where configured, coarse upstream context such as region surfaces) to realise an integer population per world+seed, subject to the constraints and RNG discipline defined later in this state’s spec.
+* It uses the **6A population and segmentation priors** (and, where configured, coarse upstream context such as region surfaces) to realise an integer population per world+seed+parameter, subject to the constraints and RNG discipline defined later in this state’s spec.
 
 All downstream 6A states (accounts/products, instruments, devices/IPs, fraud posture) and 6B's flow/fraud logic must treat S1's party base as **read-only ground truth** for the identity and segmentation of parties in the synthetic bank.
 
@@ -95,7 +95,7 @@ If any required segment is `FAIL` or `MISSING` in `upstream_gates` for this `man
 
 ### 2.2 S0 gate & sealed-inputs preconditions
 
-S1 only runs for a `(manifest_fingerprint, seed)` pair if **all** of the following hold:
+S1 only runs for a `(manifest_fingerprint, parameter_hash, seed)` pair if **all** of the following hold:
 
 1. **S0 gate artefacts exist and are structurally valid** for the world:
 
@@ -170,19 +170,19 @@ If any artefact that S1 classifies as `REQUIRED` is missing from `sealed_inputs_
 
 ### 2.4 Seed and scenario axes
 
-S1’s natural domain is `(manifest_fingerprint, seed)`:
+S1’s natural domain is `(manifest_fingerprint, parameter_hash, seed)`:
 
-* The set of `seed` values for which S1 runs in a world is defined by the **engine orchestrator** and/or 6A configuration. S1 does **not** infer seeds from upstream data; it is given a concrete `(mf, seed)` to work on.
+* The set of `seed` values for which S1 runs in a world is defined by the **engine orchestrator** and/or 6A configuration. S1 does **not** infer seeds from upstream data; it is given a concrete `(mf, ph, seed)` to work on.
 * Scenario identity (`scenario_id`) originates from Layer-2 / 5A/5B and is **not** directly used by S1:
 
-  * S1 does not vary population per scenario; it creates a single party universe per `(mf, seed)` that all scenarios share.
+  * S1 does not vary population per scenario; it creates a single party universe per `(mf, ph, seed)` that all scenarios share.
   * If a future extension needs scenario-dependent populations, that will be a breaking change for S1 and must be versioned accordingly.
 
-For a given `(mf, seed)`:
+For a given `(mf, ph, seed)`:
 
 * S0 preconditions MUST hold (as above),
 * all required S1 priors/taxonomies MUST be resolvable and valid,
-* and S1 MUST treat its outputs as the **only** party base for that world+seed (see identity & merge discipline later).
+* and S1 MUST treat its outputs as the **only** party base for that world+seed+parameter (see identity & merge discipline later).
 
 ---
 
@@ -360,7 +360,7 @@ S1 is the **only authority** inside 6A on:
 
 * **Party existence and counts**:
 
-  * how many parties exist for each `(manifest_fingerprint, seed)` and per region/segment/type,
+  * how many parties exist for each `(manifest_fingerprint, parameter_hash, seed)` and per region/segment/type,
   * consistent with, but not dictated by, the population priors.
 
 * **Static segmentation & basic attributes**:
@@ -370,7 +370,7 @@ S1 is the **only authority** inside 6A on:
 
 All later 6A states (S2–S5) and 6B must treat `s1_party_base_6A` as:
 
-> the complete, read-only universe of parties for that world+seed.
+> the complete, read-only universe of parties for that world+seed+parameter.
 
 They may **join to it**, but not **expand or alter** it.
 
@@ -448,7 +448,7 @@ S1 has **one required** business dataset and **one optional** diagnostic dataset
 
 #### 4.1.1 Domain & scope
 
-For a given `(manifest_fingerprint, seed)`, `s1_party_base_6A` contains **one row per party** in that world+seed.
+For a given `(manifest_fingerprint, parameter_hash, seed)`, `s1_party_base_6A` contains **one row per party** in that world+seed+parameter.
 
 * Domain axes:
 
@@ -458,7 +458,7 @@ For a given `(manifest_fingerprint, seed)`, `s1_party_base_6A` contains **one ro
 
 * S1 is **scenario-independent**:
 
-  * the party base is shared across all scenarios that operate on this `(manifest_fingerprint, seed)`; S1 does not vary the population per `scenario_id`.
+  * the party base is shared across all scenarios that operate on this `(manifest_fingerprint, parameter_hash, seed)`; S1 does not vary the population per `scenario_id`.
 
 #### 4.1.2 Required content (logical fields)
 
@@ -468,8 +468,8 @@ The party base MUST include, at minimum, the following logical fields (names can
 
   * `party_id` (or `customer_id`):
 
-    * stable identifier for the party within `(manifest_fingerprint, seed)`,
-    * globally unique for that world+seed.
+    * stable identifier for the party within `(manifest_fingerprint, parameter_hash, seed)`,
+    * globally unique for that world+seed+parameter.
   * `manifest_fingerprint`
   * `parameter_hash`
   * `seed`
@@ -508,12 +508,12 @@ For `s1_party_base_6A`:
 
 * **Primary key (logical):**
 
-  * `(manifest_fingerprint, seed, party_id)`
+  * `(manifest_fingerprint, parameter_hash, seed, party_id)`
 
 * **Uniqueness invariants:**
 
-  * `party_id` MUST be unique within `(manifest_fingerprint, seed)`.
-  * There MUST be no two rows with the same `(manifest_fingerprint, seed, party_id)`.
+  * `party_id` MUST be unique within `(manifest_fingerprint, parameter_hash, seed)`.
+  * There MUST be no two rows with the same `(manifest_fingerprint, parameter_hash, seed, party_id)`.
 
 * **World consistency:**
 
@@ -522,7 +522,7 @@ For `s1_party_base_6A`:
 
 * **Closed world:**
 
-  * For a given `(manifest_fingerprint, seed)`, the union of all party_ids in `s1_party_base_6A` is the **entire party universe** for that world+seed.
+  * For a given `(manifest_fingerprint, parameter_hash, seed)`, the union of all party_ids in `s1_party_base_6A` is the **entire party universe** for that world+seed+parameter.
   * No later 6A state or 6B is permitted to introduce new party IDs that do not appear here.
 
 ---
@@ -534,7 +534,7 @@ For `s1_party_base_6A`:
 
 #### 4.2.1 Domain & scope
 
-For a given `(manifest_fingerprint, seed)`, `s1_party_summary_6A` contains aggregate counts over some grouping dimensions (e.g. `(country_iso, segment_id, party_type)`).
+For a given `(manifest_fingerprint, parameter_hash, seed)`, `s1_party_summary_6A` contains aggregate counts over some grouping dimensions (e.g. `(country_iso, segment_id, party_type)`).
 
 S1 may choose a grouping scheme that matches 6A priors, for example:
 
@@ -623,7 +623,7 @@ Codex is free to choose *how* to implement each step, but **not** free to change
 
 ### 6.0 Overview & RNG discipline
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 1. Load gate & priors (RNG-free).
 2. Derive **continuous target populations** per region/segment/type (RNG-free).
@@ -636,7 +636,7 @@ RNG discipline:
 * S1 uses the same Philox-based envelope as the rest of the engine (Layer-3 RNG environment, analogous to Layer-1):
 
   * a single Philox-2x64-10 generator,
-  * keyed substreams based on `(manifest_fingerprint, seed, "6A.S1", substream_label, group-identifiers…)`,
+  * keyed substreams based on `(manifest_fingerprint, parameter_hash, seed, "6A.S1", substream_label, group-identifiers…)`,
   * each RNG event recorded under a `rng_event_*` schema with:
 
     * before/after counters,
@@ -883,14 +883,14 @@ This phase uses the `party_attribute_sampling` RNG family.
 
 #### 6.4.1 Party ID assignment (deterministic)
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 1. Define a deterministic **party index**:
 
    * e.g. enumerate cells `c` in a fixed, sorted order (by `region_id`, `party_type`, `segment_id`).
    * within each cell, enumerate local index `i = 0..N_cell(c)-1` in a deterministic order.
 
-2. Define `party_id` as a deterministic function of `(manifest_fingerprint, seed, c, i)`, for example:
+2. Define `party_id` as a deterministic function of `(manifest_fingerprint, parameter_hash, seed, c, i)`, for example:
 
    * either a 64-bit hash:
 
@@ -902,7 +902,7 @@ For each `(manifest_fingerprint, seed)`:
 
 Whatever law is chosen must be:
 
-* **injective** within `(mf, seed)`,
+* **injective** within `(mf, ph, seed)`,
 * independent of RNG,
 * stable across re-runs.
 
@@ -963,18 +963,18 @@ Implementation may vectorise draws for performance, but must preserve:
 * Write to:
 
   ```text
-  data/layer3/6A/s1_party_base_6A/seed={seed}/manifest_fingerprint={manifest_fingerprint}/...
+  data/layer3/6A/s1_party_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/...
   ```
 
   with partitioning and ordering as per the dictionary:
 
-  * partitions: `[seed, manifest_fingerprint]`,
+  * partitions: `[seed, manifest_fingerprint, parameter_hash]`,
   * writer sort, e.g.: `(country_iso, segment_id, party_type, party_id)`.
 
 * Enforce:
 
   * schema validation against `schemas.6A.yaml#/s1/party_base`,
-  * uniqueness of `(manifest_fingerprint, seed, party_id)`.
+  * uniqueness of `(manifest_fingerprint, parameter_hash, seed, party_id)`.
 
 #### 6.5.2 Write `s1_party_summary_6A` (optional)
 
@@ -990,11 +990,11 @@ Implementation may vectorise draws for performance, but must preserve:
 
 #### 6.5.3 Internal validation checks
 
-Before marking S1 as PASS for this `(mf, seed)`:
+Before marking S1 as PASS for this `(mf, ph, seed)`:
 
 * Re-scan (or partial-scan with strong invariants) `s1_party_base_6A` to verify:
 
-  * all `party_id` values are unique per `(mf, seed)`,
+  * all `party_id` values are unique per `(mf, ph, seed)`,
   * grouping by `(region, segment, party_type)` yields integer counts exactly equal to `N_cell(c)` from Phase 3,
   * any attribute-level constraints from priors (e.g. segment/party_type compatibility) are satisfied.
 
@@ -1054,8 +1054,8 @@ S1 operates on three key identity axes:
 
   * `parameter_hash`
   * Identifies the parameter/prior pack set used to generate the population.
-  * Embedded as a **column** in S1 outputs (not a partition key).
-  * For a given `(manifest_fingerprint, seed)`, S1 is expected to run under a single `parameter_hash`. If it does not, that world+seed is considered invalid.
+  * Embedded as a **column** in S1 outputs and used as a partition key.
+  * For a given `(manifest_fingerprint, parameter_hash, seed)`, S1 is expected to run under a single `parameter_hash`. If it does not, that world+seed+parameter is considered invalid.
 
 * **RNG identity**
 
@@ -1069,14 +1069,14 @@ S1’s business datasets **must not depend** on `run_id`; `run_id` is for logs a
 
 ### 7.2 Partitioning & path tokens
 
-Both S1 datasets are **world+seed scoped**.
+Both S1 datasets are **world+seed+parameter scoped**.
 
 #### 7.2.1 `s1_party_base_6A`
 
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path token usage (schematic):
@@ -1084,6 +1084,7 @@ Both S1 datasets are **world+seed scoped**.
   ```text
   data/layer3/6A/s1_party_base_6A/
     seed={seed}/
+    parameter_hash={parameter_hash}/
     manifest_fingerprint={manifest_fingerprint}/
     s1_party_base_6A.parquet
   ```
@@ -1093,7 +1094,7 @@ Both S1 datasets are **world+seed scoped**.
 * Partition keys:
 
   ```text
-  [seed, manifest_fingerprint]
+  [seed, manifest_fingerprint, parameter_hash]
   ```
 
 * Path token usage (schematic):
@@ -1101,17 +1102,18 @@ Both S1 datasets are **world+seed scoped**.
   ```text
   data/layer3/6A/s1_party_summary_6A/
     seed={seed}/
+    parameter_hash={parameter_hash}/
     manifest_fingerprint={manifest_fingerprint}/
     s1_party_summary_6A.parquet
   ```
 
 **Binding rules:**
 
-* The **path tokens** `seed={seed}` and `manifest_fingerprint={manifest_fingerprint}` must match the corresponding columns inside the datasets (no “lying” partitions).
+* The **path tokens** `seed={seed}`, `parameter_hash={parameter_hash}`, and `manifest_fingerprint={manifest_fingerprint}` must match the corresponding columns inside the datasets (no "lying" partitions).
 
-* No additional partition keys (e.g. `parameter_hash`, `scenario_id`) may be introduced for S1 business datasets.
+* No additional partition keys (e.g. `scenario_id`) may be introduced for S1 business datasets.
 
-* Any consumer that wants S1 data for a given `(manifest_fingerprint, seed)` **must** resolve the dataset via the catalogue and then substitute those tokens; hard-coded paths are out-of-spec.
+* Any consumer that wants S1 data for a given `(manifest_fingerprint, parameter_hash, seed)` **must** resolve the dataset via the catalogue and then substitute those tokens; hard-coded paths are out-of-spec.
 
 ---
 
@@ -1122,17 +1124,17 @@ Both S1 datasets are **world+seed scoped**.
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, seed, party_id)
+  (manifest_fingerprint, parameter_hash, seed, party_id)
   ```
 
 * **Uniqueness:**
 
-  * `party_id` MUST be unique within each `(manifest_fingerprint, seed)`.
+  * `party_id` MUST be unique within each `(manifest_fingerprint, parameter_hash, seed)`.
 
 * **Row-level invariants:**
 
   * Every row must carry the correct `manifest_fingerprint`, `parameter_hash`, and `seed` consistent with its partition.
-  * No row with `(mf, seed)` may be stored in a different partition `(seed', mf')`.
+  * No row with `(mf, ph, seed)` may be stored in a different partition `(seed', mf', ph')`.
 
 #### 7.3.2 `s1_party_summary_6A` (if present)
 
@@ -1141,7 +1143,7 @@ Both S1 datasets are **world+seed scoped**.
   * Depends on chosen grouping; for example, if grouped by `(country_iso, segment_id, party_type)`:
 
     ```text
-    (manifest_fingerprint, seed, country_iso, segment_id, party_type)
+    (manifest_fingerprint, parameter_hash, seed, country_iso, segment_id, party_type)
     ```
 
 * **Relationship to base:**
@@ -1187,23 +1189,23 @@ The canonical order is binding for writers and for any engine-level digests; it 
 
 ### 7.5 Merge discipline & lifecycle
 
-S1 must behave as **replace-not-append** at the granularity of `(manifest_fingerprint, seed)`.
+S1 must behave as **replace-not-append** at the granularity of `(manifest_fingerprint, parameter_hash, seed)`.
 
-#### 7.5.1 Replace-not-append per world+seed
+#### 7.5.1 Replace-not-append per world+seed+parameter
 
-For each `(manifest_fingerprint, seed)`:
+For each `(manifest_fingerprint, parameter_hash, seed)`:
 
 * `s1_party_base_6A` is **one complete population snapshot**:
 
-  * It must represent the entire party universe for that world+seed.
+  * It must represent the entire party universe for that world+seed+parameter.
   * Implementations must not rely on “append more parties later” semantics.
 
-* If S1 is re-run for the same `(manifest_fingerprint, seed)` under the same `parameter_hash` and same sealed inputs:
+* If S1 is re-run for the same `(manifest_fingerprint, parameter_hash, seed)` under the same `parameter_hash` and same sealed inputs:
 
   * the newly computed output set **must be byte-identical** to the existing one, or
   * S1 must fail with an “output conflict” error and leave the existing outputs unchanged.
 
-No partial or incremental merges of two different S1 runs for the same `(manifest_fingerprint, seed)` are allowed.
+No partial or incremental merges of two different S1 runs for the same `(manifest_fingerprint, parameter_hash, seed)` are allowed.
 
 #### 7.5.2 No cross-world or cross-seed merges
 
@@ -1214,9 +1216,9 @@ No partial or incremental merges of two different S1 runs for the same `(manifes
 * **No cross-seed merges within the same world:**
 
   * `seed` is a first-class identity axis.
-  * Joining or aggregating across seeds may be done for meta-analysis, but **business semantics** (e.g. building accounts or flows) must treat each `(mf, seed)` as a separate, self-contained universe.
+  * Joining or aggregating across seeds may be done for meta-analysis, but **business semantics** (e.g. building accounts or flows) must treat each `(mf, ph, seed)` as a separate, self-contained universe.
 
-S2–S5 and 6B must always join S1 on `(manifest_fingerprint, seed, party_id)` as appropriate; any logic that conflates distinct seeds is out-of-spec.
+S2–S5 and 6B must always join S1 on `(manifest_fingerprint, parameter_hash, seed, party_id)` as appropriate; any logic that conflates distinct seeds is out-of-spec.
 
 ---
 
@@ -1226,7 +1228,7 @@ Downstream states **must honour** S1’s identity and merge discipline:
 
 * **6A.S2–S5:**
 
-  * For each `(manifest_fingerprint, seed)`:
+  * For each `(manifest_fingerprint, parameter_hash, seed)`:
 
     * must verify that `s1_party_base_6A` exists and is schema-valid,
     * must not create new parties; all accounts/products/devices/fraud roles must be attached to existing `party_id`s,
@@ -1236,13 +1238,13 @@ Downstream states **must honour** S1’s identity and merge discipline:
 
   * When attaching arrivals to parties:
 
-    * must only use `party_id` values that exist in `s1_party_base_6A` for the same `(manifest_fingerprint, seed)`,
+    * must only use `party_id` values that exist in `s1_party_base_6A` for the same `(manifest_fingerprint, parameter_hash, seed)`,
     * must treat the absence of a `party_id` in the base as a modelling/implementation bug, not as “unknown party”.
 
 * **Orchestration / tooling:**
 
-  * must treat `(manifest_fingerprint, seed)` as the natural unit of S1 work and retries,
-  * must not attempt to combine multiple S1 outputs for the same `(mf, seed)` with different `parameter_hash` or different priors.
+  * must treat `(manifest_fingerprint, parameter_hash, seed)` as the natural unit of S1 work and retries,
+  * must not attempt to combine multiple S1 outputs for the same `(mf, ph, seed)` with different `parameter_hash` or different priors.
 
 These identity, partition, ordering, and merge rules are **binding**. Implementations can choose storage layout, query engines, or file formats freely, but they **cannot** change these semantics and still be considered a correct implementation of 6A.S1.
 
@@ -1252,13 +1254,13 @@ These identity, partition, ordering, and merge rules are **binding**. Implementa
 
 This section defines **when 6A.S1 is considered PASS**, which invariants **must hold on its outputs**, and how **downstream states** are required to gate on S1.
 
-If any condition in this section fails, S1 is **FAIL for that `(manifest_fingerprint, seed)`**, and **no later 6A state (S2–S5) nor 6B is allowed to treat the S1 population as valid**.
+If any condition in this section fails, S1 is **FAIL for that `(manifest_fingerprint, parameter_hash, seed)`**, and **no later 6A state (S2–S5) nor 6B is allowed to treat the S1 population as valid**.
 
 ---
 
 ### 8.1 Segment-local PASS / FAIL definition
 
-For a given `(manifest_fingerprint, seed)`, 6A.S1 is **PASS** *iff* **all** of the following hold.
+For a given `(manifest_fingerprint, parameter_hash, seed)`, 6A.S1 is **PASS** *iff* **all** of the following hold.
 
 #### 8.1.1 S0 gate & upstream world
 
@@ -1285,7 +1287,7 @@ For a given `(manifest_fingerprint, seed)`, 6A.S1 is **PASS** *iff* **all** of t
      gate_status == "PASS"
      ```
 
-If any of these fail → S1 **must** report `6A.S1.S0_GATE_FAILED` (or equivalent) and **MUST NOT** generate any population for that world+seed.
+If any of these fail → S1 **must** report `6A.S1.S0_GATE_FAILED` (or equivalent) and **MUST NOT** generate any population for that world+seed+parameter.
 
 ---
 
@@ -1355,9 +1357,9 @@ Violations here should surface as e.g. `6A.S1.TARGET_COUNTS_INCONSISTENT`, `6A.S
 
    * `s1_party_base_6A` exists at the expected path and partitioning for `(seed, manifest_fingerprint)`.
    * It validates against `schemas.6A.yaml#/s1/party_base`.
-   * The logical primary key `(manifest_fingerprint, seed, party_id)` is unique:
+   * The logical primary key `(manifest_fingerprint, parameter_hash, seed, party_id)` is unique:
 
-     * no duplicate `party_id` within the same `(manifest_fingerprint, seed)`,
+     * no duplicate `party_id` within the same `(manifest_fingerprint, parameter_hash, seed)`,
      * all rows in the partition share the correct `manifest_fingerprint` and `seed`.
 
 9. **Base table matches realised counts:**
@@ -1435,15 +1437,15 @@ Any mismatch here is a hard failure (e.g. `6A.S1.RNG_ACCOUNTING_MISMATCH`).
 
 ### 8.2 Gating obligations for downstream 6A states (S2–S5)
 
-For each `(manifest_fingerprint, seed)`, **S2–S5 MUST treat S1 as a hard precondition**:
+For each `(manifest_fingerprint, parameter_hash, seed)`, **S2–S5 MUST treat S1 as a hard precondition**:
 
 Before doing any work, a downstream 6A state **MUST**:
 
 1. Confirm S0 PASS for the world (as per S2/S3 spec) **and**:
 
-2. Confirm S1 PASS for that `(mf, seed)` by:
+2. Confirm S1 PASS for that `(mf, ph, seed)` by:
 
-   * locating the latest 6A.S1 run-report record for that `(mf, seed)`,
+   * locating the latest 6A.S1 run-report record for that `(mf, ph, seed)`,
 
    * checking:
 
@@ -1464,9 +1466,9 @@ Additionally, S2–S5 must respect S1’s **ownership** of the party universe:
 
 * They **MUST NOT** create new parties (no new `party_id`s).
 * They **MUST NOT** change S1’s static attributes; they may only read them as context.
-* They **MUST** join to S1 on `(manifest_fingerprint, seed, party_id)` to attach accounts, products, devices, graph edges, and fraud roles.
+* They **MUST** join to S1 on `(manifest_fingerprint, parameter_hash, seed, party_id)` to attach accounts, products, devices, graph edges, and fraud roles.
 
-If a downstream state detects that a `party_id` referenced in its own outputs is missing from `s1_party_base_6A` for the same `(mf, seed)`, it must treat this as an error and fail, not silently create or discard parties.
+If a downstream state detects that a `party_id` referenced in its own outputs is missing from `s1_party_base_6A` for the same `(mf, ph, seed)`, it must treat this as an error and fail, not silently create or discard parties.
 
 ---
 
@@ -1477,13 +1479,13 @@ If a downstream state detects that a `party_id` referenced in its own outputs is
 1. Require both:
 
    * S0 PASS for the world, and
-   * S1 PASS for the world+seed,
+   * S1 PASS for the world+seed+parameter,
 
    as reflected in their respective run-reports.
 
 2. Treat `s1_party_base_6A` as the **sole authority** on:
 
-   * which `party_id`s exist for `(mf, seed)`,
+   * which `party_id`s exist for `(mf, ph, seed)`,
    * how they are typed (retail/business/other), segmented, and located.
 
 3. Refuse to run any arrival→entity attachment logic if:
@@ -1498,11 +1500,11 @@ If a downstream state detects that a `party_id` referenced in its own outputs is
 
 ### 8.4 Behaviour on failure & partial outputs
 
-If S1 fails for a given `(manifest_fingerprint, seed)`:
+If S1 fails for a given `(manifest_fingerprint, parameter_hash, seed)`:
 
 * Any partially written `s1_party_base_6A` / `s1_party_summary_6A` **must not** be treated as valid:
 
-  * downstream states must consider that world+seed as having **no S1 population**,
+  * downstream states must consider that world+seed+parameter as having **no S1 population**,
   * orchestration may clean up or quarantine partial outputs, but must not use them.
 
 * The 6A.S1 run-report record **must** be updated with:
@@ -1513,8 +1515,8 @@ If S1 fails for a given `(manifest_fingerprint, seed)`:
 
 No state is permitted to “limp on” by partially using S1 outputs after a failure; the only valid behaviours are:
 
-* **S1 PASS →** S2–S5 and 6B may run for that `(mf, seed)`.
-* **S1 FAIL →** S2–S5 and 6B must not run for that `(mf, seed)` until S1 is re-run and PASS.
+* **S1 PASS →** S2–S5 and 6B may run for that `(mf, ph, seed)`.
+* **S1 FAIL →** S2–S5 and 6B must not run for that `(mf, ph, seed)` until S1 is re-run and PASS.
 
 These acceptance criteria and gating obligations are **binding** and define what “S1 is done and safe to build on” means for the rest of Layer-3.
 
@@ -1524,11 +1526,11 @@ These acceptance criteria and gating obligations are **binding** and define what
 
 This section defines the **canonical error surface** for 6A.S1.
 
-Every failure for a given `(manifest_fingerprint, seed)` **must** be mapped to exactly one of these codes.
+Every failure for a given `(manifest_fingerprint, parameter_hash, seed)` **must** be mapped to exactly one of these codes.
 All are:
 
-* **Fatal** for S1 for that `(manifest_fingerprint, seed)`.
-* **Blocking** for S2–S5 and 6B for that `(manifest_fingerprint, seed)`.
+* **Fatal** for S1 for that `(manifest_fingerprint, parameter_hash, seed)`.
+* **Blocking** for S2–S5 and 6B for that `(manifest_fingerprint, parameter_hash, seed)`.
 
 No “best effort” downgrade is allowed.
 
@@ -1615,13 +1617,13 @@ These mean: **“we could not consistently realise a population from the priors;
 
 #### 9.2.4 Base-table & attribute errors
 
-These indicate that the **materialised `s1_party_base_6A` is not a valid population** for that world+seed.
+These indicate that the **materialised `s1_party_base_6A` is not a valid population** for that world+seed+parameter.
 
 * `6A.S1.BASE_TABLE_SCHEMA_OR_KEY_INVALID`
   *Meaning:* `s1_party_base_6A` exists but:
 
   * fails validation against `schemas.6A.yaml#/s1/party_base`, or
-  * violates the PK/uniqueness constraint `(manifest_fingerprint, seed, party_id)`.
+  * violates the PK/uniqueness constraint `(manifest_fingerprint, parameter_hash, seed, party_id)`.
 
 * `6A.S1.BASE_TABLE_COUNT_MISMATCH`
   *Meaning:* Aggregating `s1_party_base_6A` by S1’s cell grouping does not match the integer counts realised in S1’s internal population plan (`N_cell(c)`); or the total number of rows does not equal `Σ_c N_cell(c)`.
@@ -1678,12 +1680,12 @@ These indicate storage or generic runtime failures.
   *Meaning:* S1 attempted to write `s1_party_base_6A` or `s1_party_summary_6A` (if present) and the write could not be completed atomically or durably.
 
 * `6A.S1.OUTPUT_CONFLICT`
-  *Meaning:* Existing S1 outputs for `(manifest_fingerprint, seed)` are present and are **not** byte-identical to what S1 would produce given the current inputs (violating the replace-not-append and idempotency rules).
+  *Meaning:* Existing S1 outputs for `(manifest_fingerprint, parameter_hash, seed)` are present and are **not** byte-identical to what S1 would produce given the current inputs (violating the replace-not-append and idempotency rules).
 
 * `6A.S1.INTERNAL_ERROR`
   *Meaning:* An unexpected, non-classified error occurred (e.g. assertion failure, unhandled exception) and cannot be cleanly mapped into any of the more specific codes. This should be rare and treated as an implementation bug.
 
-These all mean: **“this S1 run failed structurally; do not use its outputs for this world+seed.”**
+These all mean: **“this S1 run failed structurally; do not use its outputs for this world+seed+parameter.”**
 
 ---
 
@@ -1708,7 +1710,7 @@ If an implementation cannot find a specific code that matches, it must fall back
 
 ### 9.4 Run-report integration & propagation
 
-On any S1 run for `(manifest_fingerprint, seed)`:
+On any S1 run for `(manifest_fingerprint, parameter_hash, seed)`:
 
 * The S1 run-report record **must** include:
 
@@ -1737,7 +1739,7 @@ The error codes here are designed to be the **primary machine-readable signal** 
 6A.S1 is a **core modelling state** for Layer-3. Its status and key metrics **must** be visible and machine-readable so that:
 
 * S2–S5 and 6B can safely gate on it, and
-* operators can understand “what population did we actually generate for this world+seed?”.
+* operators can understand “what population did we actually generate for this world+seed+parameter?”.
 
 This section fixes **what S1 must report**, how it is **keyed**, and how **downstream** components must use it.
 
@@ -1745,7 +1747,7 @@ This section fixes **what S1 must report**, how it is **keyed**, and how **downs
 
 ### 10.1 Run-report record for 6A.S1
 
-For every attempted S1 run on a `(manifest_fingerprint, seed)`, the engine **MUST** emit exactly one run-report record with at least the following fields:
+For every attempted S1 run on a `(manifest_fingerprint, parameter_hash, seed)`, the engine **MUST** emit exactly one run-report record with at least the following fields:
 
 * **Identity**
 
@@ -1773,7 +1775,7 @@ For every attempted S1 run on a `(manifest_fingerprint, seed)`, the engine **MUS
 
   At minimum:
 
-  * `total_parties` — total number of rows in `s1_party_base_6A` for this `(mf, seed)`.
+  * `total_parties` — total number of rows in `s1_party_base_6A` for this `(mf, ph, seed)`.
   * `parties_by_region` — map/array summarising `party_count` per `region_id` or `country_iso` (using the grouping chosen in the spec).
   * `parties_by_segment` — summary of counts per `segment_id` (optionally broken down by `party_type`).
   * `parties_by_party_type` — summary counts per `party_type`.
@@ -1810,24 +1812,24 @@ This record is **binding**: downstream code must not try to infer S1 success/fai
   * `total_parties` and other metrics may be omitted or set to a sentinel (e.g. `0`); they are not authoritative.
   * Downstream states must never treat a FAIL record as “good enough to proceed”.
 
-Implementations **must not** report `status="PASS"` while omitting `error_code` and required metrics; a PASS record is a strong statement that S1 population for `(mf, seed)` is complete and usable.
+Implementations **must not** report `status="PASS"` while omitting `error_code` and required metrics; a PASS record is a strong statement that S1 population for `(mf, ph, seed)` is complete and usable.
 
 ---
 
 ### 10.3 Relationship between run-report and S1 datasets
 
-For a **PASS** S1 run on `(manifest_fingerprint, seed)`:
+For a **PASS** S1 run on `(manifest_fingerprint, parameter_hash, seed)`:
 
 * There **must exist** a corresponding partition of `s1_party_base_6A` (and `s1_party_summary_6A` if implemented) that:
 
   * validates against its schema anchor(s),
   * has row counts and grouped counts matching the metrics in the run-report.
 
-* The run-report’s `total_parties` **must** equal `COUNT(*)` over `s1_party_base_6A` for that `(mf, seed)`.
+* The run-report’s `total_parties` **must** equal `COUNT(*)` over `s1_party_base_6A` for that `(mf, ph, seed)`.
 
 For **FAIL**:
 
-* `s1_party_base_6A` and `s1_party_summary_6A` (if present) **must not** be considered authoritative for that `(mf, seed)`:
+* `s1_party_base_6A` and `s1_party_summary_6A` (if present) **must not** be considered authoritative for that `(mf, ph, seed)`:
 
   * downstream components must use the run-report status to decide, not just the presence of files,
   * orchestration may clean up/quarantine partially written datasets, but they should not be read.
@@ -1838,9 +1840,9 @@ For **FAIL**:
 
 All 6A downstream states (S2–S5) and 6B **MUST** integrate S1’s run-report into their own gating logic.
 
-Before using S1 outputs for `(manifest_fingerprint, seed)`, a downstream state must:
+Before using S1 outputs for `(manifest_fingerprint, parameter_hash, seed)`, a downstream state must:
 
-1. Locate the **latest** 6A.S1 run-report record for that `(mf, seed)`.
+1. Locate the **latest** 6A.S1 run-report record for that `(mf, ph, seed)`.
 
 2. Check:
 
@@ -1853,7 +1855,7 @@ Before using S1 outputs for `(manifest_fingerprint, seed)`, a downstream state m
 
 If any of these checks fails, the downstream state **must not**:
 
-* read or rely on `s1_party_base_6A` or `s1_party_summary_6A` for that `(mf, seed)`,
+* read or rely on `s1_party_base_6A` or `s1_party_summary_6A` for that `(mf, ph, seed)`,
 * proceed to generate accounts, products, devices, IPs, fraud roles, or flows.
 
 Instead it must fail with a state-local gating error (e.g. `6A.S2.S1_GATE_FAILED`, `6B.S0.S1_GATE_FAILED`).
@@ -1871,7 +1873,7 @@ While not binding for correctness, implementations **should** also:
 
 * Log at INFO level, per S1 run:
 
-  * `(manifest_fingerprint, seed, parameter_hash)`,
+  * `(manifest_fingerprint, parameter_hash, seed)`,
   * `status`, `error_code`,
   * `total_parties`,
   * key distribution summaries (e.g. top N segments by count).
@@ -1912,13 +1914,13 @@ All of the above observability requirements are **binding** for S1’s run-repor
 
 ## 11. Performance & scalability *(Informative)*
 
-6A.S1 is the first **data-heavy** state in Layer-3: it can easily create millions of parties per world+seed. This section is non-binding, but it describes the expected scale profile and design considerations so an implementation doesn’t accidentally turn S1 into the bottleneck of the engine.
+6A.S1 is the first **data-heavy** state in Layer-3: it can easily create millions of parties per world+seed+parameter. This section is non-binding, but it describes the expected scale profile and design considerations so an implementation doesn’t accidentally turn S1 into the bottleneck of the engine.
 
 ---
 
 ### 11.1 Complexity profile
 
-For a given `(manifest_fingerprint, seed)`:
+For a given `(manifest_fingerprint, parameter_hash, seed)`:
 
 * Let:
 
@@ -1967,7 +1969,7 @@ You should expect the following orders of magnitude (non-binding):
 * **Party base (`s1_party_base_6A`):**
 
   * Small test worlds: O(10⁴ – 10⁵) parties.
-  * Realistic “bank-sized” worlds: O(10⁶ – 10⁸) parties per `(mf, seed)` depending on model ambition.
+  * Realistic “bank-sized” worlds: O(10⁶ – 10⁸) parties per `(mf, ph, seed)` depending on model ambition.
   * Beyond ~10⁸, you are intentionally exploring extreme scale and should plan accordingly.
 
 * **Summary table (`s1_party_summary_6A`):**
@@ -1985,7 +1987,7 @@ S1 lends itself naturally to parallelisation:
 
 * **Across seeds:**
 
-  * Each `(mf, seed)` defines an independent universe; runs for different seeds can be fully parallel.
+  * Each `(mf, ph, seed)` defines an independent universe; runs for different seeds can be fully parallel.
   * This is the primary axis for scaling out S1 horizontally.
 
 * **Across regions/cells within a seed:**
@@ -2243,7 +2245,7 @@ The following are **breaking changes** and must not be introduced without:
    * Changing the high-level law that maps priors → integer counts → base table, in ways that break downstream assumptions, for example:
 
      * introducing scenario-dependent populations where S1 was originally scenario-independent,
-     * shifting from “one party base per `(mf, seed)`” to multiple, overlapping populations.
+     * shifting from “one party base per `(mf, ph, seed)`” to multiple, overlapping populations.
 
    * Changing the **RNG family mapping** (e.g. `party_count_realisation` semantics) such that the same inputs and seed would produce different distributions is also considered breaking at the behavioural level.
 
@@ -2350,7 +2352,7 @@ This appendix collects the short-hands and symbols used in **6A.S1** so you don�
   RNG identity for S1 (and Layer-3 more broadly). Different seeds under the same `(mf, ph)` define different party universes.
 
 * **`party_id`** (or `customer_id`)
-  Stable identifier for a single party/customer within `(mf, seed)`.
+  Stable identifier for a single party/customer within `(mf, ph, seed)`.
   S1 guarantees uniqueness of `(mf, seed, party_id)`.
 
 ---
