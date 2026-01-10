@@ -6,7 +6,7 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 ---
 
 ## 0) Scope (current focus)
-- **Build sequencing:** Engine specs are complete for layer-1 (1A-3B), layer-2 (5A-5B), and layer-3 (6A-6B). After the conceptual reading order, follow `packages\engine\AGENTS.md` and the data-intake router at `docs\model_spec\data-engine\specs\data-intake\AGENTS.md`.
+- **Build sequencing:** Engine specs are complete for layer-1 (1A-3B), layer-2 (5A-5B), and layer-3 (6A-6B). After the conceptual reading order, follow `packages\engine\AGENTS.md`.
 - For now, all other components of the fraud enterprise platform are not yet built.
 
 ---
@@ -21,19 +21,20 @@ Read these in order before modifying code so you share the project context:
 ---
 
 ## 2) Test-yourself policy (no prescribed runner)
-- Own your test plan; even small regressions can break determinism.
-- Default to deterministic runs (`python -m pytest`, targeted CLI smokes) and extend coverage when behaviour changes.
+- Own your test plan; build tests according to the design validation and not just random stuff. 
 - Record the test plan and results in each PR or working log entry.
 
 ---
 
 ## Extra information
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
-- Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
+- As it's very difficult to know your approach to implementation. Ensure in high detail and for auditability, ensure you create a file in `docs\model_spec\data-engine\implementation_maps` called segment_{SEG}.impl_actual.md. You will section it according to the states there in that segment. For every single design element that you want to tackle in a state, you document what that design problem is in summary, but in detail, you articulate your plan to resolve it. Even if you have lots of trials, you append it to the previous and don't remove the former. This is very essential (especially the detail) so the USER can review your thought process and suggests improvements where necessary. Remember, your decisions or plans aren't to be summarized there but to be dropped in detail
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
 - Ensure to check truly large files into git LFS
+- Kindly note that the makefile calls for the engine is in no way binding. You are free to remove it and put yours. Do not try to reverse engineer it and code around it. Work with yours and replace the old stuff there
 - As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable.
 - When working on a task, log every decision and action taken (not just the summary at the end) in the associated logbook in `docs\logbook` ensuring that you use one with the actual local date (if none exist, create one in the same format as the other logs) and log at the local time and not any random time. This will allow the USER to review the AGENTS actions and decisions
+- Ensure to employ the use of loggers in your implementation. Whilst the USER doesn't want to be spammed with logs, it's important that whilst having a heartbeat log, there's a log that gives information (with appropriate states) of what's going on in every process (and not just start and completed) such that at no point is console blank and the USER left confused on whether the run is hanging or not
 
 ---
 
