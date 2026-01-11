@@ -117,7 +117,7 @@ def write_rng_logs(
     anchor_event: dict,
     audit_entry: dict,
 ) -> None:
-    logger = get_logger("engine.s0.outputs")
+    logger = get_logger("engine.layers.l1.seg_1A.s0_foundations.l2.outputs")
     trace = RngTraceAccumulator()
     _append_jsonl(anchor_path, anchor_event)
     trace_entry = trace.append_event(anchor_event)

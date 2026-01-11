@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    logger = get_logger("engine.cli.s0")
+    logger = get_logger("engine.layers.l1.seg_1A.s0_foundations.cli")
     args = build_parser().parse_args()
     cfg = EngineConfig.default()
     runs_root = Path(args.runs_root) if args.runs_root else cfg.runs_root

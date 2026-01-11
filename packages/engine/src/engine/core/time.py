@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import time
 
 
 def utc_now_rfc3339_micro() -> str:
@@ -13,4 +14,4 @@ def utc_now_rfc3339_micro() -> str:
 
 def utc_now_ns() -> int:
     """Return UTC time as nanoseconds since the Unix epoch."""
-    return dt.datetime.now(dt.timezone.utc).timestamp_ns()
+    return time.time_ns()

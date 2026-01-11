@@ -1,7 +1,7 @@
 SHELL := C:/Progra~1/Git/bin/bash.exe
 .SHELLFLAGS := -eu -o pipefail -c
 
-PY ?= python
+PY ?= $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python.exe,python)
 ENGINE_PYTHONPATH ?= packages/engine/src
 PYTHONUNBUFFERED ?= 1
 
@@ -17,7 +17,7 @@ ENGINE_CONTRACTS_ROOT ?=
 ENGINE_EXTERNAL_ROOTS ?=
 ENGINE_RUNS_ROOT ?= $(RUNS_ROOT)
 SEG1A_S0_SEED ?=
-SEG1A_S0_MERCHANT_VERSION ?=
+SEG1A_S0_MERCHANT_VERSION ?= $(MERCHANT_VERSION)
 SEG1A_S1_RUN_ID ?= $(RUN_ID)
 
 # ---------------------------------------------------------------------------

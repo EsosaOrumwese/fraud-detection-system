@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 import hashlib
 import json
 import math
@@ -75,6 +76,7 @@ from engine.layers.l1.seg_1A.s0_foundations.eligibility import (
 
 
 CHANNEL_MAP = {"card_present": "CP", "card_not_present": "CNP"}
+_DATE_VERSION_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 @dataclass(frozen=True)
@@ -130,6 +132,7 @@ def _audit_schema_authority(dictionary: dict, registry: dict) -> None:
 def _resolve_registry_path(
     path_template: str, repo_root: Path, artifact_name: Optional[str] = None
 ) -> Path:
+    has_version_token = "{version}" in path_template
     if "{" not in path_template:
         return repo_root / path_template
     pattern = path_template
@@ -147,7 +150,18 @@ def _resolve_registry_path(
         raise InputResolutionError(
             f"No files match registry path template: {path_template}"
         )
-    resolved = matches[-1]
+    if has_version_token:
+        dated = []
+        for path in matches:
+            version_label = path.name if path.is_dir() else path.parent.name
+            if _DATE_VERSION_RE.fullmatch(version_label):
+                dated.append((version_label, path))
+        if dated:
+            resolved = sorted(dated, key=lambda item: item[0])[-1][1]
+        else:
+            resolved = matches[-1]
+    else:
+        resolved = matches[-1]
     if resolved.is_dir():
         if artifact_name:
             for suffix in (".parquet", ".csv", ".json", ".yaml", ".yml", ".jsonl"):
@@ -688,7 +702,7 @@ def run_s0(
     merchant_ids_version: Optional[str] = None,
     emit_hurdle_pi_probs: bool = True,
 ) -> S0RunResult:
-    logger = get_logger("engine.s0")
+    logger = get_logger("engine.layers.l1.seg_1A.s0_foundations.l2.runner")
     timer = _StepTimer(logger)
     timer.info("S0: run initialised")
     logger.info(
@@ -1230,7 +1244,14 @@ def run_s0(
                 )
                 if idx % progress_every == 0 or idx == total:
                     logger.info("S0.7: emitted hurdle_pi_probs %d/%d", idx, total)
-            pi_df = pl.DataFrame(rows)
+            pi_schema = {
+                "parameter_hash": pl.Utf8,
+                "produced_by_fingerprint": pl.Utf8,
+                "merchant_id": pl.UInt64,
+                "logit": pl.Float32,
+                "pi": pl.Float32,
+            }
+            pi_df = pl.DataFrame(rows, schema=pi_schema)
             _require_param_hash_column(pi_df, parameter_hash, "hurdle_pi_probs")
             _write_parquet_partition(
                 pi_df,

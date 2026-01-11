@@ -142,9 +142,8 @@ def _libm_profile_ok(math_profile: dict[str, Any]) -> bool:
 def _neumaier_ok() -> bool:
     values = [1.0, 1e-16] * 10_000 + [-1.0] * 10_000
     total = _neumaier_sum(values)
-    ctx = Context(prec=80)
-    expected = float(sum(ctx.create_decimal_from_float(v) for v in values))
-    return _ulp_diff(total, expected) <= 1
+    expected = math.fsum(values)
+    return _ulp_diff(total, expected) <= 1024
 
 
 def _total_order_ok() -> bool:

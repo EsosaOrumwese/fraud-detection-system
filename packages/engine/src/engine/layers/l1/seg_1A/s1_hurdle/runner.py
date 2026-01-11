@@ -301,7 +301,7 @@ def _load_coefficients(path: Path) -> tuple[dict, list[float]]:
 
 
 def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1RunResult:
-    logger = get_logger("engine.s1")
+    logger = get_logger("engine.layers.l1.seg_1A.s1_hurdle.l2.runner")
     timer = _StepTimer(logger)
     timer.info("S1: run initialised")
     source = ContractSource(root=config.contracts_root, layout=config.contracts_layout)

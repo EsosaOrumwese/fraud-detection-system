@@ -306,4 +306,13 @@ def build_eligibility_frame(
         rows.append(record)
         if idx % progress_every == 0 or idx == total:
             logger.info("S0.6: evaluated eligibility %d/%d", idx, total)
-    return pl.DataFrame(rows)
+    schema = {
+        "parameter_hash": pl.Utf8,
+        "merchant_id": pl.UInt64,
+        "is_eligible": pl.Boolean,
+        "reason": pl.Utf8,
+        "rule_set": pl.Utf8,
+    }
+    if produced_by_fingerprint is not None:
+        schema["produced_by_fingerprint"] = pl.Utf8
+    return pl.DataFrame(rows, schema=schema)
