@@ -107,6 +107,15 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(handle)
 
 
+def _schema_section(schema_pack: dict, section: str) -> dict:
+    node = schema_pack.get(section)
+    if not isinstance(node, dict):
+        raise InputResolutionError(f"Schema pack missing section: {section}")
+    subset = {"$id": schema_pack.get("$id", ""), "$defs": schema_pack.get("$defs", {})}
+    subset.update(node)
+    return subset
+
+
 def _audit_schema_authority(dictionary: dict, registry: dict) -> None:
     def check_ref(ref: str, origin: str) -> None:
         if "avsc" in ref or "avro" in ref:
@@ -440,6 +449,108 @@ def _attach_channel_and_u64(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def _build_crossborder_features(
+    merchant_df: pl.DataFrame,
+    parameter_hash: str,
+    manifest_fingerprint: str,
+) -> pl.DataFrame:
+    bucket_col = pl.col("gdp_bucket_id")
+    bucket_missing = bucket_col.is_null()
+    bucket_value = pl.when(bucket_missing).then(1).otherwise(bucket_col).cast(pl.Int8)
+    base_expr = (
+        pl.when(bucket_value == 1)
+        .then(0.06)
+        .when(bucket_value == 2)
+        .then(0.12)
+        .when(bucket_value == 3)
+        .then(0.20)
+        .when(bucket_value == 4)
+        .then(0.28)
+        .when(bucket_value == 5)
+        .then(0.35)
+        .otherwise(0.06)
+    )
+    channel_expr = (
+        pl.when(pl.col("channel") == "card_present")
+        .then(-0.04)
+        .when(pl.col("channel") == "card_not_present")
+        .then(0.08)
+        .otherwise(None)
+    )
+    mcc_col = pl.col("mcc").cast(pl.Int32)
+    digital_band = (
+        ((mcc_col >= 4810) & (mcc_col <= 4899))
+        | ((mcc_col >= 5960) & (mcc_col <= 5969))
+        | ((mcc_col >= 5815) & (mcc_col <= 5818))
+    )
+    travel_band = ((mcc_col >= 3000) & (mcc_col <= 3999)) | mcc_col.is_in(
+        [4111, 4121, 4131, 4411, 4511, 4722, 4789, 7011]
+    )
+    retail_band = (
+        ((mcc_col >= 5000) & (mcc_col <= 5999))
+        | ((mcc_col >= 5300) & (mcc_col <= 5399))
+        | ((mcc_col >= 5400) & (mcc_col <= 5599))
+    )
+    tilt_expr = (
+        pl.when(digital_band)
+        .then(0.10)
+        .when(travel_band)
+        .then(0.06)
+        .when(retail_band)
+        .then(0.03)
+        .otherwise(0.0)
+    )
+    openness_expr = (
+        (base_expr + channel_expr + tilt_expr).clip(0.0, 1.0).cast(pl.Float32)
+    )
+    source_expr = (
+        pl.when(bucket_missing)
+        .then(pl.lit("heuristic_v1:gdp_bucket_missing+channel+mcc"))
+        .otherwise(pl.lit("heuristic_v1:gdp_bucket+channel+mcc"))
+    )
+    features_df = merchant_df.select(
+        [
+            pl.col("merchant_id").cast(pl.UInt64),
+            openness_expr.alias("openness"),
+            source_expr.alias("source"),
+            pl.lit(parameter_hash).alias("parameter_hash"),
+            pl.lit(manifest_fingerprint).alias("produced_by_fingerprint"),
+        ]
+    ).sort("merchant_id")
+    if features_df.height != merchant_df.height:
+        raise EngineFailure(
+            "F3",
+            "crossborder_row_mismatch",
+            "S0.6",
+            "1A.s0_crossborder_features",
+            {"expected": merchant_df.height, "got": features_df.height},
+        )
+    if features_df["merchant_id"].n_unique() != features_df.height:
+        raise EngineFailure(
+            "F3",
+            "crossborder_duplicate_merchant",
+            "S0.6",
+            "1A.s0_crossborder_features",
+            {"count": features_df.height},
+        )
+    bad_openness = features_df.filter(
+        pl.col("openness").is_null()
+        | pl.col("openness").is_nan()
+        | pl.col("openness").is_infinite()
+        | (pl.col("openness") < 0.0)
+        | (pl.col("openness") > 1.0)
+    )
+    if bad_openness.height > 0:
+        raise EngineFailure(
+            "F3",
+            "crossborder_openness_invalid",
+            "S0.6",
+            "1A.s0_crossborder_features",
+            {"count": bad_openness.height},
+        )
+    return features_df
+
+
 def _load_hurdle_coefficients(path: Path) -> tuple[dict[str, list], list[float]]:
     payload = _load_yaml(path)
     dict_mcc = payload.get("dict_mcc")
@@ -576,6 +687,7 @@ def _build_output_paths(
         rng_audit_path=dataset_path("rng_audit_log"),
         rng_trace_path=dataset_path("rng_trace_log"),
         hurdle_design_root=dataset_path("hurdle_design_matrix"),
+        crossborder_features_root=dataset_path("crossborder_features"),
         crossborder_flags_root=dataset_path("crossborder_eligibility_flags"),
         hurdle_pi_probs_root=dataset_path("hurdle_pi_probs"),
         validation_bundle_root=dataset_path("validation_bundle_1A"),
@@ -884,6 +996,7 @@ def run_s0(
                 "ccy_country_shares_2024Q4",
                 "ccy_smoothing_params",
                 "license_map",
+                "iso_legal_tender_2024",
             }
         )
         if seed_path is not None:
@@ -1161,6 +1274,26 @@ def run_s0(
             "crossborder_eligibility_flags",
         )
         timer.info("S0.6: crossborder eligibility flags emitted")
+
+        model_schema = _schema_section(_schema_1a, "model")
+        features_df = _build_crossborder_features(
+            merchant_df, parameter_hash, manifest_fingerprint
+        )
+        validate_dataframe(
+            features_df.iter_rows(named=True),
+            model_schema,
+            "crossborder_features",
+        )
+        _require_param_hash_column(features_df, parameter_hash, "crossborder_features")
+        _write_parquet_partition(
+            features_df,
+            outputs.crossborder_features_root,
+            run_paths.tmp_root,
+            "crossborder_features",
+        )
+        timer.info(
+            f"S0.6: crossborder features emitted (openness heuristic_v1; merchants={features_df.height})"
+        )
 
         if emit_hurdle_pi_probs:
             dict_mcc = coeff_meta["dict_mcc"]

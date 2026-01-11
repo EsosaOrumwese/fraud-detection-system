@@ -21,6 +21,7 @@ class S0Outputs:
     rng_audit_path: Path
     rng_trace_path: Path
     hurdle_design_root: Path | None = None
+    crossborder_features_root: Path | None = None
     crossborder_flags_root: Path | None = None
     hurdle_pi_probs_root: Path | None = None
     validation_bundle_root: Path | None = None

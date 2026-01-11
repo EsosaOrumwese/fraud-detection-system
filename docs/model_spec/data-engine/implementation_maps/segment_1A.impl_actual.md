@@ -1625,3 +1625,104 @@ Run results (post-schema fix):
 
 Note:
 - This supersedes the earlier S5 run against `06e82548dc266cc54b07f077010330a3`, which used the pre-fix schema fingerprint.
+
+### Entry: 2026-01-11 19:40 (pre-implementation plan)
+
+Design element: Seal iso_legal_tender_2024 + derive crossborder_features in S0
+Summary: Add `iso_legal_tender_2024` to S0 sealed inputs and implement deterministic `crossborder_features` output per the derivation guide so S4 uses merchant-level openness instead of `x_default`.
+
+Observed issue:
+- S4 logs `crossborder_features missing; using x_default for all`, meaning the S0-produced dataset is not emitted or not present in the expected parameter_hash partition.
+
+Decisions:
+- Seal `iso_legal_tender_2024` in S0 via the registry closure so S5 can emit `merchant_currency` when optional inputs are available and the manifest captures the legal-tender reference.
+- Implement `crossborder_features` in S0 (producer per dictionary), using the v1 heuristic in `crossborder_features_derivation-guide.md`:
+  - base from GDP bucket (1..5 -> 0.06, 0.12, 0.20, 0.28, 0.35)
+  - channel delta (CP -0.04, CNP +0.08)
+  - MCC tilt (digital +0.10, travel +0.06, retail +0.03)
+  - openness = clamp01(base + delta + tilt)
+- Ensure one row per merchant_id, sorted by merchant_id, embed parameter_hash, and set `source="heuristic_v1:gdp_bucket+channel+mcc"` with a fallback marker if bucket is missing (even though S0 already guards against missing buckets).
+- Validate against `schemas.1A.yaml#/model/crossborder_features` before writing.
+
+Plan before editing:
+1) Add `iso_legal_tender_2024` to the S0 registry seed set for sealed inputs.
+2) Add `crossborder_features_root` to `S0Outputs` and `_build_output_paths`.
+3) Implement a deterministic builder in S0 to compute openness, validate schema, and write `crossborder_features` to the parameter_hash partition.
+4) Re-run S0 to generate the new run_id/manifest fingerprint and confirm the new dataset exists; then S4 should pick it up without defaulting to `x_default`.
+
+### Entry: 2026-01-11 19:42 (implementation update)
+
+Design element: Seal iso_legal_tender_2024 + derive crossborder_features in S0
+Summary: Sealed `iso_legal_tender_2024` in S0 and implemented deterministic `crossborder_features` emission per the derivation guide so S4 can consume merchant openness.
+
+What changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/runner.py`
+  - Added `iso_legal_tender_2024` to the registry seed set for sealed inputs.
+  - Added `crossborder_features_root` to output paths and implemented `_build_crossborder_features` (heuristic_v1) with validation and integrity checks.
+  - Emitted `crossborder_features` in S0.6 with schema validation against `schemas.1A.yaml#/model/crossborder_features`.
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/outputs.py`
+  - Added `crossborder_features_root` to `S0Outputs`.
+
+Expected impact:
+- S0 now emits `crossborder_features` under the parameter_hash partition, and S4 should no longer default to `x_default` when the file exists.
+- `iso_legal_tender_2024` is sealed into `sealed_inputs_1A`, enabling S5 to emit `merchant_currency` if present.
+
+Follow-up:
+- Re-run S0 to generate a new run_id/manifest fingerprint, then re-run S4 to confirm the log line switches from missing features to consuming openness.
+
+### Entry: 2026-01-11 19:44 (pre-implementation fix)
+
+Design element: crossborder_features source literal handling
+Summary: S0 failed because Polars interpreted the source strings as column names; fix by wrapping them in `pl.lit(...)` inside the `when/otherwise` expression.
+
+Observed failure:
+- `ColumnNotFoundError: heuristic_v1:gdp_bucket_missing+channel+mcc` during `merchant_df.select(...)`.
+- Root cause is `pl.when(...).then("string")` without `pl.lit`, which Polars treats as a column reference.
+
+Plan before editing:
+1) Update `source_expr` in `_build_crossborder_features` to use `pl.lit("...")` for both `then` and `otherwise` branches.
+2) Re-run S0 and confirm the crossborder_features dataset is emitted.
+
+### Entry: 2026-01-11 19:45 (implementation update)
+
+Design element: crossborder_features source literal fix
+Summary: Wrapped `source` string literals in `pl.lit(...)` to avoid Polars treating them as column names.
+
+What changed:
+- Updated `_build_crossborder_features` to use `pl.lit("heuristic_v1:...")` for both branches of the source expression.
+
+Expected impact:
+- S0 should now emit `crossborder_features` without the ColumnNotFoundError.
+
+### Entry: 2026-01-11 19:46 (pre-implementation fix)
+
+Design element: schema section $defs propagation for crossborder_features validation
+Summary: S0 validation failed because `_schema_section` returned only the `model` subsection without `$defs`, breaking `$ref` lookups (e.g., `id64`).
+
+Observed failure:
+- `PointerToNowhere: '/$defs/id64' does not exist` during `validate_dataframe` for `crossborder_features`.
+
+Plan before editing:
+1) Update `_schema_section` in S0 to include `$id` and `$defs` from the parent schema pack (matching S5's approach).
+2) Re-run S0 and confirm validation succeeds.
+
+### Entry: 2026-01-11 19:46 (implementation update)
+
+Design element: schema section $defs propagation
+Summary: Updated S0 `_schema_section` to include `$id` and `$defs` so crossborder_features validation can resolve `$ref` definitions.
+
+What changed:
+- `_schema_section` now mirrors S5 behavior by injecting `$id` and `$defs` into the section payload before returning it.
+
+Expected impact:
+- `validate_dataframe` should no longer fail on `$defs/id64` when validating `crossborder_features`.
+
+### Entry: 2026-01-11 19:47 (run validation)
+
+Run results:
+- S0 completed with run_id `dea7eba90be951b6a287298eb06964eb` and manifest_fingerprint `fec09a7d201dc91e7263a8c6db4bbba8eeb8f5bc1e55255cac6f62cfdc1b9502`.
+- `sealed_inputs_1A` now includes `iso_legal_tender_2024`.
+- `crossborder_features` parquet emitted at `data/layer1/1A/crossborder_features/parameter_hash=3bf3e019c051fe84e63f0c33c2de20fa75b17eb6943176b4f2ee32ba15a62cbd/part-00000.parquet` for this run.
+
+Next step:
+- Re-run downstream states (S1-S4) on run_id `dea7eba90be951b6a287298eb06964eb` so S4 consumes the new crossborder_features instead of defaulting to `x_default`.
