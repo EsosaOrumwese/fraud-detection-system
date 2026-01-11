@@ -876,7 +876,15 @@ def run_s0(
         registry_names = {asset.asset_id for asset in ref_assets}
         registry_names.update(param_name_map.values())
         registry_names.update(
-            {"numeric_policy_profile", "math_profile_manifest", "validation_policy"}
+            {
+                "numeric_policy_profile",
+                "math_profile_manifest",
+                "validation_policy",
+                "settlement_shares_2024Q4",
+                "ccy_country_shares_2024Q4",
+                "ccy_smoothing_params",
+                "license_map",
+            }
         )
         if seed_path is not None:
             registry_names.add("run_seed")

@@ -1418,3 +1418,210 @@ Test plan (to execute after implementation):
 - Run S5 on current parameter_hash and verify outputs, receipt, and `_passed.flag` creation; confirm no RNG trace delta.
 - Validate ccy_country_weights_cache per-currency sum and dp exactness. Spot-check currencies with only one surface (degrade modes) and currencies with overrides (min_share/alpha).
 - Confirm merchant_currency and sparse_flag produced (or skipped) according to optional input availability and policy.
+
+### Entry: 2026-01-11 17:34 (pre-implementation decision)
+
+Design element: S5 validation receipt + _passed.flag (parameter-scoped gate)
+Summary: Add explicit dictionary + schema entries for the S5 receipt and _passed.flag under the weights cache partition so S6 can gate on a parameter-scoped PASS, while keeping the layer-wide validation bundle gate unchanged.
+
+Decision details:
+- The S5 spec explicitly places `S5_VALIDATION.json` and `_passed.flag` inside the `ccy_country_weights_cache/parameter_hash={parameter_hash}/` partition, and the PASS semantics are parameter-scoped (distinct from the fingerprint-scoped `validation_bundle_1A`).
+- User agrees to keep the segment-level validation bundle gate as-is (S0), and to add a state-specific S5 receipt gate for parameter-scoped reads (S6 and peers).
+- To make this concrete for the engine, the dictionary must include S5 receipt artefacts so S5 can resolve the output paths via contract tokens (no hard-coded paths), and downstream stages can validate presence via dictionary gating rules.
+
+Plan before editing:
+1. Add two dictionary entries in `dataset_dictionary.layer1.1A.yaml`:
+   - `s5_validation_receipt` (format: json, path in the weights cache partition)
+   - `s5_passed_flag` (format: text, path in the same partition)
+2. Add a schema anchor in `schemas.layer1.yaml` (e.g., `validation/s5_receipt`) to validate `S5_VALIDATION.json` (initially permissive, with a descriptive contract note; stricter validation logic will live in S5 code per §9/§14).
+3. Point the dictionary entries to the new schema anchor and to the existing `validation/passed_flag` schema for `_passed.flag`.
+4. Log the change in the logbook before implementation, then proceed to contract edits.
+
+### Entry: 2026-01-11 17:38 (implementation update)
+
+Design element: S5 receipt artefacts in dictionary + schema
+Summary: Added dictionary entries for `S5_VALIDATION.json` and `_passed.flag` under the weights cache partition and added a schema anchor for the S5 receipt.
+
+What changed:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml` now includes:
+  - `s5_validation_receipt` pointing to `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/S5_VALIDATION.json`
+  - `s5_passed_flag` pointing to `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/_passed.flag`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` now includes `validation/s5_receipt` (permissive schema anchor mirroring the S6 receipt pattern).
+
+Expected impact:
+- S5 can resolve receipt paths via dictionary tokens (no hard-coded paths).
+- Downstream parameter-scoped reads (e.g., S6) can gate on `_passed.flag` in the weights partition, while the layer-wide validation bundle remains unchanged.
+
+### Entry: 2026-01-11 17:38 (pre-implementation decisions)
+
+Design element: S5 sparsity threshold + degrade weighting + write-once behavior
+Summary: Make explicit the missing policy details for `sparse_flag` and define how degrade mode alters blend weight, plus enforce write-once outputs by validating existing partitions instead of overwriting them.
+
+Decision details:
+- `sparse_flag` threshold: the policy file does not define a dedicated sparsity threshold. To avoid inventing a new policy field, use the existing `obs_floor` as the threshold. Mark `is_sparse=true` when `N0 < obs_floor` (and set `threshold=obs_floor`). `obs_count` in `sparse_flag` will use the same `round_half_even(N0)` as `ccy_country_weights_cache.obs_count`.
+- Degrade mode weighting: when one ingress surface is missing, the blend weight is overridden to use the available surface exclusively (`w=1.0` for `ccy_only`, `w=0.0` for `settlement_only`). This avoids dampening the only available surface and aligns with the intent of “use available surface”.
+- Write-once enforcement: if the target partition already exists, S5 will not overwrite it. Instead, it will re-derive expected outputs and compare for byte-identical equality (weights, optional merchant_currency/sparse_flag). If identical, S5 proceeds to validation/receipt; if different, it fails with a partial/consistency error.
+- `validate-only` behavior: compute the outputs in memory, validate, and emit the S5 receipt (parameter-scoped) without writing datasets. If outputs already exist, validate them against the derived results; if they do not exist, still emit the receipt but note that downstream reads require the weights cache to exist.
+
+Plan before editing:
+1. Implement S5 runner + CLI with the above behaviors and narrative logging (state story aligned).
+2. Add Makefile wiring for S5 flags (`--emit-sparse-flag`, `--fail-on-degrade`, `--validate-only`) and run-id selection.
+3. Update the logbook with these decisions before coding; then proceed to code changes.
+
+### Entry: 2026-01-11 18:10 (implementation update)
+
+Design element: S5 end-to-end implementation (currency weights + optional outputs + receipt)
+Summary: Implemented the S5 runner, CLI, and Makefile wiring with deterministic weights generation, optional merchant_currency/sparse_flag outputs, license checks, RNG non-interaction checks, and parameter-scoped receipt emission.
+
+What changed:
+- Added `packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py` implementing:
+  - Contract loading + run receipt resolution + run log attachment.
+  - Sealed input enforcement (settlement_shares_2024Q4, ccy_country_shares_2024Q4, iso3166, ccy_smoothing_params, license_map).
+  - Policy validation against `schemas.layer1.yaml#/policy/ccy_smoothing_params`, including ISO override FK checks and min_share feasibility.
+  - Deterministic weights build per §6 (union coverage, blend, N_eff, alpha smoothing, floors, renormalise, fixed-dp quantisation + largest-remainder tie-break) with progress logs and metrics for receipt.
+  - Optional `merchant_currency` from `iso_legal_tender_2024` and `merchant_ids` (home_primary_legal_tender), with per-merchant progress logs and cardinality checks.
+  - Optional `sparse_flag` emission using `obs_floor` as threshold (`is_sparse = N0 < obs_floor`).
+  - Schema validation for outputs via the `prep` schema pack section.
+  - Write-once semantics: if outputs already exist, re-derive and compare for exact equality; otherwise atomically write.
+  - RNG non-interaction check via `rng_trace_log` snapshot comparison.
+  - S5 receipt emission (`S5_VALIDATION.json` + `_passed.flag`) with required run-level and per-currency fields, plus licence_summary.
+- Added `packages/engine/src/engine/cli/s5_currency_weights.py` with flags:
+  `--emit-sparse-flag`, `--fail-on-degrade`, `--validate-only`, and run-id selection.
+- Added Makefile wiring for `SEG1A_S5_*` vars and `segment1a-s5` / `engine-s5` targets.
+
+Notes:
+- Degrade tie-break uses descending remainder with ISO A-Z for shortfall and ascending remainder with ISO Z-A for overshoot.
+- Receipt is parameter-scoped under `ccy_country_weights_cache/parameter_hash=.../`, consistent with §9.
+- No `merchant_currency` ingress share-vector is present in current contracts; the implementation uses the legal-tender fallback only.
+
+Pending validation:
+- Run `make segment1a-s5` (with the current run_id) once upstream outputs exist to validate output/receipt generation and review the S5 receipt contents.
+
+### Entry: 2026-01-11 18:24 (pre-implementation plan)
+
+Design element: S0 sealed_inputs coverage for S5 dependencies
+Summary: S5 fails because `sealed_inputs_1A` lacks `settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `ccy_smoothing_params`, and `license_map`.
+
+Observed failure:
+- S5 raises an InputResolutionError after loading the run receipt, listing missing sealed inputs for the four assets above. The S5 runner expects these to be sealed by S0 before any downstream state uses them.
+
+Root cause analysis:
+- S0 builds the sealed asset list from reference inputs, parameter files, and registry entries returned by `artifact_dependency_closure`.
+- The registry closure is seeded with `registry_names` that currently include reference assets, parameter registry names, `numeric_policy_profile`, `math_profile_manifest`, `validation_policy`, and optional `run_seed`.
+- The S5 dependencies (`settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `ccy_smoothing_params`, `license_map`) are not included in that seed set, so their registry entries are never pulled into the sealed assets list or manifest fingerprint.
+
+Decision:
+- Extend the S0 registry closure seed to include the four S5 dependencies explicitly so they are digested into the manifest and emitted in `sealed_inputs_1A` for downstream validation and determinism.
+- Do not add a fallback in S5 to read from the registry without sealing; that would undermine the sealed-inputs contract and make runs harder to reproduce and audit.
+
+Plan before editing:
+1) Add `settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `ccy_smoothing_params`, and `license_map` to the `registry_names` seed set in S0.
+2) Ensure they exist in `artefact_registry_1A.yaml` and are resolved by the existing registry loader.
+3) Re-run S0 to generate a new run_id with updated `sealed_inputs_1A` and manifest fingerprint, then re-run S5 using that run_id.
+4) Log the implementation result and any validation findings in this file and the logbook.
+
+### Entry: 2026-01-11 18:26 (implementation update)
+
+Design element: S0 sealed_inputs expansion for S5 dependencies
+Summary: Added the S5 dependency registry entries to the S0 sealed input closure so downstream S5 validation can find them in `sealed_inputs_1A`.
+
+What changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/runner.py` now seeds the registry closure with:
+  `settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `ccy_smoothing_params`, and `license_map`.
+- These assets are now included in the S0 `opened_paths` digest set, the manifest fingerprint, and `sealed_inputs_1A`.
+
+Expected impact:
+- S5 no longer fails its required sealed input check once S0 is re-run; the new run_id will include the assets in `sealed_inputs_1A`.
+- Because the manifest fingerprint changes, a fresh run_id is expected; downstream states should use the new run_id for consistent seals.
+
+Follow-up:
+- Re-run `make segment1a-s0` to generate the updated run receipt/sealed inputs, then re-run `make segment1a-s5` using the new run_id.
+
+### Entry: 2026-01-11 18:27 (pre-implementation plan)
+
+Design element: S5 policy asset id mismatch in sealed_inputs
+Summary: S5 expects `ccy_smoothing_params` in `sealed_inputs_1A`, but S0 seals parameter files under their file names (e.g., `ccy_smoothing_params.yaml`).
+
+Observed failure:
+- After re-running S0, `sealed_inputs_1A` includes `ccy_smoothing_params.yaml`, but S5 still fails the required sealed inputs check because it looks for `ccy_smoothing_params`.
+
+Root cause analysis:
+- S0 writes param file assets with `asset_id=param.name` (the file name). This matches how other states (S2/S3/S4) reference param files in sealed inputs (e.g., `policy.s3.rule_ladder.yaml`).
+- S5 currently uses the registry name (`ccy_smoothing_params`) for both the sealed input lookup and registry validation, causing an asset id mismatch.
+
+Decision:
+- Split the S5 policy identifiers: use the registry name (`ccy_smoothing_params`) for contract validation, but use the file name (`ccy_smoothing_params.yaml`) for sealed input lookup and required-asset checks.
+- Avoid changing S0 sealing semantics to emit duplicate asset ids because that would diverge from the established sealed_inputs convention used by other states.
+
+Plan before editing:
+1) Introduce `POLICY_ASSET_ID = "ccy_smoothing_params.yaml"` and `POLICY_REGISTRY_NAME = "ccy_smoothing_params"` in S5.
+2) Update required sealed inputs to use `POLICY_ASSET_ID`.
+3) Update `_validate_artefact_entry` for the policy to use `POLICY_REGISTRY_NAME`.
+4) Update policy path lookup to use `POLICY_ASSET_ID`.
+5) Re-run S5 on the new S0 run_id and confirm green.
+
+### Entry: 2026-01-11 18:28 (implementation update)
+
+Design element: S5 sealed input policy asset id alignment
+Summary: Adjusted S5 to use the sealed asset id (`ccy_smoothing_params.yaml`) for policy lookup while keeping registry validation on `ccy_smoothing_params`.
+
+What changed:
+- Added `POLICY_ASSET_ID = "ccy_smoothing_params.yaml"` and `POLICY_REGISTRY_NAME = "ccy_smoothing_params"`.
+- Required sealed inputs now include `POLICY_ASSET_ID`.
+- Policy path lookup uses the sealed asset id, while `_validate_artefact_entry` uses the registry name.
+
+Expected impact:
+- S5 should accept the S0-sealed parameter file and pass the required sealed input check without changing S0 sealing semantics.
+
+Follow-up:
+- Re-run S5 on run_id `06e82548dc266cc54b07f077010330a3` and review logs/outputs.
+
+### Entry: 2026-01-11 18:29 (pre-implementation plan)
+
+Design element: ccy_smoothing_params semver pattern mismatch
+Summary: S5 policy validation fails because the schema regex expects a backslash in semver (pattern uses `\\.`), rejecting `1.2.0`.
+
+Observed failure:
+- `ccy_smoothing_params.yaml` has `semver: "1.2.0"`, but schema validation fails with `pattern does not match`.
+- The loaded regex string is `^[0-9]+\\.[0-9]+\\.[0-9]+$`, which matches a literal backslash before any character rather than a dot.
+
+Decision:
+- Update the semver pattern under `policy/ccy_smoothing_params` in `schemas.layer1.yaml` to `^[0-9]+\.[0-9]+\.[0-9]+$` (single escaped dot) so standard semver strings validate.
+- Limit the change to the `ccy_smoothing_params` schema entry for now to avoid unplanned contract edits elsewhere.
+
+Plan before editing:
+1) Update the semver pattern line in `schemas.layer1.yaml` for `ccy_smoothing_params`.
+2) Re-run S5 and confirm policy validation passes.
+3) Log the outcome and any downstream changes (manifest fingerprint unaffected, but validation will now succeed).
+
+### Entry: 2026-01-11 18:30 (implementation update)
+
+Design element: ccy_smoothing_params semver regex fix
+Summary: Corrected the semver regex in the `ccy_smoothing_params` schema so standard versions like `1.2.0` validate.
+
+What changed:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` now uses `pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'` for `policy/ccy_smoothing_params` (single escaped dot).
+
+Expected impact:
+- S5 policy validation should pass for the current `ccy_smoothing_params.yaml`.
+
+Follow-up:
+- Re-run S5 on run_id `06e82548dc266cc54b07f077010330a3` and validate outputs.
+
+### Entry: 2026-01-11 18:32 (run validation)
+
+Run results:
+- S0 re-run produced run_id `06e82548dc266cc54b07f077010330a3` (parameter_hash `3bf3e019c051fe84e63f0c33c2de20fa75b17eb6943176b4f2ee32ba15a62cbd`, manifest_fingerprint `de99001b7cbe52bbbd3ff49a36fa7e9a093f0a430a6df6fe9cdc96a01fc4f73f`).
+- S5 executed successfully on that run_id, wrote `ccy_country_weights_cache` (230 rows), emitted `S5_VALIDATION.json` + `_passed.flag`, and skipped `merchant_currency` because `iso_legal_tender_2024` was not sealed.
+
+Notes:
+- This confirms the sealed input coverage and semver schema fix resolve the prior S5 failures.
+
+### Entry: 2026-01-11 18:33 (run validation)
+
+Run results (post-schema fix):
+- S0 re-run produced run_id `23aefe109d38e06c04497d51510d074c` with manifest_fingerprint `82826cf828e9fa303dede837bb95bb1c5a064bef63755c139fbb90a2bf462338` (parameter_hash unchanged).
+- S5 completed successfully on the new run_id; weights cache + S5 receipt were emitted and `_passed.flag` created. `merchant_currency` remains skipped due to missing source datasets.
+
+Note:
+- This supersedes the earlier S5 run against `06e82548dc266cc54b07f077010330a3`, which used the pre-fix schema fingerprint.

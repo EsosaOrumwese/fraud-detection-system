@@ -1265,7 +1265,7 @@ policy:
     additionalProperties: false
     required: [semver, version, dp, defaults]
     properties:
-      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
       version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
       dp: {type: integer, minimum: 0, maximum: 18}
       defaults:
@@ -1737,7 +1737,12 @@ validation:
       code_digest:
         type: string
         pattern: ^[0-9a-f]{64}$
-  s6_receipt:
+  s5_receipt:
+    type: object
+    description: 'PASS receipt for S5 (S5_VALIDATION.json); used with _passed.flag in same folder.'
+    additionalProperties: true
+
+  s6_receipt:
     type: object
     description: 'PASS receipt for S6 (S6_VALIDATION.json); used with _passed.flag in same folder.'
     additionalProperties: true

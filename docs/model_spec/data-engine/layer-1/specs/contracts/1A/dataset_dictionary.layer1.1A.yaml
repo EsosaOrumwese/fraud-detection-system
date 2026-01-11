@@ -253,6 +253,42 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s5_validation_receipt
+  status: approved
+  owner_subsegment: 1A
+  description: PASS receipt for S5; parameter-scoped gate for S6 reads.
+  version: '{parameter_hash}'
+  format: json
+  path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/S5_VALIDATION.json
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/s5_receipt
+  lineage:
+    produced_by: 1A.S5
+    consumed_by: [1A, validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s5_passed_flag
+  status: approved
+  owner_subsegment: 1A
+  description: HashGate PASS flag for the S5 receipt (parameter-scoped).
+  version: '{parameter_hash}'
+  format: text
+  path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/_passed.flag
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1A.S5
+    consumed_by: [1A, validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: merchant_currency
   status: approved
   owner_subsegment: 1A
