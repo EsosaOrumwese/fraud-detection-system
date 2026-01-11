@@ -293,17 +293,10 @@ def _schema_from_pack(schema_pack: dict, path: str) -> dict:
     node: dict = schema_pack
     for part in path.strip("#/").split("/"):
         node = node[part]
-    defs = dict(schema_pack.get("$defs", {}))
-    id64_def = defs.get("id64")
-    if isinstance(id64_def, dict):
-        id64_def = dict(id64_def)
-        if id64_def.get("maximum") == 9223372036854775807:
-            id64_def["maximum"] = UINT64_MAX
-        defs["id64"] = id64_def
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": schema_pack.get("$id", ""),
-        "$defs": defs,
+        "$defs": schema_pack.get("$defs", {}),
     }
     schema.update(node)
     unevaluated = None

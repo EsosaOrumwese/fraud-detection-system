@@ -14,8 +14,8 @@ $defs:
   id64:
     type: integer
     minimum: 1
-    maximum: 9223372036854775807
-    description: Positive 64-bit identifier.
+    maximum: 18446744073709551615
+    description: Positive 64-bit identifier (uint64).
   iso2:
     type: string
     pattern: ^[A-Z]{2}$

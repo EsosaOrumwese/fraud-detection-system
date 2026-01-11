@@ -583,6 +583,15 @@ Plan/Implementation details:
 Deviation note:
 - The `id64` widening is a spec deviation; ingress data contains merchant_id values above signed int64, so validation is relaxed to uint64 until contracts are reconciled.
 
+### Entry: 2026-01-11 07:46
+
+Design element: Contract alignment for merchant_id range (id64)
+Summary: Promoted the temporary uint64 validation override into the contract so schema authority matches observed merchant_id values.
+Plan/Implementation details:
+- Updated `schemas.layer1.yaml` `$defs.id64.maximum` to `18446744073709551615` and clarified the description to uint64.
+- Removed the runtime override in S1 schema validation so the contract remains the sole authority.
+- Revalidate existing S1 hurdle logs under the updated schema to confirm no further special casing is needed.
+
 ## S2 - NB Outlets (placeholder)
 No entries yet.
 
