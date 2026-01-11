@@ -48,14 +48,16 @@ def _column_schema(column: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
-def table_to_jsonschema(
+def _table_row_schema(
     schema_pack: dict[str, Any], table_name: str, strict: bool = True
 ) -> dict[str, Any]:
     table = schema_pack.get(table_name)
     if not table:
         raise ContractError(f"Table '{table_name}' not found in schema pack.")
     if table.get("type") not in ("table", "stream", "geotable", "raster"):
-        raise ContractError(f"Unsupported schema type for '{table_name}': {table.get('type')}")
+        raise ContractError(
+            f"Unsupported schema type for '{table_name}': {table.get('type')}"
+        )
     columns = table.get("columns") or []
     if not columns:
         raise ContractError(f"Table '{table_name}' has no columns defined.")
@@ -67,21 +69,34 @@ def table_to_jsonschema(
             raise ContractError(f"Column missing name in '{table_name}'.")
         properties[name] = _column_schema(column)
         required.append(name)
-    row_schema = {
+    row_schema: dict[str, Any] = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": schema_pack.get("$id", ""),
+        "$defs": schema_pack.get("$defs", {}),
         "type": "object",
         "properties": properties,
         "required": required,
     }
     if strict:
         row_schema["additionalProperties"] = False
-    schema = {
+    return row_schema
+
+
+def table_to_jsonschema(
+    schema_pack: dict[str, Any], table_name: str, strict: bool = True
+) -> dict[str, Any]:
+    row_schema = _table_row_schema(schema_pack, table_name, strict=strict)
+    return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": schema_pack.get("$id", ""),
         "$defs": schema_pack.get("$defs", {}),
         "type": "array",
-        "items": row_schema,
+        "items": {
+            key: value
+            for key, value in row_schema.items()
+            if key not in ("$schema", "$id")
+        },
     }
-    return schema
 
 
 def validate_dataframe(
@@ -91,7 +106,8 @@ def validate_dataframe(
     max_errors: int = 5,
 ) -> None:
     schema = table_to_jsonschema(schema_pack, table_name)
-    validator = Draft202012Validator(schema)
+    row_schema = _table_row_schema(schema_pack, table_name)
+    validator = Draft202012Validator(row_schema)
     errors = []
     for index, row in enumerate(rows):
         for error in validator.iter_errors(row):

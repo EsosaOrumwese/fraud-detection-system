@@ -15,6 +15,7 @@ PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 ENGINE_CONTRACTS_LAYOUT ?= model_spec
 ENGINE_CONTRACTS_ROOT ?=
 ENGINE_EXTERNAL_ROOTS ?=
+ENGINE_RUNS_ROOT ?= $(RUN_ROOT)
 SEG1A_S0_SEED ?=
 SEG1A_S0_MERCHANT_VERSION ?=
 
@@ -223,6 +224,9 @@ SEG1A_S0_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
 endif
 ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
 SEG1A_S0_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S0_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
 endif
 ifneq ($(strip $(SEG1A_S0_SEED)),)
 SEG1A_S0_ARGS += --seed $(SEG1A_S0_SEED)

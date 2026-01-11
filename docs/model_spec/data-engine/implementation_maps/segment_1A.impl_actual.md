@@ -217,6 +217,29 @@ Plan:
   add a pre-run buffer or temporary log location that is copied into the run
   folder once run_id is known.
 
+### Entry: 2026-01-11 01:12
+
+Design element: Ingress schema validation (row-level)
+Summary: Fix JSON Schema adapter to validate row objects instead of arrays.
+Plan:
+- Keep the array-shaped JSON Schema output for any whole-table validation use,
+  but add a row-level schema builder that includes $defs and table properties.
+- Update row validation to use the row schema so merchant rows validate against
+  the correct object type and column constraints.
+- Preserve strict additionalProperties=false behavior to match ingress contracts.
+
+### Entry: 2026-01-11 01:16
+
+Design element: Run root override (RUN_ROOT alignment)
+Summary: Allow S0 to place run folders under a configurable runs root so Makefile RUN_ROOT is honored.
+Plan:
+- Add `runs_root` to EngineConfig with default `<repo>/runs`.
+- Extend RunPaths to accept `runs_root` and resolve run paths as
+  `<runs_root>/<run_id>`.
+- Add CLI/env support (`--runs-root`, `ENGINE_RUNS_ROOT`) and wire Makefile
+  `RUN_ROOT` into S0 via `ENGINE_RUNS_ROOT`.
+- Keep run_id partitioning unchanged; only the base runs directory is configurable.
+
 ## S1 - Hurdle (placeholder)
 No entries yet.
 

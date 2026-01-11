@@ -19,12 +19,12 @@ def find_repo_root(start: Optional[Path] = None) -> Path:
 
 @dataclass(frozen=True)
 class RunPaths:
-    repo_root: Path
+    runs_root: Path
     run_id: str
 
     @property
     def run_root(self) -> Path:
-        return self.repo_root / "runs" / self.run_id
+        return self.runs_root / self.run_id
 
     @property
     def data_root(self) -> Path:

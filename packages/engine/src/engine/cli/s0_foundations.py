@@ -15,6 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run Segment 1A S0 foundations.")
     parser.add_argument("--contracts-layout", default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"))
     parser.add_argument("--contracts-root", default=os.getenv("ENGINE_CONTRACTS_ROOT"))
+    parser.add_argument("--runs-root", default=os.getenv("ENGINE_RUNS_ROOT"))
     parser.add_argument(
         "--external-root",
         action="append",
@@ -30,11 +31,13 @@ def main() -> None:
     logger = get_logger("engine.cli.s0")
     args = build_parser().parse_args()
     cfg = EngineConfig.default()
+    runs_root = Path(args.runs_root) if args.runs_root else cfg.runs_root
     if args.contracts_root:
         cfg = EngineConfig(
             repo_root=cfg.repo_root,
             contracts_root=Path(args.contracts_root),
             contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
             external_roots=cfg.external_roots,
         )
     else:
@@ -42,6 +45,7 @@ def main() -> None:
             repo_root=cfg.repo_root,
             contracts_root=cfg.repo_root,
             contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
             external_roots=cfg.external_roots,
         )
     external_roots = [Path(root) for root in args.external_root if root]

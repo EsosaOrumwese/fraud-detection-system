@@ -280,14 +280,14 @@ def _build_output_paths(
 
 
 def _run_id_in_use(
-    repo_root: Path,
+    runs_root: Path,
     dictionary: dict,
     seed: int,
     parameter_hash: str,
     manifest_fingerprint: str,
     run_id: str,
 ) -> bool:
-    run_paths = RunPaths(repo_root, run_id)
+    run_paths = RunPaths(runs_root, run_id)
     outputs = _build_output_paths(
         run_paths,
         dictionary,
@@ -329,7 +329,7 @@ def run_s0(
     logger.info("Resolved seed=%s (path=%s)", seed, seed_path or "cli_override")
     ref_assets = resolve_reference_inputs(
         dictionary,
-        run_paths=RunPaths(config.repo_root, run_id="pre-run"),
+        run_paths=RunPaths(config.runs_root, run_id="pre-run"),
         external_roots=config.external_roots,
         merchant_ids_version=merchant_ids_version,
         allow_run_local=False,
@@ -419,7 +419,7 @@ def run_s0(
     for _ in range(2**16):
         candidate_run_id, _ = compute_run_id(manifest_bytes, seed, t_ns)
         if not _run_id_in_use(
-            config.repo_root,
+            config.runs_root,
             dictionary,
             seed=seed,
             parameter_hash=parameter_hash,
@@ -431,7 +431,7 @@ def run_s0(
         t_ns += 1
     if run_id is None:
         raise InputResolutionError("Run ID collision exhausted.")
-    run_paths = RunPaths(config.repo_root, run_id)
+    run_paths = RunPaths(config.runs_root, run_id)
     run_log_path = run_paths.run_root / f"run_log_{run_id}.log"
     add_file_handler(run_log_path)
     logger.info("Run log initialized at %s", run_log_path)

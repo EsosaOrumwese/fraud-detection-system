@@ -14,6 +14,7 @@ class EngineConfig:
     repo_root: Path
     contracts_root: Path
     contracts_layout: str
+    runs_root: Path
     external_roots: tuple[Path, ...] = field(default_factory=tuple)
 
     @classmethod
@@ -24,6 +25,7 @@ class EngineConfig:
             repo_root=repo_root,
             contracts_root=contracts_root,
             contracts_layout="model_spec",
+            runs_root=repo_root / "runs",
             external_roots=(repo_root,),
         )
 
@@ -32,5 +34,6 @@ class EngineConfig:
             repo_root=self.repo_root,
             contracts_root=self.contracts_root,
             contracts_layout=self.contracts_layout,
+            runs_root=self.runs_root,
             external_roots=tuple(roots),
         )
