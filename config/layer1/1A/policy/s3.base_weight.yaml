@@ -13,4 +13,4 @@ bounds:
   log_w_min: -50.0
   log_w_max: 50.0
   w_min: 1.0e-7
-  w_max: 1.0e12
+  w_max: 1000000000000.0

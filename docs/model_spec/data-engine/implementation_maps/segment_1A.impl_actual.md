@@ -856,7 +856,126 @@ What changed:
 - `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`: updated `validation_policy.semver.pattern` to use single-escaped dots (`^[0-9]+\.[0-9]+\.[0-9]+$`).
 
 ## S3 - Cross-border Universe (placeholder)
-No entries yet.
+### Entry: 2026-01-11 12:40 (pre-implementation)
+
+Design element: S3 contract review (inputs/outputs/policies/dictionary/schema)
+Summary: Reviewed the authoritative S3 spec, policy authoring guides, dataset dictionary, schema anchors, and current config policies to identify gating requirements, optional outputs, and schema/policy mismatches before coding.
+Sources reviewed (authoritative):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml` (S3 dataset IDs/paths/ordering)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml` (policy/artefact dependencies)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` (policy schemas)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml` (S3 output schemas)
+- `docs/model_spec/data-engine/layer-1/specs/data-intake/1A/policy.s3.rule_ladder_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-1/specs/data-intake/1A/policy.s3.base_weight_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-1/specs/data-intake/1A/policy.s3.thresholds_authoring-guide.md`
+Inputs & outputs per spec:
+- Inputs: S1 hurdle (`rng_event_hurdle_bernoulli`), S2 nb_final (`rng_event_nb_final`), merchant ids (ingress), ISO canonical list, rule ladder policy (required), base-weight policy (optional if priors enabled), thresholds policy (optional if bounds enabled), and optional currency-to-country map (only if rule ladder references it).
+- Outputs: `s3_candidate_set` is required. `s3_base_weight_priors`, `s3_integerised_counts`, and `s3_site_sequence` are optional but explicitly defined in the dictionary and schemas.
+Key invariants:
+- No RNG; `candidate_rank(home)=0`; ranks contiguous; reason/tag vocab closed; priors are fixed-dp strings and never used for ordering; integerised counts sum to N; residual_rank persisted; outputs are parameter-scoped with embedded lineage equal to path partition.
+Contract mismatches found (must resolve before implementation):
+- `policy.s3.rule_ladder.yaml` contains `reason_code_to_rule_id`, but `schemas.layer1.yaml#/policy/s3_rule_ladder` disallows it (`additionalProperties: false`). This is a spec/schema mismatch because S3.3 requires a closed mapping from reason_code to rule_id for ordering-key reconstruction.
+- `schemas.layer1.yaml#/policy/s3_base_weight` and `#/policy/s3_thresholds` use an over-escaped semver pattern (same issue fixed earlier for validation_policy), causing valid semver values to fail schema validation.
+- `config/layer1/1A/policy/s3.base_weight.yaml` parses `w_max: 1.0e12` as a string under PyYAML, which fails JSON-Schema numeric validation.
+Decisions pending (before coding):
+- Extend the `s3_rule_ladder` schema to allow `reason_code_to_rule_id` (preferred) so the policy can carry the required mapping; or redesign S3.3 ordering-key reconstruction to avoid the mapping (not recommended because spec requires it).
+- Fix semver regex in `schemas.layer1.yaml` for `s3_base_weight.version` and `s3_thresholds.semver` to accept standard semver.
+- Normalize `w_max` in `s3.base_weight.yaml` to a numeric literal (e.g., `1000000000000.0`) so schema validation passes deterministically.
+Plan for resolution:
+- Update schemas to accept the required policy fields and correct semver patterns before implementing S3 validation logic.
+- Adjust policy literals to parse as numeric types when required by schema (no quotes for numeric fields).
+
+### Entry: 2026-01-11 12:40 (pre-implementation)
+
+Design element: S3 implementation plan (S3.1–S3.5 pipeline + validation)
+Summary: Planned the deterministic S3 pipeline with explicit gating, ordering, optional priors, integerisation, and sequencing, aligned to the contract and current policy files.
+S3.1 Rule ladder evaluation (deterministic):
+- Load `policy.s3.rule_ladder.yaml` (sealed input), validate against schema (after schema fix), and precompute:
+  - `precedence_order` → rank map.
+  - closed vocab sets (`reason_codes`, `filter_tags`) for validation.
+  - `country_sets` expansion table (ISO2 only).
+  - `reason_code_to_rule_id` mapping (must exist and be total).
+- For each merchant:
+  - Evaluate all rules using the DSL predicates (TRUE, IN_SET, CHANNEL_IN, MCC_IN, N_GE, AND/OR/NOT).
+  - Collect `Fired` and compute `rule_trace` order by `(precedence_rank, priority, rule_id)`.
+  - Choose exactly one decision source (first decision-bearing rule in `rule_trace`).
+- Determine `eligible_crossborder` from precedence logic (DENY overrides ALLOW etc.).
+S3.2 Candidate universe (deterministic, no RNG):
+- If `eligible_crossborder` false: candidate set is `{home}` only.
+- Else compute `ADMITS` and `DENIES` by unioning admit/deny lists from fired rules; remove home from foreigns; final `C = {home} ∪ FOREIGN`.
+- Build per-row `reason_codes` and `filter_tags`:
+  - Home row always has `filter_tags += ["HOME"]` and includes the decision-source reason code.
+  - Foreign rows include admit-bearing rule reason_codes and row_tags; tags and codes are de-duplicated and sorted A–Z.
+S3.3 Ordering (`candidate_rank` authority):
+- Home is always `candidate_rank=0`.
+- For each foreign row, reconstruct admit-rule IDs using `reason_code_to_rule_id` and compute the ordering key:
+  - `K(r) = (precedence_rank, priority, rule_id)` for each admit rule `r`.
+  - `Key1(i) = min_lex K(r)` for the row.
+- Sort foreigns by `(Key1, country_iso)` and assign contiguous ranks starting at 1.
+S3.4 Base-weight priors (optional, but enabled if policy exists):
+- Load `policy.s3.base_weight.yaml`, validate schema.
+- Compute `log_w = beta0 + beta_home*I(is_home) + beta_rank*candidate_rank`.
+- Clamp log_w and w; quantise to `dp` using deterministic half-even rounding; emit fixed-dp strings in `s3_base_weight_priors`.
+S3.5 Integerisation (optional, but enabled if counts are owned by S3):
+- Use `N` from S2 and candidate set (ordered).
+- If priors enabled: use quantised `w_i^⋄` for shares; else equal weights.
+- Apply largest-remainder method with `dp_resid=8`, residual sort descending, tie-break by ISO A–Z.
+- If `policy.s3.thresholds.yaml` enabled: compute bounds `L_i,U_i` per spec (bounded Hamilton); fail on infeasible bounds.
+- Emit `s3_integerised_counts` with `residual_rank` and ensure `Σ count_i = N`.
+S3.5 Sequencing & IDs (optional):
+- If S3 owns `s3_site_sequence`, emit `site_order = 1..count_i` per `(merchant_id,country_iso)`; `site_id` optional (decide whether to emit).
+Validation & resumability:
+- Validate all outputs with schema + deterministic checks (rank contiguity, home presence, ordering-key match, priors dp consistency, counts sum, residual_rank order, bounds feasibility).
+- If outputs already exist for the run/parameter_hash, run validation-only; if partial outputs exist, fail fast to avoid append.
+Observability:
+- Add progress logs with elapsed/rate/ETA during merchant loops (candidate build + integerisation).
+Open decisions to confirm before coding:
+- Whether S3 owns `s3_base_weight_priors`, `s3_integerised_counts`, and `s3_site_sequence` for 1A (current policies exist and dictionary declares outputs; default plan is to implement all three).
+- Whether `site_id` should be emitted or left null (schema allows null).
+
+### Entry: 2026-01-11 13:14 (pre-implementation)
+
+Design element: S3 decision semantics + output ownership (clarification before coding)
+Summary: Capture the implementation interpretation for `eligible_crossborder` when no ALLOW/DENY rule fires, and confirm S3 will emit all optional outputs with `site_id` left null.
+Decision details:
+- `eligible_crossborder` mapping: follow the spec precedence law (DENY then ALLOW); if neither fires, the decision source is the first decision-bearing rule among {CLASS, LEGAL, THRESHOLD, DEFAULT}. In the absence of an explicit allow/deny flag on these rules, interpret **ALLOW only when the decision source precedence is `ALLOW`**; all other precedence classes imply `eligible_crossborder=false`. This keeps default behavior conservative and aligns with the `DEFAULT_DENY` policy pattern.
+- Output ownership: S3 will emit `s3_candidate_set` (required) plus the optional `s3_base_weight_priors`, `s3_integerised_counts`, and `s3_site_sequence`, since policies exist and the dictionary defines these datasets.
+- `site_id` emission: leave `site_id` null for now (schema allows null), while still emitting deterministic `site_order` and preserving row ordering. A later state can add IDs if needed.
+
+### Entry: 2026-01-11 13:44 (pre-implementation)
+
+Design element: S3 runner structure + gating + output validation approach
+Summary: Define the concrete implementation mechanics for S3 (run receipt loading, policy evaluation, candidate build, ordering, priors, integerisation, sequencing, and deterministic validation) before coding.
+Decisions and implementation plan:
+- Runner structure: implement `engine.layers.l1.seg_1A.s3_crossborder.runner` plus `engine.cli.s3_crossborder` with the same contract/runs-root switches as S1/S2.
+- Run context: load run_receipt.json (seed, parameter_hash, manifest_fingerprint, run_id); attach run_log file handler; load dataset dictionary, artefact registry, and schema packs (`schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`).
+- Sealed inputs: resolve policy and reference paths strictly from `sealed_inputs_1A` (rule ladder, base-weight policy, thresholds policy, iso3166 canonical, merchant_ids), and fail if any required asset is missing.
+- Gating logic (per spec): process only merchants with `is_multi==true` and an `nb_final` row with `n_outlets >= 2`; treat inconsistent event coverage as a hard failure (e.g., nb_final exists for non-multi, or is_multi but nb_final missing).
+- Rule ladder evaluation: evaluate all predicates; build `fired` set; order trace by `(precedence_rank, priority, rule_id)`; select decision source per precedence law; compute `eligible_crossborder` using DENY/ALLOW precedence only.
+- Candidate rows: home row always included; home `reason_codes` = union of all fired reason codes (A-Z), `filter_tags` = union of fired tags plus `HOME` (A-Z). Foreign rows use admit-bearing fired rules only: `reason_codes` from admitting rules, `filter_tags` = merchant_tags + row_tags; enforce closed vocab and A-Z sort.
+- Ordering authority: compute admission key from `reason_code_to_rule_id` mapping (must be total and one-to-one); order foreigns by `Key1=(precedence_rank, priority, rule_id)` then ISO A-Z; assign `candidate_rank` with home at 0.
+- Base-weight priors: implement log-linear policy per authoring guide; clamp log_w and w; quantise with round-to-dp (binary64, half-even) and emit fixed-dp string; fail if sum of quantised weights is zero.
+- Integerisation: implement unbounded Hamilton or bounded Hamilton (if thresholds policy enabled) with `dp_resid=8`, residual ordering by residual DESC then ISO A-Z then candidate_rank; assign `residual_rank` for every row and ensure `sum(count)=N`.
+- Sequencing: emit `s3_site_sequence` from integerised counts with `site_order=1..count_i`, `site_id=null`.
+- Output handling: compute expected outputs deterministically; if all four output datasets already exist for this parameter_hash, validate by comparing to expected DataFrames and skip write; if partial outputs exist, fail and ask for cleanup.
+- Validation coverage: rely on internal invariant checks and deterministic comparison rather than the generic JSON-schema adapter for S3 outputs (adapter does not support array-typed columns yet).
+- Observability: add step-level timer logs and per-merchant progress logs (elapsed, rate, eta) for the candidate + integerisation loop.
+
+### Entry: 2026-01-11 14:05
+
+Design element: S3 implementation (runner/CLI/Makefile) + schema fix
+Summary: Implemented the full S3 cross-border pipeline and wired a CLI/Makefile target; fixed the s3_thresholds semver schema + indentation to unblock policy validation; validated outputs against recomputed results.
+What changed and why:
+- Added `packages/engine/src/engine/layers/l1/seg_1A/s3_crossborder/runner.py` with the deterministic S3 flow: sealed-input resolution, S1/S2 event validation, rule ladder evaluation, candidate construction, ordering keys, base-weight priors, bounded Hamilton integerisation, and site sequencing.
+- Added strict gates for missing/extra hurdle events and nb_final inconsistencies (nb_final for non-multi, multi missing nb_final) so S3 fails on broken upstream coverage rather than silently skipping.
+- Enforced policy schema validation for rule ladder, base-weight, and thresholds; added a sanity check that `reason_code_to_rule_id` references actual rule_ids.
+- Implemented deterministic output handling: compute expected DataFrames, compare to existing outputs when resuming, error on partial outputs, and use atomic parquet writes to the dictionary-resolved paths.
+- Added `packages/engine/src/engine/cli/s3_crossborder.py` and Makefile targets/vars (`SEG1A_S3_*`, `segment1a-s3`, `engine-s3`) to run S3 via `make`.
+Fixes during the run:
+- Updated `schemas.layer1.yaml` `s3_thresholds.semver` pattern to single-escaped dots and fixed indentation under `properties:` after a YAML parse error.
+Validation notes:
+- `make segment1a-s3` now completes with outputs emitted under `data/layer1/1A/s3_*` (parameter_hash-scoped), and a subsequent rerun validates existing outputs successfully.
 
 ## S4 - ZTP Target (placeholder)
 No entries yet.

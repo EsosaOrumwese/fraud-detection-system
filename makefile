@@ -20,6 +20,7 @@ SEG1A_S0_SEED ?=
 SEG1A_S0_MERCHANT_VERSION ?= $(MERCHANT_VERSION)
 SEG1A_S1_RUN_ID ?= $(RUN_ID)
 SEG1A_S2_RUN_ID ?= $(RUN_ID)
+SEG1A_S3_RUN_ID ?= $(RUN_ID)
 
 # ---------------------------------------------------------------------------
 # Run defaults
@@ -282,6 +283,21 @@ ifneq ($(strip $(SEG1A_S2_RUN_ID)),)
 SEG1A_S2_ARGS += --run-id $(SEG1A_S2_RUN_ID)
 endif
 SEG1A_S2_CMD = $(PY_ENGINE) -m engine.cli.s2_nb_outlets $(SEG1A_S2_ARGS)
+
+SEG1A_S3_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S3_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S3_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S3_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1A_S3_RUN_ID)),)
+SEG1A_S3_ARGS += --run-id $(SEG1A_S3_RUN_ID)
+endif
+SEG1A_S3_CMD = $(PY_ENGINE) -m engine.cli.s3_crossborder $(SEG1A_S3_ARGS)
 
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
@@ -938,6 +954,12 @@ segment1a-s2:
 	@$(SEG1A_S2_CMD)
 
 engine-s2: segment1a-s2
+
+segment1a-s3:
+	@echo "Running Segment 1A S3 cross-border candidate set"
+	@$(SEG1A_S3_CMD)
+
+engine-s3: segment1a-s3
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"
