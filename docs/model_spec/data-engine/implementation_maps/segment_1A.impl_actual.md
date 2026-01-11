@@ -1322,3 +1322,99 @@ Changes applied:
 
 Expected operator impact:
 - Console logs now tell the story of each state’s scope and outputs, making it easier to interpret progress vs. problems without diving into code.
+
+### Entry: 2026-01-11 17:20 (pre-implementation plan)
+
+Design element: S5 currency→country weights expansion + optional merchant_currency
+Summary: Plan the full S5 implementation (N0–N4) per state.1A.s5.expanded.md, including policy validation, ingress preflight, smoothing/quantisation, optional merchant_currency cache, validation receipt, and atomic publish.
+
+Files reviewed (authoritative sources):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s5.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml (policy/ccy_smoothing_params)
+- config/layer1/1A/allocation/ccy_smoothing_params.yaml
+
+Open contract gaps to resolve before coding:
+- The S5 spec mandates `S5_VALIDATION.json` and `_passed.flag` in the weights partition (parameter-scoped) but the dictionary does not yet define these artefacts. Decision needed: add dictionary entries + schema anchors (likely in schemas.layer1.yaml or schemas.1A.yaml) for the S5 receipt and passed flag, or document an alternative consistent with existing validation bundle conventions.
+
+High-level structure (binding nodes from §13.4):
+- N0: Resolve policy + hash inclusion.
+- N1: Pre-flight ingress checks for settlement_shares and ccy_country_shares (schema + group sum).
+- N2: Build ccy_country_weights_cache (union coverage, blend, smoothing, floors, renorm, quantise + tie-break).
+- N2b: Optional merchant_currency cache (S5.0).
+- N3: S5 validator + receipt (schema/PK/FK, union coverage, exact dp sum, RNG non-interaction, policy digest).
+- N4: Atomic publish (write-once, parameter-scoped partition).
+
+Detailed plan (stepwise, with invariants/logging/resumability):
+
+1) Resolve run context and contracts (N0 pre-step)
+- Load dictionary, registry, schemas (ingress + 1A + layer1 policy).
+- Load run receipt to get `parameter_hash` and `manifest_fingerprint` (even though S5 is parameter-scoped, S5 must confirm sealed inputs for ingress/policy and prove RNG non-interaction for the run context). Decide the exact source of run_id/seed for the RNG non-interaction proof (likely from run receipt + rng_trace_log under {seed,parameter_hash,run_id}).
+- Resolve paths using dictionary tokens only; forbid direct path literals.
+- Verify artefact registry entries exist for `settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `iso3166_canonical_2024`, `ccy_smoothing_params`, `ccy_country_weights_cache`, `merchant_currency`, and `sparse_flag` (§13.4.6). If any are missing, log and abort.
+- Log narrative start lines: “S5: resolve policy + inputs (parameter_hash=…, manifest_fingerprint=…)” and “S5: preflight checks on settlement/ccy shares + ISO FK”.
+
+2) Policy validation (N0)
+- Load `config/layer1/1A/allocation/ccy_smoothing_params.yaml` and validate against `schemas.layer1.yaml#/policy/ccy_smoothing_params` (strict keys; uppercase currency/ISO codes; dp in [0,18]; blend_weight∈[0,1], alpha≥0, obs_floor≥0, min_share∈[0,1], shrink_exponent≥0).
+- Enforce additional spec rules: unknown keys fail; `overrides.min_share_iso` per currency must sum ≤ 1.0 (E_POLICY_MINSHARE_FEASIBILITY).
+- Compute `policy_digest` as SHA-256 over bytes (no normalization). Confirm policy file is part of the parameter hash inventory (sealed_inputs_1A), or abort if missing.
+- Decide how to treat `shrink_exponent < 1`: clamp to 1 per spec (log in receipt metrics as “effective”).
+- Log narrative: “S5: policy validated (dp=…, defaults…, overrides count…)”.
+
+3) Ingress preflight (N1)
+- Read settlement_shares_2024Q4 + ccy_country_shares_2024Q4 (parquet) and iso3166 canonical (parquet). Validate schema using JSON-Schema adapter; then enforce PK uniqueness and group sum per currency (sum of share == 1.0 ± 1e-6) for each surface.
+- Validate `country_iso` FK against iso3166 canonical. Validate `currency` is ISO-4217 uppercase (schema) and `obs_count >= 0`.
+- Log counts: number of currencies, rows per surface, and any currencies present in only one surface (for degrade mode).
+- On any breach, abort with E_INPUT_SCHEMA/E_INPUT_SUM.
+
+4) Build ccy_country_weights_cache (N2)
+- For each currency (sorted A–Z for determinism):
+  - Build union of ISO codes across both surfaces (coverage requirement). If policy narrows coverage, record narrowing and list of excluded ISOs in receipt metrics.
+  - Determine degrade mode: `none`, `settlement_only`, or `ccy_only` if one surface missing; record `degrade_reason_code` (SRC_MISSING_* or POLICY_NARROWING).
+  - Resolve effective parameters via precedence (defaults → per_currency → overrides for alpha/min_share by ISO).
+  - Compute q[c] = w*s_ccy + (1-w)*s_settle (missing surface treated by degrade mode); N0 = w*sum(n_ccy) + (1-w)*sum(n_settle); N_eff = max(obs_floor, N0^(1/max(shrink_exponent,1))).
+  - Apply Dirichlet-style smoothing: posterior[c] = (q[c]*N_eff + alpha[c]) / (N_eff + sum(alpha)).
+  - Apply floors: p'[c] = max(posterior[c], min_share[c]); fail with E_ZERO_MASS if sum(p') == 0.
+  - Renormalise p[c] = p'[c]/sum(p') using binary64. Quantise to dp with round-half-even; then apply deterministic largest-remainder tie-break (shortfall: descending remainder, ISO A–Z; overshoot: ascending remainder, ISO Z–A) to force exact decimal sum == 1 at dp.
+  - Emit rows sorted by (currency, country_iso) with fields: currency, country_iso, weight, obs_count (choose N0 or per-row supporting obs_count? see §6.6; decision required), smoothing string (encode alpha/min_share + degrade mode) per schema optional columns.
+- Maintain deterministic output file ordering and byte identity across runs (single-writer or deterministic merge). Avoid RNG entirely.
+
+5) Build sparse_flag (N2/N2b)
+- Use policy-defined sparsity threshold (if specified; consult §5.3 and policy semantics) to set `is_sparse` per currency and emit obs_count + threshold per schema. If no policy field exists, document the decision and consult spec; do not invent thresholds.
+- Ensure PK uniqueness (currency) and embed parameter_hash in partition.
+
+6) Build merchant_currency (optional N2b)
+- Only emit if both required sources are available in dictionary for the deployment (settlement_shares + iso_legal_tender_2024; verify spec rules in §5.2). If optional inputs missing, skip emitting `merchant_currency` entirely (no partial output).
+- If enabled: compute one row per merchant in S0 merchant universe (ingress merchant_ids), selecting settlement currency via the specified rule order (ingress share vector if present; else home_primary_legal_tender fallback). Enforce one row per merchant, ISO-4217 validity, and record `source` + `tie_break_used` per schema.
+- On any missing/duplicate merchant, abort with E_MCURR_CARDINALITY/E_MCURR_RESOLUTION.
+
+7) Validation + receipt (N3)
+- Re-validate outputs against schemas.1A.yaml (ccy_country_weights_cache, merchant_currency, sparse_flag) and ensure path embed parameter_hash == partition. Validate group_sum_equals_one + exact dp sum after quantisation.
+- Confirm union coverage per currency; validate degrade/narrowing counts against receipt metrics.
+- RNG non-interaction: snapshot rng_trace_log totals before run and confirm no deltas afterward (E_RNG_INTERACTION on mismatch).
+- Write S5_VALIDATION.json with required run-level + per-currency metrics (per §B.7). Compute `_passed.flag` as sha256 over receipt files (excluding the flag), and place both in the weights partition (parameter-scoped).
+
+8) Atomic publish (N4) + resumability
+- Stage outputs in tmp dir; on success, atomically rename into the parameter_hash partition.
+- If target partition exists, refuse to overwrite (E_PARTITION_EXISTS) unless byte-identical re-run is explicitly allowed by spec; otherwise abort with clear operator message.
+- Validation-only re-run: if outputs + receipt exist, verify and exit green; if partial exists, fail with a clear “partial outputs” error.
+
+Logging plan (narrative, state-story aligned):
+- N0: “S5: policy resolved (dp=…, overrides=…, policy_digest=…)”.
+- N1: “S5: preflight shares (settlement currencies=…, ccy currencies=…, union currencies=…)”.
+- N2: “S5: building weights cache (currencies=…, dp=…, blend_weight policy).” Per-currency progress logs with elapsed/rate/eta and explicit step labels (blend/smooth/floor/quantise).
+- N2b: “S5.0: deriving merchant_currency (merchants=…, sources=…, fallback used=…).”
+- N3: “S5: validation + receipt (coverage pass, dp exact-sum pass, rng trace unchanged).”
+- N4: “S5: published outputs (weights/sparse_flag/merchant_currency) + receipt; parameter_hash=…”.
+
+Performance & memory:
+- Use Polars group-by and dictionary-based maps for per-currency operations; avoid loading both surfaces into per-currency lists when not needed. Process currencies in sorted order with streaming where possible. Avoid full cartesian joins.
+- Ensure determinism: use stable sorting and deterministic ties; avoid Python hash nondeterminism (explicit sorting on keys).
+
+Test plan (to execute after implementation):
+- Run S5 on current parameter_hash and verify outputs, receipt, and `_passed.flag` creation; confirm no RNG trace delta.
+- Validate ccy_country_weights_cache per-currency sum and dp exactness. Spot-check currencies with only one surface (degrade modes) and currencies with overrides (min_share/alpha).
+- Confirm merchant_currency and sparse_flag produced (or skipped) according to optional input availability and policy.
