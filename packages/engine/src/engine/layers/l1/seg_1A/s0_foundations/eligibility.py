@@ -215,6 +215,12 @@ def load_eligibility_rules(
         channel_values = rule.get("channel") or []
         iso_values = rule.get("iso") or []
         mcc_values = rule.get("mcc") or []
+        if isinstance(channel_values, str):
+            channel_values = [channel_values]
+        if isinstance(iso_values, str):
+            iso_values = [iso_values]
+        if isinstance(mcc_values, str):
+            mcc_values = [mcc_values]
         if not isinstance(channel_values, list):
             raise EngineFailure(
                 "F3",

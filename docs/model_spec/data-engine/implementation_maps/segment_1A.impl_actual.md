@@ -978,7 +978,64 @@ Validation notes:
 - `make segment1a-s3` now completes with outputs emitted under `data/layer1/1A/s3_*` (parameter_hash-scoped), and a subsequent rerun validates existing outputs successfully.
 
 ## S4 - ZTP Target (placeholder)
-No entries yet.
+### Entry: 2026-01-11 14:23 (pre-implementation)
+
+Design element: S4 contract review + ZTP pipeline plan
+Summary: Completed S4 spec and contract review; documented schema/dictionary mismatches and a concrete plan for the logs-only ZTP sampler.
+Sources reviewed (authoritative):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml` (rng_event_poisson_component, rng_event_ztp_*, rng_trace_log, crossborder_eligibility_flags, s3_candidate_set, crossborder_features)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` (rng envelope/events, rng_trace_log, policy/crossborder_hyperparams)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml` (crossborder_features, crossborder_eligibility_flags, s3_candidate_set)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml` (crossborder_hyperparams, crossborder_features, rng_event_ztp_* entries)
+- `config/layer1/1A/policy/crossborder_hyperparams.yaml` (ztp parameters, x_default, cap, policy)
+
+Contract mismatches / clarifications discovered:
+- Spec fixes all S4 events to module=1A.ztp_sampler, substream_label=poisson_component, context="ztp". Current schema sets ztp_final.substream_label=ztp_final and does not allow context/module constraints on ztp_rejection or ztp_retry_exhausted. Schema will be aligned so it accepts and enforces the spec fields.
+- Schema caps attempts at 64 (poisson_component.attempt max 64; ztp_rejection max 64; ztp_retry_exhausted attempts const 64). Spec says cap is governed (MAX_ZTP_ZERO_ATTEMPTS). Policy currently uses 64; if policy changes, schema must be updated or runtime validation will be the only guard.
+- Dictionary gating for rng_event_poisson_component only enforces is_multi; S4 spec also requires is_eligible. Code will enforce is_eligible gate for all ZTP events regardless of dictionary gate.
+
+Decisions (before coding):
+- Align schema to spec: add module/substream_label/context consts to ztp_rejection and ztp_retry_exhausted; change ztp_final.substream_label to poisson_component; add context="ztp" to ztp_rejection/ztp_retry_exhausted; keep additionalProperties false.
+- Use crossborder_hyperparams.feature_x.x_default when a merchant has no feature row; if the dataset is entirely missing, treat all merchants as x_default and log once (spec allows default override).
+- Use theta_order to define the evaluation order for eta (fixed binary64 order); use a deterministic summation (Neumaier) in that order to reduce drift without changing order.
+- Reuse the existing Poisson sampler from S2 (inversion for lambda < 10, PTRS otherwise) and emit regime="inversion"/"ptrs" based on lambda.
+- Emit exactly one rng_trace_log row per S4 event append; do not add an extra final trace row to avoid violating the "exactly one per event" rule.
+
+Implementation plan:
+- Create new state module `engine.layers.l1.seg_1A.s4_ztp` with runner, plus CLI entrypoint `engine.cli.s4_ztp` and Makefile target `segment1a-s4` mirroring the S1/S2 patterns (contracts layout/root, runs root, external roots, optional run_id).
+- Resolve run receipt and validate s0_gate_receipt_1A lineage; load dictionary, registry, and schema packs.
+- Resolve sealed_inputs_1A and require crossborder_hyperparams (and any other governed assets used by S4); read crossborder_features if present, else use defaults.
+- Load upstream data:
+  - S1 hurdle events to identify is_multi merchants and validate lineage (seed, parameter_hash, run_id).
+  - S2 nb_final events (exactly one per merchant) to get N; verify non-consuming envelope and lineage.
+  - S3 crossborder_eligibility_flags (parameter-scoped) to gate is_eligible.
+  - S3 candidate_set (parameter-scoped) to compute A per merchant as count of non-home rows.
+- Merchant loop (only is_multi and is_eligible):
+  - Compute eta and lambda; if lambda non-finite or <=0, record NUMERIC_INVALID failure and stop processing that merchant.
+  - If A=0, emit ztp_final with K_target=0, attempts=0, reason="no_admissible" (schema supports) and no Poisson draws.
+  - Else run the ZTP loop up to MAX_ZTP_ZERO_ATTEMPTS:
+    - Draw K from Poisson(lambda) using the per-merchant ZTP substream.
+    - Emit rng_event_poisson_component (consuming); if K==0 emit ztp_rejection (non-consuming) and continue.
+    - If K>=1, emit ztp_final (non-consuming) with K_target=K, attempts, regime, exhausted absent/false, then stop.
+    - If cap reached and policy="abort", emit ztp_retry_exhausted (aborted=true) and stop with no ztp_final; log ZTP_EXHAUSTED_ABORT.
+    - If cap reached and policy="downgrade_domestic", emit ztp_final with K_target=0, attempts=cap, exhausted=true.
+  - After each event append, emit one rng_trace_log row for (module=1A.ztp_sampler, substream_label=poisson_component) using saturating totals and the event counters.
+- Output handling: if all S4 outputs already exist and trace has the substream, run validation-only; if partial outputs exist, fail and request cleanup.
+- Validation:
+  - Validate all S4 event rows against schema + invariants: lineage equality, module/substream/context constants, attempt contiguity, non-consuming envelopes, per-merchant uniqueness of final/retry events, counters monotonicity and draws/blocks accounting, trace row presence per event, A=0 short-circuit correctness.
+  - Emit failure records to the standard validation failure path using spec failure codes (NUMERIC_INVALID, BRANCH_PURITY, A_ZERO_MISSHANDLED, ATTEMPT_GAPS, FINAL_MISSING, MULTIPLE_FINAL, CAP_WITH_FINAL_ABORT, ZTP_EXHAUSTED_ABORT, TRACE_MISSING, POLICY_INVALID, REGIME_INVALID, RNG_ACCOUNTING, UPSTREAM_MISSING_S1/S2/A, PARTITION_MISMATCH).
+- Observability: add step timers and per-merchant progress logs with elapsed/rate/eta (matching S2 style), plus summary counters (processed, accepted, rejected, exhausted) for run logs.
+
+### Entry: 2026-01-11 14:26 (pre-implementation)
+
+Design element: S4 failure logging + metrics emission strategy
+Summary: Decide how to satisfy S4 values-only failure/metric requirements within the existing engine logging + failure bundle constraints.
+Decision details (before coding):
+- Merchant-scoped failures will be logged as values-only lines to the run log using the §12.4 key set (no paths), and the runner will continue processing other merchants. This satisfies the spec requirement for stable failure lines while avoiding a single shared failure.json file for multiple merchant failures.
+- Run-scoped failures (POLICY_INVALID, STREAM_ID_MISMATCH, PARTITION_MISMATCH, ZERO_ROW_FILE, UNKNOWN_CONTEXT, DICT_BYPASS_FORBIDDEN) will write a `failure.json` under `data/layer1/1A/validation/failures/...` via the existing `write_failure_record` helper and abort the run.
+- S4 metrics counters/histograms will be logged as values-only lines at the end of the run (and after validation-only paths), using the §13.2 keys and run lineage. Histograms will be emitted as per-merchant samples (attempts) and a final summary line; no paths will be logged.
+- The `merchant_abort_log` parquet dataset will not be emitted in S4 for now (dictionary lists it as S0-produced and would require new parquet output plumbing); values-only log lines cover the spec requirement without new dataset wiring.
 
 ## S5 - Currency Weights (placeholder)
 No entries yet.
@@ -994,3 +1051,109 @@ No entries yet.
 
 ## S9 - Validation (placeholder)
 No entries yet.
+
+### Entry: 2026-01-11 15:08 (pre-implementation continuation)
+
+Design element: S4 runner completion plan + partial implementation audit
+Summary: Record the concrete steps to finish the S4 ZTP runner, along with the actions already taken and why they need follow-through before more code changes.
+Actions already taken (context for this plan):
+- Created `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp/` and started `runner.py` with the full contract resolution, sealing, gating, and the ZTP loop logic (Poisson attempts, rejection markers, cap handling, finalisers, and trace appends).
+- Implemented counters for S4 metrics, per-merchant attempt histogram emissions, and progress logs with elapsed/rate/ETA.
+- Discovered that the incremental file-append edits left literal newline breaks inside `write("...")` calls; fixed them so the runner is syntactically correct (`write("\n")` used for JSONL rows).
+
+Decisions before continuing:
+- Use a new part file for S4 `rng_event_poisson_component` (next `part-xxxxx.jsonl` in the directory) so S2’s Poisson log is preserved; S4 writes only ZTP-context rows.
+- Treat empty event streams as absence, not zero-row files: delete zero-byte temp files and do not publish empty outputs to avoid ZERO_ROW_FILE failures.
+- Emit per-merchant metrics for `s4.lambda.hist` and `s4.merchant.summary` (values-only) in addition to the required counters and `s4.attempts.hist` samples.
+- Implement a full `_validate_s4_outputs` pass that filters Poisson events to `context="ztp"` and `module=1A.ztp_sampler`, then enforces attempt contiguity, finaliser cardinality, cap policy behavior, trace coverage, and RNG accounting per the spec.
+
+Implementation plan (next steps):
+1. Finish `run_s4` after the merchant loop: commit temp files to dictionary-resolved output paths (append trace, move event logs, skip zero-row files), log a concise emit summary, and then run `_validate_s4_outputs`.
+2. Add the missing helper functions: `_metrics_base`, `_init_metrics`, `_log_metrics_summary`, and `_validate_s4_outputs`, ensuring values-only logs and no path leakage in failure records.
+3. Add CLI entrypoint `engine.cli.s4_ztp` and a Makefile target `segment1a-s4` with `SEG1A_S4_*` variables, matching S1–S3 patterns.
+4. After code changes, run `make segment1a-s4` (using the current run_id) and iterate on any failures until green, documenting each decision and fix here and in the logbook.
+
+### Entry: 2026-01-11 15:32 (implementation update)
+
+Design element: S4 runner completion + validation/metrics wiring
+Summary: Finished the core S4 runner path (event emission, trace append, validation, metrics), added CLI/Makefile hooks, and implemented a comprehensive S4 validation pass with attempt/trace/accounting checks.
+What changed (detailed):
+- Completed `run_s4` post-loop flow: enforce trace-count parity, move temp JSONL outputs into dictionary-resolved paths, skip zero-row files by deleting empty temps, append trace rows into the existing `rng_trace_log`, and then validate outputs before marking the state complete.
+- Added a run-scoped failure guard (`failure_recorded`) so repeated abort paths do not emit duplicate failure.json entries; `_record_run_failure` now stringifies dict details and is idempotent.
+- Expanded per-merchant observability to meet §13 requirements: emit `s4.lambda.hist`, `s4.merchant.summary`, and per-merchant timing histograms for Poisson sampling (`s4.ms.poisson_inversion`/`s4.ms.poisson_ptrs`) in addition to counters and attempts hist samples.
+- Implemented `_validate_s4_outputs` to enforce schema/lineage, RNG accounting (consuming vs non-consuming), trace coverage and totals, branch purity, attempt contiguity, cap-policy behavior, finaliser cardinality, and regime derivation. Added explicit checks for attempts-after-accept, rejection-without-attempt, missing trace rows, and upstream `nb_final` coverage.
+- Added the S4 CLI entrypoint (`engine.cli.s4_ztp`) plus Makefile variables and targets (`SEG1A_S4_*`, `segment1a-s4`, `engine-s4`).
+
+Notable decisions captured during implementation:
+- Treat absence of a stream (e.g., no rejections, no retry events) as valid and avoid creating zero-row JSONL outputs; only write event files when at least one row exists.
+- Validation filters `rng_event_poisson_component` to `context="ztp"` and `module=1A.ztp_sampler` to avoid mixing S2 Poisson events into S4 checks; all other S4 event streams are validated fully.
+- Trace validation is tied to S4-only events and requires count parity plus cumulative draws/blocks totals to match the S4 event sums (saturating).
+
+### Entry: 2026-01-11 15:35 (implementation refinements)
+
+Design element: S4 validation + memory guardrails
+Summary: Tightened S4 validation semantics and removed unnecessary per-merchant accumulation to keep memory bounded.
+Details:
+- Added trace-absence detection when any S4 event exists, enforced `substream_label=poisson_component` for ZTP Poisson events, and validated that acceptance attempts have no subsequent attempts (`attempts_after_accept`).
+- Improved A=0 reason handling by detecting optional `reason` through schema `allOf` inspection, so the presence check aligns with the schema version actually bound.
+- Added explicit rejection-without-attempt detection to catch stray `ztp_rejection` rows.
+- Removed the in-memory `attempt_hist` list to avoid holding per-merchant data; per-merchant hist samples are still logged inline as required by the spec.
+
+### Entry: 2026-01-11 15:38 (policy/schema alignment)
+
+Design element: crossborder_hyperparams schema compliance
+Summary: Fixed policy/schema mismatches for the S4 hyperparams intake so validation can proceed, and noted the need to re-run S0+ downstream to refresh parameter_hash.
+Actions and decisions:
+- Updated `config/layer1/1A/policy/crossborder_hyperparams.yaml` to replace wildcard lists (`["*"]`) with the spec-approved string wildcard (`"*"`) for `channel`, `iso`, and `mcc`.
+- Fixed the semver regex in `schemas.layer1.yaml` under `policy/crossborder_hyperparams` to use a single-escaped dot (previous pattern over-escaped and rejected valid semver like `1.2.0`).
+- Because `crossborder_hyperparams` participates in `parameter_hash`, these changes require re-running S0 and downstream states (S1–S3) before S4 so the new seal/digest aligns with the run receipt.
+
+### Entry: 2026-01-11 15:45 (pre-implementation fix)
+
+Design element: S4 ztp_final schema acceptance for envelope fields
+Summary: Address validation failure where ztp_final events are rejected because the schema disallows the rng_envelope fields.
+Context (observed failure):
+- `make segment1a-s4` produced ztp_final rows but validation failed with: `data/rng_event_ztp_final/part-00000.jsonl ... 'module' does not match any of the allowed schemas` and similar errors for the envelope fields.
+- The schema for `rng.events.ztp_final` uses `allOf: [rng_envelope, {properties: ... additionalProperties: false}]`. With JSON Schema draft 2020-12, `additionalProperties: false` in the second subschema treats the rng_envelope fields as "additional" (since that subschema only declares the ztp_final-specific fields), so any row that includes envelope fields fails validation.
+
+Decision before editing:
+- Replace `additionalProperties: false` with `unevaluatedProperties: false` inside the ztp_final event schema (the second allOf subschema). This allows the union of properties across subschemas while still prohibiting unexpected extras.
+- Keep the existing envelope schema unchanged; only the ztp_final block is adjusted to avoid changing unrelated events.
+
+Plan before editing:
+1. Update `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` under `rng.events.ztp_final` to use `unevaluatedProperties: false` and remove `additionalProperties: false`.
+2. Re-run `make segment1a-s4` using the current run_id (`6f81b34af7e91e31004277721b3ae47f`). The run should detect existing outputs and execute the validation-only path; confirm S4 goes green.
+3. Record the validation outcome and any residual schema issues in this file and the logbook.
+
+### Entry: 2026-01-11 15:47 (pre-implementation fix)
+
+Design element: S4 trace schema validation
+Summary: Fix S4 validation crash due to jsonschema "Unknown type 'stream'" when validating rng_trace_log.
+Context (observed failure):
+- `make segment1a-s4` now reaches validation-only mode, but crashes on `_schema_check(DATASET_TRACE, ...)` with `jsonschema.exceptions.UnknownType: Unknown type 'stream'`.
+- The schema node `rng/core/rng_trace_log` is a stream schema with `{type: stream, record: {...}}`. `Draft202012Validator` does not understand `type: stream`, and S4 currently passes that node directly into the validator.
+- S2 already avoids this by validating against `rng/core/rng_trace_log/record`.
+
+Decision before editing:
+- Align S4 with S2: load the trace schema from `rng/core/rng_trace_log/record` so the validator sees a normal object schema. This avoids altering the core schema pack or adapter behavior.
+- Keep `_schema_from_pack` as-is (it already supports unevaluatedProperties hoisting); the minimal change is updating the path used for `trace_schema` in S4 validation.
+
+Plan before editing:
+1. Update `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp/runner.py` to use `_schema_from_pack(schema_layer1, "rng/core/rng_trace_log/record")` instead of `rng/core/rng_trace_log`.
+2. Re-run `make segment1a-s4` (validation-only) and confirm validation proceeds past trace schema.
+3. Record any remaining validation failures and fix them iteratively.
+
+### Entry: 2026-01-11 15:48 (implementation update)
+
+Design element: S4 schema validation fixes + validation-only rerun
+Summary: Applied the planned schema/validator fixes and confirmed S4 validation passes on the existing outputs.
+Actions taken (after the pre-implementation notes):
+- Updated `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` so `rng.events.ztp_final` uses `unevaluatedProperties: false` instead of `additionalProperties: false`. This allows the rng_envelope fields to be validated alongside the ztp_final-specific fields under the `allOf` composition.
+- Updated S4 validation to load the trace schema from `rng/core/rng_trace_log/record` (object schema) rather than the stream wrapper to avoid `jsonschema` rejecting `type: stream`.
+- Re-ran `make segment1a-s4` on the current run_id; the runner detected existing outputs and executed validation-only. Validation passed.
+
+Run details:
+- run_id: `6f81b34af7e91e31004277721b3ae47f`
+- parameter_hash: `3bf3e019c051fe84e63f0c33c2de20fa75b17eb6943176b4f2ee32ba15a62cbd`
+- manifest_fingerprint: `d01476a6d70de70a88826c55d5d6dffd17ed76506da0b8688631f37944bf16ff`
+- Outcome: S4 validation green (existing outputs verified, no re-emission)

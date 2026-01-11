@@ -8,16 +8,16 @@ eligibility:
     - id: "deny_sanctioned_home"
       priority: 10
       decision: "deny"
-      channel: ["*"]
+      channel: "*"
       iso: ["BY", "CU", "IR", "KP", "RU", "SD", "SY", "VE"]
-      mcc: ["*"]
+      mcc: "*"
       reason: "deny_sanctioned_home"
 
     - id: "deny_high_risk_cnp"
       priority: 20
       decision: "deny"
       channel: ["CNP"]
-      iso: ["*"]
+      iso: "*"
       mcc:
         - "4829"
         - "5815"
@@ -35,7 +35,7 @@ eligibility:
       priority: 100
       decision: "allow"
       channel: ["CP", "CNP"]
-      iso: ["*"]
+      iso: "*"
       mcc:
         - "3000-3999"
         - "4000-4799"
@@ -48,7 +48,7 @@ eligibility:
       priority: 120
       decision: "allow"
       channel: ["CNP"]
-      iso: ["*"]
+      iso: "*"
       mcc:
         - "5000-5999"
         - "5300-5399"
@@ -58,7 +58,7 @@ eligibility:
     - id: "allow_home_hubs"
       priority: 200
       decision: "allow"
-      channel: ["*"]
+      channel: "*"
       iso:
         - "AD"
         - "AE"
@@ -98,7 +98,7 @@ eligibility:
         - "SE"
         - "SG"
         - "US"
-      mcc: ["*"]
+      mcc: "*"
       reason: "allow_home_hubs"
 
 ztp:
