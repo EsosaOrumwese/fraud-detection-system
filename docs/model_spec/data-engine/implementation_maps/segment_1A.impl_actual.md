@@ -1194,3 +1194,102 @@ What changed:
 
 Operational note:
 - Existing S4 outputs for run_id `6f81b34af7e91e31004277721b3ae47f` include the `reason` field on A=0 final rows and will not validate under the tightened schema. Re-run S4 under a clean output path or a new run_id to regenerate S4 outputs without `reason`.
+
+### Entry: 2026-01-11 16:20 (late pre-implementation note + implementation update)
+
+Design element: S4 console log noise from per-merchant metric lines
+Summary: Reduce console noise while preserving full metric fidelity by moving per-merchant metric samples to a dedicated run metrics log and keeping a concise summary in the main run log.
+
+Request/context:
+- User reported S4 run logs are flooded with repeated values-only metric lines (each repeating run_id/parameter_hash/manifest_fingerprint), making it hard to monitor progress. The expectation is that the console log should be a high-signal operational view, with summary stats rather than per-merchant metrics.
+
+Planned approach (documented after changes due to timing oversight):
+- Keep full values-only metrics for audit, but write them to a dedicated file (e.g., `run_metrics_<run_id>.log`) instead of the main run log.
+- Replace per-merchant metric log emissions in the main logger with writes to the metrics file.
+- Emit a concise summary line to the main run log at completion with key counts and mean attempts (similar to prior run logs).
+
+Implementation details applied:
+- Added `metrics_path = run_paths.run_root / f"run_metrics_{run_id}.log"` and `metrics_base` once per run.
+- Replaced `_log_metric_line` with `_write_metric_line` that appends JSONL to the metrics file (base + one metric key/value).
+- Updated all per-merchant metric emissions (`s4.lambda.hist`, `s4.attempts.hist`, `s4.merchant.summary`, `s4.ms.poisson_*`) to write to the metrics file rather than the main log.
+- Updated `_log_metrics_summary` to write summary counters to the metrics file and emit a concise main-log line: `S4 summary: merchants=... accept=... downgrade=... abort=... short_circuit=... mean_attempts=...`.
+
+Note on timing:
+- This plan was captured immediately after applying the code changes; future log/plan entries will precede implementation as required.
+
+### Entry: 2026-01-11 16:26 (pre-implementation decisions)
+
+Design element: S4 metrics destination and console noise
+Summary: Remove the dedicated `run_metrics_<run_id>.log` and keep only a concise summary line in the main run log.
+
+Decision details:
+- User does not want a separate metrics log file and prefers the console log to remain high-signal for monitoring.
+- Today, S4 metrics are not exported to a dataset; they exist only as log lines. To reduce noise without adding new datasets, we will drop per-merchant metric emissions entirely and keep only a summary line at completion (merchants, accept/downgrade/abort/short_circuit, mean_attempts).
+- This means per-merchant metrics (`s4.lambda.hist`, `s4.attempts.hist`, `s4.merchant.summary`, `s4.ms.poisson_*`) will no longer be recorded anywhere. If later we need them, we will add an explicit dataset or restore metrics logging in a separate file.
+
+Plan before editing:
+1. Remove `run_metrics_<run_id>.log` support from `s4_ztp/runner.py` (metrics_path/metrics_base and `_write_metric_line`).
+2. Remove all per-merchant metric writes; retain only the summary line in the main log.
+3. Update `_log_metrics_summary` to compute and log the concise summary line only.
+
+### Entry: 2026-01-11 16:36 (pre-implementation correction)
+
+Design element: S4 metrics export location and run log noise
+Summary: Restore required S4 metrics emission, but route metrics to an S4-owned output file (dictionary-resolved) instead of a second run log. Keep only a concise summary in the main run log.
+
+Context:
+- The spec requires values-only metrics keyed to lineage (seed, parameter_hash, run_id, manifest_fingerprint) and calls for per-merchant hist/summary emission (SHOULD).
+- User explicitly wants metrics exported as a file belonging to S4, but does not want an extra metrics log alongside the run log.
+
+Decision before editing:
+- Add a dedicated S4 metrics dataset in the data dictionary (JSONL under logs/), with a JSON-schema anchor in `schemas.layer1.yaml` that allows the lineage keys plus the S4 metric keys.
+- Reintroduce per-merchant metric emission, writing to a metrics JSONL output resolved via the dictionary. Do not emit per-merchant metrics to the run log.
+- Keep the main run log to a concise summary line at completion (merchants/accept/downgrade/abort/short_circuit/mean_attempts).
+
+Plan before editing:
+1. Add `s4_metrics_log` dataset to `dataset_dictionary.layer1.1A.yaml` with `format: jsonl`, path `logs/layer1/1A/metrics/s4/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/s4_metrics.jsonl`, and schema_ref `schemas.layer1.yaml#/observability/s4_metrics_log`.
+2. Add `observability.s4_metrics_log` schema to `schemas.layer1.yaml` with required lineage keys and optional metric keys (`s4.*` counters/histograms and `s4.merchant.summary`).
+3. Update S4 runner to resolve the metrics dataset path and write per-merchant metric lines to a temp JSONL, committing it at the end. Keep summary line in run log.
+4. Ensure the validation-only path tolerates missing metrics (older runs), but treat a metrics file without core outputs as partial.
+
+### Entry: 2026-01-11 16:41 (implementation update)
+
+Design element: S4 metrics output file (dictionary-resolved) + concise run log
+Summary: Implemented an S4-owned metrics JSONL output and restored per-merchant metric emission there, while keeping the main run log to a concise summary line.
+What changed:
+- Added dataset dictionary entry `s4_metrics_log` with path `logs/layer1/1A/metrics/s4/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/s4_metrics.jsonl` and schema_ref `schemas.layer1.yaml#/observability/s4_metrics_log`.
+- Appended `observability.s4_metrics_log` schema to `schemas.layer1.yaml` with required lineage keys and optional S4 metric keys (counters, histograms, and `s4.merchant.summary`).
+- Updated S4 runner to resolve the metrics path via the dictionary, write per-merchant metrics to a temp JSONL, and commit it on completion; the main run log now only prints the summary line.
+- Validation-only mode now tolerates missing metrics files for older runs, but a metrics file without core outputs is treated as partial output.
+
+Operational note:
+- This reverts the removal of per-merchant metrics, but they are no longer emitted to the run log; they live in the S4 metrics output file under `logs/layer1/1A/metrics/s4/...`.
+
+### Entry: 2026-01-11 17:05 (pre-implementation fix)
+
+Design element: S4 metrics file write lifecycle
+Summary: Fix S4 crash caused by writing metrics counters after the metrics file handle was closed.
+
+Observed failure:
+- `ValueError: I/O operation on closed file` in `_emit_metrics_counters(metrics_handle, ...)` after the merchant loop.
+- Root cause: `_emit_metrics_counters` is called after the `with` block that owns `metrics_handle` has exited.
+
+Decision before editing:
+- Move the `_emit_metrics_counters` call inside the `with` block so the metrics handle is still open when counters are written.
+- Keep the rest of the metrics file commit logic unchanged (tmp file -> final path after trace/events). This preserves the atomic write pattern.
+
+Plan before editing:
+1. Locate the `with (..., tmp_metrics_path.open(...) as metrics_handle)` block in `s4_ztp/runner.py`.
+2. Move `_emit_metrics_counters(metrics_handle, metrics_base, metrics)` to occur just after the merchant loop but before the `with` block closes.
+3. Re-run `make segment1a-s4` and confirm the run completes, then review the log and metrics file.
+
+### Entry: 2026-01-11 17:06 (implementation update)
+
+Design element: S4 metrics handle lifecycle fix
+Summary: Moved the metrics counter emission inside the metrics file context to avoid writing after the handle is closed.
+Actions taken:
+- Relocated `_emit_metrics_counters(metrics_handle, metrics_base, metrics)` into the `with` block that owns `metrics_handle`, immediately after the merchant loop completes.
+- Left the output commit path unchanged (metrics temp file is still moved after event/trace staging).
+
+Expected outcome:
+- `make segment1a-s4` should complete without `ValueError: I/O operation on closed file` and produce the S4 metrics JSONL at the dictionary-resolved path.

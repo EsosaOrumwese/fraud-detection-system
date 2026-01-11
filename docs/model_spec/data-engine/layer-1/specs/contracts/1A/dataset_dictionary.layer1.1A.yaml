@@ -705,6 +705,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s4_metrics_log
+  status: approved
+  owner_subsegment: 1A
+  description: S4 observability metrics (values-only) keyed to run lineage; emitted per merchant and at run completion.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/layer1/1A/metrics/s4/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/s4_metrics.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/observability/s4_metrics_log
+  lineage:
+    produced_by: 1A.s4_ztp
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
+
 - id: rng_event_anchor
   status: approved
   owner_subsegment: 1A

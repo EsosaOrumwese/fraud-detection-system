@@ -1827,3 +1827,75 @@ validation:
     type: string
     pattern: "^sha256_hex = [a-f0-9]{64}$"
     description: "Single-line ASCII file declaring the 3B bundle digest."
+
+observability:
+
+  s4_metrics_log:
+
+    $id: /observability/s4_metrics_log
+
+    title: S4 observability metrics (values-only)
+
+    type: object
+
+    additionalProperties: false
+
+    required: [seed, parameter_hash, run_id, manifest_fingerprint]
+
+    properties:
+
+      seed: { $ref: '#/$defs/uint64' }
+
+      parameter_hash: { $ref: '#/$defs/hex64' }
+
+      run_id: { $ref: '#/$defs/hex32' }
+
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+
+      s4.merchants_in_scope: { type: integer, minimum: 0 }
+
+      s4.accepted: { type: integer, minimum: 0 }
+
+      s4.short_circuit_no_admissible: { type: integer, minimum: 0 }
+
+      s4.downgrade_domestic: { type: integer, minimum: 0 }
+
+      s4.aborted: { type: integer, minimum: 0 }
+
+      s4.rejections: { type: integer, minimum: 0 }
+
+      s4.attempts.total: { type: integer, minimum: 0 }
+
+      s4.trace.rows: { type: integer, minimum: 0 }
+
+      s4.regime.inversion: { type: integer, minimum: 0 }
+
+      s4.regime.ptrs: { type: integer, minimum: 0 }
+
+      s4.attempts.hist: { type: integer, minimum: 0 }
+
+      s4.lambda.hist: { type: number, exclusiveMinimum: 0.0 }
+
+      s4.ms.poisson_inversion: { type: number, minimum: 0.0 }
+
+      s4.ms.poisson_ptrs: { type: number, minimum: 0.0 }
+
+      s4.merchant.summary:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [merchant_id, attempts, accepted_K, regime, exhausted]
+
+        properties:
+
+          merchant_id: { $ref: '#/$defs/id64' }
+
+          attempts: { type: integer, minimum: 0 }
+
+          accepted_K: { type: integer, minimum: 0 }
+
+          regime: { type: string, enum: [inversion, ptrs] }
+
+          exhausted: { type: boolean }

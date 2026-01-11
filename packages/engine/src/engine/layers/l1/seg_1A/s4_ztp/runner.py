@@ -53,6 +53,7 @@ DATASET_ZTP_REJECTION = "rng_event_ztp_rejection"
 DATASET_ZTP_RETRY = "rng_event_ztp_retry_exhausted"
 DATASET_ZTP_FINAL = "rng_event_ztp_final"
 DATASET_TRACE = "rng_trace_log"
+DATASET_S4_METRICS = "s4_metrics_log"
 DATASET_ELIGIBILITY = "crossborder_eligibility_flags"
 DATASET_CANDIDATE_SET = "s3_candidate_set"
 DATASET_FEATURES = "crossborder_features"
@@ -593,10 +594,22 @@ def _log_failure_line(
     logger.error("S4 failure %s", json.dumps(payload, ensure_ascii=True, sort_keys=True))
 
 
-def _log_metric_line(logger, base: dict, key: str, value: int | float) -> None:
+def _metrics_base(
+    seed: int, parameter_hash: str, run_id: str, manifest_fingerprint: str
+) -> dict:
+    return {
+        "seed": seed,
+        "parameter_hash": parameter_hash,
+        "run_id": run_id,
+        "manifest_fingerprint": manifest_fingerprint,
+    }
+
+
+def _write_metric_line(handle, base: dict, key: str, value: object) -> None:
     payload = dict(base)
     payload[key] = value
-    logger.info("S4 metric %s", json.dumps(payload, ensure_ascii=True, sort_keys=True))
+    handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
+    handle.write("\n")
 
 
 def _has_ztp_poisson_events(poisson_paths: list[Path]) -> bool:
@@ -651,6 +664,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
     manifest_fingerprint = receipt.get("manifest_fingerprint")
     run_paths = RunPaths(config.runs_root, run_id)
     add_file_handler(run_paths.run_root / f"run_log_{run_id}.log")
+    metrics_base = _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint)
     timer.info(f"S4: loaded run receipt {receipt_path}")
 
     utc_day = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
@@ -708,6 +722,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         "manifest_fingerprint": manifest_fingerprint,
         "run_id": run_id,
     }
+    metrics_entry = find_dataset_entry(dictionary, DATASET_S4_METRICS).entry
+    metrics_path = _resolve_run_path(run_paths, metrics_entry["path"], tokens)
+    metrics_exists = metrics_path.exists()
 
     _emit_state_run("started")
 
@@ -952,6 +969,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         existing_trace = _trace_has_substream(trace_path, MODULE_NAME, SUBSTREAM_LABEL)
 
         if existing_s4 and existing_trace:
+            if not metrics_exists:
+                logger.info("S4: metrics file missing; validation only will proceed")
             timer.info("S4: existing outputs detected; running validation only")
             _validate_s4_outputs(
                 logger=logger,
@@ -982,7 +1001,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                 ztp_retry_path=retry_path,
                 ztp_final_path=final_path,
             )
-        if existing_s4 or existing_trace:
+        if existing_s4 or existing_trace or metrics_exists:
             raise InputResolutionError(
                 "Partial S4 outputs detected; refuse to append. "
                 "Remove existing S4 outputs or resume a clean run_id."
@@ -996,14 +1015,19 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         if total == 0:
             timer.info("S4: no eligible merchants; no outputs emitted")
             _emit_state_run("completed")
-            _log_metrics_summary(
-                logger,
-                seed,
-                parameter_hash,
-                run_id,
-                manifest_fingerprint,
-                metrics=_init_metrics(),
-            )
+            metrics = _init_metrics()
+            tmp_dir = run_paths.tmp_root / "s4_ztp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            tmp_metrics_path = tmp_dir / "s4_metrics.jsonl"
+            with tmp_metrics_path.open("w", encoding="utf-8") as metrics_handle:
+                _emit_metrics_counters(metrics_handle, metrics_base, metrics)
+            metrics_path.parent.mkdir(parents=True, exist_ok=True)
+            if metrics_path.exists():
+                raise InputResolutionError(
+                    f"S4 metrics output already exists: {metrics_path}"
+                )
+            tmp_metrics_path.replace(metrics_path)
+            _log_metrics_summary(logger, metrics=metrics)
             return S4RunResult(
                 run_id=run_id,
                 parameter_hash=parameter_hash,
@@ -1023,6 +1047,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         tmp_retry_path = tmp_dir / "rng_event_ztp_retry_exhausted.jsonl"
         tmp_final_path = tmp_dir / "rng_event_ztp_final.jsonl"
         tmp_trace_path = tmp_dir / "rng_trace_log_s4.jsonl"
+        tmp_metrics_path = tmp_dir / "s4_metrics.jsonl"
 
         metrics = _init_metrics()
         trace_acc = _TraceAccumulator(MODULE_NAME, SUBSTREAM_LABEL)
@@ -1039,6 +1064,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
             tmp_retry_path.open("w", encoding="utf-8") as retry_handle,
             tmp_final_path.open("w", encoding="utf-8") as final_handle,
             tmp_trace_path.open("w", encoding="utf-8") as trace_handle,
+            tmp_metrics_path.open("w", encoding="utf-8") as metrics_handle,
         ):
             for idx, merchant_id in enumerate(scope_merchants, start=1):
                 if idx % progress_every == 0 or idx == total:
@@ -1196,9 +1222,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                     )
                     continue
 
-                _log_metric_line(
-                    logger,
-                    _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint),
+                _write_metric_line(
+                    metrics_handle,
+                    metrics_base,
                     "s4.lambda.hist",
                     lambda_extra,
                 )
@@ -1246,15 +1272,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                     trace_written += 1
                     metrics["s4.short_circuit_no_admissible"] += 1
                     metrics["s4.trace.rows"] += 1
-                    _log_metric_line(
-                        logger,
-                        _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint),
+                    _write_metric_line(
+                        metrics_handle,
+                        metrics_base,
                         "s4.attempts.hist",
                         0,
                     )
-                    _log_metric_line(
-                        logger,
-                        _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint),
+                    _write_metric_line(
+                        metrics_handle,
+                        metrics_base,
                         "s4.merchant.summary",
                         {
                             "merchant_id": merchant_id,
@@ -1395,11 +1421,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                                 trace_written += 1
                                 metrics["s4.aborted"] += 1
                                 metrics["s4.trace.rows"] += 1
-                                _log_metric_line(
-                                    logger,
-                                    _metrics_base(
-                                        seed, parameter_hash, run_id, manifest_fingerprint
-                                    ),
+                                _write_metric_line(
+                                    metrics_handle,
+                                    metrics_base,
                                     "s4.attempts.hist",
                                     attempt,
                                 )
@@ -1409,14 +1433,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                                         if regime == "inversion"
                                         else "s4.ms.poisson_ptrs"
                                     )
-                                    _log_metric_line(
-                                        logger,
-                                        _metrics_base(
-                                            seed,
-                                            parameter_hash,
-                                            run_id,
-                                            manifest_fingerprint,
-                                        ),
+                                    _write_metric_line(
+                                        metrics_handle,
+                                        metrics_base,
                                         metric_key,
                                         poisson_ms_total,
                                     )
@@ -1471,11 +1490,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                             trace_written += 1
                             metrics["s4.downgrade_domestic"] += 1
                             metrics["s4.trace.rows"] += 1
-                            _log_metric_line(
-                                logger,
-                                _metrics_base(
-                                    seed, parameter_hash, run_id, manifest_fingerprint
-                                ),
+                            _write_metric_line(
+                                metrics_handle,
+                                metrics_base,
                                 "s4.attempts.hist",
                                 attempt,
                             )
@@ -1485,22 +1502,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                                     if regime == "inversion"
                                     else "s4.ms.poisson_ptrs"
                                 )
-                                _log_metric_line(
-                                    logger,
-                                    _metrics_base(
-                                        seed,
-                                        parameter_hash,
-                                        run_id,
-                                        manifest_fingerprint,
-                                    ),
+                                _write_metric_line(
+                                    metrics_handle,
+                                    metrics_base,
                                     metric_key,
                                     poisson_ms_total,
                                 )
-                            _log_metric_line(
-                                logger,
-                                _metrics_base(
-                                    seed, parameter_hash, run_id, manifest_fingerprint
-                                ),
+                            _write_metric_line(
+                                metrics_handle,
+                                metrics_base,
                                 "s4.merchant.summary",
                                 {
                                     "merchant_id": merchant_id,
@@ -1546,9 +1556,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                     trace_written += 1
                     metrics["s4.accepted"] += 1
                     metrics["s4.trace.rows"] += 1
-                    _log_metric_line(
-                        logger,
-                        _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint),
+                    _write_metric_line(
+                        metrics_handle,
+                        metrics_base,
                         "s4.attempts.hist",
                         attempt,
                     )
@@ -1558,17 +1568,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                             if regime == "inversion"
                             else "s4.ms.poisson_ptrs"
                         )
-                        _log_metric_line(
-                            logger,
-                            _metrics_base(
-                                seed, parameter_hash, run_id, manifest_fingerprint
-                            ),
+                        _write_metric_line(
+                            metrics_handle,
+                            metrics_base,
                             metric_key,
                             poisson_ms_total,
                         )
-                    _log_metric_line(
-                        logger,
-                        _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint),
+                    _write_metric_line(
+                        metrics_handle,
+                        metrics_base,
                         "s4.merchant.summary",
                         {
                             "merchant_id": merchant_id,
@@ -1584,6 +1592,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                 if not accepted and attempt >= max_attempts and exhaustion_policy != "abort":
                     # Defensive: ensure loop exit for downgrade path.
                     continue
+
+            _emit_metrics_counters(metrics_handle, metrics_base, metrics)
 
         total_events = poisson_written + rejection_written + retry_written + final_written
         if trace_written != total_events:
@@ -1637,6 +1647,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                     dest_handle.write(line)
         tmp_trace_path.unlink(missing_ok=True)
 
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        if metrics_path.exists():
+            raise InputResolutionError(f"S4 metrics output already exists: {metrics_path}")
+        tmp_metrics_path.replace(metrics_path)
+
         timer.info("S4: events + trace emitted")
         logger.info(
             "S4: emitted poisson=%s rejection=%s retry=%s final=%s",
@@ -1667,14 +1682,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         )
         timer.info("S4: validation complete")
 
-        _log_metrics_summary(
-            logger,
-            seed,
-            parameter_hash,
-            run_id,
-            manifest_fingerprint,
-            metrics=metrics,
-        )
+        _log_metrics_summary(logger, metrics=metrics)
         _emit_state_run("completed")
         return S4RunResult(
             run_id=run_id,
@@ -1699,17 +1707,6 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         _record_run_failure(failure.failure_code, failure.detail)
         raise
 
-def _metrics_base(
-    seed: int, parameter_hash: str, run_id: str, manifest_fingerprint: str
-) -> dict:
-    return {
-        "seed": seed,
-        "parameter_hash": parameter_hash,
-        "run_id": run_id,
-        "manifest_fingerprint": manifest_fingerprint,
-    }
-
-
 def _init_metrics() -> dict[str, int]:
     return {
         "s4.merchants_in_scope": 0,
@@ -1725,15 +1722,7 @@ def _init_metrics() -> dict[str, int]:
     }
 
 
-def _log_metrics_summary(
-    logger,
-    seed: int,
-    parameter_hash: str,
-    run_id: str,
-    manifest_fingerprint: str,
-    metrics: dict[str, int],
-) -> None:
-    base = _metrics_base(seed, parameter_hash, run_id, manifest_fingerprint)
+def _emit_metrics_counters(handle, base: dict, metrics: dict[str, int]) -> None:
     ordered_keys = [
         "s4.merchants_in_scope",
         "s4.accepted",
@@ -1747,7 +1736,29 @@ def _log_metrics_summary(
         "s4.regime.ptrs",
     ]
     for key in ordered_keys:
-        _log_metric_line(logger, base, key, metrics.get(key, 0))
+        _write_metric_line(handle, base, key, metrics.get(key, 0))
+
+
+def _log_metrics_summary(
+    logger,
+    metrics: dict[str, int],
+) -> None:
+    attempts_total = metrics.get("s4.attempts.total", 0)
+    attempts_denom = (
+        metrics.get("s4.accepted", 0)
+        + metrics.get("s4.downgrade_domestic", 0)
+        + metrics.get("s4.aborted", 0)
+    )
+    mean_attempts = attempts_total / attempts_denom if attempts_denom else 0.0
+    logger.info(
+        "S4 summary: merchants=%s accept=%s downgrade=%s abort=%s short_circuit=%s mean_attempts=%.2f",
+        metrics.get("s4.merchants_in_scope", 0),
+        metrics.get("s4.accepted", 0),
+        metrics.get("s4.downgrade_domestic", 0),
+        metrics.get("s4.aborted", 0),
+        metrics.get("s4.short_circuit_no_admissible", 0),
+        mean_attempts,
+    )
 
 
 def _validate_s4_outputs(
