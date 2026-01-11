@@ -240,6 +240,20 @@ Plan:
   `RUN_ROOT` into S0 via `ENGINE_RUNS_ROOT`.
 - Keep run_id partitioning unchanged; only the base runs directory is configurable.
 
+### Entry: 2026-01-11 01:31
+
+Design element: ISO canonical intake alignment (GeoNames source)
+Summary: Fix iso3166_canonical_2024 build to match the acquisition guide and restore missing ISO2 entries (e.g., Namibia).
+Plan:
+- Update `scripts/build_iso_canonical.py` to parse GeoNames `countryInfo.txt` and
+  output to `reference/iso/iso3166_canonical/<version>/iso3166.parquet`.
+- Enforce guide rules: keep only ISO2 `^[A-Z]{2}$`, exclude `XK` and `UK`,
+  cast numeric codes to int16, and sort lexicographically by `country_iso`.
+- Emit `iso3166.provenance.json` with required fields (upstream URL, retrieval
+  time, sha256s, exclusions, is_exact_vintage), plus a manifest for audit.
+- Use the in-repo `source/countryInfo.txt` by default; allow explicit source
+  overrides or forced downloads for rebuilds.
+
 ## S1 - Hurdle (placeholder)
 No entries yet.
 
