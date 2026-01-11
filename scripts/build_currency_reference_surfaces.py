@@ -54,6 +54,11 @@ NON_TENDER_CODES = {
 }
 
 
+LEGAL_TENDER_OVERRIDES = {
+    "PS": "ILS",
+}
+
+
 ALIAS_MAP = {
     "BOLIVIA PLURINATIONAL STATE OF": "BOLIVIA",
     "BRUNEI DARUSSALAM": "BRUNEI",
@@ -63,7 +68,9 @@ ALIAS_MAP = {
     "IRAN ISLAMIC REPUBLIC OF": "IRAN",
     "KOREA REPUBLIC OF": "SOUTH KOREA",
     "KOREA DEMOCRATIC PEOPLE S REPUBLIC OF": "NORTH KOREA",
+    "KOREA DEMOCRATIC PEOPLES REPUBLIC OF": "NORTH KOREA",
     "LAO PEOPLE S DEMOCRATIC REPUBLIC": "LAOS",
+    "LAO PEOPLES DEMOCRATIC REPUBLIC": "LAOS",
     "MICRONESIA FEDERATED STATES OF": "MICRONESIA",
     "MOLDOVA REPUBLIC OF": "MOLDOVA",
     "PALESTINE STATE OF": "PALESTINIAN TERRITORY",
@@ -106,7 +113,7 @@ def _normalize_name(value: str) -> str:
     text = text.replace("&", "AND")
     text = re.sub(r"[\'\.,()\ -]", " ", text)
     text = re.sub(r"\bTHE\b", " ", text)
-    text = re.sub(r"\\s+", " ", text).strip()
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
@@ -155,6 +162,27 @@ def _parse_six_list_one(xml_path: Path) -> Tuple[str, List[dict]]:
             }
         )
     return published, rows
+
+
+def _build_currency_meta(rows: List[dict]) -> Dict[str, Tuple[int | None, int | None]]:
+    meta: Dict[str, Tuple[int | None, int | None, int]] = {}
+    for row in rows:
+        currency = row.get("currency")
+        if not re.fullmatch(r"[A-Z]{3}", currency or ""):
+            continue
+        minor_val = None
+        minor = row.get("minor_units")
+        if minor is not None and minor.isdigit():
+            minor_val = int(minor)
+        numeric_val = None
+        numeric = row.get("currency_numeric")
+        if numeric is not None and numeric.isdigit():
+            numeric_val = int(numeric)
+        rank = 0 if minor_val in {0, 1, 2, 3} else 1
+        existing = meta.get(currency)
+        if existing is None or rank < existing[2]:
+            meta[currency] = (numeric_val, minor_val, rank)
+    return {code: (vals[0], vals[1]) for code, vals in meta.items()}
 
 
 def _load_wdi_gdp(source_path: Path, iso3_map: Dict[str, str]) -> Dict[str, float]:
@@ -257,6 +285,7 @@ def main() -> None:
         ccy_xml_path.write_bytes(six_xml_path.read_bytes())
 
     published_date, six_rows = _parse_six_list_one(six_xml_path)
+    currency_meta = _build_currency_meta(six_rows)
     published_year = int(published_date.split("-")[0]) if published_date else None
     iso_legal_exact = published_year == 2024
     ccy_exact = published_year == 2024 and int(published_date.split("-")[1]) >= 10 if published_date else False
@@ -283,6 +312,7 @@ def main() -> None:
         records.setdefault(iso2, []).append(row)
 
     dropped_no_tender: List[str] = []
+    overrides_applied: List[dict] = []
     tender_rows: List[dict] = []
     for iso2, entries in sorted(records.items()):
         candidates = []
@@ -319,6 +349,28 @@ def main() -> None:
             }
         )
 
+    existing_iso = {row["country_iso"] for row in tender_rows}
+    for iso2, currency in sorted(LEGAL_TENDER_OVERRIDES.items()):
+        if iso2 in existing_iso:
+            continue
+        meta = currency_meta.get(currency)
+        if meta is None:
+            raise RuntimeError(
+                f"Override currency {currency} missing from SIX metadata."
+            )
+        numeric_val, minor_val = meta
+        tender_rows.append(
+            {
+                "country_iso": iso2,
+                "currency": currency,
+                "currency_numeric": numeric_val,
+                "minor_units": minor_val,
+                "source_vintage": f"SIX_List_One_{published_date}" if published_date else "SIX_List_One",
+                "is_exact_vintage": iso_legal_exact,
+            }
+        )
+        overrides_applied.append({"country_iso": iso2, "currency": currency})
+
     tender_df = pl.DataFrame(tender_rows).sort("country_iso")
     iso_legal_path = iso_legal_dir / "iso_legal_tender.parquet"
     tender_df.write_parquet(iso_legal_path)
@@ -332,6 +384,7 @@ def main() -> None:
         "unmapped_entities": sorted(set(unmapped_entities)),
         "dropped_no_tender": dropped_no_tender,
         "is_exact_vintage": iso_legal_exact,
+        "overrides_applied": overrides_applied,
     }
     (iso_legal_dir / "iso_legal_tender.provenance.json").write_text(
         json.dumps(iso_legal_prov, indent=2, sort_keys=True), encoding="utf-8"

@@ -1,9 +1,9 @@
 {
-  "currency_universe_sha256": "098f58e6841d9a871576fe1b77537b91dc4dcf0fd4030242c0afc3215670c712",
+  "currency_universe_sha256": "033b60f2e830b1f46448d3c20f9cfc6283744218cf8aa6f3a071c388f9497453",
   "currency_universe_source": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet",
   "downloaded_at_utc": {
-    "bis_d11_2": "2026-01-04T20:47:40Z",
-    "bis_d11_3": "2026-01-04T20:47:39Z"
+    "bis_d11_2": "2026-01-11T20:23:41Z",
+    "bis_d11_3": "2026-01-11T20:23:41Z"
   },
   "evidence_policy": {
     "N_max": 2000000,
@@ -37,7 +37,7 @@
   "hub_mass_if_concentrated": 0.4,
   "hub_source": "BIS D11.2 2022",
   "hub_top_n": 20,
-  "output_sha256": "91109c2410ef83241d31e2eea1268d5be27c67ecd76a68cf2042f910f8090c35",
+  "output_sha256": "715033ca5464d80a071d6c24aff300b20722079dd09abade173f7db62ea5a9c4",
   "raw_sha256": {
     "bis_d11_2": "bac8687c81661ee287e8d87d01706160786fb9592e353766afbf772e154d1a26",
     "bis_d11_3": "566cc15618d363994646e60bd795c025e7fbe1ee2c084aabebc48297a79720a9"

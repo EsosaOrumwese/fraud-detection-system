@@ -1726,3 +1726,107 @@ Run results:
 
 Next step:
 - Re-run downstream states (S1-S4) on run_id `dea7eba90be951b6a287298eb06964eb` so S4 consumes the new crossborder_features instead of defaulting to `x_default`.
+
+### Entry: 2026-01-11 19:56 (analysis + pre-implementation plan)
+
+Design element: S5 merchant_currency failure logging + iso_legal_tender coverage fix
+Summary: S5 fails because `iso_legal_tender_2024` does not cover all merchant `home_country_iso`. The missing coverage is caused by a normalization bug in the ISO legal tender build script, plus a genuine "no universal currency" case for PS.
+
+Observed failure:
+- `E_MCURR_RESOLUTION` raised during S5 merchant_currency derivation. Manual check shows missing ISO2 codes in legal_tender coverage: BO, CD, FM, IR, KR, LA, MD, PS, SX, TZ, VE.
+- The run log does not show the missing ISO list; only the failure code is emitted.
+
+Root cause analysis:
+- `scripts/build_currency_reference_surfaces.py` normalizes names with `re.sub(r"\\s+", " ", text)`, which matches a literal backslash and does not collapse whitespace. As a result, alias keys like `BOLIVIA PLURINATIONAL STATE OF` fail to match normalized SIX entity names (double spaces remain), leaving those entities unmapped and excluded from `iso_legal_tender.parquet`.
+- The SIX list entry for "PALESTINE, STATE OF" has no `Ccy` field ("No universal currency"), so even after fixing normalization, PS has no legal tender in the source data. That needs an explicit policy decision (manual mapping or skip merchant_currency).
+
+Decision (pending user confirmation):
+- Add an S5 preflight log that surfaces the missing ISO coverage list (and counts) before raising `E_MCURR_RESOLUTION` so the failure is explicit in the run log.
+- Fix the normalization regex in `scripts/build_currency_reference_surfaces.py`, regenerate `iso_legal_tender.parquet`, and re-run S0+S5 so legal tender coverage aligns with the merchant universe.
+- Decide how to handle PS (manual mapping, e.g., ILS, or disable/skip merchant_currency when legal tender coverage is incomplete).
+
+Plan before editing:
+1) Patch `scripts/build_currency_reference_surfaces.py` normalization to use `re.sub(r"\s+", " ", text)`.
+2) Rebuild `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet` from the existing SIX XML, update provenance, and re-seal via S0.
+3) Add an S5 preflight check/log for missing `home_country_iso` coverage in legal_tender before the merchant_currency loop; keep it a hard failure unless user chooses to skip/override.
+4) Confirm PS handling choice and implement that mapping if requested.
+
+### Entry: 2026-01-11 20:03 (pre-implementation)
+
+Design element: iso_legal_tender normalization fix + regeneration
+Summary: Fix the normalization bug in `scripts/build_currency_reference_surfaces.py` and regenerate `iso_legal_tender.parquet` so legal tender coverage aligns with ISO-3166 names.
+
+Plan before editing:
+1) Change the whitespace collapse regex from `r"\\s+"` to `r"\s+"` in `_normalize_name`.
+2) Run the build script to regenerate `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet` and update its provenance JSON.
+3) Re-check which ISO2 codes are still missing (expect PS only) and document the remaining decision.
+
+### Entry: 2026-01-11 20:06 (pre-implementation)
+
+Design element: alias coverage for unicode apostrophe variants
+Summary: Add ALIAS_MAP keys for normalized "PEOPLES" variants so SIX entities like "LAO PEOPLE’S DEMOCRATIC REPUBLIC" map to ISO names.
+
+Plan before editing:
+1) Add `LAO PEOPLES DEMOCRATIC REPUBLIC -> LAOS` alias.
+2) Add `KOREA DEMOCRATIC PEOPLES REPUBLIC OF -> NORTH KOREA` alias for completeness.
+3) Regenerate `iso_legal_tender.parquet` and re-check missing ISO coverage.
+
+### Entry: 2026-01-11 20:08 (implementation update)
+
+Design element: iso_legal_tender regeneration (alias + normalization fixes)
+Summary: Corrected normalization in the currency reference build script, added alias variants for unicode apostrophe cases, and regenerated `iso_legal_tender.parquet`.
+
+What changed:
+- `scripts/build_currency_reference_surfaces.py` now collapses whitespace via `re.sub(r"\s+", " ", ...)` and includes alias variants for `LAO PEOPLES DEMOCRATIC REPUBLIC` and `KOREA DEMOCRATIC PEOPLES REPUBLIC OF`.
+- Regenerated `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet` and `iso_legal_tender.provenance.json` from the SIX XML source.
+
+Result:
+- Merchant home_country_iso coverage is now complete except for `PS` (Palestine), which has "No universal currency" in the SIX source and therefore lacks a legal tender mapping.
+
+Decision pending:
+- Choose whether to (a) skip `merchant_currency` when legal tender coverage is incomplete, or (b) introduce an explicit override mapping for `PS` (e.g., `ILS`) and regenerate the legal tender dataset.
+
+### Entry: 2026-01-11 20:11 (pre-implementation)
+
+Design element: PS legal tender override for merchant_currency
+Summary: Add an explicit override mapping `PS -> ILS` to `iso_legal_tender` generation so `merchant_currency` can be produced when SIX reports "No universal currency".
+
+Plan before editing:
+1) Introduce a `LEGAL_TENDER_OVERRIDES` mapping in `scripts/build_currency_reference_surfaces.py`.
+2) During iso_legal_tender generation, inject missing ISO2 rows from the override map using currency metadata from SIX rows.
+3) Record applied overrides in `iso_legal_tender.provenance.json`.
+4) Regenerate `iso_legal_tender.parquet`, re-run S0 to seal the new reference, then re-run S5 to emit `merchant_currency`.
+
+### Entry: 2026-01-11 20:26 (implementation update + run validation)
+
+Design element: PS legal tender override + merchant_currency emission
+Summary: Added PS->ILS override in the legal tender build, regenerated the reference parquet, and successfully emitted merchant_currency in S5.
+
+What changed:
+- `scripts/build_currency_reference_surfaces.py` now injects `LEGAL_TENDER_OVERRIDES` for missing ISO2 entries and records `overrides_applied` in provenance.
+- Regenerated `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet` and `iso_legal_tender.provenance.json` (PS now mapped to ILS).
+
+Run results:
+- S0 run_id `9738de94b2fc21ce1074fbd47a3bbe2a` (manifest_fingerprint `9af9edfa9ad64af1a9c4b98ba99f7c3aebc8baeca0585bf43cfd3f6c15f208c1`).
+- S5 completed on that run_id; `merchant_currency` emitted with 10000 rows; weights cache and S5 receipt emitted successfully.
+
+### Entry: 2026-01-11 20:30 (pre-implementation)
+
+Design element: S5 missing legal_tender preflight log
+Summary: Add a preflight check in S5.0 to log missing ISO2 coverage from `iso_legal_tender_2024` before raising `E_MCURR_RESOLUTION`.
+
+Plan before editing:
+1) After loading `merchant_ids` and `iso_legal_tender_2024`, compute any `home_country_iso` not present in the legal_tender map.
+2) If missing, emit a concise log line with count + ISO list, then raise `E_MCURR_RESOLUTION` with the same detail.
+3) Keep behavior unchanged for successful runs.
+
+### Entry: 2026-01-11 20:31 (implementation update)
+
+Design element: S5 missing legal_tender preflight log
+Summary: Added a preflight check that logs missing `home_country_iso` coverage against `iso_legal_tender_2024` before raising `E_MCURR_RESOLUTION`.
+
+What changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py` now computes missing ISO codes and logs a concise list/count prior to raising.
+
+Expected impact:
+- Run logs will explicitly report coverage gaps, making the failure cause visible without digging into validation files.

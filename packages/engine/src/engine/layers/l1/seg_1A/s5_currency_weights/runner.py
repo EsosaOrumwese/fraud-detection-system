@@ -1044,6 +1044,27 @@ def run_s5(
             merchants_df = merchants_df.with_columns(
                 pl.col("merchant_id").cast(pl.UInt64)
             )
+            missing_isos = sorted(
+                {
+                    iso
+                    for iso in merchants_df["home_country_iso"].to_list()
+                    if iso not in legal_map
+                }
+            )
+            if missing_isos:
+                logger.info(
+                    "S5.0: legal_tender missing coverage (iso_count=%d, iso=%s)",
+                    len(missing_isos),
+                    ",".join(missing_isos),
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E_MCURR_RESOLUTION",
+                    "S5",
+                    MODULE_NAME,
+                    {"missing_iso": missing_isos},
+                    dataset_id=DATASET_LEGAL_TENDER,
+                )
             dupes = (
                 merchants_df.group_by("merchant_id")
                 .len()
