@@ -669,8 +669,191 @@ Implementation specifics:
 Follow-up considerations:
 - If validation-only runs become slow, consider adding similar timing logs inside `_validate_s1_outputs` for event/trace scans, but keep log volume bounded.
 
-## S2 - NB Outlets (placeholder)
-No entries yet.
+## S2 - NB Outlets
+
+### Entry: 2026-01-11 08:16 (pre-implementation)
+
+Design element: S2 contracts review + implementation planning
+Summary: Reviewed S2-related contracts (schemas/dictionary/policy) and drafted a concrete, state-by-state implementation plan plus decisions/open issues to resolve before coding.
+Contracts reviewed (key S2 bindings):
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`: confirmed `gamma_component`, `poisson_component`, and `nb_final` schemas; `nb_final` requires non-consuming envelope (`blocks=0`, `draws="0"`), and payload fields `mu`, `dispersion_k`, `n_outlets >= 2`, `nb_rejections >= 0`. `poisson_component.context` supports `nb` and `ztp` (NB context must set `attempt >= 1`).
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`: S2 streams are `rng_event_gamma_component`, `rng_event_poisson_component`, and `rng_event_nb_final`, gated by `rng_event_hurdle_bernoulli` with predicate `is_multi == true`. Producers are fixed (`1A.nb_and_dirichlet_sampler`, `1A.nb_poisson_component`, `1A.nb_sampler`), and partitions are `{seed, parameter_hash, run_id}`.
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`: S2 depends on `hurdle_coefficients` (for `beta_mu`), `nb_dispersion_coefficients` (for `beta_phi`), and `validation_policy` for CUSUM corridor params; RNG event schemas are bound to `schemas.layer1.yaml`.
+- `config/layer1/1A/policy/validation_policy.yaml`: currently includes `cusum.reference_k`, `cusum.threshold_h`, plus `cusum.alpha_cap` and a note (see mismatch below).
+Contract mismatch / decisions to resolve before coding:
+- `validation_policy.yaml` includes `cusum.alpha_cap`, but `schemas.layer1.yaml#/policy/validation_policy` disallows extra fields. This will fail strict schema validation and violates the "fail closed" stance.
+  - Decision proposal (pending confirmation): remove `alpha_cap` from the policy file to align with schema; S2 corridor logic will only consume `reference_k` and `threshold_h` as specified.
+  - Alternative (if alpha_cap is required): update the schema + spec to include `alpha_cap` and document how it changes corridor math. This is currently out of scope for S2, so default is to align policy file with schema.
+Implementation plan (detailed, by substate):
+- S2.1 entry gate + inputs:
+  - Load S1 hurdle events and build a gate set of `merchant_id` where `is_multi == true`. Enforce branch purity: if `is_multi == false`, skip all S2 outputs for that merchant; if any S2 event is present later for such a merchant, validation must fail.
+  - Assemble design vectors using S0/S1 encoders (frozen order) and GDP-per-capita (`world_bank_gdp_per_capita_20250415`) keyed by `home_country_iso`.
+  - Load `beta_mu` and `beta_phi` from governed artefacts (`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`) using `parameter_hash`.
+  - Carry lineage fields `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id` into the NB context; do not recompute.
+- S2.2 NB link evaluation:
+  - Compute `eta_mu = dot64_no_fma(beta_mu, x_mu)` and `eta_phi = dot64_no_fma(beta_phi, x_phi)` using deterministic Neumaier accumulation (S0 numeric policy). No BLAS or vectorized reorder.
+  - Exponentiate to `mu`, `phi` in binary64; guard `isfinite` and `> 0`, else `ERR_S2_NUMERIC_INVALID` (merchant-scoped abort; no S2 events emitted for that merchant).
+  - Serialize `mu`/`phi` using shortest round-trip decimal for binary64 (use `f64_to_json_shortest` when writing `nb_final`).
+- S2.3 Gamma/Poisson attempt (one attempt per loop iteration):
+  - Use Philox-based substreams: `gamma_nb` (module `1A.nb_and_dirichlet_sampler`) and `poisson_nb` (module `1A.nb_poisson_component`).
+  - Gamma sampler: MT1998 with Box-Muller, no caching; implement per-attempt draw accounting `2*J + A + (phi<1 ? 1 : 0)`.
+  - Poisson sampler: S0.3.7 inversion for `lambda < 10`, PTRS for `lambda >= 10`, variable draws; measure consumption with counters.
+  - Emit `gamma_component` then `poisson_component` per attempt with full envelope; `context="nb"`, `index=0` for gamma; `attempt` is 1-based in payload but non-authoritative.
+  - After each RNG event, append a cumulative `rng_trace_log` row per the S2.6 trace duty.
+- S2.4 Rejection loop:
+  - Loop attempts until `K >= 2`, counting `r` rejections; no RNG outside the S2.3 attempt step.
+  - No hard cap; ensure logs include elapsed/rate/ETA for long runs.
+- S2.5 Finalizer:
+  - Emit exactly one `nb_final` per merchant with payload `{mu, dispersion_k=phi, n_outlets=N, nb_rejections=r}`.
+  - Non-consuming envelope: `rng_counter_before == rng_counter_after`, `blocks=0`, `draws="0"`, module `1A.nb_sampler`, label `nb_final`.
+- S2.6 Counter discipline & trace:
+  - Ensure counters are monotone and non-overlapping per `(merchant_id, substream_label)`.
+  - Maintain per-stream totals in `rng_trace_log` to reconcile `blocks_total` and `draws_total`; no inference of draws from counters.
+- S2.7 corridors (validation stage):
+  - Add validator logic (likely in S9 validation module) to compute `rho_rej`, `Q0.99`, and CUSUM with policy `reference_k`/`threshold_h`. Fail closed if policy missing.
+  - Exclude merchants with invalid `alpha` (non-finite or out of (0,1]) and log `ERR_S2_CORRIDOR_ALPHA_INVALID`.
+- S2.8/2.9 structural checks:
+  - Validation must enforce coverage (Gamma+Poisson before `nb_final`), composition identity `lambda == (mu/phi) * gamma_value`, and non-consuming `nb_final`.
+  - Confirm no Parquet outputs are written for S2; only the three JSONL streams plus trace.
+Review checklist before coding:
+- Verify existing RNG helpers cover Gamma MT1998 and Poisson S0.3.7 with explicit draw budgets and counter tracking; if not, add minimal primitives.
+- Confirm run writer supports `rng_trace_log` updates after each event in S2 (reuse trace accumulator from S1 if available).
+- Decide how to resolve `validation_policy.yaml` mismatch (remove `alpha_cap` vs update schema/spec); do this before S2 corridor validation is wired.
+Validation plan (for later):
+- Run `make segment1a-s2` once S2 is implemented; inspect `gamma_component`, `poisson_component`, `nb_final`, and `rng_trace_log` for coverage, counters, and non-consuming final.
+- Add a small deterministic shard to check `nb_final` echoes `mu`/`phi` exactly and `nb_rejections` matches reconstructed attempt index.
+
+### Entry: 2026-01-11 08:21 (pre-implementation)
+
+Design element: CUSUM alpha cap policy for S2 corridors (schema/spec update)
+Summary: Expand the validation policy schema and S2.7 spec to support an optional `alpha_cap` so near-1 acceptance probabilities cannot dominate the CUSUM drift metric.
+Problem observed:
+- The current `validation_policy.yaml` already includes `cusum.alpha_cap`, but the schema rejects extra fields.
+- In S2.7, $\alpha_m$ is derived from $(\mu,\phi)$ and can approach 1, which drives $\mathrm{Var}(r_m)$ toward 0; this can inflate the standardized residual $z_m$ and dominate the CUSUM even for a single rejection.
+Brainstormed options:
+- Option A (chosen): Add `alpha_cap` to the policy schema and update S2.7 spec to cap $\alpha_m$ at `alpha_cap` (default 0.999) before computing $\mathbb{E}[r_m]$ and $\mathrm{Var}(r_m)`. This preserves existing math but prevents extreme $\alpha$ values from dominating.
+- Option B: Clip $z_m$ directly to a max magnitude (rejected: adds a new, less interpretable parameter and changes the statistic in an opaque way).
+- Option C: Impose a minimum variance floor in the denominator (rejected: hides the same issue without tying it to model probabilities).
+Plan (before coding):
+- Update `schemas.layer1.yaml#/policy/validation_policy` to allow `cusum.alpha_cap` with domain `(0,1]` and a clear description.
+- Update S2.7 spec in `state.1A.s2.expanded.md` to define the capped acceptance probability $\tilde{\alpha}_m=\min(\alpha_m,\texttt{alpha_cap})$ and use $\tilde{\alpha}_m$ in $\mathbb{E}[r_m]$ and $\mathrm{Var}(r_m)$.
+- Update `validation_policy_authoring-guide.md` to explain when/why to set `alpha_cap` and document its default.
+Validation plan:
+- After updating the spec, ensure the current `validation_policy.yaml` validates against the schema with `alpha_cap` present.
+- During corridor validation implementation, verify the cap is applied consistently in the $\alpha_m$ computation (and log the cap value in metrics for auditability).
+
+### Entry: 2026-01-11 08:27
+
+Design element: CUSUM alpha cap policy for S2 corridors (implementation)
+Summary: Updated the schema and S2 spec to accept and define `cusum.alpha_cap`, and documented authoring guidance.
+What changed and why:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`: added `cusum.alpha_cap` with domain `(0,1]` to accept the policy file and enable explicit caps for near-1 acceptance probabilities.
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s2.expanded.md`: defined capped acceptance probability $\tilde{\alpha}_m = \min(\alpha_m,\texttt{alpha_cap})$ for CUSUM math and clarified optional behavior when `alpha_cap` is absent.
+- `docs/model_spec/data-engine/layer-1/specs/data-intake/1A/validation_policy_authoring-guide.md`: added `alpha_cap` to the schema example, semantics, and checklist so policy authors know how to set it.
+Notes:
+- This is a spec/schema alignment change only; corridor implementation will apply the cap when S2 validation is wired.
+
+### Entry: 2026-01-11 08:32 (pre-implementation)
+
+Design element: S2 RNG substream derivation vs S2.6 formula mismatch
+Summary: Decide which keyed mapping to use for S2 substreams; the S2.6 text mentions `ctr:1A` but S0.3.3 defines `mlr:1A` master/material mapping already used in S1.
+Observation:
+- S0.3.3 defines the authoritative keyed mapping based on `M = SHA256(UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed))` and `H = SHA256(M || UER("mlr:1A") || UER(label) || SER(ids))`.
+- S2.6 includes a formula using `SHA256("ctr:1A" || ...)`, which conflicts with S0.3.3 and the existing S1 RNG implementation.
+Decision (chosen):
+- Use the S0.3.3 mapping (`mlr:1A.master` + `mlr:1A`) to stay consistent with the already-implemented S1 sampler and the core RNG spec; treat the `ctr:1A` occurrence as a spec typo in S2.6.
+Implementation plan:
+- Reuse the existing Philox helpers (as in S1) to derive substreams from master material and merchant_u64 for labels `gamma_nb`, `poisson_nb`, and `nb_final`.
+- Document this decision in the logbook to keep the spec deviation explicit and auditable.
+
+### Entry: 2026-01-11 08:40 (pre-implementation)
+
+Design element: S2 runner behavior (resume, merchant-scoped aborts, and validation scope)
+Summary: Define how the S2 runner will handle resuming runs, merchant-scoped numeric aborts, and validation checks before coding.
+Decisions:
+- Resume logic: if `gamma_component`, `poisson_component`, `nb_final` outputs exist and the trace log already contains S2 substreams (`gamma_nb`, `poisson_nb`, `nb_final`), treat the run as already emitted and only re-validate; partial outputs are treated as a hard error requiring cleanup.
+- Merchant-scoped aborts: numeric invalids (`ERR_S2_NUMERIC_INVALID`), missing inputs, or missing hurdle gate for a merchant will skip that merchant with a warning log (no S2 events emitted), rather than aborting the entire run. Structural validation still fails the run when contracts are violated.
+- Validation scope in S2 runner: implement schema checks for all S2 streams, counter discipline, coverage/cardinality, composition identity (`lambda == (mu/phi) * gamma_value`), and corridor metrics with `alpha_cap` applied; fail fast on breaches so S2 cannot proceed to S3 unless green.
+Implementation notes:
+- Use `sealed_inputs_1A.json` to resolve the exact parameter and reference files used in S0 (avoid “latest” drift).
+- Keep event ordering deterministic by iterating merchants in ascending `merchant_id`.
+
+### Entry: 2026-01-11 09:15 (pre-implementation)
+
+Design element: S2 runner correctness fixes + CLI/Makefile wiring for execution
+Summary: Address two correctness gaps in the S2 runner (ingress schema validation and nb_final substream counters) and add the CLI + Makefile target to run S2 via `make`.
+Observations driving the change:
+- The S2 runner currently validates merchant rows against the `schemas.1A` pack, not the ingress schema pack (`schemas.ingress.layer1.yaml`). This is the same mismatch that caused the "row is not of type array" failure earlier in S0 and will reject valid merchant rows.
+- The `nb_final` event currently uses `poisson_nb` substream counters, which conflates substream lineage and breaks the S2.6 requirement that each substream has its own counters and trace totals.
+- There is no S2 CLI or Makefile target yet, so the state cannot be run directly with `make segment1a-s2` (required for the green-run validation loop).
+Decisions (before coding):
+- Load the ingress schema pack (`ingress.layer1`) alongside `schemas.layer1`, and validate merchant rows with the ingress schema. Remove the unused `schemas.1A` load in S2.
+- Derive a dedicated `nb_final` substream per merchant, and use its counter snapshot for the non-consuming `nb_final` event (before == after, blocks=0, draws="0"). Keep `poisson_nb` counters only for the poisson component.
+- Add `engine.cli.s2_nb_outlets` mirroring the S1 CLI shape (contracts layout/root, runs root, external roots, optional run_id), and wire a Makefile target (`segment1a-s2`) plus `engine-s2`.
+Implementation plan:
+- Update `run_s2` to load `ingress.layer1` schema pack and pass it into `_build_merchant_frame`.
+- In the emission loop, create `final_stream = derive_substream_state(master_material, SUBSTREAM_FINAL, merchant_id)` and use it only for `nb_final` counters/trace rows.
+- Add the new CLI module and Makefile variables (`SEG1A_S2_RUN_ID`, `SEG1A_S2_ARGS`, `SEG1A_S2_CMD`) plus the target lines.
+Validation plan:
+- Run `python -m py_compile` on the new/updated S2 modules.
+- Run `make segment1a-s2` against the current run_id, inspect the run log for validation errors, and iterate fixes until green.
+
+### Entry: 2026-01-11 09:21 (pre-implementation)
+
+Design element: Seal `validation_policy` into S0 sealed_inputs for S2 determinism
+Summary: S2 run failed because `sealed_inputs_1A` does not include `validation_policy`; plan is to update S0 to include it in the registry dependency closure and re-run S0/S1 before S2.
+Observed failure:
+- `make segment1a-s2` failed with `InputResolutionError: sealed_inputs_1A missing required assets: ['validation_policy']`.
+- The current S0 sealed_inputs is built from the registry dependency closure of reference + param assets; `validation_policy` is in the registry but is not part of that closure.
+Decision (before coding):
+- Add `validation_policy` to the `registry_names` set in S0 so it is sealed, hashed into the manifest, and available for S2 validation (no ad-hoc fallback to config files).
+- Do not mutate existing run directories; instead, re-run S0 and S1 to produce a new run_id with a corrected sealed_inputs list, then run S2 against that new run.
+Implementation plan:
+- Update `s0_foundations/runner.py` to include `validation_policy` in the registry names used for dependency closure.
+- Re-run `make segment1a-s0` and `make segment1a-s1` to regenerate run outputs with the updated sealed inputs.
+- Re-run `make segment1a-s2` and iterate fixes until green.
+
+### Entry: 2026-01-11 09:25 (pre-implementation)
+
+Design element: Fix validation_policy semver regex in schema
+Summary: S2 validation failed because the semver regex in `schemas.layer1.yaml` is over-escaped, rejecting valid `semver: "1.3.4"` values.
+Observed failure:
+- `make segment1a-s2` failed during `_load_validation_policy` with SchemaValidationError.
+- Manual validation shows semver does not match the pattern `^[0-9]+\\\\.[0-9]+\\\\.[0-9]+$` (schema is escaping the dot twice).
+Decision (before coding):
+- Update `schemas.layer1.yaml#/validation_policy/semver.pattern` to use a single escaped dot (`^[0-9]+\.[0-9]+\.[0-9]+$`), so standard semver strings like `1.3.4` validate.
+- Keep the schema strict otherwise; do not relax additionalProperties or other requirements.
+Implementation plan:
+- Edit the schema pattern for `validation_policy.semver` and re-run S2 validation.
+
+### Entry: 2026-01-11 09:28
+
+Design element: S2 runner corrections + CLI/Makefile wiring (implementation)
+Summary: Implemented the S2 runner fixes and added the S2 CLI/Makefile entry point so S2 can run via `make segment1a-s2`.
+What changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`: load the ingress schema pack (`ingress.layer1`) and validate merchant rows against it; removed the incorrect use of `schemas.1A` for ingress validation.
+- `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`: introduced a dedicated `nb_final` substream (`derive_substream_state(..., SUBSTREAM_FINAL, merchant_id)`) and used its counter snapshot for the non-consuming `nb_final` event envelope.
+- `packages/engine/src/engine/cli/s2_nb_outlets.py`: added an S2 CLI (contracts layout/root, runs root, external roots, optional run_id) mirroring the S1 CLI.
+- `makefile`: added `SEG1A_S2_RUN_ID`, `SEG1A_S2_ARGS`, and `SEG1A_S2_CMD`, plus `segment1a-s2` and `engine-s2` targets.
+Why this resolves the issues:
+- Using the ingress schema aligns S2 with the same merchant validation contract as S0, preventing false schema errors from the `schemas.1A` pack.
+- The `nb_final` event now has its own substream lineage, satisfying S2.6 counter/trace segregation.
+
+### Entry: 2026-01-11 09:30
+
+Design element: S0 sealed inputs include validation_policy (implementation)
+Summary: Updated S0 to seal the validation policy so S2 can load it deterministically.
+What changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/runner.py`: added `validation_policy` to the registry dependency closure (`registry_names`), so it is recorded in `sealed_inputs_1A` and hashed into the manifest.
+Operational impact:
+- S0/S1/S2 were re-run to produce a new run_id with the corrected sealed inputs; S2 completed with run_id `396e3a41eadd2e0c5daf44a659ac8876` and manifest_fingerprint `eaf68eec57f5e7bd4dece0793c99a95615522e212a539057989b1cba311e0e14`.
+
+### Entry: 2026-01-11 09:32
+
+Design element: validation_policy semver regex (implementation)
+Summary: Fixed the over-escaped semver regex in the schema so `semver: "1.3.4"` validates.
+What changed:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`: updated `validation_policy.semver.pattern` to use single-escaped dots (`^[0-9]+\.[0-9]+\.[0-9]+$`).
 
 ## S3 - Cross-border Universe (placeholder)
 No entries yet.

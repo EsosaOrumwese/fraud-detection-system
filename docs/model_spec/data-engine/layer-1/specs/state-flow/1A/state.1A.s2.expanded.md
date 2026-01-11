@@ -1182,6 +1182,15 @@ $$
 \boxed{\ \alpha_m=1-P_0-P_1\ } \quad\text{(success = accept on an attempt)}.
 $$
 
+If the policy specifies `cusum.alpha_cap`, define the capped acceptance probability
+
+$$
+\boxed{\ \tilde{\alpha}_m=\min(\alpha_m,\ \texttt{alpha\_cap})\ }.
+$$
+
+This cap is applied only for the CUSUM statistics (Section 4.3); it does not change
+the rejection process itself.
+
 ### 3.1 Numerically stable evaluation (MUST)
 
 Evaluate in **binary64** with log-domain guards:
@@ -1194,6 +1203,7 @@ Evaluate in **binary64** with log-domain guards:
 **Guards:**
 
 * If any intermediate is non-finite, or if $\alpha_m\notin(0,1]$, the merchant is flagged `ERR_S2_CORRIDOR_ALPHA_INVALID` and **excluded** from corridor statistics (still recorded under health metrics). This should not occur if S2.2 guards held; making it explicit keeps the corridor math well-posed.
+* If `alpha_cap` is provided, require `alpha_cap in (0,1]`. If missing, set `alpha_cap := 1.0` (no cap).
 
 ---
 
@@ -1233,11 +1243,11 @@ $$
 
 ### 4.3 One-sided CUSUM for upward drift (standardised residuals)
 
-We monitor the sequence $\{r_m\}_{m\in\mathcal{M}}$ ordered by **merchant key** (deterministic total order; e.g., ascending `merchant_id`). For each $m$, form a standardised residual against the geometric expectation implied by $\alpha_m$:
+We monitor the sequence $\{r_m\}_{m\in\mathcal{M}}$ ordered by **merchant key** (deterministic total order; e.g., ascending `merchant_id`). For each $m$, form a standardised residual against the geometric expectation implied by the **capped** acceptance probability $\tilde{\alpha}_m$ (Section 3):
 
 $$
-\mathbb{E}[r_m] = \frac{1-\alpha_m}{\alpha_m},\qquad
-\mathrm{Var}(r_m) = \frac{1-\alpha_m}{\alpha_m^2}.
+\mathbb{E}[r_m] = \frac{1-\tilde{\alpha}_m}{\tilde{\alpha}_m},\qquad
+\mathrm{Var}(r_m) = \frac{1-\tilde{\alpha}_m}{\tilde{\alpha}_m^2}.
 $$
 
 Define
@@ -1256,8 +1266,7 @@ with **reference value** $k>0$ and **threshold** $h>0$.
 
 **Gate (hard):** If $\max_{1\le t\le M} S_t \ge h$ ⇒ run fails.
 
-**Governance of $k,h$:** These are **policy parameters** (not algorithmic constants). They MUST be supplied by the validation policy artefact for the run (e.g., `validation_policy.yaml`):
-`cusum.reference_k` (default 0.5), `cusum.threshold_h` (default 8.0). If absent, validation must **fail closed** (`ERR_S2_CORRIDOR_POLICY_MISSING`).
+**Governance of $k,h$ and alpha cap:** These are **policy parameters** (not algorithmic constants). `cusum.reference_k` and `cusum.threshold_h` MUST be supplied by the validation policy artefact for the run (e.g., `validation_policy.yaml`); if absent, validation must **fail closed** (`ERR_S2_CORRIDOR_POLICY_MISSING`). `cusum.alpha_cap` is optional; if provided, it caps $\alpha_m$ for CUSUM only (default behavior is `alpha_cap = 1.0`, i.e., no cap).
 
 **Notes:**
 
@@ -1321,7 +1330,9 @@ function s2_7_corridors(nb_finals, policy) -> Result:
         if not isfinite(alpha) or alpha <= 0.0 or alpha > 1.0:
             record_warn(ERR_S2_CORRIDOR_ALPHA_INVALID, m)
             continue
-        Mset.append({m, r, alpha})
+        alpha_cap := policy.cusum.alpha_cap if present else 1.0
+        alpha_capped := min(alpha, alpha_cap)
+        Mset.append({m, r, alpha: alpha_capped})
 
     M := len(Mset)
     if M == 0: return FAIL(ERR_S2_CORRIDOR_EMPTY)

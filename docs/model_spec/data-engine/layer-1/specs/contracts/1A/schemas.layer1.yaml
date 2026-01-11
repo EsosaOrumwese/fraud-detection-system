@@ -958,7 +958,7 @@ policy:
     additionalProperties: false
     required: [semver, version, rng, scale, home_country, mcc, channel]
     properties:
-      semver:  {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      semver:  {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
       version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
 
       rng:
@@ -1033,7 +1033,7 @@ policy:
     additionalProperties: false
     required: [semver, version, cusum]
     properties:
-      semver:  {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+      semver:  {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
       version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
       cusum:
         type: object
@@ -1042,6 +1042,11 @@ policy:
         properties:
           reference_k: {type: number, exclusiveMinimum: 0.0}
           threshold_h: {type: number, exclusiveMinimum: 0.0}
+          alpha_cap:
+            type: number
+            exclusiveMinimum: 0.0
+            maximum: 1.0
+            description: "Optional cap for acceptance probability alpha_m used in CUSUM; apply min(alpha_m, alpha_cap)."
       notes: {type: string}
 
   s3_rule_ladder:

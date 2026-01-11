@@ -1,4 +1,4 @@
-## Authoring Guide — `validation_policy.yaml` (1A S2 corridor policy: CUSUM `k,h`)
+## Authoring Guide - `validation_policy.yaml` (1A S2 corridor policy: CUSUM `k,h` + `alpha_cap`)
 
 ### 0) Purpose
 
@@ -8,6 +8,7 @@ In your S2 corridor spec, only **CUSUM parameters** are policy-governed:
 
 * `cusum.reference_k`
 * `cusum.threshold_h`
+* `cusum.alpha_cap` (optional)
 
 All other corridor thresholds (e.g., overall rejection-rate bound, Q0.99 bound) are *fixed by spec* unless you explicitly promote them into policy later.
 
@@ -45,6 +46,7 @@ Reject unknown keys and duplicate keys.
 cusum:
   reference_k: <float>
   threshold_h: <float>
+  alpha_cap: <float>   # optional
 ```
 
 ### 3.1.1 Placeholder resolution (MUST)
@@ -55,6 +57,7 @@ Replace `<float>` with finite numeric values (no NaN/Inf). Both must be strictly
 
 * `reference_k` is the **CUSUM reference value** `k > 0`
 * `threshold_h` is the **CUSUM threshold** `h > 0`
+* `alpha_cap` (optional) caps per-merchant acceptance probability `alpha_m` used in CUSUM: `alpha_used = min(alpha_m, alpha_cap)` to prevent near-1 alpha values from dominating `z_m`.
 
 The corridor gate is:
 
@@ -65,10 +68,12 @@ The corridor gate is:
 
 * `reference_k` MUST be finite and `> 0`
 * `threshold_h` MUST be finite and `> 0`
+* `alpha_cap` (if present) MUST be finite and in `(0, 1]`
 * Recommend practical bounds (SHOULD; for sanity):
 
   * `reference_k ∈ [0.1, 1.0]`
   * `threshold_h ∈ [3.0, 20.0]`
+  * `alpha_cap ∈ [0.95, 0.999]`
 
 ---
 
@@ -91,6 +96,7 @@ version: "2024-12-31"
 cusum:
   reference_k: 0.5
   threshold_h: 8.0
+  alpha_cap: 0.999
 
 notes: "CUSUM corridor parameters for 1A.S2 run-scoped validation. Missing => fail closed."
 ```
@@ -104,6 +110,7 @@ notes: "CUSUM corridor parameters for 1A.S2 run-scoped validation. Missing => fa
 * `semver` matches `^\d+\.\d+\.\d+$`
 * `version` matches `^\d{4}-\d{2}-\d{2}$`
 * `cusum.reference_k` and `cusum.threshold_h` exist, finite, and strictly > 0
+* If present, `cusum.alpha_cap` is finite and in `(0, 1]`
 * File is treated as a sealed governance input (byte changes change lineage)
 
 ---
