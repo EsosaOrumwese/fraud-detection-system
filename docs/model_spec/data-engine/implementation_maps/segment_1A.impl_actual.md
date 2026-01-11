@@ -254,6 +254,27 @@ Plan:
 - Use the in-repo `source/countryInfo.txt` by default; allow explicit source
   overrides or forced downloads for rebuilds.
 
+### Entry: 2026-01-11 01:37
+
+Design element: Registry path resolution (directory templates)
+Summary: Support registry/dictionary paths that point to versioned directories instead of concrete files.
+Plan:
+- Update registry path resolution to accept directories and deterministically
+  select a concrete artifact file.
+- If the registry entry name is known, prefer files named
+  `<artifact_name>.(parquet|csv|json|yaml|yml|jsonl)`.
+- Otherwise, accept a single parquet file in the directory, or a single file
+  of any type; error on ambiguous directories to avoid non-determinism.
+
+### Entry: 2026-01-11 01:40
+
+Design element: Polars channel mapping performance
+Summary: Replace map_elements with native expression for channel mapping.
+Plan:
+- Use `replace_strict(CHANNEL_MAP)` for `channel_sym` to avoid row-wise Python
+  lambdas and remove PolarsInefficientMapWarning.
+- Keep merchant_u64 mapping unchanged (requires custom hash).
+
 ## S1 - Hurdle (placeholder)
 No entries yet.
 

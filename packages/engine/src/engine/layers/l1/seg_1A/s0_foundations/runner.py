@@ -88,7 +88,9 @@ def _audit_schema_authority(dictionary: dict, registry: dict) -> None:
                 check_ref(ref, f"registry:{artifact.get('name')}")
 
 
-def _resolve_registry_path(path_template: str, repo_root: Path) -> Path:
+def _resolve_registry_path(
+    path_template: str, repo_root: Path, artifact_name: Optional[str] = None
+) -> Path:
     if "{" not in path_template:
         return repo_root / path_template
     pattern = path_template
@@ -101,12 +103,28 @@ def _resolve_registry_path(path_template: str, repo_root: Path) -> Path:
         if token in pattern:
             pattern = pattern.replace(token, "*")
     matches = sorted(repo_root.glob(pattern))
-    matches = [path for path in matches if path.is_file()]
+    matches = [path for path in matches if path.exists()]
     if not matches:
         raise InputResolutionError(
             f"No files match registry path template: {path_template}"
         )
-    return matches[-1]
+    resolved = matches[-1]
+    if resolved.is_dir():
+        if artifact_name:
+            for suffix in (".parquet", ".csv", ".json", ".yaml", ".yml", ".jsonl"):
+                candidate = resolved / f"{artifact_name}{suffix}"
+                if candidate.exists():
+                    return candidate
+        parquet_files = sorted(resolved.glob("*.parquet"))
+        if len(parquet_files) == 1:
+            return parquet_files[0]
+        files = sorted([path for path in resolved.iterdir() if path.is_file()])
+        if len(files) == 1:
+            return files[0]
+        raise InputResolutionError(
+            f"Registry path template resolved to directory with multiple files: {resolved}"
+        )
+    return resolved
 
 
 def _resolve_param_files(
@@ -134,7 +152,7 @@ def _resolve_param_files(
         path_template = entry.get("path")
         if not path_template:
             raise ContractError(f"Registry entry missing path for {artifact_name}")
-        resolved_path = _resolve_registry_path(path_template, repo_root)
+        resolved_path = _resolve_registry_path(path_template, repo_root, artifact_name)
         if not resolved_path.exists():
             if canonical_name.startswith("policy.s3."):
                 continue
@@ -240,9 +258,7 @@ def _load_gdp_bucket_map(path: Path) -> dict[str, int]:
 def _attach_channel_and_u64(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(
         [
-            pl.col("channel")
-            .map_elements(lambda value: CHANNEL_MAP[value], return_dtype=pl.Utf8)
-            .alias("channel_sym"),
+            pl.col("channel").replace_strict(CHANNEL_MAP).alias("channel_sym"),
             pl.col("merchant_id")
             .map_elements(_merchant_u64, return_dtype=pl.UInt64)
             .alias("merchant_u64"),
@@ -387,7 +403,9 @@ def run_s0(
         path_template = entry.entry.get("path")
         if not path_template:
             continue
-        opened_path_set.add(_resolve_registry_path(path_template, config.repo_root))
+        opened_path_set.add(
+            _resolve_registry_path(path_template, config.repo_root, entry.name)
+        )
 
     opened_path_set.update(asset.path for asset in ref_assets)
     opened_path_set.update(param.path for param in param_files)
