@@ -1830,3 +1830,63 @@ What changed:
 
 Expected impact:
 - Run logs will explicitly report coverage gaps, making the failure cause visible without digging into validation files.
+
+---
+
+## S6 - Foreign Set Selection (S6.*)
+
+### Entry: 2026-01-11 20:55 (pre-implementation plan)
+
+Design element: S6 foreign set selection (gumbel key events, membership surface, PASS receipt)
+Summary: Implement the S6 runner and validator per state.1A.s6.expanded.md, producing rng_event.gumbel_key, optional s6_membership, and the S6 PASS receipt while preserving S3 order authority and S5 weight authority.
+
+Contract review notes:
+- Read `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s6.expanded.md` and `docs/model_spec/data-engine/layer-1/specs/data-intake/1A/s6_selection_policy_authoring-guide.md`.
+- Reviewed dictionary entries for `s6_membership` and `s6_validation_receipt` in `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`.
+- Reviewed registry entries for `s6_selection_policy`, `s6_membership`, and `s6_validation_receipt` in `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`.
+- Reviewed schema anchors: `schemas.layer1.yaml#/rng/events/gumbel_key`, `schemas.layer1.yaml#/policy/s6_selection`, `schemas.layer1.yaml#/validation/s6_receipt`, and `schemas.1A.yaml#/alloc/membership`.
+- Verified S0 parameter-hash governed set already includes `s6_selection_policy.yaml` (so S6 policy bytes flip parameter_hash).
+
+Decisions (pre-implementation):
+- Gating is fail-closed: missing required inputs or missing S5 PASS receipt aborts; deterministic empties use reason codes and continue unless `--fail-on-degrade` is set.
+- Currency resolution will use `merchant_currency` when present; if the dataset is absent entirely, treat it as `E_UPSTREAM_GATE` because the spec provides no alternate currency authority. If present but missing rows, treat as a structural failure (align with S5 cardinality semantics). If you want a fallback (e.g., iso_legal_tender), this must be agreed before coding.
+- Logging mode obeys policy `log_all_candidates`; validator must support both full logging and counter-replay mode.
+- Membership dataset emitted only when policy `emit_membership_dataset` is true; membership is convenience-only and must not encode inter-country order.
+- CLI flags for emit-membership/log-all-candidates will be accepted only if they match policy values to avoid parameter_hash drift; mismatch fails fast.
+
+Plan before editing:
+1) Preflight inputs + gating:
+   - Load run receipt to resolve seed/parameter_hash/manifest_fingerprint and confirm run_id (log partition only).
+   - Verify S5 PASS receipt under `ccy_country_weights_cache/parameter_hash=...` before reading any S5 data.
+   - Resolve and schema-validate `s3_candidate_set`, `crossborder_eligibility_flags`, `rng_event_ztp_final`, `ccy_country_weights_cache`, and optional `merchant_currency`; enforce path/embed equality.
+   - Validate S3 candidate_rank contiguous per merchant with home=0; validate crossborder eligibility presence and `is_eligible=true`; validate exactly one S4 ztp_final per merchant.
+2) Policy handling:
+   - Load `config/layer1/1A/policy.s6.selection.yaml` and validate against `schemas.layer1.yaml#/policy/s6_selection` (additionalProperties=false).
+   - Compute effective policy per merchant (per_currency override then defaults), enforce uppercase ISO-4217 keys.
+   - Compute policy_digest as sha256 over concatenated policy file bytes sorted by ASCII basename; record in S6 receipt.
+3) Domain construction:
+   - For each merchant, build S3 foreign domain (exclude home), apply cap by candidate_rank prefix when max_candidates_cap > 0.
+   - Resolve merchant currency (kappa) and intersect domain with S5 weights for that currency.
+   - Apply zero_weight_rule: exclude weight==0 or include as considered-but-ineligible.
+   - Compute A_filtered and eligible_count; set reason_code (NO_CANDIDATES, K_ZERO, ZERO_WEIGHT_DOMAIN, CAPPED_BY_MAX_CANDIDATES) as applicable.
+4) RNG + selection:
+   - Iterate considered candidates in S3 candidate_rank order; derive gumbel_key substream from (merchant_u64, country_iso) per S0 UER/SHA256 rules.
+   - Use open-interval u and compute key = ln(w_norm) - ln(-ln u) in binary64; set key=null when weight==0 under include mode.
+   - Select top K_target by key desc, tie-break candidate_rank asc then ISO A-Z; set selection_order for selected only.
+   - Emit rng_event.gumbel_key JSONL entries (blocks=1, draws="1"); append one rng_trace_log row after each event; update audit totals.
+5) Outputs:
+   - If emit_membership_dataset true, write membership table (merchant_id, country_iso, seed, parameter_hash, produced_by_fingerprint), sorted by merchant_id,country_iso; enforce PK uniqueness; no order encoded.
+   - Write S6_VALIDATION.json with required fields (seed, parameter_hash, policy_digest, merchants_processed, events_written, gumbel_key_expected vs written, shortfall_count, reason_code_counts, rng_isolation_ok, trace_reconciled, re_derivation_ok). Optionally emit S6_VALIDATION_DETAIL.jsonl.
+   - Compute _passed.flag as sha256 over receipt files (ASCII-lex order) and publish atomically.
+6) Validation:
+   - Structural: schema validation for events/logs/membership; path/embed equality; S5 PASS present.
+   - Content: subset law, cardinality, tie-break determinism, no order encoding, ISO/ISO-4217 uppercase.
+   - RNG accounting: per-event trace append, blocks/draws totals, family isolation.
+   - Re-derivation: mode A uses logged keys; mode B counter-replays missing keys in S3-rank order.
+7) Logging + telemetry:
+   - Narrative logs that describe the S6 story (gates, domain sizes, policy mode, reason codes).
+   - Progress logs with elapsed/rate/ETA for per-merchant loops.
+   - Summary log with counts, shortfalls, and reason_code distribution.
+8) CLI + Makefile wiring:
+   - Add `engine.cli.s6_foreign_set` (name TBD) with `--run-id`, `--validate-only`, `--fail-on-degrade`, and optional overrides that must match policy.
+   - Add Makefile target `segment1a-s6` with RUNS_ROOT/RUN_ID handling aligned with earlier states.
