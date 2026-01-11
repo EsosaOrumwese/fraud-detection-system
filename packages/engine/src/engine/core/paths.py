@@ -51,8 +51,11 @@ def resolve_input_path(
     relative_path: str,
     run_paths: RunPaths,
     external_roots: Iterable[Path],
+    allow_run_local: bool = True,
 ) -> Path:
-    candidates = [run_paths.reference_root / relative_path]
+    candidates = []
+    if allow_run_local:
+        candidates.append(run_paths.reference_root / relative_path)
     candidates.extend(Path(root) / relative_path for root in external_roots)
     for candidate in candidates:
         if candidate.exists():

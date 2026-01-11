@@ -154,6 +154,56 @@ Plan:
 - If a staging mode is introduced, re-resolve inputs after run_id creation and
   fail on digest mismatches to preserve determinism.
 
+Design element: Ingress schema validation (JSON Schema adapter)
+Summary: Replace manual merchant_ids validation with JSON Schema validation
+derived from schemas.ingress.layer1.yaml.
+Plan:
+- Implement a schema adapter that converts the schema pack table definition into
+  Draft 2020-12 JSON Schema (row-level).
+- Validate every merchant_ids row with jsonschema and fail fast on errors.
+- Keep a targeted FK membership check for home_country_iso against ISO list.
+
+Design element: Makefile entrypoint for S0
+Summary: Add Make targets to run S0 without poetry while honoring contract
+switching flags.
+Plan:
+- Add `segment1a-s0` and `engine-s0` targets calling `engine.cli.s0_foundations`.
+- Add Make vars for `ENGINE_CONTRACTS_LAYOUT`, `ENGINE_CONTRACTS_ROOT`,
+  `ENGINE_EXTERNAL_ROOTS`, `SEG1A_S0_SEED`, and `SEG1A_S0_MERCHANT_VERSION`.
+
+Design element: S0 spec crosscheck (initial)
+Summary: Quick audit of current S0 implementation vs the expanded S0 spec.
+Plan:
+- Validate merchant_ids against JSON Schema; keep ISO FK membership check.
+- Confirm parameter_hash + manifest_fingerprint inputs match governed basenames
+  and dependency closure rules.
+- Add an authority audit to reject any non-JSON schema refs (e.g., .avsc).
+- Note outstanding gap: run_id collision check against RNG log directories
+  (currently run-root only).
+
+### Entry: 2026-01-11 00:52
+
+Design element: run_id collision scope (S0.2.4)
+Summary: Align run_id collision checks to RNG log directories per spec.
+Plan:
+- Derive RNG log directories from the dataset dictionary entries for
+  `rng_audit_log`, `rng_trace_log`, and `rng_event_anchor` using the candidate
+  `run_id`, `seed`, and `parameter_hash`.
+- Treat any existing log directory for that `{seed, parameter_hash, run_id}` as
+  a collision, increment `T_ns` by +1, and recompute run_id (bounded to 2^16).
+- Keep a run-root existence check as a conservative guard against accidental
+  reuse when partial runs left data without logs.
+
+Design element: Pre-run input resolution (run-local staging order)
+Summary: Avoid resolving run-local staged inputs before run_id exists.
+Plan:
+- Add an `allow_run_local` switch to input resolution so pre-run S0 resolution
+  can consult shared external roots only.
+- Keep the run-local-first resolution order once run_id exists for downstream
+  states (or a future staging mode).
+- Remove the effective dependency on the placeholder run_id by disabling the
+  run-local search during the pre-run phase.
+
 ## S1 - Hurdle (placeholder)
 No entries yet.
 

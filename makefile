@@ -10,6 +10,15 @@ PY_ENGINE = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=$(ENGINE_PYTHONPATH)
 PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 
 # ---------------------------------------------------------------------------
+# Engine CLI defaults (dev/prod contract switching)
+# ---------------------------------------------------------------------------
+ENGINE_CONTRACTS_LAYOUT ?= model_spec
+ENGINE_CONTRACTS_ROOT ?=
+ENGINE_EXTERNAL_ROOTS ?=
+SEG1A_S0_SEED ?=
+SEG1A_S0_MERCHANT_VERSION ?=
+
+# ---------------------------------------------------------------------------
 # Run defaults
 # ---------------------------------------------------------------------------
 RUN_ROOT ?= runs/local_full_run-5
@@ -207,6 +216,21 @@ SEG1B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml
 
 # Segment 1A
 SEG1A_EXTRA ?=
+
+SEG1A_S0_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S0_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S0_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(SEG1A_S0_SEED)),)
+SEG1A_S0_ARGS += --seed $(SEG1A_S0_SEED)
+endif
+ifneq ($(strip $(SEG1A_S0_MERCHANT_VERSION)),)
+SEG1A_S0_ARGS += --merchant-ids-version $(SEG1A_S0_MERCHANT_VERSION)
+endif
+SEG1A_S0_CMD = $(PY_ENGINE) -m engine.cli.s0_foundations $(SEG1A_S0_ARGS)
 
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
@@ -845,6 +869,12 @@ else
 	@: > "$(LOG)"
 	($(SEG1A_CMD)) 2>&1 | tee -a "$(LOG)"
 endif
+
+segment1a-s0:
+	@echo "Running Segment 1A S0 foundations"
+	@$(SEG1A_S0_CMD)
+
+engine-s0: segment1a-s0
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"

@@ -34,6 +34,24 @@ Read these in order before modifying code so you share the project context:
 - Default: do NOT copy large immutable datasets (e.g., hrsl_raster).
 - Optional: staged/hermetic mode copies small/medium inputs into runs/<run_id>/reference/.
 
+## Implementation map discipline (mandatory, detail-first)
+- For every segment/state you touch, you MUST append entries to
+  `docs/model_spec/data-engine/implementation_maps/segment_{SEG}.impl_actual.md`.
+- Each entry MUST be detailed and auditable. A 1-2 line summary is allowed, but
+  the plan itself must be explicit and stepwise. No vague "we will implement"
+  phrasing and no skipped rationale.
+- The plan MUST include: exact inputs/authorities, file paths, algorithm or
+  data-flow choices, invariants to enforce, logging points, resumability hooks,
+  performance considerations, and validation/testing steps.
+- If a plan changes, append a new entry describing the change and why. Never
+  delete or rewrite prior entries.
+- Before implementing a state, read ALL expanded docs for that segment/state
+  and note the files read in the logbook (time-stamped).
+- Log every decision and action as it happens in `docs/logbook` with local time.
+  The logbook must reference the matching implementation-map entry (or note
+  that one was added).
+- If you are unsure, stop and add a detailed plan entry first, then proceed.
+
 ## Extra information
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
 - As it's very difficult to know your approach to implementation. Ensure in high detail and for auditability, ensure you create a file in `docs\model_spec\data-engine\implementation_maps` called segment_{SEG}.impl_actual.md. You will section it according to the states there in that segment. For every single design element that you want to tackle in a state, you document what that design problem is in summary, but in detail, you articulate your plan to resolve it. Even if you have lots of trials, you append it to the previous and don't remove the former. This is very essential (especially the detail) so the USER can review your thought process and suggests improvements where necessary. Remember, your decisions or plans aren't to be summarized there but to be dropped in detail

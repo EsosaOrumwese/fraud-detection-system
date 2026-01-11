@@ -13,6 +13,7 @@ from typing import Optional
 import polars as pl
 import yaml
 
+from engine.contracts.jsonschema_adapter import validate_dataframe
 from engine.contracts.loader import (
     artifact_dependency_closure,
     find_dataset_entry,
@@ -63,6 +64,28 @@ class S0RunResult:
 def _load_yaml(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def _audit_schema_authority(dictionary: dict, registry: dict) -> None:
+    def check_ref(ref: str, origin: str) -> None:
+        if "avsc" in ref or "avro" in ref:
+            raise InputResolutionError(f"Non-JSON schema reference in {origin}: {ref}")
+
+    for section, entries in dictionary.items():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            ref = entry.get("schema_ref")
+            if ref:
+                check_ref(ref, f"dictionary:{entry.get('id', section)}")
+
+    for subsegment in registry.get("subsegments", []):
+        for artifact in subsegment.get("artifacts", []):
+            ref = artifact.get("schema")
+            if ref:
+                check_ref(ref, f"registry:{artifact.get('name')}")
 
 
 def _resolve_registry_path(path_template: str, repo_root: Path) -> Path:
@@ -174,24 +197,10 @@ def _merchant_u64(merchant_id: int) -> int:
     return int.from_bytes(digest[24:32], "little", signed=False)
 
 
-def _validate_merchants(df: pl.DataFrame, iso_set: set[str]) -> pl.DataFrame:
-    required = {"merchant_id", "mcc", "channel", "home_country_iso"}
-    missing = required - set(df.columns)
-    if missing:
-        raise InputResolutionError(f"merchant_ids missing columns: {sorted(missing)}")
-    if df["merchant_id"].min() < 1:
-        raise InputResolutionError("merchant_id must be >= 1.")
-    if df["mcc"].min() < 0 or df["mcc"].max() > 9999:
-        raise InputResolutionError("mcc out of [0, 9999] domain.")
-    bad_channels = (
-        df.filter(~pl.col("channel").is_in(list(CHANNEL_MAP)))
-        .select("channel")
-        .unique()
-    )
-    if bad_channels.height > 0:
-        raise InputResolutionError(
-            f"Invalid channel values: {bad_channels.to_series().to_list()}"
-        )
+def _validate_merchants(
+    df: pl.DataFrame, iso_set: set[str], ingress_schema: dict
+) -> pl.DataFrame:
+    validate_dataframe(df.iter_rows(named=True), ingress_schema, "merchant_ids")
     bad_iso = (
         df.filter(~pl.col("home_country_iso").is_in(list(iso_set)))
         .select("home_country_iso")
@@ -270,6 +279,33 @@ def _build_output_paths(
     )
 
 
+def _run_id_in_use(
+    repo_root: Path,
+    dictionary: dict,
+    seed: int,
+    parameter_hash: str,
+    manifest_fingerprint: str,
+    run_id: str,
+) -> bool:
+    run_paths = RunPaths(repo_root, run_id)
+    outputs = _build_output_paths(
+        run_paths,
+        dictionary,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        run_id=run_id,
+    )
+    log_dirs = {
+        outputs.rng_audit_path.parent,
+        outputs.rng_trace_path.parent,
+        outputs.rng_anchor_path.parent,
+    }
+    if any(path.exists() for path in log_dirs):
+        return True
+    return run_paths.run_root.exists()
+
+
 def run_s0(
     config: EngineConfig,
     seed_override: Optional[int] = None,
@@ -282,7 +318,8 @@ def run_s0(
     source = ContractSource(root=config.contracts_root, layout=config.contracts_layout)
     dictionary_path, dictionary = load_dataset_dictionary(source, "1A")
     registry_path, registry = load_artefact_registry(source, "1A")
-    ingress_schema_path, _ingress_schema = load_schema_pack(
+    _audit_schema_authority(dictionary, registry)
+    ingress_schema_path, ingress_schema = load_schema_pack(
         source, "1A", "ingress.layer1"
     )
     schema_1a_path, _schema_1a = load_schema_pack(source, "1A", "1A")
@@ -292,9 +329,10 @@ def run_s0(
     logger.info("Resolved seed=%s (path=%s)", seed, seed_path or "cli_override")
     ref_assets = resolve_reference_inputs(
         dictionary,
-        run_paths=RunPaths(config.repo_root, run_id="pending"),
+        run_paths=RunPaths(config.repo_root, run_id="pre-run"),
         external_roots=config.external_roots,
         merchant_ids_version=merchant_ids_version,
+        allow_run_local=False,
     )
     logger.info("Resolved %d reference inputs.", len(ref_assets))
 
@@ -324,7 +362,7 @@ def run_s0(
         if merchant_asset.path.suffix == ".parquet"
         else pl.read_csv(merchant_asset.path)
     )
-    merchant_df = _validate_merchants(merchant_df, iso_set)
+    merchant_df = _validate_merchants(merchant_df, iso_set, ingress_schema)
     merchant_df = _attach_channel_and_u64(merchant_df)
     logger.info("Loaded merchant universe rows=%d", merchant_df.height)
 
@@ -380,8 +418,14 @@ def run_s0(
     run_id = None
     for _ in range(2**16):
         candidate_run_id, _ = compute_run_id(manifest_bytes, seed, t_ns)
-        run_root = config.repo_root / "runs" / candidate_run_id
-        if not run_root.exists():
+        if not _run_id_in_use(
+            config.repo_root,
+            dictionary,
+            seed=seed,
+            parameter_hash=parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            run_id=candidate_run_id,
+        ):
             run_id = candidate_run_id
             break
         t_ns += 1

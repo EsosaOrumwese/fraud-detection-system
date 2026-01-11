@@ -56,6 +56,7 @@ def resolve_dataset_input(
     external_roots: Iterable[Path],
     version_override: Optional[str] = None,
     tokens: Optional[Mapping[str, str]] = None,
+    allow_run_local: bool = True,
 ) -> InputAsset:
     entry = dataset_entry.entry
     path_template = entry.get("path")
@@ -69,13 +70,20 @@ def resolve_dataset_input(
         token_map.setdefault("version", str(version))
     if "{version}" in path_template:
         base_root = Path(path_template.split("{version}")[0])
-        base_root = resolve_input_path(str(base_root), run_paths, external_roots)
+        base_root = resolve_input_path(
+            str(base_root),
+            run_paths,
+            external_roots,
+            allow_run_local=allow_run_local,
+        )
         token_map["version"] = _pick_version(
             base_root, version_override or token_map.get("version")
         )
     for key, value in token_map.items():
         path_template = path_template.replace(f"{{{key}}}", value)
-    resolved = resolve_input_path(path_template, run_paths, external_roots)
+    resolved = resolve_input_path(
+        path_template, run_paths, external_roots, allow_run_local=allow_run_local
+    )
     data_file = _select_data_file(dataset_entry.dataset_id, resolved)
     partition = {}
     partition_keys = entry.get("partitioning") or []
@@ -96,6 +104,7 @@ def resolve_reference_inputs(
     run_paths: RunPaths,
     external_roots: Iterable[Path],
     merchant_ids_version: Optional[str],
+    allow_run_local: bool = True,
 ) -> list[InputAsset]:
     assets = []
     for dataset_id in (
@@ -116,6 +125,7 @@ def resolve_reference_inputs(
                 run_paths=run_paths,
                 external_roots=external_roots,
                 version_override=version_override,
+                allow_run_local=allow_run_local,
             )
         )
     return assets
