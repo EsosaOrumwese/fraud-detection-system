@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Iterable, Optional
 
 import polars as pl
@@ -266,6 +267,7 @@ def build_eligibility_frame(
     rows: list[dict[str, object]] = []
     total = merchants.height
     progress_every = max(1, min(10_000, total // 10 if total else 1))
+    start_time = time.monotonic()
     for idx, row in enumerate(
         merchants.select(
             ["merchant_id", "mcc", "channel_sym", "home_country_iso"]
@@ -305,7 +307,17 @@ def build_eligibility_frame(
             record["produced_by_fingerprint"] = produced_by_fingerprint
         rows.append(record)
         if idx % progress_every == 0 or idx == total:
-            logger.info("S0.6: evaluated eligibility %d/%d", idx, total)
+            elapsed = time.monotonic() - start_time
+            rate = (idx / elapsed) if elapsed > 0.0 else 0.0
+            eta = ((total - idx) / rate) if rate > 0.0 else 0.0
+            logger.info(
+                "S0.6: evaluated eligibility %d/%d (elapsed=%.2fs, rate=%.1f/s, eta=%.2fs)",
+                idx,
+                total,
+                elapsed,
+                rate,
+                eta,
+            )
     schema = {
         "parameter_hash": pl.Utf8,
         "merchant_id": pl.UInt64,

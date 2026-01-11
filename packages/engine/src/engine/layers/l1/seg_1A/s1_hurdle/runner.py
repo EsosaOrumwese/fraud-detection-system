@@ -802,8 +802,6 @@ def _validate_s1_outputs(
 
     trace_row = None
     trace_row_key = None
-    trace_totals_row = None
-    trace_totals_key = None
     if not trace_paths:
         raise EngineFailure(
             "F4",
@@ -835,16 +833,6 @@ def _validate_s1_outputs(
             if trace_row_key is None or candidate_key > trace_row_key:
                 trace_row = payload
                 trace_row_key = candidate_key
-            totals_key = (
-                int(payload["events_total"]),
-                int(payload["blocks_total"]),
-                int(payload["draws_total"]),
-                str(payload.get("ts_utc", "")),
-                path.name,
-            )
-            if trace_totals_key is None or totals_key > trace_totals_key:
-                trace_totals_row = payload
-                trace_totals_key = totals_key
     if trace_row is None:
         raise EngineFailure(
             "F4",
@@ -860,30 +848,21 @@ def _validate_s1_outputs(
         or int(trace_row["draws_total"]) != draws_total
         or int(trace_row["events_total"]) != events_total
     ):
-        if trace_totals_row and (
-            int(trace_totals_row["blocks_total"]) == blocks_total
-            and int(trace_totals_row["draws_total"]) == draws_total
-            and int(trace_totals_row["events_total"]) == events_total
-        ):
-            logger = get_logger("engine.layers.l1.seg_1A.s1_hurdle.l2.runner")
-            logger.info("S1: trace selection fallback used (max totals row)")
-            trace_row = trace_totals_row
-        else:
-            raise EngineFailure(
-                "F4",
-                "rng_trace_missing_or_totals_mismatch",
-                "S1",
-                MODULE_NAME,
-                {
-                    "trace_blocks_total": int(trace_row["blocks_total"]),
-                    "trace_draws_total": int(trace_row["draws_total"]),
-                    "trace_events_total": int(trace_row["events_total"]),
-                    "expected_blocks_total": blocks_total,
-                    "expected_draws_total": draws_total,
-                    "expected_events_total": events_total,
-                },
-                dataset_id=TRACE_DATASET_ID,
-            )
+        raise EngineFailure(
+            "F4",
+            "rng_trace_missing_or_totals_mismatch",
+            "S1",
+            MODULE_NAME,
+            {
+                "trace_blocks_total": int(trace_row["blocks_total"]),
+                "trace_draws_total": int(trace_row["draws_total"]),
+                "trace_events_total": int(trace_row["events_total"]),
+                "expected_blocks_total": blocks_total,
+                "expected_draws_total": draws_total,
+                "expected_events_total": events_total,
+            },
+            dataset_id=TRACE_DATASET_ID,
+        )
 
     gated_entries = _discover_gated_entries(dictionary)
     for entry in gated_entries:
@@ -1327,6 +1306,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1RunResult:
         trace_acc = _TraceAccumulator()
         row_count = design_df.height
         progress_every = max(1, min(10_000, row_count // 10 if row_count else 1))
+        start_time = time.monotonic()
         timer.info(f"S1: emitting hurdle events (progress_every={progress_every})")
 
         with tmp_event_path.open("w", encoding="utf-8") as event_handle, tmp_trace_path.open(
@@ -1466,7 +1446,17 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1RunResult:
                 trace_handle.write("\n")
 
                 if idx % progress_every == 0 or idx == row_count:
-                    logger.info("S1: emitted hurdle events %d/%d", idx, row_count)
+                    elapsed = time.monotonic() - start_time
+                    rate = (idx / elapsed) if elapsed > 0.0 else 0.0
+                    eta = ((row_count - idx) / rate) if rate > 0.0 else 0.0
+                    logger.info(
+                        "S1: emitted hurdle events %d/%d (elapsed=%.2fs, rate=%.1f/s, eta=%.2fs)",
+                        idx,
+                        row_count,
+                        elapsed,
+                        rate,
+                        eta,
+                    )
 
             final_trace = trace_acc.finalize()
             if final_trace:

@@ -592,6 +592,83 @@ Plan/Implementation details:
 - Removed the runtime override in S1 schema validation so the contract remains the sole authority.
 - Revalidate existing S1 hurdle logs under the updated schema to confirm no further special casing is needed.
 
+### Entry: 2026-01-11 07:51
+
+Design element: Remove legacy trace fallback (S1.V strictness)
+Summary: The current S1 validator has a compatibility fallback that accepts legacy trace rows with max totals; remove it so only the schema-defined final-row selection is allowed.
+Why this exists today:
+- Early S1 runs appended trace rows in event order, so the final totals row did not necessarily have the max `(rng_counter_after_hi, rng_counter_after_lo)`.
+- The validator therefore used a fallback: if the max-counter row totals did not match event totals, it accepted the max-totals row and logged a compatibility message.
+Why it must be removed:
+- The S1.V contract is explicit that final-row selection is by max `(after_hi, after_lo)` with tie-breaking rules; accepting a different row undermines auditability and determinism.
+- We now emit a final trace row with max counters for new runs, so the fallback is no longer needed for correctness and should not mask contract drift.
+Brainstormed options before change:
+- Option A: Keep fallback and tolerate legacy traces indefinitely (rejected: violates spec authority and hides broken traces).
+- Option B: Remove fallback and force regeneration of S1 traces for legacy runs (chosen: contract purity; aligns with "no PASS, no read").
+- Option C: Provide a one-off trace migration tool to append a compliant final row to legacy traces (deferred; can be added if historical runs must be preserved).
+Planned changes (before implementation):
+- In `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/runner.py` remove the `trace_totals_row` fallback logic from `_validate_s1_outputs`.
+- Keep strict validation: if the max-counter row totals do not match event totals, raise `rng_trace_missing_or_totals_mismatch`.
+- Remove the "trace selection fallback used" log line so the run log reflects strict validation.
+Operational implications:
+- Existing runs with legacy traces will fail S1 validation; resolution is to re-run S1 on a fresh run_id (S0 then S1) or to explicitly migrate the trace file.
+Validation plan:
+- Re-run `make segment1a-s1` to confirm behavior on current run_id (expected: failure on legacy trace unless a new run is created).
+- For a clean run_id, verify that the emitted final trace row passes strict selection with no fallback.
+
+### Entry: 2026-01-11 07:52
+
+Design element: S1 trace validation strictness (implementation)
+Summary: Implemented the strict trace-row selection rule by removing the legacy fallback; validator now fails if the max-counter row totals do not match.
+What changed and why:
+- Removed the `trace_totals_row` selection branch from `_validate_s1_outputs`, so the validator no longer accepts a row selected by max totals when max counters do not match totals.
+- The log line "trace selection fallback used (max totals row)" is removed to avoid implying compatibility behavior that is no longer allowed by the contract.
+- This makes S1.V validation enforce the schema comment verbatim: final-row selection is based on max `(after_hi, after_lo)` with the tie-break rules, and totals must match the event-derived sums.
+Expected operator impact:
+- Any legacy run that has trace rows whose max-counter row does not carry final totals will now fail with `rng_trace_missing_or_totals_mismatch`.
+- To recover: re-run S1 under a fresh run_id (recommended) or append a compliant final trace row to the legacy trace file using a one-off migration script if historical runs must be preserved.
+Review checklist for this change:
+- Confirm `_TraceAccumulator.finalize()` is still emitting a compliant final row on new runs (max counters + full totals).
+- Confirm there is no remaining code path that selects a non-max-counter row during validation.
+
+### Entry: 2026-01-11 07:52 (pre-implementation)
+
+Design element: Progress logging with timing stats (S0.6/S0.7/S1)
+Summary: Add elapsed time, rate, and ETA to loop progress logs so run logs show real-time throughput and remaining time.
+Problem observed:
+- Current loop logs (S0.6 eligibility, S0.7 hurdle_pi_probs, S1 hurdle emission) report only counts (e.g., 1000/10000) with no timing, making it hard to judge progress or detect stalls.
+- AGENTS.md requires continuous heartbeat logs but doesn’t explicitly require rate/ETA; we want to codify this.
+Desired behavior:
+- Every progress log should include: `elapsed`, `rate` (rows/sec), `eta` (seconds), and current `idx/total`.
+- The calculation must be monotonic-time-based to avoid wall-clock jumps.
+Brainstormed options:
+- Option A: Add a shared progress helper function in each module to compute `elapsed`, `rate`, `eta` (chosen: minimal change, no new dependencies).
+- Option B: Add a global progress logger utility in `engine.core.logging` (deferred: more refactor, not required for this change).
+- Option C: Use `StepTimer` everywhere (rejected: it measures step deltas, not per-loop throughput).
+Plan (before coding):
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/eligibility.py`: add `time.monotonic()` start and include elapsed/rate/eta in the progress logs for S0.6.
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/runner.py`: add per-loop timing metrics to the S0.7 hurdle_pi_probs progress logs.
+- `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/runner.py`: add timing metrics to the S1 hurdle event emission progress logs; consider adding validation-loop progress if validation-only runs become lengthy.
+- `AGENTS.md`: extend logging guidance to require loop progress logs to include elapsed, rate, and ETA.
+Validation plan:
+- Run S0/S1 and confirm log lines include `elapsed`, `rate`, `eta`.
+- Ensure the rate is non-zero once progress starts and ETA decreases as counts approach total.
+
+### Entry: 2026-01-11 07:53
+
+Design element: Progress logging with timing stats (implementation)
+Summary: Implemented elapsed/rate/ETA logging for S0.6, S0.7, and S1 emission loops and codified the requirement in AGENTS.md.
+What changed and where:
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/eligibility.py`: added `start_time = time.monotonic()` and extended the S0.6 progress log to include `elapsed`, `rate`, `eta` for each `idx/total` heartbeat.
+- `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/runner.py`: added per-loop timing stats for the S0.7 hurdle_pi_probs emission logs.
+- `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/runner.py`: added per-loop timing stats for hurdle event emission progress logs.
+- `AGENTS.md`: added a requirement that all long-running loops include elapsed/rate/ETA in progress logs.
+Implementation specifics:
+- Timing uses `time.monotonic()` for stability; `rate = idx / elapsed` (guarded for zero), `eta = (total - idx) / rate` (guarded for zero).
+- Log format preserves the prior prefix and adds `(elapsed=…, rate=…/s, eta=…)` for scanability in run logs.
+Follow-up considerations:
+- If validation-only runs become slow, consider adding similar timing logs inside `_validate_s1_outputs` for event/trace scans, but keep log volume bounded.
+
 ## S2 - NB Outlets (placeholder)
 No entries yet.
 

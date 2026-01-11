@@ -1172,6 +1172,7 @@ def run_s0(
             rows = []
             total = merchant_df.height
             progress_every = max(1, min(10_000, total // 10 if total else 1))
+            start_time = time.monotonic()
             for idx, row in enumerate(
                 merchant_df.select(
                     ["merchant_id", "mcc", "channel_sym", "gdp_bucket_id"]
@@ -1243,7 +1244,17 @@ def run_s0(
                     }
                 )
                 if idx % progress_every == 0 or idx == total:
-                    logger.info("S0.7: emitted hurdle_pi_probs %d/%d", idx, total)
+                    elapsed = time.monotonic() - start_time
+                    rate = (idx / elapsed) if elapsed > 0.0 else 0.0
+                    eta = ((total - idx) / rate) if rate > 0.0 else 0.0
+                    logger.info(
+                        "S0.7: emitted hurdle_pi_probs %d/%d (elapsed=%.2fs, rate=%.1f/s, eta=%.2fs)",
+                        idx,
+                        total,
+                        elapsed,
+                        rate,
+                        eta,
+                    )
             pi_schema = {
                 "parameter_hash": pl.Utf8,
                 "produced_by_fingerprint": pl.Utf8,
