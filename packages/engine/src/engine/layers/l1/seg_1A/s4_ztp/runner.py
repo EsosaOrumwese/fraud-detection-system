@@ -774,7 +774,39 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
             raise EngineFailure(
                 "F4", "POLICY_INVALID", "S4", MODULE_NAME, "missing_feature_id"
             )
-        x_default = float(feature_spec.get("x_default", 0.0))
+        try:
+            x_default = float(feature_spec.get("x_default", 0.0))
+        except (TypeError, ValueError):
+            _log_failure_line(
+                logger,
+                seed,
+                parameter_hash,
+                run_id,
+                manifest_fingerprint,
+                code="POLICY_INVALID",
+                scope="run",
+                reason="x_default_invalid",
+            )
+            _record_run_failure("POLICY_INVALID", "x_default_invalid")
+            raise EngineFailure(
+                "F4", "POLICY_INVALID", "S4", MODULE_NAME, "x_default_invalid"
+            )
+        if not math.isfinite(x_default) or x_default < 0.0 or x_default > 1.0:
+            _log_failure_line(
+                logger,
+                seed,
+                parameter_hash,
+                run_id,
+                manifest_fingerprint,
+                code="POLICY_INVALID",
+                scope="run",
+                reason="x_default_out_of_range",
+                x_default=x_default,
+            )
+            _record_run_failure("POLICY_INVALID", "x_default_out_of_range")
+            raise EngineFailure(
+                "F4", "POLICY_INVALID", "S4", MODULE_NAME, "x_default_out_of_range"
+            )
         x_transform = feature_spec.get("x_transform") or {}
         x_transform_kind = x_transform.get("kind")
         if x_transform_kind != "clamp01":
@@ -1071,7 +1103,41 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                 x_value = features_map.get(merchant_id, x_default)
                 if features_missing and merchant_id not in features_map:
                     x_value = x_default
-                x_value = max(0.0, min(1.0, float(x_value)))
+                try:
+                    x_value = float(x_value)
+                except (TypeError, ValueError):
+                    _log_failure_line(
+                        logger,
+                        seed,
+                        parameter_hash,
+                        run_id,
+                        manifest_fingerprint,
+                        code="POLICY_INVALID",
+                        scope="run",
+                        reason="x_value_invalid",
+                        merchant_id=merchant_id,
+                    )
+                    _record_run_failure("POLICY_INVALID", "x_value_invalid")
+                    raise EngineFailure(
+                        "F4", "POLICY_INVALID", "S4", MODULE_NAME, "x_value_invalid"
+                    )
+                if not math.isfinite(x_value) or x_value < 0.0 or x_value > 1.0:
+                    _log_failure_line(
+                        logger,
+                        seed,
+                        parameter_hash,
+                        run_id,
+                        manifest_fingerprint,
+                        code="POLICY_INVALID",
+                        scope="run",
+                        reason="x_value_out_of_range",
+                        merchant_id=merchant_id,
+                        x_value=x_value,
+                    )
+                    _record_run_failure("POLICY_INVALID", "x_value_out_of_range")
+                    raise EngineFailure(
+                        "F4", "POLICY_INVALID", "S4", MODULE_NAME, "x_value_out_of_range"
+                    )
 
                 log_n = math.log(float(n_outlets))
                 terms: list[float] = []
@@ -1170,7 +1236,6 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                         "lambda_extra": lambda_extra,
                         "attempts": 0,
                         "regime": regime,
-                        "reason": "no_admissible",
                     }
                     final_handle.write(json.dumps(final_event, ensure_ascii=True, sort_keys=True))
                     final_handle.write("\n")
@@ -1197,7 +1262,6 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                             "accepted_K": 0,
                             "regime": regime,
                             "exhausted": False,
-                            "reason": "no_admissible",
                         },
                     )
                     continue
@@ -1998,17 +2062,6 @@ def _validate_s4_outputs(
                 "F4", "BRANCH_PURITY", "S4", MODULE_NAME, "event_for_out_of_scope"
             )
 
-    def _schema_has_reason(schema: dict) -> bool:
-        if "properties" in schema and "reason" in schema["properties"]:
-            return True
-        for subschema in schema.get("allOf", []):
-            if isinstance(subschema, dict) and "properties" in subschema:
-                if "reason" in subschema["properties"]:
-                    return True
-        return False
-
-    has_reason = _schema_has_reason(final_schema)
-
     for merchant_id in scope_merchants:
         if merchant_id not in hurdle_map:
             continue
@@ -2104,23 +2157,6 @@ def _validate_s4_outputs(
                 raise EngineFailure(
                     "F4", "A_ZERO_MISSHANDLED", "S4", MODULE_NAME, "final_values_invalid"
                 )
-            if has_reason:
-                reason_val = final_event.get("reason")
-                if reason_val != "no_admissible":
-                    _log_failure_line(
-                        logger,
-                        seed,
-                        parameter_hash,
-                        run_id,
-                        manifest_fingerprint,
-                        code="A_ZERO_MISSHANDLED",
-                        scope="merchant",
-                        reason="reason_missing",
-                        merchant_id=merchant_id,
-                    )
-                    raise EngineFailure(
-                        "F4", "A_ZERO_MISSHANDLED", "S4", MODULE_NAME, "reason_missing"
-                    )
             continue
 
         if not poisson_events:
@@ -2433,21 +2469,6 @@ def _validate_s4_outputs(
                 )
                 raise EngineFailure(
                     "F4", "CAP_WITH_FINAL_ABORT", "S4", MODULE_NAME, "exhausted_on_accept"
-                )
-            if has_reason and final_event.get("reason") is not None:
-                _log_failure_line(
-                    logger,
-                    seed,
-                    parameter_hash,
-                    run_id,
-                    manifest_fingerprint,
-                    code="A_ZERO_MISSHANDLED",
-                    scope="merchant",
-                    reason="reason_on_accept",
-                    merchant_id=merchant_id,
-                )
-                raise EngineFailure(
-                    "F4", "A_ZERO_MISSHANDLED", "S4", MODULE_NAME, "reason_on_accept"
                 )
             continue
 

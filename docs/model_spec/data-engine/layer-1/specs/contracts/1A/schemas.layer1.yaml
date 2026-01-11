@@ -655,10 +655,6 @@ rng:
           attempts: {type: integer, minimum: 0}
           regime: {type: string, enum: [inversion, ptrs]}
           exhausted: {type: boolean}
-          reason:
-            description: Optional A=0 audit reason; only present in schema versions that include it.
-            type: string
-            enum: [no_admissible]
         required: [module, substream_label, context, merchant_id, K_target, lambda_extra, attempts, regime]
         unevaluatedProperties: false
 

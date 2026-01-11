@@ -1157,3 +1157,40 @@ Run details:
 - parameter_hash: `3bf3e019c051fe84e63f0c33c2de20fa75b17eb6943176b4f2ee32ba15a62cbd`
 - manifest_fingerprint: `d01476a6d70de70a88826c55d5d6dffd17ed76506da0b8688631f37944bf16ff`
 - Outcome: S4 validation green (existing outputs verified, no re-emission)
+
+### Entry: 2026-01-11 15:59 (pre-implementation decisions)
+
+Design element: S4 optional reason field + feature bounds policy
+Summary: Bring S4 behavior in line with the spec by removing `ztp_final.reason` and treating out-of-range `X` features as run-scoped policy failures instead of silently clamping.
+
+Decision 1 (ztp_final.reason):
+- The spec explicitly notes the `reason` field is optional and absent in the current schema version. We currently emit `reason:"no_admissible"` on A=0 rows and allow it in the schema, which is an additive extension but not strictly aligned with the declared schema version.
+- We will remove the `reason` field from the `rng/events/ztp_final` schema and stop emitting it in A=0 short-circuit rows. This aligns event shape with the stated schema version.
+- Validation will rely on core fields only; any existing outputs containing `reason` will fail validation under the tightened schema, so S4 outputs must be regenerated under a new run_id or with cleaned S4 output paths.
+
+Decision 2 (feature X bounds):
+- S4 currently clamps feature `X` into [0,1]. The spec treats `crossborder_features` as governed policy inputs; silent clamping can mask policy mistakes.
+- We will enforce `X` and `x_default` to be finite and within [0,1]. If any merchant feature is out-of-range or non-finite, we will log a values-only `POLICY_INVALID` (run scope) and abort the run with an EngineFailure. This is stricter but safer and matches governance expectations.
+- We will validate `x_default` immediately once loaded; per-merchant feature values will be validated before use, with a single failure triggering a run abort.
+
+Plan before editing:
+1. Update `schemas.layer1.yaml` under `rng/events/ztp_final` to remove the optional `reason` property and enum. Keep the rest of the schema unchanged.
+2. Update `s4_ztp/runner.py` to stop emitting `reason` in the A=0 final event.
+3. Replace the feature clamp with strict validation:
+   - validate `x_default` is finite and within [0,1] before the merchant loop; fail run if invalid.
+   - validate each `x_value` is finite and within [0,1] before computing `eta`; on violation, log `POLICY_INVALID` and abort run.
+4. Re-run S4 after changes; note that existing S4 outputs (with `reason`) will not validate, so either clean S4 outputs for the current run_id or run with a new run_id.
+
+### Entry: 2026-01-11 16:01 (implementation update)
+
+Design element: S4 reason removal + strict feature bounds
+Summary: Applied the schema/output changes to remove `ztp_final.reason` and enforced strict [0,1] bounds on feature `X` (run-scoped failure on violation).
+What changed:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`: removed the optional `reason` field from `rng/events/ztp_final` so the schema matches the current spec version (no reason field).
+- `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp/runner.py`:
+  - A=0 short-circuit now emits `ztp_final` without `reason`, and the merchant summary log no longer includes `reason`.
+  - Removed schema introspection/validation for `reason` since the field is no longer defined.
+  - Replaced feature clamping with strict validation: `x_default` is checked once for finite + [0,1], and each `x_value` is validated before use; violations log `POLICY_INVALID` (run scope) and abort the run.
+
+Operational note:
+- Existing S4 outputs for run_id `6f81b34af7e91e31004277721b3ae47f` include the `reason` field on A=0 final rows and will not validate under the tightened schema. Re-run S4 under a clean output path or a new run_id to regenerate S4 outputs without `reason`.
