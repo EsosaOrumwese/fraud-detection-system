@@ -25,7 +25,7 @@ from engine.contracts.source import ContractSource
 from engine.core.config import EngineConfig
 from engine.core.errors import ContractError, InputResolutionError
 from engine.core.hashing import FileDigest, sha256_file
-from engine.core.logging import get_logger
+from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths
 from engine.core.time import utc_now_rfc3339_micro
 from engine.layers.l1.seg_1A.s0_foundations.context import MerchantUniverse, RunContext
@@ -432,6 +432,9 @@ def run_s0(
     if run_id is None:
         raise InputResolutionError("Run ID collision exhausted.")
     run_paths = RunPaths(config.repo_root, run_id)
+    run_log_path = run_paths.run_root / f"run_log_{run_id}.log"
+    add_file_handler(run_log_path)
+    logger.info("Run log initialized at %s", run_log_path)
 
     outputs = _build_output_paths(
         run_paths,

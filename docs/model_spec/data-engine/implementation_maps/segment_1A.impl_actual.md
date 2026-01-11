@@ -204,6 +204,19 @@ Plan:
 - Remove the effective dependency on the placeholder run_id by disabling the
   run-local search during the pre-run phase.
 
+### Entry: 2026-01-11 01:07
+
+Design element: Run log file (operator-facing heartbeat)
+Summary: Provide a run-scoped log file under runs/<run_id> to mirror legacy run logs.
+Plan:
+- Add a file handler in the core logging module that can be attached once per
+  path, with the same timestamped format as STDOUT.
+- After S0 derives run_id, attach the file handler to
+  runs/<run_id>/run_log_<run_id>.log and emit a confirmation log line.
+- Accept that pre-run logs (before run_id) remain STDOUT-only; if needed later,
+  add a pre-run buffer or temporary log location that is copied into the run
+  folder once run_id is known.
+
 ## S1 - Hurdle (placeholder)
 No entries yet.
 
