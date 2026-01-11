@@ -55,7 +55,7 @@ GIT_COMMIT ?= $(shell git rev-parse HEAD)
 # ---------------------------------------------------------------------------
 # Run helpers
 # ---------------------------------------------------------------------------
-LATEST_RUN_ID = $(shell $(PY_SCRIPT) -c "import json, pathlib; root = pathlib.Path('$(RUNS_ROOT)'); ids = sorted([p.name for p in root.glob('*/run_receipt.json')], key=lambda name: (root / name / 'run_receipt.json').stat().st_mtime); print(ids[-1] if ids else '')")
+LATEST_RUN_ID = $(shell $(PY_SCRIPT) -c "import json, pathlib; root = pathlib.Path('$(RUNS_ROOT)'); ids = sorted([p.parent.name for p in root.glob('*/run_receipt.json')], key=lambda name: (root / name / 'run_receipt.json').stat().st_mtime); print(ids[-1] if ids else '')")
 
 .PHONY: latest-run-id
 latest-run-id:
