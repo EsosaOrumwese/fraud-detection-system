@@ -40,6 +40,15 @@ Read these in order before modifying code so you share the project context:
 - Each entry MUST be detailed and auditable. A 1-2 line summary is allowed, but
   the plan itself must be explicit and stepwise. No vague "we will implement"
   phrasing and no skipped rationale.
+- The implementation map is a running **brainstorming notebook**. As you reason
+  through a state, capture the full thought process (assumptions, alternatives,
+  decision criteria, edge cases, and intended mechanics). Do this **during** the
+  design, not just before/after. The goal is to make the entire reasoning trail
+  reviewable later, not a minimal recap.
+- This is NOT a two-time update doc. Append entries repeatedly while you are
+  actively thinking and deciding. If you explore multiple approaches or adjust
+  your plan mid-stream, record each thread as it happens so the reader can see
+  the full evolution of the decision process.
 - The plan MUST include: exact inputs/authorities, file paths, algorithm or
   data-flow choices, invariants to enforce, logging points, resumability hooks,
   performance considerations, and validation/testing steps.
@@ -51,6 +60,9 @@ Read these in order before modifying code so you share the project context:
   append another entry describing the reasoning and the outcome. If you realize
   a missing decision later, append a corrective entry rather than rewriting
   history.
+- If you are about to implement a change and the in-progress reasoning is not
+  captured yet, stop and append a new entry first. The map must mirror the live
+  design process, not a reconstructed summary.
 - If a plan changes, append a new entry describing the change and why. Never
   delete or rewrite prior entries.
 - Before implementing a state, read ALL expanded docs for that segment/state
@@ -69,7 +81,7 @@ Read these in order before modifying code so you share the project context:
 - As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable.
 - When working on a task, log every decision and action taken (not just the summary at the end) in the associated logbook in `docs\logbook` ensuring that you use one with the actual local date (if none exist, create one in the same format as the other logs) and log at the local time and not any random time. This will allow the USER to review the AGENTS actions and decisions
 - Ensure to employ the use of loggers in your implementation. Whilst the USER doesn't want to be spammed with logs, it's important that whilst having a heartbeat log, there's a log that gives information (with appropriate states) of what's going on in every process (and not just start and completed) such that at no point is console blank and the USER left confused on whether the run is hanging or not
-- Log lines must be narrative and state-aware: whenever you log counts or progress (e.g., “processing merchants=…”, “merchants_in_scope=…”), include what the count represents, the gates that define the scope, and the stage/output being produced so the operator can follow the story of the state.
+- Log lines must be narrative and state-aware: whenever you log counts or progress (e.g., “processing merchants=…”, “merchants_in_scope=…”), include what the count represents, the gates that define the scope, and the stage/output being produced so the operator can follow the story of the state. Logs should read like a guided walkthrough of the state flow.
 - For any long-running loop (per-row/per-partition/per-file), progress logs MUST include elapsed time, processed count/total, rate (items/sec), and ETA. Use monotonic time for calculations and log at a predictable cadence (e.g., every N items or % complete). This is required for later review of performance and to diagnose stalls.
 - Before we implement, I want to know where you will be taking your source of contracts from. As we're in dev mode, I can allow you running from the model_spec but when we switch to production, it should be easy and not a code break to switch to having the contracts in the root. Also realize that some of the data/artefacts/etc that engine would need are in the root of the repo. For no reason should we use placeholders, instead using the contract (artefact registry or data dictionary) locate the possible location of the external.
 - Also be aware of the engine's interaction of the root 
@@ -85,3 +97,5 @@ Read these in order before modifying code so you share the project context:
 - **Protect reproducibility.** Deterministic artefacts must hash identical across seeded runs. Volatile metadata (timestamps, `run_id`, temp paths) should be isolated from comparisons or normalised through tooling.
 
 _This router stays deliberately light on mechanics so it evolves slowly while the project grows._
+
+

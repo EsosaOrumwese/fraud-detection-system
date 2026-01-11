@@ -1849,7 +1849,7 @@ Contract review notes:
 
 Decisions (pre-implementation):
 - Gating is fail-closed: missing required inputs or missing S5 PASS receipt aborts; deterministic empties use reason codes and continue unless `--fail-on-degrade` is set.
-- Currency resolution will use `merchant_currency` when present; if the dataset is absent entirely, treat it as `E_UPSTREAM_GATE` because the spec provides no alternate currency authority. If present but missing rows, treat as a structural failure (align with S5 cardinality semantics). If you want a fallback (e.g., iso_legal_tender), this must be agreed before coding.
+- Currency resolution will use `merchant_currency` when present. If `merchant_currency` is absent entirely, proceed only when `ccy_country_weights_cache` has exactly one currency and use that single currency for all merchants; if multiple currencies are present, fail closed as `E_UPSTREAM_GATE` because the spec provides no alternate currency authority. If `merchant_currency` is present but missing rows, treat as a structural failure (align with S5 cardinality semantics). If you want a multi-currency fallback, this must be agreed before coding.
 - Logging mode obeys policy `log_all_candidates`; validator must support both full logging and counter-replay mode.
 - Membership dataset emitted only when policy `emit_membership_dataset` is true; membership is convenience-only and must not encode inter-country order.
 - CLI flags for emit-membership/log-all-candidates will be accepted only if they match policy values to avoid parameter_hash drift; mismatch fails fast.
@@ -1890,3 +1890,109 @@ Plan before editing:
 8) CLI + Makefile wiring:
    - Add `engine.cli.s6_foreign_set` (name TBD) with `--run-id`, `--validate-only`, `--fail-on-degrade`, and optional overrides that must match policy.
    - Add Makefile target `segment1a-s6` with RUNS_ROOT/RUN_ID handling aligned with earlier states.
+
+### Entry: 2026-01-11 21:45 (pre-implementation update)
+
+Design element: S6 policy interpretation & optional merchant_currency handling
+Summary: Clarify how per-currency policy overrides and the optional `merchant_currency` input will be handled before implementing S6.
+
+Decisions (pre-implementation update):
+- `merchant_currency` is optional. If the dataset is absent, S6 will proceed only when `ccy_country_weights_cache` exposes exactly one currency; that single currency will be applied to all merchants (logged as a deterministic fallback). If multiple currencies exist and `merchant_currency` is absent, S6 will fail closed with `E_UPSTREAM_GATE` because currency authority is ambiguous.
+- If `merchant_currency` is present but missing rows for any merchant in the S3 universe, treat this as a structural failure (`E_UPSTREAM_GATE`) rather than silently defaulting.
+- `emit_membership_dataset` is treated as a run-level switch. If any per-currency override attempts to flip `emit_membership_dataset` relative to defaults, treat the policy as inconsistent and fail with `E_POLICY_CONFLICT` rather than emitting a partial membership surface.
+- `log_all_candidates` and `dp_score_print` remain global-only per schema; any override attempt is a policy validation failure.
+
+Implementation guardrails:
+- When outputs already exist, S6 will validate (including RNG trace reconciliation) and return without re-emitting to preserve resumability and write-once semantics.
+- Output logging will follow the S6 story (gates, domain construction, selection, shortfall, receipt) with progress counters for per-merchant loops.
+
+### Entry: 2026-01-11 22:09 (brainstorming detail before coding)
+
+Design element: S6 end-to-end runner design (selection, RNG events, validation, receipt)
+Summary: Capture the full S6 design reasoning before implementing the runner, validator, CLI, and Makefile wiring.
+
+Inputs, authorities, and gates (explicit):
+- Parameter-scoped inputs (partition key = parameter_hash): `s3_candidate_set`, `crossborder_eligibility_flags`, `ccy_country_weights_cache`, optional `merchant_currency`.
+- Log-scoped inputs (seed/parameter_hash/run_id): `rng_event_ztp_final`, `rng_audit_log`, `rng_trace_log` (append-only).
+- Fingerprint-scoped input: `iso3166_canonical_2024` (sealed input, used to validate ISO values).
+- S5 PASS gate is mandatory: `S5_VALIDATION.json` + `_passed.flag` under the weights cache partition; no PASS, no read.
+- S0 gate receipt must match manifest_fingerprint, parameter_hash, run_id (path/embed equality).
+
+Policy handling (schema + deterministic resolution):
+- Load `config/layer1/1A/policy.s6.selection.yaml` from sealed inputs and validate against `schemas.layer1.yaml#/policy/s6_selection` (additionalProperties=false).
+- Enforce uppercase ISO-4217 keys for `per_currency` overrides. Unknown keys or malformed codes => `E_POLICY_DOMAIN`.
+- Enforce global-only keys: `log_all_candidates` and `dp_score_print` cannot be overridden; override attempts => schema failure.
+- Treat `emit_membership_dataset` as a run-level switch. If any override flips it relative to defaults, fail with `E_POLICY_CONFLICT` (avoid partial membership surface).
+- Compute policy_digest as sha256 of policy file bytes (single-file policy set). If policy set grows, compute over all files in ASCII-basename order.
+- Effective policy per merchant = per_currency override (if present) else defaults.
+
+Candidate domain construction (per merchant):
+- Start with S3 candidate set (sorted by candidate_rank). Enforce ranks contiguous with home at rank 0 and exactly one home row.
+- Foreign domain = candidates where is_home == false.
+- Apply max_candidates_cap > 0 by truncating foreign domain to the first N by candidate_rank.
+- Resolve merchant currency:
+  - If `merchant_currency` present: use `kappa` per merchant; missing rows => `E_UPSTREAM_GATE`.
+  - If `merchant_currency` absent: proceed only if weights cache has exactly one currency and use it for all merchants; else `E_UPSTREAM_GATE`.
+- Intersect foreign domain with weights for that currency; any candidate with missing weight is excluded from the considered set.
+- Apply zero_weight_rule:
+  - exclude: drop weight == 0 from considered set (no event emitted).
+  - include: keep weight == 0 in considered set, but mark ineligible for selection; must emit event with key=null and selected=false.
+- Define counts:
+  - A = number of foreign candidates from S3 (pre-cap).
+  - A_filtered = number of considered candidates after cap and weight filters.
+  - Eligible = considered with weight > 0.
+
+Selection logic (per merchant):
+- Read K_target from the single `rng_event_ztp_final` row (must be exactly one per eligible merchant).
+- Determine reason_code:
+  - NO_CANDIDATES if A == 0.
+  - K_ZERO if K_target == 0.
+  - ZERO_WEIGHT_DOMAIN if Eligible empty after policy.
+  - CAPPED_BY_MAX_CANDIDATES if cap applied and selection otherwise proceeds.
+  - none otherwise.
+- If reason_code in {NO_CANDIDATES, K_ZERO, ZERO_WEIGHT_DOMAIN}, produce deterministic empty selection and skip events.
+- Otherwise:
+  - Renormalize weights on the eligible subset only (binary64); store weight_norm per considered candidate (zero if weight==0).
+  - Derive per-candidate RNG substream using merchant_u64 + country_iso (UER/SHA256 as in S1/S0).
+  - Draw open-interval u in (0,1); compute key = ln(weight_norm) - ln(-ln u) when weight_norm > 0, else key=null.
+  - Select top K_target by key desc, tie-break candidate_rank asc then ISO A-Z.
+  - K_realized = min(K_target, |Eligible|); shortfall if |Eligible| < K_target.
+
+Event emission (rng_event.gumbel_key):
+- If log_all_candidates true: emit one event per considered candidate (A_filtered), ordered by candidate_rank (after cap/filter).
+- If log_all_candidates false: emit events only for selected candidates; validator must counter-replay.
+- Each event includes full RNG envelope (before/after, blocks=1, draws="1"), merchant_id, country_iso, weight_norm, u, key, selected, and selection_order only when selected.
+- For weight==0 and zero_weight_rule=include: key=null, selected=false, no selection_order.
+- Append one rng_trace_log row after each event using a cumulative accumulator (blocks_total/draws_total/events_total).
+
+Outputs:
+- Optional `s6_membership` dataset: one row per selected (merchant_id, country_iso) with seed, parameter_hash, produced_by_fingerprint. Sorted by merchant_id,country_iso. No inter-country order encoded.
+- S6 receipt folder: `S6_VALIDATION.json` + `_passed.flag` (sha256 over receipt file). Must be seed+parameter scoped.
+- All writes are atomic. If outputs already exist for the run_id, validate and return without rewriting.
+
+Validation strategy (run-time and resume):
+- Structural validation:
+  - S3 candidate set schema, S5 weights schema, optional merchant_currency schema, crossborder_eligibility_flags schema.
+  - rng_event.gumbel_key JSON schema; rng_trace_log schema.
+  - Path/embed equality for seed, parameter_hash, run_id, manifest_fingerprint where required.
+- Content validation:
+  - Candidate ranks contiguous with home at 0.
+  - Exactly one ztp_final per eligible merchant, no extra ztp_final for ineligible merchants.
+  - Event count: A_filtered if log_all_candidates true, else K_realized.
+  - Selection set matches recomputed keys; selection_order and selected flag match.
+  - Membership set equals selected set (when emitted); no duplicate PKs.
+- RNG trace reconciliation:
+  - One trace row per event, counters and totals match events.
+  - Trace deltas are consistent with envelope before/after (no counter regression).
+- Counter-replay requirement:
+  - When log_all_candidates=false, recompute keys for all considered candidates and verify selected events match the top-K rule.
+
+Logging and performance:
+- Narrative logs describe each gate and the selection story: eligibility gate, domain size, policy mode, reason codes, shortfall.
+- Per-merchant progress logs include elapsed, rate, ETA. Use monotonic timers and log at a fixed cadence.
+- Summary log includes merchants_processed, events_written vs expected, shortfall count, reason_code distribution.
+
+CLI and Makefile wiring:
+- Add `engine.cli.s6_foreign_set` with `--run-id`, `--emit-membership-dataset`, `--log-all-candidates`, `--fail-on-degrade`, `--validate-only`.
+- CLI overrides must match policy; mismatch => `E_POLICY_CONFLICT`.
+- Add `segment1a-s6` / `engine-s6` targets with ENV variable support consistent with S0-S5.
