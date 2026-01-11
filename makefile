@@ -18,6 +18,7 @@ ENGINE_EXTERNAL_ROOTS ?=
 ENGINE_RUNS_ROOT ?= $(RUNS_ROOT)
 SEG1A_S0_SEED ?=
 SEG1A_S0_MERCHANT_VERSION ?=
+SEG1A_S1_RUN_ID ?= $(RUN_ID)
 
 # ---------------------------------------------------------------------------
 # Run defaults
@@ -250,6 +251,21 @@ ifneq ($(strip $(SEG1A_S0_MERCHANT_VERSION)),)
 SEG1A_S0_ARGS += --merchant-ids-version $(SEG1A_S0_MERCHANT_VERSION)
 endif
 SEG1A_S0_CMD = $(PY_ENGINE) -m engine.cli.s0_foundations $(SEG1A_S0_ARGS)
+
+SEG1A_S1_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S1_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S1_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S1_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1A_S1_RUN_ID)),)
+SEG1A_S1_ARGS += --run-id $(SEG1A_S1_RUN_ID)
+endif
+SEG1A_S1_CMD = $(PY_ENGINE) -m engine.cli.s1_hurdle $(SEG1A_S1_ARGS)
 
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
@@ -894,6 +910,12 @@ segment1a-s0:
 	@$(SEG1A_S0_CMD)
 
 engine-s0: segment1a-s0
+
+segment1a-s1:
+	@echo "Running Segment 1A S1 hurdle sampler"
+	@$(SEG1A_S1_CMD)
+
+engine-s1: segment1a-s1
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"

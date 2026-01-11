@@ -6,7 +6,7 @@ from typing import Any, Iterable
 
 from jsonschema import Draft202012Validator
 
-from engine.core.errors import ContractError, InputResolutionError
+from engine.core.errors import ContractError, SchemaValidationError
 
 
 _TYPE_MAP = {
@@ -108,15 +108,26 @@ def validate_dataframe(
     schema = table_to_jsonschema(schema_pack, table_name)
     row_schema = _table_row_schema(schema_pack, table_name)
     validator = Draft202012Validator(row_schema)
-    errors = []
+    errors: list[dict[str, Any]] = []
     for index, row in enumerate(rows):
         for error in validator.iter_errors(row):
-            errors.append(f"row {index}: {error.message}")
+            field = ".".join(str(part) for part in error.path) if error.path else ""
+            errors.append(
+                {
+                    "row_index": index,
+                    "field": field,
+                    "message": error.message,
+                }
+            )
             if len(errors) >= max_errors:
                 break
         if errors and len(errors) >= max_errors:
             break
     if errors:
-        raise InputResolutionError(
-            "Ingress schema validation failed:\n" + "\n".join(errors)
+        lines = [
+            f"row {item['row_index']}: {item['field']} {item['message']}".strip()
+            for item in errors
+        ]
+        raise SchemaValidationError(
+            "Ingress schema validation failed:\n" + "\n".join(lines), errors
         )

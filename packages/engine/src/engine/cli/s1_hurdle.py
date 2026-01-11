@@ -1,4 +1,4 @@
-"""CLI for Segment 1A S0 foundations."""
+"""CLI for Segment 1A S1 hurdle sampler."""
 
 from __future__ import annotations
 
@@ -8,33 +8,35 @@ from pathlib import Path
 
 from engine.core.config import EngineConfig
 from engine.core.logging import get_logger
-from engine.layers.l1.seg_1A.s0_foundations.runner import run_s0
+from engine.layers.l1.seg_1A.s1_hurdle.runner import run_s1
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run Segment 1A S0 foundations.")
-    parser.add_argument("--contracts-layout", default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"))
+    parser = argparse.ArgumentParser(description="Run Segment 1A S1 hurdle sampler.")
+    parser.add_argument(
+        "--contracts-layout",
+        default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"),
+    )
     parser.add_argument("--contracts-root", default=os.getenv("ENGINE_CONTRACTS_ROOT"))
     parser.add_argument("--runs-root", default=os.getenv("ENGINE_RUNS_ROOT"))
     parser.add_argument(
         "--external-root",
         action="append",
-        default=os.getenv("ENGINE_EXTERNAL_ROOTS", "").split(";") if os.getenv("ENGINE_EXTERNAL_ROOTS") else [],
+        default=os.getenv("ENGINE_EXTERNAL_ROOTS", "").split(";")
+        if os.getenv("ENGINE_EXTERNAL_ROOTS")
+        else [],
         help="External roots for input resolution (repeatable or ';' delimited).",
     )
-    parser.add_argument("--seed", type=int, default=None, help="Override the run seed.")
-    parser.add_argument("--merchant-ids-version", default=None, help="Override merchant_ids version directory.")
     parser.add_argument(
-        "--emit-hurdle-pi-probs",
-        action=argparse.BooleanOptionalAction,
-        default=os.getenv("ENGINE_EMIT_HURDLE_PI", "1").lower() not in ("0", "false", "no"),
-        help="Emit optional hurdle_pi_probs diagnostics (default: enabled).",
+        "--run-id",
+        default=os.getenv("ENGINE_RUN_ID"),
+        help="Run id to resume; defaults to newest run_receipt.json if omitted.",
     )
     return parser
 
 
 def main() -> None:
-    logger = get_logger("engine.cli.s0")
+    logger = get_logger("engine.cli.s1")
     args = build_parser().parse_args()
     cfg = EngineConfig.default()
     runs_root = Path(args.runs_root) if args.runs_root else cfg.runs_root
@@ -57,14 +59,9 @@ def main() -> None:
     external_roots = [Path(root) for root in args.external_root if root]
     if external_roots:
         cfg = cfg.with_external_roots(external_roots)
-    result = run_s0(
-        cfg,
-        seed_override=args.seed,
-        merchant_ids_version=args.merchant_ids_version,
-        emit_hurdle_pi_probs=args.emit_hurdle_pi_probs,
-    )
+    result = run_s1(cfg, run_id=args.run_id)
     logger.info(
-        "S0 complete: run_id=%s parameter_hash=%s manifest_fingerprint=%s",
+        "S1 complete: run_id=%s parameter_hash=%s manifest_fingerprint=%s",
         result.run_id,
         result.parameter_hash,
         result.manifest_fingerprint,

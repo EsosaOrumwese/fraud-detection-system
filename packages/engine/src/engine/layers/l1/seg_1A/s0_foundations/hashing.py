@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Iterable
 
 from engine.core.errors import HashingError
-from engine.core.hashing import FileDigest, sha256_concat, sha256_file
+from engine.core.hashing import FileDigest, sha256_file
 
 
 REQUIRED_PARAM_BASENAMES = {
@@ -56,17 +56,17 @@ def _validate_ascii_basenames(names: Iterable[str]) -> list[str]:
     return names_list
 
 
-def _hash_named_digests(named: Iterable[NamedDigest]) -> bytes:
+def _concat_named_digests(named: Iterable[NamedDigest]) -> list[bytes]:
     items = sorted(named, key=lambda item: item.name)
     basenames = _validate_ascii_basenames([item.name for item in items])
-    parts = []
+    parts: list[bytes] = []
     for name, item in zip(basenames, items):
         parts.append(
             hashlib.sha256(
                 _uer_string(name) + bytes.fromhex(item.digest.sha256_hex)
             ).digest()
         )
-    return sha256_concat(parts)
+    return parts
 
 
 def load_param_digests(param_paths: Iterable[NamedPath]) -> list[NamedDigest]:
@@ -89,8 +89,8 @@ def compute_parameter_hash(
     if extra:
         raise HashingError(f"Unexpected parameter files: {sorted(extra)}")
     named = load_param_digests(paths)
-    digest_bytes = _hash_named_digests(named)
-    parameter_hash_bytes = hashlib.sha256(digest_bytes).digest()
+    parts = _concat_named_digests(named)
+    parameter_hash_bytes = hashlib.sha256(b"".join(parts)).digest()
     return parameter_hash_bytes.hex(), parameter_hash_bytes, named
 
 
@@ -99,9 +99,13 @@ def compute_manifest_fingerprint(
 ) -> tuple[str, bytes]:
     if len(git_32) != 32:
         raise HashingError("git_32 must be 32 raw bytes.")
-    digest_bytes = _hash_named_digests(artifact_digests)
-    manifest_bytes = sha256_concat([digest_bytes, git_32, parameter_hash_bytes])
-    manifest_fingerprint_bytes = hashlib.sha256(manifest_bytes).digest()
+    parts = _concat_named_digests(artifact_digests)
+    hasher = hashlib.sha256()
+    for part in parts:
+        hasher.update(part)
+    hasher.update(git_32)
+    hasher.update(parameter_hash_bytes)
+    manifest_fingerprint_bytes = hasher.digest()
     return manifest_fingerprint_bytes.hex(), manifest_fingerprint_bytes
 
 
