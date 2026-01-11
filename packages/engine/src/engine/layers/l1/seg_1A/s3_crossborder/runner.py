@@ -1479,7 +1479,11 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
         count_rows = []
         site_rows = []
 
-        logger.info("S3: processing merchants=%d", total)
+        logger.info(
+            "S3: building crossborder candidates/priors for multi-site merchants "
+            "(S1 is_multi=true); targets=%d",
+            total,
+        )
         for idx, merchant_id in enumerate(merchant_ids, start=1):
             if idx % progress_every == 0 or idx == total:
                 elapsed = max(time.monotonic() - start_time, 1e-9)

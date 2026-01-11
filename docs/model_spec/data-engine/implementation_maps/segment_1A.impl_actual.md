@@ -1293,3 +1293,32 @@ Actions taken:
 
 Expected outcome:
 - `make segment1a-s4` should complete without `ValueError: I/O operation on closed file` and produce the S4 metrics JSONL at the dictionary-resolved path.
+
+### Entry: 2026-01-11 17:15 (pre-implementation decisions)
+
+Design element: State log lines should explain the flow and scope
+Summary: Improve S2/S3/S4 progress/start log messages so they narrate the state flow and clarify what the counts represent (gates, scope, and outputs), and codify this requirement in AGENTS.md.
+
+Decision details:
+- Update pre-loop log lines to explicitly state the gating criteria and what the loop is doing (e.g., “multi-site merchants from S1 is_multi”, “eligible merchants from S3 is_eligible with home row”, “ZTP sampling for eligible multi-site merchants”).
+- Keep progress cadence the same, but ensure the initial line explains the meaning of the total count and the outputs being produced so the operator can follow the story.
+- Update AGENTS.md to require that state logs narrate the flow and define the scope for any counts or progress metrics.
+
+Plan before editing:
+1. Adjust S2 log line “emitting NB events for multi merchants=…” to include the gating definition and output being produced.
+2. Adjust S3 log line “processing merchants=…” to include that it’s building crossborder candidates/priors for multi-site merchants and that the count is the gated set.
+3. Adjust S4 log line “merchants_in_scope=…” to describe the ZTP loop scope (multi + eligible + has home row + nb_final).
+4. Update AGENTS.md to require narrative, state-flow aligned logs (counts must be labeled with gate definitions and stage intent).
+
+### Entry: 2026-01-11 17:18 (implementation update)
+
+Design element: Narrative log context for S2/S3/S4 loops
+Summary: Updated pre-loop log lines to explain the scope and gate definitions behind merchant counts, and codified the requirement in AGENTS.md.
+Changes applied:
+- S2 log line now reads as a narrative: entering NB sampling loop for multi-site merchants (S1 is_multi=true) with the target count.
+- S3 log line now clarifies it is building crossborder candidates/priors for multi-site merchants (S1 is_multi=true), with the target count.
+- S4 log line now clarifies it is entering the ZTP loop for eligible multi-site merchants (S1 is_multi=true, S3 is_eligible=true, has nb_final + home row), with the target count.
+- Updated root `AGENTS.md` and `packages/engine/AGENTS.md` to require that count/progress logs explain scope, gates, and stage purpose.
+
+Expected operator impact:
+- Console logs now tell the story of each state’s scope and outputs, making it easier to interpret progress vs. problems without diving into code.

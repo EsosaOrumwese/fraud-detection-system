@@ -1430,7 +1430,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2RunResult:
         total = multi_count
         progress_every = max(1, min(10_000, total // 10 if total else 1))
         start_time = time.monotonic()
-        timer.info(f"S2: emitting NB events for multi merchants={multi_count}")
+        timer.info(
+            "S2: entering NB sampling loop for multi-site merchants "
+            f"(S1 is_multi=true); targets={multi_count}"
+        )
 
         tmp_dir = run_paths.tmp_root / "s2_nb_outlets"
         tmp_dir.mkdir(parents=True, exist_ok=True)

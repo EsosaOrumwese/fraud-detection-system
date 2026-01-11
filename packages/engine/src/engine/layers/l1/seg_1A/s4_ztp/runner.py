@@ -1010,7 +1010,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
         total = len(scope_merchants)
         progress_every = max(1, min(10_000, total // 10 if total else 1))
         start_time = time.monotonic()
-        logger.info("S4: merchants_in_scope=%s", total)
+        logger.info(
+            "S4: entering ZTP loop for eligible multi-site merchants "
+            "(S1 is_multi=true, S3 is_eligible=true, has nb_final + home row); "
+            "targets=%s",
+            total,
+        )
 
         if total == 0:
             timer.info("S4: no eligible merchants; no outputs emitted")
