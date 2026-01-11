@@ -9,6 +9,8 @@ from typing import Optional
 
 _CONFIGURED = False
 _FILE_HANDLERS: dict[str, logging.Handler] = {}
+_LOG_FORMAT = "%(asctime)s,%(msecs)03d [%(levelname)s] %(name)s: %(message)s"
+_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def configure_logging(level: int = logging.INFO) -> None:
@@ -18,8 +20,8 @@ def configure_logging(level: int = logging.INFO) -> None:
         return
     logging.basicConfig(
         level=level,
-        format="%(asctime)sZ %(levelname)s %(name)s - %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
+        format=_LOG_FORMAT,
+        datefmt=_DATE_FORMAT,
     )
     _CONFIGURED = True
 
@@ -35,8 +37,8 @@ def add_file_handler(path: Path, level: int = logging.INFO) -> None:
     handler.setLevel(level)
     handler.setFormatter(
         logging.Formatter(
-            "%(asctime)sZ %(levelname)s %(name)s - %(message)s",
-            datefmt="%Y-%m-%dT%H:%M:%S",
+            _LOG_FORMAT,
+            datefmt=_DATE_FORMAT,
         )
     )
     logging.getLogger().addHandler(handler)

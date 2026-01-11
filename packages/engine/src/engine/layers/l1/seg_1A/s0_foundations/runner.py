@@ -44,6 +44,7 @@ from engine.layers.l1.seg_1A.s0_foundations.outputs import (
     S0Outputs,
     write_gate_receipt,
     write_rng_logs,
+    write_run_receipt,
     write_sealed_inputs,
 )
 from engine.layers.l1.seg_1A.s0_foundations.rng import build_anchor_event
@@ -59,6 +60,20 @@ class S0RunResult:
     manifest_fingerprint: str
     outputs: S0Outputs
     context: RunContext
+
+
+class _StepTimer:
+    def __init__(self, logger) -> None:
+        self._logger = logger
+        self._start = time.monotonic()
+        self._last = self._start
+
+    def info(self, message: str) -> None:
+        now = time.monotonic()
+        elapsed = now - self._start
+        delta = now - self._last
+        self._last = now
+        self._logger.info("%s (elapsed=%.2fs, delta=%.2fs)", message, elapsed, delta)
 
 
 def _load_yaml(path: Path) -> dict:
@@ -328,6 +343,8 @@ def run_s0(
     merchant_ids_version: Optional[str] = None,
 ) -> S0RunResult:
     logger = get_logger("engine.s0")
+    timer = _StepTimer(logger)
+    timer.info("S0: run initialised")
     logger.info(
         "Contracts layout=%s root=%s", config.contracts_layout, config.contracts_root
     )
@@ -342,7 +359,7 @@ def run_s0(
     schema_layer1_path, _schema_layer1 = load_schema_pack(source, "1A", "layer1")
 
     seed, seed_path = _load_seed(seed_override, config.repo_root)
-    logger.info("Resolved seed=%s (path=%s)", seed, seed_path or "cli_override")
+    timer.info(f"S0: resolved seed={seed} (path={seed_path or 'cli_override'})")
     ref_assets = resolve_reference_inputs(
         dictionary,
         run_paths=RunPaths(config.runs_root, run_id="pre-run"),
@@ -350,7 +367,7 @@ def run_s0(
         merchant_ids_version=merchant_ids_version,
         allow_run_local=False,
     )
-    logger.info("Resolved %d reference inputs.", len(ref_assets))
+    timer.info(f"S0: resolved {len(ref_assets)} reference inputs")
 
     iso_path = next(
         asset.path for asset in ref_assets if asset.asset_id == "iso3166_canonical_2024"
@@ -380,14 +397,14 @@ def run_s0(
     )
     merchant_df = _validate_merchants(merchant_df, iso_set, ingress_schema)
     merchant_df = _attach_channel_and_u64(merchant_df)
-    logger.info("Loaded merchant universe rows=%d", merchant_df.height)
+    timer.info(f"S0: loaded merchant universe rows={merchant_df.height}")
 
     param_files, param_name_map = _resolve_param_files(registry, config.repo_root)
-    logger.info("Resolved %d parameter files.", len(param_files))
+    timer.info(f"S0: resolved {len(param_files)} parameter files")
     parameter_hash, parameter_hash_bytes, _param_digests = compute_parameter_hash(
         param_files
     )
-    logger.info("Computed parameter_hash %s", parameter_hash)
+    timer.info(f"S0: computed parameter_hash={parameter_hash}")
 
     opened_artifacts: list[NamedDigest] = []
     opened_paths: dict[Path, FileDigest] = {}
@@ -430,7 +447,7 @@ def run_s0(
     manifest_fingerprint, manifest_bytes = compute_manifest_fingerprint(
         opened_artifacts, git_bytes, parameter_hash_bytes
     )
-    logger.info("Computed manifest_fingerprint %s", manifest_fingerprint)
+    timer.info(f"S0: computed manifest_fingerprint={manifest_fingerprint}")
 
     t_ns = time.time_ns()
     run_id = None
@@ -452,7 +469,19 @@ def run_s0(
     run_paths = RunPaths(config.runs_root, run_id)
     run_log_path = run_paths.run_root / f"run_log_{run_id}.log"
     add_file_handler(run_log_path)
-    logger.info("Run log initialized at %s", run_log_path)
+    timer.info(f"S0: run log initialized at {run_log_path}")
+    write_run_receipt(
+        run_paths.run_root / "run_receipt.json",
+        run_id=run_id,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        contracts_layout=config.contracts_layout,
+        contracts_root=config.contracts_root,
+        runs_root=config.runs_root,
+        external_roots=config.external_roots,
+        created_utc=utc_now_rfc3339_micro(),
+    )
 
     outputs = _build_output_paths(
         run_paths,
@@ -462,7 +491,7 @@ def run_s0(
         manifest_fingerprint=manifest_fingerprint,
         run_id=run_id,
     )
-    logger.info("Output root: %s", run_paths.run_root)
+    timer.info(f"S0: output root ready at {run_paths.run_root}")
 
     sealed_assets: list[InputAsset] = []
     sealed_assets.extend(ref_assets)
@@ -562,7 +591,7 @@ def run_s0(
         gdp_bucket_map=gdp_bucket_map,
         channel_map=CHANNEL_MAP,
     )
-    logger.info("S0 foundations complete for run_id=%s", run_id)
+    timer.info(f"S0: foundations complete (run_id={run_id})")
     return S0RunResult(
         run_id=run_id,
         parameter_hash=parameter_hash,

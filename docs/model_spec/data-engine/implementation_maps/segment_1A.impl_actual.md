@@ -275,6 +275,29 @@ Plan:
   lambdas and remove PolarsInefficientMapWarning.
 - Keep merchant_u64 mapping unchanged (requires custom hash).
 
+### Entry: 2026-01-11 01:43
+
+Design element: Run resume ergonomics (dev mode)
+Summary: Add a run receipt and Makefile support to resume by RUN_ID without breaking run-id semantics.
+Plan:
+- Write `run_receipt.json` into `runs_root/<run_id>/` after run_id is computed,
+  containing run_id, seed, parameter_hash, manifest_fingerprint, contract
+  source settings, external roots, and creation time.
+- Adjust Makefile defaults to separate `RUNS_ROOT` (base) and `RUN_ID`, and
+  derive `RUN_ROOT` as `$(RUNS_ROOT)/$(RUN_ID)` when a RUN_ID is provided.
+- Keep S0 writing under `RUNS_ROOT/<run_id>`; downstream segments can resume by
+  setting `RUN_ID=<id>` without changing seed or contracts.
+
+### Entry: 2026-01-11 01:54
+
+Design element: Log readability + progress timing
+Summary: Align log formatting to legacy run logs and add elapsed/delta timing for S0 steps.
+Plan:
+- Switch the global logging formatter to `%(asctime)s,%(msecs)03d [LEVEL] logger: msg`
+  with `YYYY-MM-DD HH:MM:SS` timestamps to match legacy style.
+- Add an S0 step timer that logs elapsed and delta seconds for each major phase.
+- Keep the structured log content; only change formatting and add timing suffixes.
+
 ## S1 - Hurdle (placeholder)
 No entries yet.
 

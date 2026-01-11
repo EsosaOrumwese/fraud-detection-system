@@ -79,6 +79,32 @@ def write_gate_receipt(
     _write_json(receipt_path, payload)
 
 
+def write_run_receipt(
+    receipt_path: Path,
+    run_id: str,
+    seed: int,
+    parameter_hash: str,
+    manifest_fingerprint: str,
+    contracts_layout: str,
+    contracts_root: Path,
+    runs_root: Path,
+    external_roots: Iterable[Path],
+    created_utc: str,
+) -> None:
+    payload = {
+        "run_id": run_id,
+        "seed": seed,
+        "parameter_hash": parameter_hash,
+        "manifest_fingerprint": manifest_fingerprint,
+        "contracts_layout": contracts_layout,
+        "contracts_root": contracts_root.as_posix(),
+        "runs_root": runs_root.as_posix(),
+        "external_roots": [path.as_posix() for path in external_roots],
+        "created_utc": created_utc,
+    }
+    _write_json(receipt_path, payload)
+
+
 def write_rng_logs(
     anchor_path: Path,
     audit_path: Path,

@@ -15,14 +15,16 @@ PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
 ENGINE_CONTRACTS_LAYOUT ?= model_spec
 ENGINE_CONTRACTS_ROOT ?=
 ENGINE_EXTERNAL_ROOTS ?=
-ENGINE_RUNS_ROOT ?= $(RUN_ROOT)
+ENGINE_RUNS_ROOT ?= $(RUNS_ROOT)
 SEG1A_S0_SEED ?=
 SEG1A_S0_MERCHANT_VERSION ?=
 
 # ---------------------------------------------------------------------------
 # Run defaults
 # ---------------------------------------------------------------------------
-RUN_ROOT ?= runs/local_full_run-5
+RUNS_ROOT ?= runs/local_full_run-5
+RUN_ID ?=
+RUN_ROOT ?= $(if $(strip $(RUN_ID)),$(RUNS_ROOT)/$(RUN_ID),$(RUNS_ROOT))
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
@@ -34,8 +36,7 @@ SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
-RUN_ID ?= 00000000000000000000000000000005
-LOG ?= $(RUN_ROOT)/run_log_run-5.log
+LOG ?= $(if $(strip $(RUN_ID)),$(RUN_ROOT)/run_log_$(RUN_ID).log,$(RUN_ROOT)/run_log_run-5.log)
 SEED ?= 2026011001
 SKIP_SEG1A ?= 0
 SKIP_SEG1B ?= 0
@@ -49,6 +50,20 @@ SKIP_SEG6A ?= 0
 SKIP_SEG6B ?= 0
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
+
+# ---------------------------------------------------------------------------
+# Run helpers
+# ---------------------------------------------------------------------------
+LATEST_RUN_ID = $(shell $(PY_SCRIPT) -c "import json, pathlib; root = pathlib.Path('$(RUNS_ROOT)'); ids = sorted([p.name for p in root.glob('*/run_receipt.json')], key=lambda name: (root / name / 'run_receipt.json').stat().st_mtime); print(ids[-1] if ids else '')")
+
+.PHONY: latest-run-id
+latest-run-id:
+	@latest="$(LATEST_RUN_ID)"; \
+	if [ -z "$$latest" ]; then \
+		echo "No run_receipt.json files found under $(RUNS_ROOT)." >&2; \
+		exit 1; \
+	fi; \
+	echo "$$latest"
 
 # ---------------------------------------------------------------------------
 # Derived run paths
