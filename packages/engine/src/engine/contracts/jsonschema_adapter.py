@@ -24,6 +24,39 @@ _TYPE_MAP = {
 }
 
 
+def _item_schema(item: dict[str, Any]) -> dict[str, Any]:
+    schema: dict[str, Any] = {}
+    ref = item.get("$ref")
+    if ref:
+        schema = {"$ref": ref}
+    else:
+        item_type = item.get("type")
+        if not item_type:
+            raise ContractError(f"Array items missing type or $ref: {item}")
+        if item_type not in _TYPE_MAP:
+            raise ContractError(
+                f"Unsupported array item type '{item_type}' for JSON Schema adapter."
+            )
+        schema = {"type": _TYPE_MAP[item_type]}
+        if item_type == "date":
+            schema["format"] = "date"
+        if item_type == "datetime":
+            schema["format"] = "date-time"
+    for key in (
+        "pattern",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "enum",
+        "minLength",
+        "maxLength",
+    ):
+        if key in item:
+            schema[key] = item[key]
+    return schema
+
+
 def _column_schema(column: dict[str, Any]) -> dict[str, Any]:
     schema: dict[str, Any] = {}
     ref = column.get("$ref")
@@ -33,13 +66,22 @@ def _column_schema(column: dict[str, Any]) -> dict[str, Any]:
         col_type = column.get("type")
         if not col_type:
             raise ContractError(f"Column missing type or $ref: {column}")
-        if col_type not in _TYPE_MAP:
+        if col_type == "array":
+            items = column.get("items")
+            if not items or not isinstance(items, dict):
+                raise ContractError(f"Array column missing items: {column}")
+            schema = {"type": "array", "items": _item_schema(items)}
+            for key in ("minItems", "maxItems", "uniqueItems"):
+                if key in column:
+                    schema[key] = column[key]
+        elif col_type not in _TYPE_MAP:
             raise ContractError(f"Unsupported column type '{col_type}' for JSON Schema adapter.")
-        schema = {"type": _TYPE_MAP[col_type]}
-        if col_type == "date":
-            schema["format"] = "date"
-        if col_type == "datetime":
-            schema["format"] = "date-time"
+        else:
+            schema = {"type": _TYPE_MAP[col_type]}
+            if col_type == "date":
+                schema["format"] = "date"
+            if col_type == "datetime":
+                schema["format"] = "date-time"
     for key in ("pattern", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "enum", "minLength", "maxLength"):
         if key in column:
             schema[key] = column[key]

@@ -20,6 +20,7 @@ REQUIRED_PARAM_BASENAMES = {
     "policy.s3.rule_ladder.yaml",
     "s6_selection_policy.yaml",
     "s7_integerisation_policy.yaml",
+    "policy.s3.integerisation.yaml",
 }
 
 OPTIONAL_PARAM_BASENAMES = {

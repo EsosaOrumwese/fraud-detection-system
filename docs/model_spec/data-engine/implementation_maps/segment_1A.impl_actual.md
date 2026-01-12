@@ -2591,3 +2591,145 @@ Open questions (need user decision before implementation):
 2) **Outlet partition key mismatch:** Should we update `schemas.1A.yaml` to use `manifest_fingerprint` (align with dictionary/spec), or treat dictionary as authoritative and leave schema as-is?
 3) **Overflow failure scope:** Spec says “fail the merchant” on overflow; do you want the overall S8 run to still pass (with missing merchants) or fail the entire run?
 4) **single_vs_multi_flag derivation:** OK to set `single_vs_multi_flag=true` for all emitted rows (since S8 writes only multi-site merchants), or should we explicitly read `rng_event.hurdle_bernoulli` to set/verify it?
+
+### Entry: 2026-01-12 06:08
+
+Design element: S8 implementation decisions (approved)
+Summary: User approved the S8 review recommendations; locking concrete implementation choices before code changes.
+
+Decisions (binding for implementation):
+- **Counts handoff (Variant B):** Implement an internal S7→S8 handoff file under `runs/<run_id>/tmp/s7_integerisation/` containing per-(merchant,country) integer counts and residual_rank. S8 will read this file when `s3_integerised_counts` is absent. This is an implementation detail, not a contract dataset.
+- **Schema alignment:** Update `schemas.1A.yaml` `outlet_catalogue.partition_keys` to `[seed, manifest_fingerprint]` to match the dictionary/spec (and the column name).
+- **Overflow scope:** Overflow is merchant-scoped. Emit `rng_event.site_sequence_overflow` and **skip egress rows for that merchant**, but allow the overall S8 run to complete (the validator will flag overflow merchants in metrics).
+- **single_vs_multi_flag:** Set `single_vs_multi_flag=true` for all emitted rows (S8 writes only multi-site merchants); do not read `rng_event.hurdle_bernoulli` in S8.
+
+Implementation notes (pre-code):
+- The handoff file will be staged and atomically replaced (to avoid partial reads) and will include lineage fields (`seed`, `parameter_hash`, `run_id`, `manifest_fingerprint`) to allow S8 to enforce parity even though it is not a contract artifact.
+- S8 will hard-fail if neither `s3_integerised_counts` nor the handoff file is present (spec forbids reconstructing counts from weights).
+
+### Entry: 2026-01-12 06:25
+
+Design element: S8 implementation kickoff (in-process)
+Summary: Begin coding the S8 runner/CLI/Makefile wiring using the approved decisions and the S7/S6 runner patterns.
+
+In-progress actions and reasoning (before finishing code):
+- Started the S8 runner scaffold with constants, `S8RunResult`, `_StepTimer`, `_TraceAccumulator`, and `_append_jsonl` to match the logging and RNG trace style used in S6/S7.
+- Next steps are to add the path resolution helpers, schema loaders, and the input loaders for candidate set, nb_final, ztp_final, membership, and counts (preferring `s3_integerised_counts` but falling back to the S7 handoff file when the dataset is missing).
+- The runner will enforce the exact spec gates: S6 PASS receipt before membership, path/embed lineage checks, contiguous candidate_rank, and counts sum check per merchant.
+- Output emission will write sequence_finalize/site_sequence_overflow events with non-consuming envelopes plus a trace row for each event, then materialize `outlet_catalogue` with a deterministic sort and PK guard.
+- After runner completion, wire `s8_outlet_catalogue` CLI + Makefile target, then run S0-S8 until green and log any failures/resolutions.
+
+### Entry: 2026-01-12 07:12
+
+Design element: S8 counts handoff failure triage (in-process, before code changes)
+Summary: Investigated the S8 `E_COUNTS_SOURCE_MISSING` failure and traced it to a handoff parser bug, then planned the fix and validation steps before touching code.
+
+Observed failure:
+- `make segment1a-s8` aborted with `F4:E_COUNTS_SOURCE_MISSING` (detail `counts_missing_merchant`) in `s8_outlet_catalogue`.
+- S8 log showed it fell back from `s3_integerised_counts` to S7 handoff due to counts outside domain, then failed to find counts for some merchants.
+
+Investigation steps and reasoning:
+1) **Checked S8 counts handoff loader.**
+   - Inspected `_load_counts_handoff` in `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`.
+   - Found a **critical indentation error**: all validation and accumulation logic was accidentally de-dented outside the per-line loop.
+   - Result: only the last payload line was processed; `counts_map` contained at most one merchant. That directly explains `counts_missing_merchant` for most merchants during the S8 loop.
+
+2) **Confirmed the failure path matches the bug.**
+   - S8 uses `counts_map.get(merchant_id)` for every merchant in scope; with the handoff map effectively empty, most merchants fail with missing counts.
+   - This aligns with the observed error and does not require any spec-level change.
+
+Decision (before code changes):
+- **Fix the indentation** so every JSONL line is validated and inserted into `counts_map`.
+- Keep all existing schema/lineage checks as-is, but ensure they are executed **inside** the per-line loop.
+- Re-run **S8 only** on the current run_id to verify the handoff is fully ingested and the merchant loop progresses.
+
+Planned validation after fix:
+- Re-run `make segment1a-s8` with the same `run_id` to confirm:
+  - `counts_missing_merchant` is resolved.
+  - Counts-domain checks are applied per line, not just the last line.
+  - Event/trace coverage metrics remain consistent with spec.
+
+### Entry: 2026-01-12 07:22
+
+Design element: S8 `E_SEQUENCE_DIVERGENCE` after counts handoff fix (root-cause + plan, before code changes)
+Summary: After fixing the handoff loader, S8 now fails on `E_SEQUENCE_DIVERGENCE` because `s3_site_sequence` exists but does not match S7’s counts/domain; this exposes a missing “ownership toggle” for S3 integerisation/sequence outputs.
+
+Observed failure:
+- S8 loads `s3_integerised_counts` (rows=58512), detects counts outside the S6/S7 domain, then falls back to S7 handoff.
+- S8 also loads `s3_site_sequence` (rows=41000) and hard-fails on `E_SEQUENCE_DIVERGENCE` (expected, because S3 sequencing was generated from S3 counts, not S7 membership).
+
+Root-cause reasoning:
+1) **Spec variants:** S3 spec defines Variant A (S3 owns integerisation + sequencing) and Variant B (sequencing deferred to later state). We are implementing Variant B (S7 owns integerisation; S8 owns sequencing).
+2) **Implementation gap:** S3 runner currently **always** emits `s3_integerised_counts` and `s3_site_sequence`, which is only valid for Variant A. When S7 owns allocation, those tables are non-authoritative and **must not** exist.
+3) **S8 compliance:** S8 spec requires hard failure if `s3_site_sequence` exists but diverges; the failure is correct given the current S3 outputs.
+
+Decision (before code changes):
+- Introduce an explicit **S3 integerisation/sequencing ownership policy** so Variant A vs B is deterministic and included in `parameter_hash`.
+- **Policy choice:** set `emit_integerised_counts=false` and `emit_site_sequence=false` (Variant B). This will shift outputs to S7/S8 as intended.
+- Update S3 runner to respect this policy (skip counts + site_sequence outputs entirely when disabled).
+- Update S8 runner to consult the policy: only attempt to read `s3_integerised_counts` / `s3_site_sequence` when the policy says they are emitted; otherwise use S7 handoff without falling back from S3.
+- Remove the current fallback from invalid `s3_integerised_counts` to S7; if policy says S3 is owner, invalid counts should **fail** per spec.
+- Re-run S0–S8 so the new policy is included in `parameter_hash`, ensuring S8 does not see stale `s3_site_sequence` from older hashes.
+
+Planned implementation steps:
+1) Add `config/layer1/1A/policy/s3.integerisation.yaml` (new policy with semver/version + emit flags).
+2) Add schema anchor `schemas.layer1.yaml#/policy/s3_integerisation` and register it in `artefact_registry_1A.yaml`.
+3) Include the new policy in S0 parameter hash (`_resolve_param_files`).
+4) Load policy in S3 runner and gate counts + site_sequence emission on the flags.
+5) Load policy in S8 runner and only read S3 counts/sequence when flags are true; remove fallback-from-invalid counts.
+
+### Entry: 2026-01-12 07:31
+
+Design element: S0 hashing allowlist update for new S3 integerisation policy (implementation + run fix)
+Summary: The first S0 re-run failed because `compute_parameter_hash` rejected the new policy file; updated the hashing allowlist to include it and re-ran.
+
+Observed failure:
+- `HashingError: Unexpected parameter files: ['policy.s3.integerisation.yaml']` during S0.
+- Root cause: `REQUIRED_PARAM_BASENAMES`/`OPTIONAL_PARAM_BASENAMES` in `s0_foundations/hashing.py` did not include the new policy basename.
+
+Decision and fix:
+- Added `policy.s3.integerisation.yaml` to `REQUIRED_PARAM_BASENAMES` so the new variant selector is always hashed.
+- Re-ran S0 successfully; new `parameter_hash` was computed with the policy included.
+
+Implementation detail:
+- File updated: `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/hashing.py`
+
+### Entry: 2026-01-12 07:33
+
+Design element: S3/S8 timer logging bugfix (formatting vs StepTimer.info)
+Summary: Both S3 and S8 failed immediately after introducing the new policy logs because `StepTimer.info()` only accepts a single string; fixed by using f-strings.
+
+Observed failures:
+- S3: `TypeError: _StepTimer.info() takes 2 positional arguments but 4 were given` at the new integerisation-policy log call.
+- S8: same error at the counts-handoff log call.
+
+Resolution:
+- Changed both log calls to `timer.info(f"...")` with interpolated values.
+- Re-ran S3 and then S8 on the same run_id; both progressed past the logging stage.
+
+Files updated:
+- `packages/engine/src/engine/layers/l1/seg_1A/s3_crossborder/runner.py`
+- `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`
+
+### Entry: 2026-01-12 07:35
+
+Design element: Variant-B ownership enforcement (S3/S8 policy) + S0–S8 re-run to green
+Summary: Implemented the explicit S3 integerisation/sequence ownership policy, gated S3/S8 accordingly, and re-ran S0–S8 to confirm S8 completes using S7 counts handoff with no `s3_site_sequence` cross-check.
+
+Code changes (high-level):
+- **New policy file**: `config/layer1/1A/policy/s3.integerisation.yaml` (`emit_integerised_counts=false`, `emit_site_sequence=false`).
+- **Contracts**: Added `schemas.layer1.yaml#/policy/s3_integerisation` + registry entry `policy.s3.integerisation.yaml`.
+- **S0 parameter hash**: included the new policy so the variant decision is deterministic.
+- **S3 runner**: loaded the policy and skipped `s3_integerised_counts` + `s3_site_sequence` emission when disabled; updated outputs/resume logic accordingly.
+- **S8 runner**: requires the policy in sealed inputs, uses S7 handoff when counts emission is disabled, and does not read `s3_site_sequence` when sequencing is disabled.
+
+Run outcome (green):
+- run_id: `3172f8fefe676c4880b9b7c24ebba815`
+- parameter_hash: `ceedfd1785fe0a71e11e5c3ca1d348f544535e303b99b9cb90d550fc2bf921d5`
+- manifest_fingerprint: `dca6230f21df81bad774119a0167f32e524c494f2e45c5ab3de307e6ca6d0c9f`
+- S8 summary: merchants_in_scope=1249, sequence_finalize_rows=2605, overflow_rows=0, outlet_rows=25964.
+
+Spec alignment checkpoints (S8):
+- Counts source = S7 handoff (Variant B) as intended; no fallback to S3 counts.
+- `s3_site_sequence` cross-check is skipped because sequencing is disabled by policy (Variant B).
+- No overflow events; `sequence_finalize` events and trace rows match the number of `(merchant,country)` groups.

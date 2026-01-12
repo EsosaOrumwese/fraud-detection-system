@@ -57,8 +57,8 @@ class S3RunResult:
     manifest_fingerprint: str
     candidate_set_path: Path
     base_weight_priors_path: Path
-    integerised_counts_path: Path
-    site_sequence_path: Path
+    integerised_counts_path: Path | None
+    site_sequence_path: Path | None
 
 
 @dataclass(frozen=True)
@@ -110,6 +110,14 @@ class ThresholdsPolicy:
     min_one_per_country_when_feasible: bool
     foreign_cap_mode: str
     on_infeasible: str
+
+
+@dataclass(frozen=True)
+class IntegerisationPolicy:
+    semver: str
+    version: str
+    emit_integerised_counts: bool
+    emit_site_sequence: bool
 
 
 class _StepTimer:
@@ -826,6 +834,20 @@ def _load_thresholds_policy(path: Path, schema_layer1: dict) -> ThresholdsPolicy
     )
 
 
+def _load_integerisation_policy(
+    path: Path, schema_layer1: dict
+) -> IntegerisationPolicy:
+    payload = _load_yaml(path)
+    schema = _schema_from_pack(schema_layer1, "#/policy/s3_integerisation")
+    _validate_schema_payload(payload, schema, "policy.s3.integerisation")
+    return IntegerisationPolicy(
+        semver=str(payload.get("semver")),
+        version=str(payload.get("version")),
+        emit_integerised_counts=bool(payload.get("emit_integerised_counts")),
+        emit_site_sequence=bool(payload.get("emit_site_sequence")),
+    )
+
+
 def _load_hurdle_events(
     paths: Iterable[Path],
     schema_layer1: dict,
@@ -1362,6 +1384,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
             "policy.s3.rule_ladder.yaml",
             "policy.s3.base_weight.yaml",
             "policy.s3.thresholds.yaml",
+            "policy.s3.integerisation.yaml",
         }
         missing = sorted(required_sealed - sealed_ids)
         if missing:
@@ -1378,6 +1401,26 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
         base_weight_policy = _load_base_weight_policy(base_weight_path, schema_layer1)
         thresholds_path = _sealed_path(sealed_inputs, "policy.s3.thresholds.yaml")
         thresholds_policy = _load_thresholds_policy(thresholds_path, schema_layer1)
+        integerisation_path = _sealed_path(
+            sealed_inputs, "policy.s3.integerisation.yaml"
+        )
+        integerisation_policy = _load_integerisation_policy(
+            integerisation_path, schema_layer1
+        )
+        emit_counts = integerisation_policy.emit_integerised_counts
+        emit_site_sequence = integerisation_policy.emit_site_sequence
+        if emit_site_sequence and not emit_counts:
+            raise EngineFailure(
+                "F3",
+                "s3_integerisation_policy",
+                "S3",
+                MODULE_S3,
+                {"detail": "site_sequence requires integerised_counts"},
+            )
+        timer.info(
+            f"S3: integerisation_policy emit_counts={emit_counts} "
+            f"emit_site_sequence={emit_site_sequence}"
+        )
 
         merchant_path = _sealed_path(sealed_inputs, "transaction_schema_merchant_ids")
         merchant_df = _validate_merchants(merchant_path, schema_ingress, iso_set)
@@ -1448,20 +1491,23 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
 
         candidate_entry = find_dataset_entry(dictionary, DATASET_CANDIDATE).entry
         priors_entry = find_dataset_entry(dictionary, DATASET_PRIORS).entry
-        counts_entry = find_dataset_entry(dictionary, DATASET_COUNTS).entry
-        site_entry = find_dataset_entry(dictionary, DATASET_SITE_SEQUENCE).entry
-
         candidate_root = _resolve_run_path(run_paths, candidate_entry["path"], tokens)
         priors_root = _resolve_run_path(run_paths, priors_entry["path"], tokens)
-        counts_root = _resolve_run_path(run_paths, counts_entry["path"], tokens)
-        site_root = _resolve_run_path(run_paths, site_entry["path"], tokens)
 
+        counts_root: Path | None = None
+        site_root: Path | None = None
         outputs_exist = {
             DATASET_CANDIDATE: _dataset_has_parquet(candidate_root),
             DATASET_PRIORS: _dataset_has_parquet(priors_root),
-            DATASET_COUNTS: _dataset_has_parquet(counts_root),
-            DATASET_SITE_SEQUENCE: _dataset_has_parquet(site_root),
         }
+        if emit_counts:
+            counts_entry = find_dataset_entry(dictionary, DATASET_COUNTS).entry
+            counts_root = _resolve_run_path(run_paths, counts_entry["path"], tokens)
+            outputs_exist[DATASET_COUNTS] = _dataset_has_parquet(counts_root)
+        if emit_site_sequence:
+            site_entry = find_dataset_entry(dictionary, DATASET_SITE_SEQUENCE).entry
+            site_root = _resolve_run_path(run_paths, site_entry["path"], tokens)
+            outputs_exist[DATASET_SITE_SEQUENCE] = _dataset_has_parquet(site_root)
         if any(outputs_exist.values()) and not all(outputs_exist.values()):
             raise InputResolutionError(
                 "Partial S3 outputs detected; remove existing outputs before rerun."
@@ -1628,14 +1674,16 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
             )
             prior_rows.extend(prior_rows_local)
 
-            counts_local = _integerise_counts(
-                merchant_candidate_rows,
-                n_outlets,
-                weights,
-                thresholds_policy,
-            )
-            count_rows.extend(counts_local)
-            site_rows.extend(_build_site_sequence(counts_local))
+            if emit_counts:
+                counts_local = _integerise_counts(
+                    merchant_candidate_rows,
+                    n_outlets,
+                    weights,
+                    thresholds_policy,
+                )
+                count_rows.extend(counts_local)
+                if emit_site_sequence:
+                    site_rows.extend(_build_site_sequence(counts_local))
 
         candidate_df = pl.DataFrame(
             candidate_rows,
@@ -1663,29 +1711,33 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
             },
         ).sort(["merchant_id", "country_iso"])
 
-        counts_df = pl.DataFrame(
-            count_rows,
-            schema={
-                "merchant_id": pl.UInt64,
-                "country_iso": pl.Utf8,
-                "count": pl.Int32,
-                "residual_rank": pl.Int32,
-                "parameter_hash": pl.Utf8,
-                "produced_by_fingerprint": pl.Utf8,
-            },
-        ).sort(["merchant_id", "country_iso"])
+        counts_df: pl.DataFrame | None = None
+        if emit_counts:
+            counts_df = pl.DataFrame(
+                count_rows,
+                schema={
+                    "merchant_id": pl.UInt64,
+                    "country_iso": pl.Utf8,
+                    "count": pl.Int32,
+                    "residual_rank": pl.Int32,
+                    "parameter_hash": pl.Utf8,
+                    "produced_by_fingerprint": pl.Utf8,
+                },
+            ).sort(["merchant_id", "country_iso"])
 
-        site_df = pl.DataFrame(
-            site_rows,
-            schema={
-                "merchant_id": pl.UInt64,
-                "country_iso": pl.Utf8,
-                "site_order": pl.Int32,
-                "site_id": pl.Utf8,
-                "parameter_hash": pl.Utf8,
-                "produced_by_fingerprint": pl.Utf8,
-            },
-        ).sort(["merchant_id", "country_iso", "site_order"])
+        site_df: pl.DataFrame | None = None
+        if emit_site_sequence:
+            site_df = pl.DataFrame(
+                site_rows,
+                schema={
+                    "merchant_id": pl.UInt64,
+                    "country_iso": pl.Utf8,
+                    "site_order": pl.Int32,
+                    "site_id": pl.Utf8,
+                    "parameter_hash": pl.Utf8,
+                    "produced_by_fingerprint": pl.Utf8,
+                },
+            ).sort(["merchant_id", "country_iso", "site_order"])
 
         tmp_root = run_paths.tmp_root / "s3_crossborder"
         tmp_root.mkdir(parents=True, exist_ok=True)
@@ -1699,12 +1751,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
             existing_prior = pl.read_parquet(
                 _select_dataset_file(DATASET_PRIORS, priors_root)
             ).select(prior_df.columns).sort(["merchant_id", "country_iso"])
-            existing_counts = pl.read_parquet(
-                _select_dataset_file(DATASET_COUNTS, counts_root)
-            ).select(counts_df.columns).sort(["merchant_id", "country_iso"])
-            existing_site = pl.read_parquet(
-                _select_dataset_file(DATASET_SITE_SEQUENCE, site_root)
-            ).select(site_df.columns).sort(["merchant_id", "country_iso", "site_order"])
 
             if not existing_candidate.equals(candidate_df):
                 raise EngineFailure(
@@ -1722,22 +1768,34 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
                     MODULE_S3,
                     {"detail": "base_weight_priors mismatch"},
                 )
-            if not existing_counts.equals(counts_df):
-                raise EngineFailure(
-                    "F3",
-                    "s3_output_mismatch",
-                    "S3",
-                    MODULE_S3,
-                    {"detail": "integerised_counts mismatch"},
+
+            if emit_counts and counts_root is not None and counts_df is not None:
+                existing_counts = pl.read_parquet(
+                    _select_dataset_file(DATASET_COUNTS, counts_root)
+                ).select(counts_df.columns).sort(["merchant_id", "country_iso"])
+                if not existing_counts.equals(counts_df):
+                    raise EngineFailure(
+                        "F3",
+                        "s3_output_mismatch",
+                        "S3",
+                        MODULE_S3,
+                        {"detail": "integerised_counts mismatch"},
+                    )
+            if emit_site_sequence and site_root is not None and site_df is not None:
+                existing_site = pl.read_parquet(
+                    _select_dataset_file(DATASET_SITE_SEQUENCE, site_root)
+                ).select(site_df.columns).sort(
+                    ["merchant_id", "country_iso", "site_order"]
                 )
-            if not existing_site.equals(site_df):
-                raise EngineFailure(
-                    "F3",
-                    "s3_output_mismatch",
-                    "S3",
-                    MODULE_S3,
-                    {"detail": "site_sequence mismatch"},
-                )
+                if not existing_site.equals(site_df):
+                    raise EngineFailure(
+                        "F3",
+                        "s3_output_mismatch",
+                        "S3",
+                        MODULE_S3,
+                        {"detail": "site_sequence mismatch"},
+                    )
+
             timer.info("S3: existing outputs validated")
             _emit_state_run("completed")
             return S3RunResult(
@@ -1746,14 +1804,16 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
                 manifest_fingerprint=manifest_fingerprint,
                 candidate_set_path=candidate_root,
                 base_weight_priors_path=priors_root,
-                integerised_counts_path=counts_root,
-                site_sequence_path=site_root,
+                integerised_counts_path=counts_root if emit_counts else None,
+                site_sequence_path=site_root if emit_site_sequence else None,
             )
 
         _write_parquet_partition(candidate_df, candidate_root, tmp_root, DATASET_CANDIDATE)
         _write_parquet_partition(prior_df, priors_root, tmp_root, DATASET_PRIORS)
-        _write_parquet_partition(counts_df, counts_root, tmp_root, DATASET_COUNTS)
-        _write_parquet_partition(site_df, site_root, tmp_root, DATASET_SITE_SEQUENCE)
+        if emit_counts and counts_df is not None and counts_root is not None:
+            _write_parquet_partition(counts_df, counts_root, tmp_root, DATASET_COUNTS)
+        if emit_site_sequence and site_df is not None and site_root is not None:
+            _write_parquet_partition(site_df, site_root, tmp_root, DATASET_SITE_SEQUENCE)
         timer.info("S3: outputs emitted")
 
         _emit_state_run("completed")
@@ -1763,8 +1823,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
             manifest_fingerprint=manifest_fingerprint,
             candidate_set_path=candidate_root,
             base_weight_priors_path=priors_root,
-            integerised_counts_path=counts_root,
-            site_sequence_path=site_root,
+            integerised_counts_path=counts_root if emit_counts else None,
+            site_sequence_path=site_root if emit_site_sequence else None,
         )
     except EngineFailure as failure:
         _record_failure(failure)

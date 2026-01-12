@@ -239,7 +239,7 @@ egress:
     primary_key: [merchant_id, legal_country_iso, site_order]
     unique_keys:
     - [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint]
+    partition_keys: [seed, manifest_fingerprint]
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns:
     - {name: manifest_fingerprint, type: string, nullable: false, description: Hex-encoded SHA-256 lineage fingerprint (egress partition key also stored per-row)., pattern: '^[a-f0-9]{64}$'}

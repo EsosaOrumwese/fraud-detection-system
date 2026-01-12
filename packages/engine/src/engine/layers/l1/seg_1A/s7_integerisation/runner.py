@@ -69,6 +69,7 @@ DATASET_S5_RECEIPT = "s5_validation_receipt"
 DATASET_S5_PASSED = "s5_passed_flag"
 DATASET_S6_RECEIPT = "s6_validation_receipt"
 POLICY_ASSET_ID = "s7_integerisation_policy.yaml"
+COUNTS_HANDOFF_FILENAME = "s7_integerised_counts.jsonl"
 
 _CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 
@@ -1498,10 +1499,13 @@ def run_s7(
         tmp_event_path = tmp_dir / "rng_event_residual_rank.jsonl"
         tmp_dirichlet_path = tmp_dir / "rng_event_dirichlet_gamma_vector.jsonl"
         tmp_trace_path = tmp_dir / "rng_trace_log_s7.jsonl"
+        tmp_counts_path = tmp_dir / f"{COUNTS_HANDOFF_FILENAME}.tmp"
+        counts_path = tmp_dir / COUNTS_HANDOFF_FILENAME
 
         events_written = 0
         trace_written = 0
         dirichlet_events_written = 0
+        counts_written = 0
         expected_residual_events = 0
         expected_dirichlet_events = 0
         expected_dirichlet_blocks = 0
@@ -1639,10 +1643,14 @@ def run_s7(
             dirichlet_handle = (
                 tmp_dirichlet_path.open("w", encoding="utf-8") if dirichlet_enabled else None
             )
+            counts_handle = (
+                tmp_counts_path.open("w", encoding="utf-8") if not validate_only else None
+            )
         else:
             event_handle = None
             trace_handle = None
             dirichlet_handle = None
+            counts_handle = None
         try:
             for idx, merchant_id in enumerate(scope_merchants, start=1):
                 if idx % progress_every == 0 or idx == total_merchants:
@@ -1910,6 +1918,25 @@ def run_s7(
                         {"detail": "sum_mismatch", "merchant_id": merchant_id},
                     )
 
+                if counts_handle is not None:
+                    for item in items:
+                        payload = {
+                            "seed": seed,
+                            "parameter_hash": parameter_hash,
+                            "run_id": run_id,
+                            "manifest_fingerprint": manifest_fingerprint,
+                            "merchant_id": merchant_id,
+                            "country_iso": item["country_iso"],
+                            "count": item["count"],
+                            "residual_rank": item["residual_rank"],
+                            "candidate_rank": item["candidate_rank"],
+                        }
+                        counts_handle.write(
+                            json.dumps(payload, ensure_ascii=True, sort_keys=True)
+                        )
+                        counts_handle.write("\n")
+                        counts_written += 1
+
                 dirichlet_payload: dict | None = None
                 if dirichlet_enabled:
                     dirichlet_payload = _expected_dirichlet_payload(
@@ -2125,6 +2152,8 @@ def run_s7(
                 trace_handle.close()
             if dirichlet_handle is not None:
                 dirichlet_handle.close()
+            if counts_handle is not None:
+                counts_handle.close()
 
         if existing_event_map is not None:
             extra_merchants = set(existing_event_map) - set(scope_merchants)
@@ -2282,6 +2311,17 @@ def run_s7(
                     trace_written,
                     events_written,
                     dirichlet_events_written,
+                )
+            if counts_written > 0:
+                if counts_path.exists():
+                    raise InputResolutionError(
+                        f"S7 counts handoff already exists: {counts_path}"
+                    )
+                tmp_counts_path.replace(counts_path)
+                logger.info(
+                    "S7: wrote counts handoff rows=%d path=%s",
+                    counts_written,
+                    counts_path,
                 )
 
         if existing_event_map is None and events_written > 0 and validate_only:

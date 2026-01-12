@@ -120,6 +120,25 @@ subsegments:
     cross_layer: false
     notes: Optional; only if bounds are enabled.
 
+  - name: policy.s3.integerisation.yaml
+    path: config/layer1/1A/policy/s3.integerisation.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s3.integerisation
+    license: Proprietary-Internal
+    role: Declare whether S3 emits integerised_counts/site_sequence (Variant A vs B ownership).
+    dependencies: []
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.layer1.yaml#/policy/s3_integerisation
+    cross_layer: false
+    notes:
+
   - name: validation_policy
     path: config/layer1/1A/policy/validation_policy.yaml
     type: policy

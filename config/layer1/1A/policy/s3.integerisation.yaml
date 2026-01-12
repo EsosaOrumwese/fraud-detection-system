@@ -1,0 +1,5 @@
+semver: "1.0.0"
+version: "2026-01-12"
+
+emit_integerised_counts: false
+emit_site_sequence: false

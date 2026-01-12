@@ -385,6 +385,24 @@ SEG1A_S7_ARGS += --validate-only
 endif
 SEG1A_S7_CMD = $(PY_ENGINE) -m engine.cli.s7_integerisation $(SEG1A_S7_ARGS)
 
+SEG1A_S8_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S8_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S8_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S8_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1A_S8_RUN_ID)),)
+SEG1A_S8_ARGS += --run-id $(SEG1A_S8_RUN_ID)
+endif
+ifneq ($(strip $(SEG1A_S8_VALIDATE_ONLY)),)
+SEG1A_S8_ARGS += --validate-only
+endif
+SEG1A_S8_CMD = $(PY_ENGINE) -m engine.cli.s8_outlet_catalogue $(SEG1A_S8_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -1071,6 +1089,12 @@ segment1a-s7:
 	@$(SEG1A_S7_CMD)
 
 engine-s7: segment1a-s7
+
+segment1a-s8:
+	@echo "Running Segment 1A S8 outlet catalogue"
+	@$(SEG1A_S8_CMD)
+
+engine-s8: segment1a-s8
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"

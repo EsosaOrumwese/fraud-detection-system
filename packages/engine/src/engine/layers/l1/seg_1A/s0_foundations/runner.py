@@ -202,6 +202,7 @@ def _resolve_param_files(
         "s7_integerisation_policy.yaml": "s7_integerisation_policy",
         "policy.s3.base_weight.yaml": "policy.s3.base_weight.yaml",
         "policy.s3.thresholds.yaml": "policy.s3.thresholds.yaml",
+        "policy.s3.integerisation.yaml": "policy.s3.integerisation.yaml",
     }
     params: list[NamedPath] = []
     resolved_map: dict[str, str] = {}
