@@ -669,6 +669,40 @@ Implementation specifics:
 Follow-up considerations:
 - If validation-only runs become slow, consider adding similar timing logs inside `_validate_s1_outputs` for event/trace scans, but keep log volume bounded.
 
+### Entry: 2026-01-12 19:36
+
+Design element: S1 trace validation after removing finalize rows (pre-code adjustment)
+Summary: Removing the `trace_acc.finalize()` rows means the existing "max counter" selection now chooses a mid-stream trace row (per-merchant counters are not monotone across merchants), so totals no longer match events. Update trace validation to select the row with the highest cumulative totals instead.
+
+In-process reasoning and decisions (before code change):
+1) **Why the current selection fails without finalize rows.**
+   - `rng_counter_after_hi/lo` are per-merchant substreams, not a global sequence; the maximum counter value can occur well before the last event.
+   - With one trace row per event, the row that has the max counter often carries partial totals (e.g., 6973 events) even though 10k events were emitted, so validation fails.
+
+2) **Chosen fix: select the trace row by cumulative totals, not counters.**
+   - Prefer the row with the largest `events_total`, then `blocks_total`, then `draws_total` as the final-row proxy.
+   - Use `ts_utc` and `path.name` as deterministic tie-breakers.
+   - This preserves the one-row-per-event rule and aligns validation with the cumulative nature of the trace log.
+
+3) **Scope of change.**
+   - Apply the same selection logic to S2 if it still relies on max-counter selection, since the same trace-log shape is used there.
+   - Do **not** reintroduce finalize rows (spec requires one trace row per event).
+
+Follow-up plan:
+- Patch `_validate_s1_outputs` (and S2 validator if needed) to use the new selection key, then re-run S0-S8 to regenerate trace logs and re-validate.
+
+### Entry: 2026-01-12 19:38
+
+Design element: S1/S2 trace final-row selection (implementation)
+Summary: Implemented the trace-row selection change so validators pick the row with the highest cumulative totals, matching the one-row-per-event trace format after removing finalize rows.
+
+Implementation notes (actions taken):
+- Updated `_trace_row_key` in `s1_hurdle/runner.py` to sort primarily by `events_total`, then `blocks_total`, `draws_total`, `ts_utc`, and only then by RNG counters/path as tie-breakers.
+- Applied the same change in `s2_nb_outlets/runner.py` so S2 trace validation remains consistent with the new trace log format.
+
+Next step:
+- Re-run S0-S8 to regenerate outputs under the new trace selection rule, then re-run S9.
+
 ## S2 - NB Outlets
 
 ### Entry: 2026-01-11 08:16 (pre-implementation)
@@ -2584,7 +2618,7 @@ Pre-implementation plan (step-by-step, with rationale):
 9) **Validation bundle responsibilities (S9 coordination).**
    - S8 spec enumerates metrics and RNG accounting artifacts for the validation bundle; plan to implement these in S9 (validator) rather than inside the S8 runner.
 
-Open questions (need user decision before implementation):
+  Open questions (need user decision before implementation):
 1) **Counts handoff for Variant B:** How should S7 → S8 in-process counts be persisted for CLI runs? Options:
    - A) Emit a deterministic handoff file under `runs/<run_id>/tmp/` from S7 and have S8 consume it (non-contract, implementation detail).
    - B) Require `s3_integerised_counts` to exist; otherwise hard-fail until S3 owns counts.
@@ -2733,3 +2767,346 @@ Spec alignment checkpoints (S8):
 - Counts source = S7 handoff (Variant B) as intended; no fallback to S3 counts.
 - `s3_site_sequence` cross-check is skipped because sequencing is disabled by policy (Variant B).
 - No overflow events; `sequence_finalize` events and trace rows match the number of `(merchant,country)` groups.
+
+## S9 - Replay validation & publish gate (S9.*)
+
+### Entry: 2026-01-12 17:00
+
+Design element: S9 spec review + pre-implementation plan (Replay Validation & Publish Gate)
+Summary: Reviewed the S9 expanded spec and the validation bundle contracts to map authoritative inputs, gates, bundle composition, and the full replay/validation checklist. Captured the full implementation plan and open questions before any code changes.
+
+Docs reviewed (authoritative):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s9.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml`
+
+Contract cross-check (inputs/outputs/gates):
+- Inputs (read-only): `outlet_catalogue`, `s3_candidate_set`, optional `s3_integerised_counts`, optional `s3_site_sequence`, `rng_audit_log`, `rng_trace_log`, and all RNG event families used by S1/S2/S4/S6/S7/S8. Optional convenience surfaces (e.g., `s6_membership`) require PASS gate prior to read.
+- Counts authority: either `s3_integerised_counts` (if emitted) OR counts reconstructed from S7 `residual_rank`. S9 must not re-derive from weights.
+- Outputs: fingerprint-scoped bundle `validation_bundle_1A/`, `validation_bundle_index_1A` (`index.json`), and `_passed.flag` (`validation_passed_flag_1A`).
+- Gate semantics: `_passed.flag` content hash equals SHA-256 of the concatenated raw bytes of all files listed in `index.json` (excluding the flag) ordered by ASCII-lex `path`.
+- Atomic publish: stage bundle under temp dir → compute `_passed.flag` inside stage → atomic rename to `manifest_fingerprint={manifest_fingerprint}`. On FAIL, publish bundle without flag.
+
+Pre-implementation plan (step-by-step, with rationale):
+1) **Scaffold S9 runner/CLI/Makefile.**
+   - New module: `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
+   - CLI: `packages/engine/src/engine/cli/s9_validation.py`.
+   - Makefile targets: `segment1a-s9` + `engine-s9`.
+
+2) **Load contracts and run receipt.**
+   - Load dictionary, registry, schema packs (layer1/1A/ingress).
+   - Resolve run receipt for `{run_id, seed, parameter_hash, manifest_fingerprint}`.
+   - Enforce numeric policy attestation invariants from S0 (IEEE-754 binary64, RNE, FMA-off, no FTZ/DAZ).
+
+3) **Determine authority paths for counts + membership.**
+   - Use the new S3 integerisation policy (`policy.s3.integerisation.yaml`) to choose counts source:
+     - `emit_integerised_counts=true` → require `s3_integerised_counts`.
+     - `emit_integerised_counts=false` → reconstruct counts from S7 `residual_rank`.
+   - Membership source:
+     - If `s6_membership` is used, verify S6 PASS receipt first and re-derive parity from `gumbel_key` + `ztp_final`.
+     - Otherwise reconstruct entirely from `gumbel_key` + S3/S4 facts.
+   - Record `counts_source` and `membership_source` in `s9_summary.json` per spec.
+
+4) **Inventory and load all inputs (read-only).**
+   - Egress: `outlet_catalogue` partition `[seed, manifest_fingerprint]`.
+   - Order authority: `s3_candidate_set` (parameter-scoped).
+   - Optional: `s3_integerised_counts` and `s3_site_sequence` if the policy says they are emitted.
+   - RNG logs: `rng_audit_log`, `rng_trace_log` for each observed `run_id` in event streams.
+   - RNG events: hurdle, gamma, poisson, ztp final/rejection, gumbel_key, residual_rank, sequence_finalize, site_sequence_overflow (plus stream_jump if present).
+
+5) **Structural validation (schemas, partitions, PK/UK/FK).**
+   - Validate every row against the JSON-Schema anchors in `schemas.layer1.yaml` and `schemas.1A.yaml`.
+   - Enforce dictionary partition paths and writer sort (egress sort `[merchant_id, legal_country_iso, site_order]`).
+   - Enforce path↔embed equality for lineage tokens (seed, parameter_hash, run_id, manifest_fingerprint, global_seed).
+   - FK checks against ISO table, merchant references, and any schema-declared foreign keys.
+
+6) **RNG envelope + trace accounting.**
+   - For each event family: validate envelope `before/after/blocks/draws`, strict-open uniform checks, and non-consuming families (`blocks=0`, `draws="0"`).
+   - Build `rng_accounting.json` with per-family totals, audit presence, and trace coverage.
+   - Reconcile trace totals against event sums; require exactly one trace append per event.
+
+7) **Cross-state replay checks (facts re-derived from written outputs).**
+   - **S1:** one hurdle decision per merchant; extremes consume zero; trace totals reconcile.
+   - **S2:** one `nb_final` per merchant; gamma + poisson component parity; `N >= 2` in scope.
+   - **S3:** candidate_rank total/contiguous; exactly one home with rank 0.
+   - **S4:** `ztp_final` uniqueness; rejection chain coherence.
+   - **S6:** membership parity vs gumbel reconstruction if used; enforce PASS gate before read.
+   - **S7:** reconstruct integer counts from residual_rank; Σ counts = N; no order surface introduced.
+   - **S8:** `site_order=1..n_i`, `site_id` format, one `sequence_finalize` per block, overflow rule, no inter-country order in egress.
+
+8) **Bundle assembly and gate.**
+   - Generate required files: `MANIFEST.json`, `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`, `index.json`.
+   - Compute per-file + composite SHA-256 for `outlet_catalogue` and record in `egress_checksums.json`.
+   - Build `index.json` using `validation_bundle_index_1A` schema (artifact_id, kind, path, mime?, notes?).
+   - Compute `_passed.flag` hash over byte-concatenated files listed in `index.json` (excluding flag), ASCII-lex order by `path`.
+   - Stage under `validation/_tmp.{uuid}` then atomic rename on PASS; on FAIL write bundle without flag.
+
+9) **Determinism and resumability.**
+   - Ensure all outputs are byte-identical across reruns with the same inputs.
+   - If a bundle already exists, validate byte-equality (MANIFEST + indexed files) and fail on mismatch.
+
+Open questions (need user decision before implementation):
+1) **Counts-source enforcement:** Should S9 *fail* if `s3_integerised_counts` exists when the policy says `emit_integerised_counts=false`, or should it ignore the dataset and still use S7 residuals? (Spec says optional surfaces are non-mandatory but also says S9 must follow the chosen authority path.)
+2) **Index schema conflict:** `schemas.layer1.yaml#/validation/validation_bundle` defines an index schema of `{path, sha256_hex}`, while 1A’s `validation_bundle_index_1A` expects `{artifact_id, kind, path, mime?, notes?}`. I plan to follow the 1A dictionary/schema (artifact_id/ kind/ path) and keep per-file hashes in `egress_checksums.json` only. Confirm?
+  3) **Optional bundle artefacts:** Do you want S9 to emit `param_digest_log.jsonl`, `fingerprint_artifacts.jsonl`, and `numeric_policy_attest.json` in the bundle (these would be hashed into `_passed.flag` if present)?
+
+### Entry: 2026-01-12 17:12
+
+Design element: S9 implementation decisions & approach lock-in (pre-code, in-process).
+Summary: Confirmed user decisions on open questions and locked the S9 validation approach before touching code; documented the counts-reconstruction ambiguity and the chosen resolution path to stay within the "no S5 weights" constraint while still enforcing Σ-law, residual-rank ordering, and sequence parity.
+
+Decisions approved by user (binding for this implementation pass):
+- **Counts authority mismatch is fail-closed:** if `policy.s3.integerisation.yaml` says `emit_integerised_counts=false` but `s3_integerised_counts` exists, S9 will raise `E_S7_PARITY` and FAIL the run (bundle written without `_passed.flag`).
+- **Index schema authority:** `index.json` will conform to `schemas.1A.yaml#/validation/validation_bundle_index_1A` (artifact_id/kind/path/mime?/notes?); per-file hashes remain in `egress_checksums.json`. We will still compute `_passed.flag` from lex-ordered `path` entries as specified.
+- **Optional artefacts skipped:** Do not emit `param_digest_log.jsonl`, `fingerprint_artifacts.jsonl`, or `numeric_policy_attest.json` in the S9 bundle for now (keep minimal required set).
+
+Counts reconstruction ambiguity (spec vs available evidence) and chosen path:
+- **Spec tension identified:** S9 requires reconstructing counts via largest-remainder using `residual_rank` (dp=8) but explicitly forbids reading S5 weight surfaces; `rng_event.residual_rank` does not contain floors/shares, so counts cannot be fully recomputed without another authoritative surface.
+- **Chosen interpretation for this pass:** treat `outlet_catalogue` row counts per `(merchant_id, legal_country_iso)` as the concrete counts when `s3_integerised_counts` is absent, then validate: (a) Σ count_i = N (from `nb_final`), (b) residual_rank ordering matches residual sort + tie-breaks, and (c) sequence_finalize events align with those counts. This stays within "no S5 weights" while still enforcing S7 parity on observable evidence.
+- **Logged as a spec gap for later:** if stricter proof of floors is required, we will need either (1) to permit S9 to read weight inputs (S5 cache) or (2) to promote the S7 counts handoff into a formal dataset so S9 can validate counts without weights.
+
+### Entry: 2026-01-12 17:48
+
+Design element: S9 runner implementation (in-process design notes before code).
+Summary: Draft the concrete S9 validation flow, including lineage recomputation, RNG accounting, replay checks, and bundle assembly rules, before coding so each moving part can be audited later.
+
+In-process reasoning and decisions (pre-code):
+1) **Lineage recomputation mirror of S0 (manifest + parameter hash).**
+   - To avoid any drift vs S0, S9 will rebuild the same "opened artefacts" set that S0 used:
+     - Resolve parameter files via `_resolve_param_files` (same canonical basenames).
+     - Build registry dependency closure for `numeric_policy_profile`, `math_profile_manifest`, `validation_policy`, `settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `ccy_smoothing_params`, `license_map`, `iso_legal_tender_2024`, plus any param artefacts and the seed file if present.
+     - Include dictionary + registry + schema packs + sealed reference input paths, then hash each by basename (path.name) to feed `compute_manifest_fingerprint`.
+   - This ensures `manifest_fingerprint` recompute will match S0 unless inputs changed; mismatches become `E_LINEAGE_RECOMPUTE_MISMATCH`.
+   - Numeric policy attestation is *not* emitted to the bundle per decision, but it is still used as a digest component in the recompute to stay consistent with S0’s manifest enumeration.
+
+2) **Counts authority & membership authority before replay checks.**
+   - `policy.s3.integerisation.yaml` determines authority: if `emit_integerised_counts=false`, the presence of `s3_integerised_counts` is an error (`E_S7_PARITY`), not a fallback.
+   - Membership source: if `s6_membership` is present, require a PASS receipt and then validate parity with gumbel-based membership; otherwise use `gumbel_key` directly. The chosen source is recorded in `s9_summary.json`.
+
+3) **RNG accounting strategy (deterministic, set-based).**
+   - For each event family, scan JSONL as a *set*, validating schema and path↔embed fields and accumulating:
+     - `events_total`, `draws_total_u128_dec` (sum over `draws` as u128), `blocks_total_u64`, `nonconsuming_events`.
+   - For each `(module, substream_label, run_id)` key in trace logs, select the final row deterministically using the spec sort key and reconcile totals; coverage must be exactly one trace row per event append.
+   - Audit presence must be verified for each observed `{seed, parameter_hash, run_id}` tuple.
+
+4) **Replay/structural checks (S1–S8) with explicit failure codes.**
+   - S1: one hurdle per merchant; enforce u in open interval; fail `E_S1_CARDINALITY`/`E_S1_U_OUT_OF_RANGE`.
+   - S2: one `nb_final` per merchant; `N >= 2`; fail `E_S2_FINAL_MISSING_OR_DUP`/`E_S2_N_LT_2`.
+   - S4: one `ztp_final` per eligible merchant; rejection chain contiguous; fail `E_S4_FINAL_CARDINALITY`/`E_S4_SEQUENCE_INVALID`.
+   - S7: reconstruct counts from egress when counts dataset absent; enforce ä-law (`sum_i count_i = N`), residual ordering by rank; fail `E_S7_PARITY`.
+   - S8: ensure `sequence_finalize` exists for each (merchant,country,count>0); enforce `site_id` and `site_order` sequence; fail `E_S8_SEQUENCE_GAP`/`E_SITE_ID_OVERFLOW`.
+   - Each failure yields a failure row in `s9_summary.json` using the standard keys in §10.7.
+
+5) **Bundle assembly & hashing.**
+   - Bundle files are staged under `_tmp.<uuid>`, written, indexed, then `_passed.flag` hash computed over ASCII-lex paths from `index.json` (excluding flag). Atomic rename publishes the bundle.
+   - `index.json` uses `schemas.1A.yaml#/validation/validation_bundle_index_1A` (artifact_id/kind/path/mime?/notes?); `egress_checksums.json` contains per-file hashes + composite hash.
+   - On any failure: write `s9_summary.json` (decision=FAIL), write the rest of the bundle without `_passed.flag`, and record the failure details.
+
+### Entry: 2026-01-12 18:31
+
+Design element: S9 runner alignment tweaks (pre-code adjustments)
+Summary: Captured additional S9 decisions before finishing the runner: align trace final-row selection to spec, broaden non-consuming family checks, and add gating cross-checks between egress and upstream events.
+
+Decisions and rationale (before code changes):
+- Update trace final-row selection to follow S9 spec note: choose max (after_hi, after_lo), then latest ts_utc, then lexicographically largest (events_total, blocks_total, draws_total). This avoids selecting stale trace rows and reduces false `E_TRACE_TOTALS_MISMATCH`.
+- Treat `ztp_rejection` and `ztp_retry_exhausted` as non-consuming families (blocks=0, draws="0") alongside `ztp_final`, `nb_final`, `residual_rank`, `sequence_finalize`, and `site_sequence_overflow`; enforce this explicitly even though schema constrains it, so budget failures are logged with the canonical `E_NONCONSUMING_CHANGED_COUNTERS`.
+- Add egress cross-checks: `single_vs_multi_flag` must be consistent per merchant and match S1 hurdle `is_multi`; `raw_nb_outlet_draw` must be consistent per merchant and match S2 `nb_final.n_outlets`.
+- Load `crossborder_eligibility_flags` (if present) to justify missing `ztp_final` rows as ineligible and to detect gated events when eligibility is false.
+- If `policy.s3.integerisation.yaml` disables `emit_site_sequence`, treat a present `s3_site_sequence` dataset as a failure (recorded as `E_S8_SEQUENCE_GAP` with reason `site_sequence_unexpected`) to keep ownership explicit under Variant B.
+
+### Entry: 2026-01-12 18:58
+
+Design element: S9 schema validation fixes (pre-code adjustments)
+Summary: Resolve the first S9 failures by aligning schema validation with the table adapter (nested schema paths, stream tables) and by satisfying the bundle index schema requirements.
+
+In-process reasoning and decisions (before code changes):
+1) **Nested table schemas must use the adapter, not `_schema_section`.**
+   - The failure for `s3_candidate_set` and `outlet_catalogue` is because `_schema_section` only looks at top-level keys; nested paths like `s3/candidate_set` and `egress/outlet_catalogue` are not found.
+   - Plan: use `_table_pack(schema_pack, "<path>")` + `validate_dataframe(...)` for all nested tables: candidate_set, outlet_catalogue, membership, crossborder_eligibility_flags, s3_integerised_counts, s3_site_sequence.
+
+2) **Stream table schemas must be validated as rows (not raw JSON Schema).**
+   - `rng_audit_log` and `rng_trace_log` use `type: stream`, which is not valid Draft 2020-12 JSON Schema and fails when passed directly to `Draft202012Validator`.
+   - Plan: derive row-level validators from the adapter (`table_to_jsonschema(...)[\"items\"]`) and use per-row validation while scanning JSONL so we avoid loading entire logs into memory.
+
+3) **Bundle index schema requires `notes` (nullable, but still required).**
+   - `validation_bundle_index_1A` defines `notes` as a required column (nullable true). The current index entries omit it, so the schema fails.
+   - Plan: add `notes: None` to every index entry and validate using `_table_pack(schema_1a, "validation/validation_bundle_index_1A")`.
+
+### Entry: 2026-01-12 19:00
+
+Design element: S9 schema validation fixes (implementation)
+Summary: Applied the planned schema fixes so S9 validates nested tables and stream logs correctly and the bundle index conforms to the schema.
+
+Implementation notes (actions taken):
+- Added a row-level validator helper that uses the schema adapter (`table_to_jsonschema(...)[\"items\"]`) so stream tables validate without Draft202012Validator errors.
+- Switched nested table validation to `_table_pack` + `validate_dataframe` for candidate_set, outlet_catalogue, membership, crossborder_eligibility_flags, s3_integerised_counts, and s3_site_sequence.
+- Updated RNG event scan and audit/trace log validation to use row validators derived from table schemas.
+- Added `notes: None` to every `index.json` entry and validated it against `validation/validation_bundle_index_1A`.
+
+### Entry: 2026-01-12 19:02
+
+Design element: S9 schema validator compatibility (in-process fix)
+Summary: After re-running S9, discovered that RNG event schemas are direct JSON-schema objects (not table/record definitions), so the new row-validator needed to support mixed schema styles.
+
+In-process reasoning and decisions (before code change):
+- `schema_ref` for RNG events points to `schemas.layer1.yaml#/rng/events/...` entries that use direct JSON Schema (`allOf` + `$defs/rng_envelope`) rather than table columns.
+- `rng/core/rng_audit_log` and `rng/core/rng_trace_log` use `type: stream` with a nested `record` schema (not a `columns` list).
+- The row-validator must therefore:
+  - use the adapter for `columns` tables,
+  - use the `record` schema verbatim for stream logs,
+  - and fall back to `_schema_from_pack` for direct JSON-schema event definitions.
+This keeps event validation strict while avoiding `ContractError: Unsupported schema type` for non-table schema nodes.
+
+### Entry: 2026-01-12 19:08
+
+Design element: S9 recompute + RNG log validation fixes (pre-code adjustments)
+Summary: The S9 rerun still fails on manifest fingerprint recompute and RNG log validation because the audit log stores the authoritative build_commit and the trace schema omits parameter_hash; the validator also needs to respect nullable fields in stream-record schemas.
+
+In-process reasoning and decisions (before code changes):
+1) **Manifest recompute must use the run's build_commit, not current HEAD.**
+   - The RNG audit log encodes `build_commit` used in S0; the manifest fingerprint is derived from that commit.
+   - The current recompute uses `_resolve_git_bytes()` (current repo HEAD), which diverges if commits changed since the run.
+   - Plan: parse the first audit-log row and use its `build_commit` (converted to bytes via `_git_hex_to_bytes`) when recomputing `manifest_fingerprint`.
+
+2) **rng_trace_log does not carry parameter_hash.**
+   - The trace record schema only includes `run_id` and `seed`; `parameter_hash` is not present.
+   - The current check is incorrectly flagging every trace row as `trace_parameter_hash_mismatch`.
+   - Plan: drop parameter_hash validation for trace rows; keep seed + run_id checks.
+
+3) **Nullable fields in stream-record schemas must accept nulls.**
+   - Stream record schemas use `nullable: true` (e.g., `code_digest`, `hostname`), which Draft202012Validator does not understand.
+   - Plan: when building the row schema for `record` types, transform `nullable: true` into `anyOf: [<schema>, {type: "null"}]` before validation.
+
+### Entry: 2026-01-12 19:10
+
+Design element: S9 recompute + RNG log validation fixes (implementation)
+Summary: Applied the recompute and RNG log validation fixes so S9 uses the run's build_commit, respects nullable record fields, and stops checking trace parameter_hash.
+
+Implementation notes (actions taken):
+- Added `_load_audit_commit` and used it to prefer the audit log's `build_commit` when recomputing `manifest_fingerprint` (fallback to current HEAD only if audit log is missing).
+- Added `_apply_nullable_properties` to rewrite `nullable: true` into `anyOf` with `null` for stream-record schemas, eliminating `None is not of type 'string'` validation failures.
+- Removed the trace parameter_hash check because `rng_trace_log` does not carry that field in the schema.
+
+### Entry: 2026-01-12 19:27
+
+Design element: S9 scope gating + trace coverage fixes (pre-code adjustments)
+Summary: Remaining S9 failures point to incorrect scope gating (ztp_final eligibility vs candidate foreigns) and extra trace rows from S1/S2 finalize writes. Plan fixes before touching code.
+
+In-process reasoning and decisions (before code changes):
+1) **Eligibility gating must match S4/S7 scope, not foreign-candidate presence.**
+   - S4 processes eligible multi-site merchants even when candidate_set has only the home row (producing `ztp_final` with `K_target=0`).
+   - S7 defines `scope_merchants` as those with `ztp_final` present (logs show 358 merchants skipped as ineligible/single-site).
+   - Current S9 logic forces `eligible=False` when `foreign_candidates` is empty, which incorrectly flags valid `ztp_final` rows as ineligible.
+   - Plan: remove the `foreign_candidates => eligible=False` override. Use `eligibility_map` (when present) as the sole eligibility signal and derive `in_scope` from `ztp_final` presence. Only enforce S7 parity (residual/counts) for `in_scope` merchants.
+
+2) **Trace coverage must enforce exactly one row per event (spec), but S1/S2 append a duplicate final trace row.**
+   - RngTraceAccumulator `finalize()` is currently appended after writing per-event trace rows in S1 and S2, yielding `trace_rows_total = events_total + 1`.
+   - Spec requires **exactly one** trace row per event; the extra finalize row must be removed.
+   - Plan: remove the finalize-row append blocks in `s1_hurdle` and `s2_nb_outlets`, then rerun S0-S8 to regenerate trace logs before re-running S9.
+
+3) **Trace key lookup in S9 accounting should use module/substream fields.**
+   - Observed `trace_rows_total=0` in rng_accounting despite trace rows existing; likely due to stale `trace_key` usage.
+   - Plan: compute trace_key from `stats[module,substream_label,run_id]` when reconciling, rather than the stored `trace_key` field.
+
+### Entry: 2026-01-12 19:31
+
+Design element: S9 rerun readiness after trace fixes (pre-run plan)
+Summary: With the S1/S2 trace-finalize rows removed and S9 gating/trace-key logic updated, all downstream outputs must be regenerated to validate trace coverage and scope checks correctly. Plan to re-run S0-S8, then re-run S9 on the new run_id before making any further code changes.
+
+In-process plan (before execution):
+1) **Regenerate outputs with fresh trace logs.**
+   - Run `make segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8` to produce a new run_id using the updated trace behavior.
+   - Capture the new run_id from the newest `runs/*/run_receipt.json`.
+
+2) **Re-run S9 against the new run_id.**
+   - Execute `make segment1a-s9 SEG1A_S9_RUN_ID=<new_run_id>` and inspect `validation_bundle_1A/.../s9_summary.json` plus `rng_accounting.json`.
+   - Expect `E_TRACE_COVERAGE_MISSING` to clear if the one-row-per-event trace rule is satisfied.
+
+3) **If failures remain, triage by scope.**
+   - If `E_FINALISER_CARDINALITY` or `E_S1_GATING_VIOLATION` persists, re-check that S9 uses only `eligibility_map` (if present) plus `ztp_final` presence to define scope and does not override eligibility based on foreign candidates.
+   - If `E_S7_PARITY` persists, confirm parity checks are applied only for `in_scope` merchants and that counts are derived from egress rows when `s3_integerised_counts` is disabled.
+
+### Entry: 2026-01-12 19:50
+
+Design element: S9 rerun triage (pre-code adjustments)
+Summary: After re-running S0–S8 and S9, failures persist for missing ztp_final, missing domain counts, and trace coverage. Root causes point to S9-only issues (eligibility schema path, trace parsing indentation, and domain handling for zero counts), so we can fix and re-run S9 without regenerating upstream outputs.
+
+Observed failures (run_id `7a8beec89b568b684947bc564e9cb7c7`):
+- `E_FINALISER_CARDINALITY` (`missing_ztp_final`) for 396 merchants.
+- `E_S7_PARITY` (`counts_missing_domain`) for 348 merchants.
+- `E_TRACE_COVERAGE_MISSING` (trace_rows_total=0) for multiple families.
+
+In-process reasoning and decisions (before code changes):
+1) **Eligibility flags schema path mismatch.**
+   - Dictionary schema_ref is `schemas.1A.yaml#/prep/crossborder_eligibility_flags`, but S9 uses `_table_pack(schema_1a, "crossborder_eligibility_flags")`, which throws `ContractError` and skips loading the eligibility map.
+   - Result: `eligibility_map` is empty, so all candidate-set merchants are treated as eligible and missing `ztp_final` becomes a failure.
+   - Plan: load the eligibility table using the correct anchor (`prep/crossborder_eligibility_flags`) so ineligible merchants are excluded from the ztp_final requirement.
+
+2) **Trace log parsing indentation bug.**
+   - `trace_rows_total` and `trace_final` updates are nested under the `run_id` mismatch branch and outside the per-line loop, so they never execute on valid rows.
+   - Result: trace_rows_total stays zero, producing `E_TRACE_COVERAGE_MISSING` for every family.
+   - Plan: move seed/run_id checks + trace_rows_total aggregation into the per-line loop.
+
+3) **Trace final-row selection must follow spec ordering.**
+   - S9 spec §11.3 requires deterministic selection by `events_total DESC, ts_utc DESC, rng_counter_after_hi DESC, rng_counter_after_lo DESC`.
+   - Current `_trace_score` orders by RNG counters first, which can select mid-stream rows for per-merchant counters.
+   - Plan: update `_trace_score` to match the spec ordering so totals reconcile on the final row.
+
+4) **Missing-domain counts when counts source is egress.**
+   - When counts are inferred from `outlet_catalogue`, a missing country can mean **count=0**, not necessarily an error. Example: S7 counts handoff shows `home` count=0 for some merchants, and S8 emits no home rows.
+   - Plan: if `s3_integerised_counts` is **not** present, treat missing domain countries as zero counts (do not emit `counts_missing_domain`), but still fail on **extra** domain entries and on Σ-law mismatches.
+
+Next step:
+- Implement the S9-only fixes above and re-run `make segment1a-s9 SEG1A_S9_RUN_ID=7a8beec89b568b684947bc564e9cb7c7`.
+
+### Entry: 2026-01-12 19:53
+
+Design element: S9 rerun triage (implementation)
+Summary: Applied the S9-only fixes so eligibility gating, trace coverage, and trace final-row selection align with the spec and with the egress-derived counts authority.
+
+Implementation notes (actions taken):
+- **Eligibility flags:** switched the schema anchor to `prep/crossborder_eligibility_flags` so `crossborder_eligibility_flags` loads and ineligible merchants are excluded from the ztp_final requirement.
+- **Trace parsing:** moved seed/run_id checks and trace aggregation into the per-line loop so `trace_rows_total` and `trace_final` are populated; this fixes `trace_rows_total=0` failures.
+- **Trace ordering:** updated `_trace_score` to follow spec ordering `events_total → ts_utc → rng_counter_after_hi → rng_counter_after_lo`.
+- **Counts domain:** when `s3_integerised_counts` is **absent** (counts inferred from egress), missing domain countries are treated as zero counts (no `counts_missing_domain` failure); extra-domain countries still fail.
+
+Next step:
+- Re-run S9 on run_id `7a8beec89b568b684947bc564e9cb7c7` and inspect `s9_summary.json` + `rng_accounting.json`.
+
+### Entry: 2026-01-12 19:57
+
+Design element: S9 trace coverage aggregation (pre-code adjustment)
+Summary: The remaining S9 failures are trace coverage/totals for S4 because all S4 events share a single `(module, substream_label)` key. S9 must aggregate expected totals per trace key, not per event family.
+
+In-process reasoning and decisions (before code changes):
+- S4 spec fixes `module="1A.ztp_sampler"` and `substream_label="poisson_component"` for **all** S4 events; trace coverage is per key, not per family.
+- Current S9 compares `trace_rows_total` and `trace_totals` against **per-family** totals, so each S4 family reports mismatches even though the combined totals match the trace key.
+- Plan: build `trace_key_totals` by summing `events_total`, `draws_total`, and `blocks_total` across families sharing the same `(module, substream_label, run_id)`; use these aggregates for coverage/totals checks and record failures once per key.
+
+### Entry: 2026-01-12 19:58
+
+Design element: S9 trace coverage aggregation (implementation)
+Summary: Implemented per-key trace aggregation so coverage/totals reconciliation aligns with shared trace keys (notably S4).
+
+Implementation notes (actions taken):
+- Added `trace_key_totals` to aggregate events/draws/blocks across families that share the same `(module, substream_label, run_id)`.
+- Updated coverage/totals reconciliation to use the aggregated totals and to de-duplicate failure records per trace key.
+
+Next step:
+- Re-run S9 on run_id `7a8beec89b568b684947bc564e9cb7c7` and confirm PASS.
+
+### Entry: 2026-01-12 19:59
+
+Design element: S9 validation PASS
+Summary: Re-ran S9 after the trace aggregation fix and obtained a PASS bundle for the current run.
+
+Run outcome:
+- run_id: `7a8beec89b568b684947bc564e9cb7c7`
+- parameter_hash: `ceedfd1785fe0a71e11e5c3ca1d348f544535e303b99b9cb90d550fc2bf921d5`
+- manifest_fingerprint: `48a1ede3915fd634888afcaf143f85216f574d287237fb6c11f78eb25837a746`
+- `s9_summary.json`: decision=PASS, failures=0
+- `rng_accounting.json`: all families `coverage_ok=true`
+- `_passed.flag` emitted under `data/layer1/1A/validation/manifest_fingerprint=.../`.

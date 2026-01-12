@@ -403,6 +403,24 @@ SEG1A_S8_ARGS += --validate-only
 endif
 SEG1A_S8_CMD = $(PY_ENGINE) -m engine.cli.s8_outlet_catalogue $(SEG1A_S8_ARGS)
 
+SEG1A_S9_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S9_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S9_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S9_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1A_S9_RUN_ID)),)
+SEG1A_S9_ARGS += --run-id $(SEG1A_S9_RUN_ID)
+endif
+ifneq ($(strip $(SEG1A_S9_VALIDATE_ONLY)),)
+SEG1A_S9_ARGS += --validate-only
+endif
+SEG1A_S9_CMD = $(PY_ENGINE) -m engine.cli.s9_validation $(SEG1A_S9_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -1095,6 +1113,12 @@ segment1a-s8:
 	@$(SEG1A_S8_CMD)
 
 engine-s8: segment1a-s8
+
+segment1a-s9:
+	@echo "Running Segment 1A S9 validation"
+	@$(SEG1A_S9_CMD)
+
+engine-s9: segment1a-s9
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"

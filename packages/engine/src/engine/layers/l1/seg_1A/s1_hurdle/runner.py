@@ -464,14 +464,14 @@ def _iter_merchants_from_path(path: Path) -> Iterable[int]:
             yield int(merchant_id)
 
 
-def _trace_row_key(payload: dict, path: Path) -> tuple[int, int, str, int, int, int, str]:
+def _trace_row_key(payload: dict, path: Path) -> tuple[int, int, int, str, int, int, str]:
     return (
-        int(payload["rng_counter_after_hi"]),
-        int(payload["rng_counter_after_lo"]),
-        str(payload.get("ts_utc", "")),
         int(payload["events_total"]),
         int(payload["blocks_total"]),
         int(payload["draws_total"]),
+        str(payload.get("ts_utc", "")),
+        int(payload["rng_counter_after_hi"]),
+        int(payload["rng_counter_after_lo"]),
         path.name,
     )
 
@@ -1457,11 +1457,6 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1RunResult:
                         rate,
                         eta,
                     )
-
-            final_trace = trace_acc.finalize()
-            if final_trace:
-                trace_handle.write(json.dumps(final_trace, ensure_ascii=True, sort_keys=True))
-                trace_handle.write("\n")
 
         event_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_event_path.replace(event_path)
