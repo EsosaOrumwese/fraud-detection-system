@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ieg_public_contracts_v0.schema.json",
+  "title": "ieg_public_contracts_v0",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ResolveIdentityRequest" },
+    { "$ref": "#/$defs/ResolveIdentityResponse" },
+    { "$ref": "#/$defs/GetEntityProfileRequest" },
+    { "$ref": "#/$defs/GetEntityProfileResponse" },
+    { "$ref": "#/$defs/GetNeighborsRequest" },
+    { "$ref": "#/$defs/GetNeighborsResponse" },
+    { "$ref": "#/$defs/ErrorResponse" }
+  ],
+  "$defs": {
+    "ContractVersion": {
+      "type": "string",
+      "const": "ieg_public_contracts_v0"
+    },
+    "KindResolveIdentityRequest": {
+      "type": "string",
+      "const": "resolve_identity_request"
+    },
+    "KindResolveIdentityResponse": {
+      "type": "string",
+      "const": "resolve_identity_response"
+    },
+    "KindGetEntityProfileRequest": {
+      "type": "string",
+      "const": "get_entity_profile_request"
+    },
+    "KindGetEntityProfileResponse": {
+      "type": "string",
+      "const": "get_entity_profile_response"
+    },
+    "KindGetNeighborsRequest": {
+      "type": "string",
+      "const": "get_neighbors_request"
+    },
+    "KindGetNeighborsResponse": {
+      "type": "string",
+      "const": "get_neighbors_response"
+    },
+    "KindErrorResponse": {
+      "type": "string",
+      "const": "error_response"
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339/ISO8601 timestamp with timezone (prefer normalized Z)."
+    },
+    "ContextPins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "run_id",
+        "manifest_fingerprint",
+        "parameter_hash"
+      ],
+      "properties": {
+        "scenario_id": { "type": "string", "minLength": 1 },
+        "run_id": { "type": "string", "minLength": 1 },
+        "manifest_fingerprint": { "type": "string", "minLength": 1 },
+        "parameter_hash": { "type": "string", "minLength": 1 },
+        "window_key": { "type": "string", "minLength": 1 }
+      }
+    },
+    "GraphVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["graph_version"],
+      "properties": {
+        "graph_version": { "type": "string", "minLength": 1 },
+        "stream_name": { "type": "string", "minLength": 1 },
+        "watermark_basis": {
+          "type": "object",
+          "description": "Map of EB partition_id (string) -> next_offset_to_apply (exclusive).",
+          "patternProperties": {
+            "^[0-9]+$": { "$ref": "#/$defs/Offset" }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "ObservedIdentifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id_kind", "id_value"],
+      "properties": {
+        "id_kind": { "type": "string", "minLength": 1 },
+        "id_value": { "type": "string", "minLength": 1 },
+        "namespace": { "type": "string", "minLength": 1 },
+        "issuer": { "type": "string", "minLength": 1 }
+      }
+    },
+    "EntityType": {
+      "type": "string",
+      "enum": ["account", "card", "customer", "merchant", "device"]
+    },
+    "EdgeType": {
+      "type": "string",
+      "enum": [
+        "account__has_card",
+        "card__seen_on_device",
+        "customer__has_account",
+        "customer__seen_at_address",
+        "merchant__operates_site"
+      ]
+    },
+    "EntityRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity_type", "entity_id"],
+      "properties": {
+        "entity_type": { "$ref": "#/$defs/EntityType" },
+        "entity_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "EntityRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity_ref"],
+      "properties": {
+        "entity_ref": { "$ref": "#/$defs/EntityRef" },
+        "attributes": { "type": "object" },
+        "as_of_event_time": { "$ref": "#/$defs/UtcTimestamp" }
+      }
+    },
+    "EdgeRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "src",
+        "dst",
+        "edge_type",
+        "first_seen_event_time",
+        "last_seen_event_time"
+      ],
+      "properties": {
+        "src": { "$ref": "#/$defs/EntityRef" },
+        "dst": { "$ref": "#/$defs/EntityRef" },
+        "edge_type": { "$ref": "#/$defs/EdgeType" },
+        "first_seen_event_time": { "$ref": "#/$defs/UtcTimestamp" },
+        "last_seen_event_time": { "$ref": "#/$defs/UtcTimestamp" },
+        "provenance_ref": { "type": "object" }
+      }
+    },
+    "Offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ResolveIdentityRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "pins",
+        "observed_identifiers"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindResolveIdentityRequest" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "observed_identifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ObservedIdentifier" }
+        }
+      }
+    },
+    "ResolveIdentityResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "pins",
+        "graph_version",
+        "entity_refs"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindResolveIdentityResponse" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "graph_version": { "$ref": "#/$defs/GraphVersion" },
+        "entity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityRef" },
+          "description": "Deterministic order: (entity_type, entity_id)."
+        },
+        "provenance": {
+          "type": "object",
+          "description": "Resolution summary; if ambiguous, include resolution_status=CONFLICT.",
+          "properties": {
+            "resolution_status": {
+              "type": "string",
+              "enum": ["OK", "CONFLICT"]
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+    "GetEntityProfileRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contract_version", "pins", "entity_ref"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindGetEntityProfileRequest" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "entity_ref": { "$ref": "#/$defs/EntityRef" }
+      }
+    },
+    "GetEntityProfileResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "pins",
+        "graph_version",
+        "entity_record"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindGetEntityProfileResponse" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "graph_version": { "$ref": "#/$defs/GraphVersion" },
+        "entity_record": { "$ref": "#/$defs/EntityRecord" }
+      }
+    },
+    "GetNeighborsRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contract_version", "pins", "entity_ref"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindGetNeighborsRequest" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "entity_ref": { "$ref": "#/$defs/EntityRef" },
+        "edge_type": { "$ref": "#/$defs/EdgeType" },
+        "depth": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "GetNeighborsResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "pins",
+        "graph_version",
+        "neighbors",
+        "edges"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindGetNeighborsResponse" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "graph_version": { "$ref": "#/$defs/GraphVersion" },
+        "neighbors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityRef" },
+          "description": "Deterministic order: (entity_type, entity_id)."
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EdgeRecord" },
+          "description": "Deterministic order: (edge_type, src.entity_type, src.entity_id, dst.entity_type, dst.entity_id)."
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "error_code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindErrorResponse" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "pins": { "$ref": "#/$defs/ContextPins" },
+        "error_code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" },
+        "graph_version": { "$ref": "#/$defs/GraphVersion" }
+      }
+    }
+  }
+}

@@ -215,8 +215,9 @@ Other loop components must be able to rely on IEG for:
 
 ### 2.8 Event-time discipline (event_time ≠ ingest_time)
 
-* IEG relationship updates and “as-of” semantics must be attributable to **event_time**.
+* IEG relationship updates and "as-of" semantics must be attributable to **event_time**.
 * Ingest/apply time may be recorded separately but must not replace event_time.
+* `event_time` and edge timestamp fields use RFC3339/ISO8601 with timezone (prefer normalized `Z`).
 
 ---
 
@@ -262,7 +263,7 @@ An **admitted event** is a post-IG event carried on EB that is considered canoni
 IEG update semantics depend on envelope-level fields:
 
 * `event_id`: stable logical identity of the event (used for idempotency keys)
-* `event_time`: when the observation occurred (used for edge timestamps)
+* `event_time`: when the observation occurred (used for edge timestamps; RFC3339/ISO8601, timezone-aware, recommend normalized `Z`)
 * `event_type` (or schema targeting): what kind of event this is, at least for routing update logic
 * `observed_identifiers[]`: the identifiers observed in the event that may map to entities
 
@@ -350,6 +351,8 @@ An **EdgeRecord** represents a relationship edge:
 * `last_seen_event_time`
 * `provenance_ref` (opaque pointer to the causing event)
 
+`first_seen_event_time` and `last_seen_event_time` use the same RFC3339/ISO8601 format as `event_time` (timezone-aware; prefer normalized `Z`).
+
 Edge uniqueness is keyed by `(src_entity_id, dst_entity_id, edge_type)`.
 
 ---
@@ -362,6 +365,8 @@ In v0, graph_version basis is:
 
 * per-partition applied offset watermark vector (map), plus stream_name.
 
+`watermark_basis` keys are the EB `partition_id` values (string form), and each value is the `next_offset_to_apply` (exclusive), meaning all offsets `< watermark` have been applied.
+
 Consumers record graph_version to support audit/replay (“context used”).
 
 ---
@@ -370,7 +375,9 @@ Consumers record graph_version to support audit/replay (“context used”).
 
 An **update_key** is the idempotency key for applying an event to the graph:
 
-* derived from ContextPins + event_id + updater identity/version
+* derived from ContextPins + event_id + update_semantics_id
+
+`update_semantics_id` is a spec-pinned constant: `ieg_update_semantics_v0`.
 
 If an update_key is already applied, update application is a no-op.
 
@@ -418,10 +425,7 @@ For an event to mutate IEG projection state in v0, it must carry:
 * **event targeting:** `event_type` (or schema targeting fields sufficient to route the update logic)
 * **observed identifiers:** `observed_identifiers[]` (ObservedIdentifier objects)
 
-If any required field is missing:
-
-* IEG performs **no state mutation**
-* IEG records an explicit failure outcome (counters + error category), and continues.
+IEG will not parse domain payloads. Therefore admitted events MUST carry the fields above per the IG/Canonical Envelope; if any are missing or invalid, the update is rejected/quarantined with an explicit reason and **no state mutation**.
 
 #### 4.1.3 Optional input: seed snapshots (not required in v0)
 
@@ -557,6 +561,8 @@ No additional entity types are introduced in v0 without versioning the contracts
   * no collapsing two canonical EntityRefs into one
   * no silent merges
 
+When identifiers map to multiple entities, `resolve_identity` returns all candidate EntityRefs (no merges) and includes a conflict marker in provenance (e.g., `resolution_status: "CONFLICT"`).
+
 ---
 
 ### 5.7 Edge vocabulary (v0 allowed edge types)
@@ -592,7 +598,7 @@ Edges are directed by edge_type definition.
 
 * Each event produces an update_key derived from:
 
-  * ContextPins + `event_id` + updater identity/version
+  * ContextPins + `event_id` + update_semantics_id (`ieg_update_semantics_v0`)
 * If update_key has already been applied:
 
   * applying it again is a no-op
@@ -608,6 +614,8 @@ Edges are directed by edge_type definition.
 * graph_version basis is:
 
   * **per-partition applied offset watermark vector (map)** + stream_name.
+
+`watermark_basis` keys are EB `partition_id` values (string form), and each value is the `next_offset_to_apply` (exclusive).
 * Consumers are expected to record “graph_version used” when making decisions/features.
 
 ---
@@ -624,6 +632,11 @@ Response invariants:
 
 * responses include ContextPins and graph_version
 * responses are joinable without guessing
+* list ordering is deterministic:
+
+  * `entity_refs` sorted by `(entity_type, entity_id)`
+  * `neighbors` sorted by `(entity_type, entity_id)`
+  * `edges` sorted by `(edge_type, src.entity_type, src.entity_id, dst.entity_type, dst.entity_id)`
 
 ---
 
@@ -744,6 +757,7 @@ Resolve observed identifiers into canonical entity references using link/alias r
 * v0 posture: links/aliases only; deterministic resolution rules
 * provenance capture for link creation or link observation
 * conflict handling without merges (record conflict; do not collapse)
+* explicit conflict response: return all candidate EntityRefs with `resolution_status: "CONFLICT"`
 
 ### Questions this module must answer
 
@@ -938,7 +952,7 @@ Because EB is at-least-once:
 
 IEG enforces idempotency by:
 
-* deriving an **update_key** from ContextPins + event_id + updater identity/version
+* deriving an **update_key** from ContextPins + event_id + update_semantics_id (`ieg_update_semantics_v0`)
 * recording applied update_keys
 * treating re-application of the same update_key as a **no-op**
 
@@ -1160,9 +1174,9 @@ Optional:
 Optional basis metadata (opaque but present):
 
 * `stream_name`
-* `watermark_basis` (object; per-partition offsets map, or an opaque representation of it)
+* `watermark_basis` (object; per-partition `next_offset_to_apply` map keyed by EB `partition_id` strings, or an opaque representation of it)
 
-**Pinned meaning:** monotonic applied offset watermark vector basis.
+**Pinned meaning:** monotonic applied offset watermark vector basis, where values are `next_offset_to_apply` (exclusive).
 
 ---
 
@@ -1633,7 +1647,7 @@ For every IEG “law” and “designer-locked” decision in this conceptual do
   * ContextPins, event_id, event_time, event_type, observed_identifiers[]
 * update_key posture:
 
-  * derived from ContextPins + event_id + updater id/version
+  * derived from ContextPins + event_id + update_semantics_id (`ieg_update_semantics_v0`)
   * duplicates are no-op
 * disorder posture:
 
@@ -1672,6 +1686,8 @@ For every IEG “law” and “designer-locked” decision in this conceptual do
 
   * basis = per-partition applied offset watermark vector + stream_name
   * monotonic advancement posture
+
+`watermark_basis` keys are EB `partition_id` values (string form), and each value is the `next_offset_to_apply` (exclusive).
 * provenance posture:
 
   * edges include provenance_ref (opaque by-ref)
@@ -1773,7 +1789,7 @@ Everything else can remain implementer freedom.
 
 3. **What does identity resolution return?**
 
-* Given observed identifiers, does `resolve_identity` deterministically return EntityRefs (or an explicit error)?
+* Given observed identifiers, does `resolve_identity` deterministically return all candidate EntityRefs and a conflict marker when ambiguous (or an explicit error)?
 
 4. **Can I retrieve profiles and neighbors safely?**
 
@@ -1789,7 +1805,7 @@ Everything else can remain implementer freedom.
 
 7. **What does `graph_version` mean?**
 
-* Can `graph_version` be interpreted as an applied-stream watermark basis (per-partition offsets), and is it monotonic?
+* Can `graph_version` be interpreted as an applied-stream watermark basis (per-partition next_offset_to_apply values), and is it monotonic?
 
 8. **Can I trace why a link/edge exists?**
 
@@ -1855,8 +1871,9 @@ Everything else can remain implementer freedom.
 
 **Expect**
 
-* resolve_identity returns a deterministic list of EntityRefs (and graph_version)
+* resolve_identity returns a deterministic list of EntityRefs (ordered by `(entity_type, entity_id)`) and graph_version
 * no merges occur; links/aliases only
+* ambiguous mappings return all candidates with `resolution_status: "CONFLICT"`
 
 ---
 
@@ -1894,7 +1911,7 @@ Everything else can remain implementer freedom.
 **Expect**
 
 * the resulting entity/edge projection is equivalent
-* graph_version corresponds to the applied watermark basis (monotonic)
+* graph_version corresponds to the applied watermark basis (per-partition next_offset_to_apply)
 
 ---
 
@@ -1994,7 +2011,7 @@ To claim IEG meets DoD at v0 conceptual level, you should be able to show:
 
 > **Note (conceptual, non-binding):** These examples illustrate the v0 query boundary and object shapes.
 > They use `kind` + `contract_version` for unambiguous schema targeting.
-> `graph_version` is shown with an explicit watermark basis map (per-partition offsets) to reflect the pinned meaning.
+> `graph_version` is shown with an explicit watermark basis map (per-partition `next_offset_to_apply`, keyed by EB `partition_id` strings) to reflect the pinned meaning.
 
 ---
 
@@ -2040,8 +2057,8 @@ To claim IEG meets DoD at v0 conceptual level, you should be able to show:
     "graph_version": "gv_admitted_events_run_20260103T110000Z_0001_000042",
     "stream_name": "admitted_events",
     "watermark_basis": {
-      "partition_0": 9812400,
-      "partition_1": 10012055
+      "0": 9812400,
+      "1": 10012055
     }
   },
 
@@ -2052,6 +2069,7 @@ To claim IEG meets DoD at v0 conceptual level, you should be able to show:
   ],
 
   "provenance": {
+    "resolution_status": "OK",
     "note": "v0 links/aliases only; no merges",
     "created_links": 0
   }
@@ -2098,8 +2116,8 @@ To claim IEG meets DoD at v0 conceptual level, you should be able to show:
     "graph_version": "gv_admitted_events_run_20260103T110000Z_0001_000042",
     "stream_name": "admitted_events",
     "watermark_basis": {
-      "partition_0": 9812400,
-      "partition_1": 10012055
+      "0": 9812400,
+      "1": 10012055
     }
   },
 
@@ -2133,8 +2151,8 @@ To claim IEG meets DoD at v0 conceptual level, you should be able to show:
     "graph_version": "gv_admitted_events_run_20260103T110000Z_0001_000042",
     "stream_name": "admitted_events",
     "watermark_basis": {
-      "partition_0": 9812400,
-      "partition_1": 10012055
+      "0": 9812400,
+      "1": 10012055
     }
   },
 
@@ -2225,7 +2243,7 @@ Participants:
 
 EB --> IEG(Update Consumer): Delivered admitted_event (ContextPins, event_id, event_time, observed_identifiers, event_type)
 
-IEG(Update Consumer): derive update_key [idemp=H(ContextPins,event_id,updater_v)]
+IEG(Update Consumer): derive update_key [idemp=H(ContextPins,event_id,update_semantics_id)]
 IEG(Update Consumer) --> IEG(Update Consumer): check update_key already applied?
 
 (if not applied)
@@ -2249,7 +2267,7 @@ IEG(Update Consumer) --> IEG(Update Consumer): check update_key already applied?
 ```
 EB --> IEG(Update Consumer): Delivered admitted_event (same ContextPins + same event_id)
 
-IEG(Update Consumer): derive update_key [idemp=H(ContextPins,event_id,updater_v)]
+IEG(Update Consumer): derive update_key [idemp=H(ContextPins,event_id,update_semantics_id)]
 IEG(Update Consumer) --> IEG(Update Consumer): update_key already applied = true
 
 IEG(Update Consumer): NO-OP

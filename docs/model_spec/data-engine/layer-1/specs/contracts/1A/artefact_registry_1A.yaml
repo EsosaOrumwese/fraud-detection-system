@@ -158,6 +158,25 @@ subsegments:
     cross_layer: false
     notes:
 
+  - name: s7_integerisation_policy
+    path: config/layer1/1A/allocation/s7_integerisation_policy.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s7.integerisation
+    license: Proprietary-Internal
+    role: S7 integer allocation policy (dp_resid, bounds/dirichlet flags).
+    dependencies: []
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.layer1.yaml#/policy/s7_integerisation
+    cross_layer: false
+    notes:
+
       # ---------------------------
       # EXTERNAL & REFERENCE DATA
       # ---------------------------

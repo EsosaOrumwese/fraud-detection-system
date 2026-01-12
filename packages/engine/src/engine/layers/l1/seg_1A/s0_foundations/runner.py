@@ -199,6 +199,7 @@ def _resolve_param_files(
         "ccy_smoothing_params.yaml": "ccy_smoothing_params",
         "policy.s3.rule_ladder.yaml": "policy.s3.rule_ladder.yaml",
         "s6_selection_policy.yaml": "s6_selection_policy",
+        "s7_integerisation_policy.yaml": "s7_integerisation_policy",
         "policy.s3.base_weight.yaml": "policy.s3.base_weight.yaml",
         "policy.s3.thresholds.yaml": "policy.s3.thresholds.yaml",
     }

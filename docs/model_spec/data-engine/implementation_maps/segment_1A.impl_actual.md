@@ -2265,3 +2265,102 @@ Implementation plan (step-by-step, story-driven):
 Open questions to confirm later (if needed):
 - Should S7 treat gumbel_key consumption as gated by S6 PASS even when s6_membership is absent? (Spec’s platform rule implies yes; plan uses yes.)
 - Bounds/Dirichlet lanes: confirm expected policy inputs (alpha0, per-country bounds) before enabling.
+
+### Entry: 2026-01-12 03:18
+
+Design element: S7 implementation kickoff (contract updates + deterministic lane)
+Summary: Locking decisions and preflight approach before touching code; focus on sealing the S7 policy, enforcing deterministic-only lane, and defining how missing currency/membership cases are handled.
+
+Decisions and rationale (pre-code, detailed):
+- Policy registration + sealing:
+  - Add `s7_integerisation_policy` to artefact_registry_1A.yaml with schema anchor `schemas.layer1.yaml#/policy/s7_integerisation`, so S0 can discover it.
+  - Add policy schema for `policy/s7_integerisation` with `policy_semver`, `policy_version`, `dp_resid`, and `dirichlet_lane.enabled`/`bounds_lane.enabled` booleans.
+  - Add `s7_integerisation_policy.yaml` to S0 `_resolve_param_files` so policy bytes participate in `parameter_hash` and show up in `sealed_inputs_1A` under the policy asset_id.
+- Lane controls (hard fail posture):
+  - If `dirichlet_lane.enabled` is true, hard-fail with `E_DIRICHLET_SHAPE` (or a policy-missing error) because alpha0/beta inputs are not defined yet.
+  - If `bounds_lane.enabled` is true, hard-fail with `E_BOUNDS_INFEASIBLE` (or a policy-missing error) because no bounds policy inputs are specified.
+  - Deterministic-only lane will be fully implemented now; no RNG draws should occur (draws="0", blocks=0; before=after counters).
+- Merchant currency resolution:
+  - If `merchant_currency` exists, use `kappa` as the authoritative currency and never override it.
+  - If `merchant_currency` is absent, allow a single-currency fallback only when `ccy_country_weights_cache` has exactly one currency; otherwise fail closed (`E_UPSTREAM_MISSING`) because the weights vector cannot be resolved.
+- Membership resolution and gating:
+  - Require S6 PASS before reading `s6_membership` or `rng_event.gumbel_key` (enforce the platform "no PASS no read" rule).
+  - If `s6_membership` is present, enforce that it is a strict subset of S3 candidate set (E_S6_NOT_SUBSET_S3 if not).
+  - If `s6_membership` is absent, reconstruct membership from gumbel_key events with `selected=true`; validate schema + lineage per event; ignore non-selected rows.
+- K_target handling:
+  - Always read `ztp_final.K_target` (fact) to decide the single-country path: if `K_target==0` or membership is empty, force domain to `{home}`.
+  - If `K_target==0` but membership is non-empty, treat as upstream inconsistency and fail closed (avoid silently ignoring selected foreigns).
+  - Without eligibility flags, only assert `|membership| <= K_target` (fail if violated); do not attempt to compute |Eligible|.
+- Residual computation + ranking:
+  - Use binary64/RNE with explicit quantisation at dp=8: `round(value * 1e8) / 1e8`, and fail if quantised residual >= 1.0 or < 0.0.
+  - Tie-break order is fixed: residual (desc, quantised), country_iso (A-Z), candidate_rank (asc), stable index.
+  - Emit one `rng_event.residual_rank` per (merchant_id, country_iso) in domain with residual_rank = 1-based order in the tie-break list.
+- Output / resumability:
+  - If residual_rank events already exist and trace substream exists, switch to validate-only mode (re-derive and compare).
+  - If only one of event or trace exists, fail as partial output to avoid corrupt append.
+  - Event emission is staged to a temp file then atomically renamed into the event partition; trace rows are appended (one per event).
+
+### Entry: 2026-01-12 04:14
+
+Design element: S7 runner completion + contract polish before continuing code
+Summary: Capture the remaining implementation steps and the schema correction needed before finishing S7.
+
+In-process plan (before code changes):
+- Finish `s7_integerisation/runner.py`:
+  - Add membership loader (s6_membership) with schema + lineage checks; enforce subset-of-S3 and no-home membership.
+  - Add gumbel_key fallback loader (selected rows only), enforcing schema + lineage and subset-of-S3.
+  - Implement residual quantisation + tie-break (residual desc, ISO A-Z, candidate_rank asc, stable index) and deterministic allocation.
+  - Add existing-output validation (residual_rank events + trace rows); partial output fails; validate-only mode when both exist.
+  - Emit non-consuming residual_rank events + trace rows; log narrative progress and a compact metrics summary.
+- Fix policy schema placement in `schemas.layer1.yaml`:
+  - Restore `s6_selection` policy keys (`dp_score_print`, `per_currency`) under `policy/s6_selection`.
+  - Keep `policy/s7_integerisation` limited to semver/version, dp_resid=8, and lane enabled flags.
+- Wire CLI + Makefile:
+  - Add `engine.cli.s7_integerisation` entrypoint with run-id + validate-only flags.
+  - Add `segment1a-s7` and `engine-s7` targets with SEG1A_S7_ARGS.
+- Cleanup + run plan:
+  - Remove the temporary `test.tmp` created in the S7 package folder.
+  - Run `make segment1a-s0` through `segment1a-s7` on the current run_id once code is complete.
+
+### Entry: 2026-01-12 04:32
+
+Design element: S7 deterministic integerisation runner + schema polish (implemented)
+Summary: Implemented the S7 runner, CLI, and Makefile wiring; fixed the policy schema placement so S6 policy fields remain valid while S7 policy stays minimal.
+
+Changes implemented (with rationale):
+- Policy schema fix (schemas.layer1.yaml):
+  - Restored `dp_score_print` and `per_currency` under `policy/s6_selection` (the live config uses these keys).
+  - Kept `policy/s7_integerisation` limited to `{policy_semver, policy_version, dp_resid=8, dirichlet_lane.enabled, bounds_lane.enabled}` so S7 validation stays tight and deterministic-only.
+- S7 runner core logic (packages/engine/.../s7_integerisation/runner.py):
+  - Added loaders for `s6_membership` and `rng_event.gumbel_key` (selected rows only), with strict lineage checks and subset-of-S3 enforcement (fail on home-inclusion or unknown ISO).
+  - Enforced S5 PASS before weights and S6 PASS before membership/gumbel reads (no PASS → no read).
+  - Implemented deterministic integerisation: residual quantisation at dp=8 (binary64/RNE), tie-break order residual↓ then ISO A–Z then candidate_rank↑ then stable index; counts sum to N; proximity law checked.
+  - Emitted `rng_event.residual_rank` as non-consuming events with correct envelope and appended trace rows after each; event comparison ignores ts_utc but validates all deterministic fields.
+  - Resumability: if residual_rank + trace substream exist, switch to validate-only; partial output fails closed; trace totals reconciled to expected events.
+  - Logged narrative progress and summary metrics (merchants_in_scope, single_country, residual_rank_rows, trace_rows).
+- CLI + Makefile:
+  - Added `engine.cli.s7_integerisation` (run-id + validate-only) and Makefile `segment1a-s7`/`engine-s7` targets.
+  - Added `S7_INTEGERISATION_POLICY` to `SEG1A_PARAM_PAIRS` so preflight checks the new policy input.
+- Cleanup:
+  - Removed the temporary `test.tmp` file under the S7 package folder.
+
+### Entry: 2026-01-12 04:40
+
+Design element: S7 execution fixes discovered during full S0–S7 run
+Summary: Addressed S0 parameter-hash gating, S7 scope definition for missing ztp_final, and schema-aligned validation details so S7 can complete on the current pipeline outputs.
+
+Fixes applied (with reasoning):
+- S0 parameter-hash list:
+  - Added `s7_integerisation_policy.yaml` to REQUIRED_PARAM_BASENAMES so the new policy is treated as governed input (fixes “Unexpected parameter files” error at S0).
+- S7 scope definition:
+  - S4 emits `ztp_final` only for the eligible subset (1310 of 1686). S7 now treats merchants lacking `ztp_final` as out-of-scope and logs the count, instead of failing the run.
+  - The scope is now `scope_merchants = candidate_set ∩ ztp_final`, and `nb_final` is required only for the scope (extra ztp/nb remain hard errors).
+- Merchant_currency schema alignment:
+  - `merchant_currency` rows do not carry `parameter_hash`; removed that check and select only `merchant_id`/`kappa`.
+- Membership validation:
+  - `s6_membership` validates against table name `membership` under `schemas.1A.yaml#/alloc`, matching the schema pack (fixes “Table 's6_membership' not found”).
+- Minor correctness:
+  - Corrected `timer.info` usage to avoid passing format args to a single-arg logger wrapper.
+
+Run outcome:
+- Full chain S0–S7 completed for run_id `42c3411f6b2e9b0a5d94c32f382ad2a3`; S7 emitted residual_rank rows and trace rows (3223 each) over 1310 in-scope merchants.

@@ -148,6 +148,7 @@ S3_BOUNDS_POLICY ?= contracts/_stale/policies/l1/seg_1A/policy.s3.bounds.yaml
 CROSSBORDER_HYPERPARAMS ?= config/layer1/1A/policy/crossborder_hyperparams.yaml
 CCY_SMOOTHING_PARAMS ?= config/layer1/1A/allocation/ccy_smoothing_params.yaml
 S6_SELECTION_POLICY ?= config/layer1/1A/policy.s6.selection.yaml
+S7_INTEGERISATION_POLICY ?= config/layer1/1A/allocation/s7_integerisation_policy.yaml
 HURDLE_EXPORT_VERSION ?= 2026-01-03
 HURDLE_EXPORT_RUN ?= 20260103T184840Z
 HURDLE_COEFFS ?= config/layer1/1A/models/hurdle/exports/version=$(HURDLE_EXPORT_VERSION)/$(HURDLE_EXPORT_RUN)/hurdle_coefficients.yaml
@@ -366,6 +367,24 @@ SEG1A_S6_ARGS += --validate-only
 endif
 SEG1A_S6_CMD = $(PY_ENGINE) -m engine.cli.s6_foreign_set $(SEG1A_S6_ARGS)
 
+SEG1A_S7_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S7_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S7_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S7_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1A_S7_RUN_ID)),)
+SEG1A_S7_ARGS += --run-id $(SEG1A_S7_RUN_ID)
+endif
+ifneq ($(strip $(SEG1A_S7_VALIDATE_ONLY)),)
+SEG1A_S7_ARGS += --validate-only
+endif
+SEG1A_S7_CMD = $(PY_ENGINE) -m engine.cli.s7_integerisation $(SEG1A_S7_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -385,6 +404,7 @@ SEG1A_PARAM_PAIRS = \
 	nb_dispersion_coefficients.yaml=$(NB_DISPERSION_COEFFS) \
 	ccy_smoothing_params.yaml=$(CCY_SMOOTHING_PARAMS) \
 	s6_selection_policy.yaml=$(S6_SELECTION_POLICY) \
+	s7_integerisation_policy.yaml=$(S7_INTEGERISATION_POLICY) \
 	alias_layout_policy_v1.json=$(ALIAS_LAYOUT_POLICY_V1) \
 	day_effect_policy_v1.json=$(DAY_EFFECT_POLICY_V1) \
 	route_rng_policy_v1.json=$(ROUTE_RNG_POLICY_V1) \
@@ -1045,6 +1065,12 @@ segment1a-s6:
 	@$(SEG1A_S6_CMD)
 
 engine-s6: segment1a-s6
+
+segment1a-s7:
+	@echo "Running Segment 1A S7 integer allocation"
+	@$(SEG1A_S7_CMD)
+
+engine-s7: segment1a-s7
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"
