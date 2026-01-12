@@ -3110,3 +3110,11 @@ Run outcome:
 - `s9_summary.json`: decision=PASS, failures=0
 - `rng_accounting.json`: all families `coverage_ok=true`
 - `_passed.flag` emitted under `data/layer1/1A/validation/manifest_fingerprint=.../`.
+
+### Entry: 2026-01-12 20:01
+
+Design element: Segment 1A Make alias (pre-code)
+Summary: Add a convenience Make target `SEG_1A` that aliases `segment1a` so operators can run `make SEG_1A` without altering behavior or inputs.
+
+Plan:
+- Add `.PHONY: SEG_1A` and a `SEG_1A: segment1a` target in `makefile`.
