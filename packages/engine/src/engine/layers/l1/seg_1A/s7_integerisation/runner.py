@@ -41,10 +41,18 @@ from engine.layers.l1.seg_1A.s6_foreign_set.rng import (
     derive_substream,
     merchant_u64,
 )
+from engine.layers.l1.seg_1A.s2_nb_outlets.rng import (
+    Substream,
+    derive_substream_state,
+    u01_pair,
+    u01_single,
+)
 
 
 MODULE_NAME = "1A.integerisation"
 SUBSTREAM_LABEL = "residual_rank"
+MODULE_DIRICHLET = "1A.dirichlet_allocator"
+SUBSTREAM_DIRICHLET = "dirichlet_gamma_vector"
 
 DATASET_NB_FINAL = "rng_event_nb_final"
 DATASET_ZTP_FINAL = "rng_event_ztp_final"
@@ -56,6 +64,7 @@ DATASET_MERCHANT_CURRENCY = "merchant_currency"
 DATASET_ISO = "iso3166_canonical_2024"
 DATASET_TRACE = "rng_trace_log"
 DATASET_RESIDUAL_RANK = "rng_event_residual_rank"
+DATASET_DIRICHLET = "rng_event_dirichlet_gamma_vector"
 DATASET_S5_RECEIPT = "s5_validation_receipt"
 DATASET_S5_PASSED = "s5_passed_flag"
 DATASET_S6_RECEIPT = "s6_validation_receipt"
@@ -127,6 +136,68 @@ def _checked_add(current: int, increment: int) -> int:
     if total > UINT64_MAX:
         return UINT64_MAX
     return total
+
+
+def _box_muller(stream: Substream) -> tuple[float, int, int]:
+    u1, u2, blocks, draws = u01_pair(stream)
+    r = math.sqrt(-2.0 * math.log(u1))
+    theta = 2.0 * math.pi * u2
+    z = r * math.cos(theta)
+    return z, blocks, draws
+
+
+def _gamma_mt1998(alpha: float, stream: Substream) -> tuple[float, int, int]:
+    if not math.isfinite(alpha) or alpha <= 0.0:
+        raise EngineFailure(
+            "F4",
+            "E_DIRICHLET_NONPOS",
+            "S7",
+            MODULE_DIRICHLET,
+            {"detail": "alpha_nonpositive", "alpha": alpha},
+            dataset_id=DATASET_DIRICHLET,
+        )
+    blocks_total = 0
+    draws_total = 0
+    if alpha < 1.0:
+        while True:
+            g, blocks, draws = _gamma_mt1998(alpha + 1.0, stream)
+            blocks_total += blocks
+            draws_total += draws
+            u, blocks, draws = u01_single(stream)
+            blocks_total += blocks
+            draws_total += draws
+            candidate = g * (u ** (1.0 / alpha))
+            if math.isfinite(candidate) and candidate > 0.0:
+                return candidate, blocks_total, draws_total
+    d = alpha - (1.0 / 3.0)
+    c = 1.0 / math.sqrt(9.0 * d)
+    while True:
+        z, blocks, draws = _box_muller(stream)
+        blocks_total += blocks
+        draws_total += draws
+        v = (1.0 + c * z) ** 3
+        if v <= 0.0:
+            continue
+        u, blocks, draws = u01_single(stream)
+        blocks_total += blocks
+        draws_total += draws
+        if math.log(u) < (0.5 * z * z + d - d * v + d * math.log(v)):
+            return d * v, blocks_total, draws_total
+
+
+def _u128_diff(before_hi: int, before_lo: int, after_hi: int, after_lo: int) -> int:
+    before = (int(before_hi) << 64) | int(before_lo)
+    after = (int(after_hi) << 64) | int(after_lo)
+    if after < before:
+        raise EngineFailure(
+            "F4",
+            "E_RNG_ENVELOPE",
+            "S7",
+            MODULE_DIRICHLET,
+            {"detail": "rng_counter_regression", "before": before, "after": after},
+            dataset_id=DATASET_DIRICHLET,
+        )
+    return after - before
 
 
 def _load_json(path: Path) -> dict:
@@ -892,6 +963,61 @@ def _load_existing_residual_events(
     return events
 
 
+def _load_existing_dirichlet_events(
+    paths: Iterable[Path],
+    validator: Draft202012Validator,
+    seed: int,
+    parameter_hash: str,
+    run_id: str,
+) -> dict[int, dict]:
+    events: dict[int, dict] = {}
+    for path, line_no, payload in _iter_jsonl_files(paths):
+        errors = list(validator.iter_errors(payload))
+        if errors:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S7",
+                MODULE_DIRICHLET,
+                {"path": path.as_posix(), "line": line_no, "detail": errors[0].message},
+                dataset_id=DATASET_DIRICHLET,
+            )
+        if (
+            payload.get("seed") != seed
+            or payload.get("parameter_hash") != parameter_hash
+            or payload.get("run_id") != run_id
+        ):
+            raise EngineFailure(
+                "F4",
+                "E_PATH_EMBED_MISMATCH",
+                "S7",
+                MODULE_DIRICHLET,
+                {"path": path.as_posix(), "line": line_no},
+                dataset_id=DATASET_DIRICHLET,
+            )
+        if payload.get("module") != MODULE_DIRICHLET or payload.get("substream_label") != SUBSTREAM_DIRICHLET:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S7",
+                MODULE_DIRICHLET,
+                {"path": path.as_posix(), "line": line_no, "detail": "module_substream_mismatch"},
+                dataset_id=DATASET_DIRICHLET,
+            )
+        merchant_id = int(payload["merchant_id"])
+        if merchant_id in events:
+            raise EngineFailure(
+                "F4",
+                "E_EVENT_COVERAGE",
+                "S7",
+                MODULE_DIRICHLET,
+                {"detail": "duplicate_dirichlet_event", "merchant_id": merchant_id},
+                dataset_id=DATASET_DIRICHLET,
+            )
+        events[merchant_id] = payload
+    return events
+
+
 def _quantize_residual(value: float, dp: int) -> float:
     scale = 10 ** dp
     return round(value * scale) / scale
@@ -1001,6 +1127,9 @@ def run_s7(
             (policy.get("dirichlet_lane") or {}).get("enabled", False)
         )
         bounds_enabled = bool((policy.get("bounds_lane") or {}).get("enabled", False))
+        alpha0: float | None = None
+        lower_multiplier: float | None = None
+        upper_multiplier: float | None = None
         if dp_resid != 8:
             raise EngineFailure(
                 "F4",
@@ -1010,21 +1139,41 @@ def run_s7(
                 {"detail": "dp_resid_mismatch", "dp_resid": dp_resid},
             )
         if dirichlet_enabled:
-            raise EngineFailure(
-                "F4",
-                "E_DIRICHLET_SHAPE",
-                "S7",
-                MODULE_NAME,
-                {"detail": "dirichlet_lane_enabled"},
-            )
+            alpha0 = float((policy.get("dirichlet_lane") or {}).get("alpha0", float("nan")))
+            if not math.isfinite(alpha0) or alpha0 <= 0.0:
+                raise EngineFailure(
+                    "F4",
+                    "E_DIRICHLET_NONPOS",
+                    "S7",
+                    MODULE_DIRICHLET,
+                    {"detail": "alpha0_invalid", "alpha0": alpha0},
+                    dataset_id=DATASET_DIRICHLET,
+                )
         if bounds_enabled:
-            raise EngineFailure(
-                "F4",
-                "E_BOUNDS_INFEASIBLE",
-                "S7",
-                MODULE_NAME,
-                {"detail": "bounds_lane_enabled"},
+            lower_multiplier = float(
+                (policy.get("bounds_lane") or {}).get("lower_multiplier", float("nan"))
             )
+            upper_multiplier = float(
+                (policy.get("bounds_lane") or {}).get("upper_multiplier", float("nan"))
+            )
+            if (
+                not math.isfinite(lower_multiplier)
+                or not math.isfinite(upper_multiplier)
+                or lower_multiplier < 0.0
+                or upper_multiplier <= 0.0
+                or upper_multiplier < lower_multiplier
+            ):
+                raise EngineFailure(
+                    "F4",
+                    "E_BOUNDS_INFEASIBLE",
+                    "S7",
+                    MODULE_NAME,
+                    {
+                        "detail": "bounds_multiplier_invalid",
+                        "lower_multiplier": lower_multiplier,
+                        "upper_multiplier": upper_multiplier,
+                    },
+                )
         logger.info(
             "S7: loaded policy %s (dp_resid=%d, dirichlet_lane=%s, bounds_lane=%s)",
             policy_path.as_posix(),
@@ -1032,6 +1181,14 @@ def run_s7(
             dirichlet_enabled,
             bounds_enabled,
         )
+        if dirichlet_enabled:
+            logger.info("S7: dirichlet_lane enabled (alpha0=%.6f)", alpha0)
+        if bounds_enabled:
+            logger.info(
+                "S7: bounds_lane enabled (lower_multiplier=%.6f, upper_multiplier=%.6f)",
+                lower_multiplier,
+                upper_multiplier,
+            )
 
         s5_receipt_entry = find_dataset_entry(dictionary, DATASET_S5_RECEIPT).entry
         s5_passed_entry = find_dataset_entry(dictionary, DATASET_S5_PASSED).entry
@@ -1245,22 +1402,57 @@ def run_s7(
         event_paths = _resolve_run_glob(run_paths, event_entry["path"], tokens)
         event_path = _resolve_event_path(run_paths, event_entry["path"], tokens)
         event_dir = _resolve_event_dir(run_paths, event_entry["path"], tokens)
+        dirichlet_entry = find_dataset_entry(dictionary, DATASET_DIRICHLET).entry
+        dirichlet_paths = _resolve_run_glob(run_paths, dirichlet_entry["path"], tokens)
+        dirichlet_path = _resolve_event_path(run_paths, dirichlet_entry["path"], tokens)
+        dirichlet_dir = _resolve_event_dir(run_paths, dirichlet_entry["path"], tokens)
         trace_entry = find_dataset_entry(dictionary, DATASET_TRACE).entry
         trace_path = _resolve_run_path(run_paths, trace_entry["path"], tokens)
         existing_events = _event_has_rows(event_paths)
         existing_trace = _trace_has_substream(trace_path, MODULE_NAME, SUBSTREAM_LABEL)
+        existing_dirichlet_events = _event_has_rows(dirichlet_paths)
+        existing_dirichlet_trace = _trace_has_substream(
+            trace_path, MODULE_DIRICHLET, SUBSTREAM_DIRICHLET
+        )
 
-        if existing_events and existing_trace:
-            logger.info("S7: existing residual_rank outputs detected; validating only")
-            validate_only = True
-        elif existing_events or existing_trace:
-            raise InputResolutionError(
-                "Partial S7 outputs detected; refuse to append. "
-                "Remove existing S7 outputs or resume a clean run_id."
-            )
+        if dirichlet_enabled:
+            if (
+                existing_events
+                and existing_trace
+                and existing_dirichlet_events
+                and existing_dirichlet_trace
+            ):
+                logger.info("S7: existing outputs detected; validating only")
+                validate_only = True
+            elif (
+                existing_events
+                or existing_trace
+                or existing_dirichlet_events
+                or existing_dirichlet_trace
+            ):
+                raise InputResolutionError(
+                    "Partial S7 outputs detected; refuse to append. "
+                    "Remove existing S7 outputs or resume a clean run_id."
+                )
+        else:
+            if existing_dirichlet_events or existing_dirichlet_trace:
+                raise InputResolutionError(
+                    "Dirichlet outputs exist but dirichlet_lane is disabled; "
+                    "remove outputs or resume a clean run_id."
+                )
+            if existing_events and existing_trace:
+                logger.info("S7: existing residual_rank outputs detected; validating only")
+                validate_only = True
+            elif existing_events or existing_trace:
+                raise InputResolutionError(
+                    "Partial S7 outputs detected; refuse to append. "
+                    "Remove existing S7 outputs or resume a clean run_id."
+                )
 
         event_schema = _schema_from_pack(schema_layer1, "rng/events/residual_rank")
         event_validator = Draft202012Validator(event_schema)
+        dirichlet_schema = _schema_from_pack(schema_layer1, "rng/events/dirichlet_gamma_vector")
+        dirichlet_validator = Draft202012Validator(dirichlet_schema)
         trace_schema = _schema_from_pack(schema_layer1, "rng/core/rng_trace_log/record")
         trace_validator = Draft202012Validator(trace_schema)
 
@@ -1268,6 +1460,12 @@ def run_s7(
         if existing_events:
             existing_event_map = _load_existing_residual_events(
                 event_paths, event_validator, seed, parameter_hash, run_id
+            )
+
+        existing_dirichlet_map: dict[int, dict] | None = None
+        if existing_dirichlet_events:
+            existing_dirichlet_map = _load_existing_dirichlet_events(
+                dirichlet_paths, dirichlet_validator, seed, parameter_hash, run_id
             )
 
         total_merchants = len(scope_merchants)
@@ -1294,14 +1492,20 @@ def run_s7(
         }
 
         trace_acc = _TraceAccumulator(MODULE_NAME, SUBSTREAM_LABEL)
+        dirichlet_trace_acc = _TraceAccumulator(MODULE_DIRICHLET, SUBSTREAM_DIRICHLET)
         tmp_dir = run_paths.tmp_root / "s7_integerisation"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         tmp_event_path = tmp_dir / "rng_event_residual_rank.jsonl"
+        tmp_dirichlet_path = tmp_dir / "rng_event_dirichlet_gamma_vector.jsonl"
         tmp_trace_path = tmp_dir / "rng_trace_log_s7.jsonl"
 
         events_written = 0
         trace_written = 0
-        expected_event_total = 0
+        dirichlet_events_written = 0
+        expected_residual_events = 0
+        expected_dirichlet_events = 0
+        expected_dirichlet_blocks = 0
+        expected_dirichlet_draws = 0
 
         master_material = derive_master_material(
             bytes.fromhex(manifest_fingerprint), seed
@@ -1335,12 +1539,110 @@ def run_s7(
                 "residual_rank": residual_rank,
             }
 
+        def _expected_dirichlet_payload(
+            merchant_id: int,
+            country_isos: list[str],
+            home_country_iso: str,
+            shares: list[float],
+            n_domestic: int,
+        ) -> dict:
+            if alpha0 is None:
+                raise EngineFailure(
+                    "F4",
+                    "E_DIRICHLET_SHAPE",
+                    "S7",
+                    MODULE_DIRICHLET,
+                    {"detail": "alpha0_missing"},
+                    dataset_id=DATASET_DIRICHLET,
+                )
+            stream = derive_substream_state(
+                master_material, SUBSTREAM_DIRICHLET, merchant_id
+            )
+            before_hi, before_lo = stream.counter()
+            alpha_vec: list[float] = []
+            gamma_raw: list[float] = []
+            blocks_total = 0
+            draws_total = 0
+            for share in shares:
+                alpha_i = alpha0 * share
+                if not math.isfinite(alpha_i) or alpha_i <= 0.0:
+                    raise EngineFailure(
+                        "F4",
+                        "E_DIRICHLET_NONPOS",
+                        "S7",
+                        MODULE_DIRICHLET,
+                        {"detail": "alpha_nonpositive", "alpha": alpha_i},
+                        dataset_id=DATASET_DIRICHLET,
+                    )
+                alpha_vec.append(alpha_i)
+                gamma_value, blocks, draws = _gamma_mt1998(alpha_i, stream)
+                gamma_raw.append(gamma_value)
+                blocks_total += blocks
+                draws_total += draws
+            after_hi, after_lo = stream.counter()
+            blocks_delta = _u128_diff(before_hi, before_lo, after_hi, after_lo)
+            if blocks_delta != blocks_total:
+                raise EngineFailure(
+                    "F4",
+                    "E_RNG_ENVELOPE",
+                    "S7",
+                    MODULE_DIRICHLET,
+                    {"detail": "dirichlet_counter_mismatch", "expected": blocks_total, "actual": blocks_delta},
+                    dataset_id=DATASET_DIRICHLET,
+                )
+            sum_gamma = sum(gamma_raw)
+            if not math.isfinite(sum_gamma) or sum_gamma <= 0.0:
+                raise EngineFailure(
+                    "F4",
+                    "E_DIRICHLET_SUM",
+                    "S7",
+                    MODULE_DIRICHLET,
+                    {"detail": "gamma_sum_nonpositive", "sum": sum_gamma},
+                    dataset_id=DATASET_DIRICHLET,
+                )
+            weights_vec = [value / sum_gamma for value in gamma_raw]
+            sum_weights = sum(weights_vec)
+            if not math.isfinite(sum_weights) or abs(sum_weights - 1.0) > 1e-6:
+                raise EngineFailure(
+                    "F4",
+                    "E_DIRICHLET_SUM",
+                    "S7",
+                    MODULE_DIRICHLET,
+                    {"detail": "weights_sum_mismatch", "sum": sum_weights},
+                    dataset_id=DATASET_DIRICHLET,
+                )
+            return {
+                "seed": seed,
+                "run_id": run_id,
+                "parameter_hash": parameter_hash,
+                "manifest_fingerprint": manifest_fingerprint,
+                "module": MODULE_DIRICHLET,
+                "substream_label": SUBSTREAM_DIRICHLET,
+                "rng_counter_before_lo": before_lo,
+                "rng_counter_before_hi": before_hi,
+                "rng_counter_after_lo": after_lo,
+                "rng_counter_after_hi": after_hi,
+                "draws": str(draws_total),
+                "blocks": blocks_total,
+                "merchant_id": merchant_id,
+                "home_country_iso": home_country_iso,
+                "country_isos": country_isos,
+                "alpha": alpha_vec,
+                "gamma_raw": gamma_raw,
+                "weights": weights_vec,
+                "n_domestic": n_domestic,
+            }
+
         if existing_event_map is None:
             event_handle = tmp_event_path.open("w", encoding="utf-8")
             trace_handle = tmp_trace_path.open("w", encoding="utf-8")
+            dirichlet_handle = (
+                tmp_dirichlet_path.open("w", encoding="utf-8") if dirichlet_enabled else None
+            )
         else:
             event_handle = None
             trace_handle = None
+            dirichlet_handle = None
         try:
             for idx, merchant_id in enumerate(scope_merchants, start=1):
                 if idx % progress_every == 0 or idx == total_merchants:
@@ -1390,6 +1692,21 @@ def run_s7(
                     )
                 if len(domain_rows) == 1:
                     metrics["s7.single_country"] += 1
+                if bounds_enabled:
+                    metrics["s7.bounds.enabled"] += 1
+
+                home_row = next((row for row in domain_rows if row["is_home"]), None)
+                if home_row is None:
+                    raise EngineFailure(
+                        "F4",
+                        "E_UPSTREAM_MISSING",
+                        "S7",
+                        MODULE_NAME,
+                        {"detail": "missing_home_row", "merchant_id": merchant_id},
+                        dataset_id=DATASET_CANDIDATE_SET,
+                    )
+                home_iso = home_row["country_iso"]
+                domain_isos = [row["country_iso"] for row in domain_rows]
 
                 currency = (
                     currency_map[merchant_id]
@@ -1425,13 +1742,15 @@ def run_s7(
                 n_outlets = int(nb_map[merchant_id]["n_outlets"])
                 items: list[dict] = []
                 total_floor = 0
+                sum_lower = 0
+                sum_upper = 0
                 for stable_index, (row, weight) in enumerate(
                     zip(domain_rows, domain_weights), start=0
                 ):
                     s_i = weight / total_weight
                     a_i = n_outlets * s_i
-                    b_i = int(math.floor(a_i))
-                    residual = _quantize_residual(a_i - b_i, dp_resid)
+                    floor_a = int(math.floor(a_i))
+                    residual = _quantize_residual(a_i - floor_a, dp_resid)
                     if residual < 0.0 or residual >= 1.0:
                         raise EngineFailure(
                             "F4",
@@ -1440,21 +1759,80 @@ def run_s7(
                             MODULE_NAME,
                             {"detail": "residual_out_of_range", "merchant_id": merchant_id},
                         )
+                    if bounds_enabled:
+                        if lower_multiplier is None or upper_multiplier is None:
+                            raise EngineFailure(
+                                "F4",
+                                "E_BOUNDS_INFEASIBLE",
+                                "S7",
+                                MODULE_NAME,
+                                {"detail": "bounds_multiplier_missing"},
+                            )
+                        lower = int(math.floor(n_outlets * s_i * lower_multiplier))
+                        upper = int(math.ceil(n_outlets * s_i * upper_multiplier))
+                        if lower < 0:
+                            lower = 0
+                        if upper < 0:
+                            upper = 0
+                        if lower > n_outlets:
+                            lower = n_outlets
+                        if upper > n_outlets:
+                            upper = n_outlets
+                        if upper < lower:
+                            raise EngineFailure(
+                                "F4",
+                                "E_BOUNDS_INFEASIBLE",
+                                "S7",
+                                MODULE_NAME,
+                                {
+                                    "detail": "bounds_inverted",
+                                    "merchant_id": merchant_id,
+                                    "country_iso": row["country_iso"],
+                                },
+                            )
+                    else:
+                        lower = 0
+                        upper = n_outlets
+                    sum_lower += lower
+                    sum_upper += upper
+                    b_i = max(floor_a, lower)
                     total_floor += b_i
                     items.append(
                         {
                             "country_iso": row["country_iso"],
                             "candidate_rank": row["candidate_rank"],
                             "stable_index": stable_index,
-                            "weight": s_i,
+                            "share": s_i,
                             "a": a_i,
+                            "floor": floor_a,
                             "b": b_i,
+                            "lower": lower,
+                            "upper": upper,
                             "residual": residual,
                         }
                     )
 
+                shares = [item["share"] for item in items]
+
+                if bounds_enabled and (sum_lower > n_outlets or sum_upper < n_outlets):
+                    raise EngineFailure(
+                        "F4",
+                        "E_BOUNDS_INFEASIBLE",
+                        "S7",
+                        MODULE_NAME,
+                        {"detail": "bounds_infeasible", "merchant_id": merchant_id},
+                    )
+
                 d = n_outlets - total_floor
-                if d < 0 or d > len(items):
+                if d < 0:
+                    raise EngineFailure(
+                        "F4",
+                        "E_BOUNDS_INFEASIBLE" if bounds_enabled else "INTEGER_SUM_MISMATCH",
+                        "S7",
+                        MODULE_NAME,
+                        {"detail": "remainder_negative", "merchant_id": merchant_id},
+                    )
+                if not bounds_enabled and d > len(items):
                     raise EngineFailure(
                         "F4",
                         "INTEGER_SUM_MISMATCH",
@@ -1475,7 +1853,19 @@ def run_s7(
                 for rank, item in enumerate(ordered, start=1):
                     item["residual_rank"] = rank
 
-                top_iso = {item["country_iso"] for item in ordered[:d]}
+                if bounds_enabled:
+                    eligible_order = [item for item in ordered if item["b"] < item["upper"]]
+                    if d > len(eligible_order):
+                        raise EngineFailure(
+                            "F4",
+                            "E_BOUNDS_CAP_EXHAUSTED",
+                            "S7",
+                            MODULE_NAME,
+                            {"detail": "bounds_capacity_exhausted", "merchant_id": merchant_id},
+                        )
+                    top_iso = {item["country_iso"] for item in eligible_order[:d]}
+                else:
+                    top_iso = {item["country_iso"] for item in ordered[:d]}
                 total_count = 0
                 for item in items:
                     bump = 1 if item["country_iso"] in top_iso else 0
@@ -1490,6 +1880,19 @@ def run_s7(
                             MODULE_NAME,
                             {"detail": "negative_count", "merchant_id": merchant_id},
                         )
+                    if bounds_enabled:
+                        if count < item["lower"] or count > item["upper"]:
+                            raise EngineFailure(
+                                "F4",
+                                "E_BOUNDS_CAP_EXHAUSTED",
+                                "S7",
+                                MODULE_NAME,
+                                {
+                                    "detail": "count_out_of_bounds",
+                                    "merchant_id": merchant_id,
+                                    "country_iso": item["country_iso"],
+                                },
+                            )
                     if abs(count - item["a"]) > 1.0 + 1e-9:
                         raise EngineFailure(
                             "F4",
@@ -1507,7 +1910,22 @@ def run_s7(
                         {"detail": "sum_mismatch", "merchant_id": merchant_id},
                     )
 
-                expected_event_total += len(items)
+                dirichlet_payload: dict | None = None
+                if dirichlet_enabled:
+                    dirichlet_payload = _expected_dirichlet_payload(
+                        merchant_id,
+                        domain_isos,
+                        home_iso,
+                        shares,
+                        n_outlets,
+                    )
+                    expected_dirichlet_events += 1
+                    expected_dirichlet_blocks += int(dirichlet_payload["blocks"])
+                    expected_dirichlet_draws += int(dirichlet_payload["draws"])
+                    metrics["s7.events.dirichlet_gamma_vector.rows"] += 1
+                    metrics["s7.trace.rows"] += 1
+
+                expected_residual_events += len(items)
                 metrics["s7.events.residual_rank.rows"] += len(items)
                 metrics["s7.trace.rows"] += len(items)
 
@@ -1563,6 +1981,49 @@ def run_s7(
                                     },
                                     dataset_id=DATASET_RESIDUAL_RANK,
                                 )
+                    if dirichlet_enabled:
+                        if existing_dirichlet_map is None:
+                            raise EngineFailure(
+                                "F4",
+                                "E_EVENT_COVERAGE",
+                                "S7",
+                                MODULE_DIRICHLET,
+                                {"detail": "missing_dirichlet_events"},
+                                dataset_id=DATASET_DIRICHLET,
+                            )
+                        payload = existing_dirichlet_map.get(merchant_id)
+                        if payload is None:
+                            raise EngineFailure(
+                                "F4",
+                                "E_EVENT_COVERAGE",
+                                "S7",
+                                MODULE_DIRICHLET,
+                                {"detail": "missing_dirichlet_event", "merchant_id": merchant_id},
+                                dataset_id=DATASET_DIRICHLET,
+                            )
+                        if dirichlet_payload is None:
+                            raise EngineFailure(
+                                "F4",
+                                "E_OUTPUT_MISMATCH",
+                                "S7",
+                                MODULE_DIRICHLET,
+                                {"detail": "dirichlet_payload_missing", "merchant_id": merchant_id},
+                                dataset_id=DATASET_DIRICHLET,
+                            )
+                        for key, value in dirichlet_payload.items():
+                            if payload.get(key) != value:
+                                raise EngineFailure(
+                                    "F4",
+                                    "E_OUTPUT_MISMATCH",
+                                    "S7",
+                                    MODULE_DIRICHLET,
+                                    {
+                                        "detail": "dirichlet_field_mismatch",
+                                        "merchant_id": merchant_id,
+                                        "field": key,
+                                    },
+                                    dataset_id=DATASET_DIRICHLET,
+                                )
                     continue
 
                 if event_handle is None or trace_handle is None:
@@ -1609,11 +2070,61 @@ def run_s7(
                     trace_handle.write("\n")
                     events_written += 1
                     trace_written += 1
+
+                if dirichlet_enabled:
+                    if dirichlet_handle is None or trace_handle is None:
+                        raise EngineFailure(
+                            "F4",
+                            "E_OUTPUT_MISMATCH",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {"detail": "dirichlet_handle_missing", "merchant_id": merchant_id},
+                        )
+                    if dirichlet_payload is None:
+                        raise EngineFailure(
+                            "F4",
+                            "E_OUTPUT_MISMATCH",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {"detail": "dirichlet_payload_missing", "merchant_id": merchant_id},
+                            dataset_id=DATASET_DIRICHLET,
+                        )
+                    payload = dict(dirichlet_payload)
+                    payload["ts_utc"] = utc_now_rfc3339_micro()
+                    errors = list(dirichlet_validator.iter_errors(payload))
+                    if errors:
+                        raise EngineFailure(
+                            "F4",
+                            "E_SCHEMA_AUTHORITY",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {"detail": errors[0].message, "merchant_id": merchant_id},
+                            dataset_id=DATASET_DIRICHLET,
+                        )
+                    trace = dirichlet_trace_acc.append(payload)
+                    trace_errors = list(trace_validator.iter_errors(trace))
+                    if trace_errors:
+                        raise EngineFailure(
+                            "F4",
+                            "E_SCHEMA_AUTHORITY",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {"detail": trace_errors[0].message},
+                            dataset_id=DATASET_TRACE,
+                        )
+                    dirichlet_handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
+                    dirichlet_handle.write("\n")
+                    trace_handle.write(json.dumps(trace, ensure_ascii=True, sort_keys=True))
+                    trace_handle.write("\n")
+                    dirichlet_events_written += 1
+                    trace_written += 1
         finally:
             if event_handle is not None:
                 event_handle.close()
             if trace_handle is not None:
                 trace_handle.close()
+            if dirichlet_handle is not None:
+                dirichlet_handle.close()
 
         if existing_event_map is not None:
             extra_merchants = set(existing_event_map) - set(scope_merchants)
@@ -1630,7 +2141,7 @@ def run_s7(
             trace_rows = _trace_rows_for_substream(
                 trace_path, MODULE_NAME, SUBSTREAM_LABEL
             )
-            if len(trace_rows) != expected_event_total:
+            if len(trace_rows) != expected_residual_events:
                 raise EngineFailure(
                     "F4",
                     "RNG_ACCOUNTING_FAIL",
@@ -1638,7 +2149,7 @@ def run_s7(
                     MODULE_NAME,
                     {
                         "detail": "trace_row_count_mismatch",
-                        "expected": expected_event_total,
+                        "expected": expected_residual_events,
                         "actual": len(trace_rows),
                     },
                     dataset_id=DATASET_TRACE,
@@ -1657,7 +2168,7 @@ def run_s7(
             if trace_rows:
                 last = trace_rows[-1]
                 if (
-                    int(last.get("events_total", 0)) != expected_event_total
+                    int(last.get("events_total", 0)) != expected_residual_events
                     or int(last.get("blocks_total", 0)) != 0
                     or int(last.get("draws_total", 0)) != 0
                 ):
@@ -1670,6 +2181,82 @@ def run_s7(
                         dataset_id=DATASET_TRACE,
                     )
 
+            if dirichlet_enabled:
+                if existing_dirichlet_map is None:
+                    raise EngineFailure(
+                        "F4",
+                        "E_EVENT_COVERAGE",
+                        "S7",
+                        MODULE_DIRICHLET,
+                        {"detail": "missing_dirichlet_events"},
+                        dataset_id=DATASET_DIRICHLET,
+                    )
+                extra_merchants = set(existing_dirichlet_map) - set(scope_merchants)
+                if extra_merchants:
+                    raise EngineFailure(
+                        "F4",
+                        "E_EVENT_COVERAGE",
+                        "S7",
+                        MODULE_DIRICHLET,
+                        {"detail": "unexpected_dirichlet_merchants", "merchant_ids": sorted(extra_merchants)[:10]},
+                        dataset_id=DATASET_DIRICHLET,
+                    )
+                trace_rows = _trace_rows_for_substream(
+                    trace_path, MODULE_DIRICHLET, SUBSTREAM_DIRICHLET
+                )
+                if len(trace_rows) != expected_dirichlet_events:
+                    raise EngineFailure(
+                        "F4",
+                        "RNG_ACCOUNTING_FAIL",
+                        "S7",
+                        MODULE_DIRICHLET,
+                        {
+                            "detail": "dirichlet_trace_row_count_mismatch",
+                            "expected": expected_dirichlet_events,
+                            "actual": len(trace_rows),
+                        },
+                        dataset_id=DATASET_TRACE,
+                    )
+                for row in trace_rows:
+                    errors = list(trace_validator.iter_errors(row))
+                    if errors:
+                        raise EngineFailure(
+                            "F4",
+                            "E_SCHEMA_AUTHORITY",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {"detail": errors[0].message},
+                            dataset_id=DATASET_TRACE,
+                        )
+                if trace_rows:
+                    last = trace_rows[-1]
+                    blocks_total = int(last.get("blocks_total", 0))
+                    draws_total = int(last.get("draws_total", 0))
+                    if int(last.get("events_total", 0)) != expected_dirichlet_events:
+                        raise EngineFailure(
+                            "F4",
+                            "RNG_ACCOUNTING_FAIL",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {"detail": "dirichlet_trace_totals_mismatch"},
+                            dataset_id=DATASET_TRACE,
+                        )
+                    if blocks_total != expected_dirichlet_blocks or draws_total != expected_dirichlet_draws:
+                        raise EngineFailure(
+                            "F4",
+                            "RNG_ACCOUNTING_FAIL",
+                            "S7",
+                            MODULE_DIRICHLET,
+                            {
+                                "detail": "dirichlet_trace_totals_mismatch",
+                                "expected_blocks": expected_dirichlet_blocks,
+                                "expected_draws": expected_dirichlet_draws,
+                                "actual_blocks": blocks_total,
+                                "actual_draws": draws_total,
+                            },
+                            dataset_id=DATASET_TRACE,
+                        )
+
         if existing_event_map is None and events_written > 0 and not validate_only:
             event_dir.mkdir(parents=True, exist_ok=True)
             if event_path.exists():
@@ -1677,6 +2264,13 @@ def run_s7(
                     f"S7 residual_rank output already exists: {event_path}"
                 )
             tmp_event_path.replace(event_path)
+            if dirichlet_enabled and dirichlet_events_written > 0:
+                dirichlet_dir.mkdir(parents=True, exist_ok=True)
+                if dirichlet_path.exists():
+                    raise InputResolutionError(
+                        f"S7 dirichlet_gamma_vector output already exists: {dirichlet_path}"
+                    )
+                tmp_dirichlet_path.replace(dirichlet_path)
             if trace_written > 0:
                 trace_path.parent.mkdir(parents=True, exist_ok=True)
                 with trace_path.open("a", encoding="utf-8") as trace_handle:
@@ -1684,18 +2278,22 @@ def run_s7(
                         for line in tmp_handle:
                             trace_handle.write(line)
                 logger.info(
-                    "S7: appended residual_rank trace rows count=%d",
+                    "S7: appended trace rows count=%d (residual_rank=%d, dirichlet_gamma_vector=%d)",
                     trace_written,
+                    events_written,
+                    dirichlet_events_written,
                 )
 
         if existing_event_map is None and events_written > 0 and validate_only:
             logger.info("S7: validate-only mode; outputs not written")
 
         logger.info(
-            "S7 summary: merchants_in_scope=%d single_country=%d residual_rank_rows=%d trace_rows=%d",
+            "S7 summary: merchants_in_scope=%d single_country=%d residual_rank_rows=%d "
+            "dirichlet_rows=%d trace_rows=%d",
             metrics["s7.merchants_in_scope"],
             metrics["s7.single_country"],
             metrics["s7.events.residual_rank.rows"],
+            metrics["s7.events.dirichlet_gamma_vector.rows"],
             metrics["s7.trace.rows"],
         )
 

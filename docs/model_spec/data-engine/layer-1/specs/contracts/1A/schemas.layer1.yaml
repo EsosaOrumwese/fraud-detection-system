@@ -1925,6 +1925,30 @@ policy:
 
     required: [policy_semver, policy_version, dp_resid, dirichlet_lane, bounds_lane]
 
+    allOf:
+
+    - if:
+        properties:
+          dirichlet_lane:
+            properties:
+              enabled: {const: true}
+        required: [dirichlet_lane]
+      then:
+        properties:
+          dirichlet_lane:
+            required: [alpha0]
+
+    - if:
+        properties:
+          bounds_lane:
+            properties:
+              enabled: {const: true}
+        required: [bounds_lane]
+      then:
+        properties:
+          bounds_lane:
+            required: [lower_multiplier, upper_multiplier]
+
     properties:
 
       policy_semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
@@ -1945,6 +1969,8 @@ policy:
 
           enabled: {type: boolean}
 
+          alpha0: {type: number, exclusiveMinimum: 0.0}
+
       bounds_lane:
 
         type: object
@@ -1956,6 +1982,10 @@ policy:
         properties:
 
           enabled: {type: boolean}
+
+          lower_multiplier: {type: number, minimum: 0.0}
+
+          upper_multiplier: {type: number, exclusiveMinimum: 0.0}
 
 
 

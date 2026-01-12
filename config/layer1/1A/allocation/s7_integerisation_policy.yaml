@@ -3,7 +3,10 @@ policy_version: "2025-10-16"
 dp_resid: 8
 
 dirichlet_lane:
-  enabled: false
+  enabled: true
+  alpha0: 24.0
 
 bounds_lane:
-  enabled: false
+  enabled: true
+  lower_multiplier: 1.0
+  upper_multiplier: 1.0

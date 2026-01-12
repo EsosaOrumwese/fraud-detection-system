@@ -2376,3 +2376,131 @@ Decision & rationale (before code change):
 
 Change applied:
 - Updated the S7 logger message to: "ztp_final absent for N candidate-set merchants (S4 gate: single-site or ineligible); treating as out-of-scope" in `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`.
+
+### Entry: 2026-01-12 05:05
+
+Design element: Full S7 spec compliance for bounds + Dirichlet lanes (pre-implementation plan)
+Summary: The current S7 runner hard-fails when bounds/dirichlet lanes are enabled. The spec expects both lanes to run when enabled, so we need to add policy inputs + implementation for the bounded Hamilton variant and the Dirichlet gamma vector event.
+
+Spec anchors reviewed (binding):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s7.expanded.md` sections §4.4, §4.6, §6.7, §8.4, §8.5, §10.10, Appendix A (modules/substreams, error codes, metrics).
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` for `policy/s7_integerisation` and `rng/events/dirichlet_gamma_vector`.
+
+Interpretation decisions to close spec gaps (before code):
+1) **Dirichlet policy inputs**: Spec says policy defines α0 and alpha must be mean-anchored to S5 weights. We will add `dirichlet_lane.alpha0` to the S7 policy schema and config. When enabled, compute `alpha_i = alpha0 * s_i` where `s_i` is the S5 weight vector restricted to the S7 domain and renormalised (binary64/RNE). This ensures α>0 and sum α = α0. If any `alpha_i <= 0` or non-finite, fail `E_DIRICHLET_NONPOS`.
+2) **Dirichlet RNG**: Implement Gamma sampling using the existing Philox-based substream pattern (same algorithm used in S2). One substream per merchant, label `dirichlet_gamma_vector`, with sequential gamma draws for each country in the domain order (home first, then S3 `candidate_rank` foreigns in membership). Emit exactly one `rng_event.dirichlet_gamma_vector` per merchant when the lane is enabled. Populate envelope counters with the total blocks/draws consumed across the vector and append a trace row for `(module="1A.dirichlet_allocator", substream_label="dirichlet_gamma_vector")`.
+3) **Bounds policy inputs**: Spec does not define how to construct L_i/U_i; we will define a minimal, deterministic bounds policy in the S7 policy schema: `bounds_lane.lower_multiplier` and `bounds_lane.upper_multiplier` (floats). For each country, compute `L_i = floor(N * s_i * lower_multiplier)` and `U_i = ceil(N * s_i * upper_multiplier)`, clamped to `[0, N]`. This yields per-country bounds derived from the same S5 weight shares, aligned with the spec’s “per-country floors/ceilings” requirement. If `upper_multiplier < lower_multiplier` or any bound is invalid, fail `E_BOUNDS_INFEASIBLE`.
+4) **Bounds allocation algorithm**: Use bounded Hamilton: start with `b_i = floor(a_i)`; set `b_i = max(b_i, L_i)`; recompute remainder `d = N - sum(b_i)`. If `ΣL_i > N` or `ΣU_i < N` fail `E_BOUNDS_INFEASIBLE`. For remainder bumps, only countries with `b_i < U_i` are eligible. If `d > eligible_count`, fail `E_BOUNDS_CAP_EXHAUSTED`. Residuals used for ranking remain the quantised fractional parts of `a_i` (0 ≤ residual < 1), so logged residuals remain schema-valid; the residual order is still the same binding tie-break (residual desc, ISO A-Z, candidate_rank, stable index).
+5) **Policy defaults and sealing**: Extend `config/layer1/1A/allocation/s7_integerisation_policy.yaml` to include `alpha0` and the bounds multipliers (even if lanes disabled) so the policy fully defines the inputs when enabled. This will change `parameter_hash` and require a fresh S0–S7 run for downstream S8/S9 once changes are in place.
+
+Implementation plan (step-by-step):
+1) **Contracts & policy**:
+   - Extend `schemas.layer1.yaml#/policy/s7_integerisation` to include `dirichlet_lane.alpha0`, `bounds_lane.lower_multiplier`, `bounds_lane.upper_multiplier`, with numeric constraints and `if/then` requirements when enabled=true.
+   - Update `config/layer1/1A/allocation/s7_integerisation_policy.yaml` to include these new fields (with default values; lanes still disabled by default).
+2) **S7 runner changes**:
+   - Add Dirichlet lane support: gamma sampler (Philox substream), build `dirichlet_gamma_vector` payload, validate schema, emit event + trace row, update metrics, and include validation logic for existing outputs when validate-only.
+   - Add bounds lane support in allocation: compute L_i/U_i from policy, apply feasibility and capacity checks, adjust bump eligibility, and enforce bounds on counts.
+   - Update trace accounting to include dirichlet events when enabled (`s7.trace.rows` should equal residual_rank rows + dirichlet rows).
+3) **Resumability/validation**:
+   - When dirichlet lane enabled, require existing dirichlet events + trace substream if validating existing outputs; partial outputs fail.
+4) **Run plan**:
+   - Rerun S0-S7 to regenerate outputs with the updated S7 policy (parameter_hash change), then proceed with S8/S9.
+
+### Entry: 2026-01-12 05:18
+
+Design element: Implement bounds + Dirichlet lanes for S7 (full compliance)
+Summary: Implemented bounded Hamilton allocation and Dirichlet gamma-vector emission, and expanded the S7 policy schema/config so the lanes can run when enabled.
+
+Changes applied (code + contracts):
+- **Policy schema extended** (`docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`):
+  - Added `dirichlet_lane.alpha0` and `bounds_lane.lower_multiplier/upper_multiplier` to `policy/s7_integerisation`.
+  - Added conditional requirements: `alpha0` required when `dirichlet_lane.enabled=true`; bounds multipliers required when `bounds_lane.enabled=true`.
+- **Policy config updated** (`config/layer1/1A/allocation/s7_integerisation_policy.yaml`):
+  - Added `alpha0: 24.0` under `dirichlet_lane` and `lower_multiplier: 1.0`, `upper_multiplier: 1.0` under `bounds_lane`.
+  - Lanes remain disabled by default, but the policy now defines the required inputs if enabled (this flips `parameter_hash` when re-run).
+- **S7 runner updates** (`packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`):
+  - Implemented **bounds lane**:
+    - Per-country bounds from weights: `L_i=floor(N*s_i*lower_multiplier)`, `U_i=ceil(N*s_i*upper_multiplier)` with clamping to `[0, N]`.
+    - Feasibility guard `sum L_i <= N <= sum U_i` enforced; remainder bumps only to countries with capacity `b_i < U_i` (fail `E_BOUNDS_CAP_EXHAUSTED` if capacity is insufficient).
+    - Residuals for ranking remain the quantised fractional part from `a_i - floor(a_i)` to keep `[0,1)` and preserve the binding tie-break order.
+  - Implemented **Dirichlet lane**:
+    - Added Philox-based gamma sampling per merchant (same algorithm as S2) with substream label `dirichlet_gamma_vector`.
+    - `alpha_i = alpha0 * s_i` (mean-anchored to S5 weights); emit one `rng_event.dirichlet_gamma_vector` per merchant with arrays `{country_isos, alpha, gamma_raw, weights}` and correct envelope counters.
+    - Added a dedicated trace accumulator for `(module="1A.dirichlet_allocator", substream_label="dirichlet_gamma_vector")`, and validated trace totals against expected draws/blocks.
+  - Output handling/resumability:
+    - Added detection and validation for existing dirichlet outputs; partial outputs fail closed.
+    - Trace validation now checks both residual-rank and dirichlet substreams when enabled.
+  - Logging/metrics:
+    - Logs include policy parameters when bounds/dirichlet lanes are enabled.
+    - Summary includes dirichlet row counts and total trace rows.
+
+Notes/implications:
+- The policy file now includes additional fields, so `parameter_hash` will change; a fresh S0-S7 run is required before S8/S9 to keep lineage consistent.
+- Bounds multipliers default to 1.0, which makes bounds equivalent to floor/ceil of the share-based target; stricter bounds can be configured by changing the multipliers.
+
+### Entry: 2026-01-12 05:21
+
+Design element: Full S0-S7 rerun after S7 policy change
+Summary: Re-ran S0 through S7 to regenerate outputs under the new S7 policy schema/config so downstream S8/S9 can proceed on consistent lineage.
+
+Run outcome:
+- New run_id: `f9464da476b321a568f15bdd68ae8357`
+- parameter_hash: `628b15b9ad98a28eb45f89c8acf0cb4c99a4d3554b9f3b072cf1ec9636f7a5a0`
+- manifest_fingerprint: `7f1cbc3c089aa32cbf811796ac1d8b2e16a2a8c6bcbcc68b8e0f6c31a2a18190`
+- S7 summary (dirichlet/bounds disabled): merchants_in_scope=1281, residual_rank_rows=3049, dirichlet_rows=0, trace_rows=3049.
+
+### Entry: 2026-01-12 05:40
+
+Design element: Enable S7 bounds + Dirichlet lanes in policy
+Summary: Flipped the S7 policy switches so both bounds and Dirichlet lanes are enabled for the next run.
+
+Decision & rationale:
+- User requested full spec compliance and explicitly asked to enable the bounds and Dirichlet lanes in policy.
+- This will intentionally change `parameter_hash`, so S0–S7 must be re-run before S8/S9 to keep lineage consistent.
+
+Change applied:
+- Updated `config/layer1/1A/allocation/s7_integerisation_policy.yaml` to set `dirichlet_lane.enabled: true` and `bounds_lane.enabled: true` (keeping `alpha0`, `lower_multiplier`, `upper_multiplier` unchanged).
+
+### Entry: 2026-01-12 05:50
+
+Design element: S7 dirichlet_gamma_vector schema authority failure (gamma underflow)
+Summary: The S7 run failed with `F4:E_SCHEMA_AUTHORITY` for module `1A.dirichlet_allocator`. The schema error says `0.0 is less than or equal to the minimum of 0.0`, which implies a value that must be strictly positive (`exclusiveMinimum: 0.0`) hit exactly 0.0.
+
+Observed failure detail (from a controlled re-run with error capture):
+- Failure: `F4:E_SCHEMA_AUTHORITY S7 1A.dirichlet_allocator`
+- Detail: `"0.0 is less than or equal to the minimum of 0.0"`
+- Merchant: `9736050671347577435`
+- Dataset: `rng_event_dirichlet_gamma_vector`
+
+Root-cause reasoning (in-process):
+- The dirichlet event schema enforces `exclusiveMinimum: 0.0` for both `alpha[]` and `gamma_raw[]`.
+- `alpha_i` is computed as `alpha0 * share` and guarded by `E_DIRICHLET_NONPOS`, so the 0.0 likely came from `gamma_raw`.
+- For `alpha < 1`, the Marsaglia–Tsang branch uses `g * (u ** (1/alpha))`; for very small `alpha` or small `u`, IEEE-754 underflow can yield `0.0` despite theoretical positivity.
+- The current implementation does not resample if `gamma_raw` underflows to 0.0, so the first such underflow produces a schema violation.
+
+Decision (before code changes):
+- Enforce `gamma_raw > 0.0` by re-sampling in `_gamma_mt1998` when the computed value is non-finite or `<= 0.0` (only affects the `alpha < 1` branch).
+- This preserves the distribution (rare re-draws) while guaranteeing schema compliance. RNG counters/draws will increase deterministically for the same seed.
+
+Implementation plan (next steps):
+1) Patch `_gamma_mt1998` to loop on the `alpha < 1` branch until `gamma_value > 0.0` and finite, accumulating blocks/draws per attempt.
+2) Re-run `make segment1a-s7` against the current run_id to confirm the schema error is resolved.
+3) Record run outcome in this document and the logbook.
+
+### Entry: 2026-01-12 05:52
+
+Design element: S7 gamma-underflow fix + rerun confirmation
+Summary: Implemented the resampling guard in `_gamma_mt1998` for `alpha < 1` and re-ran S7 on the current run_id; the dirichlet schema failure is resolved and outputs were emitted.
+
+Code change applied:
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+  - In `_gamma_mt1998`, the `alpha < 1` branch now loops until the candidate gamma deviate is finite and `> 0.0`, accumulating blocks/draws per attempt.
+
+Run outcome (same run_id, S7 only):
+- run_id: `85038e45e2b61e3ae4bb5a5185411555`
+- parameter_hash: `2eabc664bed3a7b97be32646c63f7c3f5d257081c71982737dcb7d0781c7dd4a`
+- manifest_fingerprint: `82db98f028b897af408998a0f48d244bd1cbddd205c24de908c60598828aba56`
+- S7 summary: merchants_in_scope=1251, residual_rank_rows=3133, dirichlet_rows=1251, trace_rows=4384.
+
+Notes:
+- The rerun wrote `rng_event.residual_rank` and `rng_event.dirichlet_gamma_vector` plus trace rows for the current run_id; no schema violations were reported.
