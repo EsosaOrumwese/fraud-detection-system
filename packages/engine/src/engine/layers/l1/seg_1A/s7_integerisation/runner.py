@@ -1111,7 +1111,8 @@ def run_s7(
         missing_ztp = sorted(mid for mid in candidate_map if mid not in ztp_map)
         if missing_ztp:
             logger.info(
-                "S7: ztp_final missing for %d candidate-set merchants; treating as out-of-scope",
+                "S7: ztp_final absent for %d candidate-set merchants (S4 gate: single-site or ineligible); "
+                "treating as out-of-scope",
                 len(missing_ztp),
             )
         missing_nb = sorted(mid for mid in scope_merchants if mid not in nb_map)

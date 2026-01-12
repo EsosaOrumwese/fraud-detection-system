@@ -2346,7 +2346,7 @@ Changes implemented (with rationale):
 
 ### Entry: 2026-01-12 04:40
 
-Design element: S7 execution fixes discovered during full S0–S7 run
+Design element: S7 execution fixes discovered during full S0-S7 run
 Summary: Addressed S0 parameter-hash gating, S7 scope definition for missing ztp_final, and schema-aligned validation details so S7 can complete on the current pipeline outputs.
 
 Fixes applied (with reasoning):
@@ -2363,4 +2363,16 @@ Fixes applied (with reasoning):
   - Corrected `timer.info` usage to avoid passing format args to a single-arg logger wrapper.
 
 Run outcome:
-- Full chain S0–S7 completed for run_id `42c3411f6b2e9b0a5d94c32f382ad2a3`; S7 emitted residual_rank rows and trace rows (3223 each) over 1310 in-scope merchants.
+- Full chain S0-S7 completed for run_id `42c3411f6b2e9b0a5d94c32f382ad2a3`; S7 emitted residual_rank rows and trace rows (3223 each) over 1310 in-scope merchants.
+
+### Entry: 2026-01-12 04:55
+
+Design element: S7 scope logging clarity for ztp_final absence
+Summary: Adjusted the S7 info log to state why ztp_final is absent for some candidate-set merchants, aligning the message with the S4 gate semantics in the spec.
+
+Decision & rationale (before code change):
+- The previous log line said "missing ztp_final" without context, which reads like an error. Per S4 spec, `ztp_final` is emitted only for merchants on the eligible multi-site branch (S1 is_multi=true and S3 is_eligible=true). Singles and ineligible merchants intentionally produce no S4 events, so "missing" is expected and should be described as out-of-scope due to S4 gating.
+- I will keep the log at INFO (not ERROR) and add the explicit reason string ("single-site or ineligible") so operators can interpret the scope correctly without digging into spec text. This is a wording-only change; it does not alter S7 behavior or scope definition.
+
+Change applied:
+- Updated the S7 logger message to: "ztp_final absent for N candidate-set merchants (S4 gate: single-site or ineligible); treating as out-of-scope" in `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`.
