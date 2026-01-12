@@ -2078,6 +2078,43 @@ To claim IEG meets DoD at v0 conceptual level, you should be able to show:
 
 ---
 
+### A.2b Example — `ResolveIdentityResponse` (conflict)
+
+```json
+{
+  "kind": "resolve_identity_response",
+  "contract_version": "ieg_public_contracts_v0",
+
+  "pins": {
+    "scenario_id": "scn_baseline_v1",
+    "run_id": "run_20260103T110000Z_0001",
+    "manifest_fingerprint": "mf_20251231T235959Z_8f3c2a1d",
+    "parameter_hash": "ph_4b1d7a9c"
+  },
+
+  "graph_version": {
+    "graph_version": "gv_admitted_events_run_20260103T110000Z_0001_000042",
+    "stream_name": "admitted_events",
+    "watermark_basis": {
+      "0": 9812400,
+      "1": 10012055
+    }
+  },
+
+  "entity_refs": [
+    { "entity_type": "account", "entity_id": "e_account_7c31d9" },
+    { "entity_type": "account", "entity_id": "e_account_91ab44" }
+  ],
+
+  "provenance": {
+    "resolution_status": "CONFLICT",
+    "note": "ambiguous identifiers; no merges in v0"
+  }
+}
+```
+
+---
+
 ### A.3 Example — `GetEntityProfileRequest`
 
 ```json
