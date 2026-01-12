@@ -2504,3 +2504,90 @@ Run outcome (same run_id, S7 only):
 
 Notes:
 - The rerun wrote `rng_event.residual_rank` and `rng_event.dirichlet_gamma_vector` plus trace rows for the current run_id; no schema violations were reported.
+
+## S8 - Materialise outlet stubs & sequences (S8.*)
+
+### Entry: 2026-01-12 05:59
+
+Design element: S8 contract review + pre-implementation plan (outlet_catalogue + sequencing)
+Summary: Reviewed the S8 expanded spec and S8-related contracts to map authoritative inputs/outputs, gating, and invariants; logged contract mismatches and the detailed implementation plan before coding.
+
+Docs reviewed (authoritative):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s8.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml`
+
+Contract cross-check (what S8 is allowed/required to read + write):
+- Required inputs:
+  - `s3_candidate_set` (parameter-scoped; authority for inter-country order).
+  - `rng_event.nb_final` (run-scoped; N per merchant).
+  - Counts source: `s3_integerised_counts` (preferred if present) OR an in-process S7 handoff (explicitly required by S8 spec).
+  - Membership: `s6_membership` (optional convenience; S6 PASS gate required) OR reconstruct from `rng_event.gumbel_key` + `rng_event.ztp_final`.
+- Optional input:
+  - `s3_site_sequence` (parameter-scoped; cross-check only).
+- Outputs:
+  - `outlet_catalogue` (egress, partitioned by `seed` + `manifest_fingerprint`).
+  - `rng_event.sequence_finalize` (non-consuming, module `1A.site_id_allocator`).
+  - `rng_event.site_sequence_overflow` (non-consuming, module `1A.site_id_allocator`).
+  - `rng_trace_log` rows after each event append; `rng_audit_log` entry at run start.
+- Gates:
+  - If reading `s6_membership`, verify S6 PASS receipt; no PASS → no read.
+  - Path/embed equality for any embedded lineage fields.
+  - S8 MUST NOT read S5 weights or derive counts from weights.
+
+Contract gaps / mismatches discovered:
+1) **Counts handoff requirement:** S8 spec mandates *in-process* counts from S7 when `s3_integerised_counts` is absent. There is no existing on-disk handoff artefact for this in the engine; needs a deliberate implementation choice.
+2) **Schema vs dictionary partition key mismatch:** `schemas.1A.yaml#/egress/outlet_catalogue` lists `partition_keys: [seed, fingerprint]`, while the dictionary and spec use `manifest_fingerprint` and the column name is `manifest_fingerprint`. This is a contract inconsistency to resolve.
+3) **Row min constraints vs scope:** `raw_nb_outlet_draw` min is 1 in schema, but S8 writes only multi-site merchants (`N >= 2`). We can enforce `N >= 2` in runtime checks to stay consistent with the spec’s scope.
+
+Pre-implementation plan (step-by-step, with rationale):
+1) **Resolve counts source (hard requirement).**
+   - If `s3_integerised_counts` exists and is non-empty for the target `parameter_hash`, use it as authority.
+   - Otherwise require an S7 handoff artefact; S8 MUST NOT reconstruct counts from weights or heuristics.
+   - Ensure every `(merchant_id, country_iso)` count is aligned with `s3_candidate_set` domain and `nb_final.n_outlets` (sum check).
+
+2) **Input gating + lineage parity.**
+   - Verify S6 PASS receipt before reading `s6_membership`.
+   - Enforce path/embed equality on S3 tables and RNG events (`seed/parameter_hash/run_id`).
+   - Validate that `s3_candidate_set` has contiguous `candidate_rank` with exactly one home at rank 0.
+
+3) **Membership resolution (domain D).**
+   - Prefer `s6_membership` if present (and gated); otherwise reconstruct from `gumbel_key` selected=true + `ztp_final.K_target`.
+   - Enforce membership subset of candidate set and `|membership| <= K_target`; if `K_target==0` with non-empty membership → upstream inconsistency.
+
+4) **Counts + domain assembly per merchant.**
+   - Determine `N` from `rng_event.nb_final.n_outlets` (must be ≥2 for multi-site; singles are out of scope).
+   - For each country in domain, retrieve `count` from counts source; skip countries with `count==0`.
+   - Verify sum of per-country counts equals `N` (hard fail otherwise).
+
+5) **Sequence generation + overflow guardrail.**
+   - For each `(merchant, country)` with `count >= 1`, generate `site_order = 1..count` and `site_id = zfill6(site_order)`.
+   - If any `count > 999999`, emit `rng_event.site_sequence_overflow` and **fail the merchant** (no `outlet_catalogue` rows for that merchant).
+
+6) **Emit instrumentation events + trace.**
+   - Emit `rng_event.sequence_finalize` per `(merchant,country)` block with `site_count`, `start_sequence`, `end_sequence`; non-consuming envelope.
+   - Emit `rng_event.site_sequence_overflow` only on overflow; non-consuming envelope with `severity="ERROR"`.
+   - Append one `rng_trace_log` row after **each** event append (sequence_finalize or overflow).
+   - Ensure `rng_audit_log` is present for the run (append if missing, fail in validate-only mode).
+
+7) **Write egress + resumability.**
+   - Stage `outlet_catalogue` to temp, then atomic rename.
+   - If output exists, switch to validate-only; partial outputs are hard fail.
+   - Writer sort `[merchant_id, legal_country_iso, site_order]`; enforce PK uniqueness.
+
+8) **Optional cross-checks.**
+   - If `s3_site_sequence` exists, cross-check computed sequences; mismatch → `E_SEQUENCE_DIVERGENCE`.
+
+9) **Validation bundle responsibilities (S9 coordination).**
+   - S8 spec enumerates metrics and RNG accounting artifacts for the validation bundle; plan to implement these in S9 (validator) rather than inside the S8 runner.
+
+Open questions (need user decision before implementation):
+1) **Counts handoff for Variant B:** How should S7 → S8 in-process counts be persisted for CLI runs? Options:
+   - A) Emit a deterministic handoff file under `runs/<run_id>/tmp/` from S7 and have S8 consume it (non-contract, implementation detail).
+   - B) Require `s3_integerised_counts` to exist; otherwise hard-fail until S3 owns counts.
+2) **Outlet partition key mismatch:** Should we update `schemas.1A.yaml` to use `manifest_fingerprint` (align with dictionary/spec), or treat dictionary as authoritative and leave schema as-is?
+3) **Overflow failure scope:** Spec says “fail the merchant” on overflow; do you want the overall S8 run to still pass (with missing merchants) or fail the entire run?
+4) **single_vs_multi_flag derivation:** OK to set `single_vs_multi_flag=true` for all emitted rows (since S8 writes only multi-site merchants), or should we explicitly read `rng_event.hurdle_bernoulli` to set/verify it?
