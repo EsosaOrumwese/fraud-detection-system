@@ -471,7 +471,7 @@ Plan:
 - Update S0/S1 CLI logger names to the same namespace for consistency across CLI and runner output.
 - Apply the same pattern to S1 hurdle runner so downstream logs remain intuitive.
 
-## S1 - Hurdle (placeholder)
+## S1 - Hurdle (S1.*)
 
 ### Entry: 2026-01-11 02:07
 
@@ -855,7 +855,7 @@ Summary: Fixed the over-escaped semver regex in the schema so `semver: "1.3.4"` 
 What changed:
 - `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`: updated `validation_policy.semver.pattern` to use single-escaped dots (`^[0-9]+\.[0-9]+\.[0-9]+$`).
 
-## S3 - Cross-border Universe (placeholder)
+## S3 - Cross-border Universe (S3.*)
 ### Entry: 2026-01-11 12:40 (pre-implementation)
 
 Design element: S3 contract review (inputs/outputs/policies/dictionary/schema)
@@ -977,7 +977,7 @@ Fixes during the run:
 Validation notes:
 - `make segment1a-s3` now completes with outputs emitted under `data/layer1/1A/s3_*` (parameter_hash-scoped), and a subsequent rerun validates existing outputs successfully.
 
-## S4 - ZTP Target (placeholder)
+## S4 - ZTP Target (S4.*)
 ### Entry: 2026-01-11 14:23 (pre-implementation)
 
 Design element: S4 contract review + ZTP pipeline plan
@@ -1036,21 +1036,6 @@ Decision details (before coding):
 - Run-scoped failures (POLICY_INVALID, STREAM_ID_MISMATCH, PARTITION_MISMATCH, ZERO_ROW_FILE, UNKNOWN_CONTEXT, DICT_BYPASS_FORBIDDEN) will write a `failure.json` under `data/layer1/1A/validation/failures/...` via the existing `write_failure_record` helper and abort the run.
 - S4 metrics counters/histograms will be logged as values-only lines at the end of the run (and after validation-only paths), using the §13.2 keys and run lineage. Histograms will be emitted as per-merchant samples (attempts) and a final summary line; no paths will be logged.
 - The `merchant_abort_log` parquet dataset will not be emitted in S4 for now (dictionary lists it as S0-produced and would require new parquet output plumbing); values-only log lines cover the spec requirement without new dataset wiring.
-
-## S5 - Currency Weights (placeholder)
-No entries yet.
-
-## S6 - Foreign Selection (placeholder)
-No entries yet.
-
-## S7 - Integer Allocation (placeholder)
-No entries yet.
-
-## S8 - Outlet Catalogue (placeholder)
-No entries yet.
-
-## S9 - Validation (placeholder)
-No entries yet.
 
 ### Entry: 2026-01-11 15:08 (pre-implementation continuation)
 
@@ -1322,6 +1307,8 @@ Changes applied:
 
 Expected operator impact:
 - Console logs now tell the story of each state’s scope and outputs, making it easier to interpret progress vs. problems without diving into code.
+
+## S5 - Currency Weights (S5.*)
 
 ### Entry: 2026-01-11 17:20 (pre-implementation plan)
 
@@ -1997,8 +1984,6 @@ CLI and Makefile wiring:
 - CLI overrides must match policy; mismatch => `E_POLICY_CONFLICT`.
 - Add `segment1a-s6` / `engine-s6` targets with ENV variable support consistent with S0-S5.
 
-## S6 - Foreign Set Selection (S6.1 to S6.??)
-
 ### Entry: 2026-01-11 22:37
 
 Design element: S6 implementation kickoff (runner + CLI + make target) with full in-process capture
@@ -2202,3 +2187,81 @@ Changes implemented:
 Notes:
 - Receipt schema and metrics were left unchanged to avoid invalidating existing S6 receipts; validations are runtime-only.
 - RNG family/substream derivation is unchanged; “counter-replay” uses the existing deterministic per-candidate substream.
+
+## S7 - Integer Allocation (S7.*)
+
+### Entry: 2026-01-12 02:52
+
+Design element: S7 pre-implementation review + plan (integer allocation across legal country set)
+Summary: Reviewed S7 expanded spec, the S7 policy file, and the contracts bundle; documenting the full implementation plan and the contract gaps to resolve before coding.
+
+Docs reviewed (authoritative):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s7.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml
+- config/layer1/1A/allocation/s7_integerisation_policy.yaml
+
+Contract gaps observed (must resolve before code):
+1) S7 policy is not registered in artefact_registry_1A.yaml.
+   - We have config/layer1/1A/allocation/s7_integerisation_policy.yaml, but no registry entry or schema anchor.
+   - This prevents sealed_inputs capture and policy schema validation (spec §4 requires policy validation).
+2) No policy schema for S7 in schemas.layer1.yaml.
+   - Need policy/s7_integerisation schema to validate policy_semver, policy_version, dp_resid, dirichlet_lane.enabled, bounds_lane.enabled.
+3) S0 sealed-inputs mapping does not include S7 policy.
+   - To satisfy “External inputs MUST appear in sealed_inputs_1A”, we must add the S7 policy file to S0’s registry closure and parameter_hash governed set.
+
+Policy interpretation decisions (before coding):
+- dp_resid is binding to 8 per spec §4.1; if policy dp_resid != 8, fail closed (E_SCHEMA_INVALID or E_RESIDUAL_QUANTISATION).
+- dirichlet_lane.enabled is OFF in the policy; implement the deterministic lane fully now.
+- bounds_lane.enabled is OFF and the policy file does not supply L/U parameters. If enabled without proper policy inputs, treat as hard fail until a bounds policy source is defined.
+- Dirichlet lane is feature-flagged but the policy does not define alpha0 or any gamma parameters. If enabled, treat as hard fail until the policy schema and inputs are specified (avoid inventing semantics).
+
+Implementation plan (step-by-step, story-driven):
+1) Contract + sealing updates
+   - Add S7 policy entry to artefact_registry_1A.yaml pointing to config/layer1/1A/allocation/s7_integerisation_policy.yaml with a new schema anchor (policy/s7_integerisation).
+   - Add policy/s7_integerisation schema to schemas.layer1.yaml (additionalProperties false; enforce semver, policy_version, dp_resid=8, dirichlet_lane.enabled, bounds_lane.enabled).
+   - Add S7 policy to S0’s sealed input registry closure and parameter_hash governed set so the policy bytes flip parameter_hash and are captured in sealed_inputs_1A.
+
+2) Runner + CLI + Makefile wiring
+   - Implement packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py (new state).
+   - Implement packages/engine/src/engine/cli/s7_integerisation.py (mirrors S6 CLI structure).
+   - Add make target segment1a-s7 and engine-s7 with SEG1A_S7_* variables.
+
+3) Preflight + gates
+   - Load run_receipt, sealed_inputs_1A, and resolve policy file path; validate against the new policy schema.
+   - Enforce S5 PASS before reading ccy_country_weights_cache.
+   - Enforce S6 PASS before reading s6_membership; if s6_membership is absent, still require S6 PASS before using rng_event.gumbel_key (platform “no PASS no read”).
+   - Validate ISO FKs using iso3166_canonical_2024 from sealed inputs.
+
+4) Input loading + integrity checks
+   - Load s3_candidate_set and validate contiguous candidate_rank with home=0; ensure reason_codes/filter_tags are lists of strings (same checks as S6).
+   - Load rng_event.nb_final (one per merchant) and rng_event.ztp_final (one per merchant in scope) with lineage equality checks.
+   - Load merchant_currency if present; otherwise allow single-currency fallback only when weights have exactly one currency.
+   - Load weights and verify per-currency sum = 1 ± 1e-6 and weights in [0,1].
+
+5) Membership resolution
+   - Preferred: read s6_membership (if present + S6 PASS) and verify it is a subset of s3_candidate_set for each merchant.
+   - Fallback: reconstruct membership from rng_event.gumbel_key rows where selected=true; validate lineage and selected flags.
+
+6) Deterministic allocation (core S7)
+   - Domain D = {home} ∪ selected_foreigns; if no foreigns, allocate all N to home and emit a single residual_rank.
+   - Compute weights restricted to D and renormalise; if sum=0, fail E_ZERO_SUPPORT.
+   - Compute a_i = N * s_i (binary64 RNE); floor b_i; remainder d = N - sum(b_i).
+   - Compute residuals r_i = a_i - b_i; quantise to dp_resid=8; tie-break by residual desc, ISO A-Z, candidate_rank asc, stable index.
+   - Apply +1 to top d residuals; counts must sum to N and satisfy proximity law.
+   - bounds_lane.enabled: if enabled with valid bounds policy in the future, apply feasibility + capacity rules; otherwise fail closed when enabled.
+
+7) Outputs + RNG logs
+   - Emit rng_event.residual_rank for each (merchant_id, country_iso) in D, with non-consuming envelope (draws="0", blocks=0) and module/substream fixed to 1A.integerisation/residual_rank.
+   - Append rng_trace_log after each residual_rank event; totals must reconcile.
+   - Do not write any counts dataset (spec prohibits); counts flow into S8.
+
+8) Validation + resumability
+   - If existing residual_rank outputs/trace exist, validate-only mode (no overwrite); partial outputs are a hard fail.
+   - Enforce path↔embed equality, per-merchant coverage, residual_rank contiguity, and sum/proximity laws; emit failures via validation/failures path.
+
+Open questions to confirm later (if needed):
+- Should S7 treat gumbel_key consumption as gated by S6 PASS even when s6_membership is absent? (Spec’s platform rule implies yes; plan uses yes.)
+- Bounds/Dirichlet lanes: confirm expected policy inputs (alpha0, per-country bounds) before enabling.
