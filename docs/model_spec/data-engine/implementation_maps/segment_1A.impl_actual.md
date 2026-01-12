@@ -1996,3 +1996,156 @@ CLI and Makefile wiring:
 - Add `engine.cli.s6_foreign_set` with `--run-id`, `--emit-membership-dataset`, `--log-all-candidates`, `--fail-on-degrade`, `--validate-only`.
 - CLI overrides must match policy; mismatch => `E_POLICY_CONFLICT`.
 - Add `segment1a-s6` / `engine-s6` targets with ENV variable support consistent with S0-S5.
+
+## S6 - Foreign Set Selection (S6.1 to S6.??)
+
+### Entry: 2026-01-11 22:37
+
+Design element: S6 implementation kickoff (runner + CLI + make target) with full in-process capture
+Summary: Begin S6 implementation now that expanded spec and contracts are re-read; document stepwise plan before code changes.
+
+Docs/contracts re-read for this pass (explicit):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s6.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/data-intake/1A/s6_selection_policy_authoring-guide.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml (s6_membership, s6_validation_receipt)
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml (s6_selection_policy, s6_membership, s6_validation_receipt)
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml (alloc/membership)
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml (rng/events/gumbel_key, policy/s6_selection, validation/s6_receipt)
+
+Plan for implementation (in order, with reasoning and checkpoints):
+1) Runner skeleton and constants
+   - Create packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_set/runner.py.
+   - Mirror S4/S5 structure: module constants, dataset IDs, dataclass result, StepTimer, load helpers, run receipt resolution, path resolution, schema section extraction, and JSONL append helpers.
+   - Define MODULE_NAME = "1A.foreign_country_selector" and SUBSTREAM_LABEL = "gumbel_key" to align with schema anchors.
+   - Add RNG envelope helper that records before/after counters, blocks=1, draws="1" and enforces open-interval u generation via s6 rng helpers.
+
+2) Contract loading and sealed input policy
+   - Load dataset dictionary and artefact registry with ContractSource from EngineConfig, matching dev layout (docs/model_spec) but future safe for production layout.
+   - Load schema packs for schemas.ingress.layer1.yaml, schemas.layer1.yaml, schemas.1A.yaml.
+   - Resolve and hash the policy file config/layer1/1A/policy.s6.selection.yaml; validate against schema pack policy/s6_selection.
+   - Enforce policy domain checks: uppercase ISO-4217 keys; no overrides for log_all_candidates or dp_score_print; emit_membership_dataset consistent across defaults and overrides.
+   - Record policy digest for receipt for auditability.
+
+3) Input resolution and gates
+   - Resolve run receipt (run_id or latest) and extract seed, parameter_hash, manifest_fingerprint.
+   - Verify S5 PASS receipt exists (S5_VALIDATION.json + _passed.flag) under the same parameter_hash before reading S5 datasets.
+   - Resolve input datasets by dictionary paths with run path tokens: s3_candidate_set, crossborder_eligibility_flags, rng_event_ztp_final (log scoped), ccy_country_weights_cache, optional merchant_currency, iso3166 canonical.
+   - Validate schema for each input and enforce path/embed equality where applicable.
+   - Fail closed with E_UPSTREAM_GATE or E_DOMAIN_FK for missing or invalid inputs.
+
+4) Pre-flight data integrity checks
+   - S3 candidate set: per merchant, candidate_rank is contiguous with home at rank 0; exactly one home row.
+   - Eligibility flags: only merchants with is_eligible==true proceed; others are skipped with reason code and no output.
+   - ZTP final: exactly one per eligible merchant; error if missing or duplicates.
+   - S5 weights: per currency sum to 1 (within tolerance), weights in [0,1], ISO uppercase; reject otherwise.
+   - Merchant currency resolution: use merchant_currency if present, otherwise only allow single-currency weights; if multiple currencies and no merchant_currency, fail E_UPSTREAM_GATE.
+
+5) Domain construction per merchant (story-aware logging)
+   - Narrative logs explain each gate: eligibility, S3 foreign size A, policy cap, zero_weight_rule, and final considered/eligible counts.
+   - Build foreign domain in S3 candidate_rank order; apply max_candidates_cap; join weights for merchant currency.
+   - Apply zero_weight_rule: exclude drops weight==0 from considered set; include keeps but marks as ineligible with key=null.
+
+6) Selection and RNG event emission
+   - For each considered candidate, derive per-candidate substream with merchant_u64 + country_iso.
+   - Draw u in open interval; compute key = ln(weight_norm) - ln(-ln u) for weight>0; if weight==0, key=null.
+   - Select top K_target using key desc, tie-break by candidate_rank asc then ISO A-Z.
+   - Emit rng_event.gumbel_key in candidate_rank order when log_all_candidates=true; otherwise only for selected candidates.
+   - Append rng_trace_log row after each event; track cumulative counters for module/substream.
+
+7) Optional membership surface
+   - If emit_membership_dataset is true (run-level), emit s6_membership parquet with (merchant_id, country_iso, seed, parameter_hash, produced_by_fingerprint).
+   - Ensure no inter-country order encoded; writer sort by merchant_id, country_iso only.
+
+8) Receipt writing and resumability
+   - Write S6_VALIDATION.json and _passed.flag in data/layer1/1A/s6/seed=.../parameter_hash=.../.
+   - Receipt includes counts and integrity checks (events written vs expected, merchants processed, shortfall count, reason_code counts, policy digest, rng trace reconciliation flags).
+   - If receipt already exists and matches, validate and return without re-emitting (write-once semantics).
+
+9) CLI and Makefile wiring
+   - Add packages/engine/src/engine/cli/s6_foreign_set.py with args: --run-id, --emit-membership-dataset, --log-all-candidates, --fail-on-degrade, --validate-only, plus contracts/runs/external roots.
+   - Add make targets segment1a-s6 and engine-s6, mirroring S5 env variable usage and using current run_id by default.
+
+10) Post-implementation run and fixes
+   - Run make segment1a-s6 using the current run_id (from latest run_receipt) and inspect run log for any discrepancies.
+   - Fix any issues until green; update implementation map and logbook entries for each decision or change.
+
+Implementation note (practical):
+- Windows command-length limits require writing runner.py in smaller chunks; use iterative Add-Content or a small generator script to avoid error 206.
+
+### Entry: 2026-01-11 22:46
+
+Design element: S6 observability + guardrails interpretation before coding
+Summary: Decide how to satisfy S6 metrics/logging requirements and interpret policy guardrails in code.
+
+Decisions (with reasoning):
+- Implement per-merchant diagnostics as a JSONL detail file `S6_VALIDATION_DETAIL.jsonl` colocated with the S6 receipt folder, rather than spamming console logs. This satisfies §14.2 without creating a separate metrics log file.
+- Emit run-level counters/gauges from §14.1 inside the S6 receipt payload under a `metrics` block, so the information is persisted without an extra log stream (user preference for lean console output).
+- Keep console logs narrative and stage-aware, embedding required fields (seed, parameter_hash, run_id, stage, and key counters) in the message text so operators can correlate with the story while still meeting §14.4 intent.
+- Preserve spec shortfall behavior: do NOT fail when max_candidates_cap < K_target; instead record `CAPPED_BY_MAX_CANDIDATES` + shortfall diagnostics per §1.4/§14.1. This follows the state spec's selection rule while treating the authoring-guide guardrail as guidance rather than a hard failure.
+- Support `--fail-on-degrade` (per spec §860) to optionally treat deterministic empties or cap diagnostics as structural failures; default remains non-failing.
+- Honor `log_all_candidates=false` by emitting only selected events and enabling counter-replay validation; for now, re-derivation will be implemented in-process (no external dependency).
+
+Implementation intent updates:
+- Receipt will include `policy_digest`, `metrics`, and booleans `rng_isolation_ok`, `trace_reconciled`, `re_derivation_ok`.
+- Detail JSONL will include fields listed in §14.2 (A, A_filtered, K_target, K_realized, considered_expected_events, gumbel_key_written, is_shortfall, reason_code, tie counts, cap applied, zero_weight counts, trace deltas).
+
+### Entry: 2026-01-11 23:07
+
+Design element: Implement S6 runner + wiring (code changes now completed)
+Summary: Implemented S6 foreign set selection runner, CLI entrypoint, and Makefile target with full preflight, selection, RNG logging, membership, and receipt flow.
+
+Decisions + actions recorded during implementation:
+- Built `runner.py` for S6 with the same structure as S4/S5: contract loading, run receipt resolution, segment_state_runs logging, failure recording, and per-run timer.
+- Added strict preflight checks for eligibility coverage: (a) every eligible merchant must exist in s3_candidate_set; (b) every eligible merchant must have exactly one ztp_final; (c) ztp_final must not exist for ineligible merchants. These are enforced before the main loop to avoid silent gaps.
+- Enforced S5 PASS receipt gate before reading weights (S5_VALIDATION.json + _passed.flag hash match).
+- Implemented candidate domain construction per spec: contiguous ranks, home rank=0, cap by candidate_rank prefix, intersection with currency weights, and zero_weight_rule handling (exclude vs include).
+- Implemented per-candidate RNG events using `s6_foreign_set.rng` substreams; events include full RNG envelope, weight_norm, u, key (null when weight==0), selected flag, and selection_order for selected.
+- Implemented trace logging via `_TraceAccumulator`, one trace append per emitted event, and trace reconciliation via final trace totals vs events_written.
+- Implemented per-merchant diagnostics into `S6_VALIDATION_DETAIL.jsonl` (receipt sibling) using the §14.2 field set; write-once, and skipped in validate_only mode.
+- Implemented metrics aggregation per §14.1 and embed them in `S6_VALIDATION.json` under `metrics` + `selection_size_histogram` + reason_code counts.
+- Added fail_on_degrade semantics: if enabled, deterministic empties or cap diagnostics (CAPPED_BY_MAX_CANDIDATES) raise STRUCTURAL_FAIL.
+- Added validation-only mode: when outputs already exist, the runner switches to validate_only to avoid overwriting event/log outputs or receipts.
+
+Wiring updates:
+- Added `packages/engine/src/engine/cli/s6_foreign_set.py` (CLI args for contracts/runs roots, run-id, emit-membership assertion, log-all-candidates assertion, fail-on-degrade, validate-only).
+- Added Makefile vars and targets `segment1a-s6` / `engine-s6` with ENV overrides (SEG1A_S6_*).
+
+Notes:
+- File creation required segmented writes to avoid Windows command-length limits; no logic changes beyond the above.
+
+### Entry: 2026-01-11 23:09
+
+Design element: Fix S6 preflight schema table name for candidate set
+Summary: S6 failed on validate_dataframe because the s3 schema section uses table name `candidate_set`, not `s3_candidate_set`.
+
+Resolution:
+- Updated candidate-set validation to call `validate_dataframe(..., "candidate_set")` while keeping the s3 schema pack section unchanged.
+- Re-run S6 after this adjustment to confirm preflight passes.
+
+### Entry: 2026-01-11 23:10
+
+Design element: S6 preflight gates after initial runtime errors
+Summary: Adjusted candidate-set validation strategy and eligibility gating after runtime failures.
+
+Findings and resolutions:
+- The JSON-schema adapter does not support array-typed columns, so validating `s3_candidate_set` via `validate_dataframe` fails (reason_codes/filter_tags are arrays). To preserve schema intent without modifying the adapter, removed the adapter-based validation and added explicit checks in `_build_candidate_map` to assert `reason_codes` and `filter_tags` are lists of strings, plus existing rank/home/path checks.
+- Crossborder eligibility flags include a much larger population than the S3 candidate set (candidate set only for a subset of merchants). The strict check that every eligible merchant must exist in `s3_candidate_set` was replaced with an intersection rule: S6 scope is `candidate_set ∩ is_eligible==true`. Added a preflight log that reports candidate-set merchants, eligibility rows, and eligible-in-scope count.
+- Kept missing ztp_final and ztp_final-for-ineligible checks scoped to the in-scope (candidate_set ∩ eligible) merchants.
+
+### Entry: 2026-01-11 23:11
+
+Design element: S6 logging call fix
+Summary: Runtime error due to StepTimer.info signature (single message arg).
+
+Resolution:
+- Replaced formatted call `timer.info("...", currency_df.height)` with f-string `timer.info(f"S6: loaded merchant_currency rows={...}")`.
+- Re-run S6 after the adjustment.
+
+### Entry: 2026-01-11 23:12
+
+Design element: S6 console log volume reduction
+Summary: Removed per-merchant deterministic-empty logs from console to avoid log spam; rely on detail JSONL and summary metrics instead.
+
+Change:
+- Dropped `_log_stage` calls for deterministic empty selections and added a single run-level summary log (counts of reasons, events written/expected, and shortfall count).
+- Per-merchant diagnostics remain in `S6_VALIDATION_DETAIL.jsonl` per §14.2.

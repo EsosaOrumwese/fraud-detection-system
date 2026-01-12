@@ -295,7 +295,7 @@ A **checkpoint** records how far a consumer has progressed, typically expressed 
 
 * `{stream_name, partition_id, offset}`
 
-Checkpoints can be stored by the bus, by the consumer, or by a coordination store—this is a design choice pinned later.
+Checkpoint `offset` is the next offset to read (exclusive) and is the authoritative progress token for replay/rewind semantics. Checkpoints can be stored by the bus, by the consumer, or by a coordination store-this is a design choice pinned later.
 
 ---
 
@@ -330,6 +330,8 @@ The **partition key** is a required field supplied at publish time that determin
 
 Replay re-delivers the same stored event content; it does not rewrite history.
 
+If `partition_id` is omitted, replay applies to all partitions in the stream; no cross-partition ordering is implied.
+
 ---
 
 ### 3.12 Retention
@@ -350,6 +352,19 @@ Replay re-delivers the same stored event content; it does not rewrite history.
 * **Bus metadata**: delivery-specific fields such as partition, offset, publish time, consumer group, etc.
 
 **Key rule:** EB must not inject bus metadata into event content.
+
+---
+
+### 3.15 `published_at_utc` (bus time)
+
+`published_at_utc` is the timestamp when the event became durably appended and the position `{partition_id, offset}` was assigned.
+
+---
+
+### 3.16 `kind` (contract object type)
+
+* `kind` values are lower_snake_case.
+* v0 allowed set: `publish_record`, `publish_ack`, `delivered_record`, `consumer_checkpoint`, `replay_request`.
 
 ---
 
@@ -374,7 +389,7 @@ Each publish operation must supply at least:
 
 * `stream_name`
 * `partition_key` (required; composition deferred)
-* event content (as `event_bytes` or a stable `event_ref`)
+* `event_bytes_b64` (base64 of immutable canonical event bytes; required in v0)
 
 **Boundary rule:** EB requires `partition_key`; it does not compute it.
 
@@ -382,32 +397,43 @@ Each publish operation must supply at least:
 
 ### 4.2 Outputs (what EB produces)
 
-#### 4.2.1 Durable log of events
+#### 4.2.1 Publish acknowledgments (producer-facing)
+
+EB returns a PublishAck after a successful durable append, including the assigned position:
+
+* `kind`
+* `stream_name`
+* `partition_id`
+* `offset`
+* `published_at_utc`
+* `contract_version`
+
+#### 4.2.2 Durable log of events
 
 EB stores events as an append-only log:
 
 * immutable event content
 * durable positions (partition + offset)
 
-#### 4.2.2 Delivered records to subscribers
+#### 4.2.3 Delivered records to subscribers
 
 When consumers read, EB provides delivery metadata alongside the event content, conceptually as a DeliveredRecord:
 
 * `partition_id`
 * `offset`
-* `published_at_utc` (bus time)
-* event content (same bytes/ref stored)
+* `published_at_utc` (timestamp when durable append + position assignment completed)
+* event content (`event_bytes_b64`, same bytes stored)
 
-#### 4.2.3 Consumer progress / checkpointing (conceptual)
+#### 4.2.4 Consumer progress / checkpointing (conceptual)
 
 EB supports consumer progress tracking via a checkpoint concept:
 
 * consumer group/subscription identity
 * per-partition offset progress
 
-Whether checkpoints are persisted by EB or by consumers is a design decision pinned later; the conceptual model assumes checkpointing exists.
+Checkpoint `offset` is the next offset to read (exclusive). Regardless of ownership, a checkpoint is the authoritative progress token for replay/rewind semantics. Whether checkpoints are persisted by EB or by consumers is a design decision pinned later; the conceptual model assumes checkpointing exists.
 
-#### 4.2.4 Telemetry and governance signals
+#### 4.2.5 Telemetry and governance signals
 
 EB exposes operational information:
 
@@ -482,7 +508,7 @@ Accept publish requests and append events durably with a stable position assigne
 ### What it owns
 
 * publish acknowledgment semantics (“published” meaning)
-* required publish fields (`stream_name`, `partition_key`, event content)
+* required publish fields (`stream_name`, `partition_key`, `event_bytes_b64`)
 * rejection/error conditions (conceptual)
 
 ### Questions this module must answer
@@ -494,7 +520,7 @@ Accept publish requests and append events durably with a stable position assigne
 * What fields are required at publish time?
 * What happens if required fields are missing (reject vs route to error)?
 * Does EB accept batches (optional) and, if so, what are per-record semantics?
-* Does EB assign a publish time (`published_at_utc`) and where does it live? (bus metadata, not event content)
+* Does EB assign a publish time (`published_at_utc`, timestamp of durable append + position assignment) and where does it live? (bus metadata, not event content)
 
 ### Can be left to the implementer
 
@@ -509,8 +535,8 @@ Accept publish requests and append events durably with a stable position assigne
 
 ### Conceptual inputs → outputs
 
-* **Input:** PublishRecord (event_bytes/ref + metadata)
-* **Output:** ACK + assigned {partition_id, offset} (or equivalent publish result)
+* **Input:** PublishRecord (`event_bytes_b64` + metadata)
+* **Output:** PublishAck (stream_name, partition_id, offset, published_at_utc)
 
 ---
 
@@ -624,7 +650,7 @@ Support deterministic re-delivery of stored events within retention.
 ### Questions this module must answer
 
 * How is replay initiated (conceptually: by offset and/or by time window)?
-* What are boundary inclusivity rules (e.g., from_offset inclusive)?
+* What are boundary rules (half-open `[from_offset, to_offset)` when `to_offset` is provided)?
 * Does replay require a new consumer group or can it be done as a controlled rewind?
 * What happens if requested replay range exceeds retention?
 
@@ -695,7 +721,7 @@ Across all modules, EB must ensure:
 
 EB is deterministic if, given the same stored log and the same consumer replay parameters, EB will:
 
-* deliver the **same event content** (same bytes/ref),
+* deliver the **same event content** (same bytes via `event_bytes_b64`),
 * in the **same per-partition order** (offset order),
 * with stable delivery metadata (partition + offset),
   within the limits of at-least-once delivery (duplicates possible).
@@ -714,7 +740,7 @@ Determinism does **not** require:
 Determinism relies on immutability:
 
 * EB stores the event content as an **opaque immutable blob**.
-* Replay re-delivers the same blob (or the same stable reference to that blob).
+* Replay re-delivers the same blob bytes (the same `event_bytes_b64` content).
 * Any EB metadata (offset, publish time, partition) is delivered separately and must not alter the event blob.
 
 **Result:** consumers can dedupe using stable event identity fields inside the event content.
@@ -755,8 +781,8 @@ If a consumer requires stronger ordering, it must design around partitioning (by
 
 Replay is re-delivery of already stored events, typically in one of these conceptual modes:
 
-* **Offset replay:** start from `{stream_name, partition_id, from_offset}`
-* **Time-window replay (optional):** start from `{stream_name, from_time_utc}` and map to offsets, if supported
+* **Offset replay:** start from `{stream_name, partition_id, from_offset}` (or all partitions if `partition_id` is omitted)
+* **Time-window replay (optional):** start from `{stream_name, from_time_utc}` and map to offsets, if supported (all partitions unless `partition_id` is provided)
 
 Replay does not:
 
@@ -768,15 +794,9 @@ Replay does not:
 
 ### 6.6 Replay boundary rules (must be explicit)
 
-Even in conceptual form, EB must eventually pin:
+Offsets use half-open ranges: `[from_offset, to_offset)` when `to_offset` is provided. If `to_offset` is omitted, replay continues from `from_offset` to the latest available offset within retention.
 
-* whether `from_offset` is inclusive or exclusive (recommend: inclusive)
-* how `from_time_utc` is interpreted if time-based replay exists:
-
-  * is it based on bus publish time?
-  * is it approximate?
-
-If time-based replay is supported, EB should treat it as “best-effort mapping to offsets” unless you choose to guarantee precision.
+If time-based replay is supported, it is based on `published_at_utc` and uses half-open ranges: `[from_time_utc, to_time_utc)` when `to_time_utc` is provided. Precision should be declared (exact vs best-effort mapping to offsets).
 
 ---
 
@@ -788,10 +808,10 @@ Consumer progress is represented as checkpoints:
 
 Deterministic replay depends on:
 
-* checkpoints being stable identifiers of “what has been consumed”
-* rewind/replay being definable as “set checkpoint back to X” or “create new group at X”
+* checkpoints being stable identifiers of "what has been consumed" (offset is next_offset_to_read)
+* rewind/replay being definable as "set checkpoint back to X" or "create new group at X"
 
-Whether checkpoints are stored by EB or consumers is implementation detail; the semantics must be stable.
+Whether checkpoints are stored by EB or consumers is implementation detail; the semantics must be stable and checkpoints remain the authoritative progress token for replay/rewind.
 
 ---
 
@@ -884,11 +904,11 @@ To avoid duplicating the Canonical Event Contract Pack too early:
 
 * EB contracts treat event content as:
 
-  * `event_bytes` (preferred for immutability semantics), or
-  * `event_ref` (pointer to a stored blob), or
-  * an explicitly “opaque object” with a warning that EB must not normalize it
+  * `event_bytes_b64` (base64 of immutable canonical event bytes; required in v0)
 
-**Preferred v0 posture:** `event_bytes` or `event_ref`, so “same bytes replayed” is unambiguous.
+`event_ref` is deferred in v0; if introduced later, it must carry immutability proof fields (e.g., `event_digest`, `digest_alg`) so "same bytes replayed" remains true.
+
+**Preferred v0 posture:** `event_bytes_b64` only.
 
 In v1, EB contracts may optionally reference the canonical event envelope (by `$ref`) once that pack exists and is stable.
 
@@ -899,6 +919,8 @@ In v1, EB contracts may optionally reference the canonical event envelope (by `$
 EB contract objects should be self-describing:
 
 * `kind` + `contract_version`
+
+v0 kind values are fixed (lower_snake_case): `publish_record`, `publish_ack`, `delivered_record`, `consumer_checkpoint`, `replay_request`.
 
 This aligns with the SR and IG approach and prevents consumers from guessing which `$defs` applies.
 
@@ -937,6 +959,7 @@ EB v0 ships **one** machine-checkable schema file:
 This file contains `$defs` for EB boundary objects:
 
 * publish
+* publish ack
 * delivery
 * checkpointing
 * replay/backfill
@@ -969,19 +992,33 @@ Defines what a publisher submits.
 * `kind`, `contract_version`
 * `stream_name`
 * `partition_key` (required; composition deferred)
-* event content:
-
-  * `event_bytes` **or** `event_ref` (choose one as primary posture)
+* `event_bytes_b64` (required in v0)
 * optional publish metadata:
 
   * `publisher_id` (audit)
   * `submitted_at_utc` (client time, optional)
 
-**Conceptual rule:** EB does not mutate event_bytes; EB does not compute partition_key.
+**Conceptual rule:** EB does not mutate `event_bytes_b64`; EB does not compute `partition_key`.
 
 ---
 
-#### 2) `DeliveredRecord`
+#### 2) `PublishAck`
+
+Defines what EB returns after a successful durable append.
+
+**Required (conceptual):**
+
+* `kind`, `contract_version`
+* `stream_name`
+* `partition_id`
+* `offset`
+* `published_at_utc`
+
+**Conceptual rule:** `published_at_utc` is the durable-append timestamp for the assigned `{partition_id, offset}`.
+
+---
+
+#### 3) `DeliveredRecord`
 
 Defines what EB delivers to consumers.
 
@@ -991,15 +1028,15 @@ Defines what EB delivers to consumers.
 * `stream_name`
 * `partition_id`
 * `offset`
-* `published_at_utc` (bus time)
+* `published_at_utc` (durable append timestamp)
 * `partition_key` (echoed for convenience, optional but often useful)
-* event content (`event_bytes` or `event_ref`, consistent with PublishRecord)
+* event content (`event_bytes_b64`, consistent with PublishRecord)
 
 **Conceptual rule:** DeliveredRecord wraps bus metadata; it does not alter event content.
 
 ---
 
-#### 3) `ConsumerCheckpoint`
+#### 4) `ConsumerCheckpoint`
 
 Represents consumer progress.
 
@@ -1012,11 +1049,11 @@ Represents consumer progress.
 * `offset`
 * `updated_at_utc`
 
-**Conceptual rule:** checkpoint is the stable indicator of “consumed up to offset X”.
+**Conceptual rule:** checkpoint `offset` is the next offset to read (exclusive), and the checkpoint is the authoritative progress token for replay/rewind semantics.
 
 ---
 
-#### 4) `ReplayRequest` (optional but useful in v0)
+#### 5) `ReplayRequest` (optional but useful in v0)
 
 Represents a replay/backfill request.
 
@@ -1031,20 +1068,23 @@ Represents a replay/backfill request.
 * optional end bounds:
 
   * `to_offset` or `to_time_utc`
-* optional `consumer_group` or “replay_group” semantics (if you support it)
+* optional `consumer_group` or "replay_group" semantics (if you support it)
 
-**Conceptual rule:** replay is re-delivery; it does not rewrite history.
+If `partition_id` is omitted, replay applies to all partitions in the stream (no cross-partition ordering guarantee).
+
+**Conceptual rule:** replay is re-delivery; it does not rewrite history. Offset ranges are half-open: `[from_offset, to_offset)` when `to_offset` is provided.
 
 ---
 
 ### 8.1.3 Event content posture (v0)
 
-To keep immutability unambiguous, prefer:
+To keep immutability unambiguous in v0:
 
-* `event_bytes`: exact serialized bytes stored and re-delivered, or
-* `event_ref`: pointer to a blob stored elsewhere (must be stable and immutable)
+* `event_bytes_b64`: base64 of the immutable canonical event bytes (required)
 
-Avoid “event as JSON object” in EB contracts unless you explicitly ban normalization and define canonical serialization rules, because otherwise “same bytes replayed” becomes ambiguous.
+`event_ref` is deferred in v0; if introduced later, it must carry immutability proof fields (e.g., `event_digest`, `digest_alg`) so "same bytes replayed" remains true.
+
+Avoid "event as JSON object" in EB contracts unless you explicitly ban normalization and define canonical serialization rules, because otherwise "same bytes replayed" becomes ambiguous.
 
 ---
 
@@ -1053,6 +1093,8 @@ Avoid “event as JSON object” in EB contracts unless you explicitly ban norma
 EB objects are self-describing via:
 
 * `kind` + `contract_version`
+
+`kind` values are lower_snake_case and pinned in v0 to: `publish_record`, `publish_ack`, `delivered_record`, `consumer_checkpoint`, `replay_request`.
 
 Consumers validate based on those fields mapping to `$defs`.
 
@@ -1063,8 +1105,8 @@ Consumers validate based on those fields mapping to `$defs`.
 ### 8.2.1 Contracts cover (shape/structure)
 
 * required fields for publish/deliver/checkpoint/replay objects
-* types (strings, integers, byte blobs/ref shapes)
-* enums for `kind` values (if you choose to pin them)
+* types (strings, integers, byte blob shapes)
+* enums for `kind` values (pinned set: `publish_record`, `publish_ack`, `delivered_record`, `consumer_checkpoint`, `replay_request`)
 * minimal audit fields (`publisher_id`, etc.) if required
 
 ### 8.2.2 Specs cover (behaviour/invariants)
@@ -1072,7 +1114,7 @@ Consumers validate based on those fields mapping to `$defs`.
 * publish ack semantics (durable append + assigned position)
 * ordering scope (partition-only)
 * at-least-once delivery semantics and redelivery posture
-* replay semantics and inclusivity rules
+* replay semantics and boundary rules (half-open ranges)
 * retention posture and behaviour on expiry
 * backpressure/overload posture and required observability
 * security posture (conceptual access control)
@@ -1168,6 +1210,8 @@ Checkpoints may be stored:
 * in a consumer-owned coordination store,
   but the semantic representation remains stable.
 
+Checkpoint `offset` is the next offset to read (exclusive), and the checkpoint is the authoritative progress token for replay/rewind semantics.
+
 **Discoverability requirement:** operators must be able to determine consumer lag from published offsets and checkpoints.
 
 ---
@@ -1178,11 +1222,13 @@ Replay requests should be definable in one of these conceptual ways:
 
 * **Offset-based replay** (preferred for determinism):
 
-  * `{stream_name, partition_id, from_offset}` with optional end offset
+  * `{stream_name, partition_id, from_offset}` with optional end offset (half-open `[from_offset, to_offset)`)
 
 * **Time-based replay** (optional):
 
-  * `{stream_name, from_time_utc}` mapping to offsets using bus publish time
+  * `{stream_name, from_time_utc}` mapping to offsets using bus publish time (half-open `[from_time_utc, to_time_utc)`)
+
+If `partition_id` is omitted, replay applies to all partitions in the stream; no cross-partition ordering is implied.
 
 If time-based replay is offered, it must be clear whether mapping is exact or best-effort.
 
@@ -1379,12 +1425,12 @@ For every EB “law” and “question” in this conceptual doc:
 
 * publish surface semantics:
 
-  * required fields (`stream_name`, `partition_key`, event content)
-  * publish ack meaning (durable append + position)
+  * required fields (`stream_name`, `partition_key`, `event_bytes_b64`)
+  * publish ack meaning (durable append + position) and PublishAck shape
   * publish rejection/error cases (missing fields, unauthorized, overload)
 * delivery surface semantics:
 
-  * what a consumer receives (DeliveredRecord wrapper with offset/partition metadata)
+  * what a consumer receives (DeliveredRecord wrapper with offset/partition metadata + `event_bytes_b64`)
   * consumer obligation: idempotency (duplicates possible)
 * checkpoint/progress concept at the interface:
 
@@ -1439,7 +1485,7 @@ For every EB “law” and “question” in this conceptual doc:
 * replay request semantics:
 
   * by offset and/or time (if supported)
-  * inclusivity rules (e.g., from_offset inclusive)
+  * boundary rules (half-open `[from_offset, to_offset)` when `to_offset` is provided)
   * behaviour when replay exceeds retention
 * retention posture:
 
@@ -1493,17 +1539,17 @@ For every EB “law” and “question” in this conceptual doc:
 
 ### Schema must include
 
-* `PublishRecord`, `DeliveredRecord`, `ConsumerCheckpoint`, `ReplayRequest` shapes
+* `PublishRecord`, `PublishAck`, `DeliveredRecord`, `ConsumerCheckpoint`, `ReplayRequest` shapes
 * required fields: stream_name, partition_key, offsets, timestamps
-* event content representation (`event_bytes` or `event_ref`)
-* self-describing targeting (`kind`, `contract_version`)
+* event content representation (`event_bytes_b64`)
+* self-describing targeting (`kind`, `contract_version`, pinned lower_snake_case `kind` enum)
 
 ### Specs must include
 
 * publish ack semantics
 * ordering and non-guarantees
 * at-least-once delivery implications
-* replay semantics and inclusivity rules
+* replay semantics and boundary rules (half-open ranges)
 * retention posture and expiry behaviour
 * overload/backpressure posture and observability requirements
 
@@ -1536,7 +1582,7 @@ Everything else can remain implementer freedom.
 
 2. **Does EB ever change event content?**
 
-* Is event content stored and replayed immutably (same bytes/ref), with bus metadata separate?
+* Is event content stored and replayed immutably (same bytes via `event_bytes_b64`), with bus metadata separate?
 
 3. **What delivery semantics do consumers get?**
 
@@ -1550,12 +1596,13 @@ Everything else can remain implementer freedom.
 
 5. **How do consumers track progress?**
 
-* What is the checkpoint concept and what keys identify it (group/stream/partition/offset)?
+* What is the checkpoint concept and what keys identify it (group/stream/partition/offset as next_offset_to_read)?
 
 6. **How do we replay/backfill?**
 
-* Can we replay from an offset (and is it inclusive)?
+* Can we replay from an offset with half-open ranges (`[from_offset, to_offset)`)?
 * If time-based replay exists, what time is used (bus publish time) and how precise is it?
+* If `partition_id` is omitted, does replay apply to all partitions (no cross-partition ordering)?
 
 7. **What happens when a replay range is outside retention?**
 
@@ -1586,7 +1633,7 @@ Everything else can remain implementer freedom.
 
 **Expect**
 
-* EB returns ACK including assigned `{partition_id, offset}` (or equivalent stable position)
+* EB returns PublishAck including `stream_name`, `partition_id`, `offset`, `published_at_utc`
 * the event is durably stored and can be read by consumers
 
 ---
@@ -1599,7 +1646,7 @@ Everything else can remain implementer freedom.
 
 **Expect**
 
-* EB delivers and replays the exact same content (same bytes/ref)
+* EB delivers and replays the exact same content (same bytes via `event_bytes_b64`)
 * EB metadata (offset, publish time) is delivered outside event content
 
 ---
@@ -1639,7 +1686,7 @@ Everything else can remain implementer freedom.
 
 **Expect**
 
-* EB re-delivers events from that offset in offset order
+* EB re-delivers events in offset order using half-open ranges (`[from_offset, to_offset)`)
 * replay does not rewrite history or recompute events
 
 ---
@@ -1665,8 +1712,8 @@ Everything else can remain implementer freedom.
 
 **Expect**
 
-* a stable checkpoint exists (stream/partition/offset)
-* “rewind to X” is definable using checkpoint semantics (even if implemented differently)
+* a stable checkpoint exists (stream/partition/offset as next_offset_to_read)
+* "rewind to X" is definable using checkpoint semantics (even if implemented differently)
 
 ---
 
@@ -1720,7 +1767,7 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 * successful publish ACK with assigned position
 * consumer delivery including DeliveredRecord wrapper
-* evidence of immutability (same bytes/ref replayed)
+* evidence of immutability (same bytes via `event_bytes_b64` replayed)
 * demonstration of possible duplicates under failure (conceptual test)
 * replay from offset within retention
 * explicit behaviour on replay beyond retention
@@ -1775,20 +1822,24 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 ### 13.3 Delivery and checkpointing
 
-* **DEC-EB-006 — Checkpoint ownership posture**
+* **DEC-EB-006 - Checkpoint ownership posture**
   *Open question:* are checkpoints persisted by EB, by consumers, or by a coordination store?
   *Close in:* **EB2/EB5** (conceptually; implementation can vary)
 
-* **DEC-EB-007 — Redelivery semantics detail**
+* **DEC-EB-007 - Redelivery semantics detail**
   *Open question:* what conditions trigger redelivery and what is guaranteed about it (high-level).
   *Close in:* **EB2**
+
+* **DEC-EB-017 - Checkpoint offset meaning + authority (CLOSED)**
+  *Closed decision:* checkpoint `offset` is the next offset to read (exclusive), and the checkpoint is the authoritative progress token for replay/rewind semantics regardless of ownership.
+  *Close in:* **EB2/EB4** (contracts + replay semantics)
 
 ---
 
 ### 13.4 Replay semantics
 
-* **DEC-EB-008 — Replay boundary inclusivity rules**
-  *Open question:* is `from_offset` inclusive (recommended: yes), and how end bounds behave.
+* **DEC-EB-008 - Replay boundary rules (CLOSED)**
+  *Closed decision:* offset ranges are half-open `[from_offset, to_offset)` and time ranges are half-open `[from_time_utc, to_time_utc)` when end bounds are provided.
   *Close in:* **EB4**
 
 * **DEC-EB-009 — Time-based replay support (v0?)**
@@ -1840,12 +1891,12 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 ## Appendix A — Minimal examples (inline)
 
 > **Note (conceptual, non-binding):** These examples pin the **bus-plane wrappers** only.
-> Event content is shown as `event_bytes_b64` (base64) to make “same bytes replayed” unambiguous in v0.
+> Event content is shown as `event_bytes_b64` (base64 of immutable canonical event bytes) to make "same bytes replayed" unambiguous in v0.
 > Canonical event envelope/payload schemas live elsewhere (Canonical Event Contract Pack); EB treats content as opaque here.
 
 ---
 
-### A.1 Example — `PublishRecord`
+### A.1 Example - `PublishRecord`
 
 ```json
 {
@@ -1864,7 +1915,24 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 ---
 
-### A.2 Example — `DeliveredRecord`
+### A.2 Example - `PublishAck`
+
+```json
+{
+  "kind": "publish_ack",
+  "contract_version": "eb_public_contracts_v0",
+
+  "stream_name": "admitted_events",
+  "partition_id": 12,
+  "offset": 9812345,
+
+  "published_at_utc": "2026-01-05T18:02:11Z"
+}
+```
+
+---
+
+### A.3 Example - `DeliveredRecord`
 
 ```json
 {
@@ -1885,7 +1953,7 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 ---
 
-### A.3 Example — `ConsumerCheckpoint`
+### A.4 Example - `ConsumerCheckpoint`
 
 ```json
 {
@@ -1904,7 +1972,7 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 ---
 
-### A.4 Example — `ReplayRequest` (offset-based, partition-scoped)
+### A.5 Example - `ReplayRequest` (offset-based, partition-scoped, half-open `[from_offset, to_offset)`)
 
 ```json
 {
@@ -1924,7 +1992,9 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 ---
 
-### A.5 Example — `ReplayRequest` (time-based, best-effort mapping)
+### A.6 Example - `ReplayRequest` (time-based, best-effort mapping, half-open `[from_time_utc, to_time_utc)`)
+
+If `partition_id` is omitted, replay applies to all partitions in the stream.
 
 ```json
 {
@@ -1954,19 +2024,19 @@ To claim EB meets DoD at v0 conceptual level, you should be able to show:
 
 ---
 
-### B.1 Publish → durable append → ACK (truthful publish semantics)
+### B.1 Publish → durable append → PublishAck (truthful publish semantics)
 
 ```
 Participants:
   Publisher (IG) | EB (Publish) | EB (Partition) | EB (Durable Log)
 
-Publisher -> EB (Publish): PublishRecord(stream_name, partition_key, event_bytes)
+Publisher -> EB (Publish): PublishRecord(stream_name, partition_key, event_bytes_b64)
 EB (Partition): choose partition_id = f(partition_key)
 
-EB (Durable Log) => EB (Durable Log): append event_bytes (immutable) to {stream, partition}
+EB (Durable Log) => EB (Durable Log): append event_bytes_b64 (immutable) to {stream, partition}
 EB (Durable Log): assign offset N
 
-EB (Publish) -> Publisher: ACK(partition_id, offset=N)   [ACK=durable+offset]
+EB (Publish) -> Publisher: PublishAck(stream_name, partition_id, offset=N, published_at_utc=...)   [ACK=durable+offset]
 ```
 
 ---
@@ -1977,11 +2047,11 @@ EB (Publish) -> Publisher: ACK(partition_id, offset=N)   [ACK=durable+offset]
 Participants:
   EB (Subscribe/Delivery) | Consumer | Checkpoint Store (EB-owned or consumer-owned)
 
-EB (Subscribe/Delivery) --> Consumer: DeliveredRecord(partition_id, offset, published_at_utc, event_bytes)
-Consumer: process event_bytes (idempotent; duplicates possible)
+EB (Subscribe/Delivery) --> Consumer: DeliveredRecord(partition_id, offset, published_at_utc, event_bytes_b64)
+Consumer: process event_bytes_b64 (idempotent; duplicates possible)
 
-Consumer => Checkpoint Store: write ConsumerCheckpoint(stream, partition_id, offset=K)
-Consumer --> EB (Subscribe/Delivery): (conceptual) ACK/progress advanced to offset K
+Consumer => Checkpoint Store: write ConsumerCheckpoint(stream, partition_id, offset=K)  (next_offset_to_read)
+Consumer --> EB (Subscribe/Delivery): (conceptual) ACK/progress advanced to offset K (next_offset_to_read)
 ```
 
 ---
@@ -1992,12 +2062,12 @@ Consumer --> EB (Subscribe/Delivery): (conceptual) ACK/progress advanced to offs
 Participants:
   EB (Delivery) | Consumer
 
-EB (Delivery) --> Consumer: DeliveredRecord(partition=12, offset=9812345, event_bytes)
-Consumer: processes event (records idempotency via event_id inside event_bytes)
+EB (Delivery) --> Consumer: DeliveredRecord(partition=12, offset=9812345, event_bytes_b64)
+Consumer: processes event (records idempotency via event_id inside event_bytes_b64)
 
 (consumer failure / retry / rebalance occurs)
 
-EB (Delivery) --> Consumer: DeliveredRecord(partition=12, offset=9812345, event_bytes)  (redelivery)
+EB (Delivery) --> Consumer: DeliveredRecord(partition=12, offset=9812345, event_bytes_b64)  (redelivery)
 Consumer: detects duplicate (idempotency) -> does not double-apply side effects
 ```
 
@@ -2010,12 +2080,12 @@ Participants:
   Operator/Tool | EB (Replay) | EB (Durable Log) | Consumer (Replay Group)
 
 Operator -> EB (Replay): ReplayRequest(stream, partition_id, from_offset=X, to_offset=Y)
-EB (Replay) --> EB (Durable Log): read events offsets [X..Y] in order
+EB (Replay) --> EB (Durable Log): read events offsets [X..Y) in order
 
-EB (Replay) --> Consumer (Replay Group): DeliveredRecord(offset=X, event_bytes)
-EB (Replay) --> Consumer (Replay Group): DeliveredRecord(offset=X+1, event_bytes)
+EB (Replay) --> Consumer (Replay Group): DeliveredRecord(offset=X, event_bytes_b64)
+EB (Replay) --> Consumer (Replay Group): DeliveredRecord(offset=X+1, event_bytes_b64)
 ...
-EB (Replay) --> Consumer (Replay Group): DeliveredRecord(offset=Y, event_bytes)
+EB (Replay) --> Consumer (Replay Group): DeliveredRecord(offset=Y-1, event_bytes_b64)
 
 Note: replay re-delivers stored bytes; it does not recompute or rewrite history.
 ```

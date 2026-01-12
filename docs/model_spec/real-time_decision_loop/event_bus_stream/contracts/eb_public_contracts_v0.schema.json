@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eb_public_contracts_v0.schema.json",
+  "title": "eb_public_contracts_v0",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/PublishRecord" },
+    { "$ref": "#/$defs/PublishAck" },
+    { "$ref": "#/$defs/DeliveredRecord" },
+    { "$ref": "#/$defs/ConsumerCheckpoint" },
+    { "$ref": "#/$defs/ReplayRequest" }
+  ],
+  "$defs": {
+    "ContractVersion": {
+      "type": "string",
+      "const": "eb_public_contracts_v0"
+    },
+    "KindPublishRecord": {
+      "type": "string",
+      "const": "publish_record"
+    },
+    "KindPublishAck": {
+      "type": "string",
+      "const": "publish_ack"
+    },
+    "KindDeliveredRecord": {
+      "type": "string",
+      "const": "delivered_record"
+    },
+    "KindConsumerCheckpoint": {
+      "type": "string",
+      "const": "consumer_checkpoint"
+    },
+    "KindReplayRequest": {
+      "type": "string",
+      "const": "replay_request"
+    },
+    "StreamName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "PartitionKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "PartitionId": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "Offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "EventBytesB64": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "Base64 of immutable canonical event bytes."
+    },
+    "PublishRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "stream_name",
+        "partition_key",
+        "event_bytes_b64"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindPublishRecord" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "stream_name": { "$ref": "#/$defs/StreamName" },
+        "partition_key": { "$ref": "#/$defs/PartitionKey" },
+        "event_bytes_b64": { "$ref": "#/$defs/EventBytesB64" },
+        "publisher_id": { "type": "string", "minLength": 1 },
+        "submitted_at_utc": { "$ref": "#/$defs/UtcTimestamp" }
+      }
+    },
+    "PublishAck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "stream_name",
+        "partition_id",
+        "offset",
+        "published_at_utc"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindPublishAck" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "stream_name": { "$ref": "#/$defs/StreamName" },
+        "partition_id": { "$ref": "#/$defs/PartitionId" },
+        "offset": { "$ref": "#/$defs/Offset" },
+        "published_at_utc": {
+          "$ref": "#/$defs/UtcTimestamp",
+          "description": "Timestamp when durable append + position assignment completed."
+        }
+      }
+    },
+    "DeliveredRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "stream_name",
+        "partition_id",
+        "offset",
+        "published_at_utc",
+        "event_bytes_b64"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindDeliveredRecord" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "stream_name": { "$ref": "#/$defs/StreamName" },
+        "partition_id": { "$ref": "#/$defs/PartitionId" },
+        "offset": { "$ref": "#/$defs/Offset" },
+        "published_at_utc": { "$ref": "#/$defs/UtcTimestamp" },
+        "partition_key": { "$ref": "#/$defs/PartitionKey" },
+        "event_bytes_b64": { "$ref": "#/$defs/EventBytesB64" }
+      }
+    },
+    "ConsumerCheckpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "consumer_group",
+        "stream_name",
+        "partition_id",
+        "offset",
+        "updated_at_utc"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindConsumerCheckpoint" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "consumer_group": { "type": "string", "minLength": 1 },
+        "stream_name": { "$ref": "#/$defs/StreamName" },
+        "partition_id": { "$ref": "#/$defs/PartitionId" },
+        "offset": {
+          "$ref": "#/$defs/Offset",
+          "description": "Next offset to read (exclusive)."
+        },
+        "updated_at_utc": { "$ref": "#/$defs/UtcTimestamp" }
+      }
+    },
+    "BaseReplayRequest": {
+      "type": "object",
+      "required": [
+        "kind",
+        "contract_version",
+        "stream_name",
+        "requested_at_utc"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/KindReplayRequest" },
+        "contract_version": { "$ref": "#/$defs/ContractVersion" },
+        "stream_name": { "$ref": "#/$defs/StreamName" },
+        "partition_id": { "$ref": "#/$defs/PartitionId" },
+        "requested_at_utc": { "$ref": "#/$defs/UtcTimestamp" },
+        "replay_group": { "type": "string", "minLength": 1 },
+        "consumer_group": { "type": "string", "minLength": 1 },
+        "time_basis": {
+          "type": "string",
+          "enum": ["bus_published_at_utc"]
+        },
+        "precision": {
+          "type": "string",
+          "enum": ["exact", "best_effort"]
+        }
+      }
+    },
+    "ReplayRequestOffset": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseReplayRequest" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from_offset"],
+          "properties": {
+            "kind": { "$ref": "#/$defs/KindReplayRequest" },
+            "contract_version": { "$ref": "#/$defs/ContractVersion" },
+            "stream_name": { "$ref": "#/$defs/StreamName" },
+            "partition_id": { "$ref": "#/$defs/PartitionId" },
+            "requested_at_utc": { "$ref": "#/$defs/UtcTimestamp" },
+            "replay_group": { "type": "string", "minLength": 1 },
+            "consumer_group": { "type": "string", "minLength": 1 },
+            "from_offset": { "$ref": "#/$defs/Offset" },
+            "to_offset": { "$ref": "#/$defs/Offset" }
+          }
+        }
+      ]
+    },
+    "ReplayRequestTime": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseReplayRequest" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from_time_utc"],
+          "properties": {
+            "kind": { "$ref": "#/$defs/KindReplayRequest" },
+            "contract_version": { "$ref": "#/$defs/ContractVersion" },
+            "stream_name": { "$ref": "#/$defs/StreamName" },
+            "partition_id": { "$ref": "#/$defs/PartitionId" },
+            "requested_at_utc": { "$ref": "#/$defs/UtcTimestamp" },
+            "replay_group": { "type": "string", "minLength": 1 },
+            "consumer_group": { "type": "string", "minLength": 1 },
+            "time_basis": {
+              "type": "string",
+              "enum": ["bus_published_at_utc"]
+            },
+            "precision": {
+              "type": "string",
+              "enum": ["exact", "best_effort"]
+            },
+            "from_time_utc": { "$ref": "#/$defs/UtcTimestamp" },
+            "to_time_utc": { "$ref": "#/$defs/UtcTimestamp" }
+          }
+        }
+      ]
+    },
+    "ReplayRequest": {
+      "oneOf": [
+        { "$ref": "#/$defs/ReplayRequestOffset" },
+        { "$ref": "#/$defs/ReplayRequestTime" }
+      ]
+    }
+  }
+}

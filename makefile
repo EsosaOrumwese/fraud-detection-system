@@ -339,6 +339,33 @@ SEG1A_S5_ARGS += --validate-only
 endif
 SEG1A_S5_CMD = $(PY_ENGINE) -m engine.cli.s5_currency_weights $(SEG1A_S5_ARGS)
 
+SEG1A_S6_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1A_S6_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1A_S6_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1A_S6_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1A_S6_RUN_ID)),)
+SEG1A_S6_ARGS += --run-id $(SEG1A_S6_RUN_ID)
+endif
+ifneq ($(strip $(SEG1A_S6_EMIT_MEMBERSHIP)),)
+SEG1A_S6_ARGS += --emit-membership-dataset
+endif
+ifneq ($(strip $(SEG1A_S6_LOG_ALL_CANDIDATES)),)
+SEG1A_S6_ARGS += --log-all-candidates
+endif
+ifneq ($(strip $(SEG1A_S6_FAIL_ON_DEGRADE)),)
+SEG1A_S6_ARGS += --fail-on-degrade
+endif
+ifneq ($(strip $(SEG1A_S6_VALIDATE_ONLY)),)
+SEG1A_S6_ARGS += --validate-only
+endif
+SEG1A_S6_CMD = $(PY_ENGINE) -m engine.cli.s6_foreign_set $(SEG1A_S6_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -1012,6 +1039,12 @@ segment1a-s5:
 	@$(SEG1A_S5_CMD)
 
 engine-s5: segment1a-s5
+
+segment1a-s6:
+	@echo "Running Segment 1A S6 foreign set selection"
+	@$(SEG1A_S6_CMD)
+
+engine-s6: segment1a-s6
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"
