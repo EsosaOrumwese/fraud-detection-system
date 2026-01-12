@@ -2149,3 +2149,56 @@ Summary: Removed per-merchant deterministic-empty logs from console to avoid log
 Change:
 - Dropped `_log_stage` calls for deterministic empty selections and added a single run-level summary log (counts of reasons, events written/expected, and shortfall count).
 - Per-merchant diagnostics remain in `S6_VALIDATION_DETAIL.jsonl` per §14.2.
+
+### Entry: 2026-01-12 02:40
+
+Design element: S6 spec compliance gaps (rng_audit_log + counter-replay when log_all_candidates=false)
+Summary: Before touching code, document how to close the two spec gaps identified in S6: ensure core RNG audit log is present/updated and implement counter-replay validation when only selected gumbel_key events are logged.
+
+Observed gaps (from spec vs implementation):
+- S6 spec requires core RNG logs to be updated and the audit entry to exist before first draw (E_RNG_ENVELOPE if missing). Current runner does not touch or verify rng_audit_log.
+- S6 spec requires counter-replay validation when log_all_candidates=false. Current runner always computes selection but does not validate that logged events match the selected set when only selected events are written.
+
+Resolution plan (decision-by-decision, with reasons):
+1) rng_audit_log guard/append
+   - Add a preflight audit check in S6 before any RNG draw. Locate the rng_audit_log path via the dataset dictionary (same partition keys as events).
+   - If the audit log already contains an entry for (seed, parameter_hash, run_id), log a stage message and proceed.
+   - If missing, append a new audit entry to rng_audit_log so the run meets the “audit before first draw” rule.
+   - Audit entry fields mirror S0: ts_utc, run_id, seed, manifest_fingerprint, parameter_hash, algorithm=philox2x64-10, build_commit. Optional fields (code_digest/hostname/platform/notes) remain null unless available.
+   - Build_commit derivation will reuse S0’s approach: env override (ENGINE_GIT_COMMIT), then ci/manifests/git_commit_hash.txt, then git rev-parse HEAD. This keeps provenance consistent across states.
+   - Validate the audit entry against schemas.layer1.yaml rng/core/rng_audit_log/record before appending; fail closed on schema violation.
+
+2) Counter-replay validation for log_all_candidates=false
+   - When existing outputs are detected (validate_only run), load existing rng_event.gumbel_key events into a per-merchant map (merchant_id -> country_iso -> event payload) and validate each row against the gumbel_key schema + lineage tokens.
+   - For each eligible merchant, recompute the considered set and gumbel keys deterministically in S3 candidate_rank order (this is the “counter-replay” step), then derive the expected selected_set.
+   - If log_all_candidates=true: assert logged_set equals the considered_set (A_filtered) and fail with E_EVENT_COVERAGE on missing/extra events.
+   - If log_all_candidates=false: assert logged_set equals selected_set and that each logged event has selected=true; fail with E_EVENT_COVERAGE on mismatch.
+   - Do not change receipt schema/metrics to avoid breaking existing receipts; perform validations only and raise on mismatch.
+
+3) Logging + guardrails
+   - Emit a narrative preflight log line stating whether rng_audit_log was found or appended.
+   - Emit a narrative log line when validate-only checks are comparing existing events (indicating which mode: log_all_candidates or selected-only).
+   - Keep per-merchant diagnostics in S6_VALIDATION_DETAIL.jsonl; no extra console spam.
+
+Non-goals / deferrals:
+- Do not alter the receipt schema or add new required fields (to avoid receipt mismatch on existing runs).
+- Do not change RNG family or substream derivation; counter-replay validation uses the existing deterministic per-candidate substream.
+
+### Entry: 2026-01-12 02:48
+
+Design element: Implement S6 audit-log guard + counter-replay validation
+Summary: Implemented the planned S6 compliance fixes without altering receipt schema or RNG behavior.
+
+Changes implemented:
+- Added git-commit resolution helpers (env override, ci/manifest file, git rev-parse) so S6 can build a valid rng_audit_log entry when missing.
+- Added rng_audit_log preflight guard: detect existing audit entry for (seed, parameter_hash, run_id); if missing and not validate-only, append a schema-validated audit entry; if missing in validate-only, fail closed.
+- Added existing gumbel_key event loader/validator and per-merchant coverage checks:
+  - log_all_candidates=true: logged_set must equal considered_set; selected flag must match membership.
+  - log_all_candidates=false: logged_set must equal selected_set; all logged events must have selected=true.
+  - Deterministic-empty merchants must have no logged events.
+- Added post-loop coverage guards for unexpected merchants and total event count mismatches when validating existing outputs.
+- Logged narrative messages for audit presence/append and existing-event validation mode.
+
+Notes:
+- Receipt schema and metrics were left unchanged to avoid invalidating existing S6 receipts; validations are runtime-only.
+- RNG family/substream derivation is unchanged; “counter-replay” uses the existing deterministic per-candidate substream.

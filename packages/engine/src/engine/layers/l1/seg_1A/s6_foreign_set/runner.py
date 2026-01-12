@@ -6,7 +6,9 @@ import datetime as dt
 import hashlib
 import json
 import math
+import os
 import re
+import subprocess
 import time
 import uuid
 from dataclasses import dataclass
@@ -171,6 +173,30 @@ def _load_yaml(path: Path) -> dict:
         raise InputResolutionError(f"Missing YAML file: {path}")
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def _git_hex_to_bytes(git_hex: str) -> bytes:
+    git_hex = git_hex.strip().lower()
+    raw = bytes.fromhex(git_hex)
+    if len(raw) == 20:
+        return b"\x00" * 12 + raw
+    if len(raw) == 32:
+        return raw
+    raise InputResolutionError("Unexpected git hash length; expected SHA-1 or SHA-256.")
+
+
+def _resolve_git_bytes(repo_root: Path) -> bytes:
+    env_hash = os.environ.get("ENGINE_GIT_COMMIT")
+    if env_hash:
+        return _git_hex_to_bytes(env_hash)
+    git_file = repo_root / "ci" / "manifests" / "git_commit_hash.txt"
+    if git_file.exists():
+        return _git_hex_to_bytes(git_file.read_text(encoding="utf-8").strip())
+    try:
+        output = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo_root)
+        return _git_hex_to_bytes(output.decode("utf-8").strip())
+    except Exception as exc:  # pragma: no cover - fallback when git unavailable
+        raise InputResolutionError("Unable to resolve git commit hash.") from exc
 
 
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
@@ -355,6 +381,25 @@ def _iter_jsonl_files(paths: Iterable[Path]):
                 yield path, line_no, json.loads(line)
 
 
+def _audit_has_entry(
+    audit_path: Path, seed: int, parameter_hash: str, run_id: str
+) -> bool:
+    if not audit_path.exists():
+        return False
+    with audit_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if (
+                payload.get("seed") == seed
+                and payload.get("parameter_hash") == parameter_hash
+                and payload.get("run_id") == run_id
+            ):
+                return True
+    return False
+
+
 def _event_has_rows(paths: Iterable[Path]) -> bool:
     for path in paths:
         if not path.exists():
@@ -364,6 +409,54 @@ def _event_has_rows(paths: Iterable[Path]) -> bool:
                 if line.strip():
                     return True
     return False
+
+
+def _load_existing_gumbel_events(
+    paths: Iterable[Path],
+    validator: Draft202012Validator,
+    seed: int,
+    parameter_hash: str,
+    run_id: str,
+) -> dict[int, dict[str, dict]]:
+    events: dict[int, dict[str, dict]] = {}
+    for path, line_no, payload in _iter_jsonl_files(paths):
+        errors = list(validator.iter_errors(payload))
+        if errors:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_AUTHORITY",
+                "S6",
+                MODULE_NAME,
+                {"path": path.as_posix(), "line": line_no, "detail": errors[0].message},
+                dataset_id=DATASET_GUMBEL,
+            )
+        if (
+            payload.get("seed") != seed
+            or payload.get("parameter_hash") != parameter_hash
+            or payload.get("run_id") != run_id
+        ):
+            raise EngineFailure(
+                "F4",
+                "E_LINEAGE_PATH_MISMATCH",
+                "S6",
+                MODULE_NAME,
+                {"path": path.as_posix(), "line": line_no},
+                dataset_id=DATASET_GUMBEL,
+            )
+        merchant_id = int(payload["merchant_id"])
+        country_iso = str(payload["country_iso"])
+        merchant_events = events.setdefault(merchant_id, {})
+        if country_iso in merchant_events:
+            raise EngineFailure(
+                "F4",
+                "E_EVENT_COVERAGE",
+                "S6",
+                MODULE_NAME,
+                {"detail": "duplicate_gumbel_event", "merchant_id": merchant_id},
+                dataset_id=DATASET_GUMBEL,
+            )
+        merchant_events[country_iso] = payload
+    return events
 
 
 def _trace_has_substream(path: Path, module: str, substream_label: str) -> bool:
@@ -1106,6 +1199,59 @@ def run_s6(
                 "Remove existing S6 outputs or resume a clean run_id."
             )
 
+        audit_entry = find_dataset_entry(dictionary, "rng_audit_log").entry
+        audit_path = _resolve_run_path(run_paths, audit_entry["path"], tokens)
+        audit_schema = _schema_from_pack(schema_layer1, "rng/core/rng_audit_log/record")
+        audit_validator = Draft202012Validator(audit_schema)
+        if _audit_has_entry(audit_path, seed, parameter_hash, run_id):
+            _log_stage(
+                logger,
+                "S6: rng_audit_log entry present",
+                seed=seed,
+                parameter_hash=parameter_hash,
+                run_id=run_id,
+                stage="preflight",
+            )
+        elif validate_only:
+            raise InputResolutionError(
+                "rng_audit_log missing required audit row for "
+                f"seed={seed} parameter_hash={parameter_hash} run_id={run_id}"
+            )
+        else:
+            git_bytes = _resolve_git_bytes(config.repo_root)
+            audit_payload = {
+                "ts_utc": utc_now_rfc3339_micro(),
+                "run_id": run_id,
+                "seed": seed,
+                "manifest_fingerprint": manifest_fingerprint,
+                "parameter_hash": parameter_hash,
+                "algorithm": "philox2x64-10",
+                "build_commit": git_bytes.hex(),
+                "code_digest": None,
+                "hostname": None,
+                "platform": None,
+                "notes": None,
+            }
+            errors = list(audit_validator.iter_errors(audit_payload))
+            if errors:
+                raise EngineFailure(
+                    "F4",
+                    "E_SCHEMA_AUTHORITY",
+                    "S6",
+                    MODULE_NAME,
+                    {"detail": errors[0].message},
+                    dataset_id="rng_audit_log",
+                )
+            _append_jsonl(audit_path, audit_payload)
+            _log_stage(
+                logger,
+                "S6: appended rng_audit_log entry",
+                seed=seed,
+                parameter_hash=parameter_hash,
+                run_id=run_id,
+                stage="preflight",
+            )
+
         total_merchants = len(candidate_map)
         if total_merchants == 0:
             raise InputResolutionError("S3 candidate set is empty.")
@@ -1148,6 +1294,24 @@ def run_s6(
         trace_schema = _schema_from_pack(schema_layer1, "rng/core/rng_trace_log/record")
         trace_validator = Draft202012Validator(trace_schema)
 
+        existing_event_map: dict[int, dict[str, dict]] | None = None
+        existing_event_total = 0
+        if existing_events:
+            existing_event_map = _load_existing_gumbel_events(
+                _resolve_run_glob(run_paths, event_entry["path"], tokens),
+                event_validator,
+                seed,
+                parameter_hash,
+                run_id,
+            )
+            existing_event_total = sum(
+                len(events) for events in existing_event_map.values()
+            )
+            logger.info(
+                "S6: validating existing gumbel_key events (log_all_candidates=%s)",
+                log_all_candidates,
+            )
+
         tmp_dir = run_paths.tmp_root / "s6_foreign_set"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         tmp_event_path = tmp_dir / "rng_event_gumbel_key.jsonl"
@@ -1185,6 +1349,9 @@ def run_s6(
                     )
 
                 metrics["s6.run.merchants_total"] += 1
+                logged_events = None
+                if existing_event_map is not None:
+                    logged_events = existing_event_map.get(merchant_id, {})
 
                 if merchant_id not in eligibility_map:
                     raise EngineFailure(
@@ -1195,6 +1362,15 @@ def run_s6(
                         {"detail": "missing_eligibility_flag", "merchant_id": merchant_id},
                     )
                 if not eligibility_map[merchant_id]:
+                    if logged_events:
+                        raise EngineFailure(
+                            "F4",
+                            "E_EVENT_COVERAGE",
+                            "S6",
+                            MODULE_NAME,
+                            {"detail": "logged_events_for_ineligible", "merchant_id": merchant_id},
+                            dataset_id=DATASET_GUMBEL,
+                        )
                     continue
 
                 metrics["s6.run.merchants_gated_in"] += 1
@@ -1286,6 +1462,15 @@ def run_s6(
                     reason_code = "CAPPED_BY_MAX_CANDIDATES"
 
                 if reason_code in ("NO_CANDIDATES", "K_ZERO", "ZERO_WEIGHT_DOMAIN"):
+                    if logged_events:
+                        raise EngineFailure(
+                            "F4",
+                            "E_EVENT_COVERAGE",
+                            "S6",
+                            MODULE_NAME,
+                            {"detail": "logged_events_for_empty", "merchant_id": merchant_id},
+                            dataset_id=DATASET_GUMBEL,
+                        )
                     metrics["s6.run.merchants_empty"] += 1
                     metrics[f"s6.run.reason.{reason_code}"] += 1
                     selection_histogram[_selection_bucket(0)] += 1
@@ -1418,6 +1603,64 @@ def run_s6(
                 if is_shortfall:
                     metrics["s6.run.shortfall_merchants"] += 1
 
+                if logged_events is not None:
+                    logged_set = set(logged_events.keys())
+                    if log_all_candidates:
+                        expected_logged = {row["country_iso"] for row in considered}
+                        if logged_set != expected_logged:
+                            raise EngineFailure(
+                                "F4",
+                                "E_EVENT_COVERAGE",
+                                "S6",
+                                MODULE_NAME,
+                                {
+                                    "detail": "event_coverage_mismatch",
+                                    "merchant_id": merchant_id,
+                                },
+                                dataset_id=DATASET_GUMBEL,
+                            )
+                        for country_iso, payload in logged_events.items():
+                            if payload.get("selected") != (country_iso in selected_set):
+                                raise EngineFailure(
+                                    "F4",
+                                    "E_EVENT_COVERAGE",
+                                    "S6",
+                                    MODULE_NAME,
+                                    {
+                                        "detail": "selected_flag_mismatch",
+                                        "merchant_id": merchant_id,
+                                        "country_iso": country_iso,
+                                    },
+                                    dataset_id=DATASET_GUMBEL,
+                                )
+                    else:
+                        if logged_set != selected_set:
+                            raise EngineFailure(
+                                "F4",
+                                "E_EVENT_COVERAGE",
+                                "S6",
+                                MODULE_NAME,
+                                {
+                                    "detail": "selected_only_mismatch",
+                                    "merchant_id": merchant_id,
+                                },
+                                dataset_id=DATASET_GUMBEL,
+                            )
+                        for country_iso, payload in logged_events.items():
+                            if payload.get("selected") is not True:
+                                raise EngineFailure(
+                                    "F4",
+                                    "E_EVENT_COVERAGE",
+                                    "S6",
+                                    MODULE_NAME,
+                                    {
+                                        "detail": "selected_flag_false",
+                                        "merchant_id": merchant_id,
+                                        "country_iso": country_iso,
+                                    },
+                                    dataset_id=DATASET_GUMBEL,
+                                )
+
                 if log_all_candidates:
                     expected_events = a_filtered
                     to_write = considered_events
@@ -1506,6 +1749,27 @@ def run_s6(
                 MODULE_NAME,
                 {"detail": "trace_count_mismatch"},
             )
+
+        if existing_event_map is not None:
+            unexpected_merchants = set(existing_event_map) - set(candidate_map)
+            if unexpected_merchants:
+                raise EngineFailure(
+                    "F4",
+                    "E_EVENT_COVERAGE",
+                    "S6",
+                    MODULE_NAME,
+                    {"detail": "events_for_unknown_merchants"},
+                    dataset_id=DATASET_GUMBEL,
+                )
+            if existing_event_total != events_written:
+                raise EngineFailure(
+                    "F4",
+                    "E_EVENT_COVERAGE",
+                    "S6",
+                    MODULE_NAME,
+                    {"detail": "event_count_mismatch"},
+                    dataset_id=DATASET_GUMBEL,
+                )
         logger.info(
             "S6 summary: merchants_total=%d gated_in=%d selected=%d empty=%d "
             "reasons(NO_CANDIDATES=%d K_ZERO=%d ZERO_WEIGHT_DOMAIN=%d CAPPED_BY_MAX_CANDIDATES=%d) "
