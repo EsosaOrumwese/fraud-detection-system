@@ -552,6 +552,66 @@ Follow-up required before rerunning S1:
 - Re-run 1B.S0 to reseal `world_countries` with the new hash in `sealed_inputs_1B`.
 - Use a fresh run_id (or clean the old run folder) to avoid immutable partition conflicts.
 
+### Entry: 2026-01-13 03:10
+
+Design element: PROJ database mismatch during raster open (S1 environment fix)
+Summary: S1 failed with a GDAL/PROJ error indicating `proj.db` layout version mismatch because `PROJ_LIB` points at a PostGIS installation (`...PostgreSQL\\16\\...\\proj`). Rasterio then reports `E002_RASTER_MISMATCH` because CRS metadata cannot be resolved. This must be resolved at runtime by forcing PROJ to use the bundled pyproj database.
+
+Planned resolution (before code changes):
+1) **Detect and override bad PROJ_LIB/PROJ_DATA at runtime.**
+   - Use `pyproj.datadir.get_data_dir()` to find the correct `proj.db`.
+   - If `PROJ_LIB`/`PROJ_DATA` is unset, set both to the pyproj data dir.
+   - If set, inspect `{env_path}/proj.db` with sqlite and read `DATABASE.LAYOUT.VERSION.MINOR`; if `< 4`, override to the pyproj dir.
+   - Log the previous PROJ path and the new value so operators can trace the fix.
+
+2) **Apply before any rasterio dataset open.**
+   - Call the fix in `run_s1` before opening `population_raster_2025` so CRS resolution succeeds.
+
+3) **No contract changes.**
+   - This is an environment correction only; no schema/dictionary changes are required.
+
+Follow-up after fix:
+- Re-run S1 with a fresh run_id (and after resealing S0) to confirm CRS checks pass without `proj.db` errors.
+
+### Entry: 2026-01-13 03:06
+
+Design element: PROJ runtime override applied (S1)
+Summary: Implemented the runtime guard that inspects `proj.db` and overrides `PROJ_LIB`/`PROJ_DATA` when an incompatible PostGIS PROJ database is detected, ensuring raster CRS resolution succeeds.
+
+Implementation details:
+1) **PROJ database inspection.**
+   - Added `_read_proj_minor_version()` to read `DATABASE.LAYOUT.VERSION.MINOR` from `proj.db` using sqlite.
+   - Added `_ensure_proj_db()` to set `PROJ_LIB`/`PROJ_DATA` to `pyproj.datadir.get_data_dir()` when the env path is missing or the minor layout version is < 4.
+
+2) **Early application.**
+   - Called `_ensure_proj_db()` at the start of `run_s1` before any rasterio open.
+   - Logs the previous PROJ path when it is overridden, so operators can confirm the fix.
+
+### Entry: 2026-01-13 03:12
+
+Design element: Fresh run folder + run_receipt for S1 rerun
+Summary: Preparing a new run_id and run_receipt so 1B.S0 can reseal updated `world_countries` without immutable partition conflicts.
+
+Plan (before implementation):
+1) **Clone latest run_receipt.json** from `runs/local_full_run-5/<latest>/run_receipt.json`.
+2) **Generate a new run_id** (hex) and update:
+   - `run_id` (new value),
+   - `created_utc` (current UTC),
+   - `runs_root` (unchanged),
+   - keep `contracts_root`, `contracts_layout`, `external_roots`, `manifest_fingerprint`, `parameter_hash`, `seed` unchanged.
+3) **Write the new receipt** to `runs/local_full_run-5/<new_run_id>/run_receipt.json`.
+4) **Re-run 1B.S0** (user will execute) to reseal `world_countries` hash into `sealed_inputs_1B`, then run 1B.S1.
+
+### Entry: 2026-01-13 03:11
+
+Design element: Fresh run folder created
+Summary: Created a new run folder and run receipt to avoid immutable partition conflicts after updating `world_countries`.
+
+Action taken:
+- New run_id: `446496814c08456c874beb9638fc6cfb`
+- Path: `runs/local_full_run-5/446496814c08456c874beb9638fc6cfb/run_receipt.json`
+- Receipt cloned from latest run and updated `run_id` + `created_utc` only (all other lineage fields preserved).
+
 ## S2 - Tile Weights (S2.*)
 
 ## S3 - Requirements (S3.*)

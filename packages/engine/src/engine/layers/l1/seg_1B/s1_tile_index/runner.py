@@ -6,7 +6,9 @@ import concurrent.futures
 import hashlib
 import json
 import math
+import os
 import shutil
+import sqlite3
 import time
 import uuid
 from dataclasses import dataclass
@@ -144,6 +146,56 @@ def _open_files_count(proc: psutil.Process) -> int:
     if hasattr(proc, "num_fds"):
         return proc.num_fds()
     return 0
+
+
+def _read_proj_minor_version(proj_db: Path) -> Optional[int]:
+    try:
+        conn = sqlite3.connect(proj_db)
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "select value from metadata where key='DATABASE.LAYOUT.VERSION.MINOR'"
+            )
+            row = cursor.fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return None
+    if not row:
+        return None
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return None
+
+
+def _ensure_proj_db(logger) -> None:
+    from pyproj import datadir as proj_datadir
+
+    proj_data_dir = Path(proj_datadir.get_data_dir())
+    env_path = os.environ.get("PROJ_LIB") or os.environ.get("PROJ_DATA")
+    if env_path:
+        env_dir = Path(env_path)
+        proj_db = env_dir / "proj.db"
+        override = False
+        if not proj_db.exists():
+            override = True
+        else:
+            minor = _read_proj_minor_version(proj_db)
+            if minor is not None and minor < 4:
+                override = True
+        if override:
+            os.environ["PROJ_LIB"] = str(proj_data_dir)
+            os.environ["PROJ_DATA"] = str(proj_data_dir)
+            logger.info(
+                "S1: overriding PROJ_LIB to %s (previous=%s)",
+                proj_data_dir,
+                env_path,
+            )
+    else:
+        os.environ["PROJ_LIB"] = str(proj_data_dir)
+        os.environ["PROJ_DATA"] = str(proj_data_dir)
+        logger.info("S1: setting PROJ_LIB to %s (was unset)", proj_data_dir)
 
 
 def _emit_failure_event(logger, code: str, parameter_hash: str, detail: dict) -> None:
@@ -609,6 +661,7 @@ def run_s1(
     workers: int = 1,
 ) -> S1Result:
     logger = get_logger("engine.layers.l1.seg_1B.s1_tile_index.l2.runner")
+    _ensure_proj_db(logger)
     timer = _StepTimer(logger)
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
