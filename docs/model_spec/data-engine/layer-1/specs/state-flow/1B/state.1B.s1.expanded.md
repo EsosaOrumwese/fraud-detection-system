@@ -210,8 +210,8 @@ S1 consumes only **reference/ingress** surfaces. It does **not** read any 1A egr
 ## 4.2 `world_countries` — country polygons (GeoParquet)
 
 * **Anchor:** `schemas.ingress.layer1.yaml#/world_countries`. 
-* **Dictionary facts:** status **approved**; format **parquet**; path `reference/spatial/world_countries/2024/world_countries.parquet`; **licence: ODbL-1.0**; **consumed_by: [1B]**. 
-* **Registry facts:** mirrors same path/anchor; **licence: ODbL-1.0**; depends on `iso3166_canonical_2024`. 
+* **Dictionary facts:** status **approved**; format **parquet**; path `reference/spatial/world_countries/2024/world_countries.parquet`; **licence: Public-Domain**; **consumed_by: [1B]**. 
+* **Registry facts:** mirrors same path/anchor; **licence: Public-Domain**; depends on `iso3166_canonical_2024`. 
 * **Binding use in S1:** geometric conformance surface for per-country eligibility checks (point-in-polygon semantics are specified in §6).
 
 ## 4.3 `population_raster_2025` — global population raster (COG GeoTIFF)
@@ -232,7 +232,7 @@ S1 consumes only **reference/ingress** surfaces. It does **not** read any 1A egr
 
 ## 4.5 Licence & provenance requirements *(Binding)*
 
-* Each sealed input **MUST** carry a **concrete** licence in Dictionary/Registry (no placeholders); current licences: **CC-BY-4.0** (ISO) and **ODbL-1.0** (world_countries, population_raster_2025, tz_world_2025a).  
+* Each sealed input **MUST** carry a **concrete** licence in Dictionary/Registry (no placeholders); current licences: **CC-BY-4.0** (ISO), **Public-Domain** (world_countries), and **ODbL-1.0** (population_raster_2025, tz_world_2025a).  
 * S1 **MUST NOT** alter provenance (paths/versions/anchors) at runtime; inputs are read exactly as declared above. (JSON-Schema governs shape; Dictionary governs ID→path/partitions.)  
 
 ## 4.6 Partitioning & immutability of inputs *(Binding)*
@@ -596,7 +596,7 @@ On any failure, emit an event object:
 * **Licence authority:** Licence class lives in the **Dictionary/Registry**; S1 **must not** override it. **Absence (or placeholder) is run-fail** per governance. 
 * **Ingress licences (sealed inputs):**
   – `iso3166_canonical_2024` → **CC-BY-4.0** · retention **1095 days** · `pii:false` 
-  – `world_countries` → **ODbL-1.0** · retention **1095 days** · `pii:false` 
+  – `world_countries` → **Public-Domain** · retention **1095 days** · `pii:false` 
   – `population_raster_2025` → **ODbL-1.0** · retention **1095 days** · `pii:false` 
   – `tz_world_2025a` → **ODbL-1.0** · retention **1095 days** · `pii:false` 
 * **S1 output licence:** `tile_index` → **Proprietary-Internal** (Dictionary). 

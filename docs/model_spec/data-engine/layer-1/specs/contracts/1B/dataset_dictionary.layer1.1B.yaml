@@ -70,10 +70,28 @@ reference_data:
   pii: false
   licence: ODbL-1.0
 
+- id: license_map
+  status: approved
+  owner_subsegment: governance
+  description: License mapping for sealed inputs (coverage check).
+  version: '2025-12-31'
+  format: yaml
+  path: licenses/license_map.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/governance/license_map
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: tz_world_2025a
   status: approved
   owner_subsegment: ingress
-  description: RESERVED (used later by 2A/2B). Time-zone polygons; not consumed by 1B v1.
+  description: Time-zone polygons; sealed by 1B.S0 and used later by 2A/2B.
   version: '2025a'
   format: parquet
   path: reference/spatial/tz_world/2025a/tz_world.parquet
@@ -82,7 +100,7 @@ reference_data:
   schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
   lineage:
     produced_by:
-    consumed_by: []
+    consumed_by: [1B]
     final_in_layer: false
   retention_days: 1095
   pii: false
