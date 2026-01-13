@@ -493,6 +493,65 @@ Notes for follow-up validation:
 - Ensure the per-country audit logs still emit `AUDIT_S1_COUNTRY:` lines after refactors.
 - Confirm the run report now lands exactly at `reports/layer1/1B/state=S1/parameter_hash=.../s1_run_report.json`.
 
+### Entry: 2026-01-13 02:26
+
+Design element: world_countries reference rebuild (coverage alignment with ISO canonical)
+Summary: Investigated the mismatch between `iso3166_canonical_2024` (251 ISO2 codes) and `world_countries.parquet` (236 rows). The Natural Earth shapefile has 258 rows, but 22 entries use ISO_A2 = -99 and ISO_A3 = -99, so the current build path drops valid sovereigns (e.g., FR, NO) and several ISO2 codes (e.g., BQ, GF, GP) never appear in the shapefile at all. This makes S1 fail with `E005_ISO_FK` for missing world_countries coverage.
+
+Observed evidence (pre-implementation):
+1) Shapefile `ne_10m_admin_0_countries.zip` has 258 features; 22 have ISO_A2 = -99 (including France, Norway).
+2) Current `world_countries.parquet` has 236 rows; missing ISO2 list matches the S1 failure: `AN, BQ, BV, CC, CS, CX, FR, GF, GP, MQ, NO, RE, SJ, TK, YT`.
+3) The current build script (`scripts/build_world_countries.py`) reads a geojson and maps ISO_A2 only, so it cannot recover ISO2 for the 22 -99 rows (even though ADM0_A3 has valid codes like FRA/NOR).
+
+Planned resolution (before code changes):
+1) **Upgrade build pipeline to read the shapefile zip directly** (or accept both geojson and zip sources):
+   - If source ends with `.zip`, use `gpd.read_file("zip://...")`.
+   - Support `.geojson`/`.json`/`.shp` paths without breaking existing usage.
+
+2) **Robust ISO2 mapping order:**
+   - Use ISO_A2 when valid (two-letter code).
+   - Else use ISO_A3 when valid, mapped to ISO2 via `iso3166_canonical_2024.alpha3`.
+   - Else use ADM0_A3 mapped to ISO2 via the same alpha3 map (this recovers FR/NO and other -99 ISO_A2 rows).
+   - Preserve FIXUP_MAP for exceptional name-based fixes.
+
+3) **Synthetic geometry fill for ISO2 codes absent from Natural Earth:**
+   - Continue to provide small synthetic polygons for BQ, CC, CX, GF, GP, MQ, RE, YT, SJ, BV, TK (existing map).
+   - Add synthetic entries for historical ISO2 codes present in `iso3166_canonical_2024` but not in NE (e.g., AN, CS) so S1 is FK-complete.
+   - Use deterministic 0.5° boxes centered on a canonical lat/lon (documented in the script for auditability).
+
+4) **Rebuild `reference/spatial/world_countries/2024/world_countries.parquet`:**
+   - Regenerate using the fixed builder and the NE shapefile zip in `reference/spatial/world_countries/2024/source/`.
+   - Update manifest/QA/provenance artifacts to reflect the new build logic and row count.
+
+Acceptance check after rebuild (must pass before S1 rerun):
+- `world_countries.parquet` ISO2 coverage equals `iso3166_canonical_2024` (251 codes).
+- S1 preflight for missing world_countries codes is empty.
+- QA report lists zero missing ISO2 after synthetic augmentation.
+
+### Entry: 2026-01-13 02:55
+
+Design element: world_countries rebuild applied (source zip + ISO mapping + synthetic fill)
+Summary: Implemented the rebuild plan for `world_countries` using the Natural Earth zip source and upgraded ISO mapping to recover missing ISO2s. Regenerated the 2024 parquet, QA, manifest, SHA sums, and provenance to reflect the corrected coverage.
+
+Implementation actions:
+1) **Builder upgraded for zip + ISO fallback mapping.**
+   - `scripts/build_world_countries.py` now accepts `.zip` sources and reads via `gpd.read_file("zip://...")`.
+   - ISO mapping now falls back ISO_A2 -> ISO_A3 -> ADM0_A3 -> FIXUP_MAP.
+   - Added synthetic geometries for `AN` and `CS` in addition to the previous set.
+   - Added a hard fail if any ISO2 remains missing after synthetic augmentation.
+
+2) **Rebuilt 2024 reference outputs.**
+   - Regenerated `reference/spatial/world_countries/2024/world_countries.parquet` from the zip source.
+   - New coverage: 251 ISO2 rows (matches `iso3166_canonical_2024`).
+   - Updated `world_countries.qa.json`, `world_countries.manifest.json`, and `SHA256SUMS` via the build script.
+
+3) **Updated provenance.**
+   - `world_countries.provenance.json` now records the new row count, unmapped count/sample, and updated output SHA, plus notes on ISO mapping and synthetic fill.
+
+Follow-up required before rerunning S1:
+- Re-run 1B.S0 to reseal `world_countries` with the new hash in `sealed_inputs_1B`.
+- Use a fresh run_id (or clean the old run folder) to avoid immutable partition conflicts.
+
 ## S2 - Tile Weights (S2.*)
 
 ## S3 - Requirements (S3.*)
