@@ -1148,6 +1148,106 @@ Mitigations baked into the plan (how we avoid these):
 4) **Strict writer-sort adherence** and deterministic output ordering; no extra sorts unless input violates the contract (then fail fast).
 5) **Progress/ETA logging** during long scans to detect stalls early and avoid silent hangs.
 
+### Entry: 2026-01-13 16:55
+
+Design element: S3 implementation approach (row-group streaming + chunked output)
+Summary: Recording the concrete algorithm choices for S3 implementation before code changes, focusing on streaming group detection, site_order integrity checks, and output chunking.
+
+Implementation decisions (pre-code, explicit):
+1) **Row-group streaming over outlet_catalogue (pyarrow-first).**
+   - Prefer pyarrow row-group reads for `outlet_catalogue` to avoid loading entire partitions.
+   - Read only required columns: `merchant_id`, `legal_country_iso`, `site_order`, plus `manifest_fingerprint` and `global_seed` (if present) for path-embed checks.
+   - If pyarrow is unavailable, fall back to Polars `scan_parquet` with streaming and explicitly log the fallback (performance risk noted).
+
+2) **Group detection using vectorized boundaries.**
+   - Within each row group, compute boundary indices where `(merchant_id, legal_country_iso)` changes.
+   - Emit one output row per group segment; track group state across row-group boundaries to ensure counts continue correctly.
+   - This avoids per-row Python loops while preserving deterministic grouping.
+
+3) **Site_order integrity check (contiguous 1..n).**
+   - For each group, enforce `site_order[0] == 1` and `site_order[-1] == count` with strict +1 increments.
+   - Any gap, duplicate, or non-monotonic sequence triggers `E314_SITE_ORDER_INTEGRITY` immediately.
+
+4) **Coverage set strategy for tile_weights.**
+   - Build a distinct `country_iso` set by streaming `tile_weights` (only the `country_iso` column).
+   - Use this set for coverage checks during S3 emission (E303 on missing coverage).
+
+5) **Chunked output writing.**
+   - Accumulate output rows in memory up to a fixed batch size (e.g., 1M rows), then write each batch as `part-xxxxx.parquet`.
+   - Maintain global ordering by writing batches in the streaming order (writer sort `[merchant_id, legal_country_iso]` preserved per file).
+   - After all parts are written, compute determinism receipt across the partition.
+
+6) **Run report contents (required + extended).**
+   - Include required fields (`seed`, `manifest_fingerprint`, `parameter_hash`, `rows_emitted`, `merchants_total`, `countries_total`, `source_rows_total`, `ingress_versions.iso3166`, `determinism_receipt`).
+   - Add performance counters (`bytes_read_outlet_catalogue_total`, `bytes_read_tile_weights_total`, `wall_clock_seconds_total`, `cpu_seconds_total`, `max_worker_rss_bytes`, `open_files_peak`, `workers_used`).
+
+Rationale:
+- Ensures O(1) memory per group, avoids full joins, preserves deterministic output ordering, and keeps large scans observable.
+
+### Entry: 2026-01-13 17:01
+
+Design element: S3 runner + CLI + Makefile wiring (implementation)
+Summary: Implemented the S3 requirements runner with streaming group-by, coverage checks, output chunking, and added CLI/Makefile wiring.
+
+Implementation actions (detailed):
+1) **Runner scaffold + contract resolution.**
+   - Added `packages/engine/src/engine/layers/l1/seg_1B/s3_requirements/runner.py`.
+   - Loads `dataset_dictionary.layer1.1B.yaml` and `schemas.1B.yaml`; resolves `s0_gate_receipt_1B`, `outlet_catalogue`, `tile_weights`, `iso3166_canonical_2024`, `s3_requirements`, and `s3_run_report`.
+
+2) **Gate receipt validation.**
+   - Validates `s0_gate_receipt_1B` against `schemas.1B.yaml#/validation/s0_gate_receipt`.
+   - Enforces `manifest_fingerprint` parity with the path token; emits `S3_ERROR` on mismatch.
+
+3) **Coverage + FK setup.**
+   - Builds `iso_set` from `iso3166_canonical_2024`.
+   - Streams `tile_weights` to materialise the distinct `country_iso` coverage set used by S3 (no join).
+
+4) **Streaming group-by over outlet_catalogue.**
+   - Uses pyarrow row-group scans (fallback to Polars if pyarrow unavailable) to read `merchant_id`, `legal_country_iso`, `site_order`, plus `manifest_fingerprint`/`global_seed` for path-embed checks.
+   - Detects group boundaries via vectorized key-change indices; carries the open group across row groups.
+   - Enforces `site_order` contiguity strictly (`1..n` with +1 increments); violations emit `E314_SITE_ORDER_INTEGRITY`.
+   - Enforces writer-sort monotonicity via `(merchant_id, legal_country_iso)` ordering; violations emit `E310_UNSORTED`.
+
+5) **Output chunking + publish.**
+   - Emits `s3_requirements` rows in batches (`part-00000.parquet`, etc.) preserving writer sort.
+   - Computes determinism receipt (ASCII-lex bytes hash) and publishes atomically with immutability guard.
+
+6) **Run report emission.**
+   - Writes `s3_run_report.json` with required fields plus PAT counters (bytes read, wall/cpu time, RSS, open files).
+   - Validates the report against `schemas.1B.yaml#/control/s3_run_report`.
+
+7) **CLI + Makefile wiring.**
+   - Added `packages/engine/src/engine/cli/s3_requirements.py`.
+   - Added Makefile vars `SEG1B_S3_RUN_ID`, args, and target `segment1b-s3` (with `.PHONY` update).
+
+Next step:
+- Run `make segment1b-s3 RUN_ID=f079e82cb937e7bdb61615dbdcf0d038` and iterate on any failures, logging each decision and fix.
+
+### Entry: 2026-01-13 17:04
+
+Design element: S3 execution fixes + green run
+Summary: Ran S3, hit a Polars streaming panic while building the tile_weights coverage set, switched to a pyarrow-based coverage scan, and re-ran S3 to green.
+
+Observed failure (first run):
+1) **Polars streaming panic** while collecting `tile_weights` country coverage:
+   - Error: `Parquet no longer supported for old streaming engine` when calling `collect(streaming=True)` on a lazy scan.
+   - Impact: S3 aborted before reading `outlet_catalogue`.
+
+Resolution (documented change before rerun):
+1) **Switched coverage scan to pyarrow row-group reads.**
+   - Added `_load_tile_weight_countries()` to scan `country_iso` via pyarrow when available; falls back to `pl.read_parquet` without streaming.
+   - Added an explicit `tile_weights_empty` guard to emit `E303_TILE_WEIGHT_COVERAGE` if the coverage set is empty.
+
+Rerun outcome (green):
+1) **Command:** `make segment1b-s3 RUN_ID=f079e82cb937e7bdb61615dbdcf0d038`.
+2) **Run log evidence:**
+   - Coverage set loaded (`countries=249`) and outlet_catalogue scan completed.
+   - Output published: `s3_requirements` with `rows_emitted=2635`.
+   - Run report written to the dictionary path under `reports/layer1/1B/state=S3/.../s3_run_report.json`.
+3) **Spec compliance checks:**
+   - Run report includes required fields (`seed`, `manifest_fingerprint`, `parameter_hash`, `rows_emitted`, `merchants_total`, `countries_total`, `source_rows_total`, `ingress_versions`, `determinism_receipt`).
+   - Output partition exists at `data/layer1/1B/s3_requirements/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=9673aac41b35e823b2c78da79bdf913998e5b7cbe4429cf70515adf02a4c0774/`.
+
 ## S4 - Allocation Plan (S4.*)
 
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
