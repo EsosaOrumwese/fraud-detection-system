@@ -1468,6 +1468,82 @@ Current status:
 - S4 rerun started at `2026-01-13 20:53:38` and is currently running; no run report has been emitted yet.
 - Next step after completion: inspect `s4_run_report.json` + output partition for spec compliance and adjust if any issues surface.
 
+### Entry: 2026-01-13 21:08
+
+Design element: S4 run log visibility (progress/heartbeat logging gap)
+Summary: The S4 run log stops after initialization (`PAT open_files metric=...`), which means the main allocation loop provides no visible progress. This violates the logging requirement (story + heartbeat) and makes it hard to diagnose long-running behavior.
+
+Brainstormed options for better S4 run visibility:
+1) **Add progress tracking that works with and without pyarrow.**
+   - Problem: current `_ProgressTracker` relies on a known total and does not emit if total=0 (pyarrow missing or pre-scan disabled).
+   - Option: allow `total=None` to emit `processed`, `elapsed`, `rate` without ETA.
+2) **Add explicit phase logs before long operations.**
+   - Log the number of `s3_requirements` files, total bytes, and the intended processing mode (pyarrow vs polars).
+   - Log when tile_index/tile_weights are loaded for a country and how many tiles are in scope.
+3) **Add a lightweight heartbeat inside the row loop.**
+   - Only log every N rows or every T seconds to avoid spamming.
+   - Include rows processed, merchants seen, and cache hit/miss counts (if cheap).
+
+Decision:
+- Implement option 1 + 2, and add a time-gated heartbeat (every ~5s) inside the row-group loop.
+- Keep logs sparse (no per-row logging) but informative enough to trace “where” in the state flow we are.
+
+Planned code changes (before editing):
+1) Update `_ProgressTracker` to accept `total=None` and emit logs without ETA when total is unknown.
+2) Log S4 phase entry: resolved input paths, file counts, bytes, and read mode (pyarrow/polars).
+3) Log per-country load summary (country, tiles count, dp) on first load.
+4) Add a heartbeat that prints processed rows and rate every few seconds even when total is unknown.
+
+### Entry: 2026-01-13 21:15
+
+Design element: S4 progress/heartbeat logging (implementation)
+Summary: Implemented the planned S4 logging enhancements so long-running allocation is visible and traceable.
+
+Actions taken (implementation):
+1) **Progress tracker upgraded.**
+   - `_ProgressTracker` now accepts `total=None` and still emits progress logs without ETA (processed, elapsed, rate).
+2) **Phase-entry logs added.**
+   - Logs ISO domain size, S3 file count/bytes, and read mode (pyarrow vs polars).
+   - Logs total pair count when pyarrow metadata is available.
+3) **Per-country load summary.**
+   - Added a log when each country’s tile assets are loaded (tiles count, dp, bytes read, cache size).
+4) **Heartbeat logging.**
+   - Added a time-gated heartbeat every ~5 seconds (checked every 10k pairs) with pairs/merchants/rows counts and rate.
+5) **Completion log.**
+   - Added a summary log after the allocation loop before determinism hashing.
+
+Next step:
+- Re-run `segment1b-s4` for run_id `04ffabbdfbd34b9d8a4d61e7be70782b` after stopping the currently running process (the running process uses the older logging code).
+
+### Entry: 2026-01-13 21:13
+
+Design element: S4 rerun with new logging (terminate + restart)
+Summary: Proceeding to terminate the active S4 run (old logging) and rerun with the updated logging so progress is visible.
+
+Decision and action plan (explicit):
+1) Identify the active `engine.cli.s4_alloc_plan` process and terminate it (user-approved).
+2) Re-run `make segment1b-s4 RUN_ID=04ffabbdfbd34b9d8a4d61e7be70782b`.
+3) Monitor `run_log_04ff...` to confirm the new progress/heartbeat lines appear.
+4) If any failures occur, log the error and the fix ideas immediately before changing code.
+
+### Entry: 2026-01-13 21:17
+
+Design element: S4 rerun executed with new logging
+Summary: Re-ran S4 with updated logging; progress is now visible in the run log.
+
+Observed outcomes (post-rerun):
+1) **Termination check.**
+   - No active `engine.cli.s4_alloc_plan` process was found at rerun time, so there was nothing to terminate.
+2) **Rerun started successfully.**
+   - `make segment1b-s4 RUN_ID=04ffabbdfbd34b9d8a4d61e7be70782b` launched and began emitting new logs:
+     - ISO domain count, S3 file counts/bytes, read mode, row count.
+     - Per-country asset load summaries (tiles/dp/bytes/cache).
+3) **Heartbeat note.**
+   - The heartbeat log is time‑gated and checks every 10k pairs; this run has only 2635 pairs, so heartbeat lines may not appear even though the logging is now active.
+
+Next step:
+- Let the run complete and confirm `s4_run_report.json` + output partition; if the run stalls or fails, capture the error and adjust before re-running.
+
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
 
 ## S6 - In-Cell Jitter RNG (S6.*)

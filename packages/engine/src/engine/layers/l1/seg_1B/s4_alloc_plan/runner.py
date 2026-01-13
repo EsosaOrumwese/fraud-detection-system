@@ -64,8 +64,8 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str) -> None:
-        self._total = max(int(total), 0)
+    def __init__(self, total: Optional[int], logger, label: str) -> None:
+        self._total = int(total) if total is not None else None
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
@@ -75,22 +75,31 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and self._processed < self._total:
+        if now - self._last_log < 0.5:
             return
         self._last_log = now
         elapsed = now - self._start
         rate = self._processed / elapsed if elapsed > 0 else 0.0
-        remaining = max(self._total - self._processed, 0)
-        eta = remaining / rate if rate > 0 else 0.0
-        self._logger.info(
-            "%s %s/%s (elapsed=%.2fs, rate=%.2f/s, eta=%.2fs)",
-            self._label,
-            self._processed,
-            self._total,
-            elapsed,
-            rate,
-            eta,
-        )
+        if self._total and self._total > 0:
+            remaining = max(self._total - self._processed, 0)
+            eta = remaining / rate if rate > 0 else 0.0
+            self._logger.info(
+                "%s %s/%s (elapsed=%.2fs, rate=%.2f/s, eta=%.2fs)",
+                self._label,
+                self._processed,
+                self._total,
+                elapsed,
+                rate,
+                eta,
+            )
+        else:
+            self._logger.info(
+                "%s processed=%s (elapsed=%.2fs, rate=%.2f/s)",
+                self._label,
+                self._processed,
+                elapsed,
+                rate,
+            )
 
 
 def _close_parquet_reader(pfile) -> None:
@@ -641,21 +650,26 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     iso_df = pl.read_parquet(iso_path, columns=["country_iso"])
     iso_set = set(iso_df.get_column("country_iso").to_list())
+    logger.info("S4: ISO domain loaded (count=%d)", len(iso_set))
     ingress_versions = {"iso3166": _entry_version(iso_entry) or ""}
 
     s3_files = _list_parquet_files(s3_root)
     bytes_read_s3_total = sum(path.stat().st_size for path in s3_files)
+    logger.info("S4: s3_requirements files=%d bytes=%d", len(s3_files), bytes_read_s3_total)
+    logger.info("S4: read mode=%s", "pyarrow" if _HAVE_PYARROW else "polars")
 
-    total_pairs = 0
+    total_pairs: Optional[int] = None
     if _HAVE_PYARROW:
+        total_pairs = 0
         for path in s3_files:
             pf = pq.ParquetFile(path)
             try:
                 total_pairs += pf.metadata.num_rows
             finally:
                 _close_parquet_reader(pf)
+        logger.info("S4: s3_requirements rows=%d", total_pairs)
 
-    tracker = _ProgressTracker(total_pairs, logger, "S4 pairs processed") if total_pairs else None
+    tracker = _ProgressTracker(total_pairs, logger, "S4 pairs processed")
 
     run_paths.tmp_root.mkdir(parents=True, exist_ok=True)
     alloc_plan_tmp = run_paths.tmp_root / f"s4_alloc_plan_{uuid.uuid4().hex}"
@@ -668,6 +682,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     max_rss = proc.memory_info().rss
     open_files_peak = open_files_counter()
     logger.info("S4: PAT open_files metric=%s", open_files_metric)
+    timer.info("S4: starting allocation loop")
 
     batch_rows: list[tuple[int, str, int, int]] = []
     batch_index = 0
@@ -686,6 +701,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     dp_global: Optional[int] = None
 
     cache: OrderedDict[str, dict] = OrderedDict()
+    heartbeat_last = time.monotonic()
+    heartbeat_check_step = 10000
 
     def _load_country_assets(country_iso: str) -> dict:
         nonlocal bytes_read_weights_total, bytes_read_index_total, dp_global, max_rss, open_files_peak
@@ -872,6 +889,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     {"legal_country_iso": country_iso},
                 )
 
+        logger.info(
+            "S4: loaded country assets country=%s tiles=%d dp=%d bytes_index=%d bytes_weights=%d cache=%d",
+            country_iso,
+            weight_tile_sorted.size,
+            dp_value,
+            bytes_index,
+            bytes_weights,
+            len(cache) + 1,
+        )
         rss_now = proc.memory_info().rss
         max_rss = max(max_rss, rss_now)
         open_files_peak = max(open_files_peak, open_files_counter())
@@ -1024,7 +1050,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     last_req_key: Optional[tuple[int, str]] = None
 
     def _handle_requirement(mid: int, iso: str, n_sites: int) -> None:
-        nonlocal last_req_key, last_pair, merchants_total, pairs_total, max_rss, open_files_peak
+        nonlocal last_req_key, last_pair, merchants_total, pairs_total, max_rss, open_files_peak, heartbeat_last
         req_key = (mid, iso)
         if last_req_key is not None and req_key < last_req_key:
             _emit_failure_event(
@@ -1102,6 +1128,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         assets = _load_country_assets(iso)
         _emit_rows(mid, iso, assets["tile_ids"], assets["weight_fp"], assets["dp"], n_sites)
 
+        if pairs_total % heartbeat_check_step == 0:
+            now = time.monotonic()
+            if now - heartbeat_last >= 5.0:
+                elapsed = now - wall_start
+                rate = pairs_total / elapsed if elapsed > 0 else 0.0
+                logger.info(
+                    "S4 heartbeat pairs_processed=%d merchants=%d rows_emitted=%d (elapsed=%.2fs, rate=%.2f/s)",
+                    pairs_total,
+                    merchants_total,
+                    rows_emitted,
+                    elapsed,
+                    rate,
+                )
+                heartbeat_last = now
+
         rss_now = proc.memory_info().rss
         max_rss = max(max_rss, rss_now)
         open_files_peak = max(open_files_peak, open_files_counter())
@@ -1136,6 +1177,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 tracker.update(df.height)
 
     _flush_batch()
+    timer.info(
+        "S4: allocation loop completed (pairs_total=%d merchants_total=%d rows_emitted=%d)",
+        pairs_total,
+        merchants_total,
+        rows_emitted,
+    )
 
     determinism_hash, determinism_bytes = _hash_partition(alloc_plan_tmp)
     determinism_receipt = {
