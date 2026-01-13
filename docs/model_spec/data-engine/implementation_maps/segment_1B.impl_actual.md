@@ -1248,6 +1248,46 @@ Rerun outcome (green):
    - Run report includes required fields (`seed`, `manifest_fingerprint`, `parameter_hash`, `rows_emitted`, `merchants_total`, `countries_total`, `source_rows_total`, `ingress_versions`, `determinism_receipt`).
    - Output partition exists at `data/layer1/1B/s3_requirements/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=9673aac41b35e823b2c78da79bdf913998e5b7cbe4429cf70515adf02a4c0774/`.
 
+### Entry: 2026-01-13 17:28
+
+Design element: S3 spec-compliance tightening + resource hygiene
+Summary: Added sealed-inputs gating checks, clarified log intent, and reduced parquet handle retention; re-ran S3 to confirm green and recheck PAT counters.
+
+Brainstorm + decision detail (captured before editing):
+1) **Sealed-input enforcement.**
+   - Problem: S3 reads `outlet_catalogue` + `iso3166_canonical_2024`; spec expects those to be sealed by S0 and S3 should fail if it’s about to read unsealed inputs.
+   - Options considered:
+     - Trust the receipt path only (weak; doesn’t guarantee seal).
+     - Validate that `sealed_inputs` includes the required dataset IDs and hard-fail if missing (best match to S0 gate intent).
+   - Decision: Implement a sealed-inputs check after receipt validation and emit `E311_DISALLOWED_READ` if `outlet_catalogue` or `iso3166_canonical_2024` are missing.
+
+2) **Log clarity around lineage parity.**
+   - Problem: S3 logs didn’t explicitly confirm path-embedded parity (seed/manifest), making the “story” unclear when reviewing logs.
+   - Decision: Add a clear log line after validating `manifest_fingerprint`/`global_seed` inside `outlet_catalogue`, so the run narrative is explicit about lineage gating.
+
+3) **Open-files peak unexpectedly high.**
+   - Observation: `open_files_peak` stayed high (hundreds) even after earlier S3 runs; suspected parquet readers were not being closed during tile-weights coverage and row-count pre-scan.
+   - Options considered:
+     - Switch the metric to `psutil.Process.open_files()` length (truer “file handle” count, but expensive inside per-row-group loops).
+     - Keep the metric but tighten reader lifecycle so we aren’t inflating handles ourselves.
+   - Decision: Close pyarrow readers explicitly after each file in tile-weights coverage and total-rows pre-scan. Keep the metric (num_handles) for now to avoid per-row-group overhead; revisit only if needed.
+
+Implementation actions:
+1) **Receipt enforcement.**
+   - Added `sealed_inputs` presence check for `outlet_catalogue` and `iso3166_canonical_2024` after receipt schema validation.
+   - Emits `E311_DISALLOWED_READ` with `missing` list if the seal is absent.
+   - Added log line: `S3: s0_gate_receipt validated (sealed_inputs=...)`.
+
+2) **Parquet reader lifecycle fixes.**
+   - Added `_close_parquet_reader()` usage in `_load_tile_weight_countries()` to close each pyarrow ParquetFile.
+   - Closed ParquetFile handles after the `total_rows` pre-scan as well.
+
+3) **Rerun + outcome.**
+   - Command: `make segment1b-s3 RUN_ID=f079e82cb937e7bdb61615dbdcf0d038`.
+   - Result: green; output partition already existed with identical bytes; run report written.
+   - Log evidence includes: `S3: s0_gate_receipt validated (sealed_inputs=10)`, `S3: outlet_catalogue path-embed parity verified (pyarrow)`, and atomic publish guard message.
+   - `open_files_peak` still reports `484` in `s3_run_report.json`; this suggests the metric reflects global process handles rather than leaked parquet readers. Keeping the metric as-is for now, but closing readers avoids us adding extra handles.
+
 ## S4 - Allocation Plan (S4.*)
 
 ## S5 - Site-to-Tile Assignment RNG (S5.*)

@@ -91,6 +91,12 @@ class _ProgressTracker:
         )
 
 
+def _close_parquet_reader(pfile) -> None:
+    reader = getattr(pfile, "reader", None)
+    if reader and hasattr(reader, "close"):
+        reader.close()
+
+
 def _load_json(path: Path) -> dict:
     if not path.exists():
         raise InputResolutionError(f"Missing JSON file: {path}")
@@ -313,10 +319,13 @@ def _load_tile_weight_countries(paths: list[Path]) -> set[str]:
         countries: set[str] = set()
         for path in paths:
             pf = pq.ParquetFile(path)
-            for rg in range(pf.num_row_groups):
-                table = pf.read_row_group(rg, columns=["country_iso"])
-                values = table.column("country_iso").to_numpy(zero_copy_only=False)
-                countries.update(str(value) for value in values)
+            try:
+                for rg in range(pf.num_row_groups):
+                    table = pf.read_row_group(rg, columns=["country_iso"])
+                    values = table.column("country_iso").to_numpy(zero_copy_only=False)
+                    countries.update(str(value) for value in values)
+            finally:
+                _close_parquet_reader(pf)
         return countries
     df = pl.read_parquet(paths, columns=["country_iso"])
     return set(df.get_column("country_iso").to_list())
@@ -450,6 +459,27 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             MODULE_NAME,
             {"detail": "receipt_manifest_fingerprint_mismatch"},
         )
+    sealed_inputs = receipt_payload.get("sealed_inputs") or []
+    sealed_ids = {entry.get("id") for entry in sealed_inputs if isinstance(entry, dict)}
+    required_sealed = {"outlet_catalogue", "iso3166_canonical_2024"}
+    missing_sealed = sorted(required_sealed - sealed_ids)
+    if missing_sealed:
+        _emit_failure_event(
+            logger,
+            "E311_DISALLOWED_READ",
+            seed,
+            manifest_fingerprint,
+            str(parameter_hash),
+            {"detail": "sealed_inputs_missing", "missing": missing_sealed},
+        )
+        raise EngineFailure(
+            "F4",
+            "E311_DISALLOWED_READ",
+            "S3",
+            MODULE_NAME,
+            {"detail": "sealed_inputs_missing", "missing": missing_sealed},
+        )
+    logger.info("S3: s0_gate_receipt validated (sealed_inputs=%d)", len(sealed_inputs))
 
     outlet_root = _resolve_dataset_path(outlet_entry, run_paths, external_roots, tokens)
     tile_weights_root = _resolve_dataset_path(
@@ -518,7 +548,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     if _HAVE_PYARROW:
         for path in outlet_files:
             pf = pq.ParquetFile(path)
-            total_rows += pf.metadata.num_rows
+            try:
+                total_rows += pf.metadata.num_rows
+            finally:
+                _close_parquet_reader(pf)
     tracker = _ProgressTracker(total_rows, logger, "S3 outlet_catalogue rows") if total_rows else None
 
     run_paths.tmp_root.mkdir(parents=True, exist_ok=True)
@@ -673,6 +706,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                     MODULE_NAME,
                     {"detail": "global_seed mismatch in outlet_catalogue"},
                 )
+        logger.info("S3: outlet_catalogue path-embed parity verified (polars)")
         merchant_ids = df.get_column("merchant_id").to_numpy()
         countries = df.get_column("legal_country_iso").to_numpy()
         site_orders = df.get_column("site_order").to_numpy()
@@ -867,10 +901,12 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 rss_now = proc.memory_info().rss
                 max_rss = max(max_rss, rss_now)
                 open_files_peak = max(open_files_peak, _open_files_count(proc))
+            _close_parquet_reader(pf)
 
         if open_mid is not None:
             _finalize_group(open_mid, open_iso, open_count)
         _flush_batch()
+        logger.info("S3: outlet_catalogue path-embed parity verified (pyarrow)")
 
     determinism_hash, determinism_bytes = _hash_partition(requirements_tmp)
     determinism_receipt = {
