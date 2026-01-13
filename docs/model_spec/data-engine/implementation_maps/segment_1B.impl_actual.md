@@ -1392,10 +1392,81 @@ Open questions / confirmations needed before implementation:
    - S2 policy defines dp; S4 assumes a constant dp per parameter_hash.
    - Should we enforce a single dp across all tile_weights rows and fail if any deviation is detected?
 
-Next steps once confirmed:
+### Entry: 2026-01-13 20:25
+
+Design element: S4 decision lock-in (post-approval)
+Summary: Recorded the approved posture for S4 before coding to avoid silent defaults.
+
+Decision lock-in:
+1) **tile_weights vs tile_index mismatch.**
+   - Hard-fail if `tile_weights` includes tiles not present in `tile_index` for the parameter_hash. This avoids silent drops or renormalisation and enforces universe integrity.
+2) **dp consistency.**
+   - Enforce a single `dp` across all tile_weights rows for the parameter_hash; any deviation is a hard error.
+
+Next steps (approved):
 1) Implement S4 runner (streamed integerisation + validators) with determinism receipt and run report.
 2) Add CLI + Makefile wiring (`segment1b-s4`) and run on current RUN_ID.
 3) Iterate until green; update run log review and compliance notes.
+
+### Entry: 2026-01-13 20:50
+
+Design element: S4 seal-authority failure (E409) and S0 receipt strategy adjustment
+Summary: The first S4 run failed because `s0_gate_receipt_1B` did not authorize reads for S4 outputs (`s3_requirements`, `tile_weights`, `tile_index`). Documenting the decision process and fix before completing S4.
+
+Observed failure (run log + error detail):
+- `EngineFailure: F4:E409_DISALLOWED_READ S4 1B.s4_alloc_plan` with `missing=["s3_requirements","tile_weights","tile_index"]`.
+- Root cause: the S0 receipt `sealed_inputs` list only included the S0-sealed inputs, not downstream state outputs required by S4. S4 is intentionally fail-closed when a read is not authorized.
+
+Brainstormed options (and why each was considered):
+1) **Relax S4 to allow reads not listed in `sealed_inputs`.**
+   - Pro: avoids re-running S0.
+   - Con: violates the gate model and makes receipts less authoritative; undermines the “sealed_inputs as read-authorization” contract.
+2) **Add S4 dependencies to `sealed_inputs_1B` (hashed).**
+   - Pro: keeps all reads in a single authoritative list.
+   - Con: invalid for S0 because these assets do not exist yet at the time S0 runs; would either force forward writes or cause a permanent mismatch.
+3) **Extend `s0_gate_receipt_1B.sealed_inputs` with receipt-only entries for downstream outputs, while keeping `sealed_inputs_1B` unchanged.**
+   - Pro: keeps S0’s sealed inputs immutable and hash-backed, but still authorizes reads for later states by naming them in the receipt.
+   - Con: requires a new S0 receipt (immutable partition) and re-running S0 under a new run_id.
+
+Decision:
+- **Option 3.** Add `s3_requirements`, `tile_weights`, and `tile_index` to the receipt `sealed_inputs` list as receipt-only entries (no hashes), while leaving `sealed_inputs_1B` untouched.
+- Rationale: preserves the contract that `sealed_inputs_1B` is the hash-backed inventory of S0-sealed assets, while the receipt serves as the read-authorization boundary for downstream states.
+
+Planned implementation steps (pre-code, explicit):
+1) Update S0 gate runner to build a `receipt_inputs` list consisting of:
+   - All sealed assets (current behavior).
+   - Receipt-only entries for `s3_requirements`, `tile_weights`, and `tile_index` (with partition keys + schema_ref).
+2) Keep `sealed_inputs_1B` unchanged (no new hashes for outputs that do not exist at S0 time).
+3) Regenerate S0 outputs under a fresh run_id (immutable partitions).
+4) Re-run S4 and confirm the sealed-inputs authorization passes.
+
+### Entry: 2026-01-13 20:56
+
+Design element: S4 implementation + rerun fixes (receipt-only + new run_id)
+Summary: Implemented S4 runner/CLI/Makefile wiring, then addressed S4 rerun failures by regenerating S0 with receipt-only entries and correcting staged inputs for the new run_id.
+
+Implementation actions (completed):
+1) **S4 runner/CLI/Makefile wiring.**
+   - Added `seg_1B/s4_alloc_plan/runner.py` with deterministic integer allocation, sealing checks, and run report + determinism receipt.
+   - Added CLI `engine.cli.s4_alloc_plan` and Makefile target `segment1b-s4` with `SEG1B_S4_*` args.
+2) **S0 receipt update.**
+   - Implemented `receipt_inputs` in S0 gate to include receipt-only entries (`s3_requirements`, `tile_weights`, `tile_index`) while leaving `sealed_inputs_1B` unchanged (hash-backed assets only).
+   - Rationale: preserves gate authority without pretending S0 can hash outputs that don’t exist yet.
+
+Rerun troubleshooting (detailed):
+1) **E401_NO_S3_REQUIREMENTS (first rerun).**
+   - Cause: staged `s3_requirements` into the wrong path (copied files to `data/layer1/1B/s3_requirements/` root without the seed/parameter_hash/manifest partitions).
+   - Fix: re-copied `s3_requirements` into the exact dictionary partition path:
+     - `data/layer1/1B/s3_requirements/seed=42/parameter_hash=.../manifest_fingerprint=.../`
+2) **E403_ZERO_TILE_UNIVERSE (second rerun).**
+   - Cause: `tile_index` (and `tile_weights`) were initially copied into `data/layer1/1B/parameter_hash=.../` instead of `data/layer1/1B/tile_index/parameter_hash=.../` and `tile_weights/parameter_hash=.../`.
+   - Fix: re-copied `tile_index` and `tile_weights` into their dictionary-resolved paths.
+   - Note: the stray `data/layer1/1B/parameter_hash=.../` folder is unused by dictionary resolution; leave in place for now to avoid destructive deletes, but it should be cleaned later if desired.
+
+Current status:
+- A new run_id was created and S0 re-run successfully with the updated receipt.
+- S4 rerun started at `2026-01-13 20:53:38` and is currently running; no run report has been emitted yet.
+- Next step after completion: inspect `s4_run_report.json` + output partition for spec compliance and adjust if any issues surface.
 
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
 

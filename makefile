@@ -26,6 +26,7 @@ SEG1B_S0_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_RUN_ID ?= $(RUN_ID)
 SEG1B_S2_RUN_ID ?= $(RUN_ID)
 SEG1B_S3_RUN_ID ?= $(RUN_ID)
+SEG1B_S4_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_PREDICATE ?= center
 
 # ---------------------------------------------------------------------------
@@ -491,6 +492,21 @@ ifneq ($(strip $(SEG1B_S3_RUN_ID)),)
 SEG1B_S3_ARGS += --run-id $(SEG1B_S3_RUN_ID)
 endif
 SEG1B_S3_CMD = $(PY_ENGINE) -m engine.cli.s3_requirements $(SEG1B_S3_ARGS)
+
+SEG1B_S4_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG1B_S4_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG1B_S4_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG1B_S4_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG1B_S4_RUN_ID)),)
+SEG1B_S4_ARGS += --run-id $(SEG1B_S4_RUN_ID)
+endif
+SEG1B_S4_CMD = $(PY_ENGINE) -m engine.cli.s4_alloc_plan $(SEG1B_S4_ARGS)
 
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
@@ -986,7 +1002,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
@@ -1190,6 +1206,10 @@ segment1b-s2:
 segment1b-s3:
 	@echo "Running Segment 1B S3 requirements"
 	@$(SEG1B_S3_CMD)
+
+segment1b-s4:
+	@echo "Running Segment 1B S4 allocation plan"
+	@$(SEG1B_S4_CMD)
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"

@@ -697,6 +697,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "license_map",
         "s2_tile_weights_policy",
     ]
+    receipt_only_ids = ["s3_requirements", "tile_weights", "tile_index"]
 
     entries = {}
     for dataset_id in required_ids:
@@ -730,6 +731,39 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                 dataset_id=dataset_id,
             ) from exc
         entries[dataset_id] = entry
+
+    receipt_only_entries = {}
+    for dataset_id in receipt_only_ids:
+        try:
+            entry = find_dataset_entry(dictionary, dataset_id).entry
+        except ContractError as exc:
+            raise EngineFailure(
+                "F4",
+                "E_DICTIONARY_RESOLUTION_FAILED",
+                "S0",
+                MODULE_NAME,
+                {"detail": str(exc)},
+                dataset_id=dataset_id,
+            ) from exc
+        _require_governance_fields(entry, dataset_id)
+        try:
+            _validate_schema_ref(
+                entry.get("schema_ref"),
+                schema_ingress,
+                schema_1a,
+                schema_1b,
+                schema_layer1,
+            )
+        except ContractError as exc:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_RESOLUTION_FAILED",
+                "S0",
+                MODULE_NAME,
+                {"detail": str(exc), "schema_ref": entry.get("schema_ref")},
+                dataset_id=dataset_id,
+            ) from exc
+        receipt_only_entries[dataset_id] = entry
 
     bundle_entry = entries["validation_bundle_1A"]
     bundle_root = _resolve_dataset_path(bundle_entry, run_paths, external_roots, tokens)
@@ -902,19 +936,32 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         )
     sealed_payload.sort(key=lambda item: (item["asset_id"], item["path"]))
 
-    receipt_payload = {
-        "manifest_fingerprint": manifest_fingerprint,
-        "validation_bundle_path": bundle_path_value,
-        "flag_sha256_hex": expected_hash,
-        "verified_at_utc": utc_now_rfc3339_micro(),
-        "sealed_inputs": [
+    receipt_inputs = []
+    for asset in sealed_assets:
+        receipt_inputs.append(
             {
                 "id": asset.asset_id,
                 "partition": list(asset.partition_keys),
                 "schema_ref": asset.schema_ref or "unknown",
             }
-            for asset in sealed_assets
-        ],
+        )
+    for dataset_id, entry in receipt_only_entries.items():
+        _, partition_keys = _partition_values(entry, tokens)
+        receipt_inputs.append(
+            {
+                "id": dataset_id,
+                "partition": list(partition_keys),
+                "schema_ref": entry.get("schema_ref") or "unknown",
+            }
+        )
+    receipt_inputs.sort(key=lambda item: (item["id"], ",".join(item["partition"])))
+
+    receipt_payload = {
+        "manifest_fingerprint": manifest_fingerprint,
+        "validation_bundle_path": bundle_path_value,
+        "flag_sha256_hex": expected_hash,
+        "verified_at_utc": utc_now_rfc3339_micro(),
+        "sealed_inputs": receipt_inputs,
         "notes": None,
     }
 
