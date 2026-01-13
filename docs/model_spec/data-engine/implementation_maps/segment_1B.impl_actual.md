@@ -1317,6 +1317,86 @@ Implementation actions:
 
 ## S4 - Allocation Plan (S4.*)
 
+### Entry: 2026-01-13 19:58
+
+Design element: S4 pre-implementation review + planning (integer allocation plan)
+Summary: Completed S4 spec/contract review and captured a detailed implementation plan with validation, determinism, and performance posture; flagged open questions before coding.
+
+Spec + contract review notes (sources reviewed):
+1) **Expanded spec:** `state.1B.s4.expanded.md` (integerisation law, identity parity, overflow requirements, validators, run report fields).
+2) **Dictionary:** `dataset_dictionary.layer1.1B.yaml` entries for `s4_alloc_plan` + `s4_run_report`.
+3) **Schema pack:** `schemas.1B.yaml#/plan/s4_alloc_plan` + `#/control/s4_run_report` (shape authority).
+4) **Registry:** `artefact_registry_1B.yaml` entry for `s4_alloc_plan` (role + dependencies).
+
+Planning notes (detailed, before implementation):
+1) **Identity + gate enforcement (fail-closed).**
+   - Resolve `{seed, manifest_fingerprint, parameter_hash}` from `run_receipt.json`.
+   - Validate `s0_gate_receipt_1B` (schema) and ensure `sealed_inputs` includes `s3_requirements`, `tile_weights`, `tile_index`, `iso3166_canonical_2024`.
+   - Enforce parity: receipt fingerprint = publish fingerprint; `s3_requirements` seed = publish seed; S2 tables read with same parameter_hash.
+
+2) **Inputs resolution (Dictionary only).**
+   - Resolve:
+     - `s3_requirements` (seed+fingerprint+parameter_hash).
+     - `tile_weights` (parameter_hash).
+     - `tile_index` (parameter_hash).
+     - `iso3166_canonical_2024` (ingress; FK domain).
+   - Prohibit reads of non-listed surfaces (world_countries, population_raster, tz_world_2025a).
+
+3) **Country coverage + universe checks (fast-fail).**
+   - Build per-country tile universe from `tile_index` (must be non-empty).
+   - Build per-country weights from `tile_weights` (must exist for every country in `s3_requirements`).
+   - Verify `legal_country_iso` in S3 belongs to ISO domain.
+   - Decision: treat any country missing weights or tiles as `E402_MISSING_TILE_WEIGHTS` / `E403_ZERO_TILE_UNIVERSE` and abort.
+
+4) **Integerisation algorithm (largest remainder; no RNG).**
+   - For each `(merchant_id, legal_country_iso, n_sites)` in S3:
+     - Read `(tile_id, weight_fp, dp)` for that country.
+     - Use integer arithmetic with bignum to avoid overflow:
+       - `prod = weight_fp * n_sites` (Python int).
+       - `z = prod // K`, `rnum = prod % K`, `K = 10^dp`.
+     - `S = n_sites - sum(z)` (shortfall).
+     - Add +1 to the `S` tiles with largest `rnum`, tie-break `tile_id` ascending.
+     - Emit only rows where `n_sites_tile >= 1`.
+   - Enforce conservation per pair; emit `E404_ALLOCATION_MISMATCH` on violation.
+   - Enforce positivity (no zero rows) → `E412_ZERO_ROW_EMITTED`.
+
+5) **Tie-break + ordering (deterministic).**
+   - Sort tie candidates by `rnum` desc, `tile_id` asc.
+   - Writer sort for output: `[merchant_id, legal_country_iso, tile_id]` (stable merge order).
+   - Reject unsorted emission (`E408_UNSORTED`) and PK duplicates (`E407_PK_DUPLICATE`).
+
+6) **Overflow posture (hard error).**
+   - Use Python int for all `weight_fp * n_sites` and accumulation steps.
+   - If any overflow guard or recompute indicates wrap, emit `E416_NUMERIC_OVERFLOW`.
+
+7) **Run report + determinism receipt (outside dataset partition).**
+   - Write `s4_run_report.json` with required fields:
+     - `seed`, `manifest_fingerprint`, `parameter_hash`, `rows_emitted`, `merchants_total`,
+       `pairs_total`, `alloc_sum_equals_requirements`, `ingress_versions`, `determinism_receipt`.
+   - Record PAT counters: `bytes_read_s3`, `bytes_read_weights`, `bytes_read_index`,
+     `rows_emitted`, `pairs_total`, `ties_broken_total`, `wall_clock_seconds_total`,
+     `cpu_seconds_total`, `workers_used`, `max_worker_rss_bytes`, `open_files_peak`.
+   - Determinism receipt computed from ASCII-lex ordered bytes in `s4_alloc_plan`.
+
+8) **Performance posture (large weights; avoid cross joins).**
+   - Stream `s3_requirements` in writer order; group by `(merchant_id, legal_country_iso)`.
+   - Cache per-country weights + tile universe (LRU by country) to avoid re-reading for each pair.
+   - Avoid full materialisation of `tile_weights` across all countries; read only countries present in S3.
+   - Keep output batched (row groups ~100k–250k) for read efficiency.
+
+Open questions / confirmations needed before implementation:
+1) **Extra weights vs tile_index mismatch.**
+   - Spec mandates allocation only over tile_index and says weights cover eligible tiles.
+   - If `tile_weights` contains tiles absent from `tile_index`, should we hard-fail (treat as coverage mismatch), or ignore extras? Current leaning: hard-fail to avoid silent re-normalisation.
+2) **dp consistency.**
+   - S2 policy defines dp; S4 assumes a constant dp per parameter_hash.
+   - Should we enforce a single dp across all tile_weights rows and fail if any deviation is detected?
+
+Next steps once confirmed:
+1) Implement S4 runner (streamed integerisation + validators) with determinism receipt and run report.
+2) Add CLI + Makefile wiring (`segment1b-s4`) and run on current RUN_ID.
+3) Iterate until green; update run log review and compliance notes.
+
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
 
 ## S6 - In-Cell Jitter RNG (S6.*)
