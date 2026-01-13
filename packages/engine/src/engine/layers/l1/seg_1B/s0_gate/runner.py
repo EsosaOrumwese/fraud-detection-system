@@ -695,6 +695,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "population_raster_2025",
         "tz_world_2025a",
         "license_map",
+        "s2_tile_weights_policy",
     ]
 
     entries = {}

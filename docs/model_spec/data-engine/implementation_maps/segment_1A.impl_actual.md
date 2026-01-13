@@ -3118,3 +3118,37 @@ Summary: Add a convenience Make target `SEG_1A` that aliases `segment1a` so oper
 
 Plan:
 - Add `.PHONY: SEG_1A` and a `SEG_1A: segment1a` target in `makefile`.
+
+### Entry: 2026-01-13 06:36
+
+Design element: S9 lineage recompute mismatch (missing new policy file)
+Summary: S9 validation failed for the new run_id because `policy.s2.tile_weights.yaml` was added to parameter_hash inputs but not yet included in S9's recompute list, causing a manifest_fingerprint mismatch.
+
+Observed evidence (from `s9_summary.json`):
+- `E_LINEAGE_RECOMPUTE_MISMATCH` for dataset_id `parameter_hash` with reason: missing required parameter files: `policy.s2.tile_weights.yaml`.
+- Secondary `E_LINEAGE_RECOMPUTE_MISMATCH` for `manifest_fingerprint` (expected `9673...0774`, observed `530b...9235`).
+
+Plan before code changes:
+1) Locate the S9 parameter-file enumeration used for recomputing parameter_hash/manifest_fingerprint.
+2) Add `policy.s2.tile_weights.yaml` to that list (aligned with S0 hashing inputs).
+3) Rerun `make segment1a-s9` for run_id `f079e82cb937e7bdb61615dbdcf0d038` and confirm PASS with updated bundle + `_passed.flag`.
+4) Document any follow-up errors and corrective actions in this log before touching 1B S0.
+
+### Entry: 2026-01-13 06:37
+
+Design element: S9 parameter file list update (applied)
+Summary: Added the new policy file to S9's parameter-hash recompute mapping so the validation bundle uses the same parameter inputs as S0.
+
+Action taken:
+- Added `policy.s2.tile_weights.yaml` to the `_resolve_param_files` mapping in `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
+
+Next step:
+- Re-run `make segment1a-s9` for run_id `f079e82cb937e7bdb61615dbdcf0d038` and confirm PASS in `s9_summary.json`.
+
+### Entry: 2026-01-13 06:38
+
+Design element: S9 rerun after policy mapping update
+Summary: Re-ran S9 for run_id `f079e82cb937e7bdb61615dbdcf0d038` and confirmed PASS after including `policy.s2.tile_weights.yaml` in the parameter recompute list.
+
+Outcome:
+- `s9_summary.json` now records `decision=PASS`; `_passed.flag` regenerated for manifest_fingerprint `9673aac41b35e823b2c78da79bdf913998e5b7cbe4429cf70515adf02a4c0774`.

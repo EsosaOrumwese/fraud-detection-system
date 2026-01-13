@@ -83,6 +83,23 @@ policy:
               type: string
               description: "Optional merchant class key if you differentiate by class."
 
+  s2_tile_weights_policy:
+    type: object
+    description: "Governed S2 weights policy (basis + fixed-dp precision)."
+    required: [policy_version, basis, dp]
+    additionalProperties: false
+    properties:
+      policy_version:
+        type: string
+        description: "Human-readable or semver; part of parameter_hash inputs."
+      basis:
+        $ref: '#/$defs/basis'
+      dp:
+        $ref: '#/$defs/dp_nonneg'
+      notes:
+        type: string
+        description: "Optional free text."
+
 control:
   s1_run_report:
     type: object

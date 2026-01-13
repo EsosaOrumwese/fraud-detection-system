@@ -17,6 +17,7 @@ REQUIRED_PARAM_BASENAMES = {
     "nb_dispersion_coefficients.yaml",
     "crossborder_hyperparams.yaml",
     "ccy_smoothing_params.yaml",
+    "policy.s2.tile_weights.yaml",
     "policy.s3.rule_ladder.yaml",
     "s6_selection_policy.yaml",
     "s7_integerisation_policy.yaml",

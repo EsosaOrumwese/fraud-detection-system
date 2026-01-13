@@ -907,6 +907,156 @@ Resolution posture (pre-implementation decision):
 
 Pending confirmation:
 - Whether to add the new S2 policy/config file now (and include it in parameter_hash).
+
+### Entry: 2026-01-13 06:01
+
+Design element: Add S2 policy file and wire into parameter_hash + S0 sealing
+Summary: User approved creating a new 1B policy/config file for S2 weights (`basis` + `dp`), wiring it into the parameter_hash inputs, and sealing it in 1B.S0. This requires updates to the hashing inputs, contract entries, and a full re-run path to propagate the new parameter_hash into the 1A validation bundle and 1B sealed_inputs.
+
+Planned changes (before code edits, detailed):
+1) **Policy file + schema.**
+   - Create `config/layer1/1B/policy/policy.s2.tile_weights.yaml` with governed fields:
+     - `policy_version` (string), `basis` (`uniform|area_m2|population`), `dp` (non-negative int), optional `notes`.
+   - Add a new schema anchor in `schemas.1B.yaml` under `policy`:
+     - `policy/s2_tile_weights_policy` matching the above structure.
+
+2) **Dictionary + registry wiring (1B).**
+   - Add `s2_tile_weights_policy` (or matching ID) to `dataset_dictionary.layer1.1B.yaml`:
+     - path `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+     - schema_ref `schemas.1B.yaml#/policy/s2_tile_weights_policy`
+     - governance: Proprietary-Internal, retention 365, pii=false.
+   - Add the policy to `artefact_registry_1B.yaml` with provenance metadata.
+
+3) **Parameter hash inclusion (1A S0 hashing).**
+   - Extend `REQUIRED_PARAM_BASENAMES` in `seg_1A/s0_foundations/hashing.py` to include `policy.s2.tile_weights.yaml` (ASCII basename).
+   - Extend `_resolve_param_files` in `seg_1A/s0_foundations/runner.py` to resolve the new policy file and include it in the param list used by `compute_parameter_hash`.
+   - Decide whether to register the policy in `artefact_registry_1A.yaml` (so `_resolve_param_files` can find it) or to load `artefact_registry_1B.yaml` additionally. Preference: add a registry entry to 1A to avoid changing loader plumbing.
+
+4) **S0 sealing (1B).**
+   - Add the policy dataset ID to the `required_ids` list in `seg_1B/s0_gate/runner.py` so it is hashed into `sealed_inputs_1B`.
+   - This requires a new run_id because the S0 partition is immutable and `sealed_inputs_1B` will change.
+
+5) **Re-run path (determinism).**
+   - Re-run 1A S0 to generate a new parameter_hash (and new validation bundle with `parameter_hash_resolved.json`).
+   - Create a new run_id/receipt, stage 1A outputs, rerun 1B S0 to reseal inputs, then rerun S1 and S2 under the new parameter_hash.
+
+6) **Ingress version reporting (Q2 decision).**
+   - `ingress_versions` in the S2 run report will use Dictionary path version tokens (e.g., `2024-12-31`, `2024`, `2025`), not raw hashes.
+### Entry: 2026-01-13 06:08
+
+Design element: S2 policy contract wiring (actions taken)
+Summary: Implemented the approved policy/config file for S2 weights and wired it into the contract authorities, parameter_hash inputs, and S0 sealing so S2 can read governed basis + dp deterministically.
+
+Actions taken (explicit, for audit):
+1) **Policy file created.**
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml` with `policy_version`, `basis`, `dp`, and optional `notes`.
+   - Chosen defaults: `basis=area_m2`, `dp=6` (deterministic fixed-decimal posture; no RNG).
+
+2) **Schema anchor added.**
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` now includes `policy/s2_tile_weights_policy` with required fields `policy_version`, `basis`, `dp`.
+
+3) **Dictionary + registry wiring (1B).**
+   - Added `s2_tile_weights_policy` to `dataset_dictionary.layer1.1B.yaml` (path, schema_ref, licence, retention).
+   - Added `policy.s2.tile_weights.yaml` to `artefact_registry_1B.yaml` with the same schema anchor.
+
+4) **Parameter_hash + sealing integration.**
+   - Added `policy.s2.tile_weights.yaml` to 1A S0 parameter hash inputs (`seg_1A/s0_foundations/hashing.py` + `_resolve_param_files` in `seg_1A/s0_foundations/runner.py`).
+   - Added `policy.s2.tile_weights.yaml` to `artefact_registry_1A.yaml` so the parameter hash resolver can find it.
+   - Added `s2_tile_weights_policy` to 1B S0 `required_ids` so it is sealed into `sealed_inputs_1B`.
+
+Immediate follow-ups (pre-code for S2):
+- Update S0 expanded spec to list `s2_tile_weights_policy` in sealed inputs and input lists.
+- Update S2 expanded spec to include `s2_tile_weights_policy` as a required input and clarify that `basis`/`dp` come from it.
+- Implement S2 runner/CLI/Makefile wiring and rerun S0->S2 with the new parameter_hash.
+
+### Entry: 2026-01-13 06:20
+
+Design element: S2 runner implementation plan (performance + determinism)
+Summary: Preparing the concrete S2 runner design now that the policy input is wired. This plan focuses on streaming per-country processing for large S1 outputs, fixed-dp quantisation, and full evidence emission without loading 221M rows into memory.
+
+Plan (before code edits, detailed):
+1) **Inputs and policy resolution (governed, deterministic).**
+   - Resolve run_receipt (latest if run_id omitted) and extract `{parameter_hash}`.
+   - Resolve `tile_index` via Dictionary; enumerate country partition files under `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/country=*`.
+   - Resolve `s2_tile_weights_policy` via Dictionary, validate against `schemas.1B.yaml#/policy/s2_tile_weights_policy`, and read `basis` + `dp` from it (no CLI overrides).
+   - Load ISO set from `iso3166_canonical_2024` and treat any unknown `country_iso` as a pre-read contract failure (E101).
+
+2) **Per-country streaming (memory control).**
+   - Process **one country file at a time**; keep only that country's arrays in memory.
+   - If any country file contains mixed `country_iso` values, treat as writer-hygiene error (E108).
+   - Track `countries_total`, `rows_emitted`, and per-country diagnostics for the run report.
+
+3) **Mass calculation per basis.**
+   - `uniform`: mass = 1 for each tile.
+   - `area_m2`: mass = `pixel_area_m2` from `tile_index`.
+   - `population`: sample `population_raster_2025` at tile centroids (rasterio sample); NODATA -> 0.
+   - Enforce mass domain: all finite, `>= 0`; any invalid value => E105_NORMALIZATION.
+
+4) **Fixed-dp quantisation (largest remainder, deterministic).**
+   - Compute `K=10^dp`, `M_c`, and `q_i = m_i*K/M_c` per country.
+   - `z_i = floor(q_i)`, `r_i = q_i - z_i`, `S = K - sum(z_i)`.
+   - Allocate `+1` to top `S` residues, tie-break by ascending `tile_id`.
+   - Enforce per-country sum `sum(weight_fp) == K`; mismatch => E105_NORMALIZATION.
+   - If `M_c = 0` with `|U_c|>0`, fallback to uniform and set `zero_mass_fallback=true`; absence => E104_ZERO_MASS.
+
+5) **Writer hygiene and ordering.**
+   - Verify `tile_id` monotonic within each country file; if not, fail E108 (do not silently sort).
+   - Emit per-country parquet parts under the tile_weights partition root (no extra partition keys), ensuring writer sort `[country_iso, tile_id]`.
+   - Stage under `tmp/` and perform atomic publish; if a partition exists with different bytes => E108.
+
+6) **Evidence + PAT counters.**
+   - Run report fields: `parameter_hash`, `basis`, `dp`, `ingress_versions` (Dictionary version tokens), `rows_emitted`, `countries_total`, `determinism_receipt`, `pat` counters.
+   - Per-country normalization summary list (country_iso, tiles, mass_sum, K, postquant_sum_fp, residues, zero_mass_fallback).
+   - Determinism receipt = ASCII-lex hash of tile_weights partition files.
+   - Performance counters: wall_clock, cpu_seconds, bytes_read_tile_index_total (sum file sizes), bytes_read_raster_total (sample_count * bytes_per_pixel), io_baseline_ti_bps (first-file read), io_baseline_raster_bps (population basis only), max RSS and open-files peak.
+
+7) **Logging (storyline clarity).**
+   - Log "S2: loaded policy" with basis/dp, "S2: processing country" with tiles count, and progress with rate/eta.
+   - Include meaning in logs (e.g., "basis=area_m2 uses pixel_area_m2" and "zero_mass_fallback engaged").
+
+Implementation note:
+- This plan intentionally avoids global group-by on 221M rows and uses the S1 per-country partition layout to keep memory bounded.
+
+### Entry: 2026-01-13 06:29
+
+Design element: S2 runner + CLI + Makefile wiring (implementation)
+Summary: Implemented the S2 tile weights runner with per-country streaming, governed basis/dp policy, fixed-dp quantisation, run report emission, and Makefile/CLI wiring for execution.
+
+Implementation actions (detailed):
+1) **Runner scaffold + contract resolution.**
+   - Added `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`.
+   - Uses ContractSource to load dictionary/registry/schema packs; resolves dataset paths for `tile_index`, `tile_weights`, `s2_run_report`, `iso3166`, `population_raster`, and `s2_tile_weights_policy`.
+   - Adds run log file handler under `runs/<run_id>/run_log_<run_id>.log`.
+
+2) **Governed policy enforcement.**
+   - Reads `policy.s2.tile_weights.yaml` via Dictionary path, validates against `schemas.1B.yaml#/policy/s2_tile_weights_policy`.
+   - Enforces `basis in {uniform, area_m2, population}` and `dp >= 0`, raising `E105_NORMALIZATION` on invalid inputs.
+
+3) **Per-country processing to control memory.**
+   - Iterates `country=*` partitions under `tile_index` and loads per-country parquet(s) only.
+   - Validates single `country_iso` per partition and enforces `tile_id` monotonicity (writer hygiene).
+   - Validates ISO membership via `iso3166_canonical_2024` (FK check).
+
+4) **Fixed-dp weight computation.**
+   - Computes `K=10^dp`, masses per basis (uniform/area/population), and largest-remainder allocation with `tile_id` tie-break.
+   - Handles zero-mass fallback deterministically and emits `zero_mass_fallback` in summaries.
+   - Enforces per-country sum equals `K` (fail `E105_NORMALIZATION` otherwise).
+
+5) **Output + determinism evidence.**
+   - Writes per-country parquet parts under a temp directory, then atomically publishes to `tile_weights` partition.
+   - Computes determinism receipt (ASCII-lex hash of partition files) and includes it in the run report.
+
+6) **PAT counters and progress logging.**
+   - Records wall/CPU time, bytes read, baseline IO bps, max RSS, open-files peak, and progress ETA logs.
+   - Captures `ingress_versions` from Dictionary version tokens (population set to null if basis != population).
+
+7) **CLI + Makefile wiring.**
+   - Added `packages/engine/src/engine/cli/s2_tile_weights.py`.
+   - Added `SEG1B_S2_*` args + `segment1b-s2` target in `makefile`.
+
+Immediate next step:
+- Re-run 1A S0 to regenerate parameter_hash, then reseal 1B S0 and rerun S1 and S2 to green; document any failures and fixes inline in this log.
+
 ## S3 - Requirements (S3.*)
 
 ## S4 - Allocation Plan (S4.*)
@@ -920,3 +1070,69 @@ Pending confirmation:
 ## S8 - Egress Site Locations (S8.*)
 
 ## S9 - Validation Bundle & Gate (S9.*)
+
+## S1 - Tile Index (S1.*)
+
+### Entry: 2026-01-13 06:50
+
+Design element: S1 rerun after S2 policy introduction (new parameter_hash lineage)
+Summary: After adding `policy.s2.tile_weights.yaml` to the parameter_hash inputs, re-ran S1 under the new run_id to regenerate `tile_index` for the updated parameter_hash and verified completion from the run log.
+
+Execution notes (detailed, evidence-backed):
+1) **Run identity.**
+   - Run ID: `f079e82cb937e7bdb61615dbdcf0d038`.
+   - Parameter hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7` (from S0).
+
+2) **Execution status (CLI timeout vs run log truth).**
+   - The CLI invocation for `segment1b-s1` exceeded the tool timeout window, but the run continued in-process.
+   - Verified completion in `runs/local_full_run-5/f079e82cb937e7bdb61615dbdcf0d038/run_log_f079e82cb937e7bdb61615dbdcf0d038.log`.
+
+3) **Completion evidence.**
+   - The log shows `S1: completed tile index publish` with `rows_emitted=221253340`.
+   - No `S1_ERROR` entries are present after the completion line.
+   - Output path recorded in the log matches the dictionary partition:
+     - `runs/local_full_run-5/f079e82cb937e7bdb61615dbdcf0d038/data/layer1/1B/tile_index/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/`.
+
+4) **Spec compliance check.**
+   - The run log includes ISO coverage and tile enumeration steps as required.
+   - The output row count aligns with the S1 run report expectations for the updated `world_countries` build.
+
+Decision record:
+- Treat the timeout as a tooling limitation only; completion was validated from the run log and outputs, so no re-run required for S1.
+
+## S2 - Tile Weights (S2.*)
+
+### Entry: 2026-01-13 06:50
+
+Design element: S2 execution and spec-compliance verification (post-policy integration)
+Summary: Executed S2 for the new parameter_hash and verified the run report + run log satisfy the S2 spec requirements.
+
+Execution details and checks (explicit):
+1) **Run identity.**
+   - Run ID: `f079e82cb937e7bdb61615dbdcf0d038`.
+   - Parameter hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`.
+
+2) **Execution status (CLI timeout vs run log truth).**
+   - The CLI invocation for `segment1b-s2` exceeded the tool timeout window, but the run continued.
+   - Verified completion in `runs/local_full_run-5/f079e82cb937e7bdb61615dbdcf0d038/run_log_f079e82cb937e7bdb61615dbdcf0d038.log`:
+     - `S2 progress ... countries_processed=249/249 rows_emitted=221253340`.
+     - `S2: run report written`.
+     - CLI completion line with output paths.
+
+3) **Run report inspection (spec compliance).**
+   - Report path:
+     - `runs/local_full_run-5/f079e82cb937e7bdb61615dbdcf0d038/reports/layer1/1B/state=S2/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/s2_run_report.json`
+   - Key fields present and correct:
+     - `basis=area_m2` (from policy), `dp=6`, `countries_total=249`, `rows_emitted=221253340`.
+     - `ingress_versions` uses Dictionary tokens (`iso3166=2024-12-31`, `world_countries=2024`, `population_raster=null` because basis != population).
+     - `determinism_receipt` populated with `sha256_hex`.
+     - `pat` counters present (bytes_read, wall/cpu time, rss, open_files_peak).
+     - `country_summaries` list includes `postquant_sum_fp=1000000` and `zero_mass_fallback=false` across countries.
+
+4) **Output publish confirmation.**
+   - Output path logged matches dictionary partition:
+     - `runs/local_full_run-5/f079e82cb937e7bdb61615dbdcf0d038/data/layer1/1B/tile_weights/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/`.
+   - No `S2_ERROR` events observed.
+
+Decision record:
+- S2 is considered green and spec-compliant for the current parameter_hash; no further rerun required unless downstream checks detect a lineage mismatch.

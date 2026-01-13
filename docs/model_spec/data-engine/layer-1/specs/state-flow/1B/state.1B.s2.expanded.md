@@ -20,6 +20,7 @@ This specification defines the **behavioural** and **data** contract for **S2 �
 * **Output shape (sole shape authority):** `schemas.1B.yaml#/prep/tile_weights`
 * **Dictionary law (ID→path/partitions/sort/licence/retention):** `dataset_dictionary.layer1.1B.yaml#tile_weights`
 * **Upstream input:** `schemas.1B.yaml#/prep/tile_index` (S1 universe of eligible tiles)
+* **Policy input:** `schemas.1B.yaml#/policy/s2_tile_weights_policy` (governed `basis` + `dp`)
 * **Ingress (sealed references available to S2):**
   `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` · `#/world_countries` · `#/population_raster_2025` *(S2 remains RNG-free; geometry is consulted only if explicitly bound later)*
   JSON-Schema is the **sole** shape authority. Avro/Parquet encodings are non-authoritative; the Dictionary governs **paths/partitions/sort/licensing/retention**; the Artefact Registry governs **licences & provenance**.
@@ -62,6 +63,7 @@ This document binds **performance and operational** constraints in **§11** and 
 
 **Inputs (authoritative; see Section 4 for full list):**
 * `tile_index` - scope: PARAMETER_SCOPED; source: 1B.S1
+* `s2_tile_weights_policy` - scope: PARAMETER_SCOPED; governed basis + dp
 * `iso3166_canonical_2024` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
 * `world_countries` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional (geometry validation)
 * `population_raster_2025` - scope: FINGERPRINT_SCOPED; sealed_inputs: optional (only if basis uses population)
@@ -230,34 +232,41 @@ All dataset/field references in this document **MUST** resolve via:
 
 S2 reads the **ratified S1 universe** and (optionally) a small set of ingress references. It does **not** read any 1A egress. Each input below is **sealed** by ID, path family, version, and schema anchor in the Dictionary/Registry; **JSON-Schema is the sole shape authority**.
 
-## 4.1 `tile_index` — S1 universe of eligible tiles *(required)*
+## 4.1 `tile_index` - S1 universe of eligible tiles *(required)*
 
 * **Anchors:** `schemas.1B.yaml#/prep/tile_index` (shape) and `dataset_dictionary.layer1.1B.yaml#tile_index` (path/partitions/sort).
 * **Dictionary facts:** **status: approved**; **format: parquet**; path `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/`; **partitioning: [parameter_hash]**; **ordering: [country_iso, tile_id]**; **licence: Proprietary-Internal**. 
 * **Binding use in S2:** defines the complete row universe `(country_iso, tile_id)` and provides required geometry-derived columns (`centroid_lon/lat`, `pixel_area_m2`, `inclusion_rule`) for area-based or geometry-checked bases. No row may be created in `tile_weights` unless it exists here. *(FK/coverage checks bound in §8.)* 
 
-## 4.2 `iso3166_canonical_2024` — ISO-2 country list *(FK target; read-only)*
+## 4.2 `s2_tile_weights_policy` - S2 weights policy *(required)*
+
+* **Anchor:** `schemas.1B.yaml#/policy/s2_tile_weights_policy`.
+* **Dictionary facts:** **approved**; **format: yaml**; path `config/layer1/1B/policy/policy.s2.tile_weights.yaml`; **licence: Proprietary-Internal**; **consumed_by: [1B]**; **retention: 365 days**.
+* **Registry facts:** mirrors the same path/anchor; **licence: Proprietary-Internal**.
+* **Binding use in S2:** provides the governed **`basis`** (uniform | area_m2 | population) and **`dp`** (non-negative integer) used for fixed-decimal quantization. This policy **MUST** be included in the parameter_hash input set; S2 **MUST** validate it against the schema and use its values verbatim.
+
+## 4.3 `iso3166_canonical_2024` - ISO-2 country list *(FK target; read-only)*
 
 * **Anchor:** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
 * **Dictionary facts:** **approved**; **format: parquet**; path `reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet`; **licence: CC-BY-4.0**; **consumed_by: [1B]**; **retention: 1095 days**. 
 * **Registry facts:** mirrors the same path/anchor; **licence: CC-BY-4.0**. 
 * **Binding use in S2:** FK domain for `country_iso` (uppercase ISO-3166-1 alpha-2; placeholders `XX/ZZ/UNK` **forbidden**). *(Enforced in §8.)*
 
-## 4.3 `world_countries` — country polygons *(read-only; optional for S2)*
+## 4.4 `world_countries` - country polygons *(read-only; optional for S2)*
 
 * **Anchor:** `schemas.ingress.layer1.yaml#/world_countries`. 
 * **Dictionary facts:** **approved**; **format: parquet**; path `reference/spatial/world_countries/2024/world_countries.parquet`; **licence: ODbL-1.0**. 
 * **Registry facts:** mirrors same path/anchor; **licence: ODbL-1.0**; depends on ISO table. 
 * **Binding use in S2:** available for **geometry-based validations** only (e.g., sanity that every `centroid` in S1 lies within its country). S2’s weighting **must not** change S1 geometry; primary weighting mass should come from the **basis** defined in §6.
 
-## 4.4 `population_raster_2025` — population raster (COG) *(conditionally read-only)*
+## 4.5 `population_raster_2025` - population raster (COG) *(conditionally read-only)*
 
 * **Anchor:** `schemas.ingress.layer1.yaml#/population_raster_2025`. 
 * **Dictionary facts:** **approved**; **format: cog_geotiff**; path `reference/spatial/population/2025/population.tif`; **licence: ODbL-1.0**. 
 * **Registry facts:** mirrors same path/anchor; **licence: ODbL-1.0**. 
 * **Binding use in S2:** **only if** the governed **basis** in §6 requires population intensity. When basis ≠ population, S2 **must not** read this surface.
 
-## 4.5 `tz_world_2025a` — time-zone polygons *(provenance only; not consumed by S2)*
+## 4.6 `tz_world_2025a` - time-zone polygons *(provenance only; not consumed by S2)*
 
 * **Anchor:** `schemas.ingress.layer1.yaml#/tz_world_2025a`. 
 * **Dictionary facts:** **approved**; **format: parquet**; path `reference/spatial/tz_world/2025a/tz_world.parquet`; **licence: ODbL-1.0**. 
@@ -266,24 +275,24 @@ S2 reads the **ratified S1 universe** and (optionally) a small set of ingress re
 
 ---
 
-## 4.6 Licence & provenance requirements *(Binding)*
+## 4.7 Licence & provenance requirements *(Binding)*
 
-* Each sealed input **MUST** carry a **concrete** licence in Dictionary/Registry; current classes: **CC-BY-4.0** (ISO) and **ODbL-1.0** (world_countries, population_raster_2025, tz_world_2025a); **Proprietary-Internal** for `tile_index`. **Placeholders are forbidden.**
+* Each sealed input **MUST** carry a **concrete** licence in Dictionary/Registry; current classes: **CC-BY-4.0** (ISO) and **ODbL-1.0** (world_countries, population_raster_2025, tz_world_2025a); **Proprietary-Internal** for `tile_index` and `s2_tile_weights_policy`. **Placeholders are forbidden.**
 * S2 **MUST NOT** alter provenance (paths/versions/anchors) at runtime; inputs are resolved **only** via the Dictionary. 
 
-## 4.7 Partitioning & immutability of inputs *(Binding)*
+## 4.8 Partitioning & immutability of inputs *(Binding)*
 
 * **`tile_index`** is partitioned by `{parameter_hash}` and **MUST** be treated as immutable for the duration of a run. 
 * Ingress references (`iso`, `world_countries`, `population_raster_2025`, `tz_world_2025a`) are **unpartitioned** in the Dictionary and **MUST** be treated as immutable during a run. 
 
-## 4.8 Domain & FK constraints *(Binding)*
+## 4.9 Domain & FK constraints *(Binding)*
 
 * `country_iso` in S2 **MUST** be uppercase ISO-2 present in `iso3166_canonical_2024`. *(FK check bound in §8.)* 
 * Every `(country_iso, tile_id)` in `tile_weights` **MUST** appear in `tile_index` for the **same** `{parameter_hash}`. *(Coverage/consistency checks bound in §8.)* 
 
-## 4.9 Out-of-scope inputs *(Binding)*
+## 4.10 Out-of-scope inputs *(Binding)*
 
-* Any dataset not listed in §4.1–§4.5 is **out of scope** for S2. In particular, **1A egress** (e.g., `outlet_catalogue`) and **S3 order surfaces** (e.g., `s3_candidate_set`) are **not** read by S2; S3 remains the inter-country order authority for other states, not for S2 weighting. 
+* Any dataset not listed in §4.1–§4.6 is **out of scope** for S2. In particular, **1A egress** (e.g., `outlet_catalogue`) and **S3 order surfaces** (e.g., `s3_candidate_set`) are **not** read by S2; S3 remains the inter-country order authority for other states, not for S2 weighting. 
 
 *This completes S2’s sealed-inputs contract and aligns with the live Dictionary/Registry and schema anchors.*
 
@@ -310,11 +319,12 @@ Before S2 reads **`tile_index`**, the reader **MUST** assert:
 S2 **MAY** read **only**:
 
 * `tile_index` (S1 output; required).
+* `s2_tile_weights_policy` (governed basis + dp; required).
 * Ingress references pinned in the Dictionary (read-only):
   – **`population_raster_2025`** (COG, **only when `basis="population"`**),
-  – **`world_countries`** (optional; validations only, per §4.3),
+  – **`world_countries`** (optional; validations only, per §4.4),
   – the ISO FK surface.
-  *(Per §4.5, `tz_world_2025a` is listed for layer lineage and **MUST NOT** be read by S2.)*
+  *(Per §4.6, `tz_world_2025a` is listed for layer lineage and **MUST NOT** be read by S2.)*
 
 ## 5.4 Prohibited accesses in S2
 
@@ -349,7 +359,7 @@ When a *downstream* 1B state (not S2) reads 1A egress for a `manifest_fingerprin
 
 ## 6.1 Weighting basis *(Binding)*
 
-S2 uses a **governed basis** to assign a non-negative mass **`m_i`** to each eligible tile `i = (country_iso, tile_id)` from **`tile_index`**:
+S2 uses a **governed basis** to assign a non-negative mass **`m_i`** to each eligible tile `i = (country_iso, tile_id)` from **`tile_index`**. The basis **MUST** be read from `s2_tile_weights_policy` and is part of `{parameter_hash}`:
 
 * **Allowed basis values (enum):**
 
@@ -375,7 +385,7 @@ Weights are **per-country** distributions. For each country `c`:
 
 ## 6.3 Fixed-dp quantisation *(Binding)*
 
-Let **`dp ∈ ℕ₀`** be the governed decimal precision (declared in the run report). Define **`K := 10^dp`**. For each country `c`:
+Let **`dp ∈ ℕ₀`** be the governed decimal precision from `s2_tile_weights_policy` (declared in the run report). Define **`K := 10^dp`**. For each country `c`:
 
 1. **Quota**: `q_i := w_i * K`.
 2. **Base integers**: `z_i := ⌊ q_i ⌋` (floor).
@@ -592,7 +602,7 @@ A single JSON object (e.g., `s2_run_report.json`) **MUST** contain at least:
 * `parameter_hash` (hex64) — identifies the partition validated.
 * `basis` (`"uniform" | "area_m2" | "population"`) — weighting basis actually used.
 * `dp` (non-negative integer) — the fixed-decimal precision (applies to the entire partition).
-* `ingress_versions` — `{ iso3166: <string>, world_countries: <string>, population_raster: <string>|null }`
+* `ingress_versions` - `{ iso3166: <string>, world_countries: <string>, population_raster: <string>|null }` where values are **Dictionary path version tokens** (e.g., `2024-12-31`, `2024`, `2025`; `population_raster` is `null` when `basis != "population"`).
 * `rows_emitted` — total rows written to `tile_weights`.
 * `countries_total` — number of ISO countries processed.
 * `determinism_receipt` — object per §9.4.

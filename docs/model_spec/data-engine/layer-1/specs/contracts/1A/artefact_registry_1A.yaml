@@ -120,6 +120,25 @@ subsegments:
     cross_layer: false
     notes: Optional; only if bounds are enabled.
 
+  - name: policy.s2.tile_weights.yaml
+    path: config/layer1/1B/policy/policy.s2.tile_weights.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.policy.s2.tile_weights
+    license: Proprietary-Internal
+    role: Governed basis + dp for 1B S2 tile weights (parameter_hash input).
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.1B.yaml#/policy/s2_tile_weights_policy
+    cross_layer: true
+    notes:
+
   - name: policy.s3.integerisation.yaml
     path: config/layer1/1A/policy/s3.integerisation.yaml
     type: policy

@@ -84,6 +84,7 @@ On ratification, **record**: `semver`, `effective_date`, `ratified_by`, git comm
 * `world_countries` (country polygons)
 * `population_raster_2025` (population raster)
 * `tz_world_2025a` (tz-world polygons)
+* `s2_tile_weights_policy` (governed S2 weights policy: basis + dp)
 
 **Gate expectations:** 1A PASS gate (`validation_bundle_1A` + `_passed.flag`) MUST verify before any 1A egress read; all sealed inputs are enumerated in `sealed_inputs_1B` and referenced by `s0_gate_receipt_1B`.
 
@@ -98,6 +99,7 @@ On ratification, **record**: `semver`, `effective_date`, `ratified_by`, git comm
 * `world_countries` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
 * `population_raster_2025` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
 * `tz_world_2025a` - scope: FINGERPRINT_SCOPED; sealed_inputs: required
+* `s2_tile_weights_policy` - scope: PARAMETER_SCOPED; sealed_inputs: required
 
 **Authority / ordering:**
 * Inter-country order authority remains `s3_candidate_set.candidate_rank` (1A is sole order authority).
@@ -402,8 +404,9 @@ S0 **fixes** which upstream datasets 1B is allowed to rely on. Reads of 1A egres
 
 * **`iso3166_canonical_2024`** — canonical ISO-3166-1 alpha-2 list (FK target for `country_iso` / `legal_country_iso`). Schema anchor: `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.  
 * **`world_countries`** — GeoParquet country polygons (for later point-in-country checks). Declared consumable by **1B** in the dictionary. 
-* **`tz_world_2025a`** — time-zone polygons (RESERVED for later segments such as 2A/2B). Provenance-only for 1B v1; **not consumed** by any 1B state. Schema anchor: `schemas.ingress.layer1.yaml#/tz_world_2025a`.
-* **`population_raster_2025`** — population COG raster (spatial prior used by 1B). Declared consumable by **1B** in the dictionary; schema anchor in ingress.  
+* **`tz_world_2025a`** - time-zone polygons (RESERVED for later segments such as 2A/2B). Provenance-only for 1B v1; **not consumed** by any 1B state. Schema anchor: `schemas.ingress.layer1.yaml#/tz_world_2025a`.
+* **`population_raster_2025`** - population COG raster (spatial prior used by 1B). Declared consumable by **1B** in the dictionary; schema anchor in ingress.  
+* **`s2_tile_weights_policy`** - governed S2 weights policy (basis + dp). Schema anchor: `schemas.1B.yaml#/policy/s2_tile_weights_policy`.
 
 ---
 
@@ -601,6 +604,7 @@ S0 produces **two** artefacts on **PASS** and **nothing** on **ABORT**. It **con
     `{ id:"population_raster_2025","schema_ref":"schemas.ingress.layer1.yaml#/population_raster_2025" }`
     (FK/geo surfaces declared consumable by 1B; Dictionary will encode these same anchors).  
   * `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces reserved for later segments; dictionary encodes their schema refs).
+  * `{ id:"s2_tile_weights_policy", "schema_ref":"schemas.1B.yaml#/policy/s2_tile_weights_policy" }` (governed policy input for S2 basis + dp; parameter-scoped but sealed here).
 * `notes : string` - optional free-form, non-semantic.
 
 **Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{manifest_fingerprint}` **MUST** be byte-identical.
@@ -824,6 +828,7 @@ S0 has enumerated the exact upstreams 1B may rely on downstream:
 - `outlet_catalogue` (egress; `[seed, manifest_fingerprint]`),
 - `s3_candidate_set` (order authority; `[parameter_hash]`),
 - FK/geo references: `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`, `tz_world_2025a` (anchors in ingress schema / dictionary; tz_world reserved for later segments).  
+- Policy inputs: `s2_tile_weights_policy` (basis + dp; schema anchor in `schemas.1B.yaml`).  
 
 **E5. S0 receipt published (idempotent).**
 `s0_gate_receipt_1B` exists under `…/manifest_fingerprint={manifest_fingerprint}/…`, validates against its schema, and embeds `manifest_fingerprint` **byte-equal** to the path token. Re-publishing the same identity is byte-identical (atomic publish; partitions immutable). *(Receipt and `sealed_inputs_1B` are the only S0 outputs; format/path are governed by the 1B dictionary.)*  
@@ -871,7 +876,7 @@ For `outlet_catalogue`, S0 has acknowledged the dictionary contract: partitions 
 
 ## 12.5 Reference / FK surfaces (presence & anchors sealed by S0)
 
-* **`E_REFERENCE_SURFACE_MISSING`** — any required reference is absent (e.g., `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`). **Action:** ABORT. **Fix:** populate the governed references at their Dictionary paths.
+* **`E_REFERENCE_SURFACE_MISSING`** - any required reference or policy input is absent (e.g., `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`, `s2_tile_weights_policy`). **Action:** ABORT. **Fix:** populate the governed references at their Dictionary paths.
 * **`E_SCHEMA_RESOLUTION_FAILED`** — schema anchor for a pinned reference cannot be resolved (e.g., ingress anchors for ISO/country/raster). **Action:** ABORT. **Fix:** fix schema set / anchors. 
 * **`E_DICTIONARY_RESOLUTION_FAILED`** — Dataset Dictionary cannot resolve an ID → path/partitions/`$ref` (e.g., malformed Dictionary or missing entry). **Action:** ABORT. **Fix:** correct Dictionary entries. 
 
@@ -1267,7 +1272,8 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
     {"id":"iso3166_canonical_2024","schema_ref":"schemas.ingress.layer1.yaml#/iso3166_canonical_2024"},
     {"id":"world_countries","schema_ref":"schemas.ingress.layer1.yaml#/world_countries"},
     {"id":"population_raster_2025","schema_ref":"schemas.ingress.layer1.yaml#/population_raster_2025"},
-    {"id":"tz_world_2025a","schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a"}
+    {"id":"tz_world_2025a","schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a"},
+    {"id":"s2_tile_weights_policy","schema_ref":"schemas.1B.yaml#/policy/s2_tile_weights_policy"}
   ],
   "notes": ""
 }

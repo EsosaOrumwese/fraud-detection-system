@@ -197,6 +197,7 @@ def _resolve_param_files(
         "nb_dispersion_coefficients.yaml": "nb_dispersion_coefficients",
         "crossborder_hyperparams.yaml": "crossborder_hyperparams",
         "ccy_smoothing_params.yaml": "ccy_smoothing_params",
+        "policy.s2.tile_weights.yaml": "policy.s2.tile_weights.yaml",
         "policy.s3.rule_ladder.yaml": "policy.s3.rule_ladder.yaml",
         "s6_selection_policy.yaml": "s6_selection_policy",
         "s7_integerisation_policy.yaml": "s7_integerisation_policy",

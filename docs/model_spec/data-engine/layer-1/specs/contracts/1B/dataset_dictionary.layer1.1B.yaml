@@ -88,6 +88,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: s2_tile_weights_policy
+  status: approved
+  owner_subsegment: 1B
+  description: Governed S2 weights policy (basis + fixed-dp precision).
+  version: '2026-01-13'
+  format: yaml
+  path: config/layer1/1B/policy/policy.s2.tile_weights.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.1B.yaml#/policy/s2_tile_weights_policy
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: tz_world_2025a
   status: approved
   owner_subsegment: ingress
