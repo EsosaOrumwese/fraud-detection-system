@@ -10,6 +10,7 @@ from typing import Dict, List
 
 import geopandas as gpd
 import pandas as pd
+import shapely
 import shapely.geometry as geom
 
 
@@ -88,6 +89,19 @@ def geometry_from_point(lat: float, lon: float, size_deg: float = 0.5) -> geom.P
     return geom.box(lon - half, lat - half, lon + half, lat + half)
 
 
+def _fix_invalid_geometry(geometry):
+    if geometry is None or geometry.is_empty:
+        return geometry
+    if geometry.is_valid:
+        return geometry
+    fixed = shapely.make_valid(geometry)
+    if fixed is None or fixed.is_empty:
+        return geometry
+    if not fixed.is_valid:
+        fixed = fixed.buffer(0)
+    return fixed
+
+
 def build_world_countries(
     src_geojson: Path,
     iso_canonical_path: Path,
@@ -154,6 +168,13 @@ def build_world_countries(
     if missing_after:
         raise RuntimeError(f"Missing ISO2 coverage after synthetic fill: {missing_after}")
 
+    invalid_before = sorted(gdf.loc[~gdf.is_valid, "country_iso"].tolist())
+    if invalid_before:
+        gdf.loc[~gdf.is_valid, "geom"] = gdf.loc[~gdf.is_valid, "geom"].apply(_fix_invalid_geometry)
+    invalid_after = sorted(gdf.loc[~gdf.is_valid, "country_iso"].tolist())
+    if invalid_after:
+        raise RuntimeError(f"Invalid geometries after repair: {invalid_after}")
+
     gdf.sort_values("country_iso", inplace=True)
     gdf.reset_index(drop=True, inplace=True)
 
@@ -186,6 +207,8 @@ def build_world_countries(
     qa_payload = {
         "missing_iso_before_aug": missing_before,
         "missing_iso_after_aug": missing_after,
+        "invalid_iso_before_fix": invalid_before,
+        "invalid_iso_after_fix": invalid_after,
         "produced_iso": sorted(gdf["country_iso"].unique().tolist()),
     }
     qa_path.write_text(json.dumps(qa_payload, indent=2) + "\n", encoding="utf-8")

@@ -15,6 +15,10 @@
     "YT"
   ],
   "missing_iso_after_aug": [],
+  "invalid_iso_before_fix": [
+    "EG"
+  ],
+  "invalid_iso_after_fix": [],
   "produced_iso": [
     "AD",
     "AE",

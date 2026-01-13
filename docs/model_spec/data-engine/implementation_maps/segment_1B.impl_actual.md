@@ -312,6 +312,70 @@ Summary: Fixed the contract-summary log format string to match the number of sch
 Action taken:
 - Updated the logger format string in `seg_1B/s0_gate/runner.py` to accept four schema paths (1B, 1A, layer1, ingress).
 
+### Entry: 2026-01-13 03:22
+
+Design element: S0 gate dependency staging for a fresh run_id
+Summary: A fresh run_id was created to reseal updated `world_countries`, but the new run folder does not contain the 1A outputs that S0 requires (`validation_bundle_1A`, `_passed.flag`, `outlet_catalogue`, `s3_candidate_set`). S0 aborts with `E_BUNDLE_MISSING` because the validation bundle path resolves under the new run root and is empty.
+
+Plan (before action, detailed):
+1) **Identify a source run that already completed 1A with the same identity.**
+   - Choose the latest run folder that contains `data/layer1/1A/validation`, `outlet_catalogue`, and `s3_candidate_set`.
+   - Verify the source `run_receipt.json` matches the new run on `manifest_fingerprint`, `parameter_hash`, and `seed` so the 1A outputs are identity-compatible.
+   - If any mismatch is found, stop and request a new 1A run rather than copying incompatible outputs.
+
+2) **Stage the minimum required 1A outputs into the new run root.**
+   - Copy the full directories:
+     - `data/layer1/1A/validation/manifest_fingerprint=...` (includes `_passed.flag`, `index.json`, `egress_checksums.json`).
+     - `data/layer1/1A/outlet_catalogue/seed=.../manifest_fingerprint=...`.
+     - `data/layer1/1A/s3_candidate_set/parameter_hash=...`.
+   - Preserve directory names and tokens so Dictionary path resolution stays deterministic.
+   - Do not alter files; treat the copy as a shallow staging action for S0 gate checks.
+
+3) **Re-run S0 gate and confirm sealing.**
+   - Run `make segment1b-s0 RUN_ID=<new_run_id>` and confirm the gate validates the copied bundle, verifies `_passed.flag`, and seals `world_countries` and other sealed inputs under the new run_id.
+   - If S0 reports any mismatch (e.g., manifest_fingerprint parity in outlet_catalogue), stop and re-evaluate the source run compatibility.
+
+4) **Proceed to S1 only after S0 is green.**
+   - Run `make segment1b-s1 RUN_ID=<new_run_id>` and inspect logs for raster/vector performance and validation errors.
+   - Record any additional fixes in this log before code changes.
+
+### Entry: 2026-01-13 03:24
+
+Design element: S0 gate dependency staging completed
+Summary: Staged the required 1A outputs into the new run root and re-ran S0 gate successfully for run_id `d12d2f6268a74b2988524e98d82315f9`.
+
+Actions taken:
+1) **Compatibility verification.**
+   - Confirmed source run `559b467dedd77fa576b488f92583d513` matches the new run on `manifest_fingerprint=374b49f7e1cf0e4a526a3396e62382cd171de26015c12ce7714d2a4db1fbfec6`, `parameter_hash=ceedfd1785fe0a71e11e5c3ca1d348f544535e303b99b9cb90d550fc2bf921d5`, and `seed=42`.
+
+2) **Staged 1A outputs (copy only, no mutation).**
+   - Copied:
+     - `data/layer1/1A/validation/manifest_fingerprint=374b49f7e1cf0e4a526a3396e62382cd171de26015c12ce7714d2a4db1fbfec6`
+     - `data/layer1/1A/outlet_catalogue/seed=42/manifest_fingerprint=374b49f7e1cf0e4a526a3396e62382cd171de26015c12ce7714d2a4db1fbfec6`
+     - `data/layer1/1A/s3_candidate_set/parameter_hash=ceedfd1785fe0a71e11e5c3ca1d348f544535e303b99b9cb90d550fc2bf921d5`
+   - Ensured directory tokens stayed unchanged so Dictionary path resolution remains deterministic.
+
+3) **S0 gate rerun.**
+   - `make segment1b-s0 RUN_ID=d12d2f6268a74b2988524e98d82315f9` passed:
+     - validation bundle hash verified and `_passed.flag` confirmed,
+     - outlet_catalogue parity checks completed,
+     - `sealed_inputs_1B` and `s0_gate_receipt_1B` published under the new run_id.
+
+### Entry: 2026-01-13 03:30
+
+Design element: S0 reseal after world_countries repair
+Summary: After repairing invalid geometries in `world_countries`, created a new run_id and re-sealed S0 so the updated hash is captured in `sealed_inputs_1B`.
+
+Actions taken:
+1) **New run_id created.**
+   - `869381446fd74b49bd7f7a4735ab873f` with a cloned `run_receipt.json` (updated `run_id` + `created_utc`).
+
+2) **Staged 1A outputs.**
+   - Copied `validation`, `outlet_catalogue`, and `s3_candidate_set` from the compatible 1A run into the new run root.
+
+3) **S0 gate rerun.**
+   - `make segment1b-s0 RUN_ID=869381446fd74b49bd7f7a4735ab873f` passed and published `sealed_inputs_1B` + `s0_gate_receipt_1B`.
+
 ## S1 - Tile Universe (S1.*)
 
 ### Entry: 2026-01-13 01:24
@@ -612,8 +676,237 @@ Action taken:
 - Path: `runs/local_full_run-5/446496814c08456c874beb9638fc6cfb/run_receipt.json`
 - Receipt cloned from latest run and updated `run_id` + `created_utc` only (all other lineage fields preserved).
 
+### Entry: 2026-01-13 03:16
+
+Design element: S1 raster dtype handling (baseline byte sizing)
+Summary: The S1 run failed when computing `bytes_per_pixel` because `dataset.dtypes[0]` is a string and does not expose `.itemsize`. This blocks the raster baseline read and thus PAT counters. Need a robust dtype→bytes conversion that works for rasterio’s dtype strings.
+
+Pre-implementation analysis and plan:
+1) **Root cause analysis.**
+   - `rasterio.DatasetReader.dtypes` returns a tuple of dtype **strings** (e.g., `"float32"`), not numpy dtype objects.
+   - Accessing `.itemsize` on the string fails and raises the observed `AttributeError`.
+
+2) **Correction strategy.**
+   - Convert the dtype string to a numpy dtype via `np.dtype(dataset.dtypes[0]).itemsize`.
+   - Keep the logic otherwise unchanged so the baseline window read and PAT counters remain identical in semantics.
+
+3) **Risk and validation.**
+   - This is a local fix in the baseline measurement path; it does not alter downstream tile enumeration or geometry.
+   - After patch, re-run S1 and confirm baseline logging resumes and the run progresses past raster open.
+
+4) **If further errors appear.**
+   - Capture the next failure point in the logbook and append another entry here before changing code again, per the detailed documentation requirement.
+
+### Entry: 2026-01-13 03:17
+
+Design element: S1 raster dtype fix applied
+Summary: Implemented the dtype conversion for the raster baseline byte-size calculation to unblock S1 PAT measurement.
+
+Action taken:
+- Updated `bytes_per_pixel` to use `np.dtype(dataset.dtypes[0]).itemsize` so rasterio dtype strings resolve to byte sizes.
+
+Next step:
+- Re-run `make segment1b-s1` on the fresh run_id and inspect logs for the next failure (if any) before further edits.
+
+### Entry: 2026-01-13 03:18
+
+Design element: Run receipt missing during S1 rerun
+Summary: `make segment1b-s1 RUN_ID=446496814c08456c874beb9638fc6cfb` failed because the run_receipt.json was missing at the expected path. The run folder no longer exists, so S1 cannot resolve the receipt.
+
+Plan:
+1) Verify whether the run folder exists under `runs/local_full_run-5/`.
+2) If missing, create a new run_id and run_receipt.json (clone the latest receipt, update run_id + created_utc).
+3) Retry `segment1b-s0` then `segment1b-s1` using the new run_id.
+
+### Entry: 2026-01-13 03:19
+
+Design element: New run folder created after missing receipt
+Summary: Created a new run_id and run_receipt.json because the previously created run folder was missing at execution time.
+
+Action taken:
+- New run_id: `d12d2f6268a74b2988524e98d82315f9`
+- Path: `runs/local_full_run-5/d12d2f6268a74b2988524e98d82315f9/run_receipt.json`
+
+### Entry: 2026-01-13 03:25
+
+Design element: S1 TopologyException during antimeridian split (invalid geometry)
+Summary: `make segment1b-s1` failed with `shapely.errors.GEOSException: TopologyException` while intersecting a country geometry against the antimeridian windows. A direct validity scan of `world_countries.parquet` shows one invalid geometry (`country_iso=EG`), which violates the S1 contract (invalid geometry must trigger `E001_GEO_INVALID`).
+
+Plan (before implementation, detailed):
+1) **Confirm invalid geometry at the data source.**
+   - Run a validity check on `reference/spatial/world_countries/2024/world_countries.parquet` and list invalid `country_iso` values (currently `EG`).
+   - Treat invalid geometry as a data-prep issue (world_countries is the geometry authority for S1) rather than auto-healing inside S1.
+
+2) **Repair geometry in the reference build step.**
+   - Update `scripts/build_world_countries.py` to detect invalid geometries and apply `shapely.make_valid` during dataset construction.
+   - Record the list of repaired ISO codes in the QA/provenance outputs.
+   - If any geometry remains invalid after repair, fail the build with a clear error.
+
+3) **Add explicit E001_GEO_INVALID enforcement in S1.**
+   - Before any antimeridian intersection, check `geom.is_valid` for each country.
+   - If invalid, raise `EngineFailure` with code `E001_GEO_INVALID` and include `country_iso` in the detail payload.
+   - Do **not** auto-heal inside S1; rely on the reference dataset to be valid (spec §6.3).
+
+4) **Rebuild + reseal + rerun.**
+   - Rebuild `world_countries.parquet` and update QA/provenance/hash outputs.
+   - Re-run S0 for the new run_id to seal the updated `world_countries` hash.
+   - Re-run S1 and confirm no topology exceptions and that logs remain spec-compliant.
+
+### Entry: 2026-01-13 03:27
+
+Design element: world_countries geometry repair (reference dataset)
+Summary: Rebuilt `world_countries` with explicit invalid-geometry repair to eliminate the Egypt invalid polygon while keeping ISO coverage intact.
+
+Actions taken:
+1) **Build script update.**
+   - Added `_fix_invalid_geometry()` using `shapely.make_valid` (fallback to `buffer(0)` if still invalid).
+   - Captures `invalid_iso_before_fix` and `invalid_iso_after_fix` in the QA payload; hard-fails if any invalid geometries remain.
+
+2) **Dataset rebuild.**
+   - Regenerated `reference/spatial/world_countries/2024/world_countries.parquet` from `ne_10m_admin_0_countries.zip`.
+   - QA now records `invalid_iso_before_fix=["EG"]` and `invalid_iso_after_fix=[]`.
+   - Updated `world_countries.manifest.json`, `world_countries.qa.json`, and `SHA256SUMS`.
+   - Updated provenance to record the repair and new output hash.
+
+### Entry: 2026-01-13 03:28
+
+Design element: S1 invalid-geometry enforcement
+Summary: Added explicit validation and error mapping so invalid country geometries fail deterministically with `E001_GEO_INVALID`, per spec §6.3.
+
+Implementation details:
+1) **Pre-geometry check.**
+   - Before any geometry operations, S1 checks `geom.is_valid` and raises `EngineFailure(E001_GEO_INVALID)` with `country_iso` and `explain_validity()` detail.
+
+2) **Antimeridian guard.**
+   - Wrapped `_split_antimeridian_geometries()` in a `GEOSException` guard; if triggered, map to `E001_GEO_INVALID` with the exception detail.
+
+### Entry: 2026-01-13 03:31
+
+Design element: Antimeridian split failure for valid geometries (AQ)
+Summary: After repairing invalid inputs and enforcing `E001_GEO_INVALID`, S1 still fails for Antarctica (`AQ`) because the **shift-to-360 step** produces an invalid geometry (self-intersection), which then raises a GEOS `TopologyException` during intersection. The original geometry is valid; the invalidity is an artefact of the shift operation.
+
+Plan (before implementation, detailed):
+1) **Do not treat this as input invalidity.**
+   - `AQ` is valid in the original -180..180 coordinate space; per spec, we should not fail `E001_GEO_INVALID` for a valid geometry.
+
+2) **Normalize the shifted geometry only.**
+   - After `_shift_geometry_to_360`, if `geom_360.is_valid` is false, apply `shapely.make_valid(geom_360)` before the west/east intersections.
+   - This is a *local* normalization step for the antimeridian split and does not mutate the authoritative input geometry.
+
+3) **Fallback behaviour.**
+   - If `make_valid` yields empty geometry or still triggers GEOS errors, the existing `GEOSException` guard will surface `E001_GEO_INVALID`.
+   - Log the fix in the logbook and re-run S1 to confirm the split is stable for `AQ`.
+
+### Entry: 2026-01-13 03:32
+
+Design element: Shifted-geometry normalization applied
+Summary: Implemented a localized `make_valid` on the shifted 0..360 geometry in `_split_antimeridian_geometries` to prevent self-intersection errors for valid source geometries (e.g., `AQ`).
+
+Action taken:
+1) **Runner update.**
+   - Added `import shapely` and applied `shapely.make_valid(geom_360)` when the shifted geometry is invalid.
+   - Returns early if the repaired geometry is empty; otherwise continues with west/east intersections as before.
+
+Next step:
+- Re-run `make segment1b-s1 RUN_ID=869381446fd74b49bd7f7a4735ab873f` and confirm the AQ topology error is resolved.
+
+### Entry: 2026-01-13 03:38
+
+Design element: S1 rerun completed (post-fix)
+Summary: S1 completed successfully after the shifted-geometry normalization, publishing the `tile_index` outputs for the new run_id.
+
+Run outcome:
+- `make segment1b-s1 RUN_ID=869381446fd74b49bd7f7a4735ab873f` completed (runtime ~327s).
+- No `E001_GEO_INVALID` errors observed after the antimeridian fix.
+- Output path (per log): `runs/local_full_run-5/869381446fd74b49bd7f7a4735ab873f/data/layer1/1B/tile_index/parameter_hash=ceedfd1785fe0a71e11e5c3ca1d348f544535e303b99b9cb90d550fc2bf921d5`.
+
 ## S2 - Tile Weights (S2.*)
 
+### Entry: 2026-01-13 05:35
+
+Design element: S2 contract review + pre-implementation plan (RUN_ID=869381446fd74b49bd7f7a4735ab873f)
+Summary: Reviewed S2 expanded spec and the 1B contracts for `tile_weights` and `s2_run_report`. Capturing the detailed plan for deterministic fixed-dp weight computation, evidence emission, and performance guards before touching code.
+
+Contract review notes (authorities + paths):
+1) **Schema authority (shape/keys):**
+   - `schemas.1B.yaml#/prep/tile_weights` defines PK `[country_iso, tile_id]`, partition `[parameter_hash]`, sort `[country_iso, tile_id]`, required columns `country_iso`, `tile_id`, `weight_fp`, `dp` (plus optional `basis`).
+   - `schemas.1B.yaml#/control/s2_run_report` is minimal (requires `parameter_hash`), but the S2 spec mandates additional fields in the report.
+
+2) **Dictionary authority (paths/partition/sort/licence/retention):**
+   - `dataset_dictionary.layer1.1B.yaml#tile_weights` → `data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/`, writer sort `[country_iso, tile_id]`, parquet, Proprietary-Internal, retention 365, pii=false.
+   - `dataset_dictionary.layer1.1B.yaml#s2_run_report` → `reports/layer1/1B/state=S2/parameter_hash={parameter_hash}/s2_run_report.json` (control-plane; must not be under the dataset partition).
+
+3) **Registry (provenance, not shape):**
+   - `artefact_registry_1B.yaml` declares `tile_weights` depends on `tile_index` (and only reads `population_raster_2025` when `basis="population"`).
+
+Pre-implementation plan (detailed):
+1) **Resolve run identity and inputs (RUN_ID=869381446fd74b49bd7f7a4735ab873f).**
+   - Load `run_receipt.json` to obtain `{parameter_hash}`.
+   - Resolve `tile_index` via the Dictionary path family (`data/layer1/1B/tile_index/parameter_hash={parameter_hash}/`).
+   - Enforce §5.2 pre-read checks:
+     - path exists for the partition,
+     - schema anchor `schemas.1B.yaml#/prep/tile_index` (columns/PK/partition/sort),
+     - writer sort expectations (or fail `E108_WRITER_HYGIENE` if input violates Dictionary law).
+   - Confirm S2 reads **no 1A egress** and does **not** consult `s0_gate_receipt_1B` (spec §5.6).
+
+2) **Parameter governance (basis + dp).**
+   - S2 requires `basis ∈ {uniform, area_m2, population}` and a single `dp` (non-negative integer) per partition; both must be disclosed in the run report.
+   - Identify the parameter source that feeds `{parameter_hash}` and carries `basis` + `dp` (no `config/layer1/1B` exists yet).
+   - Open question to resolve before coding: **where do `basis` and `dp` live for 1B (config file, policy registry, or inline CLI args)?** This must be pinned to the parameter_hash for determinism.
+
+3) **Mass calculation per basis (deterministic).**
+   - **uniform:** `m_i := 1` (no extra reads).
+   - **area_m2:** `m_i := tile_index.pixel_area_m2` (authoritative S1 area).
+   - **population:** read `population_raster_2025` COG and sample the cell for each tile; NODATA → 0. Only read this raster when basis=population.
+   - Validate mass domain: finite and ≥ 0; any invalid mass triggers `E105_NORMALIZATION`.
+
+4) **Per-country normalization + fixed-dp quantization.**
+   - Compute `M_c = Σ m_i` per country and `U_c` counts.
+   - If `U_c` is empty → `E103_ZERO_COUNTRY`.
+   - If `M_c = 0` with `|U_c| > 0`, fallback to uniform for that country and record `zero_mass_fallback=true` in per-country summary.
+   - Quantize using largest-remainder with stable tie-break:
+     - `q_i = m_i * K / M_c`, `z_i = floor(q_i)`, residue `r_i = q_i - z_i`.
+     - `S = K - Σ z_i`; assign `+1` to top `S` residues, tie-break by ascending `tile_id`.
+   - Ensure exact per-country sum `Σ weight_fp = K`; fail `E105_NORMALIZATION` if not.
+
+5) **Scale for large S1 (221M rows).**
+   - Use streaming/iterative processing to avoid materializing the full partition in memory; memory must remain `O(window)` per spec §11.2.
+   - Two-pass strategy:
+     - Pass 1: compute per-country `M_c` and counts.
+     - Pass 2: compute `z_i` and residues, then select top `S` residues per country via an external (on-disk) sort by `(country_iso, residue desc, tile_id asc)` to avoid keeping all residues in memory.
+   - Writer output must be sorted `[country_iso, tile_id]` before publish.
+
+6) **Observability artefacts (must be present, outside dataset partition).**
+   - Emit `s2_run_report.json` with required fields: `parameter_hash`, `basis`, `dp`, `ingress_versions`, `rows_emitted`, `countries_total`, `determinism_receipt`, and PAT counters.
+   - Emit per-country normalization summaries (array in report or JSON-lines `AUDIT_S2_COUNTRY:`).
+   - Compute determinism receipt: ASCII-lex list of partition files → concat bytes → SHA-256.
+
+7) **Performance/PAT instrumentation.**
+   - Record bytes read for tile_index and raster (if used); vector bytes only if optional geometry validations are used.
+   - Capture I/O baselines at start (`io_baseline_ti_bps`, `io_baseline_raster_bps` if population).
+   - Record `wall_clock_seconds_total`, `cpu_seconds_total`, `max_worker_rss_bytes`, `open_files_peak`, `workers_used`, and `chunk_size`.
+   - Enforce amplification bounds (≤1.25) and runtime inequality (§11.1), else emit `E109_PERF_BUDGET`.
+
+8) **Publish discipline and hygiene.**
+   - Stage output outside the live partition; fsync + atomic rename.
+   - Re-publish to the same `{parameter_hash}` must be byte-identical.
+   - Ensure no non-schema artefacts are written under `tile_weights/parameter_hash=.../`.
+
+Open questions to resolve before implementation:
+1) **Basis & dp authority:** Where should S2 read the governed `basis` and `dp` so they are tied to `{parameter_hash}` (new config/policy, CLI args, or another registry file)?
+2) **Ingress version strings:** For `ingress_versions` in the run report, should we use path version tokens (e.g., `2024-12-31`, `2024`, `2025`) or add explicit version tags in the Dictionary?
+
+### Entry: 2026-01-13 05:55
+
+Design element: S2 policy source + ingress versioning clarification
+Summary: Re-checked the S2 spec for an explicit policy/config location for `basis` and `dp` and confirmed the spec does **not** name a concrete file or registry entry. It only states these are governed parameters captured by `{parameter_hash}` and must be disclosed in the run report.
+
+Resolution posture (pre-implementation decision):
+1) **Basis/dp source:** The spec leaves this open; to keep determinism and parameter_hash integrity, the safest path is to introduce a **new 1B policy/config file** (e.g., `config/layer1/1B/policy/s2_tile_weights.yaml`) and ensure it is part of the parameter_hash input set. Without this, S2 would rely on ad-hoc CLI args, which would not be governed.
+2) **Ingress version strings:** Recommend using **Dictionary path version tokens** (e.g., `iso3166=2024-12-31`, `world_countries=2024`, `population_raster=2025`) in `ingress_versions` to avoid new contract changes while staying deterministic and aligned with the “Dictionary IDs/versions, not raw hashes” rule.
+
+Pending confirmation:
+- Whether to add the new S2 policy/config file now (and include it in parameter_hash).
 ## S3 - Requirements (S3.*)
 
 ## S4 - Allocation Plan (S4.*)

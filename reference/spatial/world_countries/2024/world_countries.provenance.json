@@ -16,8 +16,11 @@
     "Akrotiri"
   ],
   "license": "Public Domain",
-  "notes": "ISO_A2 used when valid; ISO_A3 mapped to ISO2 via iso3166_canonical_2024 when ISO_A2 missing or -99; ADM0_A3 used as a fallback; synthetic geometries added for ISO2 codes absent in Natural Earth (AN, BQ, BV, CC, CS, CX, GF, GP, MQ, RE, SJ, TK, YT). Geometry column renamed to 'geom'.",
-  "output_sha256": "96a6786af3f157d709f5af17763e19df96892cbf3db633a018582b3ba134215a",
+  "notes": "ISO_A2 used when valid; ISO_A3 mapped to ISO2 via iso3166_canonical_2024 when ISO_A2 missing or -99; ADM0_A3 used as a fallback; synthetic geometries added for ISO2 codes absent in Natural Earth (AN, BQ, BV, CC, CS, CX, GF, GP, MQ, RE, SJ, TK, YT). Geometry column renamed to 'geom'. Invalid geometries are repaired during build via shapely.make_valid (currently: EG).",
+  "invalid_iso_fixed": [
+    "EG"
+  ],
+  "output_sha256": "7db63b6b8ee1b5ad9e2029142eeda5564fe60b0788889c2ccf9f0934bc33b1e8",
   "raw_sha256": "ce1ac7036499a0edd641fbc093cd209a98f96a49d2eca8480aaacad35138a7f6",
   "route": "Natural Earth Admin 0 Countries 10m",
   "source_url": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_countries.zip",

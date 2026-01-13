@@ -20,13 +20,16 @@ import numpy as np
 import polars as pl
 import psutil
 import rasterio
+import shapely
 from pyproj import Geod
 from rasterio.features import geometry_mask
 from rasterio.windows import Window, transform as window_transform
 from shapely import wkb
+from shapely.errors import GEOSException
 from shapely.geometry import MultiPolygon, Polygon, box
 from shapely.ops import transform as shapely_transform
 from shapely.ops import unary_union
+from shapely.validation import explain_validity
 
 from engine.contracts.loader import (
     find_dataset_entry,
@@ -310,6 +313,10 @@ def _split_antimeridian_geometries(geom) -> list:
     if not _needs_antimeridian_shift(geom.bounds):
         return [geom]
     geom_360 = _shift_geometry_to_360(geom)
+    if not geom_360.is_valid:
+        geom_360 = shapely.make_valid(geom_360)
+        if geom_360 is None or geom_360.is_empty:
+            return []
     west = _polygonal_only(geom_360.intersection(_ANTIMERIDIAN_WEST))
     east = _polygonal_only(geom_360.intersection(_ANTIMERIDIAN_EAST))
     parts: list = []
@@ -358,13 +365,31 @@ def _process_country(task: CountryTask) -> CountryResult:
     tile_index_root = Path(task.tile_index_root)
     tile_bounds_root = Path(task.tile_bounds_root)
 
+    if not geom.is_valid:
+        raise EngineFailure(
+            "F4",
+            "E001_GEO_INVALID",
+            "S1",
+            MODULE_NAME,
+            {"country_iso": country, "detail": explain_validity(geom)},
+        )
+
     with rasterio.open(raster_path) as dataset:
         transform = dataset.transform
         ncols = dataset.width
         rotated = not (transform.b == 0 and transform.d == 0)
         geod = Geod(ellps="WGS84")
 
-        geom_parts = _split_antimeridian_geometries(geom)
+        try:
+            geom_parts = _split_antimeridian_geometries(geom)
+        except GEOSException as exc:
+            raise EngineFailure(
+                "F4",
+                "E001_GEO_INVALID",
+                "S1",
+                MODULE_NAME,
+                {"country_iso": country, "detail": str(exc)},
+            ) from exc
         if not geom_parts:
             return CountryResult(
                 country_iso=country,
@@ -838,7 +863,7 @@ def run_s1(
                 {"crs": str(dataset.crs)},
             )
 
-        bytes_per_pixel = dataset.dtypes[0].itemsize
+        bytes_per_pixel = np.dtype(dataset.dtypes[0]).itemsize
         target_bytes = min(1024 * 1024 * 1024, nrows * ncols * bytes_per_pixel)
         rows_to_read = max(1, int(math.ceil(target_bytes / (ncols * bytes_per_pixel))))
         rows_to_read = min(rows_to_read, nrows)
