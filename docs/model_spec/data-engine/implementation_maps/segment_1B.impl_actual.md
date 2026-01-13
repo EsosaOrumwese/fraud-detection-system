@@ -1288,6 +1288,33 @@ Implementation actions:
    - Log evidence includes: `S3: s0_gate_receipt validated (sealed_inputs=10)`, `S3: outlet_catalogue path-embed parity verified (pyarrow)`, and atomic publish guard message.
    - `open_files_peak` still reports `484` in `s3_run_report.json`; this suggests the metric reflects global process handles rather than leaked parquet readers. Keeping the metric as-is for now, but closing readers avoids us adding extra handles.
 
+### Entry: 2026-01-13 19:56
+
+Design element: S3 PAT open_files_peak meaning + metric correction
+Summary: Reworked `open_files_peak` to report actual open file descriptors (not process handles) and recorded the metric basis in the run report.
+
+Brainstorm + decision detail (captured before editing):
+1) **Problem statement.**
+   - `open_files_peak=484` was misleading for S3 because it counted process handles (sockets, DLLs, etc.) instead of open files; it did not reflect parquet-reader leakage risk.
+2) **Options considered.**
+   - Keep `num_handles` (cheap, but not file-specific; fails the intent of “open files”).
+   - Switch to `psutil.Process.open_files()` count (file-specific, but potentially more expensive).
+   - Add a dual metric (handles + open files) for clarity (extra noise in PAT).
+3) **Decision.**
+   - Use `open_files()` when available and fall back to handles only if `open_files()` fails.
+   - Record which metric is used in `pat.open_files_metric` so the meaning is explicit.
+   - Add a log line so the run log explains the basis (`S3: PAT open_files metric=...`).
+
+Implementation actions:
+1) **Metric selector.**
+   - Added `_select_open_files_counter()` to pick `open_files` or fallback (`handles`/`fds`), returning a callable + label.
+2) **Run report.**
+   - Added `open_files_metric` to `pat` to document the basis.
+3) **Rerun + outcome.**
+   - Command: `make segment1b-s3 RUN_ID=f079e82cb937e7bdb61615dbdcf0d038`.
+   - Log confirms `S3: PAT open_files metric=open_files`.
+   - `s3_run_report.json` now reports `open_files_peak=6`, which aligns with expected open-file usage.
+
 ## S4 - Allocation Plan (S4.*)
 
 ## S5 - Site-to-Tile Assignment RNG (S5.*)

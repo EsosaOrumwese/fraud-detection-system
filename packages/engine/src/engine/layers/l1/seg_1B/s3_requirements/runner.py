@@ -8,7 +8,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 import numpy as np
 import polars as pl
@@ -286,12 +286,19 @@ def _atomic_publish_dir(tmp_root: Path, final_root: Path, logger, label: str) ->
     tmp_root.replace(final_root)
 
 
-def _open_files_count(proc: psutil.Process) -> int:
-    if hasattr(proc, "num_handles"):
-        return proc.num_handles()
-    if hasattr(proc, "num_fds"):
-        return proc.num_fds()
-    return 0
+def _select_open_files_counter(proc: psutil.Process) -> tuple[Callable[[], int], str]:
+    def _open_files() -> int:
+        return len(proc.open_files())
+
+    try:
+        _open_files()
+        return _open_files, "open_files"
+    except Exception:
+        if hasattr(proc, "num_handles"):
+            return proc.num_handles, "handles"
+        if hasattr(proc, "num_fds"):
+            return proc.num_fds, "fds"
+        return lambda: 0, "unknown"
 
 
 def _entry_version(entry: dict) -> Optional[str]:
@@ -561,8 +568,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     wall_start = time.monotonic()
     cpu_start = time.process_time()
     proc = psutil.Process()
+    open_files_counter, open_files_metric = _select_open_files_counter(proc)
     max_rss = proc.memory_info().rss
-    open_files_peak = _open_files_count(proc)
+    open_files_peak = open_files_counter()
+    logger.info("S3: PAT open_files metric=%s", open_files_metric)
 
     batch_rows: list[tuple[int, str, int]] = []
     batch_index = 0
@@ -773,7 +782,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         _flush_batch()
         rss_now = proc.memory_info().rss
         max_rss = max(max_rss, rss_now)
-        open_files_peak = max(open_files_peak, _open_files_count(proc))
+        open_files_peak = max(open_files_peak, open_files_counter())
     else:
         for path in outlet_files:
             pf = pq.ParquetFile(path)
@@ -900,7 +909,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
                 rss_now = proc.memory_info().rss
                 max_rss = max(max_rss, rss_now)
-                open_files_peak = max(open_files_peak, _open_files_count(proc))
+                open_files_peak = max(open_files_peak, open_files_counter())
             _close_parquet_reader(pf)
 
         if open_mid is not None:
@@ -937,6 +946,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             "bytes_read_tile_weights_total": bytes_read_tile_weights_total,
             "max_worker_rss_bytes": max_rss,
             "open_files_peak": open_files_peak,
+            "open_files_metric": open_files_metric,
             "workers_used": 1,
         },
     }
