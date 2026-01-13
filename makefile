@@ -1057,26 +1057,8 @@ preflight-seg1a:
 		exit 1; \
 	fi
 
-segment1a: preflight-seg1a
-	@echo "Running Segment 1A (S0-S9)"
-	@if [ "$(SKIP_SEG1A)" = "1" ]; then \
-		if [ ! -f "$(RESULT_JSON)" ]; then \
-			echo "SKIP_SEG1A=1 but summary '$(RESULT_JSON)' is missing. Run 'make segment1a' first." >&2; \
-			exit 1; \
-		fi; \
-		echo "Skipping Segment 1A (SKIP_SEG1A=1)"; \
-		exit 0; \
-	fi
-	@mkdir -p "$(RUN_ROOT)"
-	@mkdir -p "$(SUMMARY_DIR)"
-ifeq ($(strip $(LOG)),)
-	$(SEG1A_CMD)
-else
-	@: > "$(LOG)"
-	($(SEG1A_CMD)) 2>&1 | tee -a "$(LOG)"
-endif
+segment1a: segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9
 
-SEG_1A: segment1a
 
 segment1a-s0:
 	@echo "Running Segment 1A S0 foundations"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import re
 import sys
 from pathlib import Path
@@ -24,6 +25,13 @@ _AST_DATASET_NAME_HINTS = {
 
 _OPTIONAL_DATASET_IDS = {
     "validation_bundle",
+    "hurdle_coefficients",
+    "nb_dispersion_coefficients",
+    "numeric_policy_attest",
+    "parameter_hash",
+    "manifest_fingerprint",
+    "policy.s3.integerisation.yaml",
+    "s7_integerisation_policy",
 }
 
 
@@ -35,15 +43,77 @@ def _repo_root() -> Path:
     return Path.cwd().resolve()
 
 
-def _dictionary_path(repo_root: Path) -> Path:
-    return (
-        repo_root
-        / "contracts"
-        / "dataset_dictionary"
-        / "l1"
-        / "seg_1A"
-        / "layer1.1A.yaml"
-    )
+def _contracts_layout() -> str:
+    layout = os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec").strip().lower()
+    return layout or "model_spec"
+
+
+def _dictionary_path(repo_root: Path, layout: str) -> Path:
+    if layout == "model_spec":
+        preferred = (
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / "dataset_dictionary.layer1.1A.yaml"
+        )
+        fallback = (
+            repo_root
+            / "contracts"
+            / "dataset_dictionary"
+            / "l1"
+            / "seg_1A"
+            / "layer1.1A.yaml"
+        )
+    elif layout == "contracts":
+        preferred = (
+            repo_root
+            / "contracts"
+            / "dataset_dictionary"
+            / "l1"
+            / "seg_1A"
+            / "layer1.1A.yaml"
+        )
+        fallback = (
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / "dataset_dictionary.layer1.1A.yaml"
+        )
+    else:
+        preferred = (
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / "dataset_dictionary.layer1.1A.yaml"
+        )
+        fallback = (
+            repo_root
+            / "contracts"
+            / "dataset_dictionary"
+            / "l1"
+            / "seg_1A"
+            / "layer1.1A.yaml"
+        )
+    if preferred.exists():
+        return preferred
+    if fallback.exists():
+        return fallback
+    return preferred
 
 
 def _load_dictionary(path: Path) -> dict:
@@ -65,11 +135,49 @@ def _iter_entries(dictionary: dict) -> Iterable[tuple[str, dict]]:
                     yield entry["id"], entry
 
 
-def _resolve_schema_file(repo_root: Path, file_name: str) -> Path | None:
-    candidates = (
-        repo_root / "contracts" / "schemas" / "layer1" / file_name,
-        repo_root / "contracts" / "schemas" / file_name,
-    )
+def _resolve_schema_file(repo_root: Path, file_name: str, layout: str) -> Path | None:
+    candidates: list[Path] = []
+    if layout == "model_spec":
+        candidates.append(
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / file_name
+        )
+    elif layout == "contracts":
+        candidates.extend(
+            [
+                repo_root / "contracts" / "schemas" / "layer1" / file_name,
+                repo_root / "contracts" / "schemas" / file_name,
+            ]
+        )
+
+    fallback_layout = "contracts" if layout == "model_spec" else "model_spec"
+    if fallback_layout == "model_spec":
+        candidates.append(
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / file_name
+        )
+    else:
+        candidates.extend(
+            [
+                repo_root / "contracts" / "schemas" / "layer1" / file_name,
+                repo_root / "contracts" / "schemas" / file_name,
+            ]
+        )
+
     for candidate in candidates:
         if candidate.exists():
             return candidate
@@ -93,7 +201,9 @@ def _resolve_pointer(document: object, pointer: str) -> object:
     return current
 
 
-def _validate_schema_ref(repo_root: Path, schema_ref: str, dataset_id: str) -> list[str]:
+def _validate_schema_ref(
+    repo_root: Path, schema_ref: str, dataset_id: str, layout: str
+) -> list[str]:
     issues: list[str] = []
     if "#" in schema_ref:
         file_name, pointer = schema_ref.split("#", 1)
@@ -101,7 +211,7 @@ def _validate_schema_ref(repo_root: Path, schema_ref: str, dataset_id: str) -> l
     else:
         file_name, pointer = schema_ref, ""
 
-    schema_path = _resolve_schema_file(repo_root, file_name)
+    schema_path = _resolve_schema_file(repo_root, file_name, layout)
     if schema_path is None:
         issues.append(f"{dataset_id}: schema file missing for {schema_ref}")
         return issues
@@ -189,7 +299,8 @@ def _collect_dataset_ids(seg_root: Path) -> set[str]:
 
 def main() -> int:
     repo_root = _repo_root()
-    dictionary_path = _dictionary_path(repo_root)
+    layout = _contracts_layout()
+    dictionary_path = _dictionary_path(repo_root, layout)
     if not dictionary_path.exists():
         print(f"Missing dataset dictionary: {dictionary_path}", file=sys.stderr)
         return 1
@@ -211,7 +322,7 @@ def main() -> int:
         if not isinstance(schema_ref, str) or not schema_ref.strip():
             schema_issues.append(f"{dataset_id}: missing schema_ref")
             continue
-        schema_issues.extend(_validate_schema_ref(repo_root, schema_ref.strip(), dataset_id))
+        schema_issues.extend(_validate_schema_ref(repo_root, schema_ref.strip(), dataset_id, layout))
 
     if schema_issues:
         print("Schema reference issues:", file=sys.stderr)
