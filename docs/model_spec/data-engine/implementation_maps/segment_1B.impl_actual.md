@@ -314,6 +314,185 @@ Action taken:
 
 ## S1 - Tile Universe (S1.*)
 
+### Entry: 2026-01-13 01:24
+
+Design element: S1 tile_index + tile_bounds (contract review + pre-implementation plan)
+Summary: Reviewed S1 expanded spec plus 1B dictionary/registry/schema anchors for `tile_index`, `tile_bounds`, and `s1_run_report`. Capturing the detailed, stepwise plan for deterministic tile enumeration, geometry predicates, and PAT observability before touching code.
+
+Plan (before implementation, detailed):
+1) **Resolve run identity + sealed inputs (no 1A egress).**
+   - Load `run_receipt.json` (latest by mtime if no run_id provided) and require `parameter_hash`; read `manifest_fingerprint` only to locate `sealed_inputs_1B`.
+   - Resolve `sealed_inputs_1B` via Dictionary path (`data/layer1/1B/sealed_inputs/manifest_fingerprint=.../sealed_inputs_1B.json`).
+   - Confirm `iso3166_canonical_2024`, `world_countries`, and `population_raster_2025` appear in `sealed_inputs_1B` for the manifest_fingerprint (spec §4.0; missing ⇒ abort).
+   - Resolve actual input paths via the Dictionary (no literal paths), then cross-check that the sealed_inputs path tokens match the resolved Dictionary paths and the on-disk files exist. (Optional: verify SHA-256 from sealed_inputs if cost is acceptable.)
+   - Explicitly **do not** read any 1A egress or `tz_world_2025a` (spec §4.4, §5.3).
+
+2) **Resolve output contracts + partition law.**
+   - `tile_index` path `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/` (PK `[country_iso,tile_id]`, sort `[country_iso,tile_id]`).
+   - `tile_bounds` path `data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/` (same PK/sort).
+   - `s1_run_report` path `reports/layer1/1B/state=S1/parameter_hash={parameter_hash}/s1_run_report.json` (schema: `schemas.1B.yaml#/control/s1_run_report`).
+   - All outputs must be staged and atomically moved; re-publish to existing partitions must be byte-identical or fail (immutability).
+
+3) **Predicate selection (inclusion_rule).**
+   - Allowed predicates: `"center"` (default) and `"any_overlap"` (schema enum, spec §6.2).
+   - Record the predicate used per-row in `tile_index.inclusion_rule` (required by schema) and in the run report (`predicate` field).
+   - Decide how the predicate is configured: CLI flag or policy config; default `"center"` if unspecified. (Open question below.)
+
+4) **Raster grid + tile identity (deterministic geometry only).**
+   - Open `population_raster_2025` with rasterio; read grid dimensions (`nrows`, `ncols`) and affine transform.
+   - Compute `tile_id = r * ncols + c` with zero-based row/col (spec §6.1/§A.5).
+   - Derive centroids and bounds from the affine transform in WGS84 (no reprojection). If rotation terms exist, compute all four corners and use min/max for bounds.
+   - Normalise longitudes to [-180,+180] and enforce centroid bounds; any out-of-range ⇒ `E004_BOUNDS` (spec §8/§12).
+
+5) **Country geometry handling (world_countries).**
+   - Load `world_countries` as the sole geometry authority; join by ISO2 key from `iso3166_canonical_2024`.
+   - Validate geometry health: if a country geometry is invalid/topologically broken and cannot be used for point-in-polygon, **fail with `E001_GEO_INVALID`** (no implicit repairs).
+   - Handle holes as area removal; multipolygons are unioned. Boundary policy: for `"center"`, centroid on boundary counts as inside unless on a hole boundary.
+   - **Antimeridian handling:** detect polygons whose longitudinal span > 180° and treat them as seamless across the dateline. Plan to shift longitudes to a 0..360 domain for those countries (and shift candidate centroids similarly), then normalize output back to [-180,+180]. (Open question below: confirm preferred approach.)
+
+6) **Eligibility computation (efficient + deterministic).**
+   - Use `rasterio.features.geometry_window` to compute minimal raster windows per country polygon.
+   - For `"center"`: use `geometry_mask(..., all_touched=False)` to include pixels whose centers fall inside the polygon (holes excluded). This matches §6.2.
+   - For `"any_overlap"`: start with `geometry_mask(..., all_touched=True)`, then **refine** any candidate pixels by computing cell-polygon intersection area > 0 to eliminate edge/point-only touches (spec §6.2). This avoids false positives from `all_touched=True`.
+   - NODATA values in the raster do **not** affect eligibility; the raster is used for grid geometry only (§6.4).
+
+7) **Pixel area (ellipsoidal) + bounds.**
+   - Use `pyproj.Geod` to compute ellipsoidal area for each cell polygon; since pixel size is uniform, precompute per-row areas (lat-dependent) to avoid per-cell geodesic work.
+   - Ensure `pixel_area_m2 > 0` for all rows; if any non-positive, abort with `E006_AREA_NONPOS`.
+   - Build `tile_bounds` rows from min/max lat/lon and centroid values (schema `#/prep/tile_bounds`).
+
+8) **Output materialisation + determinism receipt.**
+   - Stream per-country outputs to parquet shards (deterministic filename convention, e.g., `country=XX/part-000.parquet`), each sorted by `tile_id`.
+   - Perform a stable merge or ensure writer sort on `[country_iso, tile_id]` across shards; file order is non-authoritative but byte determinism requires deterministic shard contents.
+   - Compute determinism receipt as SHA-256 over ASCII-lex sorted file paths under the `tile_index` partition (spec §9.4). Record only for `tile_index` unless spec explicitly requires the same for `tile_bounds`.
+
+9) **Run report + per-country summaries (observability).**
+   - Emit `s1_run_report.json` with required fields (§9.2): `parameter_hash`, `predicate`, `ingress_versions`, `grid_dims`, `countries_total`, `rows_emitted`, `determinism_receipt`, and `pat` counters (including baselines).
+   - Emit per-country summaries with `cells_visited`, `cells_included`, `cells_excluded_outside`, `cells_excluded_hole`, `tile_id_min/max` either as an array in the run report or as JSON-lines in logs (prefixed `AUDIT_S1_COUNTRY:`). Decide on storage form (open question below).
+   - Ensure these artefacts are **outside** the dataset partition (spec §9.1/§9.7).
+
+10) **Performance Acceptance Tests (PAT) instrumentation (binding for presence).**
+   - Track counters: `wall_clock_seconds_total`, `cpu_seconds_total`, `countries_processed`, `cells_scanned_total`, `cells_included_total`, `bytes_read_raster_total`, `bytes_read_vectors_total`, `max_worker_rss_bytes`, `open_files_peak`, `workers_used`, `chunk_size`.
+   - Measure baselines (`io_baseline_raster_bps`, `io_baseline_vectors_bps`) by streaming a contiguous ~1GiB segment once (spec Appendix C).
+   - After run, compute and log `B_r/S_r` and `B_v/S_v` ratios and the wall-clock bound formula; if any limit fails, raise `E009_PERF_BUDGET` and emit the failure event.
+   - Retain run report + per-country summaries ≥30 days (ops retention; not in partition).
+
+11) **Failure events (spec §9.6).**
+   - On any hard failure, emit `S1_ERROR` with `code` (`E001_GEO_INVALID`, `E002_RASTER_MISMATCH`, `E003_DUP_TILE`, `E004_BOUNDS`, `E005_ISO_FK`, `E006_AREA_NONPOS`, `E008_INCLUSION_RULE`, `E009_PERF_BUDGET`) and context fields (`parameter_hash`, optional `country_iso`, `raster_row`, `raster_col`).
+
+Open questions / decisions to confirm before coding:
+1) **Predicate config source:** Should `inclusion_rule` be driven by a new CLI flag (e.g., `--predicate`) or a policy file under `config/layer1/1B/`? The spec defines `"center"` as default but does not pin a config location.
+2) **Antimeridian handling:** Confirm the preferred implementation for dateline-spanning polygons: shift longitudes to a 0..360 domain for those countries and shift candidate centroids accordingly (then normalize outputs back to [-180,+180]), versus another canonical approach you prefer.
+3) **Per-country summary delivery:** Prefer embedding the summaries array inside `s1_run_report.json` or emitting JSON-lines in logs? (Spec allows both; dictionary only defines `s1_run_report`.)
+4) **Determinism receipt scope:** The spec mandates `tile_index` receipt; do you want the same composite hash recorded for `tile_bounds` as an additional (non-binding) field?
+
+### Entry: 2026-01-13 01:33
+
+Design element: S1 decisions locked (predicate/config + antimeridian + observability)
+Summary: Confirmed the implementation choices for S1 predicate configuration, antimeridian strategy, per-country summary delivery, and determinism receipt scope. Recording the decisions and the concrete design implications before any code edits.
+
+Decisions (explicit):
+1) **Predicate config:** use CLI flag `--predicate` with default `"center"`. This keeps the selection explicit and avoids introducing a new policy file for S1.
+2) **Antimeridian handling:** for dateline-spanning countries, shift country geometry to a 0..360 longitude domain and shift candidate centroids similarly for inclusion tests; normalize output longitudes back to [-180,+180].
+3) **Per-country summaries:** emit JSON-lines in logs with prefix `AUDIT_S1_COUNTRY:` (rather than embedding a large array into the run report).
+4) **Determinism receipt scope:** compute and record the composite hash for `tile_index` only (spec-mandated). Do not add an additional receipt for `tile_bounds` unless required later.
+
+Design implications and pre-code actions:
+- CLI surface will gain `--predicate`, plus `--workers` and `--chunk-size` for performance tuning; defaults must preserve determinism.
+- Logging must include predicate choice and country-level counters, and the per-country summaries must be emitted outside the dataset partition (logs only).
+- The antimeridian shift needs to be deterministic and only applied to polygons whose longitudinal span exceeds 180°; outputs must always be normalized to [-180,+180].
+- Any failure to apply these rules should emit the required `S1_ERROR` event with the spec's error codes and the correct context fields.
+
+### Entry: 2026-01-13 01:55
+
+Design element: S1 runner hardening before execution (antimeridian, PAT counters, path law, validation)
+Summary: Identified pre-run compliance gaps in the S1 runner and captured the exact fixes to bring the implementation in line with the expanded spec, dictionary path law, and PAT requirements before further coding.
+
+Pre-implementation issues to resolve (observed in current draft):
+1) **Report path law violation.**
+   - `s1_run_report` dictionary path is a file path (`.../s1_run_report.json`), but the runner treats it as a directory and writes `_tmp.*.json` inside it.
+   - This violates dictionary path law and would publish the report at the wrong location.
+
+2) **Antimeridian handling is incomplete for `"center"` predicate.**
+   - Current code shifts geometry only for `"any_overlap"` and still uses geometry_mask against the unshifted geometry for `"center"`.
+   - For dateline-spanning polygons, geometry_mask against the raw geometry can create a huge window and include incorrect cells.
+
+3) **PAT counters incomplete/nullable.**
+   - `chunk_size` and `io_baseline_vectors_bps` are `None`; spec states their absence triggers `E009_PERF_BUDGET`.
+   - `bytes_read_vectors_total` uses file sizes but `io_baseline_vectors_bps` is missing; we need a consistent baseline measurement.
+
+4) **Missing validation checks required by S1 spec.**
+   - No explicit checks for centroid/bounds ranges (lon/lat bounds) or for `pixel_area_m2 > 0`.
+   - No explicit duplicate `tile_id` check per country (`E003_DUP_TILE`).
+
+5) **World_countries multi-row handling.**
+   - The current `world_map` dict overwrites if multiple geometries exist per ISO; spec expects full geometry surface per ISO.
+
+Planned resolutions (detailed, before code edits):
+1) **Fix run report publish path.**
+   - Treat `s1_run_report` as a file path: create its parent directory, write a temp file in the parent, then atomic rename to the target file path.
+   - Keep report outside the dataset partition (dictionary path already encodes this).
+
+2) **Deterministic antimeridian split strategy.**
+   - If a country's geometry spans >180° longitude, shift to a 0..360 domain, intersect with west (0..180) and east (180..360) boxes, then shift the east piece back to [-180,0].
+   - Process each piece independently (own geometry_window + masks), then union results by `tile_id` to avoid duplicate inclusion.
+   - This avoids global-width windows while keeping coordinates in [-180,+180] for raster alignment and ensures holes are preserved.
+
+3) **Complete PAT counter coverage.**
+   - Set `chunk_size` to `0` to denote "per-country, no tile chunking" (explicitly logged in the run report).
+   - Compute `io_baseline_vectors_bps` using the actual elapsed time to load ISO + world vectors, with `bytes_read_vectors_total` as the sum of their file sizes (the files are fully loaded).
+   - Keep raster baseline read as-is (1 GiB window) and use that for `io_baseline_raster_bps` and `bytes_read_raster_total`.
+
+4) **Add S1 validation checks + error events.**
+   - Enforce bounds: `centroid_lon` in [-180,180], `centroid_lat` in [-90,90], and `min/max lon/lat` within bounds; fail with `E004_BOUNDS`.
+   - Enforce `pixel_area_m2 > 0` and fail with `E006_AREA_NONPOS`.
+   - Check per-country duplicate `tile_id` (after any antimeridian merging) and fail with `E003_DUP_TILE`.
+   - Emit `S1_ERROR` events for these failure paths with `parameter_hash` and `country_iso`.
+
+5) **Union geometries per ISO.**
+   - If `world_countries` has multiple rows for a country, union the geometries to create a single conformance surface.
+   - Validate the unioned geometry; if invalid, fail with `E001_GEO_INVALID`.
+
+Implementation note:
+- These changes are required before running S1 to avoid a non-compliant run report path, incomplete PAT counters, and incorrect inclusion for dateline countries. All changes will be logged in the logbook and reflected in the S1 runner code.
+
+### Entry: 2026-01-13 02:05
+
+Design element: S1 runner implementation updates (spec compliance + wiring)
+Summary: Implemented the S1 runner fixes identified in the 01:55 plan, added CLI/Makefile wiring, and aligned PAT counters, antimeridian handling, and report paths with spec and dictionary law.
+
+Actions taken (implementation details):
+1) **Antimeridian split implementation.**
+   - Added deterministic split logic: shift geometry to 0..360, intersect with west (0..180) and east (180..360) boxes, then shift east back to [-180,0].
+   - Process each piece with its own geometry_window and masks; union inclusion results across parts.
+   - Added a tiny epsilon on the split boundary to avoid duplicate inclusion at lon=180.
+
+2) **Per-country geometry handling.**
+   - When `world_countries` has multiple rows per ISO, union the geometries (preserves holes) before processing.
+   - Fail fast with `E001_GEO_INVALID` if a unioned geometry is empty or invalid.
+
+3) **Bounds/area/duplicate validation.**
+   - Added explicit bounds validation for centroid and bounds columns (`E004_BOUNDS`).
+   - Added `pixel_area_m2 > 0` enforcement (`E006_AREA_NONPOS`).
+   - Added per-country duplicate `tile_id` detection (`E003_DUP_TILE`).
+   - All per-country failures raise `EngineFailure` and are surfaced via `S1_ERROR` in the main runner.
+
+4) **PAT counter completeness.**
+   - `chunk_size` is now explicitly reported as `0` (per-country windows, no tile block chunking).
+   - `io_baseline_vectors_bps` is computed using the actual load time of ISO + world vectors and their on-disk sizes.
+   - Raster baseline logging now includes bytes, elapsed time, and baseline bps.
+
+5) **Run report path compliance.**
+   - Fixed `s1_run_report` publish logic to treat the dictionary path as a file (write temp file in the parent, then atomic rename to the target file path).
+
+6) **CLI + Makefile wiring.**
+   - Added `engine.cli.s1_tile_index` with `--predicate` and `--workers`.
+   - Added Makefile target `segment1b-s1` and associated args (`SEG1B_S1_*`).
+
+Notes for follow-up validation:
+- Ensure the per-country audit logs still emit `AUDIT_S1_COUNTRY:` lines after refactors.
+- Confirm the run report now lands exactly at `reports/layer1/1B/state=S1/parameter_hash=.../s1_run_report.json`.
+
 ## S2 - Tile Weights (S2.*)
 
 ## S3 - Requirements (S3.*)
