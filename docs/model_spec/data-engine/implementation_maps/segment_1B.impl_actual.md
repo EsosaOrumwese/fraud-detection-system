@@ -1059,6 +1059,95 @@ Immediate next step:
 
 ## S3 - Requirements (S3.*)
 
+### Entry: 2026-01-13 06:52
+
+Design element: S3 contract review + pre-implementation plan (requirements frame)
+Summary: Completed the S3 expanded spec read and contract anchor review (schema + dictionary + registry). Logging the detailed design plan and decisions for a deterministic, streaming requirements frame before writing any S3 code.
+
+Contract review (authorities + shape/path anchors):
+1) **Schema authority (shape/keys).**
+   - `schemas.1B.yaml#/plan/s3_requirements` defines PK `[merchant_id, legal_country_iso]`, partitions `[seed, manifest_fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso]`, strict columns: `merchant_id`, `legal_country_iso`, `n_sites (>=1)`.
+   - Run report anchor: `schemas.1B.yaml#/control/s3_run_report` requires `{seed, manifest_fingerprint, parameter_hash}` and allows extra fields; S3 spec mandates additional fields in the report.
+
+2) **Dictionary authority (paths/partitions/licence/retention).**
+   - `s3_requirements` path: `data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` with writer sort `[merchant_id, legal_country_iso]`.
+   - `s3_run_report` path: `reports/layer1/1B/state=S3/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_run_report.json` (control-plane, must be outside dataset partition).
+
+3) **Registry authority (dependencies).**
+   - `s3_requirements` depends on `outlet_catalogue`, `tile_weights`, `iso3166_canonical_2024`, `s0_gate_receipt_1B`.
+
+Pre-implementation plan (brainstormed steps, explicit):
+1) **Resolve run identity (seed/manifest_fingerprint/parameter_hash).**
+   - Load `run_receipt.json` (latest by mtime if run_id not provided) to get `{seed, manifest_fingerprint, parameter_hash}`.
+   - Read `s0_gate_receipt_1B` for `manifest_fingerprint` and validate against `schemas.1B.yaml#/validation/s0_gate_receipt`.
+   - Enforce `manifest_fingerprint` path token equals receipt field; abort on mismatch or missing receipt (E301/E_RECEIPT_SCHEMA_INVALID).
+   - Do **not** rehash the 1A bundle; S3 trusts the S0 receipt only.
+
+2) **Resolve inputs via Dictionary (no literal paths).**
+   - `outlet_catalogue` via Dictionary path `seed={seed}/manifest_fingerprint={manifest_fingerprint}`.
+   - `tile_weights` via Dictionary path `parameter_hash={parameter_hash}`.
+   - `iso3166_canonical_2024` reference for FK set.
+   - Enforce path‑embed equality for `outlet_catalogue` columns (`manifest_fingerprint`, and `global_seed` if present) vs path tokens; no equivalent columns exist for `tile_weights` (path token only).
+
+3) **Streamed group-by over outlet_catalogue (deterministic, O(1) memory per group).**
+   - Because writer sort is `[merchant_id, legal_country_iso, site_order]`, compute counts in a single pass:
+     - Track current `(merchant_id, legal_country_iso)` group and `site_order` contiguous range.
+     - Validate `MIN(site_order)=1`, `MAX(site_order)=count`, `COUNT(DISTINCT)=count` (E314 on violation).
+     - Emit one row per group with `n_sites=count` (n_sites >= 1; elide zero counts).
+   - This avoids full materialisation and aligns with the S3 performance envelope (O(1) memory per group).
+
+4) **FK + coverage checks (deterministic asserts).**
+   - Build `iso_set` from `iso3166_canonical_2024`; assert all `legal_country_iso` are in ISO2 and uppercase (E302).
+   - Build `tile_weight_countries` from `tile_weights`:
+     - Option A (preferred): stream `tile_weights` once and collect distinct `country_iso` (table is sorted by country_iso).
+     - Option B (if output is per-country files): derive from parquet metadata/partition naming, but only if reliable (avoid implicit assumptions).
+   - Coverage rule: every `legal_country_iso` emitted by S3 must be present in `tile_weight_countries` (E303 on missing).
+
+5) **Output writing + immutability.**
+   - Write `s3_requirements` as parquet sorted by `[merchant_id, legal_country_iso]`.
+   - Stage outputs in temp dir, fsync, then atomic rename into the dictionary partition.
+   - If partition exists, require byte-identical content (E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL).
+
+6) **Run report + determinism receipt (required).**
+   - Write `s3_run_report.json` to dictionary path (outside dataset partition), including required fields:
+     - `seed`, `manifest_fingerprint`, `parameter_hash`,
+     - `rows_emitted`, `merchants_total`, `countries_total`,
+     - `source_rows_total` (rows counted from outlet_catalogue),
+     - `ingress_versions.iso3166` (use Dictionary version token `2024-12-31`),
+     - `determinism_receipt` (ASCII‑lex hash over partition files).
+   - Optional summaries: per-merchant totals, `fk_country_violations`, `coverage_missing_countries` counters for audit trace.
+
+7) **Failure events + logging clarity.**
+   - Emit `S3_ERROR` with `{code, at, seed, manifest_fingerprint, parameter_hash}` and optional `{merchant_id, legal_country_iso}`.
+   - Logs should narrate steps: "S3: gate receipt validated", "S3: building coverage set from tile_weights", "S3: counting outlet_catalogue rows", plus progress (elapsed/rate/eta).
+   - Keep outputs out of partition; do not read world_countries/population_raster/tz_world (E311 on disallowed reads).
+
+Implementation decisions (with rationale):
+1) **Coverage set strategy:** stream `tile_weights` once to build a country set. This avoids relying on file naming and is deterministic even if file layout changes.
+2) **Group-by method:** single-pass streaming using writer sort to keep memory bounded and enforce site_order contiguity deterministically.
+3) **Ingress version in report:** use Dictionary version token for `iso3166` (per S3 spec 10.2); no new config required.
+
+Open questions (if any before coding):
+1) None from spec; all required sources and contracts exist. Proceed to implementation once this plan is acknowledged.
+
+### Entry: 2026-01-13 16:42
+
+Design element: S3 performance risk posture (explicit risk/mitigation note)
+Summary: S3 is performance-sensitive because it scans large `outlet_catalogue` and needs coverage checks against `tile_weights`. Poor implementation can blow memory or add O(n) overhead beyond streaming.
+
+Risks if implemented poorly (explicit):
+1) **Full materialisation of outlet_catalogue** (or wide group-by in memory) would exceed RAM and thrash, turning a streaming count into a multi-hour job.
+2) **Naive join against tile_weights** could trigger massive shuffles or full-table joins across 200M+ rows.
+3) **Repeated scans** of outlet_catalogue or tile_weights (e.g., double-pass grouping without need) would amplify IO beyond 1.25x and slow to a crawl.
+4) **Ignoring writer-sort** would force an in-memory sort or external sort, increasing time and disk usage.
+
+Mitigations baked into the plan (how we avoid these):
+1) **Single-pass streaming counts** over outlet_catalogue using its writer sort `[merchant_id, legal_country_iso, site_order]`, keeping O(1) memory per group.
+2) **Coverage set pre-scan** of tile_weights to materialise only the distinct `country_iso` set (tiny) and avoid any join.
+3) **No full-table joins** or repartitioning; counts source is outlet_catalogue only (spec law).
+4) **Strict writer-sort adherence** and deterministic output ordering; no extra sorts unless input violates the contract (then fail fast).
+5) **Progress/ETA logging** during long scans to detect stalls early and avoid silent hangs.
+
 ## S4 - Allocation Plan (S4.*)
 
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
