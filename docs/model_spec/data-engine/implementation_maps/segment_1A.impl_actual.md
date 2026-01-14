@@ -3180,3 +3180,48 @@ Expected effect:
 
 Outcome:
 - `s9_summary.json` now records `decision=PASS`; `_passed.flag` regenerated for manifest_fingerprint `9673aac41b35e823b2c78da79bdf913998e5b7cbe4429cf70515adf02a4c0774`.
+
+### Entry: 2026-01-14 10:56
+
+Design element: Align 1A S9 validation bundle publish to immutable write-once posture.
+Summary: 1A S9 currently deletes any existing bundle before publish. To match the S9 contract language and 1B behavior, we are adding an atomic publish guard that prevents silent overwrites and requires explicit operator action to archive/remove old bundles before reruns.
+
+Decision set (explicit, with reasoning):
+1) **Keep write-once guard for S9 bundles.**
+   - Reasoning: Validation bundles are fingerprint-scoped and serve as an audit gate; silent overwrites undermine reproducibility and trust.
+   - Consequence: Re-running S9 for an existing fingerprint must explicitly archive/remove the prior bundle.
+
+2) **Use stable directory hashing for equality checks.**
+   - Reasoning: A rerun may recompute the same bundle bytes; we should allow that without raising an error. Hashing the temp and final directory content provides a stable comparison.
+   - Consequence: If hashes match, skip publish and log that the identical bundle already exists; if hashes differ, fail closed with `E913_ATOMIC_PUBLISH_VIOLATION`.
+
+Plan (before implementation, detailed and explicit):
+1) **Implement `_atomic_publish_dir` in `seg_1A/s9_validation/runner.py`.**
+   - Hash temp bundle and existing bundle using stable path ordering.
+   - If hashes differ, raise `EngineFailure(F4, E913_ATOMIC_PUBLISH_VIOLATION, S9)`.
+   - If hashes match, delete temp and return.
+   - If bundle root does not exist, publish via atomic `rename`.
+
+2) **Replace the current `shutil.rmtree(bundle_root)` overwrite.**
+   - Ensure S9 never deletes a bundle automatically.
+   - All reruns require explicit archive/remove before a new publish attempt.
+
+Expected outcome:
+ - 1A and 1B S9 behave the same: write-once bundles, explicit operator action for reruns, and audit-safe publish history.
+
+### Entry: 2026-01-14 11:06
+
+Design element: 1A S9 immutability guard implementation.
+Summary: Implemented the atomic publish guard in the 1A S9 runner so existing bundles are never overwritten silently.
+
+Changes applied (explicit, step-by-step):
+1) **Added `_hash_partition` + `_atomic_publish_dir`.**
+   - New helpers compute a stable directory hash and enforce write-once behavior.
+   - If the bundle exists and differs, S9 raises `E913_ATOMIC_PUBLISH_VIOLATION` and fails closed.
+   - If the bundle exists and matches, the temp bundle is discarded and S9 logs an identical-bytes message.
+
+2) **Replaced bundle overwrite.**
+   - Removed the unconditional `shutil.rmtree(bundle_root)` path and routed publish through `_atomic_publish_dir`.
+
+Expected effect:
+ - 1A S9 now mirrors 1B’s immutability posture and requires explicit archive/removal for reruns.

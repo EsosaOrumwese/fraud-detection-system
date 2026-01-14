@@ -22,6 +22,7 @@ SEG1A_S1_RUN_ID ?= $(RUN_ID)
 SEG1A_S2_RUN_ID ?= $(RUN_ID)
 SEG1A_S3_RUN_ID ?= $(RUN_ID)
 SEG1A_S4_RUN_ID ?= $(RUN_ID)
+SEG1A_S9_RUN_ID ?= $(RUN_ID)
 SEG1B_S0_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_RUN_ID ?= $(RUN_ID)
 SEG1B_S2_RUN_ID ?= $(RUN_ID)
@@ -1082,7 +1083,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
@@ -1271,6 +1272,52 @@ segment1a-s9:
 
 engine-s9: segment1a-s9
 
+segment1a-s9-archive:
+	@echo "Archiving Segment 1A S9 validation bundle"
+	@$(PY_SCRIPT) - <<'PY'
+import json
+import pathlib
+import shutil
+import sys
+import time
+
+runs_root = pathlib.Path("$(RUNS_ROOT)")
+run_id = "$(SEG1A_S9_RUN_ID)".strip()
+
+def pick_latest_receipt(root: pathlib.Path) -> pathlib.Path:
+    receipts = sorted(root.glob("*/run_receipt.json"), key=lambda p: p.stat().st_mtime)
+    if not receipts:
+        print(f"No run_receipt.json found under {root}", file=sys.stderr)
+        sys.exit(1)
+    return receipts[-1]
+
+receipt_path = runs_root / run_id / "run_receipt.json" if run_id else pick_latest_receipt(runs_root)
+receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+run_id = receipt["run_id"]
+fingerprint = receipt["manifest_fingerprint"]
+
+bundle_root = runs_root / run_id / "data" / "layer1" / "1A" / "validation" / f"manifest_fingerprint={fingerprint}"
+if not bundle_root.exists():
+    print(f"Validation bundle not found: {bundle_root}", file=sys.stderr)
+    sys.exit(1)
+
+timestamp = time.strftime("%Y%m%dT%H%M%S")
+archive_root = (
+    runs_root
+    / run_id
+    / "data"
+    / "layer1"
+    / "1A"
+    / "validation"
+    / "_failed"
+    / f"manifest_fingerprint={fingerprint}"
+    / f"attempt={timestamp}"
+)
+archive_root.parent.mkdir(parents=True, exist_ok=True)
+shutil.move(str(bundle_root), str(archive_root))
+print(f"Archived {bundle_root} -> {archive_root}")
+PY
+
 segment1b-s0:
 	@echo "Running Segment 1B S0 gate-in"
 	@$(SEG1B_S0_CMD)
@@ -1310,6 +1357,52 @@ segment1b-s8:
 segment1b-s9:
 	@echo "Running Segment 1B S9 validation bundle"
 	@$(SEG1B_S9_CMD)
+
+segment1b-s9-archive:
+	@echo "Archiving Segment 1B S9 validation bundle"
+	@$(PY_SCRIPT) - <<'PY'
+import json
+import pathlib
+import shutil
+import sys
+import time
+
+runs_root = pathlib.Path("$(RUNS_ROOT)")
+run_id = "$(SEG1B_S9_RUN_ID)".strip()
+
+def pick_latest_receipt(root: pathlib.Path) -> pathlib.Path:
+    receipts = sorted(root.glob("*/run_receipt.json"), key=lambda p: p.stat().st_mtime)
+    if not receipts:
+        print(f"No run_receipt.json found under {root}", file=sys.stderr)
+        sys.exit(1)
+    return receipts[-1]
+
+receipt_path = runs_root / run_id / "run_receipt.json" if run_id else pick_latest_receipt(runs_root)
+receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+run_id = receipt["run_id"]
+fingerprint = receipt["manifest_fingerprint"]
+
+bundle_root = runs_root / run_id / "data" / "layer1" / "1B" / "validation" / f"manifest_fingerprint={fingerprint}"
+if not bundle_root.exists():
+    print(f"Validation bundle not found: {bundle_root}", file=sys.stderr)
+    sys.exit(1)
+
+timestamp = time.strftime("%Y%m%dT%H%M%S")
+archive_root = (
+    runs_root
+    / run_id
+    / "data"
+    / "layer1"
+    / "1B"
+    / "validation"
+    / "_failed"
+    / f"manifest_fingerprint={fingerprint}"
+    / f"attempt={timestamp}"
+)
+archive_root.parent.mkdir(parents=True, exist_ok=True)
+shutil.move(str(bundle_root), str(archive_root))
+print(f"Archived {bundle_root} -> {archive_root}")
+PY
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"

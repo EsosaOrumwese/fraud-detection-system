@@ -2028,6 +2028,70 @@ Implementation actions (step-by-step with rationale):
 
 4) **RNG substreams and event logging.**
    - Implemented per-site Philox2x64-10 substreams keyed by `(merchant_id, legal_country_iso, site_order)` with one event per attempt (`blocks=1`, `draws=\"2\"`), plus trace log support and audit log idempotency.
+
+### Entry: 2026-01-14 10:56
+
+Design element: S6 rng_trace_log append strategy to satisfy S9 reconciliation (trace missing when event log exists).
+Summary: S6 currently suppresses trace emission when `rng_trace_log` already exists. That keeps immutability, but breaks S9 because S6 `rng_event_in_cell_jitter` exists without matching trace rows. The spec requires trace coverage per event family, so we need to append missing S6 trace rows in a controlled, idempotent way.
+
+Plan (before implementation, detailed and explicit):
+1) **Detect trace coverage for S6 substream.**
+   - Load `rng_trace_log` if it exists for `{seed, parameter_hash, run_id}`.
+   - Scan for any row with `module=1B.S6.jitter` and `substream_label=in_cell_jitter`.
+   - If any exist, treat S6 trace as already emitted and skip new trace writes (avoid duplicate rows).
+
+2) **Decide trace emission mode (create vs append vs skip).**
+   - If trace file **does not exist**, emit trace rows as normal to a temp file and publish atomically (current behavior).
+   - If trace file **exists but lacks S6 substream**, append S6 trace rows to the existing file (append-only, no deletion).
+   - If trace file **exists and already has S6 substream**, skip trace emission (idempotent).
+
+3) **If event log exists but trace is missing, rebuild trace from events.**
+   - S6 may skip event emission if `rng_event_in_cell_jitter` already exists.
+   - In that case, rebuild the trace by streaming existing event JSONL rows from the event log directory and feeding them into `RngTraceAccumulator` to emit **one trace row per event** (cumulative totals).
+   - Append those rows to `rng_trace_log` when `trace_mode=append`, or write to temp then publish when `trace_mode=create`.
+   - Abort with a clear error if the event log directory exists but no JSONL event rows are found (trace cannot be reconstructed).
+
+4) **Ensure append-only integrity and logging clarity.**
+   - Never delete or overwrite existing `rng_trace_log`.
+   - Log which mode is used: `trace=create`, `trace=append_from_existing_events`, or `trace=skip_existing_substream`.
+   - Record counts for appended trace rows and the number of event rows processed so S9 troubleshooting is straightforward.
+
+5) **Preserve deterministic results.**
+   - Trace rows are deterministic from event log content; append order follows file sort order (`*.jsonl` lexicographic) to keep byte stability.
+   - Ensure trace rows embed the same `seed` and `run_id` as path tokens (path↔embed equality).
+
+Expected outcome:
+ - S6 emits or appends `rng_trace_log` rows for `in_cell_jitter` so S9 reconciliation passes.
+ - Immutability is preserved: existing trace rows are never altered, only appended when missing.
+ - Reruns remain idempotent: if S6 trace already exists, no new rows are appended.
+
+### Entry: 2026-01-14 11:06
+
+Design element: S6 rng_trace_log append implementation (trace rebuild from existing events).
+Summary: Implemented the append-only trace handling so S6 can emit trace rows even when the event log already exists, without overwriting the shared trace log.
+
+Changes applied (explicit, step-by-step):
+1) **Added shared JSONL readers and trace detection helpers.**
+   - Introduced `_iter_jsonl_paths`, `_iter_jsonl_rows`, `_trace_has_substream`, and `_append_trace_from_events` in `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`.
+   - These allow S6 to detect whether its substream already appears in `rng_trace_log` and to rebuild trace rows from existing event logs when needed.
+
+2) **Replaced the old trace suppression logic with a three-mode controller.**
+   - `trace_mode=create` when `rng_trace_log` does not exist (write temp + atomic publish).
+   - `trace_mode=append` when `rng_trace_log` exists but lacks the S6 substream (append-only).
+   - `trace_mode=skip` when `rng_trace_log` already contains S6 rows (idempotent).
+   - Logged the chosen mode for operator visibility.
+
+3) **Prevented recomputed-trace drift when event logs already exist.**
+   - If `rng_event_in_cell_jitter` already exists and trace is missing, S6 now streams the existing JSONL event rows and appends one trace row per event via `RngTraceAccumulator`.
+   - This keeps trace totals aligned to the authoritative event log bytes instead of recomputed events.
+
+4) **Publish behavior adjusted for append vs create.**
+   - When `trace_mode=create`, the temp trace file is atomically published to the trace path.
+   - When `trace_mode=append`, no publish step occurs; rows are appended directly to the existing trace log.
+
+Expected effect:
+ - S6 trace coverage will exist for `in_cell_jitter` even on reruns with pre-existing event logs.
+ - S9 reconciliation will see matching event totals and trace totals for the S6 substream.
    - Rationale: spec requires deterministic substreams and per-attempt event logging; trace/audit logs align with existing RNG governance patterns.
 
 5) **Output dataset + run report.**
@@ -2706,6 +2770,67 @@ In-process plan and decision log (before code changes, detailed):
 
 4) **Post-implementation tasks (queued).**
    - After S9 is green, retrofit S4-S8 logging to narrate the state flow clearly (story header + phase markers).
+
+### Entry: 2026-01-14 10:56
+
+Design element: Validation bundle immutability guard + explicit archive workflow + 1A/1B alignment.
+Summary: S9 re-runs for the same `manifest_fingerprint` must not silently overwrite prior bundles. We keep the immutability guard, add an explicit archive helper for operators, and align 1A S9 to the same publish posture as 1B S9.
+
+Decision set (explicit, with reasoning):
+1) **Immutability guard stays on.**
+   - Reasoning: The spec calls the bundle write-once and fingerprint-scoped; overwriting defeats the audit trail. If bytes differ, S9 must fail closed.
+   - Consequence: Operators must explicitly archive or delete failed bundles before re-running S9 for the same fingerprint.
+
+2) **Archive helper instead of implicit overwrite.**
+   - Reasoning: We need a repeatable, explicit workflow for reruns that preserves history. The helper moves the existing bundle to a `_failed/` archive path with a timestamp.
+   - Consequence: Reruns become a deliberate action (archive → re-run), and the provenance chain remains intact.
+
+3) **Align 1A S9 to the same guard.**
+   - Reasoning: 1A currently removes an existing bundle prior to publish. That is inconsistent with 1B and undermines the write-once contract. Alignment avoids future surprises when re-running 1A S9.
+   - Consequence: 1A S9 will raise the same immutability error if the bundle exists and differs, and will require explicit archive/removal to re-run.
+
+Plan (before implementation, detailed and explicit):
+1) **Add an atomic publish guard to 1A S9.**
+   - Implement a `_atomic_publish_dir` helper in `seg_1A/s9_validation/runner.py` similar to 1B:
+     - If the destination bundle exists, hash the temp bundle and existing bundle (stable traversal).
+     - If hashes match, delete temp and return with an info log.
+     - If hashes differ, raise `E913_ATOMIC_PUBLISH_VIOLATION` (fail closed).
+   - Replace the current `shutil.rmtree(bundle_root)` overwrite with this guard.
+
+2) **Introduce explicit archive helper targets (1A + 1B).**
+   - Add Makefile targets (`segment1a-s9-archive`, `segment1b-s9-archive`) that:
+     - Read `run_receipt.json` to resolve `manifest_fingerprint`.
+     - Move the existing bundle directory to `data/layer1/{segment}/validation/_failed/manifest_fingerprint={fingerprint}/attempt={timestamp}`.
+     - Log the source and destination paths.
+   - This keeps archive content outside dictionary paths and retains the full byte history.
+
+3) **Update documentation/logbook.**
+   - Record the guard alignment and archive workflow in `segment_1B.impl_actual.md`, `segment_1A.impl_actual.md`, and the logbook.
+   - Note that S9 reruns for an existing fingerprint are explicitly two-step (archive → re-run).
+
+Expected outcome:
+ - S9 publishes are truly immutable and audit-safe across 1A and 1B.
+ - Rerun workflows are explicit and repeatable without silent mutation of validation bundles.
+
+### Entry: 2026-01-14 11:06
+
+Design element: Implement archive helper targets + 1A S9 immutability guard alignment.
+Summary: Added explicit Makefile helpers for archiving validation bundles prior to S9 reruns and aligned 1A S9 publish to the same immutability guard used in 1B.
+
+Changes applied (explicit, step-by-step):
+1) **Makefile archive targets.**
+   - Added `segment1a-s9-archive` and `segment1b-s9-archive` targets.
+   - Each target reads `run_receipt.json`, resolves `manifest_fingerprint`, and moves the existing bundle to:
+     - `data/layer1/{segment}/validation/_failed/manifest_fingerprint={fingerprint}/attempt={timestamp}`.
+   - Updated `.PHONY` to include the new targets and added a default `SEG1A_S9_RUN_ID`.
+
+2) **1A S9 immutability guard.**
+   - Implemented `_hash_partition` + `_atomic_publish_dir` in `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
+   - Replaced the unconditional `shutil.rmtree(bundle_root)` with `_atomic_publish_dir` so 1A S9 now fails closed when the bundle exists but differs.
+
+Expected effect:
+ - Operators can explicitly archive failed bundles before re-running S9.
+ - 1A and 1B now share the same write-once validation bundle behavior.
 
 ### Entry: 2026-01-14 10:33
 

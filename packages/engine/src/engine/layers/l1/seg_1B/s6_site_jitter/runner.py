@@ -169,6 +169,60 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True), encoding="utf-8")
 
 
+def _iter_jsonl_paths(root: Path) -> list[Path]:
+    if root.is_file():
+        return [root]
+    return sorted(path for path in root.rglob("*.jsonl") if path.is_file())
+
+
+def _iter_jsonl_rows(paths: Iterable[Path], label: str) -> Iterator[dict]:
+    for path in paths:
+        with path.open("r", encoding="utf-8") as handle:
+            for line_no, line in enumerate(handle, start=1):
+                payload = line.strip()
+                if not payload:
+                    continue
+                try:
+                    yield json.loads(payload)
+                except json.JSONDecodeError as exc:
+                    raise EngineFailure(
+                        "F4",
+                        "E614_JSONL_PARSE",
+                        "S6",
+                        MODULE_NAME,
+                        {"detail": "jsonl_parse_failed", "label": label, "path": str(path), "line": line_no},
+                    ) from exc
+
+
+def _trace_has_substream(trace_path: Path, module: str, substream_label: str) -> bool:
+    for row in _iter_jsonl_rows([trace_path], "rng_trace_log"):
+        if row.get("module") == module and row.get("substream_label") == substream_label:
+            return True
+    return False
+
+
+def _append_trace_from_events(
+    event_root: Path, trace_handle, trace_acc: RngTraceAccumulator, logger
+) -> int:
+    event_paths = _iter_jsonl_paths(event_root)
+    if not event_paths:
+        raise EngineFailure(
+            "F4",
+            "E614_EVENT_LOG_EMPTY",
+            "S6",
+            MODULE_NAME,
+            {"detail": "no_event_jsonl_files", "path": str(event_root)},
+        )
+    rows_written = 0
+    for event in _iter_jsonl_rows(event_paths, "rng_event_in_cell_jitter"):
+        trace_row = trace_acc.append_event(event)
+        trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
+        trace_handle.write("\n")
+        rows_written += 1
+    logger.info("S6: appended trace rows from existing events rows=%d", rows_written)
+    return rows_written
+
+
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
     receipts = sorted(
         runs_root.glob("*/run_receipt.json"),
@@ -899,11 +953,26 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     event_handle = event_tmp_file.open("w", encoding="utf-8") if event_enabled else None
     if not event_enabled:
         logger.info("S6: rng_event_in_cell_jitter already exists; skipping event emission")
-    trace_enabled = not trace_path.exists()
-    trace_handle = trace_tmp.open("w", encoding="utf-8") if trace_enabled else None
-    trace_acc = RngTraceAccumulator() if trace_enabled else None
-    if not trace_enabled:
-        logger.info("S6: rng_trace_log already exists; skipping trace emission")
+
+    if trace_path.exists():
+        trace_mode = (
+            "skip"
+            if _trace_has_substream(trace_path, MODULE_NAME, SUBSTREAM_LABEL)
+            else "append"
+        )
+    else:
+        trace_mode = "create"
+    if trace_mode == "create":
+        trace_handle = trace_tmp.open("w", encoding="utf-8")
+        trace_acc = RngTraceAccumulator()
+    elif trace_mode == "append":
+        trace_handle = trace_path.open("a", encoding="utf-8")
+        trace_acc = RngTraceAccumulator()
+    else:
+        trace_handle = None
+        trace_acc = None
+    logger.info("S6: rng_trace_log mode=%s", trace_mode)
+    trace_inline = event_enabled and trace_handle is not None and trace_acc is not None
 
     audit_entry_payload = {
         "ts_utc": utc_now_rfc3339_micro(),
@@ -1189,12 +1258,12 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                         "delta_lat_deg": float(delta_lat),
                         "delta_lon_deg": float(delta_lon),
                     }
-                    if trace_enabled and trace_acc is not None:
+                    if trace_inline:
                         trace_row = trace_acc.append_event(event)
                     if event_enabled and event_handle is not None:
                         event_handle.write(json.dumps(event, ensure_ascii=True, sort_keys=True))
                         event_handle.write("\n")
-                    if trace_enabled and trace_handle is not None:
+                    if trace_inline:
                         trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
                         trace_handle.write("\n")
                     rng_events_emitted += 1
@@ -1270,6 +1339,10 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 open_files_peak = max(open_files_peak, int(proc.num_fds()))
 
         _flush_batch()
+        if not event_enabled and trace_handle is not None and trace_acc is not None:
+            rng_events_emitted = _append_trace_from_events(
+                event_root, trace_handle, trace_acc, logger
+            )
         if rows_emitted == 0:
             raise EngineFailure("F4", "E601_ROW_MISSING", "S6", MODULE_NAME, {"detail": "no_rows_emitted"})
         if total_sites is not None and rows_emitted != total_sites:
@@ -1322,8 +1395,10 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     _atomic_publish_dir(output_tmp, jitter_root, logger, "s6_site_jitter")
     if event_enabled:
         _atomic_publish_dir(event_tmp, event_root, logger, DATASET_ID)
-    if trace_enabled:
+    if trace_mode == "create":
         _atomic_publish_file(trace_tmp, trace_path, logger, TRACE_DATASET_ID)
+    elif trace_mode == "append":
+        logger.info("S6: rng_trace_log appended (existing log retained)")
     _ensure_rng_audit(audit_path, audit_entry_payload, logger)
 
     wall_total = time.monotonic() - start_wall

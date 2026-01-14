@@ -628,6 +628,43 @@ def _bundle_hash(bundle_root: Path, index_entries: list[dict]) -> str:
         hasher.update((bundle_root / path).read_bytes())
     return hasher.hexdigest()
 
+
+def _hash_partition(root: Path) -> tuple[str, int]:
+    files = sorted(
+        [path for path in root.rglob("*") if path.is_file()],
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
+    h = hashlib.sha256()
+    total_bytes = 0
+    for path in files:
+        with path.open("rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                h.update(chunk)
+    return h.hexdigest(), total_bytes
+
+
+def _atomic_publish_dir(tmp_root: Path, final_root: Path, logger, label: str) -> None:
+    if final_root.exists():
+        tmp_hash, _ = _hash_partition(tmp_root)
+        final_hash, _ = _hash_partition(final_root)
+        if tmp_hash != final_hash:
+            raise EngineFailure(
+                "F4",
+                "E913_ATOMIC_PUBLISH_VIOLATION",
+                "S9",
+                MODULE_NAME,
+                {"detail": "partition_exists_nonidentical", "dataset": label},
+            )
+        shutil.rmtree(tmp_root)
+        logger.info("S9: %s partition already exists with identical bytes", label)
+        return
+    final_root.parent.mkdir(parents=True, exist_ok=True)
+    tmp_root.replace(final_root)
+
 def run_s9(
     config: EngineConfig, run_id: Optional[str] = None, validate_only: bool = False
 ) -> S9RunResult:
@@ -2805,10 +2842,7 @@ def run_s9(
         flag_payload = f"sha256_hex = {bundle_hash}"
         (tmp_root / "_passed.flag").write_text(flag_payload + "\n", encoding="ascii")
 
-    if bundle_root.exists():
-        shutil.rmtree(bundle_root)
-
-    tmp_root.replace(bundle_root)
+    _atomic_publish_dir(tmp_root, bundle_root, logger, DATASET_VALIDATION_BUNDLE)
     timer.info(f"S9: bundle published decision={decision}")
 
     return S9RunResult(
