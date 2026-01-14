@@ -15,6 +15,8 @@ _TYPE_MAP = {
     "int16": "integer",
     "int8": "integer",
     "uint64": "integer",
+    "integer": "integer",
+    "number": "number",
     "float64": "number",
     "float32": "number",
     "string": "string",

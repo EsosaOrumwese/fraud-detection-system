@@ -1050,3 +1050,113 @@ Implementation actions (detailed):
 3) **Output surface unchanged.**
    - No schema or partition changes for `s1_tz_lookup`; only the selection
      logic for ambiguous sites changes.
+
+### Entry: 2026-01-14 20:04
+
+Design element: JSON Schema adapter support for `type: integer` (S1 validation failure).
+Summary: S1 failed during JSON Schema adaptation because `schemas.2A.yaml` uses
+`type: integer`, but the adapter only recognizes `int32/int64/...`. We need a
+minimal, spec-aligned fix so validation can proceed without modifying contracts.
+
+Observed failure:
+- `ContractError: Unsupported column type 'integer' for JSON Schema adapter.`
+  while adapting `s1_tz_lookup` output tables.
+
+Decision reasoning (before implementation):
+1) **Option A: update the adapter** to treat `integer` as a supported column
+   type (map to JSON Schema `integer`). This matches JSON Schema semantics and
+   keeps the contracts unchanged.
+2) **Option B: change schema types** from `integer` to `int32/int64` in the
+   2A schema pack. This would alter the spec contract surface and requires
+   additional review/coordination because other components may already rely on
+   `integer`.
+3) **Option C: local hack in S1** to rewrite schemas before validation. This
+   would be a one-off deviation and risks divergence across states.
+
+Decision:
+- Proceed with **Option A**: update the shared JSON Schema adapter to accept
+  `type: integer`. This is a general, low-risk compatibility fix and keeps the
+  contract pack authoritative.
+
+Plan (before code changes):
+1) Add `"integer": "integer"` to `_TYPE_MAP` in
+   `packages/engine/src/engine/contracts/jsonschema_adapter.py`.
+2) Ensure both `_column_schema` and `_item_schema` pick up the mapping.
+3) Keep other behavior unchanged to avoid widening validation semantics.
+4) Re-run `segment2a-s1` to confirm validation passes.
+
+### Entry: 2026-01-14 20:16
+
+Design element: JSON Schema adapter integer support (implementation).
+Summary: Implemented `type: integer` support in the shared adapter so 2A S1
+output validation can consume schema packs that already use `integer`.
+
+Implementation actions (detailed):
+1) Updated `_TYPE_MAP` in `packages/engine/src/engine/contracts/jsonschema_adapter.py`
+   to include `integer -> integer`.
+2) No changes to schema packs or S1 runner logic; the adapter now accepts
+   `integer` wherever column/item types are mapped.
+
+### Entry: 2026-01-14 20:12
+
+Design element: JSON Schema adapter support for `type: number` (S1 validation failure).
+Summary: After adding `integer`, S1 failed again because some 2A columns are
+declared as `type: number`, which is valid JSON Schema but not supported by the
+adapter. We need to expand the adapter mapping.
+
+Observed failure:
+- `ContractError: Unsupported column type 'number' for JSON Schema adapter.`
+  during `s1_tz_lookup` output validation.
+
+Decision reasoning (before implementation):
+1) **Option A: update the adapter** to treat `number` as a supported column
+   type (map to JSON Schema `number`). This aligns with JSON Schema itself and
+   keeps contracts unchanged.
+2) **Option B: change schema types** from `number` to `float32/float64` in the
+   2A schema pack. This is a contract edit and may ripple to other uses.
+3) **Option C: runner-local schema rewrite**, which would be a one-off
+   divergence and risks inconsistent validation behavior across states.
+
+Decision:
+- Proceed with **Option A**: update the shared adapter to accept `number`.
+
+Plan (before code changes):
+1) Add `"number": "number"` to `_TYPE_MAP` in
+   `packages/engine/src/engine/contracts/jsonschema_adapter.py`.
+2) Ensure both column and array item mappings accept `number`.
+3) Leave all other behavior unchanged.
+4) Re-run `segment2a-s1` to confirm validation proceeds.
+
+### Entry: 2026-01-14 20:14
+
+Design element: JSON Schema adapter number support (implementation).
+Summary: Implemented `type: number` support in the shared adapter so 2A S1
+output validation accepts schema columns typed as `number`.
+
+Implementation actions (detailed):
+1) Updated `_TYPE_MAP` in `packages/engine/src/engine/contracts/jsonschema_adapter.py`
+   to include `number -> number`.
+2) No schema or runner changes; the adapter now recognizes `number` for both
+   column and item schemas.
+
+### Entry: 2026-01-14 20:10
+
+Design element: S1 run verification after adapter fixes.
+Summary: Re-ran `segment2a-s1` for run_id `a988b06e603fe3aa90ac84a3a7e1cd7c`
+after adding adapter support for `integer` and `number`. The make command timed
+out in the shell, but the run log shows S1 completed successfully and emitted
+outputs.
+
+Observed run evidence (from run log):
+1) Output parquet written:
+   - `runs/local_full_run-5/a988b06e603fe3aa90ac84a3a7e1cd7c/tmp/s1_tz_lookup_*/part-00000.parquet`
+   - rows emitted: `34363`
+2) EMIT event logged for
+   - `data/layer1/2A/s1_tz_lookup/seed=42/manifest_fingerprint=241f367e.../`
+3) Summary and completion line:
+   - `S1: overrides applied total=2 (country=2)`
+   - `S1 2A complete: run_id=a988... manifest_fingerprint=241f...`
+
+Conclusion:
+- S1 is green for run_id `a988b06e603fe3aa90ac84a3a7e1cd7c`.
+- No further code changes needed for S1 at this time.
