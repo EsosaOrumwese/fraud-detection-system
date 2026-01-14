@@ -3150,5 +3150,33 @@ Next step:
 Design element: S9 rerun after policy mapping update
 Summary: Re-ran S9 for run_id `f079e82cb937e7bdb61615dbdcf0d038` and confirmed PASS after including `policy.s2.tile_weights.yaml` in the parameter recompute list.
 
+### Entry: 2026-01-14 01:20
+
+Design element: S9 validator nullable handling (pre-change plan)
+Summary: Align S9 validation with the shared nullable-schema helper so `nullable: true` fields are handled consistently across states.
+
+Context:
+- A shared `normalize_nullable_schema` helper now lives in `engine.contracts.jsonschema_adapter` to translate `nullable: true` into Draft202012-compatible unions.
+- S9 uses `_apply_nullable_properties` locally for record schemas; to keep behavior consistent across runners, S9 should use the shared helper instead of bespoke logic.
+
+Plan (before editing):
+1) Import `normalize_nullable_schema` into `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
+2) Apply normalization in `_schema_from_pack` so any schema resolved via that path honors `nullable: true`.
+3) Refit `_apply_nullable_properties` to delegate to `normalize_nullable_schema` (preserving the local API).
+4) Keep all other validation behavior unchanged.
+
+### Entry: 2026-01-14 01:21
+
+Design element: S9 validator nullable handling (implementation)
+Summary: Updated S9 validation to use the shared `normalize_nullable_schema` helper for consistent nullable handling.
+
+Changes applied:
+1) Imported `normalize_nullable_schema` in `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
+2) Updated `_schema_from_pack` to return a normalized schema (post-unevaluated cleanup).
+3) Replaced `_apply_nullable_properties` body to delegate to `normalize_nullable_schema`.
+
+Expected effect:
+- Any S9 validations of stream records with `nullable: true` now accept `null` values in optional fields, matching the behavior used in other runners.
+
 Outcome:
 - `s9_summary.json` now records `decision=PASS`; `_passed.flag` regenerated for manifest_fingerprint `9673aac41b35e823b2c78da79bdf913998e5b7cbe4429cf70515adf02a4c0774`.

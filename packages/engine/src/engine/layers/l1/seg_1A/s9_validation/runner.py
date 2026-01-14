@@ -19,7 +19,11 @@ import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
 
-from engine.contracts.jsonschema_adapter import table_to_jsonschema, validate_dataframe
+from engine.contracts.jsonschema_adapter import (
+    normalize_nullable_schema,
+    table_to_jsonschema,
+    validate_dataframe,
+)
 from engine.contracts.loader import (
     artifact_dependency_closure,
     find_dataset_entry,
@@ -214,7 +218,7 @@ def _schema_from_pack(schema_pack: dict, path: str) -> dict:
                 subschema.pop("unevaluatedProperties", None)
     if unevaluated is not None and "unevaluatedProperties" not in schema:
         schema["unevaluatedProperties"] = unevaluated
-    return schema
+    return normalize_nullable_schema(schema)
 
 
 def _schema_section(schema_pack: dict, section: str) -> dict:
@@ -536,27 +540,7 @@ def _load_audit_commit(path: Path) -> Optional[bytes]:
 
 
 def _apply_nullable_properties(schema: dict) -> dict:
-    properties = schema.get("properties")
-    if not isinstance(properties, dict):
-        return schema
-    rewritten = {}
-    for name, prop in properties.items():
-        if isinstance(prop, dict) and prop.get("nullable"):
-            base = dict(prop)
-            base.pop("nullable", None)
-            if "$ref" in base:
-                ref = base.pop("$ref")
-                if base:
-                    base_schema = {"allOf": [{"$ref": ref}, base]}
-                else:
-                    base_schema = {"$ref": ref}
-            else:
-                base_schema = base
-            rewritten[name] = {"anyOf": [base_schema, {"type": "null"}]}
-        else:
-            rewritten[name] = prop
-    schema["properties"] = rewritten
-    return schema
+    return normalize_nullable_schema(schema)
 
 
 def _load_s3_integerisation_policy(path: Path, schema_layer1: dict) -> S3IntegerisationPolicy:
