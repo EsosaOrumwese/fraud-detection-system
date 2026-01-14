@@ -30,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.getenv("ENGINE_EMIT_HURDLE_PI", "1").lower() not in ("0", "false", "no"),
         help="Emit optional hurdle_pi_probs diagnostics (default: enabled).",
     )
+    parser.add_argument(
+        "--emit-validation-bundle",
+        action=argparse.BooleanOptionalAction,
+        default=os.getenv("ENGINE_EMIT_S0_VALIDATION_BUNDLE", "0").lower() not in ("0", "false", "no"),
+        help="Emit optional S0 validation bundle (default: disabled; S9 is canonical).",
+    )
     return parser
 
 
@@ -62,6 +68,7 @@ def main() -> None:
         seed_override=args.seed,
         merchant_ids_version=args.merchant_ids_version,
         emit_hurdle_pi_probs=args.emit_hurdle_pi_probs,
+        emit_validation_bundle=args.emit_validation_bundle,
     )
     logger.info(
         "S0 complete: run_id=%s parameter_hash=%s manifest_fingerprint=%s",

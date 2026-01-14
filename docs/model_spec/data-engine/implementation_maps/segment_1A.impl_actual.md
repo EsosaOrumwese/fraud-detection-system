@@ -8,6 +8,57 @@ it. Do not delete prior entries.
 
 ## S0 - Foundations (S0.1 to S0.10)
 
+### Entry: 2026-01-14 12:26
+
+Design element: Disable S0 validation bundle emission by default to avoid S9 immutability conflicts.
+Summary: S0 currently writes `validation_bundle_1A` under the fingerprint path that S9 is responsible for publishing. This creates a deterministic but **non-identical** bundle, so S9 correctly fails with `E913_ATOMIC_PUBLISH_VIOLATION` when it tries to publish its own bundle. The spec already marks S0.10 as optional; therefore, S0 should skip bundle emission by default and only emit when explicitly requested.
+
+Brainstorming / decision detail (captured before code):
+1) **Observed behavior.**
+   - Fresh runs still fail in S9 with `E913_ATOMIC_PUBLISH_VIOLATION` even when run_id is new.
+   - Root cause: S0 emits a bundle under `data/layer1/1A/validation/manifest_fingerprint=.../`, then S9 tries to publish a different bundle to the same path.
+
+2) **Options considered.**
+   - **Option A (chosen):** Disable S0 bundle emission by default; add an explicit flag to re-enable when needed.
+   - Option B: Move S0 bundle to a separate dataset/path (requires dictionary + spec updates).
+   - Option C: Force S0 bundle to be byte-identical to S9 bundle (impractical because S9 includes additional artefacts and checks).
+
+3) **Decision.**
+   - Implement **Option A**. Make S9 the canonical publisher of `validation_bundle_1A`.
+   - Keep S0’s emission available for debugging (explicit opt-in flag).
+
+Implementation plan (before code edits):
+1) Add `emit_validation_bundle: bool = False` to `run_s0` signature.
+2) Add CLI flag `--emit-validation-bundle/--no-emit-validation-bundle` with default **False** (environment override allowed).
+3) Wrap `write_validation_bundle(...)` in S0 with the new flag; when disabled, log a single line explaining S9 is canonical.
+4) Add Makefile variable `SEG1A_S0_EMIT_VALIDATION`:
+   - If `1`, add `--emit-validation-bundle`.
+   - If `0`, add `--no-emit-validation-bundle` (explicit off).
+5) Update logbook with decision + implementation notes.
+
+### Entry: 2026-01-14 12:30
+
+Design element: S0 validation bundle emission disabled by default (implementation).
+Summary: Implemented the opt-in switch so S0 no longer publishes `validation_bundle_1A` unless explicitly requested; S9 is now the canonical bundle publisher.
+
+Implementation actions (detailed):
+1) **Runner switch (S0).**
+   - Added `emit_validation_bundle: bool = False` to `run_s0` signature.
+   - Wrapped `write_validation_bundle(...)` behind the flag.
+   - Added a log line when disabled: `S0.10: validation bundle emission disabled (S9 is canonical)`.
+
+2) **CLI flag.**
+   - Added `--emit-validation-bundle/--no-emit-validation-bundle` (BooleanOptionalAction) to `engine.cli.s0_foundations`.
+   - Default uses `ENGINE_EMIT_S0_VALIDATION_BUNDLE` with fallback **disabled**.
+
+3) **Makefile wiring.**
+   - Added `SEG1A_S0_EMIT_VALIDATION` variable.
+   - If set to `1`, `make segment1a` passes `--emit-validation-bundle`; if set to `0`, it passes `--no-emit-validation-bundle`.
+
+Expected behavior change:
+- S0 no longer creates `data/layer1/1A/validation/manifest_fingerprint=.../` unless explicitly enabled.
+- S9 can publish the canonical validation bundle without `E913_ATOMIC_PUBLISH_VIOLATION` on fresh runs.
+
 ### Entry: 2026-01-11 00:12
 
 Design element: Contract source switching (model_spec vs contracts root)

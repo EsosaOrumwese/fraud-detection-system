@@ -18,6 +18,7 @@ ENGINE_EXTERNAL_ROOTS ?=
 ENGINE_RUNS_ROOT ?= $(RUNS_ROOT)
 SEG1A_S0_SEED ?=
 SEG1A_S0_MERCHANT_VERSION ?= $(MERCHANT_VERSION)
+SEG1A_S0_EMIT_VALIDATION ?=
 SEG1A_S1_RUN_ID ?= $(RUN_ID)
 SEG1A_S2_RUN_ID ?= $(RUN_ID)
 SEG1A_S3_RUN_ID ?= $(RUN_ID)
@@ -265,6 +266,12 @@ SEG1A_S0_ARGS += --seed $(SEG1A_S0_SEED)
 endif
 ifneq ($(strip $(SEG1A_S0_MERCHANT_VERSION)),)
 SEG1A_S0_ARGS += --merchant-ids-version $(SEG1A_S0_MERCHANT_VERSION)
+endif
+ifeq ($(strip $(SEG1A_S0_EMIT_VALIDATION)),1)
+SEG1A_S0_ARGS += --emit-validation-bundle
+endif
+ifeq ($(strip $(SEG1A_S0_EMIT_VALIDATION)),0)
+SEG1A_S0_ARGS += --no-emit-validation-bundle
 endif
 SEG1A_S0_CMD = $(PY_ENGINE) -m engine.cli.s0_foundations $(SEG1A_S0_ARGS)
 

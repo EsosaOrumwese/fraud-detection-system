@@ -816,6 +816,7 @@ def run_s0(
     seed_override: Optional[int] = None,
     merchant_ids_version: Optional[str] = None,
     emit_hurdle_pi_probs: bool = True,
+    emit_validation_bundle: bool = False,
 ) -> S0RunResult:
     logger = get_logger("engine.layers.l1.seg_1A.s0_foundations.l2.runner")
     timer = _StepTimer(logger)
@@ -1509,18 +1510,21 @@ def run_s0(
             },
             {"artifact_id": "index", "kind": "summary", "path": "index.json"},
         ]
-        write_validation_bundle(
-            outputs.validation_bundle_root,
-            manifest_payload,
-            parameter_hash_resolved,
-            manifest_fingerprint_resolved,
-            param_digest_log,
-            fingerprint_artifacts,
-            attestation_payload,
-            run_environ,
-            index_entries,
-        )
-        timer.info("S0.10: validation bundle emitted")
+        if emit_validation_bundle:
+            write_validation_bundle(
+                outputs.validation_bundle_root,
+                manifest_payload,
+                parameter_hash_resolved,
+                manifest_fingerprint_resolved,
+                param_digest_log,
+                fingerprint_artifacts,
+                attestation_payload,
+                run_environ,
+                index_entries,
+            )
+            timer.info("S0.10: validation bundle emitted")
+        else:
+            timer.info("S0.10: validation bundle emission disabled (S9 is canonical)")
 
         context = RunContext(
             merchants=MerchantUniverse(frame=merchant_df, iso_set=iso_set),
