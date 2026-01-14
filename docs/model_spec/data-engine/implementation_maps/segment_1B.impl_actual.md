@@ -2590,6 +2590,191 @@ Outcome:
 
 ## S9 - Validation Bundle & Gate (S9.*)
 
+### Entry: 2026-01-14 09:20
+
+Design element: S9 contract review + pre-implementation plan (validation bundle + PASS gate).
+Summary: Completed the S9 expanded spec and contract review and captured the detailed plan for parity validation, RNG accounting, bundle emission, and `_passed.flag` hashing. This entry also queues the post-S9 retrofit of S4–S8 logs to improve “story” readability.
+
+Contracts reviewed (authoritative sources read):
+1) **State spec:** `docs/model_spec/data-engine/layer-1/specs/state-flow/1B/state.1B.s9.expanded.md`.
+   - Inputs: S7 `s7_site_synthesis` (seed+manifest_fingerprint+parameter_hash), S8 `site_locations` (seed+manifest_fingerprint), RNG events + core logs under `[seed, parameter_hash, run_id]`.
+   - Outputs: `validation_bundle_1B`, `validation_bundle_index_1B`, `_passed.flag` (fingerprint-scoped).
+   - Hashing law: `_passed.flag` = SHA-256 over **raw bytes** of files listed in `index.json` in **ASCII-lex order of `path`**, flag excluded.
+2) **Dictionary:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`.
+   - Paths/partitions for `validation_bundle_1B`, `validation_bundle_index_1B`, `validation_passed_flag_1B`, and input datasets/logs.
+3) **Registry:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/artefact_registry_1B.yaml`.
+   - Write-once + atomic move posture, no file-order semantics, dependencies list for bundle.
+4) **Schemas:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`.
+   - `validation_bundle_1B`, `validation_bundle_index_1B`, `passed_flag`, `s9_summary`, `rng_accounting`, and input anchors.
+5) **Layer schemas for shared anchors:** `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`.
+   - `parameter_hash_resolved` + `manifest_fingerprint_resolved` shapes (required fields).
+6) **Index schema baseline:** `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`.
+   - `validation_bundle_index_1A` shape for cross-checking index compatibility (S9 says index is 1A-compatible).
+
+Brainstorm & decision notes (detailed, before coding):
+- **Identity scope:** S9 is fingerprint-scoped but must read S7 at `[seed, manifest_fingerprint, parameter_hash]`, S8 at `[seed, manifest_fingerprint]`, and RNG logs at `[seed, parameter_hash, run_id]`. This means `run_id` is required for RNG reconciliation even though the output bundle is fingerprint-only.
+- **Parity strategy:** S7 and S8 share writer sort `[merchant_id, legal_country_iso, site_order]`, so a streaming merge-join on sorted inputs is the only safe approach; a full-table join would explode memory. Parity must check **exact keyset equality**, not just row counts.
+- **RNG accounting:** S5 `site_tile_assign` must be exactly one event per site; S6 `in_cell_jitter` must be ≥1 per site (per attempt) with per-event `blocks=1`, `draws="2"` and envelope law `u128(after)-u128(before)=blocks`. Reconcile event totals against `rng_trace_log` using `(module, substream_label, run_id)` to avoid re-scanning.
+- **Bundle files must be deterministic:** Because `_passed.flag` hashes bundle files, avoid volatile fields (timestamps) in `MANIFEST.json`, `parameter_hash_resolved.json`, and `manifest_fingerprint_resolved.json`, otherwise reruns would change the bundle bytes and violate immutability. Only stable identity fields should be emitted unless the spec explicitly requires time.
+- **Egress checksums:** Compute per-file SHA-256 for the S8 partition; store in `egress_checksums.json` using **relative paths** (per spec) so checksums remain stable. Use ASCII-lex ordering when computing any composite hash.
+- **Story logging:** S9 logs must narrate the story (parity proof → RNG reconciliation → checksums → bundle → PASS gate). After S9, retrofit S4–S8 logging to the same narrative posture.
+
+Pre-implementation plan (step-by-step):
+1) **Resolve run identity and validate gating context.**
+   - Read `run_receipt.json` for `{seed, parameter_hash, manifest_fingerprint, run_id}`.
+   - Log a “story header” for S9: objective, inputs being validated, and outputs/gates to be produced.
+2) **Load contract packs + validate schema anchors.**
+   - Load schema packs: 1B (`schemas.1B.yaml`), layer1 (`schemas.layer1.yaml`), and 1A (`schemas.1A.yaml`) for index compatibility checks.
+   - Validate dictionary `schema_ref` anchors for inputs/outputs; fail fast with `E911_DICT_SCHEMA_MISMATCH` if any anchor is missing.
+3) **Resolve all input/output paths via Dictionary.**
+   - Inputs: `s7_site_synthesis`, `site_locations`, `rng_event_site_tile_assign`, `rng_event_in_cell_jitter`, `rng_audit_log`, `rng_trace_log`.
+   - Outputs: `validation_bundle_1B` root, `index.json`, `_passed.flag`.
+   - Enforce registry posture: write-once + atomic move, no file-order semantics.
+4) **Parity validation (S7 vs S8).**
+   - Stream S7 and S8 in writer sort; merge-join on `[merchant_id, legal_country_iso, site_order]`.
+   - Track `rows_s7`, `rows_s8`, `parity_ok`, per-country counts, and writer-sort violations.
+   - Fail fast on duplicates or out-of-order keys; record counters in `s9_summary.json`.
+5) **Egress checksum computation.**
+   - Walk S8 partition files; compute per-file SHA-256 over raw bytes.
+   - Store relative paths (bundle-root-relative) and optional composite hash in `egress_checksums.json`.
+6) **RNG accounting + envelope checks.**
+   - Stream `rng_event_site_tile_assign` and `rng_event_in_cell_jitter` logs; validate against schema anchors (use `normalize_nullable_schema` for nullable fields).
+   - Enforce S6 per-event budget (`blocks=1`, `draws="2"`) and envelope law.
+   - Join S7 keys to event coverage; compute missing/extra events and coverage stats per family.
+   - Reconcile `events_total`, `blocks_total`, `draws_total` against the final `rng_trace_log` row for each family.
+7) **Build bundle artifacts (deterministic content).**
+   - `MANIFEST.json`: deterministic identity + input/output references; no timestamps.
+   - `parameter_hash_resolved.json` + `manifest_fingerprint_resolved.json`: follow layer schema anchors; populate required fields only.
+   - `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`.
+8) **Index + PASS flag.**
+   - Build `index.json` using the 1B index schema (1A-compatible), listing every non-flag file exactly once with relative `path`.
+   - Compute `_passed.flag` as SHA-256 over **raw bytes** of files in ASCII-lex order of `path`.
+9) **Publish (atomic, fail-closed).**
+   - Stage bundle files under a temp dir; fsync; atomic move to `validation/manifest_fingerprint={manifest_fingerprint}/`.
+   - If any validation fails, still write non-flag files for audit but **do not** write `_passed.flag`.
+10) **Logging + diagnostics (story-driven).**
+   - Log phases with narrative: “Parity check (S7 vs S8)”, “RNG coverage & budget”, “Egress checksums”, “Bundle index + PASS flag”.
+   - Progress logs include elapsed time, rate, and ETA for long loops.
+11) **Post-S9 logging retrofit (queued).**
+   - After S9, retrofit S4–S8 logs to include story headers and phase narration per AGENTS.md.
+
+Open confirmations (need resolution before coding):
+1) **`MANIFEST.json` content:** propose a deterministic identity-only object (no timestamps). Confirm if any required fields are expected beyond identity and pointers.
+2) **`parameter_hash_resolved.json` / `manifest_fingerprint_resolved.json`:** decide where to source `artifact_count` and `git_commit_hex`. Preferred: use run_receipt fields if present; otherwise compute `git_commit_hex` from repo head and set `artifact_count` to the number of parameter inputs recorded for this run (if available). Confirm if that is acceptable.
+3) **`egress_checksums.json` path semantics:** propose storing paths relative to the bundle root (e.g., `../site_locations/.../part-00000.parquet`) to satisfy spec “relative path” guidance. Confirm if you prefer paths relative to the run root instead.
+
+### Entry: 2026-01-14 09:24
+
+Design element: S9 confirmation decisions (implementation posture locked).
+Summary: User approved the S9 confirmations; locking the deterministic bundle content, git commit resolution, and egress checksum path strategy before coding.
+
+Decision record (explicit):
+1) **`MANIFEST.json`** will be deterministic and identity-only (no timestamps). Fields: `version`, `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`, and minimal input/output pointers. This ensures re-runs can remain byte-identical.
+2) **`parameter_hash_resolved.json` + `manifest_fingerprint_resolved.json`:**
+   - `git_commit_hex` will come from `run_receipt.json` when present; otherwise resolve from repo HEAD.
+   - `artifact_count` will be set from run-recorded parameter inputs if available; if not present, set to `0` and log that the count was unavailable.
+3) **`egress_checksums.json` path semantics:** store paths **relative to the bundle root** (e.g., `../site_locations/.../part-00000.parquet`) to keep the bundle self-descriptive and portable.
+
+Implementation note:
+- These decisions will be applied consistently across S9 output files and logged with "story header" + phase narration per AGENTS.md.
+
+### Entry: 2026-01-14 10:05
+
+Design element: S9 implementation kickoff (pre-code) + file creation strategy.
+Summary: Preparing to implement the S9 runner/CLI/Makefile wiring and to run S9 for the current run_id. Also documenting the file-writing strategy needed to avoid Windows path/command-length errors when creating the new S9 runner file.
+
+In-process plan and decision log (before code changes, detailed):
+1) **Runner creation strategy (Windows command-length guardrail).**
+   - Issue encountered earlier: writing a large `runner.py` in one command triggered `The filename or extension is too long` (Windows error 206) even though the path is short.
+   - Decision: build the S9 runner in **small chunks** using repeated `Add-Content`/`apply_patch` updates so each command stays under Windows command-length limits.
+   - Cleanup plan: remove any temporary stub files (`test_stub.py`) and replace the current `runner.py` stub content with the full implementation once the staged writes are complete.
+
+2) **S9 runner architecture (functional map, ordered).**
+   - **Identity resolution:** read `run_receipt.json` (latest if no `run_id`) for `{seed, parameter_hash, manifest_fingerprint, run_id}`; log a story header with these tokens.
+   - **Contract loading:** load 1B schema pack (`schemas.1B.yaml`), layer schema pack (`schemas.layer1.yaml`), and 1A schema pack (for index compatibility). Validate dictionary `schema_ref` anchors before any data read.
+   - **Path resolution:** resolve `s7_site_synthesis`, `site_locations`, RNG logs, and bundle outputs via the Dictionary only (no literal paths).
+   - **Parity validation:** stream-merge S7/S8 by writer sort key `(merchant_id, legal_country_iso, site_order)` to detect:
+     - E901 missing S8 rows, E902 extra S8 rows, E903 duplicate S8 keys, E906 writer sort violations.
+   - **Egress schema validation:** per-row validation of S8 rows against `schemas.1B.yaml#/egress/site_locations` (E904 on failure).
+   - **Identity coherence:** verify S8 path partitions `[seed, manifest_fingerprint]` (no parameter_hash in path), and check any embedded lineage fields if present (E905/E912).
+   - **RNG accounting:** stream `rng_event_site_tile_assign` and `rng_event_in_cell_jitter` logs; enforce S6 per-event budget (`blocks=1`, `draws="2"`), envelope law, and per-site coverage; reconcile totals with `rng_trace_log` final rows keyed by `(module, substream_label, run_id)` (E907 on any mismatch).
+   - **Bundle outputs:** write `MANIFEST.json`, `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`, `index.json` deterministically; compute `_passed.flag` (ASCII-lex order, raw-bytes hash).
+   - **Publish posture:** stage -> fsync -> atomic move; if target exists with different bytes, fail with E913 (immutability).
+
+3) **Shared nullable-schema helper usage (consistency).**
+   - Use `normalize_nullable_schema` when validating RNG audit/event schemas to avoid `nullable: true` pitfalls, aligned with the earlier shared helper change.
+
+4) **Post-implementation tasks (queued).**
+   - After S9 is green, retrofit S4-S8 logging to narrate the state flow clearly (story header + phase markers).
+
+### Entry: 2026-01-14 10:33
+
+Design element: S9 implementation (runner + CLI + Makefile wiring) with deterministic bundle outputs.
+Summary: Implemented the S9 runner and CLI wiring, added Makefile target for `segment1b-s9`, and cleaned temporary stub files. Captured the concrete checks for parity, RNG coverage, and bundle hashing, and ensured nullable-schema normalization for RNG logs.
+
+Actions and implementation details (step-by-step):
+1) **Created/updated S9 package exports.**
+   - Updated `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/__init__.py` to export `run_s9` and `S9RunResult`.
+   - This ensures CLI imports are stable and avoid direct path imports.
+
+2) **Implemented `run_s9` runner with full parity + RNG accounting.**
+   - File: `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`.
+   - Core flow:
+     - Resolve run identity from `run_receipt.json` (seed/parameter_hash/manifest_fingerprint/run_id) and attach run-scoped log handler.
+     - Load Dictionary + schema packs (1B, layer1, 1A) and preflight schema_ref anchors.
+     - Enforce egress `final_in_layer` + identity coherence (no parameter_hash in S8 path/partition).
+     - Stream-merge S7/S8 in writer sort order; record missing/extra keys (E901/E902), duplicates (E903), writer sort violations (E906), and per-row schema failures for S8 (E904).
+     - Build `s7_keys` for RNG coverage and `by_country` parity counters while streaming.
+     - Scan RNG event logs (S5/S6) with schema validation, envelope law checks, and per-event budget checks (`blocks=1`, `draws="2"` for S6), then reconcile totals against `rng_trace_log`.
+     - Compute `egress_checksums.json` with per-file SHA-256 and composite hash using paths relative to the bundle root.
+     - Emit deterministic bundle JSON files, build `index.json`, compute `_passed.flag` when PASS.
+     - Atomic publish with immutability guard (E913 on non-identical existing bundle).
+
+3) **Nullable-schema normalization for RNG logs.**
+   - Added `_normalize_refs` and applied `normalize_nullable_schema` in `_schema_from_pack`/`_record_schema` so RNG audit/trace/event schemas handle `nullable: true`.
+   - Ensured layer1 event schemas can resolve external `$ref` entries by merging 1B `$defs`.
+
+4) **CLI entry-point added.**
+   - Added `packages/engine/src/engine/cli/s9_validation_bundle.py`, mirroring the standard CLI contract flags and `--validate-only` path.
+
+5) **Makefile wiring added.**
+   - Added `SEG1B_S9_RUN_ID`, `SEG1B_S9_ARGS`, and `SEG1B_S9_CMD`.
+   - Added `segment1b-s9` target to run the new CLI.
+   - Updated `.PHONY` to include `segment1b-s9`.
+
+6) **Cleanup of temporary stubs.**
+   - Removed `foo.txt`, `test_stub.py`, and `__pycache__` created during incremental file writing.
+
+Notes queued for validation run:
+- Recompute final decision **after** bundle file presence checks to avoid writing `_passed.flag` when failures are discovered late.
+- If run log shows any schema-ref mismatch or trace reconciliation mismatch, adjust or re-run after diagnosing the precise upstream artifact.
+
+### Entry: 2026-01-14 10:36
+
+Design element: S9 run failure on RNG event schema validation (unevaluatedProperties) + fix.
+Summary: The first S9 run failed the RNG event schema validation with `unevaluatedProperties` errors on all event fields. Diagnosed it as a Draft202012 allOf + unevaluatedProperties scoping issue and applied the same fix used in 1A S9.
+
+Observed failure (from run log):
+- `E907_RNG_BUDGET_OR_COUNTERS` with message: `Unevaluated properties are not allowed (...)` for S5 `rng_event_site_tile_assign`.
+- This indicates the schema pack still contained `unevaluatedProperties: false` in a subschema of `allOf`, which invalidates properties from other subschemas.
+
+Root cause reasoning:
+- Layer1 RNG event schemas (`schemas.layer1.yaml#/rng/events/site_tile_assign`) are built with `allOf`:
+  - `$ref` to `rng_envelope`,
+  - object with event fields,
+  - object with `unevaluatedProperties: false`.
+- Draft202012Validator treats unevaluatedProperties inside one subschema as applying to the merged instance, causing legitimate envelope fields to be marked as unevaluated.
+- This is already solved in 1A S9 by hoisting `unevaluatedProperties` to the top-level schema before validation.
+
+Fix applied:
+- Updated `_schema_from_pack` in `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py` to:
+  - Detect `unevaluatedProperties` inside `allOf`,
+  - Remove it from subschemas,
+  - Reattach it at the top-level schema before validation.
+
+Next step:
+- Re-run `make segment1b-s9 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906` and validate RNG schema passes and bundle is emitted with PASS when no other failures remain.
+
 ## S1 - Tile Index (S1.*)
 
 ### Entry: 2026-01-13 06:50
