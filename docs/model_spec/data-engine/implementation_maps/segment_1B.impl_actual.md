@@ -1593,6 +1593,30 @@ Run report highlights (spec checks):
 Spec compliance judgement:
 - S4 is green and compliant for this run_id; safe to advance to S5.
 
+### Entry: 2026-01-14 01:48
+
+Design element: S4 timer logger crash (pre-fix analysis)
+Summary: A new S4 run crashed after writing the parquet output because `_StepTimer.info` does not accept formatting args.
+
+Observed failure:
+- `TypeError: _StepTimer.info() takes 2 positional arguments but 5 were given` at `runner.py:1216`.
+- The code calls `timer.info("S4: ... %s", a, b, c)` in multiple places, but the method signature only accepts `message: str`.
+
+Decision and plan (before editing):
+1) Update `_StepTimer.info` to accept `*args`, and format the message when args are provided (same pattern used in other runners).
+2) Keep log output identical (elapsed/delta unchanged) so only the crash is removed.
+
+### Entry: 2026-01-14 01:49
+
+Design element: S4 timer logger crash (implementation)
+Summary: Updated the S4 step timer to accept formatting args, eliminating the `TypeError` after output write.
+
+Change applied:
+- `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` now defines `_StepTimer.info(self, message, *args)` and formats the message when args are supplied.
+
+Expected outcome:
+- S4 no longer crashes at the final `timer.info(...)` call; elapsed/delta logging remains unchanged.
+
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
 
 ### Entry: 2026-01-14 00:08

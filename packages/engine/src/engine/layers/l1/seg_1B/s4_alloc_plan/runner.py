@@ -55,11 +55,13 @@ class _StepTimer:
         self._start = time.monotonic()
         self._last = self._start
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, *args) -> None:
         now = time.monotonic()
         elapsed = now - self._start
         delta = now - self._last
         self._last = now
+        if args:
+            message = message % args
         self._logger.info("%s (elapsed=%.2fs, delta=%.2fs)", message, elapsed, delta)
 
 
