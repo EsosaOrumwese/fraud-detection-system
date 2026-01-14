@@ -167,6 +167,50 @@ def _schema_from_pack(schema_pack: dict, path: str) -> dict:
     return normalize_nullable_schema(schema)
 
 
+def _column_schema(column: dict) -> dict:
+    if "$ref" in column:
+        schema: dict = {"$ref": column["$ref"]}
+    else:
+        col_type = column.get("type")
+        if col_type == "array":
+            items = column.get("items") or {}
+            schema = {"type": "array", "items": items}
+        elif col_type in ("string", "integer", "number", "boolean"):
+            schema = {"type": col_type}
+        else:
+            raise SchemaValidationError(f"Unsupported column type '{col_type}' for receipt schema.", [])
+    if column.get("nullable"):
+        schema = {"anyOf": [schema, {"type": "null"}]}
+    return schema
+
+
+def _table_row_schema(schema_pack: dict, path: str) -> dict:
+    node: dict = schema_pack
+    for part in path.strip("#/").split("/"):
+        node = node[part]
+    columns = node.get("columns") or []
+    if not columns:
+        raise SchemaValidationError(f"Table '{path}' has no columns.", [])
+    properties: dict[str, dict] = {}
+    required: list[str] = []
+    for column in columns:
+        name = column.get("name")
+        if not name:
+            raise SchemaValidationError(f"Column missing name in {path}.", [])
+        properties[name] = _column_schema(column)
+        required.append(name)
+    schema: dict = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": schema_pack.get("$id", ""),
+        "$defs": schema_pack.get("$defs", {}),
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
+    return normalize_nullable_schema(schema)
+
+
 def _validate_payload(schema_pack: dict, path: str, payload: object) -> None:
     schema = _schema_from_pack(schema_pack, path)
     validator = Draft202012Validator(schema)
@@ -579,13 +623,14 @@ def _write_batch(rows: list[tuple], batch_index: int, output_tmp: Path, logger) 
     df = pl.DataFrame(
         rows,
         schema=[
-            ("merchant_id", pl.Int64),
+            ("merchant_id", pl.UInt64),
             ("legal_country_iso", pl.Utf8),
             ("site_order", pl.Int32),
             ("tile_id", pl.UInt64),
             ("lon_deg", pl.Float64),
             ("lat_deg", pl.Float64),
         ],
+        orient="row",
     )
     path = output_tmp / f"part-{batch_index:05d}.parquet"
     df.write_parquet(path, compression="zstd", row_group_size=100000)
@@ -670,7 +715,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     if not receipt_path.exists():
         raise InputResolutionError(f"Missing s0_gate_receipt_1B: {receipt_path}")
     receipt_payload = _load_json(receipt_path)
-    receipt_schema = _schema_from_pack(schema_1b, "validation/s0_gate_receipt")
+    receipt_schema = _table_row_schema(schema_1b, "validation/s0_gate_receipt")
     receipt_validator = Draft202012Validator(receipt_schema)
     receipt_errors = list(receipt_validator.iter_errors(receipt_payload))
     if receipt_errors:

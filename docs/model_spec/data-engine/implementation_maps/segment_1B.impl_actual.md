@@ -2341,6 +2341,71 @@ Planned validation after fix:
 - Re-run `make segment1b-s7 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
 - Confirm the run log passes the schema-ref gate and proceeds into merge-join; check that `s7_run_summary.json` contains the required counters (sizes, validation_counters, gate flag).
 
+### Entry: 2026-01-14 08:08
+
+Design element: S7 receipt schema validation failure (UnknownType: table) + validation adapter correction.
+
+Observed failure (from run log):
+- `jsonschema.exceptions.UnknownType: Unknown type 'table'` during validation of `s0_gate_receipt_1B`.
+- The receipt was being validated using the raw table spec from `schemas.1B.yaml#/validation/s0_gate_receipt`.
+
+Root-cause analysis (brainstorming + conclusion):
+- Hypothesis A: The receipt schema must be converted from a **table** spec into a **row/object** schema before Draft202012 validation.  
+  - Confirmed S0 uses `_table_row_schema` for the receipt; it does not validate the table spec directly.
+- Hypothesis B: S7 should mirror S0's approach to avoid `UnknownType: table`.  
+  - Current S7 code uses `_schema_from_pack` (table spec), which Draft202012 rejects.
+- Conclusion: **Convert the table spec to a row schema in S7** before validating the receipt payload.
+
+Decision + fix (before re-run):
+- Added `_table_row_schema` and `_column_schema` helpers in the S7 runner and switched receipt validation to `receipt_schema = _table_row_schema(schema_1b, "validation/s0_gate_receipt")`.
+- Kept `normalize_nullable_schema` so `nullable: true` fields are handled consistently.
+
+Planned validation after fix:
+- Re-run `make segment1b-s7 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+- Confirm the receipt schema validates and the run proceeds into S5/S6/outlet merge; check `s7_run_summary.json` for required counters and gate flag.
+
+### Entry: 2026-01-14 08:10
+
+Design element: S7 parquet write failure due to merchant_id dtype overflow + explicit row-orientation enforcement.
+
+Observed failure (from run log):
+- Polars raised `ComputeError: could not append value ... of type: i128` when writing batch rows; merchant_id `9230010917950124015` exceeded signed int64.
+- Warning: `DataOrientationWarning` because row orientation was inferred during DataFrame construction.
+
+Root-cause analysis (brainstorming + conclusion):
+- Hypothesis A: `merchant_id` should be unsigned (uint64) per id64 definition; using `pl.Int64` causes overflow when values exceed signed max.  
+  - Confirmed `schemas.layer1.yaml#/$defs/id64` is an unsigned envelope (max 2^64-1).
+- Hypothesis B: Polars infers row/column orientation ambiguously; with mixed types this can trigger i128 inference and append failure.
+- Conclusion: **Use `pl.UInt64` for merchant_id and force `orient="row"`** so the batch schema is deterministic and matches the id64 contract.
+
+Decision + fix (before re-run):
+- Change `merchant_id` column type to `pl.UInt64` in `_write_batch`.
+- Add `orient="row"` to DataFrame construction to avoid orientation warnings and schema inference drift.
+
+Planned validation after fix:
+- Re-run `make segment1b-s7 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906` and confirm batch writes complete with no dtype warnings or overflow errors.
+
+### Entry: 2026-01-14 08:12
+
+Design element: S7 execution result + spec compliance check (post-fix).
+
+Execution details:
+1) **Run invocation:** `make segment1b-s7 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+2) **Identity:** `seed=42`, `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`, `manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1`, `run_id=b4235da0cecba7e7ffd475f8ffb23906`.
+3) **Outputs:** 
+   - `s7_site_synthesis` published at `runs/local_full_run-5/b4235da0cecba7e7ffd475f8ffb23906/data/layer1/1B/s7_site_synthesis/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1/`.
+   - `s7_run_summary.json` published at `runs/local_full_run-5/b4235da0cecba7e7ffd475f8ffb23906/reports/layer1/1B/state=S7/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1/s7_run_summary.json`.
+
+Spec compliance checks (explicit):
+- **Parity counters:** `sites_total_s5=sites_total_s6=sites_total_s7=27942` with `parity_s5_s6_ok=true` and `parity_s5_s7_ok=true`.
+- **Coverage gate:** `coverage_1a_miss_count=0`, `coverage_1a_ok_count=27942`, and `gates.outlet_catalogue_pass_flag_sha256` is present.
+- **Geometry checks:** `fk_tile_fail_count=0`, `inside_pixel_fail_count=0` (all inside-pixel checks passed).
+- **Path/embed:** `path_embed_mismatches=0`.
+- **By-country rollup:** present for all ISO partitions observed; no failures logged.
+
+Outcome:
+- S7 is green for this run_id and aligns with the binding spec requirements for S7 (deterministic, RNG-free, write-once, parity + coverage checks, inside-pixel enforcement, and required run summary counters).
+
 ## S8 - Egress Site Locations (S8.*)
 
 ## S9 - Validation Bundle & Gate (S9.*)
