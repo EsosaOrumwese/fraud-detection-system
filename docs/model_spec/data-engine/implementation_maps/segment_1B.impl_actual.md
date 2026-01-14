@@ -2163,6 +2163,69 @@ Outcome:
 
 ## S7 - Site Synthesis (S7.*)
 
+### Entry: 2026-01-14 03:27
+
+Design element: S7 contract review + pre-implementation plan (deterministic site synthesis).
+
+Contract review (authoritative surfaces read):
+1) **State spec:** `docs/model_spec/data-engine/layer-1/specs/state-flow/1B/state.1B.s7.expanded.md`.
+   - Binding inputs: `s5_site_tile_assignment`, `s6_site_jitter`, `tile_bounds`, `outlet_catalogue` (1A egress; gated).
+   - Binding outputs: `s7_site_synthesis` (parquet; `[seed, manifest_fingerprint, parameter_hash]`).
+   - Determinism: RNG-free; no new RNG logs; write-once + atomic move.
+   - Must enforce: S5↔S6 1:1 join, inside-pixel check via S1 bounds, 1A coverage parity (No PASS → No read), and path-embed equality where lineage columns exist.
+   - Optional: point-in-country reassertion (MAY).
+2) **Dataset Dictionary:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`.
+   - `s7_site_synthesis` path/partitions/sort: `data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/`.
+   - `s7_run_summary` path: `reports/layer1/1B/state=S7/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s7_run_summary.json`.
+3) **Schemas:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`.
+   - `#/plan/s7_site_synthesis`: columns are `{merchant_id, legal_country_iso, site_order, tile_id, lon_deg, lat_deg}`, `columns_strict=true`.
+   - `#/control/s7_run_summary`: required keys `{seed, manifest_fingerprint, parameter_hash}` (additional fields allowed).
+4) **1A egress schema:** `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml#/egress/outlet_catalogue` for coverage parity keys `(merchant_id, legal_country_iso, site_order)` and manifest_fingerprint column.
+
+Brainstorm & decision notes (detailed):
+- **Join strategy (S5↔S6):** 
+  - Option A: Polars lazy scan + inner join + `collect(streaming=True)` for memory control; risk: join may not preserve writer-sort, requiring a full sort on output.
+  - Option B: Manual merge-join on sorted inputs (S5/S6 already writer-sorted by the PK) to preserve order without a full sort; more implementation complexity but best for large datasets.
+  - **Tentative choice:** implement a merge-join iterator (or a streaming join that preserves left order) so output can be written in writer-sort without a full re-sort; fall back to a controlled sort if streaming join cannot guarantee order in this environment.
+- **Tile geometry lookup:** 
+  - Tile bounds are huge (S1 tile_bounds ~ hundreds of millions of rows), so loading full bounds is not viable.
+  - Reuse S6’s per-country `tile_bounds` loader (S1 wrote `tile_bounds/country=XX/part-*.parquet`) and load only tile_ids needed for each country encountered; cache per-country bounds map to avoid repeated I/O.
+  - If a required tile_id is missing for a country, fail with an explicit S7 error and include missing IDs in the payload.
+- **Inside-pixel check:** 
+  - Use S1 bounds (min/max) and same antimeridian handling as S1/S6 to avoid drift. This is an acceptance gate (fail-closed).
+  - Optional point-in-country check is heavier (needs world_countries geometry); default to off unless explicitly requested.
+- **Outlet coverage parity:** 
+  - Gate read via `s0_gate_receipt_1B` (manifest_fingerprint match + sealed_inputs includes outlet_catalogue).
+  - Enforce 1:1 join between S5 site keys and outlet_catalogue keys; report `coverage_1a_ok_count`/`coverage_1a_miss_count` and abort on any miss.
+  - Track `path_embed_mismatches` from outlet_catalogue manifest_fingerprint column (if any).
+- **Run summary content:** 
+  - Emit `s7_run_summary.json` with counters similar to spec example (`sizes`, `validation_counters`, `gates` with `flag_sha256_hex`).
+  - Store `seed`, `manifest_fingerprint`, `parameter_hash` at top-level per schema anchor.
+
+Pre-implementation plan (step-by-step):
+1) **Preflight + gate discipline:**
+   - Load dictionary + schema pack; resolve run context.
+   - Validate `s0_gate_receipt_1B` for the manifest_fingerprint and ensure sealed_inputs includes `outlet_catalogue`; store `flag_sha256_hex` for run summary.
+2) **Resolve inputs/outputs by dictionary IDs:**
+   - Inputs: `s5_site_tile_assignment`, `s6_site_jitter`, `tile_bounds`, `outlet_catalogue`.
+   - Outputs: `s7_site_synthesis`, `s7_run_summary`.
+3) **Row counts + 1:1 parity checks:**
+   - Count S5/S6 rows for early parity check; abort if mismatched.
+4) **Deterministic join + reconstruction:**
+   - Stream S5↔S6 by PK; reconstruct `(lon_deg, lat_deg) = centroid + delta`.
+   - Enforce inside-pixel check using bounds from tile_bounds lookup; abort on failure with context.
+5) **Outlet coverage parity:**
+   - Join/compare S5 keyset to outlet_catalogue keyset; abort on any missing coverage.
+6) **Write outputs:**
+   - Emit S7 rows in writer-sort order `[merchant_id, legal_country_iso, site_order]`.
+   - Publish via stage → fsync → atomic move; no RNG logs.
+7) **Emit run summary:**
+   - Write `s7_run_summary.json` with counters, parity flags, and `flag_sha256_hex` gate value.
+
+Open questions (need confirmation before coding):
+1) **Optional point-in-country check:** Should we enable the optional deterministic point-in-country check (adds geometry cost), or leave it disabled for performance?
+2) **Path-embed mismatch handling:** If `outlet_catalogue.manifest_fingerprint` or `s6_site_jitter.manifest_fingerprint` mismatches the path token, should S7 hard-fail immediately (strict) or count + fail at the end (still fail-closed either way)?
+
 ## S8 - Egress Site Locations (S8.*)
 
 ## S9 - Validation Bundle & Gate (S9.*)
