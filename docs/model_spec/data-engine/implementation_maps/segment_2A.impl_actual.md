@@ -512,4 +512,230 @@ Implementation actions taken (detailed):
    pass logs (Gate → Seal → Emit → Determinism) for run_id
    `dbc151d09d5fd3053a74705bca1b673c`.
 
+## S1 - Provisional TZ Lookup (S1.*)
+
+### Entry: 2026-01-14 15:34
+
+Design element: S1 provisional tz lookup (geometry-only, RNG-free).
+Summary: Plan the S1 implementation to map each `site_locations` row to exactly
+one `tzid_provisional` using the sealed `tz_world` polygons and `tz_nudge`
+policy, with strict gate/identity/coverage guarantees.
+
+Plan (before implementation, detailed):
+1) Gate + identity verification (No PASS -> No Read).
+   - Load `s0_gate_receipt_2A` for the target `manifest_fingerprint` and
+     validate against `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
+   - Confirm receipt `manifest_fingerprint` equals the run's fingerprint.
+   - Load `sealed_inputs_2A` for the same fingerprint and assert required IDs
+     are present: `site_locations`, `tz_world_2025a`, `tz_nudge`.
+   - Abort with 2A-S1-001 if receipt missing or invalid; 2A-S1-010 if any input
+     cannot be resolved via Dictionary/Registry.
+
+2) Resolve inputs strictly by Dictionary.
+   - Resolve `site_locations` partition for the run's `[seed, manifest_fingerprint]`;
+     enforce path-embed equality and correct partition (2A-S1-011 on mismatch).
+   - Resolve `tz_world_2025a` as the sealed reference path.
+   - Resolve `tz_nudge` policy as sealed; validate schema and check
+     `epsilon_degrees > 0` (2A-S1-021).
+
+3) Validate tz_world ingress minima (S1-scope).
+   - Verify CRS is WGS84 (EPSG:4326) and polygons are non-empty
+     (2A-S1-020 on violation). Reuse S0 helpers for CRS/row-count.
+   - Load tz_world geometries + `tzid` and precompute `tzid` set for membership
+     validation (2A-S1-053 on unknown tzid).
+
+4) Geometry engine and performance strategy.
+   - Build a spatial index (prefer `shapely.STRtree`) for tz_world polygons so
+     point-in-polygon checks are O(N log M) rather than O(N*M).
+   - Use prepared geometries to reduce repeated predicate cost; avoid loading
+     all site rows into memory (batch/stream over `site_locations`).
+   - Reuse dateline-aware helpers from 1B where appropriate to normalize
+     longitudes and avoid antimeridian edge failures.
+
+5) Per-site assignment law (single nudge).
+   - For each `site_locations` row, test point-in-polygon membership:
+     a) If exactly one polygon matches -> set `tzid_provisional`; `nudge_* = null`.
+     b) If zero or multiple matches -> apply a single nudge:
+        `(lat', lon') = (lat + epsilon, lon + epsilon)` in degrees.
+        - Clamp latitude to [-90, +90].
+        - Wrap longitude into (-180, +180] with modular arithmetic.
+        - Re-evaluate membership on the nudged point.
+     c) If still ambiguous or empty -> abort with 2A-S1-055.
+   - Record `nudge_lat_deg` and `nudge_lon_deg` only when the nudge was applied;
+     enforce the pair rule (2A-S1-054).
+
+6) Output construction and validation.
+   - Emit `s1_tz_lookup` rows with columns:
+     `seed`, `manifest_fingerprint`, `merchant_id`, `legal_country_iso`,
+     `site_order`, `lat_deg`, `lon_deg`, `tzid_provisional`,
+     `nudge_lat_deg`, `nudge_lon_deg`, `created_utc`.
+   - Use `run_receipt.created_utc` for deterministic timestamps.
+   - Validate output against `schemas.2A.yaml#/plan/s1_tz_lookup`.
+   - Enforce PK uniqueness and 1:1 coverage with `site_locations`
+     (2A-S1-050 / 2A-S1-051).
+
+7) Publish + immutability.
+   - Write to temp partition directory, then atomically publish to
+     `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
+   - If target partition exists, allow only byte-identical re-emit;
+     otherwise abort (2A-S1-041).
+
+8) Observability + run-report.
+   - Emit structured `GATE`, `INPUTS`, `LOOKUP`, `VALIDATION`, `EMIT` events
+     with `seed` + `manifest_fingerprint`.
+   - Emit progress logs with counts/rates for large input partitions.
+   - Write `s1_run_report.json` with required fields from spec (counts,
+     distinct tzids, nudge count, path/inputs, warnings/errors).
+
+Open questions to resolve before coding:
+1) Geometry engine choice: ok to standardize on `shapely.STRtree` for
+   candidate selection (fast, deterministic) vs `geopandas.sjoin`?
+2) Antimeridian handling: should S1 reuse the dateline normalization helpers
+   from 1B (as used in `s1_tile_index`/`s6_site_jitter`) to keep longitude
+   handling consistent, or treat tz_world as already aligned?
+3) Failure reporting: on `2A-S1-055` (ambiguity after nudge), do you want
+   the run-report to include a short sample of offending site keys (count-only
+   by default per spec), or keep it strictly count-only?
+
+### Entry: 2026-01-14 15:38
+
+Design element: S1 confirmation decisions (pre-implementation).
+Summary: Recorded the approved geometry engine, antimeridian posture, and
+failure reporting scope before coding.
+
+Decisions recorded before implementation:
+1) **Geometry engine:** Use `shapely.STRtree` with prepared geometries for
+   candidate selection and deterministic point-in-polygon checks. Avoid
+   `geopandas.sjoin` to keep memory lower and enable streaming.
+2) **Antimeridian handling:** Reuse the dateline normalization helpers from 1B
+   (`s1_tile_index`/`s6_site_jitter`) so longitude handling is consistent across
+   segments and edge cases near ±180 are treated uniformly.
+3) **Failure reporting:** Keep the run-report count-only for `2A-S1-055`.
+   Include a **small capped sample** of offending site keys only in error
+   context/logs (no coordinates) to aid debugging without bloating reports or
+   leaking location detail.
+
+### Entry: 2026-01-14 15:50
+
+Design element: S1 runner architecture and batch strategy (pre-implementation).
+Summary: Pin the data flow, geometry index, IO batching, and validation posture
+before coding to keep S1 deterministic and audit-friendly.
+
+Decisions recorded before implementation:
+1) **Input streaming + output batches:** Read `site_locations` via Parquet
+   batches using pyarrow when available, with a polars fallback. Emit output
+   Parquet in batches (default 200k rows) to avoid full materialization.
+2) **Schema validation posture:** Validate `s1_tz_lookup` rows per batch using
+   `validate_dataframe` with a 2A pack that has concrete layer1 `$defs`. This
+   keeps strict schema enforcement without ingesting the entire partition into
+   memory.
+3) **STRtree candidate matching:** Build an STRtree over split tz_world polygon
+   parts. Evaluate candidates with prepared geometries (covers/touches), and
+   deduplicate by tzid so multi-part polygons do not cause false ambiguity.
+4) **Order + PK checks:** Track writer-order compliance (warn-only on first
+   violation) while separately tracking PK duplicates using a set to enforce
+   2A-S1-051 even if input ordering is imperfect.
+5) **Run-report on failure:** Always emit `s1_run_report.json` with status
+   "fail" and canonical error context before re-raising, so the run history is
+   preserved even when S1 aborts early.
+
+
+### Entry: 2026-01-14 16:40
+
+Design element: S1 runner implementation + CLI + Makefile wiring (implementation pass).
+Summary: Implemented the full S1 geometry-only tz lookup runner, added the
+state-specific CLI, and wired a Makefile target to run S1 independently.
+
+Implementation actions (detailed):
+1) Added `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`.
+   - Resolved run identity from `run_receipt.json` (seed, manifest_fingerprint,
+     parameter_hash) and enforced run_id path consistency before any input reads.
+   - Loaded Dictionary, Registry, and schema packs (2A + 1B + ingress + layer1)
+     and enforced schema_ref presence/validity with authority conflict checks.
+   - Verified the S0 gate receipt for the manifest_fingerprint using the 2A
+     schema row validator and logged `GATE` + `VALIDATION` events for V-01.
+   - Enforced sealed-input membership: required `site_locations`, `tz_world_2025a`,
+     and `tz_nudge` in `sealed_inputs_2A` (abort with 2A-S1-010 on missing).
+   - Resolved `site_locations`, `tz_world_2025a`, and `tz_nudge` strictly via
+     the Dataset Dictionary and enforced partition token match for
+     `(seed, manifest_fingerprint)` (2A-S1-011 on mismatch).
+   - Validated tz_world invariants (WGS84 + non-empty) with S0 helpers and
+     validated `tz_nudge` against `policy/tz_nudge_v1` with `epsilon_degrees > 0`.
+   - Built a STRtree over tz_world polygons, splitting antimeridian geometries
+     using the 1B helper so longitude handling is consistent across segments.
+   - Streamed `site_locations` in Parquet batches; for each row:
+     - Deterministic point-in-polygon lookup for `tzid_provisional`.
+     - Single ε-nudge when ambiguous (lat+ε, lon+ε), recorded `nudge_*`.
+     - Abort on unresolved ambiguity (2A-S1-055) or nudge-pair violations
+       (2A-S1-054).
+   - Emitted `s1_tz_lookup` in batch Parquet parts with per-batch schema
+     validation (`validate_dataframe` using the 2A pack with layer1 defs).
+   - Enforced coverage (2A-S1-050), PK uniqueness (2A-S1-051), null tzid
+     (2A-S1-052), unknown tzid (2A-S1-053), and writer-order warn (2A-S1-070).
+   - Published the output with write-once semantics via `_atomic_publish_dir`
+     (2A-S1-041 on non-identical overwrites).
+   - Wrote the run-report `s1_run_report.json` on every run (pass or fail)
+     and emitted required `INPUTS`, `LOOKUP`, `VALIDATION`, and `EMIT` events.
+
+2) Added `packages/engine/src/engine/cli/s1_tz_lookup_2a.py`.
+   - Mirrors the S0 CLI pattern (contracts layout/root, runs root, external
+     roots, run_id) and logs completion with run identity.
+
+3) Updated `makefile` to wire S1.
+   - Added `SEG2A_S1_RUN_ID`, `SEG2A_S1_ARGS`, and `SEG2A_S1_CMD`.
+   - Added `segment2a-s1` target and `.PHONY` entry.
+
+Notes for next actions:
+- Run `make segment2a-s1` (with the current run_id) and inspect the run report
+  + logs for any spec compliance gaps or performance issues; record any fixes
+  in this implementation log and the logbook.
+
+### Entry: 2026-01-14 16:49
+
+Design element: S1 run attempt + border ambiguity failure (post-implementation).
+Summary: The first S1 run aborted with `2A-S1-055 BORDER_AMBIGUITY_UNRESOLVED`.
+This is spec-compliant (S1 must hard-fail if a single ε-nudge cannot resolve a
+unique tzid), but it blocks a green run until inputs or policy are adjusted.
+
+Observed failure:
+- Run: `make segment2a-s1` (run_id `dbc151d09d5fd3053a74705bca1b673c`).
+- Error: `S1_ERROR 2A-S1-055` for key `[merchant_id=14376464151614543665, legal_country_iso=MN, site_order=10]`.
+- Run-report written to:
+  `runs/local_full_run-5/dbc151d09d5fd3053a74705bca1b673c/reports/layer1/2A/state=S1/seed=42/manifest_fingerprint=fa8639df1238943518f72f8e0ed6310ad8521b7427993e1dc67d95ed4549d67b/s1_run_report.json`.
+
+Analysis (recorded for review):
+- The S1 algorithm applies the single ε-nudge as specified (`lat+ε, lon+ε`).
+- After the nudge, membership remained ambiguous or empty, triggering 2A-S1-055.
+- This indicates either a tz_world gap/overlap at that site or ε too small to
+  move the point into a unique polygon. The code is following the spec.
+
+Resolution options (require user decision before changing inputs):
+1) **Adjust tz_nudge ε** (policy): increase ε so the tie-break resolves more
+   border cases. This requires re-running S0 to seal a new manifest_fingerprint.
+2) **Fix tz_world coverage**: update the tz_world release if polygons are
+   missing/overlapping for the affected area, then reseal via S0.
+3) **Leave as-is**: keep the fail-closed behaviour and treat this as a data
+   quality issue in inputs (spec-compliant but blocks green runs).
+
+No code changes made after the failure; awaiting direction on input/policy changes.
+
+### Entry: 2026-01-14 16:52
+
+Design element: S1 run-report counts on early failure.
+Summary: The first S1 run aborted mid-loop, and the run-report showed zeroed
+counts because they were populated only after the loop completed. The spec
+expects counts to reflect rows read/emitted; even on failure, partial counts are
+more informative.
+
+Implementation actions taken:
+- Updated `seg_2A/s1_tz_lookup/runner.py` to update `counts` and `checks` during
+  processing:
+  - `counts.sites_total` updated immediately after each batch read.
+  - `counts.border_nudged` updated whenever ε-nudge is applied.
+  - `counts.distinct_tzids` updated as tzids are assigned.
+  - `counts.rows_emitted` updated after each batch write.
+  - `checks.null_tzid` and `checks.unknown_tzid` updated when detected.
+
+Outcome: run-report now preserves partial progress data even if S1 aborts early
+with a hard failure (2A-S1-055, 2A-S1-052, etc.).
 
