@@ -1,2 +1,7 @@
 # tz_overrides (2A) - empty list means no overrides.
-[]
+- scope: country
+  target: "RS"
+  tzid: "Europe/Belgrade"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "Resolve tz_world overlap (Belgrade/Zagreb) for RS."

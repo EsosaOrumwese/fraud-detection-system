@@ -896,3 +896,59 @@ Implication to track:
   is consistent with the updated spec posture but should be documented in the
   2A run report as an audit-only digest change.
 
+### Entry: 2026-01-14 18:39
+
+Design element: S1 border ambiguity investigation for key
+`[merchant_id=14646030219073337247, legal_country_iso=RS, site_order=6]`
+from run_id `a988b06e603fe3aa90ac84a3a7e1cd7c`.
+
+Observed failure:
+- S1 error `2A-S1-055 border_ambiguity_unresolved` with key
+  `[14646030219073337247, "RS", 6]`.
+
+Investigation steps and findings:
+1) Located the site in 1B `site_locations` for the run:
+   - Path: `runs/local_full_run-5/a988b06e603fe3aa90ac84a3a7e1cd7c/data/layer1/1B/site_locations/seed=42/manifest_fingerprint=241f367ef49d444be4d6da8b3bdd0009c0e1b7c3d99cc27df3a6a48db913044f/part-00000.parquet`
+   - Row: `merchant_id=14646030219073337247`, `legal_country_iso=RS`,
+     `site_order=6`, `lon_deg=18.951534`, `lat_deg=45.760335`.
+2) Queried `reference/spatial/tz_world/2025a/tz_world_2025a.parquet`:
+   - The point is **contained** in both `Europe/Belgrade` and `Europe/Zagreb`.
+   - `touches=False` for both; this is **overlap**, not a boundary touch.
+3) Applied the nudge epsilon (`0.002`) in 8 directions; **still returns both
+   tzids** each time. The overlap area is larger than the nudge radius, so the
+   ambiguity is not resolvable by the current nudge rule.
+
+Conclusion:
+- The point is not malformed; the tz_world polygons **overlap** for this
+  location (RS). This is why S1 fails even after nudging.
+
+Potential follow-ups (not yet applied):
+1) Add a `tz_overrides` entry to force `Europe/Belgrade` (or the approved tzid)
+   for this site key.
+2) Fix the tz_world dataset overlap (upstream data correction), then re-seal.
+3) If spec allows, implement a deterministic tie-break rule (e.g., by
+   `legal_country_iso`), but this would be a spec change.
+
+### Entry: 2026-01-14 19:04
+
+Design element: tz_overrides policy update to resolve RS overlap failures.
+Summary: Applied a **country-scope** override for Serbia to force
+`Europe/Belgrade`, eliminating repeated ambiguity across seeds.
+
+Decision context:
+1) The failure point is in RS and the tz_world polygons **overlap** between
+   `Europe/Belgrade` and `Europe/Zagreb`, so nudging cannot resolve it.
+2) A **site-scope** override would fix this single key but could recur at other
+   RS points; it also increases per-site policy churn.
+3) A **country-scope** override is deterministic, stable across seeds, and
+   aligns with Serbia having a single canonical tzid.
+
+Action taken:
+- Updated `config/layer1/2A/timezone/tz_overrides.yaml` with:
+  `scope=country`, `target="RS"`, `tzid="Europe/Belgrade"`, and null expiry.
+
+Planned follow-up:
+- Rerun 2A S0 (to reseal inputs including `tz_overrides`) and 2A S1/S2 to
+  confirm the ambiguity resolves and `tzid_source="override"` is applied for
+  RS sites.
+
