@@ -59,7 +59,7 @@
 **Objectives (normative).** 2A.S1 SHALL:
 
 * **Assert eligibility:** Rely on the 2A.S0 **gate receipt** for the target `manifest_fingerprint` before referencing any 1B egress.
-* **Resolve sealed inputs:** Use the `tz_world` release and the `tz_nudge` policy **as sealed in S0**; no other sources are permitted.
+* **Resolve sealed inputs:** Use the `tz_world` release and the `tz_nudge` policy **as sealed in S0**; consult `tz_overrides` **only** when ambiguity persists after the nudge.
 * **Assign exactly one zone per site:** For every row of `site_locations` at the same `[seed, manifest_fingerprint]`, produce exactly one `tzid_provisional`.
 * **Tie-break deterministically:** When geometric membership is ambiguous, apply the ε-nudge **as defined by policy**; if applied, persist `nudge_lat_deg`/`nudge_lon_deg`.
 * **Emit the plan table:** Write **`s1_tz_lookup`** under `[seed, manifest_fingerprint]`, obeying identity/path law and schema anchors.
@@ -69,11 +69,12 @@
 
 * Point-in-polygon membership against `tz_world`.
 * Deterministic tie-break using the sealed ε-nudge policy and recording of any nudge applied.
+* Ambiguity fallback via sealed `tz_overrides` (site > mcc > country) when post-nudge candidates remain ambiguous.
 * Row-coverage discipline: **bijective projection** from `site_locations` rows (same `[seed, manifest_fingerprint]`) to `s1_tz_lookup` rows.
 
 **Out of scope.**
 
-* **Policy overrides** (applied in S2).
+* **Policy overrides for final tzid** (applied in S2). S1 may consult `tz_overrides` only as a fallback to resolve **post-nudge ambiguity**; it must not replace unambiguous geometry results.
 * **Timetable/cache construction** and **DST legality** checks (S3/S4).
 * Any re-hashing or restatement of S0 gate logic; S1 consumes S0’s receipt **by reference**.
 * Implementation choices (indexing strategy, geometry engine specifics).
@@ -119,7 +120,15 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
    *Required invariants:* positive ε (strictly > 0) and documented units.
    *Use in S1:* deterministic tie-break when a site lies on or ambiguously near a zone boundary; any applied nudge MUST be recorded in output.
 
-> *Note:* The **tzdb release** and **override list** sealed by S0 are **not consumed** in S1. Overrides are applied in S2; tzdb is used in later states.
+5. **`tz_overrides` policy (sealed in S0)**
+   *Required invariants:* schema-valid override list with scope-target rules.
+   *Use in S1:* **ambiguity fallback only**. If the nudge still yields 0/2+ candidates, S1 MAY select an override by precedence `site > mcc > country`. If no active override applies, S1 MUST fail with 2A-S1-055.
+
+6. **`merchant_mcc_map` (ingress; conditional)**
+   *Required identity:* only required if any override entry has `scope: mcc`.
+   *Use in S1:* map `merchant_id -> mcc` for ambiguity fallback; no other use.
+
+> *Note:* The **tzdb release** sealed by S0 is **not consumed** in S1. It is used in later states. Overrides are still applied in S2 for the final `tzid`; S1 only consults them when ambiguity persists after the nudge.
 
 ### 3.3 Binding constraints on input use
 
@@ -133,7 +142,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 ### 3.4 Null/empty allowances
 
 * **Nudge application:** It is **per-site optional**—ε is applied only when required to break border ambiguity. (Policy asset itself MUST be present and sealed.)
-* **Overrides:** May be empty in S0 but are **not** read in S1; their emptiness has no effect on S1.
+* **Overrides:** May be empty in S0; if empty, S1 has no ambiguity fallback and behaves as before (post-nudge ambiguity -> 2A-S1-055).
 
 ---
 
@@ -178,7 +187,21 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
    * **Registry:** policy/config entry with digest & semver. 
    * **Boundary:** S1 SHALL read only the ε parameter (strictly > 0) and units; S1 applies at most one deterministic nudge per ambiguous site and MUST record the nudged coordinates when used.
 
-> *Note:* Although sealed by S0, **tzdb release** and **override list** are **out of scope** for S1 (used by later 2A states). 
+5. **`tz_overrides` policy (required)**
+
+   * **Shape:** `schemas.2A.yaml#/policy/tz_overrides_v1`.
+   * **Catalogue:** `config/layer1/2A/timezone/tz_overrides.yaml`.
+   * **Registry:** policy/config entry with digest & version tag.
+   * **Boundary:** S1 reads overrides only to resolve post-nudge ambiguity; it does not apply overrides to unambiguous sites. Active rule uses the S0 receipt date; precedence site > mcc > country.
+
+6. **`merchant_mcc_map` (ingress; conditional)**
+
+   * **Shape:** `schemas.ingress.layer1.yaml#/merchant_mcc_map`.
+   * **Catalogue:** `reference/layer1/merchant_mcc_map/{version}/` (version-tagged).
+   * **Registry:** ingress dataset entry.
+   * **Boundary:** Required only when any override has `scope: mcc`; S1 uses it only for ambiguity fallback.
+
+> *Note:* Although sealed by S0, **tzdb release** is **out of scope** for S1 (used in later 2A states). `tz_overrides` is consulted only for post-nudge ambiguity; S2 applies overrides for the final `tzid`. 
 
 ### 4.3 Validation responsibilities (S1 scope)
 
@@ -186,10 +209,11 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 * **Dictionary resolution** succeeds for each input; no literal paths. 
 * **Partition discipline:** `site_locations` read strictly under the run’s `[seed, manifest_fingerprint]`. 
 * **Ingress minima:** `tz_world` validates (WGS84, non-empty); `tz_nudge` ε > 0.
+* **Overrides policy (when consulted):** `tz_overrides` schema-valid; active rule uses the S0 receipt date; if any override uses `scope: mcc`, the sealed `merchant_mcc_map` must be available.
 
 ### 4.4 Prohibitions
 
-S1 SHALL NOT: apply policy **overrides** (S2), parse **tzdb rules** (S3), read any 1B or ingress surface beyond those in §4.2, mutate any input, rely on implicit/relative paths, or perform any RNG activity.
+S1 SHALL NOT: apply policy **overrides** except as a post-nudge ambiguity fallback; it must not replace unambiguous geometry results. S1 SHALL NOT parse **tzdb rules** (S3), read any 1B or ingress surface beyond those in §4.2, mutate any input, rely on implicit/relative paths, or perform any RNG activity.
 
 ---
 
@@ -297,7 +321,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 
 S1 **SHALL NOT**:
 
-* apply **policy overrides** (handled in S2),
+* apply **policy overrides** except as a post-nudge ambiguity fallback (S2 remains the final override authority),
 * parse or use **tzdb** transition rules (S3),
 * read any dataset beyond those bound in §7.2,
 * mutate any input surfaces, or
@@ -305,7 +329,7 @@ S1 **SHALL NOT**:
 
 ### 7.6 Idempotency
 
-Given the same **gate receipt**, the same **`site_locations`** partition, the same **`tz_world`** release, and the same **`tz_nudge`** policy, S1 **SHALL** produce byte-identical `s1_tz_lookup` output.
+Given the same **gate receipt**, the same **`site_locations`** partition, the same **`tz_world`** release, the same **`tz_nudge`** policy, and the same **`tz_overrides`** policy (plus `merchant_mcc_map` when MCC scope is active), S1 **SHALL** produce byte-identical `s1_tz_lookup` output.
 
 ---
 
@@ -363,7 +387,7 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 
 **V-01 — S0 receipt present (Abort).** A valid **2A.S0 gate receipt** exists for the target `manifest_fingerprint` and schema-validates.
 **V-02 — Dictionary resolution (Abort).** All S1 inputs resolve by **ID** via the Dataset Dictionary:
-`site_locations` (1B egress, `[seed, manifest_fingerprint]`), `tz_world_<release>`, and `tz_nudge`. Literal paths are forbidden.
+`site_locations` (1B egress, `[seed, manifest_fingerprint]`), `tz_world_<release>`, `tz_nudge`, and `tz_overrides` (plus `merchant_mcc_map` when MCC scope is active). Literal paths are forbidden.
 **V-03 — Partition selection (Abort).** `site_locations` is read **only** from the run’s `(seed, manifest_fingerprint)` partition. 
 
 ### 9.2 Ingress minima (mandatory)
@@ -430,7 +454,7 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 
 * **2A-S1-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 gate receipt for the target `manifest_fingerprint`.
   *Remediation:* publish/repair S0; rerun S1.
-* **2A-S1-010 INPUT_RESOLUTION_FAILED (Abort)** — An input (`site_locations`, `tz_world_<release>`, or `tz_nudge`) failed **Dictionary** resolution or Registry authorisation.
+* **2A-S1-010 INPUT_RESOLUTION_FAILED (Abort)** — An input (`site_locations`, `tz_world_<release>`, `tz_nudge`, or `tz_overrides`, plus `merchant_mcc_map` when MCC scope is active) failed **Dictionary** resolution or Registry authorisation.
   *Remediation:* correct Dictionary/Registry entries or IDs; rerun.
 * **2A-S1-011 WRONG_PARTITION_SELECTED (Abort)** — `site_locations` not read **exactly** from `(seed, manifest_fingerprint)`.
   *Remediation:* select the exact partition; rerun.
@@ -463,7 +487,7 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
   *Remediation:* correct assignment or update sealed inputs; rerun.
 * **2A-S1-054 NUDGE_PAIR_VIOLATION (Abort)** — Only one of `nudge_lat_deg`/`nudge_lon_deg` is set, or both set when no nudge path was taken.
   *Remediation:* enforce the pair rule; rerun.
-* **2A-S1-055 BORDER_AMBIGUITY_UNRESOLVED (Abort)** — After the single ε-nudge pass, membership remains ambiguous or empty.
+* **2A-S1-055 BORDER_AMBIGUITY_UNRESOLVED (Abort)** — After the single ε-nudge pass, membership remains ambiguous or empty and no active override applies.
   *Remediation:* review geometry or policy; if policy cannot resolve, treat as hard failure.
 
 ### 10.5 Catalogue discipline
@@ -513,6 +537,9 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 * `inputs.tz_world.license : string`
 * `inputs.tz_nudge.semver : string`
 * `inputs.tz_nudge.sha256_digest : hex64`
+* `inputs.tz_overrides.version_tag : string`
+* `inputs.tz_overrides.sha256_digest : hex64`
+* `inputs.merchant_mcc_map.version_tag : string` *(only when MCC scope is active)*
 
 **Lookup summary (geometry-only outcomes):**
 
@@ -520,6 +547,10 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 * `counts.rows_emitted : uint64` — rows written to `s1_tz_lookup`
 * `counts.border_nudged : uint64` — rows where ε-nudge was applied
 * `counts.distinct_tzids : uint32` — number of unique `tzid_provisional`
+* `counts.overrides_applied : uint64` — rows resolved via `tz_overrides` after ambiguity
+* `counts.overrides_site : uint64`
+* `counts.overrides_mcc : uint64`
+* `counts.overrides_country : uint64`
 * `checks.pk_duplicates : uint32` — detected primary-key duplicates (0 on PASS)
 * `checks.coverage_mismatch : uint32` — missing/excess rows vs input (0 on PASS)
 * `checks.null_tzid : uint32` — rows with `tzid_provisional = null` (0 on PASS)
@@ -542,8 +573,8 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 S1 **SHALL** emit machine-parseable log records correlating to the report. Minimum events:
 
 * **`GATE`** — start/end + result of S0 receipt verification; include `manifest_fingerprint`.
-* **`INPUTS`** — resolved IDs/paths for `site_locations`, `tz_world`, `tz_nudge`.
-* **`LOOKUP`** — totals (`sites_total`, `border_nudged`, `distinct_tzids`).
+* **`INPUTS`** — resolved IDs/paths for `site_locations`, `tz_world`, `tz_nudge`, `tz_overrides` (and `merchant_mcc_map` when MCC scope is active).
+* **`LOOKUP`** — totals (`sites_total`, `border_nudged`, `distinct_tzids`, `overrides_applied`).
 * **`VALIDATION`** — each validator outcome `{id, result, code?}` for §9.
 * **`EMIT`** — successful publication of `s1_tz_lookup` with Dictionary path.
 
@@ -563,7 +594,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 
 ### 12.1 Workload shape
 
-* **Reads:** one `site_locations` partition for the selected `(seed, manifest_fingerprint)`, the sealed `tz_world` release, and the sealed `tz_nudge` policy.
+* **Reads:** one `site_locations` partition for the selected `(seed, manifest_fingerprint)`, the sealed `tz_world` release, the sealed `tz_nudge` policy, and the sealed `tz_overrides` policy (plus `merchant_mcc_map` when MCC scope is active).
 * **Compute:** point-in-polygon tests per site; optional single ε-nudge for border cases.
 * **Writes:** one row per input site into `s1_tz_lookup`. No RNG, no timetable/DST logic.
 
@@ -631,7 +662,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 1. **Identity:** output selected by **`(seed, manifest_fingerprint)`**; partitions are **`[seed, manifest_fingerprint]`** only; path↔embed equality.
 2. **Output surface:** dataset **`s1_tz_lookup`** exists with its **schema anchor** and **ID** unchanged.
 3. **Shape/keys:** PK = `[merchant_id, legal_country_iso, site_order]`; required columns include `lat_deg`, `lon_deg`, `tzid_provisional`; `nudge_lat_deg`/`nudge_lon_deg` are nullable and paired.
-4. **Assignment law:** geometry-only membership against the sealed `tz_world` with at most **one ε-nudge** per ambiguous site; if nudged, record both `nudge_*`.
+4. **Assignment law:** geometry-only membership against the sealed `tz_world` with at most **one ε-nudge** per ambiguous site; if ambiguity persists, consult `tz_overrides` as a fallback (site > mcc > country). If nudged, record both `nudge_*`.
 5. **Coverage:** 1:1 projection from `site_locations` rows in the selected partition to `s1_tz_lookup` rows (no drops/extras).
 6. **Gate posture:** S1 reads inputs **only after** verifying the 2A.S0 receipt for the target `manifest_fingerprint`; S1 does **not** re-hash upstream bundles.
 7. **Catalogue posture:** Dictionary is the authority for IDs→paths/partitions/format; Registry for existence/licence/retention; Schema is shape authority.
@@ -658,7 +689,7 @@ Require a MAJOR bump and downstream coordination:
 * Altering the **assignment law** (e.g., different border policy, more than one nudge, new tie-break direction) or making `nudge_*` non-nullable/mandatory.
 * Changing **coverage semantics** (e.g., allowing >1 output row per site or permitting drops).
 * Turning any existing **Warn** into **Abort**, or changing error-code meanings.
-* Admitting additional inputs (e.g., applying overrides or tzdb logic in S1) or reading beyond §3’s input set.
+* Admitting additional inputs beyond §3’s input set (tz_overrides and conditional merchant_mcc_map are now in-scope) or reading beyond those bounds.
 * Any change that makes previously valid S1 outputs **fail** schema/validators unchanged.
 
 ### 13.5 Deprecation policy
@@ -724,7 +755,7 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 
 ### A5. Segment 2A overview
 
-* **State flow (S0→S5)** — S1 = geometry-only `tzid` lookup; S2 = overrides; S3 = tzdb timetables; S4 = legality; S5 = validation bundle. 
+* **State flow (S0→S5)** — S1 = geometry-only lookup with ambiguity fallback via tz_overrides; S2 = overrides for final tzid; S3 = tzdb timetables; S4 = legality; S5 = validation bundle. 
 
 ### A6. 1B egress gate posture (why S0 receipt matters)
 

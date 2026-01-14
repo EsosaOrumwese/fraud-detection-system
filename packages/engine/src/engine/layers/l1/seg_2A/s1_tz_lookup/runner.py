@@ -7,6 +7,7 @@ import json
 import shutil
 import time
 import uuid
+from datetime import date, datetime
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
@@ -400,6 +401,24 @@ def _apply_nudge(lat: float, lon: float, epsilon: float) -> tuple[float, float]:
     return _clamp_lat(lat + epsilon), _wrap_lon(lon + epsilon)
 
 
+def _parse_cutoff_date(verified_at_utc: str, fallback_utc: str) -> date:
+    source = verified_at_utc or fallback_utc
+    if not source:
+        raise ValueError("missing cutoff timestamp")
+    if source.endswith("Z"):
+        source = source[:-1] + "+00:00"
+    return datetime.fromisoformat(source).date()
+
+
+def _override_active(expiry: Optional[str], cutoff: date) -> bool:
+    if expiry is None:
+        return True
+    expiry_str = str(expiry).strip()
+    if not expiry_str:
+        return True
+    return date.fromisoformat(expiry_str) >= cutoff
+
+
 def _tree_query_indices(tree: STRtree, geom_index: dict[int, int], point: Point) -> list[int]:
     result = tree.query(point)
     if hasattr(result, "dtype") and np.issubdtype(result.dtype, np.integer):
@@ -500,6 +519,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     tz_world_id = "tz_world_2025a"
     tz_nudge_semver = ""
     tz_nudge_digest = ""
+    tz_overrides_version = ""
+    tz_overrides_digest = ""
+    mcc_map_version = ""
     output_catalog_path = ""
     output_root: Optional[Path] = None
     run_report_path: Optional[Path] = None
@@ -508,6 +530,10 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         "rows_emitted": 0,
         "border_nudged": 0,
         "distinct_tzids": 0,
+        "overrides_applied": 0,
+        "overrides_site": 0,
+        "overrides_mcc": 0,
+        "overrides_country": 0,
     }
     checks = {
         "pk_duplicates": 0,
@@ -589,6 +615,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             "site_locations": _dataset_entry("site_locations"),
             "tz_world_2025a": _dataset_entry("tz_world_2025a"),
             "tz_nudge": _dataset_entry("tz_nudge"),
+            "tz_overrides": _dataset_entry("tz_overrides"),
             "s1_tz_lookup": _dataset_entry("s1_tz_lookup"),
         }
         registry_entries = {
@@ -596,6 +623,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             "site_locations": _registry_entry("site_locations"),
             "tz_world_2025a": _registry_entry("tz_world_2025a"),
             "tz_nudge": _registry_entry("tz_nudge"),
+            "tz_overrides": _registry_entry("tz_overrides"),
         }
         tz_world_license = registry_entries["tz_world_2025a"].get("license", "")
 
@@ -629,6 +657,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         site_locations_path = _resolve_dataset_path(entries["site_locations"], run_paths, config.external_roots, tokens)
         tz_world_path = _resolve_dataset_path(entries["tz_world_2025a"], run_paths, config.external_roots, tokens)
         tz_nudge_path = _resolve_dataset_path(entries["tz_nudge"], run_paths, config.external_roots, tokens)
+        tz_overrides_path = _resolve_dataset_path(entries["tz_overrides"], run_paths, config.external_roots, tokens)
         output_root = _resolve_dataset_path(entries["s1_tz_lookup"], run_paths, config.external_roots, tokens)
 
         receipt_catalog_path = _render_catalog_path(entries["s0_gate_receipt_2A"], {"manifest_fingerprint": str(manifest_fingerprint)})
@@ -719,7 +748,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
         sealed_inputs_payload = _load_json(sealed_inputs_path)
         sealed_index = {item.get("asset_id"): item for item in sealed_inputs_payload if isinstance(item, dict)}
-        required_ids = ["site_locations", "tz_world_2025a", "tz_nudge"]
+        required_ids = ["site_locations", "tz_world_2025a", "tz_nudge", "tz_overrides"]
         missing = [asset_id for asset_id in required_ids if asset_id not in sealed_index]
         if missing:
             _emit_failure_event(
@@ -769,6 +798,161 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     },
                 )
 
+        tz_overrides_payload = _load_yaml(tz_overrides_path)
+        try:
+            _validate_payload(
+                schema_2a,
+                "policy/tz_overrides_v1",
+                tz_overrides_payload,
+                ref_packs={"schemas.layer1.yaml": schema_layer1},
+            )
+        except SchemaValidationError as exc:
+            _emit_failure_event(
+                logger,
+                "2A-S1-010",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {"detail": exc.errors, "path": str(tz_overrides_path)},
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-010",
+                STATE,
+                MODULE_NAME,
+                {"detail": exc.errors, "path": str(tz_overrides_path)},
+                dataset_id="tz_overrides",
+            ) from exc
+        if not isinstance(tz_overrides_payload, list):
+            _emit_failure_event(
+                logger,
+                "2A-S1-010",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {"detail": "tz_overrides_not_list", "path": str(tz_overrides_path)},
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-010",
+                STATE,
+                MODULE_NAME,
+                {"detail": "tz_overrides_not_list", "path": str(tz_overrides_path)},
+                dataset_id="tz_overrides",
+            )
+        tz_overrides_version = str(sealed_index.get("tz_overrides", {}).get("version_tag", ""))
+        tz_overrides_digest = str(sealed_index.get("tz_overrides", {}).get("sha256_hex", ""))
+
+        try:
+            cutoff_date = _parse_cutoff_date(receipt_verified_utc, started_utc)
+        except ValueError as exc:
+            _emit_failure_event(
+                logger,
+                "2A-S1-001",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {"detail": "receipt_timestamp_invalid", "verified_at_utc": receipt_verified_utc},
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-001",
+                STATE,
+                MODULE_NAME,
+                {"detail": "receipt_timestamp_invalid", "verified_at_utc": receipt_verified_utc},
+                dataset_id="s0_gate_receipt_2A",
+            ) from exc
+        overrides_site: dict[str, str] = {}
+        overrides_mcc: dict[str, str] = {}
+        overrides_country: dict[str, str] = {}
+        for entry in tz_overrides_payload:
+            if not isinstance(entry, dict):
+                continue
+            if not _override_active(entry.get("expiry_yyyy_mm_dd"), cutoff_date):
+                continue
+            scope = str(entry.get("scope", ""))
+            target = str(entry.get("target", ""))
+            tzid = str(entry.get("tzid", ""))
+            if scope == "site":
+                overrides_site[target] = tzid
+            elif scope == "mcc":
+                overrides_mcc[target] = tzid
+            elif scope == "country":
+                overrides_country[target] = tzid
+
+        if not overrides_site and not overrides_mcc and not overrides_country:
+            logger.info("S1: tz_overrides has no active entries; ambiguity fallback disabled")
+
+        mcc_map_path: Optional[Path] = None
+        mcc_lookup: dict[int, str] = {}
+        if overrides_mcc:
+            if "merchant_mcc_map" not in sealed_index:
+                _emit_failure_event(
+                    logger,
+                    "2A-S1-010",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    run_id,
+                    {"detail": "missing_sealed_inputs", "missing": ["merchant_mcc_map"]},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "2A-S1-010",
+                    STATE,
+                    MODULE_NAME,
+                    {"detail": "missing_sealed_inputs", "missing": ["merchant_mcc_map"]},
+                )
+            entries["merchant_mcc_map"] = _dataset_entry("merchant_mcc_map")
+            registry_entries["merchant_mcc_map"] = _registry_entry("merchant_mcc_map")
+            mcc_schema_ref = _resolve_schema_ref(entries["merchant_mcc_map"], registry_entries["merchant_mcc_map"], "merchant_mcc_map")
+            _assert_schema_ref(
+                mcc_schema_ref,
+                schema_packs,
+                "merchant_mcc_map",
+                logger,
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+            )
+            mcc_map_version = str(sealed_index.get("merchant_mcc_map", {}).get("version_tag", ""))
+            mcc_tokens = dict(tokens)
+            if mcc_map_version:
+                mcc_tokens["version"] = mcc_map_version
+            mcc_map_path = _resolve_dataset_path(
+                entries["merchant_mcc_map"],
+                run_paths,
+                config.external_roots,
+                mcc_tokens,
+            )
+            mcc_df = pl.read_parquet(mcc_map_path, columns=["merchant_id", "mcc"])
+            mcc_lookup = {
+                int(row["merchant_id"]): f"{int(row['mcc']):04d}"
+                for row in mcc_df.iter_rows(named=True)
+            }
+            if not mcc_lookup:
+                _emit_failure_event(
+                    logger,
+                    "2A-S1-010",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    run_id,
+                    {"detail": "merchant_mcc_map_empty", "path": str(mcc_map_path)},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "2A-S1-010",
+                    STATE,
+                    MODULE_NAME,
+                    {"detail": "merchant_mcc_map_empty", "path": str(mcc_map_path)},
+                    dataset_id="merchant_mcc_map",
+                )
+
         expected_seed = f"seed={seed}"
         expected_manifest = f"manifest_fingerprint={manifest_fingerprint}"
         if expected_seed not in str(site_locations_path) or expected_manifest not in str(site_locations_path):
@@ -790,15 +974,21 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 dataset_id="site_locations",
             )
 
+        inputs_payload = {
+            "site_locations": site_locations_catalog_path,
+            "tz_world": str(tz_world_path),
+            "tz_nudge": str(tz_nudge_path),
+            "tz_overrides": str(tz_overrides_path),
+        }
+        if mcc_map_path is not None:
+            inputs_payload["merchant_mcc_map"] = str(mcc_map_path)
         _emit_event(
             logger,
             "INPUTS",
             seed,
             manifest_fingerprint,
             "INFO",
-            site_locations=site_locations_catalog_path,
-            tz_world=str(tz_world_path),
-            tz_nudge=str(tz_nudge_path),
+            **inputs_payload,
         )
         _emit_validation(logger, seed, manifest_fingerprint, "V-02", "pass")
         _emit_validation(logger, seed, manifest_fingerprint, "V-03", "pass")
@@ -957,29 +1147,76 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 candidates = _candidate_tzids(tree, geoms, tzids, geom_index, point)
                 nudge_lat = None
                 nudge_lon = None
-                if len(candidates) != 1:
+                tzid = None
+                if len(candidates) == 1:
+                    tzid = next(iter(candidates))
+                else:
                     nudge_lat, nudge_lon = _apply_nudge(lat, lon, epsilon)
                     border_nudged += 1
                     counts["border_nudged"] = border_nudged
                     point = Point(nudge_lon, nudge_lat)
                     candidates = _candidate_tzids(tree, geoms, tzids, geom_index, point)
-                    if len(candidates) != 1:
-                        _emit_failure_event(
-                            logger,
-                            "2A-S1-055",
-                            seed,
-                            manifest_fingerprint,
-                            str(parameter_hash),
-                            run_id,
-                            {"detail": "border_ambiguity_unresolved", "key": key},
-                        )
-                        raise EngineFailure(
-                            "F4",
-                            "2A-S1-055",
-                            STATE,
-                            MODULE_NAME,
-                            {"detail": "border_ambiguity_unresolved", "key": key},
-                        )
+                    if len(candidates) == 1:
+                        tzid = next(iter(candidates))
+                    else:
+                        override_scope = None
+                        override_tzid = None
+                        site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
+                        if site_key in overrides_site:
+                            override_scope = "site"
+                            override_tzid = overrides_site[site_key]
+                        if override_tzid is None and overrides_mcc and mcc_lookup:
+                            mcc_key = mcc_lookup.get(merchant_id)
+                            if mcc_key and mcc_key in overrides_mcc:
+                                override_scope = "mcc"
+                                override_tzid = overrides_mcc[mcc_key]
+                        if override_tzid is None and legal_country_iso in overrides_country:
+                            override_scope = "country"
+                            override_tzid = overrides_country[legal_country_iso]
+                        if override_tzid is None:
+                            _emit_failure_event(
+                                logger,
+                                "2A-S1-055",
+                                seed,
+                                manifest_fingerprint,
+                                str(parameter_hash),
+                                run_id,
+                                {"detail": "border_ambiguity_unresolved", "key": key},
+                            )
+                            raise EngineFailure(
+                                "F4",
+                                "2A-S1-055",
+                                STATE,
+                                MODULE_NAME,
+                                {"detail": "border_ambiguity_unresolved", "key": key},
+                            )
+                        if override_tzid not in tzid_set:
+                            unknown_tzid += 1
+                            checks["unknown_tzid"] = unknown_tzid
+                            _emit_failure_event(
+                                logger,
+                                "2A-S1-053",
+                                seed,
+                                manifest_fingerprint,
+                                str(parameter_hash),
+                                run_id,
+                                {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
+                            )
+                            raise EngineFailure(
+                                "F4",
+                                "2A-S1-053",
+                                STATE,
+                                MODULE_NAME,
+                                {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
+                            )
+                        tzid = override_tzid
+                        counts["overrides_applied"] += 1
+                        if override_scope == "site":
+                            counts["overrides_site"] += 1
+                        elif override_scope == "mcc":
+                            counts["overrides_mcc"] += 1
+                        elif override_scope == "country":
+                            counts["overrides_country"] += 1
                 if nudge_lat is None and nudge_lon is not None:
                     _emit_failure_event(
                         logger,
@@ -1015,7 +1252,6 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         {"detail": "nudge_pair_violation", "key": key},
                     )
 
-                tzid = next(iter(candidates)) if len(candidates) == 1 else None
                 if tzid is None:
                     null_tzid += 1
                     checks["null_tzid"] = null_tzid
@@ -1090,6 +1326,14 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         counts["distinct_tzids"] = len(distinct_tzids)
         checks["null_tzid"] = null_tzid
         checks["unknown_tzid"] = unknown_tzid
+        if counts["overrides_applied"] > 0:
+            logger.info(
+                "S1: overrides applied total=%d site=%d mcc=%d country=%d",
+                counts["overrides_applied"],
+                counts["overrides_site"],
+                counts["overrides_mcc"],
+                counts["overrides_country"],
+            )
 
         if rows_emitted != sites_total:
             checks["coverage_mismatch"] = abs(rows_emitted - sites_total)
@@ -1177,6 +1421,10 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             rows_emitted=rows_emitted,
             border_nudged=border_nudged,
             distinct_tzids=len(distinct_tzids),
+            overrides_applied=counts["overrides_applied"],
+            overrides_site=counts["overrides_site"],
+            overrides_mcc=counts["overrides_mcc"],
+            overrides_country=counts["overrides_country"],
         )
 
         _atomic_publish_dir(output_tmp, output_root, logger, "s1_tz_lookup")
@@ -1218,6 +1466,18 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     finally:
         finished_utc = utc_now_rfc3339_micro()
         if run_report_path:
+            inputs_block = {
+                "site_locations": {"path": site_locations_catalog_path},
+                "tz_world": {"id": tz_world_id, "license": tz_world_license},
+                "tz_nudge": {"semver": tz_nudge_semver, "sha256_digest": tz_nudge_digest},
+            }
+            if tz_overrides_version or tz_overrides_digest:
+                inputs_block["tz_overrides"] = {
+                    "version_tag": tz_overrides_version,
+                    "sha256_digest": tz_overrides_digest,
+                }
+            if mcc_map_version:
+                inputs_block["merchant_mcc_map"] = {"version_tag": mcc_map_version}
             run_report = {
                 "segment": SEGMENT,
                 "state": STATE,
@@ -1231,11 +1491,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "receipt_path": receipt_catalog_path,
                     "verified_at_utc": receipt_verified_utc,
                 },
-                "inputs": {
-                    "site_locations": {"path": site_locations_catalog_path},
-                    "tz_world": {"id": tz_world_id, "license": tz_world_license},
-                    "tz_nudge": {"semver": tz_nudge_semver, "sha256_digest": tz_nudge_digest},
-                },
+                "inputs": inputs_block,
                 "counts": counts,
                 "checks": checks,
                 "output": {"path": output_catalog_path, "format": "parquet"},

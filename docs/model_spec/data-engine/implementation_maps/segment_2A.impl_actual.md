@@ -952,3 +952,101 @@ Planned follow-up:
   confirm the ambiguity resolves and `tzid_source="override"` is applied for
   RS sites.
 
+### Entry: 2026-01-14 19:16
+
+Design element: S1 ambiguity fallback via `tz_overrides` (spec + runner alignment).
+Summary: S1 currently hard-fails on unresolved ambiguity after a single nudge
+(2A-S1-055). The policy decision is to **consult sealed tz_overrides only in
+that ambiguity case**, so S1 can continue when an approved override exists
+while remaining geometry-first for all unambiguous sites.
+
+Plan and decisions (before code changes, detailed):
+1) **Spec update (state.2A.s1.expanded.md).**
+   - Replace the current "overrides not consumed in S1" posture with a
+     conditional rule: S1 is geometry-only **unless** the single nudge still
+     yields 0/2+ candidates, in which case S1 MAY apply a **sealed override**
+     to choose `tzid_provisional`.
+   - Keep S2 as the **canonical override application** for the final `tzid`;
+     S1’s override use is strictly a fallback to resolve ambiguity so the run
+     can proceed.
+   - Add `tz_overrides` to the S1 input list, with the same **scope precedence**
+     as S2: `site » mcc » country`.
+   - If overrides include `scope: mcc`, S1 **must** read the sealed
+     `merchant_mcc_map` (same as S0/S2 rules) or abort with 2A-S1-010.
+   - Update 2A-S1-055 semantics to: ambiguity persists **after nudge and no
+     applicable override is active**.
+
+2) **Override activation rule (align to authoring guide).**
+   - Treat an override as active iff `expiry_yyyy_mm_dd` is null **or**
+     `expiry_yyyy_mm_dd >= date(S0.receipt.verified_at_utc)`.
+   - Use the S0 receipt’s `verified_at_utc` as the cutoff date (deterministic,
+     no wall-clock dependence). If the receipt lacks a timestamp, fall back to
+     the run receipt `created_utc` and document the fallback in logs.
+
+3) **Runner input wiring (S1).**
+   - Add `tz_overrides` to `entries` + `registry_entries`, enforce schema_ref
+     resolution, and verify presence in `sealed_inputs_2A`.
+   - Load `tz_overrides` via `_load_yaml` and validate with
+     `schemas.2A.yaml#/policy/tz_overrides_v1` (using layer1 defs).
+   - If any override has scope `mcc`, resolve `merchant_mcc_map` by dictionary,
+     verify it is sealed, and load a `merchant_id -> mcc` map for lookups.
+
+4) **Ambiguity resolution logic (S1).**
+   - Keep the existing geometry flow unchanged for `len(candidates) == 1`.
+   - On `len(candidates) != 1` **after nudge**, attempt override selection:
+     a) site key override (`"{merchant_id}|{legal_country_iso}|{site_order}"`),
+     b) MCC override (if available),
+     c) country override (`legal_country_iso`).
+   - If an override resolves to a tzid not present in the sealed tz_world set,
+     fail with 2A-S1-053 (unknown tzid) to keep membership guarantees.
+   - If no active override applies, fail with 2A-S1-055 (unchanged error code).
+
+5) **Observability adjustments.**
+   - Add counts for `overrides_applied` and per-scope counts; emit a summary log
+     once per run (no per-site spam).
+   - Include `tz_overrides` identity (digest/version from sealed_inputs) in the
+     S1 run-report inputs so auditors can see which override policy was used.
+
+6) **No schema/output changes.**
+   - S1 output shape stays the same; no new columns. Overrides only affect
+     `tzid_provisional` for ambiguous sites.
+   - Determinism preserved: same inputs + overrides + receipt date produce
+     byte-identical outputs.
+
+### Entry: 2026-01-14 19:40
+
+Design element: S1 override fallback implementation (spec + runner changes).
+Summary: Implemented the approved S1 posture: consult sealed `tz_overrides` only
+when the post-nudge candidate set remains ambiguous, while keeping S2 as the
+final override authority. Updated spec text and the runner to match.
+
+Implementation actions (detailed):
+1) **Spec update (S1 expanded doc).**
+   - Added `tz_overrides` (and conditional `merchant_mcc_map`) to S1 inputs and
+     per-input boundaries.
+   - Reframed out-of-scope language to permit **post-nudge** override fallback,
+     while keeping final override application in S2.
+   - Updated run-report inputs and counts to include override identity and
+     applied counts; updated structured log expectations.
+   - Adjusted determinism statement, state-flow summary, and 2A-S1-055 wording
+     to include the override fallback.
+
+2) **Runner updates (`seg_2A/s1_tz_lookup/runner.py`).**
+   - Added `tz_overrides` to dictionary/registry resolution, sealed-input checks,
+     and INPUTS logs.
+   - Loaded and schema-validated `tz_overrides` (policy/tz_overrides_v1) with
+     layer1 defs; parsed active overrides using the S0 receipt date.
+   - Built active override maps for `site`, `mcc`, and `country` scopes; logged
+     when the policy is empty (no fallback).
+   - If MCC overrides are active, resolved `merchant_mcc_map` via the sealed
+     version tag, validated schema_ref, loaded a `merchant_id -> mcc` lookup,
+     and failed closed if missing/empty.
+   - Updated the ambiguity path: after the single nudge, apply overrides by
+     precedence `site > mcc > country`, fail with 2A-S1-055 if none apply.
+   - Enforced tzid membership for overrides (2A-S1-053 on unknown tzid).
+   - Added override counters (`overrides_applied/site/mcc/country`) and a
+     summary INFO log; surfaced override identity in the run-report inputs.
+
+3) **Output surface unchanged.**
+   - No schema or partition changes for `s1_tz_lookup`; only the selection
+     logic for ambiguous sites changes.
