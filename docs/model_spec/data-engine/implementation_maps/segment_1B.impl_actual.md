@@ -2226,6 +2226,121 @@ Open questions (need confirmation before coding):
 1) **Optional point-in-country check:** Should we enable the optional deterministic point-in-country check (adds geometry cost), or leave it disabled for performance?
 2) **Path-embed mismatch handling:** If `outlet_catalogue.manifest_fingerprint` or `s6_site_jitter.manifest_fingerprint` mismatches the path token, should S7 hard-fail immediately (strict) or count + fail at the end (still fail-closed either way)?
 
+### Entry: 2026-01-14 07:21
+
+Design element: S7 implementation decisions confirmed + execution posture.
+
+Decision outcomes (explicit):
+1) **Point-in-country check:** Leave **disabled** for S7 by default. Rationale: spec marks it MAY; S7 already enforces inside-pixel and tile FK, and avoiding world geometry re-loads protects throughput and memory.
+2) **Path-embed mismatches:** **Hard-fail immediately** on the first mismatch (fail-fast). Rationale: path-embed equality is a MUST and any mismatch invalidates the partition; continuing wastes time and risks partial outputs.
+
+Implementation approach updates (detailed):
+- **Join strategy:** Start with a deterministic streaming join on S5 and S6 keyed by `[merchant_id, legal_country_iso, site_order]` using a per-row merge-join across sorted scans. This preserves writer-sort with no full shuffle. If multiple files break global ordering, detect order violations and (for now) fail with an actionable error rather than silently resorting large volumes; we can add an external sort fallback if that becomes necessary.
+- **Tile bounds lookup:** Reuse S6’s `tile_bounds` loader to read per-country parquet under `tile_bounds/country=XX`, filter to needed tile_ids, and cache per-country bounds map. This avoids loading the full S1 geometry surface.
+- **Inside-pixel checks:** Use the same antimeridian logic and inclusive bounds checks as S6/S1; this is a hard acceptance gate (fail-closed on any out-of-bounds point).
+- **Coverage parity:** Gate read via `s0_gate_receipt_1B` (manifest_fingerprint and sealed_inputs check). Enforce 1:1 coverage against `outlet_catalogue` and preserve site_order; fail fast on any missing key.
+- **Run summary:** Emit `s7_run_summary.json` with top-level `{seed, manifest_fingerprint, parameter_hash}` and additional counters (`sizes`, `validation_counters`, `gates.flag_sha256_hex`) to mirror the spec’s run-summary example.
+
+### Entry: 2026-01-14 07:25
+
+Design element: S7 implementation kickoff (detailed in-process reasoning before code).
+
+Brainstorm & decision checkpoints (before coding):
+- **S5/S6 join mechanics:** 
+  - Option A: load both tables with Polars and `join` then `sort` by PK. Simple but may materialize large frames and sort globally (RAM heavy).
+  - Option B: streaming merge-join over sorted scans (S5/S6 writer-sorted by PK), preserving order and avoiding a full shuffle.
+  - **Chosen:** Option B, with explicit sort-order guards. If a partition is not globally sorted (multi-file disorder), fail with an actionable error rather than silently re-sorting a huge table (keeps determinism and avoids hidden memory blowups).
+- **Outlet coverage parity check:** 
+  - Option A: load outlet_catalogue into a set and check membership; O(N) memory.
+  - Option B: sorted merge-compare using an iterator on outlet_catalogue in writer-sort; fail fast on any mismatch.
+  - **Chosen:** Option B to cap memory and remain deterministic.
+- **Tile bounds retrieval:** 
+  - Option A: load full `tile_bounds` (too large).
+  - Option B: per-country partial load for tile_ids present in the current S5 batch (pattern used in S6).
+  - **Chosen:** Option B with an LRU cache; also enforce missing-tile FK errors immediately.
+- **Inside-pixel check:** 
+  - Use S1 bounds with antimeridian-aware check (same logic as S6) and enforce inclusive bounds.
+  - Fail-closed on first out-of-bounds to avoid partial outputs.
+
+Immediate implementation steps (ordered):
+1) Create `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py` with merge-join loop, bounds lookup, parity checks, and run summary emission.
+2) Add CLI wrapper `packages/engine/src/engine/cli/s7_site_synthesis.py` to wire `run_s7`.
+3) Extend `makefile` with `SEG1B_S7_*` variables and `segment1b-s7` target.
+
+### Entry: 2026-01-14 07:55
+
+Design element: S7 implementation (runner + CLI + Makefile) with deterministic merge-join, gate discipline, and dictionary/schema coherence checks.
+
+Implementation actions and reasoning (detailed, step-by-step):
+1) **Module scaffold + CLI wiring.**
+   - Created `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/__init__.py` for the new state module.
+   - Added `packages/engine/src/engine/cli/s7_site_synthesis.py` to call `run_s7`, using run_receipt selection (latest by mtime if `--run-id` absent) and consistent EngineConfig wiring (contracts layout/root + runs root).
+   - Updated `makefile` with `SEG1B_S7_*` variables + `segment1b-s7` target so S7 can be run in isolation.
+
+2) **Run identity and contract loading.**
+   - Implemented run_receipt resolution: validate `run_id` exists and the run_receipt path name matches the embedded run_id to avoid cross-run identity leakage.
+   - Loaded dictionary + schema packs (`schemas.1B.yaml` and `schemas.1A.yaml`) and logged the resolved contract roots for auditability.
+   - Added a dictionary/schema coherence check (`_assert_schema_ref`) that verifies each referenced `schema_ref` anchor exists; missing/invalid anchors hard-fail with `E711_DICT_SCHEMA_MISMATCH` before any data read.
+
+3) **Gate discipline (No PASS ￫ No read).**
+   - Resolved `s0_gate_receipt_1B` by dictionary ID + `manifest_fingerprint`, validated the receipt schema, and checked the manifest_fingerprint in the payload matches the path token.
+   - Verified `sealed_inputs` includes `outlet_catalogue` (fail-closed if missing).
+   - Recorded the receipt’s `flag_sha256_hex` into the run summary for traceability.
+
+4) **Input resolution and preflight counts.**
+   - Resolved inputs via Dictionary IDs only: `s5_site_tile_assignment`, `s6_site_jitter`, `tile_bounds`, `outlet_catalogue`.
+   - Resolved outputs via Dictionary IDs: `s7_site_synthesis`, `s7_run_summary`.
+   - Added row-count preflight using Parquet metadata (pyarrow when available): abort if S5 vs S6 or S5 vs outlet_catalogue counts mismatch (prevents expensive streaming when parity already fails).
+
+5) **Deterministic merge-join implementation (S5 ￫ S6 ￫ outlet).**
+   - Implemented a streaming merge-join that preserves writer-sort order and avoids a full global sort (critical for large datasets).
+   - Enforced writer-sort monotonicity and PK uniqueness while scanning:
+     - S5/S6/outlet duplicate keys -> `E703_DUP_KEY`.
+     - Out-of-order keys -> `E706_WRITER_SORT_VIOLATION`.
+   - Enforced 1:1 S5⇄S6 parity (missing/extra rows -> `E701_ROW_MISSING` / `E702_ROW_EXTRA`).
+   - Enforced S6 path-embed equality (manifest_fingerprint) and outlet path-embed equality (manifest_fingerprint + global_seed when present) -> `E705_PARTITION_OR_IDENTITY` on first mismatch (fail-fast per decision).
+
+6) **Geometry reconstruction and inside-pixel checks.**
+   - Reused the S1 `tile_bounds` per-country partitioning: compute required tile_id sets per batch, then load only those tile IDs for each country.
+   - Added a small LRU cache (`CACHE_COUNTRIES_MAX=6`) to keep hot country bounds in memory, reducing repeated IO without ballooning RAM.
+   - Reconstructed `lon_deg/lat_deg` from centroid + deltas and validated inclusive bounds with antimeridian-aware longitude handling.
+   - Missing `(country_iso, tile_id)` or reconstructed point outside pixel -> `E709_TILE_FK_VIOLATION` / `E707_POINT_OUTSIDE_PIXEL` (fail-closed).
+   - Point-in-country check intentionally **disabled** (MAY in spec; performance-sensitive).
+
+7) **Output publishing and run summary.**
+   - Wrote output rows in batches (`BATCH_SIZE=200_000`) to parquet with fixed schema columns and zstd compression, maintaining writer-sort order.
+   - Published `s7_site_synthesis` via stage ￫ fsync ￫ atomic move; existing partitions must be byte-identical (immutability guard).
+   - Emitted `s7_run_summary.json` with required identity, size parity fields, validation counters, by_country rollups, gate flag, PAT metrics, cache stats, and ingress_versions; validated against `schemas.1B.yaml#/control/s7_run_summary` before atomic publish.
+
+8) **State-level correctness posture captured in code.**
+   - S7 is RNG-free; no RNG logs are emitted.
+   - S7 outputs are strictly partitioned by `[seed, manifest_fingerprint, parameter_hash]`, writer-sorted by `[merchant_id, legal_country_iso, site_order]`, and hard-fail on any path/token mismatch or parity violation.
+
+Follow-up note (for run time validation):
+- When we run `segment1b-s7`, we must confirm the run log reflects the gate verification, parity counters, and inside-pixel checks, and that the run summary contains all required counters. If any spec-required field is missing in the summary, we must revise before marking S7 green.
+
+### Entry: 2026-01-14 08:05
+
+Design element: S7 schema-ref validation failure (E711) + correction of schema pack selection.
+
+Observed failure (from run log):
+- `E711_DICT_SCHEMA_MISMATCH` raised for `outlet_catalogue` because `schema_ref=schemas.1A.yaml#/egress/outlet_catalogue` could not be resolved; the validator reported `KeyError: 'egress'`.
+
+Root-cause analysis (brainstorming + conclusion):
+- Hypothesis A: Dictionary schema_ref is wrong (should point to schemas.layer1.yaml).  
+  - Checked `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml` and confirmed **`egress.outlet_catalogue` exists** there, so the dictionary reference is correct.
+- Hypothesis B: S7 is loading the wrong schema pack for 1A.  
+  - Confirmed `load_schema_pack(source, "1A", "layer1")` was used, which loads **`schemas.layer1.yaml`** (no `egress` section), so the resolver fails even though the dictionary is correct.
+- Conclusion: **S7 must load the 1A-specific schema pack** (`schemas.1A.yaml`) when validating schema_ref for 1A datasets.
+
+Decision + fix (before re-run):
+- Change `load_schema_pack(source, "1A", "layer1")` to `load_schema_pack(source, "1A", "1A")` in the S7 runner so schema_ref validation uses the correct 1A pack.
+- Keep the `E711_DICT_SCHEMA_MISMATCH` guard in place; this preserves early detection of dictionary/schema drift while correctly resolving 1A anchors.
+
+Planned validation after fix:
+- Re-run `make segment1b-s7 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+- Confirm the run log passes the schema-ref gate and proceeds into merge-join; check that `s7_run_summary.json` contains the required counters (sizes, validation_counters, gate flag).
+
 ## S8 - Egress Site Locations (S8.*)
 
 ## S9 - Validation Bundle & Gate (S9.*)
