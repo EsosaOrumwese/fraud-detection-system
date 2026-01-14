@@ -1597,7 +1597,7 @@ Spec compliance judgement:
 
 ### Entry: 2026-01-14 00:08
 
-Design element: S5 contract review + pre-implementation plan (site‑to‑tile assignment RNG)
+Design element: S5 contract review + pre-implementation plan (site-to-tile assignment RNG)
 Summary: Completed S5 expanded spec + contract review and captured a detailed, deterministic implementation plan before touching code.
 
 Spec + contract review (authoritative sources checked):
@@ -1664,8 +1664,211 @@ Implementation plan (pre‑code, detailed):
 
 Open questions / confirmations needed before coding:
 1) **Run ID source for RNG logs.** Should S5 use the run_receipt `run_id` (recommended for determinism) or mint a new run_id at S5 start?
-2) **Pair‑scoped RNG derivation.** I plan to derive the RNG substream per `(merchant_id, legal_country_iso)` to avoid inter‑country order effects. Confirm this is acceptable.
-3) **External sort threshold.** Any preference for the in‑memory vs spill threshold (e.g., `N > 1e6` sites)?
+2) **Pair-scoped RNG derivation.** I plan to derive the RNG substream per `(merchant_id, legal_country_iso)` to avoid inter-country order effects. Confirm this is acceptable.
+3) **External sort threshold.** Any preference for the in-memory vs spill threshold (e.g., `N > 1e6` sites)?
+
+### Entry: 2026-01-14 00:28
+
+Design element: S5 decisions locked + detailed implementation approach (before coding)
+Summary: Decisions resolved for S5 RNG identity and sorting strategy; documenting the exact algorithm and logging posture to follow during implementation.
+
+Decisions confirmed (explicit):
+1) **Run ID source for RNG logs:** use the `run_receipt` `run_id` as the single S5 RNG stream identifier. No new run_id minted in S5.
+2) **Pair-scoped RNG substream:** derive Philox substreams per `(merchant_id, legal_country_iso)` to keep pair assignments independent of inter-country processing order.
+3) **External sort threshold:** use `N > 1_000_000` as the spill-to-disk threshold; in-memory sort below that.
+
+Detailed implementation steps (pre-code, exhaustive):
+1) **Identity + gate checks.**
+   - Resolve `run_receipt.json` (run_id, seed, parameter_hash, manifest_fingerprint).
+   - Validate `s0_gate_receipt_1B` against `schemas.1B.yaml#/validation/s0_gate_receipt`.
+   - Require sealed_inputs to include `tile_index` and `iso3166_canonical_2024` (authorization for reads used by S5).
+   - Confirm path tokens for S4/S5 inputs match `{seed, manifest_fingerprint, parameter_hash}` from the run receipt.
+
+2) **Input resolution (strict).**
+   - Resolve `s4_alloc_plan` under `{seed, parameter_hash, manifest_fingerprint}`.
+   - Resolve `tile_index` under `{parameter_hash}` and `iso3166_canonical_2024` at reference scope.
+   - Do not read any other surfaces (no `world_countries`, no `population_raster_2025`, no `tz_world_2025a`).
+
+3) **Tile index FK cache (performance + correctness).**
+   - Load `tile_index` per-country into a cached `set(tile_id)` using pyarrow row groups when available.
+   - Cache size limited (reuse S4-style cache) and log cache hits/misses.
+   - For every S4 row, validate `(legal_country_iso, tile_id)` exists; otherwise emit `E505_TILE_NOT_IN_INDEX`.
+
+4) **RNG derivation (deterministic per pair).**
+   - Build master material with `mlr:1B.master` + manifest_fingerprint bytes + seed (Philox2x64-10).
+   - For each `(merchant_id, legal_country_iso)` pair, derive `(key, counter_hi, counter_lo)` using:
+     - label: `site_tile_assign`
+     - merchant_u64 (sha256-based)
+     - legal_country_iso string (UER-encoded)
+   - One draw per site: `u = u01(philox(counter_hi, counter_lo, key))`, increment counter by 1.
+
+5) **Pair assignment algorithm (authoritative).**
+   - Build tile multiset `T` by repeating each `tile_id` `n_sites_tile` times; `T` is sorted by `tile_id` (ascending).
+   - Build site list `S = [1..N]` where `N = sum(n_sites_tile)` (site_order).
+   - Generate `u` per site (in site_order order), then sort `(u, site_order)` ascending to get the permutation.
+   - Assign `tile_id` from `T` sequentially to the permuted sites; then emit rows in writer sort order `[merchant_id, legal_country_iso, site_order]`.
+
+6) **Large-N handling (spill path).**
+   - If `N > 1_000_000`, switch to external sort:
+     - Generate `u` + counters sequentially; store `u`/counters in memmap arrays by site_order.
+     - Write sorted runs of `(u, site_order)` to temp files and k-way merge them.
+     - Assign tiles during merge into a memmap `tile_id` array keyed by site_order.
+   - After assignment, stream site_order 1..N to emit dataset rows + RNG events without holding all rows in RAM.
+
+7) **RNG logs + trace + audit.**
+   - RNG events: write one JSONL event per site to `rng_event_site_tile_assign` path, include all envelope fields + `merchant_id`, `legal_country_iso`, `site_order`, `tile_id`, `u`.
+   - RNG trace log: append exactly one trace row per event (RngTraceAccumulator).
+   - RNG audit log: if no row exists for `{seed, parameter_hash, run_id}`, append a new audit entry; if present, do not duplicate.
+
+8) **Run report + determinism receipt (after publish).**
+   - Compute composite SHA-256 over dataset partition files only (ASCII-lex relative paths).
+   - Emit `s5_run_report.json` with required fields:
+     - `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`
+     - `rows_emitted`, `pairs_total`, `rng_events_emitted`
+     - `determinism_receipt`
+   - Include PAT counters (bytes read, wall/cpu, rss, open_files_peak) for auditability.
+
+9) **Logging posture (story-driven).**
+   - Log phase entry: inputs resolved, S4 files count/bytes, read mode (pyarrow/polars), iso domain size.
+   - For each pair: log `merchant_id`, `legal_country_iso`, `n_sites_total`, `tiles_distinct`.
+   - Heartbeat logs: progress in rows and pairs, plus rate/ETA, to avoid silent long loops.
+   - Emit `S5_ERROR` with details on any abort, including `run_id` and pair identifiers when applicable.
+
+### Entry: 2026-01-14 00:56
+
+Design element: S5 implementation hardening (pre-code adjustments before first run)
+Summary: Before running S5, I need to add a few guardrails and performance tweaks that the spec implies but the initial draft code does not explicitly enforce.
+
+Detailed decisions and rationale (before editing):
+1) **Writer-order + PK guard on emitted rows.**
+   - Add an output key tracker `(merchant_id, legal_country_iso, site_order)` and fail fast on:
+     - **Duplicate keys** -> `E502_PK_DUPLICATE_SITE`.
+     - **Out-of-order keys** -> `E509_UNSORTED`.
+   - Rationale: spec requires writer sort and PK uniqueness; enforcing at emit time is cheap and prevents silent corruption.
+
+2) **Throttle progress updates in the per-site loop.**
+   - Today, the per-site loop calls `progress_sites.update(1)` for every row, which adds overhead for very large runs.
+   - Implement a step-based update (e.g., every 1k-50k sites depending on `n_sites_total`, always emitting a final update at the end of the pair).
+   - Rationale: maintain heartbeat visibility without inflating CPU on million-scale loops (performance priority).
+
+3) **Throttle RNG generation progress logs.**
+   - Only emit RNG generation progress for large `n_sites_total` and update in coarse steps (similar to site loop).
+   - Rationale: RNG generation is already heavy; logging per draw is unnecessary noise/overhead.
+
+4) **Close handles + clean temp artifacts deterministically.**
+   - Ensure `event_handle` and `trace_handle` are closed in a `finally` block.
+   - For external sort pairs, flush/del memmaps and remove the per-pair temp directory after the pair is processed.
+   - Remove the S5 temp root after successful publish to avoid disk bloat.
+   - Rationale: resilience + clean reruns; avoids leaving large spill files behind.
+
+5) **Makefile target for S5.**
+   - Add `segment1b-s5` target so S5 can be run independently via `make` (consistent with S0-S4).
+   - Rationale: operational parity with other states and easier reruns.
+
+Planned edits (after this note):
+1) Update `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py` with the guards, throttling, and cleanup logic.
+2) Update `makefile` to add the `segment1b-s5` target (S5 command wiring already present).
+
+### Entry: 2026-01-14 00:59
+
+Design element: S5 implementation hardening (applied)
+Summary: Implemented the pre-run guardrails and performance adjustments described at 00:56 so the first S5 run is spec-aligned and performant.
+
+Implementation actions (explicit, as executed):
+1) **Output order + PK guard added.**
+   - Implemented `last_output_key` tracking in the per-site emit loop.
+   - On duplicate key: emit `E502_PK_DUPLICATE_SITE` and abort.
+   - On out-of-order key: emit `E509_UNSORTED` and abort.
+   - This enforces writer sort + PK uniqueness at emit-time (cheap, deterministic).
+
+2) **Progress throttling for per-site loop.**
+   - Added `progress_step` computed per pair (`max(1000, min(50_000, n_sites_total/200))` for large pairs).
+   - Progress updates now occur per step (and on the final remainder), reducing per-row overhead while preserving heartbeat logs.
+
+3) **RNG generation progress throttling.**
+   - `_generate_rng_arrays` now only emits progress when `n_sites >= 100000`.
+   - Progress updates are step-based (same scale as above) to avoid per-draw overhead.
+
+4) **RNG event budget guard.**
+   - Added explicit `rng_events_emitted == rows_emitted` check with `E507_RNG_EVENT_MISMATCH` before publish.
+   - This enforces the one-event-per-site budget required by the spec.
+
+5) **Temp cleanup + handle safety.**
+   - Wrapped the S4 scan loop in `try/finally` so RNG event/trace handles are closed on success or failure.
+   - For external-sort pairs, memmaps are flushed and per-pair temp dirs removed in `finally`.
+   - Removed the S5 temp root after successful publish to avoid disk bloat.
+
+6) **Makefile target added.**
+   - Added `segment1b-s5` target to invoke `engine.cli.s5_site_tile_assignment`.
+
+Files updated:
+- `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
+- `makefile`
+
+### Entry: 2026-01-14 01:02
+
+Design element: S5 run failure on rng_audit_log schema validation (pre-fix reasoning)
+Summary: First S5 run failed before processing pairs because the rng_audit_log payload failed JSON-schema validation (`None is not of type 'string'`).
+
+Failure details:
+- Run command: `make segment1b-s5 RUN_ID=04ffabbdfbd34b9d8a4d61e7be70782b`
+- Error: `SchemaValidationError: None is not of type 'string'` while validating `rng/core/rng_audit_log/record`.
+- Root cause: audit payload included optional fields (`code_digest`, `hostname`, `platform`, `notes`) with `None`, but the Draft202012 validator does not honor `nullable: true` in the schema, so `None` fails `type: string`.
+
+Decision and plan (before edit):
+1) **Drop `None` optional fields from audit payload before validation.**
+   - These fields are not required by the schema, so omission is valid and avoids the `nullable` keyword mismatch.
+   - This keeps the payload schema-valid while preserving required fields (`ts_utc`, `run_id`, `seed`, `manifest_fingerprint`, `parameter_hash`, `algorithm`, `build_commit`).
+
+2) **Leave the broader nullable-handling issue for later.**
+   - This same schema nuance exists elsewhere (other runners), but the immediate fix is scoped to S5 to unblock the run.
+   - If needed, we can later implement a shared helper that converts `nullable: true` to `type: [X, "null"]`.
+
+Planned change:
+- Adjust `audit_entry_payload` assembly in `seg_1B/s5_site_tile_assignment/runner.py` to filter out `None` values before `_validate_payload`.
+
+### Entry: 2026-01-14 01:03
+
+Design element: S5 rng_audit_log validation fix (applied)
+Summary: Implemented the fix for the rng_audit_log schema error by dropping None-valued optional fields before validation.
+
+Change applied:
+- In `seg_1B/s5_site_tile_assignment/runner.py`, filtered `audit_entry_payload` with a dict comprehension to remove `None` values, leaving only required fields (and any non-null optional fields).
+
+Expected outcome:
+- Draft202012 validation passes for `rng_audit_log` since all remaining fields are of type `string`.
+- The audit entry remains schema-valid and still captures required provenance fields.
+
+### Entry: 2026-01-14 01:05
+
+Design element: S5 run after audit fix (execution note)
+Summary: Re-ran S5 with the audit fix; the CLI timed out while the run continued, so I am tracking completion via the run log.
+
+Observed execution:
+- `make segment1b-s5 RUN_ID=04ffabbdfbd34b9d8a4d61e7be70782b` started successfully.
+- The log shows active per-pair assignment lines and S5 progress heartbeat entries.
+- The CLI timed out (tool limit) before completion, so I will inspect the run log for `S5: run report written` and `S5 1B complete` to confirm success.
+
+Next step:
+- Monitor `runs/local_full_run-5/04ffabbdfbd34b9d8a4d61e7be70782b/run_log_04ffabbdfbd34b9d8a4d61e7be70782b.log` for completion or failure markers, and fix any errors if present.
+
+### Entry: 2026-01-14 01:08
+
+Design element: S5 run completion + spec compliance check
+Summary: The S5 run completed successfully for run_id `04ffabbdfbd34b9d8a4d61e7be70782b`. Run report and determinism receipt are present and satisfy required fields.
+
+Evidence from run log:
+- `S5: run report written` and `S5 1B complete` lines present in `runs/local_full_run-5/04ffabbdfbd34b9d8a4d61e7be70782b/run_log_04ffabbdfbd34b9d8a4d61e7be70782b.log`.
+- No `S5_ERROR` entries after completion.
+
+Run report checks (spec compliance):
+- Required fields present: `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, `rows_emitted`, `pairs_total`, `rng_events_emitted`, `determinism_receipt`.
+- Budget equality: `rows_emitted=31159` equals `rng_events_emitted=31159`.
+- Determinism receipt present with `sha256_hex` and `bytes_hashed`.
+- PAT counters present (bytes_read_s4_total, bytes_read_index_total, wall/cpu time, open_files_peak).
+
+Compliance judgement:
+- S5 is green and spec-compliant for this run identity; safe to proceed to S6 when ready.
 
 ## S6 - In-Cell Jitter RNG (S6.*)
 
