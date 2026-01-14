@@ -2408,6 +2408,186 @@ Outcome:
 
 ## S8 - Egress Site Locations (S8.*)
 
+### Entry: 2026-01-14 08:11
+
+Design element: S8 contract review + pre-implementation plan (egress `site_locations` publish).
+
+Contract review (authoritative surfaces read):
+1) **State spec:** `docs/model_spec/data-engine/layer-1/specs/state-flow/1B/state.1B.s8.expanded.md`.
+   - Inputs: **only** `s7_site_synthesis` under `[seed, manifest_fingerprint, parameter_hash]`.
+   - Output: `site_locations` under `[seed, manifest_fingerprint]` (drop `parameter_hash`).
+   - Determinism: RNG-free; **order-free** egress; no 1A/S1 reads; write-once + atomic move.
+   - Required validators: row parity S7↔S8, schema conformance, writer sort, path↔embed equality (if lineage fields appear), partition-shift law, order-free pledge.
+   - Required run summary keys: identity (seed, manifest_fingerprint, parameter_hash_consumed), sizes (rows_s7/rows_s8/parity_ok), validation_counters (schema/path/sort/order), by_country rollup.
+2) **Dataset Dictionary:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`.
+   - `site_locations`: path `data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`, final_in_layer=true, ordering `[merchant_id, legal_country_iso, site_order]`.
+   - `s8_run_summary`: path `reports/layer1/1B/state=S8/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s8_run_summary.json`.
+3) **Schemas:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`.
+   - Input anchor: `#/plan/s7_site_synthesis`.
+   - Egress anchor: `#/egress/site_locations` (columns_strict=true).
+   - Summary anchor: `#/control/s8_run_summary` (requires seed + manifest_fingerprint; additional fields allowed).
+4) **Registry:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/artefact_registry_1B.yaml` (write-once; atomic move; order-free egress posture).
+
+Brainstorm & decision notes (detailed):
+- **Mapping strategy (S7 → S8):**
+  - Option A: load S7 into a DataFrame, select columns, then write. Simple but can inflate memory.
+  - Option B: stream S7 in writer-sort and emit S8 rows directly (no joins/shuffles).
+  - **Chosen:** streaming pass-through (Option B) to keep memory bounded and preserve writer-sort.
+- **Schema validation:**
+  - S8 must validate `site_locations` rows against `#/egress/site_locations`.
+  - Use a row-schema validator (table→row conversion) to avoid `type: table` errors; validate in streaming batches with capped error collection.
+- **Writer-sort + duplicates:**
+  - S7 should already be sorted, but S8 must still enforce writer-sort and PK uniqueness to satisfy E806/E803.
+  - Fail fast on out-of-order or duplicate keys instead of re-sorting (keeps determinism and avoids hidden memory blowups).
+- **Path↔embed equality:**
+  - `site_locations` schema does **not** include `manifest_fingerprint`, so path-embed equality is a no-op unless schema adds it later.
+  - We will still check for embedded lineage only if a column exists (future-proof).
+- **Order-free pledge:**
+  - Columns in `site_locations` are limited to `[merchant_id, legal_country_iso, site_order, lon_deg, lat_deg]`.
+  - `order_leak_indicators` should be 0 unless unexpected columns appear or dictionary/schema mismatch is detected.
+- **Partition shift law:**
+  - Must ensure S8 output path **drops** `parameter_hash`; verify `{seed,manifest_fingerprint}` matches the consumed S7 partition.
+
+Pre-implementation plan (step-by-step):
+1) **Preflight + identity resolution:**
+   - Resolve `run_id`, `seed`, `manifest_fingerprint`, `parameter_hash` from run_receipt.
+   - Load dictionary + schema packs; log resolved contract roots for audit.
+2) **Dictionary/schema coherence checks (E808/E811/E812 guardrails):**
+   - Validate schema_ref anchors for `s7_site_synthesis`, `site_locations`, and `s8_run_summary`.
+   - Cross-check dictionary partitioning/ordering vs schema anchor partition_keys/sort_keys.
+   - Assert `site_locations.final_in_layer == true` from dictionary; fail with `E811_FINAL_FLAG_MISMATCH` if not.
+3) **Resolve input/output paths via Dictionary (no literal paths):**
+   - Input: `s7_site_synthesis` under `[seed, manifest_fingerprint, parameter_hash]`.
+   - Outputs: `site_locations` under `[seed, manifest_fingerprint]` and `s8_run_summary.json` under the reports path.
+4) **Stream S7 and map to egress shape:**
+   - Read S7 in writer-sort; build S8 rows by selecting `{merchant_id, legal_country_iso, site_order, lon_deg, lat_deg}`.
+   - Maintain writer-sort and detect duplicates/out-of-order keys (E803/E806).
+   - Count `rows_s7` and `rows_s8` (should match); accumulate by_country counts.
+5) **Schema validation (egress rows):**
+   - Validate rows against `schemas.1B.yaml#/egress/site_locations` using a row-schema validator.
+   - Track `schema_fail_count` and abort if any failures (E804).
+6) **Partition shift checks:**
+   - Verify S8 `{seed,manifest_fingerprint}` equals S7’s `{seed,manifest_fingerprint}` for the consumed `parameter_hash`.
+   - Ensure egress path has **no** parameter_hash directory (E809).
+7) **Publish + immutability:**
+   - Write S8 rows to a staging dir, fsync, then atomic move into the egress partition.
+   - Enforce write-once (byte-identical if re-published) (E810).
+8) **Emit run summary (`s8_run_summary.json`):**
+   - Include identity `{seed, manifest_fingerprint, parameter_hash_consumed}`.
+   - Sizes: `rows_s7`, `rows_s8`, `parity_ok`.
+   - Validation counters: `schema_fail_count`, `path_embed_mismatches`, `writer_sort_violations`, `order_leak_indicators`.
+   - By-country rollup `{rows_s7, rows_s8, parity_ok}`.
+
+Open questions (need confirmation before coding):
+1) **Schema validation cost:** Do you want strict per-row JSON-Schema validation for S8 (full compliance, slower) or a faster dtype/constraint check + spot validation? Spec says full schema validation, but confirm performance posture.
+2) **Order-leak detection:** The schema is columns_strict; should `order_leak_indicators` always be 0 unless we detect unexpected columns, or do you want explicit scanning for any ordering hints beyond writer-sort (e.g., if a future column appears)?
+
+### Entry: 2026-01-14 08:27
+
+Design element: S8 confirmation of validation posture + implementation kickoff (pre-code).
+
+Decision outcomes (explicit):
+1) **Schema validation:** Perform **full per-row JSON-Schema validation** against `schemas.1B.yaml#/egress/site_locations` in streaming batches (spec compliance prioritized; schema is narrow so overhead is acceptable).
+2) **Order-leak indicators:** Keep `order_leak_indicators=0` by default and increment only if unexpected/order-bearing columns appear (which should be blocked by `columns_strict=true`).
+
+Implementation approach updates (before coding):
+- Use dictionary-only resolution for `s7_site_synthesis`, `site_locations`, and `s8_run_summary`, plus explicit schema_ref anchor checks for E808/E812 guards.
+- Enforce writer-sort monotonicity and PK uniqueness while streaming S7 (E803/E806).
+- Map only `{merchant_id, legal_country_iso, site_order, lon_deg, lat_deg}` into egress rows; no extra fields.
+- Emit `s8_run_summary.json` with identity `{seed, manifest_fingerprint, parameter_hash_consumed}`, sizes, validation counters, and by_country parity.
+
+### Entry: 2026-01-14 08:34
+
+Design element: S8 implementation (runner + CLI + Makefile wiring) with streaming publish + strict validation.
+
+Implementation actions and reasoning (detailed, step-by-step):
+1) **Module scaffold + CLI wiring.**
+   - Added `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/__init__.py`.
+   - Added `packages/engine/src/engine/cli/s8_site_locations.py` to run `run_s8` with the standard contracts/runs/external roots flags and optional `--run-id`.
+   - Updated `makefile` to add `SEG1B_S8_*` variables and `segment1b-s8` target.
+
+2) **Contract loading + schema_ref validation (E808/E812 guardrails).**
+   - Implemented dictionary-only dataset resolution for `s7_site_synthesis`, `site_locations`, and `s8_run_summary`.
+   - Added `_assert_schema_ref` to validate that the referenced schema anchors exist before any data read.
+   - Added `_assert_alignment` to cross-check Dictionary `partitioning`/`ordering` against the Schema anchor’s `partition_keys`/`sort_keys` for both S7 input and S8 output.
+   - Enforced `final_in_layer: true` for `site_locations` (E811 on mismatch).
+
+3) **Partition shift law (E809).**
+   - Verified S7 input path uses `[seed, manifest_fingerprint, parameter_hash]` and S8 output path **does not** include `parameter_hash` (hard-fail if it does).
+
+4) **Streaming S7 → S8 mapping (order-free egress).**
+   - Implemented streaming scan of S7 parquet files with only required columns (`merchant_id, legal_country_iso, site_order, lon_deg, lat_deg`).
+   - Enforced writer-sort monotonicity and duplicate key detection:
+     - Duplicate key → `E803_DUP_KEY`.
+     - Out-of-order key → `E806_WRITER_SORT_VIOLATION`.
+   - Mapped rows directly to `site_locations` shape (no joins, no RNG, no geometry reads).
+
+5) **Schema validation (strict per-row).**
+   - Added table→row schema conversion (`_table_row_schema`) and per-row Draft202012 validation against `schemas.1B.yaml#/egress/site_locations`.
+   - Included `schemas.layer1.yaml` `$defs` and rewrote external `$ref` to local `$defs` to avoid unresolved refs.
+   - Any schema violation triggers `E804_SCHEMA_VIOLATION` (fail-fast).
+
+6) **Publish posture (E810).**
+   - Wrote output in parquet batches to a staging directory and used atomic move into the identity partition.
+   - If a target partition exists, require byte-identical content (write-once guarantee).
+
+7) **Run summary emission.**
+   - Emitted `s8_run_summary.json` with identity (`seed`, `manifest_fingerprint`, `parameter_hash_consumed`), sizes, validation counters, and by_country parity.
+   - Validated summary against `schemas.1B.yaml#/control/s8_run_summary` and published atomically.
+
+Follow-up note (for run time validation):
+- On first `segment1b-s8` run, confirm row parity (`rows_s7 == rows_s8`), validation_counters are zero, and output path matches `[seed, manifest_fingerprint]` with no parameter_hash in the egress path.
+
+### Entry: 2026-01-14 08:35
+
+Design element: S8 run failure after publish (timer formatting bug) + fix.
+
+Observed failure (from run log):
+- `TypeError: _StepTimer.info() takes 2 positional arguments but 3 were given` when logging `timer.info("S8: published site_locations rows=%d", counts["rows_s8"])`.
+- This occurred **after** `site_locations` was published and **before** the run summary was written.
+
+Root-cause analysis:
+- `_StepTimer.info` in S8 accepted only `(message)` while the call site used formatting arguments (same class of issue fixed earlier in S4).
+
+Decision + fix:
+- Updated `_StepTimer.info` to accept `*args` and perform inline formatting before logging (match the S7/S4 timer behavior).
+- Re-run `segment1b-s8` to complete run summary emission; immutability guard will require byte-identical egress content.
+
+### Entry: 2026-01-14 08:36
+
+Design element: S8 run summary validation failure (control schema is object, not table) + correction.
+
+Observed failure (from run log):
+- `SchemaValidationError: Table 'control/s8_run_summary' has no columns.` after publish, when validating the run summary.
+
+Root-cause analysis:
+- The `schemas.1B.yaml#/control/s8_run_summary` anchor is a **type: object** with required keys, not a `type: table`.
+- S8 incorrectly used `_table_row_schema` (table conversion) for this anchor, which expects `columns`.
+
+Decision + fix:
+- Added `_schema_from_pack` for object-style schemas and switched summary validation to use it.
+- Re-run `segment1b-s8` to emit the run summary; publish remains idempotent because egress was already written.
+
+### Entry: 2026-01-14 08:36
+
+Design element: S8 execution result + spec compliance check (post-fix).
+
+Execution details:
+1) **Run invocation:** `make segment1b-s8 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+2) **Identity:** `seed=42`, `manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1`, `parameter_hash_consumed=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`, `run_id=b4235da0cecba7e7ffd475f8ffb23906`.
+3) **Outputs:** 
+   - `site_locations` published at `runs/local_full_run-5/b4235da0cecba7e7ffd475f8ffb23906/data/layer1/1B/site_locations/seed=42/manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1/`.
+   - `s8_run_summary.json` published at `runs/local_full_run-5/b4235da0cecba7e7ffd475f8ffb23906/reports/layer1/1B/state=S8/seed=42/manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1/s8_run_summary.json`.
+
+Spec compliance checks (explicit):
+- **Row parity:** `rows_s7=rows_s8=27942`, `parity_ok=true`.
+- **Validation counters:** `schema_fail_count=0`, `writer_sort_violations=0`, `path_embed_mismatches=0`, `order_leak_indicators=0`.
+- **By-country parity:** all countries show `parity_ok=true`.
+- **Partition shift law:** egress path contains `[seed, manifest_fingerprint]` only; `parameter_hash` absent.
+
+Outcome:
+- S8 is green for this run_id and aligns with the binding S8 spec requirements (deterministic, RNG-free, order-free egress, writer-sort discipline, parity with S7, and required run summary fields).
+
 ## S9 - Validation Bundle & Gate (S9.*)
 
 ## S1 - Tile Index (S1.*)
