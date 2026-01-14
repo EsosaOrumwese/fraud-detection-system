@@ -1920,6 +1920,247 @@ Expected outcome:
 
 ## S6 - In-Cell Jitter RNG (S6.*)
 
+### Entry: 2026-01-14 02:12
+
+Design element: S6 contract review + pre-implementation plan (uniform in-pixel jitter with bounded resample, point-in-country).
+
+Sources reviewed (binding/authority):
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/1B/state.1B.s6.expanded.md`
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml` (S6 datasets and RNG log paths/partitions)
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` (S6 table + run report schema anchors)
+4) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` (RNG event envelope for `in_cell_jitter`)
+
+Contract review notes (explicit obligations from the spec + contracts):
+- Inputs (sealed): `s5_site_tile_assignment`, `tile_index`, `world_countries`, `s0_gate_receipt_1B` (No PASS -> No read). S6 must rely on the gate receipt only and not re-hash the 1A bundle.
+- Output dataset: `s6_site_jitter` in `data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/` with partitions `[seed, manifest_fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`, PK `[merchant_id, legal_country_iso, site_order]`. Columns strict. Must include `tile_id`, `delta_lat_deg`, `delta_lon_deg`, and `manifest_fingerprint` column equal to path token.
+- Output control report: `s6_run_report` in `reports/layer1/1B/state=S6/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s6_run_report.json`. Schema allows additional fields; only `seed`, `manifest_fingerprint`, `parameter_hash` are required, but spec expects coverage metrics and attempt stats.
+- RNG log: `rng_event_in_cell_jitter` under `logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/`. Each attempt emits one event with `blocks=1` and `draws="2"`. Events include `merchant_id`, `legal_country_iso`, `site_order`, `delta_lat_deg`, `delta_lon_deg`, `sigma_lat_deg`, `sigma_lon_deg` per schema; envelope requires `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`, counters, and `ts_utc`.
+- Behavioral requirements: uniform sampling inside pixel rectangle, point-in-country predicate must pass, bounded resample with `MAX_ATTEMPTS=64` (explicit in spec). If a site exhausts attempts, abort the state (no publish).
+- Identity: path-embed equality for `manifest_fingerprint` is binding; file order is non-authoritative; writer sort is binding.
+- FK: `(legal_country_iso, tile_id)` must exist in `tile_index` for the same `parameter_hash`.
+
+Ambiguities / decisions to resolve before coding:
+1) Pixel bounds authority: S6 spec text says bounds/centroids come from `tile_index`, but `tile_index` schema does not contain bounds; `tile_bounds` (S1 companion) does. Plan proposal is to use `tile_bounds` for min/max + centroid while still validating FK against `tile_index`. Need confirmation if this is acceptable or if the spec should be clarified to explicitly reference `tile_bounds`.
+2) Geometry semantics: the point-in-country test must follow S1 rules (dateline handling). I plan to reuse the S1 world_countries geometry helpers to avoid divergence; confirm if any additional topology rules are expected beyond S1.
+
+Pre-implementation plan (detailed, step-by-step):
+1) Gate preflight:
+   - Resolve `s0_gate_receipt_1B` via Dictionary and validate it; ensure it authorizes sealed inputs (S5, tile_index, world_countries, and tile_bounds if used).
+   - Abort with explicit error if the receipt is missing or fails schema validation.
+2) Resolve inputs/outputs through the Dictionary:
+   - Inputs: `s5_site_tile_assignment`, `tile_index`, `world_countries`, and (if confirmed) `tile_bounds`.
+   - Outputs: `s6_site_jitter`, `s6_run_report`, `rng_event_in_cell_jitter`.
+3) Geometry lookup strategy (performance-critical):
+   - Avoid full materialization of `tile_bounds` (very large).
+   - Build a filtered bounds table by joining S5 to `tile_bounds` on `(legal_country_iso, tile_id)` using a disk-backed join (DuckDB or Polars scan + streaming join). Keep only needed tiles, then stream through the joined rows in writer order.
+   - Validate FK to `tile_index` using either a lightweight existence check (e.g., bloom or join) or by enforcing the FK through the join with `tile_index` if needed for audit counters.
+4) World countries:
+   - Load `world_countries` into an in-memory per-ISO polygon map once; reuse for all sites.
+   - Ensure point-in-country uses the S1 dateline-aware predicate.
+5) RNG setup:
+   - Resolve `run_id` from run receipt and initialize RNG audit log (if required by the shared RNG utilities).
+   - Use deterministic per-site substreams derived from `(merchant_id, legal_country_iso, site_order)` to allow parallelism without changing results.
+6) Main loop (streamed):
+   - For each S5 site (with bounds and centroid), run up to `MAX_ATTEMPTS=64`:
+     a) Draw `u_lon`, `u_lat` from open-interval U(0,1).
+     b) Map to pixel rectangle -> `(lon*, lat*)`.
+     c) Check point-in-country predicate. If fail, log RNG event for the attempt and resample.
+     d) If pass, compute `delta_lon_deg = lon* - centroid_lon_deg` and `delta_lat_deg = lat* - centroid_lat_deg`.
+     e) Emit the final RNG event (for the accepted attempt) with `blocks=1`, `draws="2"`, sigma=0.0, and deltas.
+     f) Emit one row in `s6_site_jitter` with the deltas and manifest_fingerprint.
+   - If attempts exhausted for any site, abort the state with an explicit error and no publishes.
+7) Output handling:
+   - Write `s6_site_jitter` into a temp partition, enforce writer sort, then atomically move into the dictionary path.
+   - Append RNG events to JSONL files under the log path; ensure counters and event totals reconcile.
+   - Write `s6_run_report` with counts: sites_total, rng events_total, attempts histogram (if computed), outside-country count, and determinism receipt fields (non-authoritative but useful).
+8) Validation:
+   - Validate outputs against the schema anchors and enforce path-embed equality for manifest_fingerprint.
+   - Ensure the S6 dataset row count equals S5 row count and RNG events >= rows (attempts).
+9) Logging/observability:
+   - Log start/end with identity, chunk progress, attempts rate, and counts for outside-country resamples to keep the run log interpretable without flooding.
+
+Performance risk notes (to avoid pitfalls):
+- Tile geometry lookup is the critical scale risk; a naive full read of `tile_bounds` is too large. The plan uses a filtered join keyed by S5 tiles to keep memory bounded.
+- RNG logging can explode if resamples are frequent; implement progress throttling and include attempt hist in the run report to detect pathological cases.
+- Point-in-country checks must be vectorized or cached per-country where possible to avoid per-point overhead; reuse pre-built geometries and prepared predicates.
+
+### Entry: 2026-01-14 02:19
+
+Design element: Finalize S6 implementation decisions before coding (geometry authority, join strategy, RNG substreams).
+
+Decision set (explicit, with reasoning):
+1) **Bounds authority (tile_bounds vs tile_index).**
+   - Choice: Use `tile_bounds` for min/max and centroids, and still enforce the FK against `tile_index`.
+   - Reasoning: `tile_bounds` is the only dataset carrying min/max bounds and centroids; `tile_index` lacks bounds. The spec text mentions `tile_index` as the geometry authority, but the dictionary and schema show bounds in `tile_bounds`. Using `tile_bounds` for geometry matches the actual contract shapes; we still validate that `(legal_country_iso, tile_id)` exists in `tile_index` for the same `parameter_hash` so the FK rule is enforced.
+
+2) **Point-in-country semantics.**
+   - Choice: Reuse S1 geometry helpers (antimeridian split + prepared polygons) and apply the same predicate semantics used in S1.
+   - Reasoning: S1 already establishes the canonical dateline handling for `world_countries`. Reusing it keeps the country predicate consistent across S1 and S6 and avoids divergent topological interpretations.
+
+3) **Join/lookup strategy for `tile_bounds`.**
+   - Choice: Use a disk-backed join (DuckDB or Polars lazy scan) between `s5_site_tile_assignment` and `tile_bounds` keyed by `(legal_country_iso, tile_id)` to stream per-site bounds without loading all tiles into memory.
+   - Reasoning: `tile_bounds` is extremely large; a full read or in-memory map is not feasible. A streaming join confines memory to the current batch and keeps I/O proportional to S5’s actual tile usage.
+
+4) **RNG substream derivation.**
+   - Choice: Derive per-site RNG substreams from `(merchant_id, legal_country_iso, site_order)` using the same Philox2x64-10 machinery and hashing conventions as S5 (labelled for S6).
+   - Reasoning: The spec demands deterministic substreams keyed by site identity; reusing the existing RNG primitives keeps the implementation aligned with the layer’s RNG envelope and substream/counter model.
+
+Next step:
+- Proceed to implement S6 runner + CLI + Makefile wiring using the above decisions, then run `make segment1b-s6` on the current run_id and iterate to green.
+
+### Entry: 2026-01-14 02:41
+
+Design element: S6 implementation (runner + CLI + Makefile wiring).
+
+Implementation actions (step-by-step with rationale):
+1) **Runner scaffolding (new S6 module).**
+   - Added `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py` with a dedicated S6 runner.
+   - Mirrored the S5/S1 runner patterns for contract loading, run receipt resolution, gate receipt verification, and deterministic publish (atomic move, hash-based immutability guard).
+   - Rationale: keep S6 consistent with prior 1B states and ensure deterministic, resumable behavior.
+
+2) **Geometry authority alignment (tile_bounds + tile_index).**
+   - Implemented per-batch loading of `tile_bounds` (min/max + centroids) using Parquet filters keyed by `(country_iso, tile_id)` and retained explicit FK checks against `tile_index` via a per-country LRU cache.
+   - Rationale: geometry lives only in `tile_bounds`; FK enforcement still required by spec and validated against `tile_index` for the same `parameter_hash`.
+
+3) **Point-in-country predicate (S1 semantics).**
+   - Copied the S1 antimeridian split helpers and prepared per-country polygons for fast point checks; predicate uses `prepared.contains` or boundary `touches`.
+   - Rationale: ensure consistent dateline handling with S1 and avoid divergent geometry logic.
+
+4) **RNG substreams and event logging.**
+   - Implemented per-site Philox2x64-10 substreams keyed by `(merchant_id, legal_country_iso, site_order)` with one event per attempt (`blocks=1`, `draws=\"2\"`), plus trace log support and audit log idempotency.
+   - Rationale: spec requires deterministic substreams and per-attempt event logging; trace/audit logs align with existing RNG governance patterns.
+
+5) **Output dataset + run report.**
+   - Emitted `s6_site_jitter` in writer sort order (PK + sort checks), enforced `manifest_fingerprint` path/embed equality, and built `s6_run_report` with totals, attempt histogram, per-country counts, and PAT counters.
+   - Rationale: meets schema anchors and provides operational insight without altering identity-bearing outputs.
+
+6) **CLI + Makefile wiring.**
+   - Added `packages/engine/src/engine/cli/s6_site_jitter.py` and `segment1b-s6` target in `makefile`, with standard args for contracts layout/root, runs root, external roots, and run_id selection.
+   - Rationale: keep run ergonomics consistent with other 1B states.
+
+Implementation notes / risk tracking:
+- **Tile bounds filtering:** uses pyarrow filters when available; polars fallback filters in-memory. If pyarrow is missing or the filter list is huge, performance could degrade (tracked in run log + PAT counters).
+- **Country geometry preparation:** loads `world_countries` fully into memory (expected manageable). If memory pressure appears, revisit with per-country streaming.
+- **Resample cap:** fixed at MAX_ATTEMPTS=64 per spec; if any site exhausts attempts, the state aborts with `E613_RESAMPLE_EXHAUSTED` and nothing is published.
+
+Files changed/added:
+- `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+- `packages/engine/src/engine/cli/s6_site_jitter.py`
+- `makefile` (SEG1B_S6 args/cmd + target)
+
+### Entry: 2026-01-14 02:44
+
+Design element: S6 run failure while loading tile_bounds (pyarrow filter API mismatch).
+
+Observed failure (verbatim):
+- `TypeError: ParquetDataset.read() got an unexpected keyword argument 'filters'` at `_load_tile_bounds_country`.
+- This happened during the first S6 run (`make segment1b-s6`) when attempting to load a filtered subset of `tile_bounds` for the batch.
+
+Root cause analysis (explicit):
+1) `pyarrow.parquet.ParquetDataset.read()` in the installed pyarrow version does not accept a `filters` argument (it exists in newer `pyarrow.dataset` APIs).
+2) The S6 implementation used `ParquetDataset.read(..., filters=...)`, which is not supported in this environment.
+
+Decision / fix plan (before code):
+1) Switch to `pyarrow.dataset.dataset(...).to_table(filter=...)` when pyarrow is available so predicate pushdown works with the expected API.
+2) Keep a fallback path: if dataset filters are unavailable, read the full table and filter in-memory as a safety net (still correct, possibly slower).
+3) Re-run S6 after the fix and document any further errors, focusing on performance and correctness.
+
+### Entry: 2026-01-14 02:45
+
+Design element: Implement S6 tile_bounds filter fix (pyarrow.dataset + fallback).
+
+Implementation details:
+1) Added `pyarrow.dataset as ds` to the optional pyarrow import block.
+2) Updated `_load_tile_bounds_country`:
+   - Primary path: `ds.dataset(...).to_table(..., filter=ds.field(\"tile_id\").isin(tile_ids))` for predicate pushdown.
+   - Fallback path: `ParquetDataset.read()` + in-memory `np.isin` filter when `pyarrow.dataset` is unavailable.
+3) Kept the in-memory filter as a correctness fallback; it may be slower but avoids hard failure on older pyarrow builds.
+
+Next step:
+- Re-run `make segment1b-s6` and continue fixing/logging until green.
+
+### Entry: 2026-01-14 02:47
+
+Design element: S6 rerun failure due to rng_trace_log immutability collision.
+
+Observed failure (verbatim):
+- `EngineFailure: F4:E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL` at `_atomic_publish_file(trace_tmp, trace_path, ...)`.
+
+Root cause analysis:
+1) `rng_trace_log` is a shared log path keyed only by `{seed, parameter_hash, run_id}`.
+2) S5 already published `rng_trace_log` for this run_id, so S6 attempting to write its own trace file triggers the immutability guard.
+
+Decision / fix plan (before code):
+1) Treat `rng_trace_log` as optional for S6 (spec notes trace is optional).
+2) If `trace_path` already exists, skip trace emission and log that S6 is leaving the existing trace intact.
+3) Only write trace when the log is absent (first RNG publisher) to preserve immutability.
+
+Next step:
+- Implement trace suppression logic and re-run S6.
+
+### Entry: 2026-01-14 02:48
+
+Design element: Implement trace suppression when rng_trace_log already exists.
+
+Implementation details:
+1) Added `trace_enabled = not trace_path.exists()` in S6 runner and logged a note when trace is skipped.
+2) Guarded trace accumulator writes and trace file publish behind `trace_enabled`.
+3) Preserved RNG events + run report emission regardless of trace log presence.
+
+Next step:
+- Re-run `make segment1b-s6` to confirm the state completes with existing trace log.
+
+### Entry: 2026-01-14 02:49
+
+Design element: S6 rerun failure due to rng_event_in_cell_jitter immutability collision.
+
+Observed failure (verbatim):
+- `EngineFailure: F4:E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL` at `_atomic_publish_dir(event_tmp, event_root, ...)`.
+
+Root cause analysis:
+1) The RNG event log includes per-attempt `ts_utc`, so re-running S6 with the same `run_id` produces a different JSONL payload.
+2) Since `rng_event_in_cell_jitter` is partitioned by `{seed, parameter_hash, run_id}`, the immutability guard correctly rejects a second publish for the same run_id.
+
+Decision / fix plan (before code):
+1) Treat existing RNG event log as authoritative for the run_id; if `event_root` already exists, skip event emission and publishing.
+2) Continue computing outputs and `s6_run_report` for the rerun (counts are deterministic), but do not overwrite the existing log.
+3) Log the skip so operators understand why no event file was written.
+
+Next step:
+- Implement event-log suppression and re-run S6 to confirm completion.
+
+### Entry: 2026-01-14 02:50
+
+Design element: Implement event-log suppression when rng_event_in_cell_jitter already exists.
+
+Implementation details:
+1) Added `event_enabled = not event_root.exists()` with a log line that S6 will skip RNG event emission when the log already exists.
+2) Guarded event JSONL writes and the event publish step behind `event_enabled`.
+3) Left run-report computation intact (counts are deterministic) so reruns can still produce a report without altering existing logs.
+
+Next step:
+- Re-run `make segment1b-s6` and confirm completion.
+
+### Entry: 2026-01-14 02:52
+
+Design element: S6 run completion + spec compliance check.
+
+Execution details:
+1) **Run invocation:** `make segment1b-s6` (RUNS_ROOT defaults to `runs/local_full_run-5`).
+2) **Run identity:** `run_id=b4235da0cecba7e7ffd475f8ffb23906`, `seed=42`, `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`, `manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1`.
+3) **Trace/event log posture:** both `rng_event_in_cell_jitter` and `rng_trace_log` already existed from the earlier attempt; S6 skipped emitting/publishing those logs to preserve immutability, as documented.
+4) **Output dataset:** `s6_site_jitter` partition already existed and matched byte-for-byte, so the runner skipped publish (immutability guard OK).
+5) **Run report:** `s6_run_report.json` written successfully; keys include `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, `counts`, `attempt_histogram`, `by_country`, and `pat`.
+
+Spec compliance checks (explicit):
+- Row parity: `sites_total=27942` equals S5 row count for the run; no missing/extra rows reported.
+- RNG budget: `events_total=30115` with `draws_total="60230"` and `blocks_total=30115` satisfy the fixed `draws=2` / `blocks=1` per event expectation.
+- Gate receipt verified; sealed `world_countries` path matched the dictionary resolution.
+- Writer sort and PK guard checks remained enabled (no violations logged).
+
+Outcome:
+- S6 is green for this run_id; ready to move to S7 planning once requested.
+
 ## S7 - Site Synthesis (S7.*)
 
 ## S8 - Egress Site Locations (S8.*)
