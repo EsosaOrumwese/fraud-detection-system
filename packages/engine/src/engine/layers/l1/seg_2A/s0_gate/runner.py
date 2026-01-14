@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
@@ -297,8 +298,152 @@ def _table_row_schema(schema_pack: dict, path: str) -> dict:
     }
 
 
-def _validate_payload(schema_pack: dict, path: str, payload: object) -> None:
-    schema = _schema_from_pack(schema_pack, path)
+def _rewrite_external_refs(schema: object, ref_map: dict[str, str]) -> None:
+    if isinstance(schema, dict):
+        ref = schema.get("$ref")
+        if isinstance(ref, str):
+            for prefix, replacement in ref_map.items():
+                if ref.startswith(prefix):
+                    schema["$ref"] = ref.replace(prefix, replacement, 1)
+                    break
+        for value in schema.values():
+            _rewrite_external_refs(value, ref_map)
+    elif isinstance(schema, list):
+        for item in schema:
+            _rewrite_external_refs(item, ref_map)
+
+
+def _collect_external_defs(schema: object, prefix: str) -> set[str]:
+    needed: set[str] = set()
+
+    def _walk(node: object) -> None:
+        if isinstance(node, dict):
+            ref = node.get("$ref")
+            if isinstance(ref, str) and ref.startswith(prefix):
+                tail = ref.split("#/$defs/", 1)
+                if len(tail) == 2:
+                    name = tail[1].split("/", 1)[0]
+                    if name:
+                        needed.add(name)
+            for value in node.values():
+                _walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(schema)
+    return needed
+
+
+def _collect_local_defs(schema: object) -> set[str]:
+    needed: set[str] = set()
+
+    def _walk(node: object) -> None:
+        if isinstance(node, dict):
+            ref = node.get("$ref")
+            if isinstance(ref, str) and ref.startswith("#/$defs/"):
+                name = ref.split("#/$defs/", 1)[1].split("/", 1)[0]
+                if name:
+                    needed.add(name)
+            for value in node.values():
+                _walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(schema)
+    return needed
+
+
+def _resolve_defs(
+    schema_pack: dict,
+    external_pack: dict,
+    names: Iterable[str],
+) -> dict:
+    defs: dict[str, object] = {}
+    external_defs = external_pack.get("$defs") or {}
+    local_defs = schema_pack.get("$defs") or {}
+    for name in names:
+        if name in external_defs:
+            defs[name] = external_defs[name]
+            continue
+        local_def = local_defs.get(name)
+        if isinstance(local_def, dict) and "$ref" not in local_def:
+            defs[name] = local_def
+            continue
+        raise ContractError(f"External $defs missing: {name}")
+    return defs
+
+
+def _inline_external_refs(schema: object, external_pack: dict, prefix: str) -> None:
+    external_defs = external_pack.get("$defs") or {}
+
+    def _walk(node: object) -> None:
+        if isinstance(node, dict):
+            ref = node.get("$ref")
+            if isinstance(ref, str) and ref.startswith(prefix):
+                tail = ref.split("#/$defs/", 1)
+                if len(tail) == 2:
+                    name = tail[1].split("/", 1)[0]
+                    if name in external_defs:
+                        replacement = copy.deepcopy(external_defs[name])
+                        for key, value in list(node.items()):
+                            if key != "$ref":
+                                replacement[key] = value
+                        node.clear()
+                        node.update(replacement)
+                        return
+            for value in node.values():
+                _walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(schema)
+
+
+def _prepare_table_pack_with_layer1_defs(
+    schema_pack: dict,
+    table_path: str,
+    schema_layer1: dict,
+    prefix: str,
+) -> tuple[dict, str]:
+    pack, table_name = _table_pack(schema_pack, table_path)
+    pack = copy.deepcopy(pack)
+    table_def = pack[table_name]
+    needed = set()
+    needed.update(_collect_external_defs(table_def, f"{prefix}#"))
+    needed.update(_collect_local_defs(table_def))
+    pack["$defs"] = _resolve_defs(schema_pack, schema_layer1, needed)
+    _rewrite_external_refs(table_def, {f"{prefix}#": "#"})
+    return pack, table_name
+
+
+def _prepare_row_schema_with_layer1_defs(
+    schema_pack: dict,
+    schema_path: str,
+    schema_layer1: dict,
+    prefix: str,
+) -> dict:
+    row_schema = _table_row_schema(schema_pack, schema_path)
+    needed = set()
+    needed.update(_collect_external_defs(row_schema, f"{prefix}#"))
+    needed.update(_collect_local_defs(row_schema))
+    row_schema["$defs"] = _resolve_defs(schema_pack, schema_layer1, needed)
+    _rewrite_external_refs(row_schema, {f"{prefix}#": "#"})
+    return row_schema
+
+
+def _validate_payload(
+    schema_pack: dict,
+    path: str,
+    payload: object,
+    ref_packs: Optional[dict[str, dict]] = None,
+) -> None:
+    schema = copy.deepcopy(_schema_from_pack(schema_pack, path))
+    if ref_packs:
+        for prefix, pack in ref_packs.items():
+            _inline_external_refs(schema, pack, f"{prefix}#")
     validator = Draft202012Validator(schema)
     errors = list(validator.iter_errors(payload))
     if errors:
@@ -658,6 +803,7 @@ def _atomic_publish_dir(
         shutil.rmtree(tmp_root)
         logger.info("S0: %s partition already exists and is identical; skipping publish.", label)
         return
+    final_root.parent.mkdir(parents=True, exist_ok=True)
     tmp_root.replace(final_root)
 
 
@@ -775,6 +921,70 @@ def _resolve_release_dir(path: Path) -> tuple[Path, Path]:
         MODULE_NAME,
         {"detail": "tzdb_release metadata file missing", "path": str(path)},
     )
+
+
+def _resolve_release_tag_from_root(
+    entry: dict,
+    run_paths: RunPaths,
+    external_roots: Iterable[Path],
+) -> str:
+    path_template = entry.get("path") or ""
+    if "{release_tag}" not in path_template:
+        raise EngineFailure(
+            "F4",
+            "2A-S0-014",
+            STATE,
+            MODULE_NAME,
+            {"detail": "tzdb_release path missing {release_tag} token", "path": path_template},
+            dataset_id="tzdb_release",
+        )
+    base_template = path_template.split("{release_tag}", 1)[0]
+    try:
+        base_root = resolve_input_path(
+            base_template, run_paths, external_roots, allow_run_local=False
+        )
+    except InputResolutionError as exc:
+        raise EngineFailure(
+            "F4",
+            "2A-S0-014",
+            STATE,
+            MODULE_NAME,
+            {"detail": "tzdb_release root not found", "path": base_template},
+            dataset_id="tzdb_release",
+        ) from exc
+    candidates: list[Path] = []
+    for child in base_root.iterdir():
+        if not child.is_dir():
+            continue
+        if (
+            (child / "tzdb_release.json").exists()
+            or (child / "tzdb_release.yaml").exists()
+            or (child / "tzdb_release.yml").exists()
+        ):
+            candidates.append(child)
+    if not candidates:
+        raise EngineFailure(
+            "F4",
+            "2A-S0-014",
+            STATE,
+            MODULE_NAME,
+            {"detail": "tzdb_release metadata missing under root", "path": str(base_root)},
+            dataset_id="tzdb_release",
+        )
+    if len(candidates) > 1:
+        raise EngineFailure(
+            "F4",
+            "2A-S0-014",
+            STATE,
+            MODULE_NAME,
+            {
+                "detail": "multiple tzdb_release candidates under root",
+                "path": str(base_root),
+                "candidates": [candidate.name for candidate in candidates],
+            },
+            dataset_id="tzdb_release",
+        )
+    return candidates[0].name
 
 
 def _write_json(path: Path, payload: object) -> bytes:
@@ -1136,11 +1346,24 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         tz_world_version,
     )
 
-    tzdb_root = _resolve_dataset_path(entries["tzdb_release"], run_paths, external_roots, tokens)
+    tzdb_entry = entries["tzdb_release"]
+    tzdb_path_template = tzdb_entry.get("path") or ""
+    if "{release_tag}" in tzdb_path_template and "release_tag" not in tokens:
+        resolved_tag = _resolve_release_tag_from_root(
+            tzdb_entry, run_paths, external_roots
+        )
+        tokens["release_tag"] = resolved_tag
+        logger.info("S0: resolved tzdb_release tag=%s from artefacts root", resolved_tag)
+    tzdb_root = _resolve_dataset_path(tzdb_entry, run_paths, external_roots, tokens)
     release_dir, release_meta_path = _resolve_release_dir(tzdb_root)
     tzdb_payload = _load_json(release_meta_path) if release_meta_path.suffix == ".json" else _load_yaml(release_meta_path)
     try:
-        _validate_payload(schema_2a, "ingress/tzdb_release_v1", tzdb_payload)
+        _validate_payload(
+            schema_2a,
+            "ingress/tzdb_release_v1",
+            tzdb_payload,
+            ref_packs={"schemas.layer1.yaml": schema_layer1},
+        )
     except SchemaValidationError as exc:
         raise EngineFailure(
             "F4",
@@ -1162,6 +1385,20 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
             {"detail": "tzdb release tag invalid", "release_tag": release_tag},
             dataset_id="tzdb_release",
         )
+    if "release_tag" in tokens and tokens["release_tag"] != release_tag:
+        raise EngineFailure(
+            "F4",
+            "2A-S0-014",
+            STATE,
+            MODULE_NAME,
+            {
+                "detail": "tzdb release tag mismatch",
+                "path_tag": tokens["release_tag"],
+                "metadata_tag": release_tag,
+            },
+            dataset_id="tzdb_release",
+        )
+    tokens["release_tag"] = release_tag
     if not isinstance(archive_sha256, str) or not _HEX64_PATTERN.match(archive_sha256):
         raise EngineFailure(
             "F4",
@@ -1217,7 +1454,12 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
     overrides_path = _resolve_dataset_path(entries["tz_overrides"], run_paths, external_roots, tokens)
     overrides_payload = _load_yaml(overrides_path)
     try:
-        _validate_payload(schema_2a, "policy/tz_overrides_v1", overrides_payload)
+        _validate_payload(
+            schema_2a,
+            "policy/tz_overrides_v1",
+            overrides_payload,
+            ref_packs={"schemas.layer1.yaml": schema_layer1},
+        )
     except SchemaValidationError as exc:
         raise EngineFailure(
             "F4",
@@ -1283,7 +1525,12 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
     nudge_path = _resolve_dataset_path(entries["tz_nudge"], run_paths, external_roots, tokens)
     nudge_payload = _load_yaml(nudge_path)
     try:
-        _validate_payload(schema_2a, "policy/tz_nudge_v1", nudge_payload)
+        _validate_payload(
+            schema_2a,
+            "policy/tz_nudge_v1",
+            nudge_payload,
+            ref_packs={"schemas.layer1.yaml": schema_layer1},
+        )
     except SchemaValidationError as exc:
         raise EngineFailure(
             "F4",
@@ -1410,8 +1657,10 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
             }
         )
 
-    pack, table_name = _table_pack(schema_2a, "manifests/sealed_inputs_2A")
     try:
+        pack, table_name = _prepare_table_pack_with_layer1_defs(
+            schema_2a, "manifests/sealed_inputs_2A", schema_layer1, "schemas.layer1.yaml"
+        )
         validate_dataframe(sealed_inputs_payload, pack, table_name)
     except SchemaValidationError as exc:
         raise EngineFailure(
@@ -1445,9 +1694,12 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "flag_sha256_hex": flag_sha256,
         "verified_at_utc": created_utc,
         "sealed_inputs": sealed_inputs_for_receipt,
+        "notes": None,
     }
 
-    receipt_schema = _table_row_schema(schema_2a, "validation/s0_gate_receipt_v1")
+    receipt_schema = _prepare_row_schema_with_layer1_defs(
+        schema_2a, "validation/s0_gate_receipt_v1", schema_layer1, "schemas.layer1.yaml"
+    )
     validator = Draft202012Validator(receipt_schema)
     errors = list(validator.iter_errors(receipt_payload))
     if errors:
@@ -1546,7 +1798,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
 
     determinism_hash, determinism_bytes = _hash_partition(sealed_tmp)
     determinism_receipt = {
-        "partition_path": str(sealed_inputs_path),
+        "partition_path": str(sealed_inputs_path.parent),
         "sha256_hex": determinism_hash,
         "bytes_hashed": determinism_bytes,
     }
@@ -1555,7 +1807,9 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
 
     _atomic_publish_file(receipt_path, receipt_bytes, logger, "s0_gate_receipt_2A")
     _emit_validation(logger, manifest_fingerprint, "V-17", "pass")
-    _atomic_publish_dir(sealed_tmp, sealed_inputs_path, logger, "sealed_inputs_2A")
+    _atomic_publish_dir(
+        sealed_tmp, sealed_inputs_path.parent, logger, "sealed_inputs_2A"
+    )
     _emit_validation(logger, manifest_fingerprint, "V-18", "pass")
 
     _emit_event(
@@ -1573,7 +1827,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         manifest_fingerprint,
         "INFO",
         partition_hash=determinism_hash,
-        partition_path=str(sealed_inputs_path),
+        partition_path=str(sealed_inputs_path.parent),
     )
     _emit_validation(logger, manifest_fingerprint, "V-13", "pass")
 

@@ -269,3 +269,247 @@ Implementation alignment notes:
 - Optional iso/world inputs remain unsealed unless a later state or policy
   explicitly demands them; S0 stays minimal as per the approved plan.
 
+### Entry: 2026-01-14 15:05
+
+Design element: tzdb_release path token resolution (hotfix after failed run).
+Summary: The S0 run failed because the dictionary path uses `{release_tag}` but
+S0 had no token to resolve it, so `resolve_input_path` looked for a literal
+`artefacts/priors/tzdata/{release_tag}` folder. This must be resolved
+deterministically at runtime.
+
+Observed failure (from run log):
+- `InputResolutionError: Input not found ... artefacts/priors/tzdata/{release_tag}`
+  while resolving `tzdb_release` in S0.
+
+Plan and decisions (before patching code):
+1) Resolve `release_tag` deterministically if missing from tokens.
+   - Use the dictionary path template: strip at `{release_tag}` to get the root
+     `artefacts/priors/tzdata/`.
+   - Scan subdirectories for exactly one candidate that contains
+     `tzdb_release.json|yaml|yml`. If zero or multiple candidates, fail with
+     `2A-S0-014` to avoid ambiguous pinning.
+2) After loading `tzdb_release` metadata, enforce tag consistency.
+   - If a `release_tag` was inferred from the directory name, require the
+     metadata `release_tag` to match exactly (fail-closed on mismatch).
+3) Update tokens with the resolved `release_tag` before rendering catalog paths
+   so sealed_inputs and run-report paths are canonical and deterministic.
+
+Implementation actions taken:
+- Added `_resolve_release_tag_from_root(...)` helper in
+  `packages/engine/src/engine/layers/l1/seg_2A/s0_gate/runner.py` to discover the
+  single valid release directory under `artefacts/priors/tzdata/`.
+- In `run_s0`, added a pre-resolution step:
+  - If the tzdb path contains `{release_tag}` and no token is available, resolve
+    the tag via the helper and log `S0: resolved tzdb_release tag=...`.
+  - Then resolve `tzdb_release` with the updated tokens.
+- Added a strict mismatch check between the inferred path tag and the metadata
+  `release_tag` (error `2A-S0-014` on mismatch) and ensured tokens are updated
+  to the metadata tag after validation.
+
+### Entry: 2026-01-14 15:06
+
+Design element: tzdb_release schema validation with external $ref (runtime failure).
+Summary: The run failed during `tzdb_release_v1` schema validation because the
+schema includes `$ref: schemas.layer1.yaml#/$defs/hex64` and Draft202012Validator
+attempted to resolve it as a URL. We need a local ref mapping for schema packs.
+
+Observed failure (from run log):
+- `_WrappedReferencingError: Unresolvable: schemas.layer1.yaml#/$defs/hex64`
+  when validating `tzdb_release_v1`.
+
+Plan and decisions (before patching code):
+1) Keep validation strict but resolve external $refs locally.
+   - Attach `$defs` from `schemas.layer1.yaml` into the active schema.
+   - Rewrite `$ref` strings that start with `schemas.layer1.yaml#` to local
+     `#/$defs/...` pointers.
+2) Keep the change scoped to this runner and to the tzdb_release validation
+   (to avoid altering other validators unexpectedly).
+
+Implementation actions taken:
+- Added `_rewrite_external_refs` + `_attach_external_defs` helpers and updated
+  `_validate_payload` to accept `ref_packs` for local $ref rewrites.
+- Passed `ref_packs={"schemas.layer1.yaml": schema_layer1}` when validating
+  `ingress/tzdb_release_v1`.
+
+### Entry: 2026-01-14 15:10
+
+Design element: External $defs scope (recursion failure on validation).
+Summary: After adding all layer1 `$defs`, Draft202012Validator hit a recursion
+error (deep self-referential defs in the layer1 pack). We only need the specific
+def(s) referenced by `tzdb_release_v1`, so we should inline a minimal subset.
+
+Observed failure (from run log):
+- `RecursionError: maximum recursion depth exceeded` during `$ref` resolution
+  inside tzdb_release validation.
+
+Plan and decisions (before patching code):
+1) Collect only the external defs actually referenced by the schema path under
+   validation (e.g., `hex64`) and inline just those.
+2) Keep `$ref` rewriting in place, but avoid pulling in the entire layer1 `$defs`
+   to prevent recursive definition expansion.
+
+Implementation actions taken:
+- Added `_collect_external_defs` to gather referenced `$defs` keys for a given
+  external prefix (`schemas.layer1.yaml#`).
+- Updated `_attach_external_defs` to inline only those needed keys and to fail
+  if a referenced key is missing in the external pack.
+- Kept `$ref` rewriting scoped to the external prefix so refs resolve locally.
+
+### Entry: 2026-01-14 15:11
+
+Design element: External $ref handling (recursion persists).
+Summary: The minimal `$defs` injection still hit recursion in the jsonschema
+validator. To avoid any external $ref resolution path entirely, I switched to
+inlining external defs directly into the schema node, removing `$ref` usage.
+
+Observed failure (from run log):
+- Recursion depth exceeded during `$ref` resolution despite minimal $defs.
+
+Plan and decisions (before patching code):
+1) Inline external `$defs` directly at the `$ref` site (replace `$ref` with the
+   referenced schema object).
+2) Preserve any sibling keys on the `$ref` node (e.g., `nullable`) by merging
+   them into the inlined schema.
+3) Limit the inlining to the `schemas.layer1.yaml#/$defs/*` prefix only.
+
+Implementation actions taken:
+- Added `_inline_external_refs` and updated `_validate_payload` to replace
+  external `$ref` nodes with their concrete schema definitions from
+  `schemas.layer1.yaml` before validation.
+- Removed the previous `$defs` injection + `$ref` rewriting path to avoid
+  recursion on draft-2020-12 resolution.
+
+### Entry: 2026-01-14 15:12
+
+Design element: External ref handling for policy schemas.
+Summary: After fixing tzdb_release, S0 failed on `tz_nudge_v1` because that
+schema still referenced `schemas.layer1.yaml#/$defs/hex64`. The external ref
+inline logic must be applied to *all* policy validations, not just tzdb_release.
+
+Observed failure (from run log):
+- `Unresolvable: schemas.layer1.yaml#/$defs/hex64` during `tz_nudge_v1` validation.
+
+Implementation actions taken:
+- Passed `ref_packs={"schemas.layer1.yaml": schema_layer1}` when validating
+  `policy/tz_overrides_v1` and `policy/tz_nudge_v1` so their external $refs are
+  inlined before Draft202012 validation.
+
+### Entry: 2026-01-14 15:14
+
+Design element: External refs in sealed_inputs + receipt validation.
+Summary: S0 progressed to sealing but failed when validating
+`sealed_inputs_2A` and the S0 receipt because those schemas still carry
+`schemas.layer1.yaml#/$defs/*` refs. We need to inline those refs before using
+`validate_dataframe` or Draft202012 on the receipt.
+
+Observed failure (from run log):
+- `Unresolvable: schemas.layer1.yaml#/$defs/hex64` during sealed_inputs validation.
+
+Implementation actions taken:
+- Inlined external layer1 refs into the `sealed_inputs_2A` schema pack prior to
+  `validate_dataframe`.
+- Inlined external layer1 refs into the `validation/s0_gate_receipt_v1`
+  row schema before Draft202012 validation.
+
+### Entry: 2026-01-14 15:15
+
+Design element: sealed_inputs validation compatibility with jsonschema_adapter.
+Summary: `validate_dataframe` expects `$ref` to remain (it maps table columns by
+type); inlining external defs converted `$ref` to `type: integer`, which the
+adapter rejects. The fix is to rewrite external refs to *local* `$defs` while
+preserving `$ref` form (no inlining) for table validation and receipt validation.
+
+Observed failure (from run log):
+- `ContractError: Unsupported column type 'integer'` while building
+  sealed_inputs row schema.
+
+Implementation actions taken:
+- Added `_rewrite_external_refs_local` to add only the needed layer1 `$defs` and
+  rewrite `schemas.layer1.yaml#` refs to local `#/$defs/...` while keeping `$ref`
+  intact.
+- Applied this to the sealed_inputs pack before `validate_dataframe` and to the
+  receipt row schema before Draft202012 validation.
+
+### Entry: 2026-01-14 15:19
+
+Design element: sealed_inputs/receipt validation recursion from alias `$defs`.
+Summary: After rewriting external refs to local `$defs`, Draft202012 validation
+still hit recursion because the 2A schema pack `$defs` are alias entries
+(`hex64` -> `schemas.layer1.yaml#/$defs/hex64`). Rewriting those alias refs to
+local `#/$defs/hex64` makes them self-referential. We need to replace alias
+`$defs` with concrete layer1 definitions for the validator inputs.
+
+Plan and decisions (before patching code):
+1) Build a sealed_inputs schema pack that uses *only* concrete layer1 `$defs`.
+   - Start from the table definition (`manifests/sealed_inputs_2A`) without
+     copying the 2A `$defs` alias block.
+   - Collect external refs referenced by the table columns.
+   - Attach concrete `$defs` from `schemas.layer1.yaml` and rewrite refs to
+     local `#/$defs/<name>`.
+   - Keep `$ref` form so `validate_dataframe` still works.
+2) For the S0 receipt row schema, perform the same transformation.
+   - Build row schema, drop alias `$defs`, attach concrete layer1 `$defs`, and
+     rewrite external refs to local.
+   - Validate receipt rows with Draft202012Validator as before.
+3) Remove `_rewrite_external_refs_local` usage in S0 sealing paths to avoid
+   alias self-references. Keep external-ref inlining for tzdb and policy
+   validations unchanged.
+
+### Entry: 2026-01-14 15:25
+
+Design element: sealed_inputs atomic publish path vs directory staging.
+Summary: `_atomic_publish_dir` was called with a *file* path
+(`sealed_inputs_2A.json`), but it expects a directory. This caused a
+WinError 3 when attempting to rename the temp directory into a file path.
+
+Plan and decisions (before patching code):
+1) Treat `sealed_inputs_2A` as a file inside a partition directory.
+   - Stage `sealed_inputs_2A.json` + `determinism_receipt.json` inside a temp
+     directory.
+   - Publish by atomically replacing the *partition directory*
+     (`.../sealed_inputs/manifest_fingerprint=<fp>/`) rather than the file path.
+2) Align determinism metadata with the directory hash.
+   - Record `partition_path` as the partition directory (parent of the file
+     path), since the hash is computed over the directory contents.
+3) Keep the emitted `sealed_inputs_path` in logs as the file path (matches the
+   dictionary and is how operators locate the inventory file).
+
+### Entry: 2026-01-14 15:27
+
+Design element: atomic publish directory parent creation.
+Summary: After switching to publish the partition directory, the rename still
+failed because the parent directory did not exist (`sealed_inputs/`).
+
+Plan and decisions (before patching code):
+1) Ensure `_atomic_publish_dir` creates `final_root.parent` before `replace`.
+   - Mirrors `_atomic_publish_file` behavior and avoids WinError 3 on missing
+     parent directories.
+2) Keep immutability guard unchanged (hash compare when the target exists).
+
+### Entry: 2026-01-14 15:29
+
+Design element: S0 validation + publish fixes (implementation pass).
+Summary: Implemented the alias-free schema handling for sealed_inputs/receipt,
+added the nullable `notes` field to the receipt payload, fixed directory publish
+semantics, and confirmed S0 completes green.
+
+Implementation actions taken (detailed):
+1) Added schema helpers in `seg_2A/s0_gate/runner.py`:
+   - `_collect_local_defs`, `_resolve_defs`,
+     `_prepare_table_pack_with_layer1_defs`, and
+     `_prepare_row_schema_with_layer1_defs`.
+   - Replaced the sealed_inputs and receipt validation paths to attach **concrete
+     layer1 `$defs`** and rewrite external refs to local, avoiding alias self-refs.
+2) Added `notes: None` to the S0 gate receipt payload to satisfy the nullable
+   but required `notes` column in `validation/s0_gate_receipt_v1`.
+3) Fixed sealed_inputs publish staging:
+   - Publish the partition directory (`.../sealed_inputs/manifest_fingerprint=...`)
+     rather than the file path.
+   - Record determinism `partition_path` as the directory, and update the
+     determinism log to match.
+   - Ensure `_atomic_publish_dir` creates `final_root.parent` before replace.
+4) Ran `make segment2a-s0` and confirmed S0 completion with run report and
+   pass logs (Gate → Seal → Emit → Determinism) for run_id
+   `dbc151d09d5fd3053a74705bca1b673c`.
+
+
