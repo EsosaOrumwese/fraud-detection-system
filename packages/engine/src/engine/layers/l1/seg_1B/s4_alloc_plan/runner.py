@@ -616,7 +616,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             MODULE_NAME,
             {"detail": "sealed_inputs_missing", "missing": missing_sealed},
         )
-    logger.info("S4: s0_gate_receipt validated (sealed_inputs=%d)", len(sealed_inputs))
+    logger.info(
+        "S4: gate receipt verified; sealed_inputs=%d (authorizes S3 requirements + tile assets)",
+        len(sealed_inputs),
+    )
 
     s3_root = _resolve_dataset_path(s3_entry, run_paths, external_roots, tokens)
     tile_weights_root = _resolve_dataset_path(
@@ -652,14 +655,20 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             {"path": str(s3_root)},
         )
 
+    logger.info("S4: allocation inputs resolved (s3_requirements + tile_weights + tile_index)")
+
     iso_df = pl.read_parquet(iso_path, columns=["country_iso"])
     iso_set = set(iso_df.get_column("country_iso").to_list())
-    logger.info("S4: ISO domain loaded (count=%d)", len(iso_set))
+    logger.info("S4: ISO domain loaded (count=%d) for country validation", len(iso_set))
     ingress_versions = {"iso3166": _entry_version(iso_entry) or ""}
 
     s3_files = _list_parquet_files(s3_root)
     bytes_read_s3_total = sum(path.stat().st_size for path in s3_files)
-    logger.info("S4: s3_requirements files=%d bytes=%d", len(s3_files), bytes_read_s3_total)
+    logger.info(
+        "S4: s3_requirements files=%d bytes=%d (merchant-country requirements)",
+        len(s3_files),
+        bytes_read_s3_total,
+    )
     logger.info("S4: read mode=%s", "pyarrow" if _HAVE_PYARROW else "polars")
 
     total_pairs: Optional[int] = None
@@ -671,9 +680,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 total_pairs += pf.metadata.num_rows
             finally:
                 _close_parquet_reader(pf)
-        logger.info("S4: s3_requirements rows=%d", total_pairs)
+        logger.info("S4: s3_requirements rows=%d (merchant-country pairs)", total_pairs)
 
-    tracker = _ProgressTracker(total_pairs, logger, "S4 pairs processed")
+    tracker = _ProgressTracker(
+        total_pairs,
+        logger,
+        "S4 allocation progress pairs_processed (merchant-country requirements)",
+    )
 
     run_paths.tmp_root.mkdir(parents=True, exist_ok=True)
     alloc_plan_tmp = run_paths.tmp_root / f"s4_alloc_plan_{uuid.uuid4().hex}"
@@ -686,7 +699,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     max_rss = proc.memory_info().rss
     open_files_peak = open_files_counter()
     logger.info("S4: PAT open_files metric=%s", open_files_metric)
-    timer.info("S4: starting allocation loop")
+    timer.info("S4: starting allocation loop (per pair -> tile plan rows)")
 
     batch_rows: list[tuple[int, str, int, int]] = []
     batch_index = 0
@@ -1237,6 +1250,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     }
 
     _atomic_publish_dir(alloc_plan_tmp, alloc_plan_root, logger, "s4_alloc_plan")
+    logger.info(
+        "S4: allocation plan ready for S5 (rows_emitted=%d, pairs_total=%d)",
+        rows_emitted,
+        pairs_total,
+    )
 
     wall_total = time.monotonic() - wall_start
     cpu_total = time.process_time() - cpu_start
@@ -1269,7 +1287,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     _validate_payload(schema_1b, "#/control/s4_run_report", run_report)
     run_report_path.parent.mkdir(parents=True, exist_ok=True)
     _write_json(run_report_path, run_report)
-    timer.info("S4: run report written")
+    timer.info("S4: run report written (allocation summary + determinism receipt)")
 
     return S4Result(
         run_id=str(run_id),

@@ -1317,6 +1317,67 @@ Implementation actions:
 
 ## S4 - Allocation Plan (S4.*)
 
+### Entry: 2026-01-14 11:27
+
+Design element: S4–S8 logging retrofit (storytelling, phase clarity, and progress semantics).
+Summary: The current run logs show raw counters without context. We will retrofit S4–S8 logs so each state narrates its purpose, inputs, progress meaning, and outputs without forcing the operator to read the spec. This is a logging-only change (no data mutation) but must be implemented carefully to avoid log spam or ambiguity.
+
+Plan (before implementation, detailed and explicit):
+1) **Define the story arc per state (one-line intent + phase markers).**
+   - S4: “Allocate tiles to satisfy S3 requirements.” Clarify that each `(merchant, country)` pair yields tile plan rows.
+   - S5: “Assign concrete tiles to each site requirement using RNG.” Clarify that each site gets one tile; RNG events are logged.
+   - S6: “Jitter within tile bounds and enforce point‑in‑country.” Clarify that each site gets one jittered point, with resample attempts.
+   - S7: “Synthesize site records by joining S5 assignments + S6 jitter + 1A outlet catalogue.” Clarify that output is per‑site and order‑free.
+   - S8: “Materialise `site_locations` egress from S7.” Clarify that egress is order‑free and parity with S7 is enforced.
+
+2) **Add explicit phase headers in logs (start/inputs/loop/output).**
+   - Add “phase start” log after gate receipt validation (authorized inputs).
+   - Add “inputs loaded” log that names the key datasets and what their rows represent.
+   - For each progress tracker, label what “processed” means (pairs vs sites vs egress rows).
+   - Add “output published” log that restates what the output represents (e.g., site locations for downstream joins).
+
+3) **Adjust progress labels to be self‑describing.**
+   - Replace generic labels like `S4 pairs processed` with `S4 allocation progress pairs_processed (merchant‑country requirements)`.
+   - Replace `S5 progress sites` with `S5 assignment progress sites_processed (tile assignment per site)`.
+   - Replace `S6 progress sites_processed` with `S6 jitter progress sites_processed (location per site)`.
+   - Replace `S7 progress sites_processed` with `S7 synthesis progress sites_processed (site records built)`.
+   - Replace `S8 progress sites_processed` with `S8 egress progress sites_processed (site_locations rows)`.
+
+4) **Keep logs lean and non‑spammy.**
+   - Only add a few summary logs per state and avoid per‑row logging.
+   - Preserve existing error logs and timers; add context to the messages rather than increasing volume.
+
+Expected outcome:
+ - Run logs read as a narrative for each state, with clear "what this step is doing" context.
+ - Operators can diagnose issues without cross-referencing the spec for common cases.
+
+### Entry: 2026-01-14 11:35
+
+Design element: S4 logging retrofit implementation (allocation plan story logs).
+Summary: Implemented the planned S4 narrative logging so the run log explains what is being allocated, what each counter means, and what the output represents. No data-path or determinism changes.
+
+Implementation actions (detailed):
+1) **Gate + input narration.**
+   - Updated the gate receipt log to explain the authorization scope (S3 requirements + tile assets).
+   - Added `S4: allocation inputs resolved (s3_requirements + tile_weights + tile_index)` so the operator sees which datasets are in play.
+   - Clarified the ISO domain log as "for country validation" to show why it is loaded.
+
+2) **Input context (no new volume).**
+   - Clarified the `s3_requirements` size log as "merchant-country requirements" so the row/file counts have meaning.
+   - Kept the "read mode" log to avoid unnecessary verbosity.
+
+3) **Progress semantics.**
+   - Changed the progress label to `S4 allocation progress pairs_processed (merchant-country requirements)`.
+   - Updated the loop start timer to `starting allocation loop (per pair -> tile plan rows)`.
+
+4) **Output narrative.**
+   - Added `S4: allocation plan ready for S5 (rows_emitted=..., pairs_total=...)` to explain downstream usage.
+   - Updated the run report log to `allocation summary + determinism receipt`.
+
+Notes:
+- Logging only; allocation math, writer sort, and determinism receipts are unchanged.
+- No additional per-row logging was introduced.
+
 ### Entry: 2026-01-13 19:58
 
 Design element: S4 pre-implementation review + planning (integer allocation plan)
@@ -1619,6 +1680,28 @@ Expected outcome:
 
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
 
+### Entry: 2026-01-14 11:36
+
+Design element: S5 logging retrofit implementation (site-to-tile assignment story logs).
+Summary: Implemented narrative log updates for S5 so the log explains the assignment story (inputs, RNG loop meaning, and outputs) without spec lookups. No data-path changes.
+
+Implementation actions (detailed):
+1) **Gate + input narration.**
+   - Updated gate receipt log to describe authorization scope (S4 allocation + tile assets).
+   - Added `S5: assignment inputs resolved (s4_alloc_plan + tile_index)` and clarified the ISO log as "for country validation".
+   - Clarified the `s4_alloc_plan` size log as "tile requirements per merchant-country".
+
+2) **Progress semantics.**
+   - Changed the progress label to `S5 assignment progress sites_processed (tile assignment per site)`.
+   - Added loop start log: `starting tile assignment loop (per site -> tile_id)` so "processed" has meaning.
+
+3) **Output narrative.**
+   - Kept the assignment completion log and updated the run report log to `assignment summary + determinism receipt`.
+
+Notes:
+- RNG emission, writer sort, and determinism receipts remain unchanged.
+- Log volume kept minimal (phase markers + progress).
+
 ### Entry: 2026-01-14 00:08
 
 Design element: S5 contract review + pre-implementation plan (site-to-tile assignment RNG)
@@ -1919,6 +2002,27 @@ Expected outcome:
 - This reduces the risk of repeat `None is not of type 'string'` errors across states that validate RNG audit logs.
 
 ## S6 - In-Cell Jitter RNG (S6.*)
+
+### Entry: 2026-01-14 11:37
+
+Design element: S6 logging retrofit implementation (in-cell jitter story logs).
+Summary: Added narrative logs to make S6's purpose and progress readable (jittering site locations within tiles). No data-path changes.
+
+Implementation actions (detailed):
+1) **Gate + input narration.**
+   - Updated the gate receipt log to clarify authorization (S5 assignments + world_countries geometry).
+   - Added `S6: jitter inputs resolved (s5_site_tile_assignment + tile_bounds + world_countries)` and a world_countries load count.
+   - Added a sampling statement: `uniform-in-tile bounds with point-in-country check (max_attempts=64)` to explain the loop behavior.
+
+2) **Progress semantics.**
+   - Changed the progress label to `S6 jitter progress sites_processed (location per site)`.
+
+3) **Output narrative.**
+   - Updated the run report log to `jitter summary + determinism receipt`.
+
+Notes:
+- RNG event emission and writer sort are unchanged.
+- No per-site logging added; progress remains periodic.
 
 ### Entry: 2026-01-14 02:12
 
@@ -2243,6 +2347,28 @@ Outcome:
 
 ## S7 - Site Synthesis (S7.*)
 
+### Entry: 2026-01-14 11:38
+
+Design element: S7 logging retrofit implementation (site synthesis story logs).
+Summary: Updated S7 logs to narrate the join/synthesis flow and explain what the progress counters represent. No data-path changes.
+
+Implementation actions (detailed):
+1) **Gate + input narration.**
+   - Updated the gate receipt log to clarify outlet_catalogue authorization.
+   - Added `S7: synthesis inputs resolved (S5 assignments + S6 jitter + 1A outlet_catalogue)`.
+   - Added `input row counts` log for S5, S6, and outlet_catalogue to make parity checks explicit.
+
+2) **Progress semantics.**
+   - Changed the progress label to `S7 synthesis progress sites_processed (site records built)`.
+
+3) **Output narrative.**
+   - Updated the publish log to `site synthesis published`.
+   - Updated the run summary log to `parity + validation counters`.
+
+Notes:
+- S7 validation behavior and output schema are unchanged.
+- Logging remains phase-based and avoids per-row noise.
+
 ### Entry: 2026-01-14 03:27
 
 Design element: S7 contract review + pre-implementation plan (deterministic site synthesis).
@@ -2487,6 +2613,28 @@ Outcome:
 - S7 is green for this run_id and aligns with the binding spec requirements for S7 (deterministic, RNG-free, write-once, parity + coverage checks, inside-pixel enforcement, and required run summary counters).
 
 ## S8 - Egress Site Locations (S8.*)
+
+### Entry: 2026-01-14 11:39
+
+Design element: S8 logging retrofit implementation (site_locations egress story logs).
+Summary: Added narrative logs so S8's order-free egress and row meaning are clear from the run log. No data-path changes.
+
+Implementation actions (detailed):
+1) **Input narration.**
+   - Added `S8: egress inputs resolved (S7 site synthesis -> site_locations)`.
+   - Added `S8: egress is order-free and fingerprint-scoped` to emphasize ordering semantics.
+   - Clarified `S7 rows` log to state that each row maps to one site_locations row.
+
+2) **Progress semantics.**
+   - Changed the progress label to `S8 egress progress sites_processed (site_locations rows)`.
+
+3) **Output narrative.**
+   - Updated the publish log to mention order-free egress.
+   - Updated the run summary log to `parity + validation counters`.
+
+Notes:
+- Egress mapping, writer sort enforcement, and validation logic are unchanged.
+- Added logs are phase markers only (no log spam).
 
 ### Entry: 2026-01-14 08:11
 

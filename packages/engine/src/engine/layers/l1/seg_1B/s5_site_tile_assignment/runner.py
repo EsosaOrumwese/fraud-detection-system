@@ -807,7 +807,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             MODULE_NAME,
             {"detail": "sealed_inputs_missing", "missing": missing_sealed},
         )
-    logger.info("S5: s0_gate_receipt validated (sealed_inputs=%d)", len(sealed_inputs))
+    logger.info(
+        "S5: gate receipt verified; sealed_inputs=%d (authorizes S4 allocation + tile assets)",
+        len(sealed_inputs),
+    )
 
     s4_root = _resolve_dataset_path(s4_entry, run_paths, external_roots, tokens)
     tile_index_root = _resolve_dataset_path(
@@ -841,13 +844,19 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             {"path": str(s4_root)},
         )
 
+    logger.info("S5: assignment inputs resolved (s4_alloc_plan + tile_index)")
+
     iso_df = pl.read_parquet(iso_path, columns=["country_iso"])
     iso_set = set(iso_df.get_column("country_iso").to_list())
-    logger.info("S5: ISO domain loaded (count=%d)", len(iso_set))
+    logger.info("S5: ISO domain loaded (count=%d) for country validation", len(iso_set))
 
     s4_files = _list_parquet_files(s4_root)
     bytes_read_s4_total = sum(path.stat().st_size for path in s4_files)
-    logger.info("S5: s4_alloc_plan files=%d bytes=%d", len(s4_files), bytes_read_s4_total)
+    logger.info(
+        "S5: s4_alloc_plan files=%d bytes=%d (tile requirements per merchant-country)",
+        len(s4_files),
+        bytes_read_s4_total,
+    )
     logger.info("S5: read mode=%s", "pyarrow" if _HAVE_PYARROW else "polars")
 
     proc = psutil.Process()
@@ -913,7 +922,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     wall_start = time.monotonic()
     cpu_start = time.process_time()
 
-    progress_sites = _ProgressTracker(None, logger, "S5 progress sites")
+    progress_sites = _ProgressTracker(
+        None,
+        logger,
+        "S5 assignment progress sites_processed (tile assignment per site)",
+    )
+    timer.info("S5: starting tile assignment loop (per site -> tile_id)")
 
     def _load_tile_index(country_iso: str) -> _TileIndexEntry:
         nonlocal cache_hits, cache_misses, cache_evictions, bytes_read_index_total
@@ -1338,6 +1352,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         if not trace_handle.closed:
             trace_handle.close()
 
+    timer.info(
+        "S5: assignment loop completed (pairs_total=%d rows_emitted=%d rng_events=%d)",
+        pairs_total,
+        rows_emitted,
+        rng_events_emitted,
+    )
     logger.info(
         "S5: cache summary hits=%d misses=%d evictions=%d",
         cache_hits,
@@ -1388,7 +1408,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     _validate_payload(schema_1b, "#/control/s5_run_report", run_report)
     run_report_path.parent.mkdir(parents=True, exist_ok=True)
     _write_json(run_report_path, run_report)
-    timer.info("S5: run report written")
+    timer.info("S5: run report written (assignment summary + determinism receipt)")
 
     shutil.rmtree(tmp_root, ignore_errors=True)
 

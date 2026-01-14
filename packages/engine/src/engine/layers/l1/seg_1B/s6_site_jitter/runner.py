@@ -869,7 +869,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
         raise SchemaValidationError(receipt_errors[0].message, [{"message": receipt_errors[0].message}])
     if receipt_payload.get("manifest_fingerprint") != manifest_fingerprint:
         raise InputResolutionError("s0_gate_receipt_1B manifest_fingerprint mismatch.")
-    timer.info("S6: gate receipt verified")
+    timer.info("S6: gate receipt verified (authorizes S5 assignments + world_countries)")
 
     sealed_entry = find_dataset_entry(dictionary, "sealed_inputs_1B").entry
     sealed_path = _resolve_dataset_path(
@@ -915,9 +915,11 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     if not tile_index_root.exists():
         raise InputResolutionError(f"Missing tile_index: {tile_index_root}")
 
+    logger.info("S6: jitter inputs resolved (s5_site_tile_assignment + tile_bounds + world_countries)")
     logger.info("S6: loading world_countries geometry (path=%s)", world_path)
     world_geometry = _load_world_countries(world_path)
     logger.info("S6: world_countries loaded (countries=%d)", len(world_geometry))
+    logger.info("S6: jitter sampling uses uniform-in-tile bounds with point-in-country check (max_attempts=%d)", MAX_ATTEMPTS)
 
     s5_files = _list_parquet_files(s5_root)
     total_sites = _count_parquet_rows(s5_files)
@@ -1006,7 +1008,11 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     by_country: dict[str, dict[str, int]] = {}
 
     last_output_key: Optional[tuple[int, str, int]] = None
-    progress_sites = _ProgressTracker(total_sites, logger, "S6 progress sites_processed")
+    progress_sites = _ProgressTracker(
+        total_sites,
+        logger,
+        "S6 jitter progress sites_processed (location per site)",
+    )
 
     def _flush_batch() -> None:
         nonlocal batch_index
@@ -1438,7 +1444,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     _validate_payload(schema_1b, "#/control/s6_run_report", run_report)
     run_report_path.parent.mkdir(parents=True, exist_ok=True)
     _write_json(run_report_path, run_report)
-    timer.info("S6: run report written")
+    timer.info("S6: run report written (jitter summary + determinism receipt)")
 
     shutil.rmtree(tmp_root, ignore_errors=True)
 

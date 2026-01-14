@@ -744,7 +744,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
             MODULE_NAME,
             {"detail": "outlet_catalogue missing from sealed_inputs"},
         )
-    timer.info("S7: gate receipt verified (sealed_inputs=%d)", len(sealed_inputs))
+    timer.info("S7: gate receipt verified (sealed_inputs=%d; outlet_catalogue authorized)", len(sealed_inputs))
 
     sealed_path = _resolve_dataset_path(
         sealed_entry, run_paths, external_roots, {"manifest_fingerprint": str(manifest_fingerprint)}
@@ -777,9 +777,17 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     s6_files = _list_parquet_files(s6_root)
     outlet_files = _list_parquet_files(outlet_root)
 
+    logger.info("S7: synthesis inputs resolved (S5 assignments + S6 jitter + 1A outlet_catalogue)")
+
     s5_rows_total = _count_parquet_rows(s5_files)
     s6_rows_total = _count_parquet_rows(s6_files)
     outlet_rows_total = _count_parquet_rows(outlet_files)
+    logger.info(
+        "S7: input row counts s5=%s s6=%s outlet_catalogue=%s (site-level parity check)",
+        s5_rows_total if s5_rows_total is not None else "unknown",
+        s6_rows_total if s6_rows_total is not None else "unknown",
+        outlet_rows_total if outlet_rows_total is not None else "unknown",
+    )
 
     if s5_rows_total is not None and s6_rows_total is not None and s5_rows_total != s6_rows_total:
         raise EngineFailure(
@@ -803,7 +811,11 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
         )
 
     include_global_seed = _detect_column(outlet_files, "global_seed")
-    progress = _ProgressTracker(s5_rows_total, logger, "S7 progress sites_processed")
+    progress = _ProgressTracker(
+        s5_rows_total,
+        logger,
+        "S7 synthesis progress sites_processed (site records built)",
+    )
 
     output_tmp = run_paths.tmp_root / f"s7_site_synthesis_{uuid.uuid4().hex}"
     output_tmp.mkdir(parents=True, exist_ok=True)
@@ -1229,7 +1241,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
         raise
 
     _atomic_publish_dir(output_tmp, synthesis_root, logger, "s7_site_synthesis")
-    timer.info("S7: wrote s7_site_synthesis rows=%d", counts["sites_total_s7"])
+    timer.info("S7: site synthesis published rows=%d", counts["sites_total_s7"])
 
     run_summary = {
         "seed": seed,
@@ -1274,7 +1286,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     _write_json(summary_tmp, run_summary)
     _atomic_publish_file(summary_tmp, summary_path, logger, "s7_run_summary")
-    timer.info("S7: run summary written")
+    timer.info("S7: run summary written (parity + validation counters)")
 
     return S7Result(
         run_id=run_id,

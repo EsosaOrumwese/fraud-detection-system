@@ -626,8 +626,15 @@ def run_s8(config: EngineConfig, run_id: Optional[str] = None) -> S8Result:
             {"detail": "parameter_hash_in_egress_path", "path": str(s8_root)},
         )
 
+    logger.info("S8: egress inputs resolved (S7 site synthesis -> site_locations)")
+    logger.info("S8: egress is order-free and fingerprint-scoped (no inter-country ordering)")
+
     s7_files = _list_parquet_files(s7_root)
     s7_rows_total = _count_parquet_rows(s7_files)
+    logger.info(
+        "S8: S7 rows=%s (each row becomes one site_locations row)",
+        s7_rows_total if s7_rows_total is not None else "unknown",
+    )
 
     output_tmp = run_paths.tmp_root / f"s8_site_locations_{uuid.uuid4().hex}"
     output_tmp.mkdir(parents=True, exist_ok=True)
@@ -648,7 +655,11 @@ def run_s8(config: EngineConfig, run_id: Optional[str] = None) -> S8Result:
     }
     by_country: dict[str, dict[str, int | bool]] = {}
 
-    progress = _ProgressTracker(s7_rows_total, logger, "S8 progress rows_processed")
+    progress = _ProgressTracker(
+        s7_rows_total,
+        logger,
+        "S8 egress progress sites_processed (site_locations rows)",
+    )
     start_wall = time.monotonic()
     start_cpu = time.process_time()
 
@@ -753,7 +764,7 @@ def run_s8(config: EngineConfig, run_id: Optional[str] = None) -> S8Result:
         raise
 
     _atomic_publish_dir(output_tmp, s8_root, logger, "site_locations")
-    timer.info("S8: published site_locations rows=%d", counts["rows_s8"])
+    timer.info("S8: published site_locations rows=%d (order-free egress)", counts["rows_s8"])
 
     for stats in by_country.values():
         stats["parity_ok"] = stats["rows_s7"] == stats["rows_s8"]
@@ -798,7 +809,7 @@ def run_s8(config: EngineConfig, run_id: Optional[str] = None) -> S8Result:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     _write_json(summary_tmp, run_summary)
     _atomic_publish_file(summary_tmp, summary_path, logger, "s8_run_summary")
-    timer.info("S8: run summary written")
+    timer.info("S8: run summary written (parity + validation counters)")
 
     return S8Result(
         run_id=run_id,
