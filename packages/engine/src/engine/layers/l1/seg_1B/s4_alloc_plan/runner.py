@@ -75,7 +75,9 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5:
+        if now - self._last_log < 0.5 and not (
+            self._total is not None and self._processed >= self._total
+        ):
             return
         self._last_log = now
         elapsed = now - self._start
@@ -701,15 +703,29 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     dp_global: Optional[int] = None
 
     cache: OrderedDict[str, dict] = OrderedDict()
+    seen_countries: set[str] = set()
+    cache_hits = 0
+    cache_misses = 0
+    cache_evictions = 0
     heartbeat_last = time.monotonic()
-    heartbeat_check_step = 10000
+    heartbeat_check_step = max(500, int((total_pairs or 5000) / 10))
+    heartbeat_interval = 3.0
 
     def _load_country_assets(country_iso: str) -> dict:
-        nonlocal bytes_read_weights_total, bytes_read_index_total, dp_global, max_rss, open_files_peak
+        nonlocal bytes_read_weights_total
+        nonlocal bytes_read_index_total
+        nonlocal dp_global
+        nonlocal max_rss
+        nonlocal open_files_peak
+        nonlocal cache_hits
+        nonlocal cache_misses
+        nonlocal cache_evictions
         if country_iso in cache:
+            cache_hits += 1
             cache.move_to_end(country_iso)
             return cache[country_iso]
 
+        cache_misses += 1
         tile_index_ids, bytes_index = _load_tile_index_country(tile_index_root, country_iso)
         bytes_read_index_total += bytes_index
         if tile_index_ids.size == 0:
@@ -889,15 +905,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     {"legal_country_iso": country_iso},
                 )
 
-        logger.info(
-            "S4: loaded country assets country=%s tiles=%d dp=%d bytes_index=%d bytes_weights=%d cache=%d",
-            country_iso,
-            weight_tile_sorted.size,
-            dp_value,
-            bytes_index,
-            bytes_weights,
-            len(cache) + 1,
-        )
+        if country_iso not in seen_countries:
+            logger.info(
+                "S4: loaded country assets country=%s tiles=%d dp=%d bytes_index=%d bytes_weights=%d cache=%d",
+                country_iso,
+                weight_tile_sorted.size,
+                dp_value,
+                bytes_index,
+                bytes_weights,
+                len(cache) + 1,
+            )
+            seen_countries.add(country_iso)
         rss_now = proc.memory_info().rss
         max_rss = max(max_rss, rss_now)
         open_files_peak = max(open_files_peak, open_files_counter())
@@ -911,6 +929,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         cache.move_to_end(country_iso)
         if len(cache) > CACHE_COUNTRIES_MAX:
             cache.popitem(last=False)
+            cache_evictions += 1
         return payload
 
     def _flush_batch() -> None:
@@ -1130,17 +1149,34 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
         if pairs_total % heartbeat_check_step == 0:
             now = time.monotonic()
-            if now - heartbeat_last >= 5.0:
+            if now - heartbeat_last >= heartbeat_interval:
                 elapsed = now - wall_start
                 rate = pairs_total / elapsed if elapsed > 0 else 0.0
-                logger.info(
-                    "S4 heartbeat pairs_processed=%d merchants=%d rows_emitted=%d (elapsed=%.2fs, rate=%.2f/s)",
-                    pairs_total,
-                    merchants_total,
-                    rows_emitted,
-                    elapsed,
-                    rate,
-                )
+                if total_pairs:
+                    logger.info(
+                        "S4 heartbeat pairs_processed=%d/%d merchants=%d rows_emitted=%d cache_hit=%d cache_miss=%d evictions=%d (elapsed=%.2fs, rate=%.2f/s)",
+                        pairs_total,
+                        total_pairs,
+                        merchants_total,
+                        rows_emitted,
+                        cache_hits,
+                        cache_misses,
+                        cache_evictions,
+                        elapsed,
+                        rate,
+                    )
+                else:
+                    logger.info(
+                        "S4 heartbeat pairs_processed=%d merchants=%d rows_emitted=%d cache_hit=%d cache_miss=%d evictions=%d (elapsed=%.2fs, rate=%.2f/s)",
+                        pairs_total,
+                        merchants_total,
+                        rows_emitted,
+                        cache_hits,
+                        cache_misses,
+                        cache_evictions,
+                        elapsed,
+                        rate,
+                    )
                 heartbeat_last = now
 
         rss_now = proc.memory_info().rss
@@ -1182,6 +1218,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         pairs_total,
         merchants_total,
         rows_emitted,
+    )
+    logger.info(
+        "S4: cache summary hits=%d misses=%d evictions=%d unique_countries=%d",
+        cache_hits,
+        cache_misses,
+        cache_evictions,
+        len(seen_countries),
     )
 
     determinism_hash, determinism_bytes = _hash_partition(alloc_plan_tmp)

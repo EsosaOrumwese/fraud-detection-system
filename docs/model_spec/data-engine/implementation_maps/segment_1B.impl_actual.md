@@ -1544,6 +1544,32 @@ Observed outcomes (post-rerun):
 Next step:
 - Let the run complete and confirm `s4_run_report.json` + output partition; if the run stalls or fails, capture the error and adjust before re-running.
 
+### Entry: 2026-01-13 21:31
+
+Design element: S4 log noise reduction + progress clarity (implementation)
+Summary: Adjusted S4 logging to reduce per‑country spam while keeping progress clear, and added cache summaries so operators can interpret run health.
+
+Reasoning captured before edits:
+1) Per‑country logs were firing on every cache miss (including reloads after eviction), which drowned out real progress.
+2) Heartbeat was unlikely to fire on small runs; we need a lower step threshold and clearer progress text.
+3) The operator still needs to understand cache behavior and how far the run has progressed without scanning hundreds of lines.
+
+Changes applied:
+1) **Per‑country logs only on first‑seen countries.**
+   - Added a `seen_countries` set so the “loaded country assets” line emits only once per ISO.
+2) **Cache stats tracking.**
+   - Added counters for `cache_hits`, `cache_misses`, and `cache_evictions`.
+   - Added a cache summary log at the end of the allocation loop.
+3) **Heartbeat tuning.**
+   - Heartbeat check step now scales with total pairs (`max(500, total_pairs/10)`).
+   - Heartbeat log now includes cache stats and prints `pairs_processed` against total when available.
+4) **Progress tracker final log.**
+   - `_ProgressTracker` now emits a final progress line when `processed >= total` even if the last update was within the throttle window.
+
+Expected outcome:
+- Far fewer per‑country lines while keeping “where we are” visible.
+- Heartbeat emits even for mid‑sized runs, and the final progress line always appears when total is known.
+
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
 
 ## S6 - In-Cell Jitter RNG (S6.*)
