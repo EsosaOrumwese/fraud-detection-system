@@ -2092,6 +2092,22 @@ Changes applied (explicit, step-by-step):
 Expected effect:
  - S6 trace coverage will exist for `in_cell_jitter` even on reruns with pre-existing event logs.
  - S9 reconciliation will see matching event totals and trace totals for the S6 substream.
+
+### Entry: 2026-01-14 11:15
+
+Design element: S6 rerun to append missing trace rows (run_id=b4235da0cecba7e7ffd475f8ffb23906).
+Summary: Executed S6 with the new trace-append logic to repair missing trace coverage for `in_cell_jitter` without re-emitting events.
+
+Execution details (explicit):
+1) **Run invocation:** `make segment1b-s6 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+2) **Trace mode:** `append` (existing `rng_trace_log` detected, S6 substream missing).
+3) **Event handling:** `rng_event_in_cell_jitter` already existed; S6 skipped event emission and rebuilt trace rows from the existing event JSONL files.
+4) **Trace append result:** appended `30115` trace rows to the existing trace log.
+5) **Publish behavior:** `s6_site_jitter` partition already existed and matched (identical bytes); no overwrite performed.
+6) **Outcome:** `S6 1B complete` logged; run report updated with consistent counts and determinism receipt.
+
+Expected impact:
+- S9 can now reconcile S6 events against `rng_trace_log` for the `(module=1B.S6.jitter, substream_label=in_cell_jitter)` key.
    - Rationale: spec requires deterministic substreams and per-attempt event logging; trace/audit logs align with existing RNG governance patterns.
 
 5) **Output dataset + run report.**
@@ -2831,6 +2847,22 @@ Changes applied (explicit, step-by-step):
 Expected effect:
  - Operators can explicitly archive failed bundles before re-running S9.
  - 1A and 1B now share the same write-once validation bundle behavior.
+
+### Entry: 2026-01-14 11:15
+
+Design element: S9 rerun after archive (bundle publish PASS).
+Summary: Archived the prior fingerprint bundle, reran S9, and confirmed PASS with a newly published validation bundle for `manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1`.
+
+Execution details (explicit):
+1) **Archive helper used:** `make segment1b-s9-archive RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+   - Bundle moved to `.../data/layer1/1B/validation/_failed/manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1/attempt=20260114T111317`.
+2) **Run invocation:** `make segment1b-s9 RUN_ID=b4235da0cecba7e7ffd475f8ffb23906`.
+3) **Parity validation:** `rows_s7=27942`, `rows_s8=27942`, `parity_ok=true`.
+4) **RNG accounting:** trace/audit scan and event scan completed without mismatches.
+5) **Bundle publish:** `decision=PASS`; bundle emitted under `runs/local_full_run-5/b4235da0cecba7e7ffd475f8ffb23906/data/layer1/1B/validation/manifest_fingerprint=8ef8eaa92e30fb40d269fa00dc3551899d99c4a1b083150592c96849755ac9a1/`.
+
+Outcome:
+- S9 is now green for this run_id and fingerprint; downstream consumers can verify `_passed.flag` and proceed.
 
 ### Entry: 2026-01-14 10:33
 

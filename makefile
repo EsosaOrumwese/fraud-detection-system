@@ -1274,49 +1274,7 @@ engine-s9: segment1a-s9
 
 segment1a-s9-archive:
 	@echo "Archiving Segment 1A S9 validation bundle"
-	@$(PY_SCRIPT) - <<'PY'
-import json
-import pathlib
-import shutil
-import sys
-import time
-
-runs_root = pathlib.Path("$(RUNS_ROOT)")
-run_id = "$(SEG1A_S9_RUN_ID)".strip()
-
-def pick_latest_receipt(root: pathlib.Path) -> pathlib.Path:
-    receipts = sorted(root.glob("*/run_receipt.json"), key=lambda p: p.stat().st_mtime)
-    if not receipts:
-        print(f"No run_receipt.json found under {root}", file=sys.stderr)
-        sys.exit(1)
-    return receipts[-1]
-
-receipt_path = runs_root / run_id / "run_receipt.json" if run_id else pick_latest_receipt(runs_root)
-receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-run_id = receipt["run_id"]
-fingerprint = receipt["manifest_fingerprint"]
-
-bundle_root = runs_root / run_id / "data" / "layer1" / "1A" / "validation" / f"manifest_fingerprint={fingerprint}"
-if not bundle_root.exists():
-    print(f"Validation bundle not found: {bundle_root}", file=sys.stderr)
-    sys.exit(1)
-
-timestamp = time.strftime("%Y%m%dT%H%M%S")
-archive_root = (
-    runs_root
-    / run_id
-    / "data"
-    / "layer1"
-    / "1A"
-    / "validation"
-    / "_failed"
-    / f"manifest_fingerprint={fingerprint}"
-    / f"attempt={timestamp}"
-)
-archive_root.parent.mkdir(parents=True, exist_ok=True)
-shutil.move(str(bundle_root), str(archive_root))
-print(f"Archived {bundle_root} -> {archive_root}")
-PY
+	@$(PY_SCRIPT) -c "import json,pathlib,shutil,sys,time; runs_root=pathlib.Path('$(RUNS_ROOT)'); run_id='$(SEG1A_S9_RUN_ID)'.strip(); receipt_path=(runs_root/run_id/'run_receipt.json' if run_id else sorted(runs_root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime)[-1]); receipt=json.loads(receipt_path.read_text(encoding='utf-8')); run_id=receipt['run_id']; fingerprint=receipt['manifest_fingerprint']; bundle_root=runs_root/run_id/'data'/'layer1'/'1A'/'validation'/f'manifest_fingerprint={fingerprint}'; (bundle_root.exists() or sys.exit(f'Validation bundle not found: {bundle_root}')); timestamp=time.strftime('%Y%m%dT%H%M%S'); archive_root=runs_root/run_id/'data'/'layer1'/'1A'/'validation'/'_failed'/f'manifest_fingerprint={fingerprint}'/f'attempt={timestamp}'; archive_root.parent.mkdir(parents=True, exist_ok=True); shutil.move(str(bundle_root), str(archive_root)); print(f'Archived {bundle_root} -> {archive_root}')"
 
 segment1b-s0:
 	@echo "Running Segment 1B S0 gate-in"
@@ -1360,49 +1318,7 @@ segment1b-s9:
 
 segment1b-s9-archive:
 	@echo "Archiving Segment 1B S9 validation bundle"
-	@$(PY_SCRIPT) - <<'PY'
-import json
-import pathlib
-import shutil
-import sys
-import time
-
-runs_root = pathlib.Path("$(RUNS_ROOT)")
-run_id = "$(SEG1B_S9_RUN_ID)".strip()
-
-def pick_latest_receipt(root: pathlib.Path) -> pathlib.Path:
-    receipts = sorted(root.glob("*/run_receipt.json"), key=lambda p: p.stat().st_mtime)
-    if not receipts:
-        print(f"No run_receipt.json found under {root}", file=sys.stderr)
-        sys.exit(1)
-    return receipts[-1]
-
-receipt_path = runs_root / run_id / "run_receipt.json" if run_id else pick_latest_receipt(runs_root)
-receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-run_id = receipt["run_id"]
-fingerprint = receipt["manifest_fingerprint"]
-
-bundle_root = runs_root / run_id / "data" / "layer1" / "1B" / "validation" / f"manifest_fingerprint={fingerprint}"
-if not bundle_root.exists():
-    print(f"Validation bundle not found: {bundle_root}", file=sys.stderr)
-    sys.exit(1)
-
-timestamp = time.strftime("%Y%m%dT%H%M%S")
-archive_root = (
-    runs_root
-    / run_id
-    / "data"
-    / "layer1"
-    / "1B"
-    / "validation"
-    / "_failed"
-    / f"manifest_fingerprint={fingerprint}"
-    / f"attempt={timestamp}"
-)
-archive_root.parent.mkdir(parents=True, exist_ok=True)
-shutil.move(str(bundle_root), str(archive_root))
-print(f"Archived {bundle_root} -> {archive_root}")
-PY
+	@$(PY_SCRIPT) -c "import json,pathlib,shutil,sys,time; runs_root=pathlib.Path('$(RUNS_ROOT)'); run_id='$(SEG1B_S9_RUN_ID)'.strip(); receipt_path=(runs_root/run_id/'run_receipt.json' if run_id else sorted(runs_root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime)[-1]); receipt=json.loads(receipt_path.read_text(encoding='utf-8')); run_id=receipt['run_id']; fingerprint=receipt['manifest_fingerprint']; bundle_root=runs_root/run_id/'data'/'layer1'/'1B'/'validation'/f'manifest_fingerprint={fingerprint}'; (bundle_root.exists() or sys.exit(f'Validation bundle not found: {bundle_root}')); timestamp=time.strftime('%Y%m%dT%H%M%S'); archive_root=runs_root/run_id/'data'/'layer1'/'1B'/'validation'/'_failed'/f'manifest_fingerprint={fingerprint}'/f'attempt={timestamp}'; archive_root.parent.mkdir(parents=True, exist_ok=True); shutil.move(str(bundle_root), str(archive_root)); print(f'Archived {bundle_root} -> {archive_root}')"
 
 segment1b:
 	@echo "Running Segment 1B (S0-S9)"
