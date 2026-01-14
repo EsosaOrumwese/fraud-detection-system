@@ -1870,6 +1870,30 @@ Run report checks (spec compliance):
 Compliance judgement:
 - S5 is green and spec-compliant for this run identity; safe to proceed to S6 when ready.
 
+### Entry: 2026-01-14 01:16
+
+Design element: Shared nullable-schema helper for RNG audit log validation
+Summary: Implemented a shared JSON Schema normalizer to support `nullable: true` across RNG audit log validations and integrated it into the runners that validate audit records.
+
+Problem observed:
+- RNG audit log schemas use `nullable: true` on optional fields, but Draft202012Validator does not interpret `nullable` unless it is converted into a union type. This caused validation failures when optional fields were set to `null`.
+
+Decision (before code):
+1) Add a shared helper that rewrites schema fragments containing `nullable: true` into Draft2020-compatible unions (`type: [X, "null"]` or `anyOf` for `$ref`).
+2) Apply this helper in the `_schema_from_pack` functions used by RNG audit log validation so any record schema is normalized before validation.
+
+Implementation applied:
+- Added `normalize_nullable_schema` to `packages/engine/src/engine/contracts/jsonschema_adapter.py`.
+- Updated `_schema_from_pack` in:
+  - `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
+  - `packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_set/runner.py`
+  - `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`
+  to return normalized schemas, ensuring RNG audit log validation accepts nullable optional fields.
+
+Expected outcome:
+- RNG audit log validation will accept `null` for optional fields without per-runner workarounds.
+- This reduces the risk of repeat `None is not of type 'string'` errors across states that validate RNG audit logs.
+
 ## S6 - In-Cell Jitter RNG (S6.*)
 
 ## S7 - Site Synthesis (S7.*)

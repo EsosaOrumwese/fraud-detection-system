@@ -173,3 +173,54 @@ def validate_dataframe(
         raise SchemaValidationError(
             "Ingress schema validation failed:\n" + "\n".join(lines), errors
         )
+
+
+def normalize_nullable_schema(schema: Any) -> Any:
+    """Convert 'nullable: true' markers to Draft202012-compatible unions."""
+    if isinstance(schema, list):
+        return [normalize_nullable_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+
+    normalized: dict[str, Any] = {}
+    for key, value in schema.items():
+        if key == "nullable":
+            continue
+        normalized[key] = normalize_nullable_schema(value)
+
+    if not schema.get("nullable"):
+        return normalized
+
+    if "$ref" in normalized:
+        ref = normalized.pop("$ref")
+        base: dict[str, Any]
+        if normalized:
+            base = {"allOf": [{"$ref": ref}, normalized]}
+        else:
+            base = {"$ref": ref}
+        return {"anyOf": [base, {"type": "null"}]}
+
+    if "type" in normalized:
+        type_value = normalized["type"]
+        if isinstance(type_value, list):
+            if "null" not in type_value:
+                normalized["type"] = list(type_value) + ["null"]
+        elif type_value != "null":
+            normalized["type"] = [type_value, "null"]
+        return normalized
+
+    if "anyOf" in normalized:
+        anyof = normalized["anyOf"]
+        if not isinstance(anyof, list):
+            anyof = [anyof]
+        normalized["anyOf"] = list(anyof) + [{"type": "null"}]
+        return normalized
+
+    if "oneOf" in normalized:
+        oneof = normalized["oneOf"]
+        if not isinstance(oneof, list):
+            oneof = [oneof]
+        normalized["oneOf"] = list(oneof) + [{"type": "null"}]
+        return normalized
+
+    return {"anyOf": [normalized, {"type": "null"}]}

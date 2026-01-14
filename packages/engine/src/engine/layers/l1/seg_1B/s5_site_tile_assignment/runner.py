@@ -31,6 +31,7 @@ except Exception:  # pragma: no cover - fallback when pyarrow missing.
     pq = None
     _HAVE_PYARROW = False
 
+from engine.contracts.jsonschema_adapter import normalize_nullable_schema
 from engine.contracts.loader import find_dataset_entry, load_dataset_dictionary, load_schema_pack
 from engine.contracts.source import ContractSource
 from engine.core.config import EngineConfig
@@ -206,7 +207,7 @@ def _schema_from_pack(schema_pack: dict, path: str) -> dict:
         "$defs": schema_pack.get("$defs", {}),
     }
     schema.update(node)
-    return schema
+    return normalize_nullable_schema(schema)
 
 
 def _item_schema(item: dict) -> dict:

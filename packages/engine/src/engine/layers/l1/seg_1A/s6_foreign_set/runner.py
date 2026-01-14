@@ -19,7 +19,7 @@ import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
 
-from engine.contracts.jsonschema_adapter import validate_dataframe
+from engine.contracts.jsonschema_adapter import normalize_nullable_schema, validate_dataframe
 from engine.contracts.loader import (
     find_dataset_entry,
     load_artefact_registry,
@@ -317,7 +317,7 @@ def _schema_from_pack(schema_pack: dict, path: str) -> dict:
                 subschema.pop("unevaluatedProperties", None)
     if unevaluated is not None and "unevaluatedProperties" not in schema:
         schema["unevaluatedProperties"] = unevaluated
-    return schema
+    return normalize_nullable_schema(schema)
 
 
 def _schema_section(schema_pack: dict, section: str) -> dict:
