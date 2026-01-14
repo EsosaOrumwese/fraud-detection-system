@@ -79,13 +79,13 @@
 
 ## 2. Purpose & scope **(Binding)**
 
-**Intent.** Establish the **entry gate** for Segment 2A (Civil Time) by proving upstream eligibility and **sealing all 2A ingress assets** into a canonical manifest that defines the segment’s run identity. The state produces a **manifest_fingerprint-scoped gate receipt** that all downstream 2A states MUST verify before any read.
+**Intent.** Establish the **entry gate** for Segment 2A (Civil Time) by proving upstream eligibility and **sealing all 2A ingress assets** into a canonical manifest **under the upstream `manifest_fingerprint` identity**. The sealed-inputs digest is recorded **for audit**, but does **not** define the segment identity. The state produces a **manifest_fingerprint-scoped gate receipt** that all downstream 2A states MUST verify before any read.
 
 **Objectives (normative).** 2A.S0 SHALL:
 
 * **Assert upstream validity:** Confirm that Segment 1B completed successfully under the Layer-1 Gate Law (**No PASS → No Read**), using the upstream validation bundle and flag.
 * **Seal 2A ingress:** Enumerate and pin all inputs required by Segment 2A (e.g., `site_locations`, `tz_world` polygons, IANA tzdb release, and declared override lists) as **immutable, content-addressed assets**.
-* **Fix 2A identity:** Derive and record the segment’s `manifest_fingerprint` from the sealed-inputs manifest (per Layer-1 Fingerprint Law) and bind it with the run’s `parameter_hash`.
+* **Bind 2A identity:** Use the upstream `manifest_fingerprint` as the segment identity (verified against 1B PASS artefacts) and record the sealed-inputs manifest digest as an **audit marker** alongside the run's `parameter_hash`.
 * **Emit the gate receipt:** Publish `s0_gate_receipt_2A` and the per‑asset `sealed_inputs_2A` inventory for use by subsequent 2A states and external auditors.
 * **Remain deterministic and RNG-free:** No random draws, sampling, or probabilistic behaviour occur in S0.
 
@@ -93,7 +93,7 @@
 
 * Verifying the **existence, immutability, and version pinning** of each required 2A input under the correct authorities (schema, dictionary, registry).
 * Canonicalising the **naming and inclusion** of inputs (no duplicates or aliasing) and recording their provenance (URIs, digests, version tags/licences as applicable).
-* Defining the **run identity** for Segment 2A via `manifest_fingerprint` and documenting it in the receipt for downstream verification.
+* Defining the **run identity** for Segment 2A by **binding** to the upstream `manifest_fingerprint` and documenting it in the receipt for downstream verification.
 
 **Out of scope.**
 
@@ -108,7 +108,7 @@
 
 **Completion semantics.**
 
-* 2A.S0 is considered complete when the gate receipt is written under the correct identity path, the sealed-inputs manifest is fixed and reproducible, and all downstream prerequisites for verification are present.
+* 2A.S0 is considered complete when the gate receipt is written under the correct **upstream identity** path, the sealed-inputs manifest is fixed and reproducible (digest recorded for audit), and all downstream prerequisites for verification are present.
 
 ---
 
@@ -169,7 +169,7 @@ S0 **seals** the following assets into the 2A manifest. Each item MUST be **immu
 * **Overrides:** The override registry MAY be empty; if present, it MUST still be sealed with digest and version. 
 * **Optional auxiliaries:** ISO/country tables MAY be omitted if not referenced by any 2A state; when included, they MUST meet the same sealing rules. 
 
-*Result:* When §3 completes, 2A.S0 holds a **canonical sealed-inputs manifest** whose digest defines `manifest_fingerprint` for the segment, and a **gate receipt** can be emitted in §5–§7 (by reference to later sections).
+*Result:* When §3 completes, 2A.S0 holds a **canonical sealed-inputs manifest** and records its digest **for audit**, while the segment identity remains the **upstream** `manifest_fingerprint`. A **gate receipt** can then be emitted in §5–§7 (by reference to later sections).
 
 ---
 
@@ -282,7 +282,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 ### 5.2 Diagnostic deliverable (mandatory) — `sealed_inputs_2A`
 
-**Purpose.** Row-wise inventory of every asset sealed in §3, to aid audits without reopening the 1B bundle. This table is mandatory and carries per‑asset `version_tag` and `sha256_hex` used for fingerprinting.
+**Purpose.** Row-wise inventory of every asset sealed in §3, to aid audits without reopening the 1B bundle. This table is mandatory and carries per‑asset `version_tag` and `sha256_hex` used for the **audit digest**.
 
 **Identity & path.**
 
@@ -293,7 +293,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 ### 5.3 Identity discipline & downstream contract
 
-* **Gate dependence.** Downstream 2A states MUST verify that a single `s0_gate_receipt_2A` exists for the target `manifest_fingerprint` and **schema-validates**; they **do not** re-hash the 1B bundle. *(Same pattern 1B used for its S0 receipt.)* The mandatory `sealed_inputs_2A` inventory carries the per‑asset digests and version tags used for fingerprinting.
+* **Gate dependence.** Downstream 2A states MUST verify that a single `s0_gate_receipt_2A` exists for the target `manifest_fingerprint` and **schema-validates**; they **do not** re-hash the 1B bundle. *(Same pattern 1B used for its S0 receipt.)* The mandatory `sealed_inputs_2A` inventory carries the per‑asset digests and version tags used for **audit**.
 * **Path↔embed equality.** Wherever lineage appears both in path tokens and embedded fields (e.g., `manifest_fingerprint`), values **MUST** byte-equal. This mirrors the 1B egress/receipt law. 
 * **Dictionary-only resolution.** All IDs resolve via the Dataset Dictionary; **no literal paths**. Schema remains the **sole shape authority**; Registry governs existence/licensing/retention. 
 
@@ -408,7 +408,7 @@ For the two 2A surfaces in §6.2–§6.3, the Dataset Dictionary **SHALL** decla
 ### 7.1 Posture and scope
 
 * 2A.S0 is **strictly deterministic** and **RNG-free**.
-* Behaviour is limited to **(i)** upstream gate verification, **(ii)** sealing inputs into a canonical manifest, **(iii)** fixing the segment’s identity (`manifest_fingerprint`), and **(iv)** emitting the manifest_fingerprint-scoped receipt and mandatory `sealed_inputs_2A` inventory.
+* Behaviour is limited to **(i)** upstream gate verification, **(ii)** sealing inputs into a canonical manifest, **(iii)** binding the upstream `manifest_fingerprint` identity, and **(iv)** emitting the manifest_fingerprint-scoped receipt and mandatory `sealed_inputs_2A` inventory.
 * All references to hashing, identity tokens, and gate semantics are by cross-reference to Layer-1 governance; this section binds **order and conditions**, not implementation.
 
 ### 7.2 Gate sequence and isolation barrier
@@ -427,16 +427,16 @@ To form the sealed set for 2A:
 4. **Forbid aliasing and duplicates.** Two differently named entries resolving to identical bytes are **not permitted**; duplicate basenames are **not permitted**.
 5. **Canonical order.** The sealed manifest **SHALL** be constructed in a stable, total order suitable for hashing (e.g., by `(asset_kind, basename)`), and this order **SHALL** be fixed by the schema/dictionary cross-reference to avoid re-ordering across runs.
 
-### 7.4 Fingerprint derivation and binding
+### 7.4 Identity binding and sealed-manifest digest
 
-* **Derivation.** S0 **SHALL** compute the segment’s `manifest_fingerprint` from the canonical sealed-inputs manifest per the Layer-1 **Fingerprint Law** (canonical encoding, stable ordering, SHA-256).
-* **Binding.** The computed `manifest_fingerprint` **SHALL** be used as the **partition token** for all S0 outputs (§5) and **SHALL** byte-equal any embedded `manifest_fingerprint` fields (Path↔Embed Equality).
-* **Parameter linkage.** The 2A run’s `parameter_hash` is **recorded** in the receipt but does not alter the manifest_fingerprint (manifest_fingerprint is a function of sealed inputs only).
+* **Identity binding.** S0 **SHALL NOT** derive a new `manifest_fingerprint` from sealed inputs. The segment identity is the **upstream** `manifest_fingerprint` (verified against 1B PASS artefacts) and is the **partition token** for all S0 outputs (§5); Path↔Embed equality applies.
+* **Sealed-manifest digest.** S0 **SHALL** compute a canonical digest of the sealed-inputs manifest (same canonicalisation rules as the Layer-1 Fingerprint Law) and record it **for audit**. This digest **does not** define the `manifest_fingerprint`.
+* **Parameter linkage.** The 2A run's `parameter_hash` is **recorded** in the receipt; it does not alter the upstream `manifest_fingerprint`.
 
 ### 7.5 Emission discipline (write-once, atomic)
 
-* **Receipt first-class.** After manifest_fingerprint derivation, S0 **SHALL** emit `s0_gate_receipt_2A` under the manifest_fingerprint partition; emission is **write-once** for that partition.
-* **Diagnostics mandatory.** `sealed_inputs_2A` **SHALL** be co-partitioned by the same manifest_fingerprint and reflect exactly the sealed manifest used to compute the manifest_fingerprint.
+* **Receipt first-class.** S0 **SHALL** emit `s0_gate_receipt_2A` under the upstream manifest_fingerprint partition; emission is **write-once** for that partition.
+* **Diagnostics mandatory.** `sealed_inputs_2A` **SHALL** be co-partitioned by the same manifest_fingerprint and reflect exactly the sealed manifest whose digest is recorded for audit.
 * **Atomicity.** Outputs **SHALL** be published atomically (stage → fsync → atomic move). Re-emitting different bytes to an existing partition is **forbidden**; attempts **MUST** abort.
 
 ### 7.6 Prohibitions (non-behaviours)
@@ -450,8 +450,8 @@ To form the sealed set for 2A:
 
 ### 7.7 Idempotency and re-runs
 
-* **Idempotent by construction.** Given identical upstream PASS artefacts and an identical sealed-inputs set, rerunning S0 **SHALL** produce byte-identical outputs and the same `manifest_fingerprint`.
-* **Divergence detection.** Any change to the sealed set (bytes, versions, membership, order) **SHALL** produce a different `manifest_fingerprint`, thereby selecting a distinct output partition.
+* **Idempotent by construction.** Given identical upstream PASS artefacts (same manifest_fingerprint) and an identical sealed-inputs set, rerunning S0 **SHALL** produce byte-identical outputs.
+* **Divergence detection.** Any change to the sealed set (bytes, versions, membership, order) **MUST NOT** overwrite an existing manifest_fingerprint partition. Such changes **require** a new upstream manifest_fingerprint (via rerunning upstream segments) or the run **MUST** abort under immutability rules.
 * **No partials.** Partially written outputs are invalid; downstream states **MUST NOT** proceed without a complete, schema-valid receipt in the target partition.
 
 ### 7.8 Determinism receipt and observability (binding link)
@@ -465,7 +465,7 @@ To form the sealed set for 2A:
 
 ### 8.1 Identity tokens
 
-* **`manifest_fingerprint`** — the sole partition key for 2A.S0 outputs; defined only by the sealed-inputs manifest (by reference to the Layer-1 Fingerprint Law).
+* **`manifest_fingerprint`** - the sole partition key for 2A.S0 outputs; **inherited from upstream 1B** and verified via PASS artefacts. The sealed-inputs digest is recorded for audit but does not define this identity.
 * **`parameter_hash`** — recorded **inside** outputs for lineage; **not** a partition key in S0.
 * **`seed`** — **absent** in S0 (RNG-free state).
 * **Path↔embed equality.** Any identity that appears both in the **path** and **row fields** (e.g., `manifest_fingerprint`) **MUST byte-equal** (Layer-1 Identity Law).
@@ -490,7 +490,7 @@ To form the sealed set for 2A:
 ### 8.4 Ordering (writer discipline)
 
 * **Receipt:** no writer sort requirement (single-row).
-* **Sealed-inputs inventory:** stable writer order by `(asset_kind, basename)` to match the canonical manifest order used for fingerprinting; file order remains non-authoritative.
+* **Sealed-inputs inventory:** stable writer order by `(asset_kind, basename)` to match the canonical manifest order used for the **audit digest**; file order remains non-authoritative.
 
 ### 8.5 Merge & immutability
 
@@ -498,7 +498,7 @@ To form the sealed set for 2A:
 * **Byte-identity rule.** Any attempt to re-emit an artefact into an existing manifest_fingerprint partition **MUST** either:
   • produce **byte-identical** content (allowed no-op), or
   • **ABORT** (if bytes would differ).
-* **No in-place edits.** Updates, deletions, or tombstones within an existing manifest_fingerprint partition are **forbidden**. Any change to the sealed set (membership, versions, bytes, or canonical order) **MUST** yield a **new** `manifest_fingerprint` and therefore a new partition.
+* **No in-place edits.** Updates, deletions, or tombstones within an existing manifest_fingerprint partition are **forbidden**. Any change to the sealed set (membership, versions, bytes, or canonical order) **REQUIRES** a **new upstream manifest_fingerprint**; otherwise the run **MUST** abort under immutability.
 
 ### 8.6 Concurrency & conflict detection
 
@@ -542,7 +542,7 @@ To form the sealed set for 2A:
 
 **V-10 — Path↔embed equality (Abort).** In `s0_gate_receipt_2A`, the embedded `manifest_fingerprint` **byte-equals** the `manifest_fingerprint` partition token.
 **V-11 — Upstream proof fields (Abort).** `validation_bundle_path` resolves (via Dictionary) to the 1B bundle for the **same** manifest_fingerprint; exact folder layout is Dictionary‑defined (no assumed subfolder). `flag_sha256_hex` is present and hex‑valid.
-**V-12 — Sealed-inputs concordance (Abort).** The combination of the receipt’s `sealed_inputs[]` and the mandatory `sealed_inputs_2A` inventory **exactly** enumerates the assets used to compute the manifest_fingerprint (membership and IDs in the receipt; version tags and digests in the inventory).
+**V-12 — Sealed-inputs concordance (Abort).** The combination of the receipt’s `sealed_inputs[]` and the mandatory `sealed_inputs_2A` inventory **exactly** enumerates the sealed assets (membership and IDs in the receipt; version tags and digests in the inventory). The inventory supports the **audit digest**, not identity derivation.
 **V-13 — Determinism receipt (Abort).** The determinism receipt for the emitted partition is present (directory-level canonical hash), and its value is non-empty.
 
 ### 9.4 Diagnostics inventory
@@ -559,7 +559,7 @@ To form the sealed set for 2A:
 
 ### 9.6 Observability & run-report
 
-**V-20 — Run-report completeness (Warn).** The run-report records: upstream verification result, counts/bytes of sealed inputs, tzdb release tag, computed `manifest_fingerprint`, and output locations. Missing report fields are **Warn** unless required by programme-level CI.
+**V-20 — Run-report completeness (Warn).** The run-report records: upstream verification result, counts/bytes of sealed inputs, tzdb release tag, **bound** `manifest_fingerprint`, and output locations. Missing report fields are **Warn** unless required by programme-level CI.
 
 **Outcome semantics.**
 
@@ -616,7 +616,7 @@ To form the sealed set for 2A:
 * **2A-S0-040 RECEIPT_PATH_EMBED_MISMATCH (Abort)** — Embedded `manifest_fingerprint` ≠ `manifest_fingerprint` path token.
 * **2A-S0-041 RECEIPT_BUNDLE_PATH_INVALID (Abort)** — `validation_bundle_path` does not resolve to the 1B bundle for the same manifest_fingerprint.
 * **2A-S0-042 RECEIPT_FLAG_HEX_INVALID (Abort)** — `flag_sha256_hex` not well-formed hex64.
-* **2A-S0-043 RECEIPT_SEALED_INPUTS_MISMATCH (Abort)** — `sealed_inputs[]` does not exactly match the sealed manifest used for fingerprinting.
+* **2A-S0-043 RECEIPT_SEALED_INPUTS_MISMATCH (Abort)** — `sealed_inputs[]` does not exactly match the sealed manifest used for the **audit digest**.
 * **2A-S0-044 DETERMINISM_RECEIPT_MISSING (Abort)** — Determinism receipt absent/empty for the emitted partition.
 
 ### 10.6 Diagnostics inventory
@@ -694,7 +694,7 @@ To form the sealed set for 2A:
 * `segment : "2A"`
 * `state : "S0"`
 * `status : "pass" | "fail"` — overall outcome of validators in §9
-* `manifest_fingerprint : hex64` — the manifest_fingerprint fixed by S0
+* `manifest_fingerprint : hex64` - the upstream manifest_fingerprint bound by S0
 * `parameter_hash : hex64` — recorded lineage token (non-partition)
 * `started_utc, finished_utc : rfc3339_micros` — wall-clock boundaries
 * `durations : object` — at minimum `wall_ms : uint64`
@@ -712,7 +712,7 @@ To form the sealed set for 2A:
 * `sealed_inputs.count : uint32` — number of assets sealed
 * `sealed_inputs.bytes_total : uint64` — summed byte size of sealed assets
 * `sealed_inputs.inventory_path : string` — Dictionary path of the mandatory `sealed_inputs_2A` table
-* `sealed_inputs.manifest_digest : hex64` — digest actually used to derive `manifest_fingerprint` (echo)
+* `sealed_inputs.manifest_digest : hex64` - digest of the sealed-inputs manifest (audit; **does not** define `manifest_fingerprint`)
 
 **Timezone assets summary (normative):**
 
@@ -748,7 +748,7 @@ S0 SHALL emit structured log records that are machine-parseable and correlate to
 
 * **`GATE`** — start/end + result of upstream verification; include `manifest_fingerprint`, `bundle_path`, `flag_sha256_hex` (redacted if policy requires).
 * **`SEAL`** — counts/bytes of assets sealed; list of `(asset_id, digest)` **may** be sampled in logs but the authoritative inventory is the receipt/diagnostic table.
-* **`HASH`** — `manifest_fingerprint` derivation event including the canonicalisation mode identifier.
+* **`HASH`** - sealed-inputs manifest digest computation event (audit only) including the canonicalisation mode identifier.
 * **`EMIT`** — successful publication of `s0_gate_receipt_2A` and `sealed_inputs_2A` with their Dictionary paths.
 * **`DETERMINISM`** — emission of the partition-level determinism receipt with `partition_hash`.
 * **`VALIDATION`** — each validator outcome `{id, result, code?}` for §9 V-01…V-20.
@@ -777,7 +777,7 @@ Each log record SHALL contain: `timestamp_utc (rfc3339_micros)`, `segment`, `sta
 * Reports and logs **MUST NOT** contain PII or raw data rows from `site_locations` or other sealed assets.
 * Paths, IDs, digests, counts, sizes, error codes, and timestamps are permissible. Any additional content is subject to programme-level redaction policy.
 
-**Effect.** With these observability guarantees, every 2A.S0 run leaves an auditable trail tying the upstream gate decision, the sealed-inputs manifest (and its manifest_fingerprint), and the emitted artefacts together—without creating new identity surfaces or leaking implementation details.
+**Effect.** With these observability guarantees, every 2A.S0 run leaves an auditable trail tying the upstream gate decision, the sealed-inputs manifest (and its **audit digest**), and the emitted artefacts together-without creating new identity surfaces or leaking implementation details.
 
 ---
 
@@ -796,7 +796,7 @@ Each log record SHALL contain: `timestamp_utc (rfc3339_micros)`, `segment`, `sta
 
 ### 12.3 Throughput considerations
 
-* **Parallelism across assets.** Sealing (digesting) distinct inputs MAY be performed in parallel provided the **canonical order** used to derive `manifest_fingerprint` remains fixed and independent of read order.
+* **Parallelism across assets.** Sealing (digesting) distinct inputs MAY be performed in parallel provided the **canonical order** used to compute the sealed-manifest **audit digest** remains fixed and independent of read order.
 * **Single-stream per asset.** Avoid concurrent reads of the **same** asset to prevent thrash against remote stores.
 * **Remote stores.** End-to-end time is often gated by network egress and object-store per-prefix limits; batching requests and respecting back-pressure improves stability.
 * **Compression.** Digests are over **stored bytes**; no decompression is required for archives to seal identity (extraction is out of scope for S0).
@@ -823,7 +823,7 @@ Typical sealed set sizes (order-of-magnitude only):
 
 ### 12.7 Hot spots & guardrails
 
-* **Large polygon sets.** `tz_world` dominates I/O; keep release churn deliberate since any change forces a **new manifest_fingerprint** and downstream recomputation.
+* **Large polygon sets.** `tz_world` dominates I/O; keep release churn deliberate since any change **requires** a **new upstream manifest_fingerprint** (via upstream rerun) and downstream recomputation.
 * **Alias/duplicate scans.** Duplicate/alias detection is metadata-driven; ensure `basename` discipline to avoid quadratic checks.
 * **Clock skew.** Observational timestamps (`*_utc`) don’t affect identity but SHOULD be monotonic within a run to keep diagnostics clear.
 
@@ -834,7 +834,7 @@ Typical sealed set sizes (order-of-magnitude only):
 * **Retry/back-off policy** for transient storage errors.
 * **Inventory is always emitted**; programme-level knobs MAY control only extended diagnostics (e.g., additional non-identity columns), not the presence of `sealed_inputs_2A` itself.
 
-*Summary:* S0 scales linearly with the total size of the sealed assets, remains memory-light via streaming, and benefits from modest parallelism across assets while keeping a fixed canonical order for fingerprinting. The dominant cost is hashing `tz_world` (release-dependent); outputs themselves are tiny and immutable.
+*Summary:* S0 scales linearly with the total size of the sealed assets, remains memory-light via streaming, and benefits from modest parallelism across assets while keeping a fixed canonical order for the **audit digest**. The dominant cost is hashing `tz_world` (release-dependent); outputs themselves are tiny and immutable.
 
 ---
 
@@ -875,7 +875,7 @@ The following are permitted without breaking downstream 2A states:
 
 The following require a **MAJOR** version and downstream coordination:
 
-* Any change to the **manifest_fingerprint law**, canonical ordering of the sealed manifest, or what contributes to `manifest_fingerprint`.
+* Any change to the **identity binding rule** (upstream `manifest_fingerprint`) or the **sealed-manifest audit-digest law**, including its canonical ordering or inputs.
 * Altering S0 **partitions** (adding `seed`, moving `parameter_hash` into partitions, etc.).
 * Renaming/removing either output dataset, or changing their **schema anchors**/IDs.
 * Removing or retyping **existing columns** in `s0_gate_receipt_2A`; making an optional column **mandatory**.
@@ -892,19 +892,19 @@ The following require a **MAJOR** version and downstream coordination:
 
 ### 13.6 Co-existence & migration
 
-* **Downstream tolerance.** 2A consumers **MUST** ignore unknown receipt fields and **MUST NOT** rely on ordering of `sealed_inputs[]`, beyond the canonicalisation used for fingerprinting.
+* **Downstream tolerance.** 2A consumers **MUST** ignore unknown receipt fields and **MUST NOT** rely on ordering of `sealed_inputs[]`, beyond the canonicalisation used for the **audit digest**.
 * **Dual-receipt window.** During migration across MAJORs, programmes MAY permit concurrent operation of both versions by selecting by **manifest_fingerprint** and verifying against the target **anchor version**.
-* **Re-fingerprinting.** Any change in sealed membership/bytes/order yields a **new manifest_fingerprint**; downstream selection by manifest_fingerprint automatically de-conflicts runs across versions.
+* **Re-fingerprinting.** Any change in sealed membership/bytes/order **requires** a **new upstream manifest_fingerprint**; downstream selection by manifest_fingerprint automatically de-conflicts runs across versions.
 
 ### 13.7 External dependency evolution
 
 * **tzdb format/tag drift.** If IANA modifies release tagging, S0 MAY add acceptance for the new form under a **MINOR** change, preserving acceptance of the old form.
-* **Reference dataset churn.** Introducing a new `tz_world` release is **not** a spec change; it changes only the sealed bytes and thus the manifest_fingerprint. Schema anchors and Dictionary IDs for the chosen release MUST still validate.
+* **Reference dataset churn.** Introducing a new `tz_world` release is **not** a spec change; it changes sealed bytes and therefore **requires** a new upstream manifest_fingerprint. Schema anchors and Dictionary IDs for the chosen release MUST still validate.
 
 ### 13.8 Governance & change process
 
 * Every change SHALL include: **(i)** version bump rationale (Patch/Minor/Major), **(ii)** compatibility impact, **(iii)** updated anchors (if any), **(iv)** validator/error-code diffs, **(v)** migration notes.
-* **Test vectors.** For MINOR/MAJOR, publish at least one **before/after** sealed-set manifest and the resulting `manifest_fingerprint` to exercise acceptance criteria.
+* **Test vectors.** For MINOR/MAJOR, publish at least one **before/after** sealed-set manifest plus its **audit digest** and the corresponding upstream `manifest_fingerprint` to exercise acceptance criteria.
 * **Effective date.** Frozen specs MUST record an **Effective date**; downstream pipelines SHALL target only frozen or explicitly authorised alpha versions.
 
 ### 13.9 Reserved extension points
@@ -966,6 +966,6 @@ The following require a **MAJOR** version and downstream coordination:
 * **Closed-world governance (concept).** Sealed universe, JSON-Schema authority, `parameter_hash` + `manifest_fingerprint`, and universal gates.
 * **Progress map (where 2A fits).** Layer-1 open/locked status and 4A/4B overlay. 
 
-*Use:* Downstream 2A states **must** resolve shapes from Schema anchors, **must** resolve IDs→paths/partitions via the Dictionary, and **must** treat Registry entries as the existence/licensing authority; S0 binds only the gate and the sealed manifest that fixes `manifest_fingerprint` (identity).
+*Use:* Downstream 2A states **must** resolve shapes from Schema anchors, **must** resolve IDs→paths/partitions via the Dictionary, and **must** treat Registry entries as the existence/licensing authority; S0 binds only the gate and the sealed manifest digest (audit) while the `manifest_fingerprint` identity is **upstream-bound**.
 
 ---

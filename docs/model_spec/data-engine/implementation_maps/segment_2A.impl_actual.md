@@ -739,3 +739,160 @@ Implementation actions taken:
 Outcome: run-report now preserves partial progress data even if S1 aborts early
 with a hard failure (2A-S1-055, 2A-S1-052, etc.).
 
+### Entry: 2026-01-14 17:08
+
+Design element: `tz_nudge` epsilon adjustment after S1 ambiguity (policy update).
+Summary: With tz_world already at the latest release, the only spec-compliant
+lever to resolve 2A-S1-055 is the sealed `tz_nudge` epsilon. This entry captures
+the decision to increase epsilon conservatively and the exact digest derivation
+so S0 can reseal a new manifest_fingerprint deterministically.
+
+Decision reasoning (before editing the policy file):
+1) **Scope of change:** tz_world is current, so we avoid changing spatial data.
+   The spec allows adjusting `tz_nudge` (sealed policy) to change tie-break
+   behavior for border ambiguity.
+2) **Magnitude choice:** increase epsilon from `0.001` to `0.002` degrees as a
+   minimal step. This is small enough to reduce risk of crossing borders
+   incorrectly while still addressing a tie-break failure. Larger changes are
+   deferred until we confirm whether this resolves the specific ambiguity.
+3) **Semver discipline:** bump patch version from `1.3.0` to `1.3.1` to reflect
+   the policy change without implying a behavioral overhaul.
+4) **Digest computation (binding):** per the authoring guide, compute
+   `sha256_digest` from the *effective payload*:
+   - material string (UTF-8): `semver=1.3.1\nepsilon_degrees=0.002\n`
+   - digest: `530f05cd912afcdd339d835a9fd2025d365e8919c1586162ac7d2074c66471b5`
+
+Planned workflow after policy update:
+1) Re-run **2A.S0** to reseal inputs and produce a new `manifest_fingerprint`
+   that captures the updated tz_nudge policy.
+2) Re-run **2A.S1** for the new manifest_fingerprint to verify the ambiguity
+   resolves without violating other checks (coverage, PK, nudge rules).
+3) If 2A-S1-055 persists, escalate only to the next conservative epsilon step
+   (`0.005`), and repeat the reseal + rerun flow.
+
+### Entry: 2026-01-14 17:10
+
+Design element: S0 reseal failure after `tz_nudge` change (identity law conflict).
+Summary: After increasing `tz_nudge` epsilon, re-running 2A.S0 failed with
+`2A-S0-062 IMMUTABLE_PARTITION_OVERWRITE` because S0 still targets the existing
+`manifest_fingerprint` partition derived from the upstream run receipt (1B),
+so the new sealed inputs cannot be published into the old partition.
+
+Observed failure (from `make segment2a-s0 RUN_ID=dbc151d09d5fd3053a74705bca1b673c`):
+1) S0 verified 1B PASS and began sealing inputs normally.
+2) `s0_gate_receipt_2A` already existed and was byte-identical (skip publish).
+3) `_atomic_publish_dir` raised `2A-S0-062` when attempting to publish the new
+   `sealed_inputs_2A` partition (bytes differ because tz_nudge digest changed).
+
+Analysis (spec alignment check):
+1) The 2A.S0 spec explicitly states **manifest_fingerprint is derived from the
+   sealed-inputs manifest**, not borrowed from the upstream run receipt.
+2) Current implementation binds `manifest_fingerprint` to the upstream 1B
+   fingerprint, so a policy-only change (tz_nudge) cannot create a new
+   partition; this is why we hit an immutable overwrite.
+3) Fixing this to spec would require **computing a new manifest_fingerprint**
+   from the sealed inputs, then writing outputs under that partition.
+
+Open decision needed before code changes:
+- **Spec-correct path:** update S0 to derive `manifest_fingerprint` from the
+  sealed manifest and use that token for all S0 outputs. This will likely
+  require upstream 1B PASS artefacts to exist under the *new* fingerprint, which
+  implies re-fingerprinting/re-publishing upstream assets.
+- **Deviation path (if approved):** keep `manifest_fingerprint` anchored to the
+  upstream 1B fingerprint and treat `sealed_inputs.manifest_digest` as the
+  policy-change fingerprint for audit only. This avoids re-running 1A/1B but
+  deviates from the explicit 2A.S0 identity law.
+
+No code changes made yet; awaiting direction on which identity posture to take
+before proceeding with S0/S1 reruns.
+
+### Entry: 2026-01-14 17:35
+
+Design element: 2A.S0 manifest_fingerprint posture vs upstream identity.
+Summary: User confirmed a spec correction direction: **keep upstream
+manifest_fingerprint as the 2A.S0 identity**, and update the 2A.S0 spec to
+align with other S0 gates (2B/3A/3B). This means 2A.S0 **does not derive**
+manifest_fingerprint from the sealed-inputs manifest; instead it binds to the
+upstream fingerprint and treats the sealed manifest digest as an audit marker.
+
+Context and evidence:
+1) 2A.S0 current spec states manifest_fingerprint is derived from sealed inputs.
+2) 2B.S0, 3A.S0, and 3B.S0 explicitly treat manifest_fingerprint as **upstream**
+   identity (S0 verifies PASS bundles for the same fingerprint and emits a
+   manifest_fingerprint-scoped receipt; no local re-fingerprinting).
+3) Current implementation already follows the upstream-identity posture; the
+   spec mismatch caused confusion and the `IMMUTABLE_PARTITION_OVERWRITE`
+   failure after policy changes (tz_nudge) because the sealed set changed while
+   targeting the same upstream partition.
+
+Decision (approved):
+- Update 2A.S0 spec to **match upstream identity posture** (like 2B/3A/3B):
+  manifest_fingerprint is **input authority** from upstream 1B, not derived
+  from the sealed manifest. The sealed-inputs digest stays in the run report as
+  an **audit-only** field, not the identity source.
+
+Planned actions before reruns:
+1) Edit `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s0.expanded.md`
+   to remove/replace all statements that say S0 computes manifest_fingerprint
+   from sealed inputs; emphasize upstream fingerprint verification, path↔embed
+   equality, and write-once immutability under that upstream identity.
+2) Add explicit note that `sealed_inputs.manifest_digest` is recorded for audit
+   but does **not** define `manifest_fingerprint` for 2A.
+3) Re-run 1A and 1B to produce a **new upstream manifest_fingerprint** for the
+   changed tz_nudge, then rerun 2A S0/S1 under that new manifest.
+
+Rationale: Aligns 2A with the layered gate pattern and avoids inventing a new
+identity surface that 2B/3A/3B do not use, while preserving determinism via
+sealed_inputs digest for auditability.
+
+### Entry: 2026-01-14 17:40
+
+Design element: 2A.S0 spec correction (identity posture).
+Summary: Implemented the spec update in
+`docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s0.expanded.md`
+to align with upstream identity binding.
+
+Edits applied (highlights):
+1) **Purpose/objectives/identity language** now states S0 binds the **upstream**
+   `manifest_fingerprint` (verified via 1B PASS) and records a sealed-manifest
+   **audit digest**; it does **not** derive a new fingerprint locally.
+2) **Fingerprint derivation section** replaced with “Identity binding and
+   sealed-manifest digest,” and all references to computing manifest_fingerprint
+   from sealed inputs were removed or reframed as audit-only.
+3) **Immutability rules** now require a **new upstream manifest_fingerprint**
+   for any sealed-set change; otherwise the run must abort (no in-place edits).
+4) **Run-report/logging/validator text** updated to describe audit digest usage
+   and bound manifest_fingerprint (no identity derivation).
+5) **Change-control and performance notes** updated to reflect upstream-bound
+   identity and audit-digest canonicalisation language.
+
+Next action (per user directive):
+- Re-run 1A and 1B to obtain a fresh upstream manifest_fingerprint (note: if
+  upstream inputs are unchanged, the fingerprint may remain identical; report
+  outcome), then rerun 2A S0/S1 under the new upstream manifest.
+
+### Entry: 2026-01-14 17:52
+
+Design element: Upstream rerun to refresh manifest_fingerprint after 2A.S0 spec change.
+Summary: Started the requested upstream rerun sequence to obtain a fresh
+manifest_fingerprint for 2A gating under the new spec posture.
+
+Actions and observations:
+1) Ran `make segment1a` and completed a new run:
+   - run_id: `6ae701ecb522395161651c18ab9b8823`
+   - manifest_fingerprint: `241f367ef49d444be4d6da8b3bdd0009c0e1b7c3d99cc27df3a6a48db913044f`
+   - observation: fingerprint **unchanged** vs prior runs because 2A policy
+     changes (e.g., `tz_nudge`) do not affect 1A inputs.
+2) Ran `make segment1b` and it progressed through S2 (`s2_tile_weights`).
+   The run completed S2 under the same run_id and manifest_fingerprint:
+   - run_id: `6ae701ecb522395161651c18ab9b8823`
+   - manifest_fingerprint: `241f367ef49d444be4d6da8b3bdd0009c0e1b7c3d99cc27df3a6a48db913044f`
+   The make invocation timed out after S2, so S3–S9 were not rerun yet.
+
+Implication to track:
+- If the upstream manifest_fingerprint remains unchanged, 2A.S0 can still
+  proceed under a new run_id with the same manifest_fingerprint, but the
+  sealed-inputs audit digest will differ due to the `tz_nudge` update. This
+  is consistent with the updated spec posture but should be documented in the
+  2A run report as an audit-only digest change.
+
