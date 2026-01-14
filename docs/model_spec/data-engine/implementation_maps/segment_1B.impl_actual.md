@@ -1570,7 +1570,102 @@ Expected outcome:
 - Far fewer per‑country lines while keeping “where we are” visible.
 - Heartbeat emits even for mid‑sized runs, and the final progress line always appears when total is known.
 
+### Entry: 2026-01-14 00:03
+
+Design element: S4 run completion + spec compliance check
+Summary: S4 completed successfully on run_id `04ffabbdfbd34b9d8a4d61e7be70782b`; run report and determinism receipt are present and align with the spec.
+
+Evidence from run log:
+- `S4: run report written` and `S4 1B complete` lines present in `runs/local_full_run-5/04ffabbdfbd34b9d8a4d61e7be70782b/run_log_04ffabbdfbd34b9d8a4d61e7be70782b.log`.
+
+Run report highlights (spec checks):
+1) Required fields present:
+   - `seed`, `manifest_fingerprint`, `parameter_hash`.
+   - `rows_emitted=30785`, `merchants_total=1263`, `pairs_total=2635`.
+   - `alloc_sum_equals_requirements=true`.
+   - `ingress_versions.iso3166=2024-12-31`.
+   - `determinism_receipt` with `partition_path`, `sha256_hex`, `bytes_hashed`.
+2) PAT counters present:
+   - `bytes_read_s3_total`, `bytes_read_weights_total`, `bytes_read_index_total`.
+   - `wall_clock_seconds_total`, `cpu_seconds_total`, `max_worker_rss_bytes`.
+   - `open_files_peak`, `open_files_metric`, `workers_used`, `ties_broken_total`.
+
+Spec compliance judgement:
+- S4 is green and compliant for this run_id; safe to advance to S5.
+
 ## S5 - Site-to-Tile Assignment RNG (S5.*)
+
+### Entry: 2026-01-14 00:08
+
+Design element: S5 contract review + pre-implementation plan (site‑to‑tile assignment RNG)
+Summary: Completed S5 expanded spec + contract review and captured a detailed, deterministic implementation plan before touching code.
+
+Spec + contract review (authoritative sources checked):
+1) **Expanded spec:** `docs/model_spec/data-engine/layer-1/specs/state-flow/1B/state.1B.s5.expanded.md`.
+2) **Dataset dictionary:** `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml` entries for:
+   - `s5_site_tile_assignment`, `s5_run_report`, `rng_event_site_tile_assign`, `rng_audit_log`.
+3) **Schema anchors:**
+   - Dataset: `schemas.1B.yaml#/plan/s5_site_tile_assignment`.
+   - Run report: `schemas.1B.yaml#/control/s5_run_report`.
+   - RNG events: `schemas.layer1.yaml#/rng/events/site_tile_assign` (requires `rng_envelope` fields).
+
+Key contract constraints to honor (binding):
+1) **Identity triple:** all reads/writes bound to `{seed, manifest_fingerprint, parameter_hash}`; no mixing.
+2) **Inputs:** `s4_alloc_plan`, `tile_index`, `iso3166_canonical_2024` only (no outlet_catalogue reads).
+3) **RNG budget:** exactly one `site_tile_assign` event per emitted site row; events must validate against RNG envelope.
+4) **Writer sort:** dataset sorted by `[merchant_id, legal_country_iso, site_order]`; no duplicates/omissions.
+5) **Tile universe:** assigned `(legal_country_iso, tile_id)` must exist in `tile_index` for `parameter_hash`.
+6) **Immutability:** re‑publish to same identity must be byte‑identical; RNG events must be identical too.
+
+Implementation plan (pre‑code, detailed):
+1) **Gate + identity setup.**
+   - Resolve `run_receipt.json` (latest if run_id not supplied).
+   - Validate `s0_gate_receipt_1B` and require `sealed_inputs` include `s4_alloc_plan`, `tile_index`, `iso3166_canonical_2024`.
+   - Confirm `{seed, manifest_fingerprint, parameter_hash}` parity with input paths.
+
+2) **RNG audit log handling (core log).**
+   - Use dictionary entry `rng_audit_log` and schema `schemas.layer1.yaml#/rng/core/rng_audit_log/record`.
+   - If an entry for `{seed, parameter_hash, run_id}` exists, log “audit present”.
+   - If missing, append a new audit row (philox2x64‑10, build commit hash), matching S1/S6 behaviour.
+
+3) **Per‑pair processing (deterministic + RNG).**
+   - Read `s4_alloc_plan` in writer order `[merchant_id, legal_country_iso, tile_id]`.
+   - For each `(merchant_id, legal_country_iso)`:
+     - Build tile multiset `T` by expanding `tile_id` by `n_sites_tile` (positives only), in ascending `tile_id`.
+     - Compute `N = sum(n_sites_tile)` and create site list `S = [1..N]` (site_order).
+     - Generate one RNG draw per site under substream `site_tile_assign`:
+       - Use Philox2x64‑10; store counters `before/after` per site, `draws="1"`, `blocks=1`.
+       - Log RNG events to JSONL as they are generated (order not required).
+     - Permute sites by sorting `(u, site_order)` ascending; tie‑break by site_order.
+     - Assign sequentially to `T` (tile_id runs) so each tile gets its exact quota.
+     - Emit dataset rows `(merchant_id, legal_country_iso, site_order, tile_id)` in writer sort.
+
+4) **RNG stream determinism.**
+   - Ensure RNG generation is independent of processing order (no inter‑country order encoding).
+   - Derive substream key/counter deterministically per **pair** to avoid cross‑country coupling.
+
+5) **Performance posture (large N).**
+   - If `N` is small, sort `(u, site_order)` in memory.
+   - If `N` exceeds a threshold, use external sort:
+     - Write sorted runs for `(u, site_order)` and k‑way merge them to build `S_perm`.
+     - Assign tiles while streaming the merge to avoid holding all `N` in RAM.
+   - Batch output rows and RNG events; avoid wide in‑memory tables.
+
+6) **Validation + error posture (fail‑closed).**
+   - Enforce FK: every `(legal_country_iso, tile_id)` must exist in `tile_index`.
+   - Enforce counts: `rows_emitted == rng_events_emitted`; `pairs_total` matches distinct pairs.
+   - Emit `S5_ERROR` with `seed/manifest_fingerprint/parameter_hash/run_id` on any failure.
+
+7) **Run report + determinism receipt.**
+   - Write `s5_run_report.json` with required fields:
+     - `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`,
+       `rows_emitted`, `pairs_total`, `rng_events_emitted`, `determinism_receipt`.
+   - Determinism receipt is the SHA‑256 over dataset partition files only (ASCII‑lex file order).
+
+Open questions / confirmations needed before coding:
+1) **Run ID source for RNG logs.** Should S5 use the run_receipt `run_id` (recommended for determinism) or mint a new run_id at S5 start?
+2) **Pair‑scoped RNG derivation.** I plan to derive the RNG substream per `(merchant_id, legal_country_iso)` to avoid inter‑country order effects. Confirm this is acceptable.
+3) **External sort threshold.** Any preference for the in‑memory vs spill threshold (e.g., `N > 1e6` sites)?
 
 ## S6 - In-Cell Jitter RNG (S6.*)
 
