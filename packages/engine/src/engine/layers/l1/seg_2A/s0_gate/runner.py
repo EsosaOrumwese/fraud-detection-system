@@ -907,6 +907,28 @@ def _load_tz_world_metadata(path: Path) -> int:
         ) from exc
 
 
+def _load_tz_world_tzids(path: Path) -> set[str]:
+    if _HAVE_PYARROW:
+        try:
+            table = pq.read_table(path, columns=["tzid"])
+            tzids = table.column("tzid").to_pylist()
+            return {
+                tzid for tzid in tzids if isinstance(tzid, str) and tzid.strip()
+            }
+        except Exception:
+            pass
+    try:
+        import geopandas as gpd
+
+        gdf = gpd.read_parquet(path)
+        tzids = gdf.get("tzid")
+        if tzids is None:
+            return set()
+        return {tzid for tzid in tzids.tolist() if isinstance(tzid, str) and tzid.strip()}
+    except Exception:
+        return set()
+
+
 def _resolve_release_dir(path: Path) -> tuple[Path, Path]:
     if path.is_file():
         return path.parent, path
@@ -1360,6 +1382,16 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         tz_world_digest.size_bytes,
         tz_world_version,
     )
+    tzid_index = _load_tz_world_tzids(tz_world_path)
+    tzid_index_present = bool(tzid_index)
+    tzid_index_list = sorted(tzid_index) if tzid_index_present else []
+    if tzid_index_present:
+        logger.info(
+            "S0: derived tzid index from tz_world (tzids=%s)",
+            len(tzid_index_list),
+        )
+    else:
+        logger.info("S0: tzid index unavailable; override membership not enforced")
 
     tzdb_entry = entries["tzdb_release"]
     tzdb_path_template = tzdb_entry.get("path") or ""
@@ -1508,8 +1540,28 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         logger.info("S0: tz_overrides is empty; no overrides will be applied")
         _emit_validation(logger, manifest_fingerprint, "V-09", "pass")
     else:
-        tzid_index_present = False
         if tzid_index_present:
+            override_tzids = {
+                entry.get("tzid")
+                for entry in overrides_payload
+                if isinstance(entry.get("tzid"), str)
+            }
+            missing_tzids = sorted(
+                tzid for tzid in override_tzids if tzid and tzid not in tzid_index
+            )
+            if missing_tzids:
+                raise EngineFailure(
+                    "F4",
+                    "2A-S0-032",
+                    STATE,
+                    MODULE_NAME,
+                    {"detail": "override tzid not in tz_world", "missing": missing_tzids},
+                    dataset_id="tz_overrides",
+                )
+            logger.info(
+                "S0: validated tz_overrides against tz_world tzid index (overrides=%s)",
+                len(overrides_payload),
+            )
             _emit_validation(logger, manifest_fingerprint, "V-09", "pass")
         else:
             warnings.append("2A-S0-032")
@@ -1855,6 +1907,17 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         / f"manifest_fingerprint={manifest_fingerprint}"
         / "s0_run_report.json"
     )
+    tzid_index_path = run_report_path.parent / "tzid_index.json"
+    tzid_index_digest = None
+    if tzid_index_present:
+        if not tzid_index_path.exists():
+            _write_json(tzid_index_path, tzid_index_list)
+            logger.info(
+                "S0: tzid_index written %s (tzids=%s)",
+                tzid_index_path,
+                len(tzid_index_list),
+            )
+        tzid_index_digest = sha256_file(tzid_index_path)
 
     required_fields_missing = []
 
@@ -1898,6 +1961,14 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "warnings": warnings,
         "errors": [],
     }
+    if tzid_index_present and tzid_index_digest is not None:
+        run_report["tz_assets"].update(
+            {
+                "tzid_index_path": str(tzid_index_path),
+                "tzid_index_sha256": tzid_index_digest.sha256_hex,
+                "tzid_index_count": len(tzid_index_list),
+            }
+        )
 
     for key in (
         "segment",

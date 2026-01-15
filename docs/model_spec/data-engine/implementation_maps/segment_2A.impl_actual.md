@@ -2677,3 +2677,95 @@ Resolution plan (pending user approval for deletion):
 2) Re-run `make segment2a-s0 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
 3) Then re-run `make segment2a-s1 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`
    to confirm the BM override resolves the ambiguity.
+
+### Entry: 2026-01-15 17:49
+
+Design element: Enforce tz_overrides membership using tz_world-derived tzid index (S0).
+Summary: The current S0 logic always warns that the tzid index is not sealed,
+so overrides are not checked against an authoritative tzid set (V-09 warn). The
+user wants strict enforcement using tz_world and an optional derived tzid_index
+artefact for auditability.
+
+Problem framing (spec anchor):
+- `state.2A.s0.expanded.md` V-09 requires: if an authoritative tzid index is
+  sealed, all override tzids MUST belong to that set (Abort); otherwise warn.
+- Error code: `2A-S0-032 OVERRIDES_UNKNOWN_TZID (Abort/Warn)` depends on whether
+  the tzid index is sealed.
+- `tz_world_2025a` is already sealed and validated (WGS84 + non-empty), so it
+  can serve as the authoritative tzid source without new external assets.
+
+Alternatives considered:
+1) Add a new `tzid_index` dataset to Dictionary/Registry/Schema and seal it
+   explicitly in S0. (Heavier spec/contract change; not requested right now.)
+2) Derive tzid set from sealed `tz_world_2025a` at S0 runtime and treat that as
+   the authoritative index. (No new external inputs; minimal change.)
+3) Keep current warn-only behavior. (Rejected; user wants strict enforcement.)
+
+Decision:
+- Use `tz_world_2025a` as the authoritative tzid index in S0. If tzids derived
+  successfully, enforce `2A-S0-032` as Abort for any override not in the set.
+- Optionally emit a derived `tzid_index` file under the S0 run-report folder
+  for auditability (not a sealed input; derived from already sealed tz_world).
+
+Planned implementation steps (before coding):
+1) Add a helper in `seg_2A/s0_gate/runner.py` to load tzids from tz_world:
+   - Prefer `pyarrow` to read only the `tzid` column for efficiency.
+   - Fallback to `geopandas` if pyarrow is unavailable.
+   - Return a de-duplicated set + sorted list for deterministic output.
+2) After tz_world is validated and sealed, build the tzid set and mark
+   `tzid_index_present = True` when non-empty; otherwise warn and skip enforce.
+3) When `tz_overrides` is non-empty:
+   - If tzid index present: compute `missing_tzids` and Abort with
+     `2A-S0-032` if any are missing.
+   - If no index present: keep warn behavior (same code + message).
+4) Optional emission: if tzid index present, write
+   `reports/layer1/2A/state=S0/.../tzid_index.json` (sorted list), and record
+   `tzid_index_count`, `tzid_index_sha256`, and `tzid_index_path` in the
+   S0 run-report under `tz_assets`.
+5) Logging: add a narrative log when tzid index is derived and when overrides
+   are validated against it, to keep the run story clear.
+6) Resumability: if the tzid_index file already exists, do not overwrite it
+   (write-once, like run-report).
+
+Validation plan:
+- Run `segment2a-s0` on a run with overrides and confirm:
+  - V-09 is PASS (no warn) when overrides tzids are in tz_world.
+  - Run-report includes tzid_index metadata and file (if emitted).
+  - Unknown override tzid triggers `2A-S0-032` Abort with missing list.
+
+### Entry: 2026-01-15 17:58
+
+Design element: Implement tz_world-derived tzid index enforcement + optional emission (S0).
+Summary: S0 now derives a tzid index from `tz_world_2025a` and enforces override
+membership (Abort on unknown tzids). When the index is available, a derived
+`tzid_index.json` is emitted alongside the S0 run-report and recorded in the
+report metadata for auditability.
+
+Changes applied:
+1) Added tzid extraction helper in `seg_2A/s0_gate/runner.py`:
+   - `_load_tz_world_tzids` uses `pyarrow` to read only the `tzid` column,
+     falling back to `geopandas` if needed.
+   - Returns a de-duplicated tzid set; empty set means “index unavailable”.
+
+2) S0 now derives tzid index right after sealing `tz_world_2025a`:
+   - Logs a story line with the tzid count or explains that membership is not
+     enforced if the index is unavailable.
+
+3) Overrides validation (V-09):
+   - If tzid index present, validates every override tzid is in the set and
+     aborts with `2A-S0-032` if any are missing (includes missing list).
+   - If no index present, retains `2A-S0-032` warning behavior.
+   - Adds a narrative log stating that overrides were validated against the
+     tz_world index.
+
+4) Optional tzid_index emission:
+   - Writes `tzid_index.json` under the S0 run-report directory when the index
+     is present (write-once behavior if file already exists).
+   - Computes sha256 and records `tzid_index_path`, `tzid_index_sha256`, and
+     `tzid_index_count` under `tz_assets` in the run-report.
+
+Notes:
+- The derived tzid index is not added to sealed_inputs because it is a pure
+  derivative of sealed `tz_world_2025a` (no new external authority).
+- This aligns with V-09’s “authoritative tzid index sealed” rule by treating
+  tz_world as the sealed source of tzids.

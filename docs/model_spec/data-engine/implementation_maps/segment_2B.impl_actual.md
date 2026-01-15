@@ -1225,3 +1225,100 @@ Implementation actions (explicit):
 Expected effect:
 - Run logs now highlight the state narrative (gate, weights, alias build) without
   being dominated by PASS validation lines.
+
+---
+
+## S3 - Corporate-day modulation (S3.*)
+
+### Entry: 2026-01-15 18:06
+
+Design element: 2B.S3 day-effect (gamma) generation with Philox RNG.
+Summary: S3 must generate per-merchant, per-UTC-day, per-tz-group gamma factors
+under a policy-governed RNG envelope, with strict partitioning, write-once
+publishing, and byte-identical replays for identical inputs.
+
+Files reviewed (expanded + contracts):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+
+Detailed plan (before implementation, stepwise):
+1) Resolve run identity and authorities.
+   - Load run_receipt.json for `seed`, `parameter_hash`, `manifest_fingerprint`.
+   - Resolve contracts from model_spec (dev mode) and record versions in run-report.
+   - Enforce Dictionary-only resolution; no literal paths; no network I/O.
+
+2) Enforce S0 gate evidence and S0-evidence rule.
+   - Resolve `s0_gate_receipt_2B` and `sealed_inputs_2B` for the same
+     `manifest_fingerprint` and validate schema anchors.
+   - Use S0 receipt `verified_at_utc` as canonical `created_utc` for all rows.
+   - Confirm `day_effect_policy_v1` appears in S0 sealed inputs and validate
+     its digest/path against the sealed inventory (S0-evidence rule).
+
+3) Resolve inputs by Dictionary ID at exact partitions.
+   - `s1_site_weights` at `[seed, manifest_fingerprint]`.
+   - `site_timezones` at `[seed, manifest_fingerprint]`.
+   - `day_effect_policy_v1` by **token-less** S0-sealed path + digest.
+   - Abort on partition mismatch or missing input (2B-S3-020/070).
+
+4) Validate policy minima (Abort on missing or invalid).
+   - Parse `day_effect_policy_v1` and enforce: rng_engine=philox2x64-10,
+     rng_stream_id matches pattern, draws_per_row=1, sigma_gamma>0,
+     day_range inclusive and well-formed, record_fields present,
+     rng_derivation keys present, created_utc_policy_echo boolean.
+   - Decide how to treat record_fields vs fixed schema (see confirmations).
+
+5) Form tz-groups deterministically.
+   - Join `s1_site_weights` to `site_timezones` on
+     `(merchant_id, legal_country_iso, site_order)` and require 1:1 mapping.
+   - Derive `tz_group_id` as the tzid string from site_timezones.
+   - For each merchant, compute the distinct tz_group_id set
+     (used for coverage grid).
+
+6) Construct the day grid from policy day_range.
+   - Build inclusive UTC day list `[start_day..end_day]` (string dates).
+   - Validate against 2B-S3-033/090 on malformed ranges.
+
+7) RNG envelope and draws (Philox).
+   - Use counter-based Philox per policy `rng_derivation`:
+     key basis: manifest_fingerprint_bytes + seed_u64 + rng_stream_id.
+   - Counter basis: manifest_fingerprint_bytes + seed_u64 + rng_stream_id,
+     then increment per row in writer order (strictly monotone; no reuse).
+   - Draw 1 normal per row (log_gamma) with sigma=policy sigma_gamma and
+     mean = -0.5*sigma^2 so E[gamma]=1.
+   - Record rng_stream_id, counter_hi/lo for each row.
+   - Enforce RNG echo checks: engine/stream/draw counts per validators.
+
+8) Emit `s3_day_effects` with strict ordering and write-once semantics.
+   - Output columns per `schemas.2B.yaml#/plan/s3_day_effects`.
+   - Writer order must be PK order: (merchant_id, utc_day, tz_group_id).
+   - Enforce coverage: every merchant × tz_group × day → exactly one row.
+   - Validate schema, PK uniqueness, and writer order.
+   - Atomic publish to Dictionary path and enforce byte-identical re-emits.
+
+9) Run-report and logging (story aligned).
+   - Emit story header: objective + gated inputs + outputs.
+   - Progress logs for row generation include elapsed, count/total, rate, ETA.
+   - Emit WARN for tz_group_id not in site_timezones set (2B-S3-191) with
+     a small sample of tzids.
+   - Run-report captures counts, day_range, rng_draws_total, policy digests,
+     and validation results; record created_utc provenance from S0 receipt.
+
+Performance notes:
+- Avoid full cartesian materialization in memory; stream rows in PK order.
+- Use deterministic iteration order: merchants sorted; tz_group_id sorted;
+  days sorted. This guarantees PK order and stable RNG counter sequence.
+
+Open confirmations (need user decision before coding):
+1) `record_fields` in `day_effect_policy_v1` vs fixed output schema:
+   - Plan: treat `record_fields` as a **minimum required set** and abort if it
+     omits any required schema fields; always emit the full schema-defined
+     columns for stability. Confirm if you want output to be **subsettable**
+     based on policy (would require schema change).
+2) `created_utc_policy_echo`:
+   - Plan: when true, echo policy_id/version_tag/sha256 in the **run-report**
+     (not in the data rows) to keep rows minimal and schema-stable. Confirm.
+3) tzid validity warning (2B-S3-191):
+   - Plan: warn if any tz_group_id in output not present in site_timezones set,
+     include a small sample in run-report and log; do not alter outputs.
