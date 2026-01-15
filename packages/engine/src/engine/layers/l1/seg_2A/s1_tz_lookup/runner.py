@@ -1167,6 +1167,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     if len(candidates) == 1:
                         tzid = next(iter(candidates))
                     else:
+                        candidate_list = sorted(candidates)
                         override_tzid = None
                         site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
                         if site_key in overrides_site:
@@ -1181,6 +1182,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             override_scope = "country"
                             override_tzid = overrides_country[legal_country_iso]
                         if override_tzid is None:
+                            logger.error(
+                                "S1: border ambiguity unresolved after nudge; no override matched (key=%s, candidates=%s)",
+                                key,
+                                candidate_list,
+                            )
                             _emit_failure_event(
                                 logger,
                                 "2A-S1-055",
@@ -1188,14 +1194,28 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                 manifest_fingerprint,
                                 str(parameter_hash),
                                 run_id,
-                                {"detail": "border_ambiguity_unresolved", "key": key},
+                                {
+                                    "detail": "border_ambiguity_unresolved",
+                                    "key": key,
+                                    "candidate_tzids": candidate_list,
+                                    "candidate_count": len(candidate_list),
+                                    "nudge_lat": nudge_lat,
+                                    "nudge_lon": nudge_lon,
+                                },
                             )
                             raise EngineFailure(
                                 "F4",
                                 "2A-S1-055",
                                 STATE,
                                 MODULE_NAME,
-                                {"detail": "border_ambiguity_unresolved", "key": key},
+                                {
+                                    "detail": "border_ambiguity_unresolved",
+                                    "key": key,
+                                    "candidate_tzids": candidate_list,
+                                    "candidate_count": len(candidate_list),
+                                    "nudge_lat": nudge_lat,
+                                    "nudge_lon": nudge_lon,
+                                },
                             )
                         if override_tzid not in tzid_set:
                             unknown_tzid += 1
@@ -1225,6 +1245,12 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             counts["overrides_mcc"] += 1
                         elif override_scope == "country":
                             counts["overrides_country"] += 1
+                        logger.info(
+                            "S1: resolved border ambiguity via %s override (tzid=%s, key=%s)",
+                            override_scope,
+                            override_tzid,
+                            key,
+                        )
                 if nudge_lat is None and nudge_lon is not None:
                     _emit_failure_event(
                         logger,

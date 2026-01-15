@@ -2589,3 +2589,91 @@ Implementation actions (explicit):
 Expected effect:
 - Run logs now highlight the state narrative (inputs, progress, publish) without
   being dominated by PASS validation lines.
+
+### Entry: 2026-01-15 15:25
+
+Design element: Border ambiguity fallback improvements (S1) + policy override for BM.
+Summary: S1 failed with 2A-S1-055 on a Bermuda (BM) site despite nudge; spec
+allows ambiguity fallback via tz_overrides (site > mcc > country). We will add
+a country-level override for BM (Atlantic/Bermuda) and enhance S1 failure
+reporting with candidate tzid context to make future overrides data-driven.
+
+Detailed plan (before edits):
+1) Reconfirm spec posture (state.2A.s1.expanded.md).
+   - S1 may consult tz_overrides only after the single epsilon nudge fails.
+   - If no override applies, S1 must abort with 2A-S1-055.
+   - Override precedence: site > mcc > country; apply only to ambiguous cases.
+
+2) Policy change: add BM to tz_overrides (country scope).
+   - Update `config/layer1/2A/timezone/tz_overrides.yaml` with:
+     scope=country, target="BM", tzid="Atlantic/Bermuda".
+   - Rationale: tz_world 2025a contains only a single tzid for BM; country
+     override is deterministic and avoids repeated ambiguity failures across
+     seeds/runs.
+   - Keep evidence_url/expiry null; add a brief notes field.
+
+3) S1 failure context: include candidate tzids for unresolved ambiguities.
+   - When post-nudge ambiguity persists and no override applies, include:
+     `candidate_tzids` (sorted list), `candidate_count`, and `nudge_lat/lon`
+     in the S1_ERROR payload and EngineFailure detail.
+   - Emit a narrative error log that states the ambiguity, candidate tzids,
+     and that no override matched the precedence chain.
+   - Rationale: enables fast, auditable override decisions without re-running
+     extra diagnostics.
+
+4) Resumability + gate implications.
+   - Because tz_overrides is sealed in S0, re-run S0 after updating the policy.
+   - Then re-run S1 for the affected run_id to publish outputs under the new
+     sealed policy digest (write-once rules apply).
+
+5) Logging updates (story alignment).
+   - Add a short log line when an override is applied (scope + tzid) to keep
+     the narrative clear without spamming validation events.
+
+Next actions after logging:
+1) Update tz_overrides.yaml with the BM country override.
+2) Update `seg_2A/s1_tz_lookup/runner.py` to include candidate tzids in failure
+   context and add the override-applied narrative log.
+3) Re-run `segment2a-s0` + `segment2a-s1` for the current run-id.
+
+### Entry: 2026-01-15 15:32
+
+Design element: Apply BM override + enrich S1 ambiguity failure context.
+Summary: Implemented the planned policy override for BM and extended the S1
+ambiguity failure payload to include candidate tzids and nudge coordinates.
+
+Actions taken (after plan):
+1) Updated `config/layer1/2A/timezone/tz_overrides.yaml`:
+   - Added country override: `BM -> Atlantic/Bermuda` with notes and null
+     evidence/expiry (deterministic fallback for a single-tzid country).
+2) Updated `seg_2A/s1_tz_lookup/runner.py`:
+   - When post-nudge ambiguity persists, include `candidate_tzids`,
+     `candidate_count`, and `nudge_lat/lon` in the S1_ERROR payload and
+     EngineFailure detail.
+   - Added a narrative error log line to explain ambiguity and candidates.
+   - Added an INFO log when an override resolves ambiguity (scope + tzid).
+
+Next step:
+1) Re-run `segment2a-s0` and `segment2a-s1` for the failing run-id so the new
+   tz_overrides digest is sealed and the BM case resolves via country override.
+
+### Entry: 2026-01-15 15:28
+
+Design element: S0 re-seal after tz_overrides change (write-once guard).
+Summary: Attempted to re-run `segment2a-s0` for run_id
+`2b22ab5c8c7265882ca6e50375802b26` after updating tz_overrides; S0 failed
+with `2A-S0-062` during atomic publish because prior run-local outputs exist.
+
+Observed behavior (from run log):
+1) `s0_gate_receipt_2A` already exists and is identical; publish skipped.
+2) Failure occurred during the subsequent `_atomic_publish_dir` call (likely
+   for `sealed_inputs_2A`), which now differs because the tz_overrides digest
+   changed. Write-once rules block the re-emit.
+
+Resolution plan (pending user approval for deletion):
+1) Remove the run-local S0 outputs for this run-id:
+   - `runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/data/layer1/2A/s0_gate_receipt/manifest_fingerprint=e8a05027991ba560d5d334258378e2a607cf0c87b1368dd05fb7ef1a04c0afed/`
+   - `runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/data/layer1/2A/sealed_inputs/manifest_fingerprint=e8a05027991ba560d5d334258378e2a607cf0c87b1368dd05fb7ef1a04c0afed/`
+2) Re-run `make segment2a-s0 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+3) Then re-run `make segment2a-s1 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`
+   to confirm the BM override resolves the ambiguity.
