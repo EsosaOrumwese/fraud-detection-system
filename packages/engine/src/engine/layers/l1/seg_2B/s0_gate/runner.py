@@ -48,6 +48,12 @@ _FLAG_PATTERN = re.compile(r"^sha256_hex\\s*=\\s*([a-f0-9]{64})\\s*$")
 _HEX64_ANYWHERE = re.compile(r"([a-f0-9]{64})")
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _PLACEHOLDER_MARKERS = {"TBD", "null", "unknown"}
+_POLICY_IDS = {
+    "route_rng_policy_v1",
+    "alias_layout_policy_v1",
+    "day_effect_policy_v1",
+    "virtual_edge_policy_v1",
+}
 
 
 @dataclass(frozen=True)
@@ -230,6 +236,25 @@ def _schema_node(schema_pack: dict, path: str) -> dict:
             raise ContractError(f"Schema section not found: {path}")
         node = node[part]
     return node
+
+
+def _policy_version_from_file(path: Path) -> Optional[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise EngineFailure(
+            "F4",
+            "2B-S0-020",
+            STATE,
+            MODULE_NAME,
+            {"detail": "policy JSON unreadable", "path": str(path), "error": str(exc)},
+        ) from exc
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get("policy_version") or payload.get("version_tag")
+    if value is None:
+        return None
+    return str(value)
 
 
 def _inline_external_refs(schema: object, external_pack: dict, prefix: str) -> None:
@@ -725,8 +750,14 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
     def _add_sealed_asset(dataset_id: str, path: Path) -> None:
         entry = entries[dataset_id]
         partition, partition_keys = _partition_values(entry, tokens)
+        version_tokens = tokens
+        if dataset_id in _POLICY_IDS:
+            policy_version = _policy_version_from_file(path)
+            if policy_version:
+                version_tokens = dict(tokens)
+                version_tokens["policy_version"] = policy_version
         version_tag, placeholder = _resolve_version_tag(
-            entry, tokens, _registry_version_tag(dataset_id)
+            entry, version_tokens, _registry_version_tag(dataset_id)
         )
         if placeholder:
             placeholders_used.append(dataset_id)

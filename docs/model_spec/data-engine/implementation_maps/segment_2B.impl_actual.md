@@ -328,3 +328,35 @@ Run outcome notes:
    - `data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/s0_gate_receipt_2B.json`
    - `data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/sealed_inputs_2B.json`
 3) V-09 WARN raised for placeholder version_tag on policy assets; no abort.
+
+### Entry: 2026-01-15 09:38
+
+Design element: 2B policy version_tag placeholders (V-09).
+Summary: Policy assets used `{policy_version}` in the dictionary/registry but
+the policy JSON files only carried `version_tag`, so S0 could not resolve the
+template and emitted placeholder warnings.
+
+Resolution plan (per user direction):
+1) Add `policy_version` to each 2B policy JSON and keep `version_tag` for
+   backward compatibility.
+2) Update `schemas.2B.yaml` policy definitions to allow/require
+   `policy_version` (additionalProperties=false).
+3) Update 2B.S0 runner to read `policy_version` (fallback to `version_tag`)
+   from policy JSON and inject it as a token for version template rendering.
+4) Re-run S0 to confirm V-09 no longer warns (unless a policy is missing the
+   new field).
+
+### Entry: 2026-01-15 09:44
+
+Design element: Write-once re-emit after policy version update.
+Summary: After introducing `policy_version`, previously published S0 outputs
+for this run-id no longer matched the new sealed_inputs payloads, triggering
+the write-once guard (`2B-S0-080`). To re-emit correctly, the old output
+directories for this run-id had to be cleared.
+
+Actions taken (deterministic and scoped):
+1) Removed the existing run-local outputs under:
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/`
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
+2) Re-ran `make segment2b-s0`; S0 completed with all validators PASS and
+   `warn_count=0` in the run-report.

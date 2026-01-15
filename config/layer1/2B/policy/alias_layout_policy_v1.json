@@ -1,5 +1,6 @@
 {
   "version_tag": "2025.11",
+  "policy_version": "2025.11",
   "weight_source": {
     "id": "uniform",
     "mode": "uniform"

@@ -199,10 +199,11 @@ policy:
   route_rng_policy_v1:
     type: object
     additionalProperties: false
-    required: [policy_id, version_tag, rng_engine, streams]
+    required: [policy_id, version_tag, policy_version, rng_engine, streams]
     properties:
       policy_id:   { const: route_rng_policy_v1 }
       version_tag: { type: string, minLength: 1 }
+      policy_version: { type: string, minLength: 1 }
       rng_engine:  { const: philox2x64-10 }
       streams:
         type: object
@@ -307,6 +308,7 @@ policy:
     required:
       - policy_id
       - version_tag
+      - policy_version
       - layout_version
       - endianness
       - alignment_bytes
@@ -327,6 +329,7 @@ policy:
     properties:
       policy_id:   { const: alias_layout_policy_v1 }
       version_tag: { type: string, minLength: 1 }
+      policy_version: { type: string, minLength: 1 }
       layout_version: { type: string, minLength: 1 }
       endianness: { type: string, enum: [little, big] }
       alignment_bytes: { type: integer, minimum: 1 }
@@ -401,6 +404,7 @@ policy:
     required:
       - policy_id
       - version_tag
+      - policy_version
       - rng_engine
       - rng_stream_id
       - draws_per_row
@@ -413,6 +417,7 @@ policy:
     properties:
       policy_id:   { const: day_effect_policy_v1 }
       version_tag: { type: string, minLength: 1 }
+      policy_version: { type: string, minLength: 1 }
       rng_engine:  { const: philox2x64-10 }
       rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
       draws_per_row: { const: 1 }
@@ -453,10 +458,11 @@ policy:
   virtual_edge_policy_v1:
     type: object
     additionalProperties: false
-    required: [policy_id, version_tag, edges]
+    required: [policy_id, version_tag, policy_version, edges]
     properties:
       policy_id:   { const: virtual_edge_policy_v1 }
       version_tag: { type: string, minLength: 1 }
+      policy_version: { type: string, minLength: 1 }
       edges:
         type: array
         minItems: 1

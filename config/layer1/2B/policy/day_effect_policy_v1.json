@@ -1,5 +1,6 @@
 {
   "version_tag": "2025.11",
+  "policy_version": "2025.11",
   "rng_engine": "philox_4x32_10",
   "rng_stream_id": "day_effects_stream",
   "sigma_gamma": 0.12,
