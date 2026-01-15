@@ -63,7 +63,7 @@ datasets:
     path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
     partitioning: [manifest_fingerprint]
     ordering: []
-    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+    schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
     lineage:
       produced_by: 1B.validation
       consumed_by: [2B]
