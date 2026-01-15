@@ -1051,6 +1051,182 @@ Implementation actions (detailed):
    - No schema or partition changes for `s1_tz_lookup`; only the selection
      logic for ambiguous sites changes.
 
+## S2 - Overrides & finalisation (S2.*)
+
+### Entry: 2026-01-14 20:18
+
+Design element: S2 overrides & finalisation (pre-implementation plan).
+Summary: S2 consumes `s1_tz_lookup` + sealed `tz_overrides` (and optional MCC
+mapping) to produce final `site_timezones`. It is RNG-free, must enforce
+override precedence and active cutoff, validate tzid domains, preserve nudge
+fields, and emit a run-report + structured logs that narrate the override story.
+
+Contract review notes (authorities + anchors):
+1) **Inputs:**
+   - `s1_tz_lookup` (`schemas.2A.yaml#/plan/s1_tz_lookup`) at `[seed, manifest_fingerprint]`.
+   - `tz_overrides` (`schemas.2A.yaml#/policy/tz_overrides_v1`) sealed in S0.
+   - `tz_world_2025a` (`schemas.ingress.layer1.yaml#/tz_world_2025a`) for tzid membership.
+   - `merchant_mcc_map` (`schemas.ingress.layer1.yaml#/merchant_mcc_map`) only if MCC overrides are active.
+   - `s0_gate_receipt_2A` (`schemas.2A.yaml#/validation/s0_gate_receipt_v1`) for gate + cutoff date.
+2) **Output:** `site_timezones` (`schemas.2A.yaml#/egress/site_timezones`), partitioned by `[seed, manifest_fingerprint]`, columns_strict.
+3) **Override law:** active iff `expiry_yyyy_mm_dd` is null or >= date(S0.receipt.verified_at_utc); precedence `site > mcc > country`; apply at most one override.
+4) **Validators:** V-01..V-19 with explicit abort codes, including MCC gating (022/023), tzid membership (057), override_no_effect (055), created_utc determinism (042), and 1:1 coverage (050).
+
+Plan (before implementation, detailed):
+1) **Gate & identity.**
+   - Resolve `run_receipt.json` for `run_id`, `seed`, `parameter_hash`.
+   - Resolve and schema-validate `s0_gate_receipt_2A`; assert receipt
+     `manifest_fingerprint` matches the target token and capture
+     `verified_at_utc` for deterministic `created_utc`.
+   - Emit a `GATE` log with receipt path and verification result.
+
+2) **Resolve inputs by dictionary ID only.**
+   - `s1_tz_lookup` path for `(seed, manifest_fingerprint)` (abort on mismatch).
+   - `tz_overrides` config path (sealed in S0).
+   - `tz_world_2025a` reference path (sealed in S0).
+   - Determine if MCC overrides exist; if yes, require `merchant_mcc_map`
+     sealed for this run and resolve its versioned path.
+   - Emit a single `INPUTS` log with resolved IDs/paths.
+
+3) **Load and validate tz_overrides.**
+   - Validate against `tz_overrides_v1` (2A schema pack).
+   - Compute `cutoff_date = date(verified_at_utc)`; mark entries active when
+     `expiry_yyyy_mm_dd` is null or >= cutoff.
+   - Build scope maps (`site`, `mcc`, `country`) for **active** overrides.
+   - Detect duplicate active `(scope,target)` -> abort `2A-S2-021`.
+   - Track `expired_skipped` for run-report.
+
+4) **MCC gating.**
+   - If any active `mcc` overrides exist, load `merchant_mcc_map`.
+   - If mapping missing -> abort `2A-S2-022`.
+   - While processing rows, if an MCC override applies but merchant has no
+     mapping -> abort `2A-S2-023` and count `mcc_targets_missing`.
+
+5) **tzid domain set (membership).**
+   - Read tzid column from `tz_world_2025a` into a set (no geometry).
+   - Use this set to enforce `TZID_NOT_IN_TZ_WORLD` (2A-S2-057).
+
+6) **Row-wise processing (streaming).**
+   - Stream `s1_tz_lookup` in catalogue order; preserve PK ordering.
+   - For each row:
+     - Resolve override by precedence `site > mcc > country`.
+     - If override applies, set `tzid_source="override"` and `override_scope`;
+       otherwise `tzid_source="polygon"` and `override_scope=null`.
+     - Enforce **override_no_effect**: if override applies and
+       `tzid == tzid_provisional`, abort `2A-S2-055`.
+     - Enforce `tzid` domain + tz_world membership (`2A-S2-053` / `2A-S2-057`).
+     - Carry `nudge_lat_deg` / `nudge_lon_deg` unchanged; fail if altered
+       (`2A-S2-056`).
+     - Set `created_utc = s0.receipt.verified_at_utc` for all rows
+       (`2A-S2-042`).
+   - Maintain counts for run-report (rows_emitted, overridden_total/by_scope,
+     override_no_effect, expired_skipped, mcc_targets_missing, distinct_tzids).
+
+7) **Output validation & coverage.**
+   - Validate output rows against `schemas.2A.yaml#/egress/site_timezones`.
+   - Enforce 1:1 coverage vs input rows (`2A-S2-050`) and PK uniqueness
+     (`2A-S2-051`).
+   - Enforce path↔embed equality (`2A-S2-040`).
+
+8) **Publish + immutability.**
+   - Write to temp dir and atomically publish under
+     `data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
+   - Abort on non-identical re-emits (`2A-S2-041`).
+   - Emit `EMIT` log with output path and `created_utc`.
+
+9) **Run-report + structured logs.**
+   - Always write `s2_run_report.json` (pass/fail) with required fields.
+   - Emit structured `GATE`, `INPUTS`, `OVERRIDES`, `VALIDATION`, `EMIT` events.
+   - Keep logs “story” aligned: gate → inputs → override application → output.
+
+Open confirmations (need your call before coding):
+1) **MCC gating interpretation:** The spec has both
+   “MCC overrides not active without a sealed mapping” and abort code
+   `2A-S2-022`. I will follow the validator table and **abort** when an
+   MCC override would apply without a sealed mapping; confirm this is the
+   intended posture.
+2) **tz_world membership enforcement:** Spec requires abort on
+   `TZID_NOT_IN_TZ_WORLD`. Confirm we should treat any final tzid not present
+   in the sealed tz_world tzid set as a hard failure (even if it is a valid
+   IANA tzid).
+3) **override_no_effect:** Spec requires abort when override applies but
+   `tzid == tzid_provisional`. Confirm we should fail rather than silently
+   keep polygon provenance.
+
+### Entry: 2026-01-15 00:47
+
+Design element: S2 confirmation decisions (pre-implementation).
+Summary: User approved the strict, spec-aligned posture for all three open
+confirmations. This entry records those decisions before coding.
+
+Decisions recorded before implementation:
+1) **MCC gating**: Abort if any MCC override is active but `merchant_mcc_map`
+   is not sealed for the run (`2A-S2-022`), and abort if a merchant lacks a
+   mapping when an MCC override evaluation is required (`2A-S2-023`).
+2) **tz_world membership**: Abort if the final tzid is not present in the
+   sealed tz_world tzid set, even if it is a valid IANA tzid (`2A-S2-057`).
+3) **override_no_effect**: Abort if an applied override yields
+   `tzid == tzid_provisional` (`2A-S2-055`), rather than downgrading to polygon.
+
+### Entry: 2026-01-15 01:03
+
+Design element: S2 runner + CLI + Makefile wiring (implementation start).
+Summary: Begin implementing the S2 overrides runner, add CLI and Makefile target,
+and wire the output + run-report flow to match the spec before executing runs.
+
+Implementation plan (before coding, detailed):
+1) **Runner scaffold (seg_2A/s2_overrides/runner.py).**
+   - Start from the S1 runner patterns: `_StepTimer`, `_ProgressTracker`,
+     `_emit_event`, `_emit_validation`, `_emit_failure_event`, `_atomic_publish_dir`,
+     `_list_parquet_files`, `_iter_parquet_batches`, and run-report emission.
+   - Reuse the existing S0 helpers for schema/table prep and input resolution:
+     `_resolve_run_receipt`, `_resolve_dataset_path`, `_render_catalog_path`,
+     `_prepare_row_schema_with_layer1_defs`, `_prepare_table_pack_with_layer1_defs`,
+     `_validate_payload`, `_hash_partition`, `_load_json`, `_load_yaml`.
+   - Implement a lightweight tzid validator using the layer1 `$defs.iana_tzid`
+     and a tzid set loaded from `tz_world_2025a` (no geometry access).
+
+2) **Gate + identity checks.**
+   - Resolve `run_receipt.json`; verify `run_id`, `seed`, `parameter_hash`,
+     `manifest_fingerprint` exist and match the receipt path.
+   - Validate `s0_gate_receipt_2A` against the schema and require its
+     `manifest_fingerprint` to match the run token (2A-S2-001).
+   - Parse `verified_at_utc` to derive `cutoff_date` and `created_utc`.
+
+3) **Sealed inputs + schema authority.**
+   - Load `sealed_inputs_2A` and require `tz_overrides` + `tz_world_2025a` entries.
+   - Enforce `schema_ref` equality between sealed inputs and dictionary
+     entries (2A-S2-080), and validate schema_ref anchors against the
+     loaded schema packs.
+   - If active MCC overrides exist, require `merchant_mcc_map` in the sealed
+     manifest (2A-S2-022) and load its version-tagged path.
+
+4) **Override policy parsing and validation.**
+   - Validate `tz_overrides` against `tz_overrides_v1` using local layer1 defs.
+   - Build active overrides by `cutoff_date`, detect duplicate active
+     `(scope, target)` pairs (2A-S2-021), and count `expired_skipped`.
+
+5) **Row-wise processing (streaming).**
+   - Stream `s1_tz_lookup` in batches; enforce path-embed equality on
+     `seed`/`manifest_fingerprint` (2A-S2-040).
+   - For each site: apply overrides by precedence (`site > mcc > country`),
+     set `tzid_source` + `override_scope`, enforce `override_no_effect`
+     (2A-S2-055), validate tzid domain (2A-S2-053) and membership (2A-S2-057).
+   - Carry `nudge_*` unchanged; set `created_utc` to S0 `verified_at_utc`
+     (2A-S2-042).
+   - Track counts, PK duplicates (2A-S2-051), and writer order (warn 2A-S2-070).
+
+6) **Output + run-report.**
+   - Validate output rows against `schemas.2A.yaml#/egress/site_timezones`
+     (2A-S2-030), enforce 1:1 coverage (2A-S2-050), and publish atomically
+     (2A-S2-041).
+   - Emit `s2_run_report.json` with the required counts/inputs/outputs
+     and structured `GATE` / `INPUTS` / `OVERRIDES` / `VALIDATION` / `EMIT`
+     logs to keep the run story readable.
+
+7) **CLI + Makefile wiring.**
+   - Add `engine/cli/s2_overrides_2a.py` mirroring the S1 CLI.
+   - Add `SEG2A_S2_*` args + `segment2a-s2` target in `makefile`.
 ### Entry: 2026-01-14 20:04
 
 Design element: JSON Schema adapter support for `type: integer` (S1 validation failure).
@@ -1160,3 +1336,116 @@ Observed run evidence (from run log):
 Conclusion:
 - S1 is green for run_id `a988b06e603fe3aa90ac84a3a7e1cd7c`.
 - No further code changes needed for S1 at this time.
+
+### Entry: 2026-01-15 01:32
+
+Design element: S2 overrides & finalisation (implementation).
+Summary: Implemented the full S2 runner logic (overrides, tzid checks, provenance,
+coverage, and deterministic created_utc), plus CLI + Makefile wiring so S2 can
+run independently with the same contract posture as S1.
+
+Implementation actions (detailed, step-by-step):
+1) **Runner skeleton + helpers.**
+   - Implemented `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`.
+   - Added `_write_batch` helper to persist parquet batches and log row counts.
+   - Added JSON-schema adapter validation calls (`validate_dataframe`) on each
+     batch to enforce `schemas.2A.yaml#/egress/site_timezones`.
+
+2) **Contracts + authority checks (schema/dictionary/registry).**
+   - Enforced schema-ref alignment between dictionary and registry
+     (`2A-S2-080 AUTHORITY_CONFLICT`).
+   - Resolved `s0_gate_receipt_2A`, `sealed_inputs_2A`, `s1_tz_lookup`,
+     `tz_overrides`, `tz_world_2025a`, `site_timezones`.
+   - Validated the S0 receipt payload against `validation/s0_gate_receipt_v1`
+     and asserted the receipt manifest matches the run manifest.
+
+3) **Deterministic `created_utc`.**
+   - Hard-required `receipt_verified_utc` and used it for every output row.
+   - Enforced `2A-S2-042 CREATED_UTC_NONDETERMINISTIC` if the receipt lacks
+     `verified_at_utc` or if a mismatch is detected.
+
+4) **Override loading + precedence + expiry.**
+   - Validated `tz_overrides` against `policy/tz_overrides_v1`.
+   - Applied the “active” definition (expiry null or ≥ S0 receipt date).
+   - Enforced duplicate active `(scope, target)` detection (`2A-S2-021`).
+   - Built active maps for `site`, `mcc`, `country` and tracked
+     `expired_skipped` for reporting.
+
+5) **MCC gating (strict).**
+   - If MCC overrides exist, require sealed `merchant_mcc_map` and load
+     `merchant_id -> mcc` lookup (`2A-S2-022` if missing/empty).
+   - Abort when an MCC override applies but merchant lacks mapping
+     (`2A-S2-023`).
+
+6) **Row-wise processing (streamed).**
+   - Enforced path↔embed equality for `seed`/`manifest_fingerprint`
+     (`2A-S2-040`).
+   - Enforced PK uniqueness (`2A-S2-051`) and tracked writer-order warnings
+     (`2A-S2-070`).
+   - Applied override precedence `site > mcc > country`.
+   - Enforced `override_no_effect` (`2A-S2-055`) and provenance coherence
+     (`2A-S2-054`) based on `tzid_source` vs `override_scope`.
+   - Enforced `tzid` domain validity (`2A-S2-053`) and `tz_world` membership
+     (`2A-S2-057`) for every output row.
+   - Enforced nudge pair rule (`2A-S2-056`) by requiring both nudge fields to be
+     null or both set.
+
+7) **Coverage + publish.**
+   - Enforced 1:1 coverage (`2A-S2-050`).
+   - Atomically published `site_timezones` and used hash compare to prevent
+     non-identical overwrite (`2A-S2-041`).
+   - Emitted structured `VALIDATION` events (V-01..V-19) and an `EMIT` log.
+
+8) **Run-report.**
+   - Recorded inputs (including tz_overrides digest and tz_world path),
+     counts/checks, and output path in the S2 run-report.
+
+9) **CLI + Makefile wiring.**
+   - Added `packages/engine/src/engine/cli/s2_overrides_2a.py`.
+   - Added `SEG2A_S2_RUN_ID`, args, and `segment2a-s2` target to `makefile`.
+
+Notes for review:
+- S2 now enforces strict membership and provenance rules to align with the
+  expanded validator table; any divergence should be a contract update rather
+  than a silent runtime change.
+
+### Entry: 2026-01-15 01:39
+
+Design element: S2 runtime faults and policy conflict surfaced by first runs.
+Summary: The first S2 run failed due to (a) `tz_world` parquet geoarrow metadata
+crashing Polars when reading only `tzid`, and (b) `2A-S2-055 OVERRIDE_NO_EFFECT`
+triggered by the **country-level RS override** (Belgrade) matching the
+provisional tzid for at least one RS site.
+
+Observed failures (in sequence):
+1) **Polars geoarrow panic** on `tz_world.parquet` when selecting `tzid`:
+   - Error: `Arrow datatype Extension(geoarrow.wkb) not supported by Polars`.
+   - Root cause: Polars attempts to interpret geoarrow extension metadata even
+     when reading a subset of columns.
+2) **Override no-effect abort**:
+   - `merchant_id=14646030219073337247`, `legal_country_iso=RS`, `site_order=1`.
+   - `tzid_provisional=Europe/Belgrade`, `tz_overrides` country-level RS also
+     `Europe/Belgrade` → `2A-S2-055` by spec.
+
+Resolution steps (completed + pending):
+1) **Completed fix for geoarrow panic.**
+   - Updated `_load_tzid_set` to use **pyarrow** `read_table` when available,
+     reading only `tzid` and bypassing geoarrow extension decoding.
+   - Retains Polars fallback when pyarrow is unavailable.
+
+2) **Pending policy decision for override_no_effect.**
+   - The country-level override now applies to **all RS sites**, including
+     those where the provisional tzid already matches Belgrade. This is
+     guaranteed to trigger `2A-S2-055` under the current strict interpretation.
+   - To remain spec-compliant **and** avoid the abort, one of the following
+     must change:
+     a) **Narrow the override scope** (e.g., site/MCC only where it actually
+        changes tzid), or
+     b) **Reinterpret overrides in S2** to skip application when tzid would not
+        change (but this contradicts the earlier agreed “abort” posture).
+
+Decision needed:
+- Confirm whether we should **tighten the override scope** (policy edit) or
+  **relax the abort** to allow no-effect overrides to fall back to polygon.
+  I will not change this behavior without explicit approval since we already
+  agreed to strict aborts for 2A-S2-055.
