@@ -1449,3 +1449,160 @@ Decision needed:
   **relax the abort** to allow no-effect overrides to fall back to polygon.
   I will not change this behavior without explicit approval since we already
   agreed to strict aborts for 2A-S2-055.
+
+### Entry: 2026-01-15 01:56
+
+Design element: S1→S2 override provenance handoff (spec + schema change).
+Summary: The RS override is structurally redundant for polygon-resolved rows and
+will always trigger `2A-S2-055` under strict “override_no_effect”. The approved
+resolution is to **carry override provenance from S1** and have S2 only apply
+overrides when S1 indicates ambiguity/override usage. This preserves strictness
+while preventing false failures on unambiguous polygon results.
+
+Decision reasoning (before implementation, detailed):
+1) **Why nudge is not viable.** The failing RS site lies strictly inside
+   `Europe/Belgrade` (no competing tzid contains or covers the point). No
+   reasonable epsilon resolves this, and increasing epsilon risks shifting
+   correct polygon hits into the wrong tzid. This also fails to generalize for
+   future seeds.
+2) **Why override-only cannot remain global.** A country-level override will
+   always be redundant for RS rows that already match Belgrade, so strict
+   `2A-S2-055` will continue to fail unless we change the policy posture.
+3) **Chosen approach (approved).** Extend `s1_tz_lookup` contract to capture
+   whether overrides were applied. S2 will only apply overrides when S1
+   indicates that ambiguity was resolved via overrides. This keeps strict
+   validation for true overrides and avoids redundant override failures.
+
+Planned spec & contract updates (before code changes):
+1) **`schemas.2A.yaml#/plan/s1_tz_lookup`**:
+   - Add `tzid_provisional_source` enum (`polygon|override`).
+   - Add `override_scope` enum (`site|mcc|country`, nullable).
+   - Add `override_applied` boolean.
+2) **S1 spec (`state.2A.s1.expanded.md`)**:
+   - Document the new fields and set them when overrides are used after
+     post‑nudge ambiguity resolution.
+3) **S2 spec (`state.2A.s2.expanded.md`)**:
+   - Apply overrides **only** when S1 indicates `override_applied=true`.
+   - Require S2 to verify that the matching active override still exists; if
+     not, abort (use 2A-S2-024 or 2A-S2-054 based on mismatch type).
+   - Update `2A-S2-055` semantics to apply only in rows where S2 is applying an
+     override to a polygon-sourced provisional tzid (i.e., when S1 says
+     `override_applied=false` but S2 would otherwise apply). In the new flow,
+     this becomes a vacuous check because S2 no longer overrides polygon rows.
+
+Implementation plan (after spec updates):
+1) **S1 runner changes:**
+   - Add the three new columns to the output schema and rows.
+   - Populate `tzid_provisional_source="override"` and `override_scope` only
+     when S1 uses overrides (post‑nudge ambiguity).
+   - Set `override_applied=true` in that case; otherwise set source to
+     `polygon`, `override_scope=null`, `override_applied=false`.
+2) **S2 runner changes:**
+   - Read the new columns.
+   - If `override_applied=false`, skip override application and emit polygon
+     provenance directly (no `2A-S2-055` check).
+   - If `override_applied=true`, compute the active override and verify it
+     matches S1’s scope/tzid. Fail closed if missing/expired/mismatch.
+3) **Re-run S1→S2** to validate that RS no longer triggers `2A-S2-055` while
+   still enforcing strict overrides on ambiguous rows.
+
+### Entry: 2026-01-15 02:06
+
+Design element: S2 override gating by S1 provenance (implementation pass).
+Summary: Before touching the S2 runner, I am formalizing the exact gating,
+failure codes, and counter semantics now that the S1 schema carries override
+provenance. This entry captures the decisions and the precise logic changes to
+be made in code so the audit trail shows how the implementation was shaped.
+
+Decisions and rationale (before code changes, detailed):
+1) **Override evaluation is now conditional.**
+   - If `override_applied=false` in `s1_tz_lookup`, S2 will **not** evaluate
+     overrides at all. It will emit `tzid = tzid_provisional`,
+     `tzid_source="polygon"`, `override_scope=null`.
+   - Reason: S1 already resolved the site by geometry and did not require an
+     override to break ambiguity, so applying an override would be an invalid
+     mutation of a polygon-resolved row.
+2) **Override reconciliation when `override_applied=true`.**
+   - S2 will **recompute** the active override from `tz_overrides` and
+     **require** that it matches S1's provenance (`override_scope`) and
+     `tzid_provisional`.
+   - If the override is missing/expired at the S0 receipt cut-off, S2 will
+     abort with `2A-S2-024` (detail: missing/expired override for an
+     override-applied row).
+   - If the override exists but the scope or tzid does not match the S1 row,
+     S2 will abort with `2A-S2-054` (provenance invalid / mismatch).
+3) **`2A-S2-055` becomes a guardrail.**
+   - `2A-S2-055` is now used only if a row marked `override_applied=false`
+     would somehow still be emitted with `tzid_source="override"`.
+   - This should be unreachable in correct logic but preserves the strict
+     "override on polygon row" invariant and keeps the spec’s error code
+     meaning intact.
+4) **Counter semantics update (no behavior change in PASS).**
+   - `override_no_effect` will increment only if the guardrail triggers
+     (override attempted on polygon-sourced row). It should remain 0 on PASS.
+   - `overridden_total/overridden_by_scope` will count only rows where
+     `override_applied=true` and the override is confirmed active.
+5) **Input contract change to S2 reader.**
+   - S2 must read `tzid_provisional_source`, `override_scope`,
+     `override_applied` from `s1_tz_lookup` and enforce consistency before
+     emitting output rows.
+
+Planned code edits (next steps):
+1) Update S2 input batch columns to include the new provenance fields.
+2) Add explicit checks for:
+   - `override_applied` vs `tzid_provisional_source` consistency.
+   - `override_applied` vs computed override scope/tzid consistency.
+3) Adjust `override_no_effect` handling and `2A-S2-055` trigger conditions.
+4) Keep run-report fields intact but ensure counts align with the new gating.
+
+### Entry: 2026-01-15 02:18
+
+Design element: S2 override gating by S1 provenance (implementation update).
+Summary: Implemented the S2 runner changes to consume the new S1 provenance
+fields and enforce the approved gating and failure semantics.
+
+Implementation actions (step-by-step, detailed):
+1) **Expanded S1 input columns.**
+   - Updated `_iter_parquet_batches` to read
+     `tzid_provisional_source`, `override_scope`, and `override_applied`.
+   - Parsed these into per-row variables before any override evaluation.
+2) **Provenance consistency checks.**
+   - If `override_applied=true` but `tzid_provisional_source!="override"`,
+     raise `2A-S2-054` (provenance mismatch).
+   - If `override_applied=true` and `override_scope` is missing or invalid,
+     raise `2A-S2-054`.
+   - If `override_applied=false` but `tzid_provisional_source!="polygon"` or
+     `override_scope` is present, raise `2A-S2-054`.
+3) **Conditional override application.**
+   - Only evaluate `tz_overrides` when `override_applied=true`.
+   - When required, compute the active override (site -> mcc -> country).
+   - If no active override is found for an override-applied row, raise
+     `2A-S2-024` with `detail=override_missing_or_expired`.
+   - If the active override’s `scope` or `tzid` disagrees with S1’s
+     provenance (`override_scope`, `tzid_provisional`), raise `2A-S2-054`.
+4) **Guardrail for 2A-S2-055.**
+   - Preserved `override_no_effect` and `2A-S2-055` as a guardrail in case
+     a row marked `override_applied=false` would ever be emitted with
+     `tzid_source="override"` (should be unreachable in the new flow).
+5) **Counts alignment.**
+   - `overridden_total` and `overridden_by_scope` now increment only for
+     rows where `override_applied=true` and the override is confirmed active.
+   - `override_no_effect` increments only if the guardrail triggers.
+
+Next steps:
+- Re-run S1 (to emit the new provenance columns) and then S2 with the same
+  run_id, or use a fresh run_id if write-once semantics block overwrite.
+
+### Entry: 2026-01-15 02:21
+
+Design element: S2 spec alignment for override provenance checks.
+Summary: Updated the S2 expanded spec to explicitly encode the new
+`override_applied`/`tzid_provisional_source` consistency rules so the
+implementation and spec stay synchronized.
+
+Actions recorded:
+1) In `state.2A.s2.expanded.md`, added an explicit requirement that
+   `override_applied=true` implies `tzid_provisional_source="override"` and
+   `override_scope` present, and that violations raise `2A-S2-054`.
+2) Expanded **V-16** and **2A-S2-054** definitions to include the new
+   provenance mismatch scenarios (override_applied vs provisional source).

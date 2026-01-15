@@ -1014,6 +1014,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 "legal_country_iso",
                 "site_order",
                 "tzid_provisional",
+                "tzid_provisional_source",
+                "override_scope",
+                "override_applied",
                 "nudge_lat_deg",
                 "nudge_lon_deg",
             ],
@@ -1055,6 +1058,11 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 legal_country_iso = str(row["legal_country_iso"])
                 site_order = int(row["site_order"])
                 tzid_provisional = row["tzid_provisional"]
+                tzid_provisional_source = str(row["tzid_provisional_source"])
+                override_applied = bool(row["override_applied"])
+                s1_override_scope = row["override_scope"]
+                if s1_override_scope is not None:
+                    s1_override_scope = str(s1_override_scope)
                 key = (merchant_id, legal_country_iso, site_order)
                 if key in seen_keys:
                     checks["pk_duplicates"] += 1
@@ -1089,58 +1097,168 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     writer_order_violation = True
                 last_key = key
 
-                override_scope: Optional[str] = None
-                override_tzid: Optional[str] = None
-                site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
-                if site_key in overrides_site:
-                    override_scope = "site"
-                    override_tzid = overrides_site[site_key]
-                elif overrides_mcc:
-                    mcc_key = mcc_lookup.get(merchant_id)
-                    if mcc_key is None:
-                        counts["mcc_targets_missing"] += 1
+                if override_applied:
+                    if tzid_provisional_source != "override":
                         _emit_failure_event(
                             logger,
-                            "2A-S2-023",
+                            "2A-S2-054",
                             seed,
                             str(manifest_fingerprint),
                             str(parameter_hash),
                             run_id,
-                            {"detail": "mcc_target_unknown", "merchant_id": merchant_id},
+                            {
+                                "detail": "override_applied_source_mismatch",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                                "tzid_provisional_source": tzid_provisional_source,
+                            },
                         )
                         raise EngineFailure(
                             "F4",
-                            "2A-S2-023",
+                            "2A-S2-054",
                             STATE,
                             MODULE_NAME,
-                            {"detail": "mcc_target_unknown", "merchant_id": merchant_id},
+                            {
+                                "detail": "override_applied_source_mismatch",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                                "tzid_provisional_source": tzid_provisional_source,
+                            },
                         )
-                    if mcc_key in overrides_mcc:
-                        override_scope = "mcc"
-                        override_tzid = overrides_mcc[mcc_key]
-                if override_scope is None and legal_country_iso in overrides_country:
-                    override_scope = "country"
-                    override_tzid = overrides_country[legal_country_iso]
+                    if s1_override_scope not in ("site", "mcc", "country"):
+                        _emit_failure_event(
+                            logger,
+                            "2A-S2-054",
+                            seed,
+                            str(manifest_fingerprint),
+                            str(parameter_hash),
+                            run_id,
+                            {
+                                "detail": "override_scope_missing",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                            },
+                        )
+                        raise EngineFailure(
+                            "F4",
+                            "2A-S2-054",
+                            STATE,
+                            MODULE_NAME,
+                            {
+                                "detail": "override_scope_missing",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                            },
+                        )
+                else:
+                    if tzid_provisional_source != "polygon":
+                        _emit_failure_event(
+                            logger,
+                            "2A-S2-054",
+                            seed,
+                            str(manifest_fingerprint),
+                            str(parameter_hash),
+                            run_id,
+                            {
+                                "detail": "polygon_source_expected",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                                "tzid_provisional_source": tzid_provisional_source,
+                            },
+                        )
+                        raise EngineFailure(
+                            "F4",
+                            "2A-S2-054",
+                            STATE,
+                            MODULE_NAME,
+                            {
+                                "detail": "polygon_source_expected",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                                "tzid_provisional_source": tzid_provisional_source,
+                            },
+                        )
+                    if s1_override_scope is not None:
+                        _emit_failure_event(
+                            logger,
+                            "2A-S2-054",
+                            seed,
+                            str(manifest_fingerprint),
+                            str(parameter_hash),
+                            run_id,
+                            {
+                                "detail": "override_scope_present_with_polygon",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                            },
+                        )
+                        raise EngineFailure(
+                            "F4",
+                            "2A-S2-054",
+                            STATE,
+                            MODULE_NAME,
+                            {
+                                "detail": "override_scope_present_with_polygon",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                            },
+                        )
+
+                override_scope: Optional[str] = None
+                override_tzid: Optional[str] = None
+                if override_applied:
+                    site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
+                    if site_key in overrides_site:
+                        override_scope = "site"
+                        override_tzid = overrides_site[site_key]
+                    elif overrides_mcc:
+                        mcc_key = mcc_lookup.get(merchant_id)
+                        if mcc_key is None:
+                            counts["mcc_targets_missing"] += 1
+                            _emit_failure_event(
+                                logger,
+                                "2A-S2-023",
+                                seed,
+                                str(manifest_fingerprint),
+                                str(parameter_hash),
+                                run_id,
+                                {"detail": "mcc_target_unknown", "merchant_id": merchant_id},
+                            )
+                            raise EngineFailure(
+                                "F4",
+                                "2A-S2-023",
+                                STATE,
+                                MODULE_NAME,
+                                {"detail": "mcc_target_unknown", "merchant_id": merchant_id},
+                            )
+                        if mcc_key in overrides_mcc:
+                            override_scope = "mcc"
+                            override_tzid = overrides_mcc[mcc_key]
+                    if override_scope is None and legal_country_iso in overrides_country:
+                        override_scope = "country"
+                        override_tzid = overrides_country[legal_country_iso]
 
                 tzid_source = "polygon"
                 tzid_final = tzid_provisional
-                if override_tzid is not None:
-                    tzid_source = "override"
-                    tzid_final = override_tzid
-                    counts["overridden_total"] += 1
-                    if override_scope:
-                        counts["overridden_by_scope"][override_scope] += 1
-                    if tzid_final == tzid_provisional:
-                        counts["override_no_effect"] += 1
+                if override_applied:
+                    if override_scope is None or override_tzid is None:
                         _emit_failure_event(
                             logger,
-                            "2A-S2-055",
+                            "2A-S2-024",
                             seed,
                             str(manifest_fingerprint),
                             str(parameter_hash),
                             run_id,
                             {
-                                "detail": "override_no_effect",
+                                "detail": "override_missing_or_expired",
                                 "merchant_id": merchant_id,
                                 "legal_country_iso": legal_country_iso,
                                 "site_order": site_order,
@@ -1148,16 +1266,83 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         )
                         raise EngineFailure(
                             "F4",
-                            "2A-S2-055",
+                            "2A-S2-024",
                             STATE,
                             MODULE_NAME,
                             {
-                                "detail": "override_no_effect",
+                                "detail": "override_missing_or_expired",
                                 "merchant_id": merchant_id,
                                 "legal_country_iso": legal_country_iso,
                                 "site_order": site_order,
                             },
                         )
+                    if override_scope != s1_override_scope or override_tzid != tzid_provisional:
+                        _emit_failure_event(
+                            logger,
+                            "2A-S2-054",
+                            seed,
+                            str(manifest_fingerprint),
+                            str(parameter_hash),
+                            run_id,
+                            {
+                                "detail": "override_mismatch_s1",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                                "s1_override_scope": s1_override_scope,
+                                "override_scope": override_scope,
+                                "s1_tzid": tzid_provisional,
+                                "override_tzid": override_tzid,
+                            },
+                        )
+                        raise EngineFailure(
+                            "F4",
+                            "2A-S2-054",
+                            STATE,
+                            MODULE_NAME,
+                            {
+                                "detail": "override_mismatch_s1",
+                                "merchant_id": merchant_id,
+                                "legal_country_iso": legal_country_iso,
+                                "site_order": site_order,
+                                "s1_override_scope": s1_override_scope,
+                                "override_scope": override_scope,
+                                "s1_tzid": tzid_provisional,
+                                "override_tzid": override_tzid,
+                            },
+                        )
+                    tzid_source = "override"
+                    tzid_final = override_tzid
+                    counts["overridden_total"] += 1
+                    counts["overridden_by_scope"][override_scope] += 1
+                if not override_applied and tzid_source != "polygon":
+                    counts["override_no_effect"] += 1
+                    _emit_failure_event(
+                        logger,
+                        "2A-S2-055",
+                        seed,
+                        str(manifest_fingerprint),
+                        str(parameter_hash),
+                        run_id,
+                        {
+                            "detail": "override_no_effect",
+                            "merchant_id": merchant_id,
+                            "legal_country_iso": legal_country_iso,
+                            "site_order": site_order,
+                        },
+                    )
+                    raise EngineFailure(
+                        "F4",
+                        "2A-S2-055",
+                        STATE,
+                        MODULE_NAME,
+                        {
+                            "detail": "override_no_effect",
+                            "merchant_id": merchant_id,
+                            "legal_country_iso": legal_country_iso,
+                            "site_order": site_order,
+                        },
+                    )
                 if tzid_final is None or tzid_final == "":
                     checks["null_tzid"] += 1
                     _emit_failure_event(

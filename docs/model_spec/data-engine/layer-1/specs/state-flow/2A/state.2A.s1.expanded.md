@@ -82,7 +82,8 @@
 **Interfaces (design relationship).**
 
 * **Upstream:** 2A.S0 receipt (gate), `site_locations` (1B egress), `tz_world` polygons, `tz_nudge` policy — all for the same `manifest_fingerprint`.
-* **Downstream:** 2A.S2 consumes `s1_tz_lookup` and may replace `tzid_provisional` where an authorised override applies.
+* **Downstream:** 2A.S2 consumes `s1_tz_lookup` and applies overrides **only** when S1 marked
+  `override_applied=true`; otherwise it keeps the polygon provisional tzid.
 
 **Completion semantics.** S1 is complete when `s1_tz_lookup` is written under the correct `[seed, manifest_fingerprint]` partition, schema-valid, path↔embed equality holds, and every input site has exactly one corresponding provisional assignment.
 
@@ -222,7 +223,9 @@ S1 SHALL NOT: apply policy **overrides** except as a post-nudge ambiguity fallba
 ### 5.1 Primary deliverable — `s1_tz_lookup`
 
 **Role.** Geometry-only provisional TZ assignment per site for the selected `(seed, manifest_fingerprint)`.
-**Shape (authority).** `schemas.2A.yaml#/plan/s1_tz_lookup` fixes PK, partitions, columns (incl. `tzid_provisional`, optional `nudge_*`). 
+**Shape (authority).** `schemas.2A.yaml#/plan/s1_tz_lookup` fixes PK, partitions, columns
+(incl. `tzid_provisional`, `tzid_provisional_source`, `override_applied`/`override_scope`,
+optional `nudge_*`). 
 **Catalogue.** Dataset Dictionary binds ID→path/partitions/format and writer order:
 `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitions** `[seed, manifest_fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet. 
 **Registry.** Registered as a plan dataset; dependencies reference `site_locations` and `tz_world_2025a`; schema anchor as above. 
@@ -253,7 +256,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 
 ### 6.1 Output table — `s1_tz_lookup` (plan)
 
-* **ID → Schema:** `schemas.2A.yaml#/plan/s1_tz_lookup` (**columns_strict: true**). The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, manifest_fingerprint]`, and writer **sort** `[merchant_id, legal_country_iso, site_order]`. Required columns include site identity, `(lat_deg, lon_deg)`, and `tzid_provisional`; `nudge_lat_deg`/`nudge_lon_deg` are nullable fields that record an applied ε-nudge. 
+* **ID → Schema:** `schemas.2A.yaml#/plan/s1_tz_lookup` (**columns_strict: true**). The anchor fixes **PK** `[merchant_id, legal_country_iso, site_order]`, **partitions** `[seed, manifest_fingerprint]`, and writer **sort** `[merchant_id, legal_country_iso, site_order]`. Required columns include site identity, `(lat_deg, lon_deg)`, `tzid_provisional`, and override provenance (`tzid_provisional_source`, `override_applied`, `override_scope`); `nudge_lat_deg`/`nudge_lon_deg` are nullable fields that record an applied ε-nudge. 
 * **Dictionary binding:** `data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` with **partitioning** `[seed, manifest_fingerprint]`, **ordering** `[merchant_id, legal_country_iso, site_order]`, **format** Parquet. 
 * **Registry reference:** Registered as a **plan** dataset; dependencies: `site_locations`, `tz_world_2025a`; schema ref as above. 
 
@@ -272,6 +275,7 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
 
 * **Strict columns.** `s1_tz_lookup` is **columns_strict: true**; undeclared columns are invalid. 
 * **Nudge fields as a pair.** When ε-nudge is applied, **both** `nudge_lat_deg` and `nudge_lon_deg` SHALL be present; otherwise **both** SHALL be null (validated in §9). *(Schema permits nulls; validator enforces the pair rule.)* 
+* **Override provenance.** If `override_applied=true`, then `tzid_provisional_source="override"` and `override_scope ∈ {site,mcc,country}`. If `override_applied=false`, then `tzid_provisional_source="polygon"` and `override_scope=null`. 
 * **Valid tzid domain.** `tzid_provisional` values MUST conform to the layer-wide `iana_tzid` definition and SHALL belong to the sealed `tz_world` release (validated in §9).
 
 **Result.** With these anchors and catalogue bindings, S1’s single deliverable `s1_tz_lookup` is fully specified; inputs are pinned to their authoritative schemas; and identity/partition discipline matches the Dictionary and Registry contracts.
@@ -641,7 +645,7 @@ Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `st
 ### 12.9 Typical envelopes (order-of-magnitude)
 
 * `tz_world` size tends to dominate warm-up (index build/load); site scan and row emission scale ~linearly with input row count.
-* Output footprint ~ one row per site (adds `tzid_provisional` and, rarely, `nudge_*`).
+* Output footprint ~ one row per site (adds `tzid_provisional`, override provenance, and, rarely, `nudge_*`).
 
 *Summary:* S1 is I/O- and geometry-bound, deterministic, and scales linearly with the number of sites once a polygon index is available. Parallelise across identities or shard internally behind a single atomic publish to preserve the write-once contract.
 

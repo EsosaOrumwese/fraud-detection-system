@@ -62,14 +62,14 @@
 
 * **Assert eligibility:** Rely on the **2A.S0 gate receipt** for the target `manifest_fingerprint` before referencing any inputs.
 * **Consume sealed inputs only:** Read **`s1_tz_lookup`** for the same `(seed, manifest_fingerprint)` and the sealed **`tz_overrides`** policy; no other sources are permitted.
-* **Apply precedence deterministically:** Where policy applies, select **at most one** active override according to **site » mcc » country**; otherwise retain the polygon result.
+* **Apply precedence deterministically:** Apply overrides **only** when S1 indicates `override_applied=true`; then select **at most one** active override according to **site » mcc » country**. If `override_applied=false`, retain the polygon provisional tzid.
 * **Define “active” override:** An override is **active** iff its `expiry_yyyy_mm_dd` is **null** or **≥ the date of S0.receipt.verified_at_utc** (no wall-clock dependence).
 * **Bind targets:**
   • `site` → the site key `(merchant_id, legal_country_iso, site_order)`;
   • `mcc` → merchant’s MCC (from the sealed mapping if used by the programme);
   • `country` → `legal_country_iso`.
 * **Validate tzids:** Any override `tzid` MUST conform to the layer `iana_tzid` domain (and MAY be required to appear in the sealed `tz_world` release per validators).
-* **Emit final egress:** Write **`site_timezones`** under `[seed, manifest_fingerprint]`, setting `tzid`, `tzid_source ∈ {polygon, override}`, and `override_scope` when overridden; carry forward S1 `nudge_*` unchanged.
+* **Emit final egress:** Write **`site_timezones`** under `[seed, manifest_fingerprint]`, setting `tzid`, `tzid_source ∈ {polygon, override}`, and `override_scope` **only when S1 applied overrides**; carry forward S1 `nudge_*` unchanged.
 * **Remain RNG-free & idempotent.**
 
 **In scope.**
@@ -298,28 +298,39 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 
 For each row in `s1_tz_lookup`:
 
-a) **Define “active”.** An override is **active** iff `expiry_yyyy_mm_dd` is **null** or **≥** the **date** of `S0.receipt.verified_at_utc`. (No wall-clock dependence.)
+a) **Gate by S1 provenance.** If `override_applied=false`:
 
-b) **Compute candidate sets (by scope).**
+* **Do not** evaluate `tz_overrides`.
+* Set `tzid = tzid_provisional`, `tzid_source = "polygon"`, `override_scope = null`.
+* Still enforce tzid domain + tz_world membership (step g).
+
+If `override_applied=true`, proceed with override evaluation below.
+If `override_applied=true`, then `tzid_provisional_source="override"` and
+`override_scope` MUST be set to `{site,mcc,country}`; otherwise **Abort**
+`2A-S2-054 PROVENANCE_INVALID`.
+
+b) **Define "active".** An override is **active** iff `expiry_yyyy_mm_dd` is **null** or **≥** the **date** of `S0.receipt.verified_at_utc`. (No wall-clock dependence.)
+
+c) **Compute candidate sets (by scope).**
 
 * **site:** `scope=site` and `target == (merchant_id, legal_country_iso, site_order)`
 * **mcc:** `scope=mcc` and `target == merchant_mcc` (only if MCC mapping is sealed)
 * **country:** `scope=country` and `target == legal_country_iso`
 
-c) **Uniqueness within scope.** If **>1 active** override exists **within any single scope** for the site, raise **OVERRIDES_DUPLICATE_SCOPE_TARGET (Abort)**.
+d) **Uniqueness within scope.** If **>1 active** override exists **within any single scope** for the site, raise **OVERRIDES_DUPLICATE_SCOPE_TARGET (Abort)**.
 
-d) **Precedence.** Choose the **highest-precedence** non-empty set in the order **site » mcc » country**. If all are empty, **no override applies**.
+e) **Precedence.** Choose the **highest-precedence** non-empty set in the order **site » mcc » country**. If all are empty, **no override applies** (abort as expired/missing for rows where `override_applied=true`).
 
-e) **Validate final tzid.** The chosen tzid (override or polygon pass-through) **MUST**:
+f) **Validate final tzid.** The chosen tzid (override or polygon pass-through) **MUST**:
 
 * conform to layer `$defs.iana_tzid`; and
-* belong to the sealed `tz_world` release’s tzid domain (membership check).
+* belong to the sealed `tz_world` release's tzid domain (membership check).
   Violations raise **UNKNOWN_TZID** (domain) or **TZID_NOT_IN_TZ_WORLD** (membership) as per §9.
 
-f) **Finalise assignment & provenance.**
+g) **Finalise assignment & provenance.**
 
-* If an override is selected and its `tzid` **differs** from `tzid_provisional`, set `tzid = override.tzid`, `tzid_source = "override"`, and `override_scope ∈ {site,mcc,country}`.
-* Otherwise (no override, or override equals provisional), set `tzid = tzid_provisional`, `tzid_source = "polygon"`, and leave `override_scope = null`.
+* If an override is selected (only when `override_applied=true`), set `tzid = override.tzid`, `tzid_source = "override"`, and `override_scope ∈ {site,mcc,country}`.
+* If `override_applied=false`, `tzid_source` remains `polygon` and `override_scope` remains null.
 * Carry through `nudge_lat_deg` / `nudge_lon_deg` exactly as in S1.
 
 ### 7.4 Output emission (identity & immutability)
@@ -424,9 +435,12 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 **V-15 — tzid domain (Abort).** Every `tzid` conforms to the layer-wide **`iana_tzid`** domain.
 **V-15b — tzid membership (Abort).** Every `tzid` appears in the sealed `tz_world` release (compare against `schemas.ingress.layer1.yaml#/tz_world_2025a.tzid`).
 **V-16 — Provenance coherence (Abort).**
-  • If `tzid_source="override"`, then `override_scope ∈ {site,mcc,country}`;
-  • If `tzid_source="polygon"`, then `override_scope` **is null**.
-**V-17 — Override has effect (Abort).** If `tzid_source="override"`, then `tzid ≠ tzid_provisional` from the matching `s1_tz_lookup` row. (If equal, treat as polygon; reporting override is invalid.)
+  • If `tzid_source="override"`, then `override_scope ∈ {site,mcc,country}`;
+  • If `tzid_source="polygon"`, then `override_scope` **is null**.
+  • If `override_applied=true`, then `tzid_provisional_source="override"` and
+    `override_scope ∈ {site,mcc,country}`; if `override_applied=false`, then
+    `tzid_provisional_source="polygon"` and `override_scope` **is null**.
+**V-17 — Override has effect (Abort).** If `override_applied=false`, then `tzid_source` MUST remain `polygon` (no override is allowed). Any override on a polygon-sourced row is `2A-S2-055`.
 **V-18 — Nudge carry-through (Abort).** For each site key, `(nudge_lat_deg, nudge_lon_deg)` in `site_timezones` equals the pair in `s1_tz_lookup`. The pair is either **both null** or **both set**.
 
 ### 9.5 Catalogue discipline (advisory)
@@ -522,10 +536,12 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
   *Remediation:* correct tzid or update the sealed `tz_world` release; rerun.
 * **2A-S2-054 PROVENANCE_INVALID (Abort)** — Inconsistent provenance:
   `tzid_source="override"` but `override_scope ∉ {site,mcc,country}`, or
-  `tzid_source="polygon"` but `override_scope ≠ null`.
+  `tzid_source="polygon"` but `override_scope ≠ null`, or
+  `override_applied=true` with `tzid_provisional_source!="override"`, or
+  `override_applied=false` with `tzid_provisional_source!="polygon"`.
   *Remediation:* set coherent provenance fields; rerun.
-* **2A-S2-055 OVERRIDE_NO_EFFECT (Abort)** — `tzid_source="override"` but `tzid == tzid_provisional`.
-  *Remediation:* mark as polygon if identical, or remove redundant override.
+* **2A-S2-055 OVERRIDE_NO_EFFECT (Abort)** — An override is applied to a row where `override_applied=false` (polygon-sourced provisional).
+  *Remediation:* do not apply overrides when `override_applied=false`; fix S1 provenance or policy gating; rerun.
 * **2A-S2-056 NUDGE_CARRY_MISMATCH (Abort)** — `(nudge_lat_deg, nudge_lon_deg)` don’t exactly match S1 for the same site key (pair rule violated).
   *Remediation:* carry through both fields unchanged (both null or both set).
 
@@ -583,7 +599,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 * `counts.rows_emitted : uint64` — rows written to `site_timezones`
 * `counts.overridden_total : uint64` — rows where `tzid_source="override"`
 * `counts.overridden_by_scope : { site:uint64, mcc:uint64, country:uint64 }`
-* `counts.override_no_effect : uint64` — rows where override tzid == provisional (EXPECT 0 on PASS)
+* `counts.override_no_effect : uint64` — overrides attempted on polygon-sourced rows (EXPECT 0 on PASS)
 * `counts.expired_skipped : uint64` — overrides seen but not active at the S0 cut-off
 * `counts.dup_scope_target : uint64` — duplicate active `(scope,target)` entries (EXPECT 0 on PASS)
 * `counts.mcc_targets_missing : uint64` — MCC overrides whose merchant lacked a mapping (EXPECT 0 on PASS)
@@ -813,3 +829,4 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 *Consumers of this specification MUST resolve shapes from the anchors above and resolve all dataset IDs via the Dataset Dictionary; Registry entries provide licensing/provenance and do not override shape or path law.*
 
 ---
+

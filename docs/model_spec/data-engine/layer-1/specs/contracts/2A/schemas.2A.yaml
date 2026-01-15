@@ -227,6 +227,9 @@ plan:
       - { name: lat_deg,            type: number,                              nullable: false }
       - { name: lon_deg,            type: number,                              nullable: false }
       - { name: tzid_provisional,   $ref: '#/$defs/iana_tzid',                 nullable: false }
+      - { name: tzid_provisional_source, type: string, enum: [polygon, override], nullable: false }
+      - { name: override_scope,     type: string, enum: [site, mcc, country],  nullable: true }
+      - { name: override_applied,   type: boolean,                             nullable: false }
       - { name: nudge_lat_deg,      type: number,                              nullable: true }
       - { name: nudge_lon_deg,      type: number,                              nullable: true }
       - { name: created_utc,        $ref: '#/$defs/rfc3339_micros',            nullable: false }

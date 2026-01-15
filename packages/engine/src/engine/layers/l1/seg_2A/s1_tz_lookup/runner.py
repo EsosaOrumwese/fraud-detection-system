@@ -1105,6 +1105,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             ("lat_deg", pl.Float64),
             ("lon_deg", pl.Float64),
             ("tzid_provisional", pl.Utf8),
+            ("tzid_provisional_source", pl.Utf8),
+            ("override_scope", pl.Utf8),
+            ("override_applied", pl.Boolean),
             ("nudge_lat_deg", pl.Float64),
             ("nudge_lon_deg", pl.Float64),
             ("created_utc", pl.Utf8),
@@ -1148,6 +1151,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 nudge_lat = None
                 nudge_lon = None
                 tzid = None
+                override_applied = False
+                override_scope = None
                 if len(candidates) == 1:
                     tzid = next(iter(candidates))
                 else:
@@ -1159,7 +1164,6 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     if len(candidates) == 1:
                         tzid = next(iter(candidates))
                     else:
-                        override_scope = None
                         override_tzid = None
                         site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
                         if site_key in overrides_site:
@@ -1210,6 +1214,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                 {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
                             )
                         tzid = override_tzid
+                        override_applied = True
                         counts["overrides_applied"] += 1
                         if override_scope == "site":
                             counts["overrides_site"] += 1
@@ -1276,6 +1281,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     checks["unknown_tzid"] = unknown_tzid
                 distinct_tzids.add(tzid)
                 counts["distinct_tzids"] = len(distinct_tzids)
+                tzid_provisional_source = "override" if override_applied else "polygon"
 
                 output_rows.append(
                     (
@@ -1287,6 +1293,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         lat,
                         lon,
                         tzid,
+                        tzid_provisional_source,
+                        override_scope,
+                        override_applied,
                         nudge_lat,
                         nudge_lon,
                         created_utc,
