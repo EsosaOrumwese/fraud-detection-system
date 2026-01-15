@@ -1866,3 +1866,108 @@ Implementation intention:
 1) Add `seg_2B/s3_day_effects/runner.py` using S1/S2 patterns + shared RNG helpers.
 2) Add CLI `engine/cli/s3_day_effects_2b.py`.
 3) Add Makefile wiring (`SEG2B_S3_RUN_ID`, args/cmd, target, `.PHONY`).
+
+## S4 - Zone-group renormalisation (S4.*)
+
+### Entry: 2026-01-15 22:01
+
+Design element: 2B.S4 zone-group renormalisation (s4_group_weights).
+Summary: S4 combines deterministic S1 base shares (by tzid) with S3 day effects,
+then renormalises per-merchant/per-day to a RNG-free group mix. The output must
+be PK-ordered, write-once, and fully validated via the S4 validator set.
+
+Files reviewed (expanded + contracts):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml` (site_timezones ordering)
+
+Pre-implementation plan (detailed, stepwise):
+1) Resolve run identity and authorities (no code changes yet).
+   - Load run_receipt.json to capture `{seed, manifest_fingerprint, run_id}`.
+   - Resolve dictionary, registry, and schema packs from model_spec (dev mode).
+   - Record dictionary_version + registry_version for run-report.
+   - Enforce dictionary-only resolution (no literal paths, no network I/O).
+
+2) Enforce S0 gate evidence and S0-sealed inputs.
+   - Resolve `s0_gate_receipt_2B` for the same manifest_fingerprint and validate
+     against `schemas.2B.yaml#/validation/s0_gate_receipt_v1` (row schema).
+   - Pull `created_utc` from `verified_at_utc` in the receipt (canonical).
+   - Verify `site_timezones` appears in `sealed_inputs_2B` (cross-layer rule).
+   - Note: `s1_site_weights` + `s3_day_effects` are within-segment and not sealed
+     by S0, but MUST be resolved by exact `{seed, manifest_fingerprint}`.
+
+3) Resolve and validate input partitions (exact selection).
+   - Resolve `s1_site_weights`, `site_timezones`, `s3_day_effects` via dictionary.
+   - Enforce exact partition tokens; abort on mismatch (2B-S4-070).
+   - Verify input paths exist before reading (map missing to 2B-S4-020).
+   - Build `id_map` entries for run-report with the resolved paths.
+
+4) Build deterministic day grid from S3 (single authority).
+   - Extract distinct `utc_day` values from `s3_day_effects`.
+   - Sort ascending (YYYY-MM-DD) for deterministic day order.
+   - Use this day grid as the only day set; do not infer or synthesize days.
+
+5) Deterministic join for base shares (1:1 join on site keys).
+   - Stream/merge-join `s1_site_weights` and `site_timezones` on
+     `(merchant_id, legal_country_iso, site_order)` (both ordered by PK).
+   - Abort on missing partner or multiple tzid per key (2B-S4-040/041).
+   - For each merchant, aggregate `base_share` per tz_group_id (tzid) using
+     stable, serial summation in PK order.
+   - Validate per-merchant `sum(base_share)` within epsilon (2B-S4-052).
+   - Persist per-merchant tz_group_id list sorted lexicographically for use
+     in later normalization and row-ordering checks.
+
+6) Combine base shares with S3 gamma and renormalise (RNG-free).
+   - Stream `s3_day_effects` in PK order (merchant_id, utc_day, tz_group_id).
+   - For each merchant/day, collect all tz_group rows for that day, compute
+     `mass_raw = base_share * gamma` and `denom_raw = sum(mass_raw)`.
+   - Require `denom_raw > 0` and a complete gamma row per group/day.
+   - Compute `p_group = mass_raw / denom_raw`.
+   - Apply tiny-negative guard: if `p_group` is in `(-epsilon, 0)` clamp to 0
+     and renormalise once; abort if `p_group < -epsilon` or if the post-pass
+     sum exceeds epsilon (2B-S4-051/057).
+
+7) Materialise output rows in PK order and schema-validate.
+   - Emit rows in PK order `[merchant_id, utc_day, tz_group_id]`.
+   - Columns: `merchant_id, utc_day, tz_group_id, p_group, base_share, gamma,
+     created_utc` and (if enabled) `mass_raw, denom_raw`.
+   - Validate against `schemas.2B.yaml#/plan/s4_group_weights` with the JSON
+     schema adapter (table row schema).
+
+8) Post-publish assertions and write-once publish.
+   - Ensure coverage for every `{merchant, tz_group, utc_day}` (2B-S4-050).
+   - Validate `sum(p_group)=1` per merchant/day within epsilon (2B-S4-051).
+   - Validate `sum(base_share)=1` per merchant within epsilon (2B-S4-052).
+   - Enforce write-once + atomic publish (stage/fsync/rename) with byte-identity
+     checks on re-emits (2B-S4-080/081/082).
+
+9) Run-report (stdout JSON) + optional persisted copy.
+   - Emit single JSON run-report to stdout with spec-required fields:
+     inputs_summary, aggregation + normalisation metrics, publish details,
+     validators, summary, environment, id_map, counters, durations.
+   - Include deterministic samples per spec (rows, normalisation, base_share,
+     coverage days; gamma mismatch sample only on V-09 fail).
+   - MAY persist the same JSON under reports/layer1/2B/state=S4/... (diagnostic).
+
+10) Logging + performance discipline (story aligned).
+   - Emit a story header log: objective + gated inputs + outputs.
+   - Progress logs for the row-emission loop with elapsed, processed/total,
+     rate, ETA (monotonic time).
+   - Keep logs narrative and state-aware (counts describe scope + output stage).
+   - Avoid full-table buffering; stream per merchant/day; bounded memory.
+
+Open confirmations to resolve before coding:
+1) Normalisation epsilon (î) source:
+   - Plan: hard-code a programme constant (proposed `1e-12`) and use the same
+     value for the tiny-negative clamp threshold unless you prefer a different
+     constant. This avoids introducing a new policy input (S4 may read only the
+     three enumerated datasets).
+2) Optional audit fields:
+   - Plan: include `mass_raw` and `denom_raw` in output rows to support the
+     optional audit validators and simplify debugging. Confirm if you want the
+     output minimal (omit both) instead.
+3) Run-report persistence:
+   - Plan: emit to stdout and also persist the same JSON file under the run
+     reports path (diagnostic only). Confirm if you prefer stdout-only.
