@@ -440,10 +440,22 @@ def _validate_payload(
     payload: object,
     ref_packs: Optional[dict[str, dict]] = None,
 ) -> None:
-    schema = copy.deepcopy(_schema_from_pack(schema_pack, path))
-    if ref_packs:
-        for prefix, pack in ref_packs.items():
-            _inline_external_refs(schema, pack, f"{prefix}#")
+    base_schema = _schema_from_pack(schema_pack, path)
+    schema: dict
+    if base_schema.get("type") == "table":
+        schema = None
+        if ref_packs and "schemas.layer1.yaml" in ref_packs:
+            schema = _prepare_row_schema_with_layer1_defs(
+                schema_pack, path, ref_packs["schemas.layer1.yaml"], "schemas.layer1.yaml"
+            )
+        if schema is None:
+            schema = _table_row_schema(schema_pack, path)
+    else:
+        schema = copy.deepcopy(base_schema)
+        if ref_packs:
+            for prefix, pack in ref_packs.items():
+                _inline_external_refs(schema, pack, f"{prefix}#")
+    schema = normalize_nullable_schema(schema)
     validator = Draft202012Validator(schema)
     errors = list(validator.iter_errors(payload))
     if errors:

@@ -1606,3 +1606,377 @@ Actions recorded:
    `override_scope` present, and that violations raise `2A-S2-054`.
 2) Expanded **V-16** and **2A-S2-054** definitions to include the new
    provenance mismatch scenarios (override_applied vs provisional source).
+
+## S3 - Timetable cache (S3.*)
+
+### Entry: 2026-01-15 02:25
+
+Design element: 2A.S3 timetable cache build (contract review + pre-implementation plan).
+Summary: Completed the S3 contract review (state spec + schema/dictionary/registry). This entry
+captures the binding requirements, open confirmations, and the step-by-step plan before any code.
+
+Contract review notes (binding surfaces + implications):
+1) **Inputs (sealed + dictionary-resolved only).**
+   - `tzdb_release` (required) resolved via Dictionary to `artefacts/priors/tzdata/{release_tag}/`.
+   - `tz_world_<release>` (required for coverage) resolved via Dictionary; read tzid set only.
+   - S0 gate receipt must exist and match `manifest_fingerprint` (no re-hash).
+2) **Output.**
+   - `tz_timetable_cache` is an object manifest under
+     `data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/`.
+   - Manifest fields (minimum): `manifest_fingerprint`, `tzdb_release_tag`, `tzdb_archive_sha256`,
+     `tz_index_digest`, `rle_cache_bytes`, `created_utc`.
+3) **Determinism & identity.**
+   - RNG-free; `created_utc == S0.receipt.verified_at_utc`.
+   - Path-embed equality required; write-once (byte-identical re-emits only).
+4) **Canonicalisation law.**
+   - Stable total order: `tzid` ASCII-lex, then transition instant ascending; canonical encoding
+     used for `tz_index_digest` (SHA-256 of canonical bytes).
+5) **Coverage & integrity.**
+   - Every tzid in sealed `tz_world` must appear in the compiled index (superset allowed).
+   - `rle_cache_bytes > 0`; referenced cache files must exist and total bytes must match.
+6) **Validators / error codes (must be implemented).**
+   - V-01..V-16 with mapping to 2A-S3-001/010/011/012/013/020/021/030/040/042/050/060/061/062/051/052/055/053/041.
+7) **Run-report + logging.**
+   - Run-report JSON required (11.2) with compiled counts, coverage, digests, output path.
+   - Structured logs must emit GATE/INPUTS/TZDB_PARSE/COMPILE/CANONICALISE/COVERAGE/VALIDATION/EMIT.
+
+Open confirmations (before code):
+1) **Canonical encoding format:** The spec says "canonical encoding" by hashing law but does not
+   specify the byte layout. Do we have an existing hashing/canonicalisation spec (or code) to reuse,
+   or should I define a deterministic binary/JSON layout here and document it in the run-report?
+2) **Cache payload format:** The manifest includes `rle_cache_bytes`, but the file format and
+   naming are not defined beyond "files + JSON manifest". Is there an expected payload format
+   (RLE encoding, shard naming, etc.), or do we want to define a minimal v0 format now?
+3) **Coverage source:** Confirm S3 should use the tzid set from `tz_world_2025a` strictly as
+   the coverage domain (no tzdb-only tzids required), matching V-15 as written.
+
+Pre-implementation plan (no code yet):
+1) **Input resolution + gate:**
+   - Load S0 receipt, verify manifest_fingerprint, read sealed inputs index.
+   - Resolve `tzdb_release` + `tz_world_<release>` via Dictionary and validate schema refs.
+2) **Tzdb digest verification:**
+   - Compute SHA-256 of the sealed tzdb archive bytes and compare to `tzdb_archive_sha256`.
+3) **Parse + compile:**
+   - Parse tzdb archive into per-`tzid` transitions (UTC instants + offset minutes).
+   - Enforce strict monotonicity per tzid; bounds check offsets; coalesce redundant transitions.
+4) **Canonicalise + digest:**
+   - Establish canonical ordering (tzid ASCII-lex, instant asc), encode deterministically, hash.
+5) **Coverage check:**
+   - Read tzid set from sealed `tz_world` and verify inclusion in compiled index.
+6) **Emit cache + manifest:**
+   - Write payload files + manifest to staging; compute `rle_cache_bytes`.
+   - Enforce path-embed equality, write-once semantics; atomic publish.
+7) **Run-report + logs:**
+   - Emit required run-report fields and structured log events per §11.
+
+Decision needed before coding:
+- Answer the three open confirmations above so the cache format and digest law
+  are pinned, then I can proceed to implementation.
+
+### Entry: 2026-01-15 02:38
+
+Design element: 2A.S3 open confirmations resolved (decisions before coding).
+Summary: The open S3 confirmations were approved. This entry pins the cache
+format, digest law, and coverage domain so implementation is deterministic and
+auditable.
+
+Decisions recorded before implementation (binding for this pass):
+1) **Canonical encoding + digest law.**
+   - Use a deterministic binary encoding for the compiled tz index.
+   - The cache payload bytes are **the canonical encoding bytes**; compute
+     `tz_index_digest = sha256(cache_payload_bytes)` directly.
+   - Encoding layout (fixed, ASCII-safe where relevant):
+     - Header: magic `TZC1` (4 bytes ASCII), version `0x0001` (uint16, LE),
+       tzid_count (uint32, LE).
+     - For each tzid in ASCII-lex order:
+       - tzid length (uint16, LE) + tzid bytes (ASCII).
+       - transition_count (uint32, LE).
+       - For each transition (ordered by UTC instant asc):
+         - transition_utc_seconds (int64, LE).
+         - offset_minutes (int32, LE).
+     - The first transition per tzid is the sentinel `instant = -2**63`
+       representing the pre-first-transition offset.
+2) **Cache payload format + naming.**
+   - Emit a **single** cache payload file named `tz_cache_v1.bin` under the
+     tz_timetable_cache partition.
+   - Set `rle_cache_bytes` to the **byte size of tz_cache_v1.bin** (no other
+     payload shards in v0).
+   - Manifest filename: `tz_timetable_cache.json` (JSON object per schema).
+3) **Coverage domain.**
+   - Use the sealed `tz_world_2025a` tzid set as the authoritative coverage
+     domain (must be included in compiled index; superset allowed).
+
+Implementation notes to enforce with these decisions:
+1) The binary encoding and digest must be **identical** across re-runs; use
+   only ASCII tzid bytes and fixed-endian integers.
+2) `created_utc` must equal `S0.receipt.verified_at_utc` (deterministic).
+3) `rle_cache_bytes > 0` and equals `tz_cache_v1.bin` size; file existence is
+   enforced before atomic publish.
+
+### Entry: 2026-01-15 03:10
+
+Design element: 2A.S3 timetable cache runner (implementation, step-by-step).
+Summary: Implemented the S3 runner/CLI/Makefile wiring per the approved
+decisions. This entry records the detailed build steps, guards, and log/report
+structure as implemented.
+
+Implementation actions (detailed):
+1) **New S3 runner package.**
+   - Added `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`.
+   - Implemented full S3 flow: gate receipt validation, sealed-input checks,
+     tzdb digest verification, tz_world tzid coverage, canonical encoding,
+     cache emit, and run-report/logs.
+2) **Input authority + schema checks.**
+   - `s0_gate_receipt_2A`, `sealed_inputs_2A`, `tzdb_release`, `tz_world_2025a`,
+     `tz_timetable_cache` resolved via Dictionary (no literal paths).
+   - Registry vs dictionary schema_ref mismatches hard-fail with 2A-S3-080.
+   - Receipt payload validated against `schemas.2A.yaml#/validation/s0_gate_receipt_v1`
+     and manifest_fingerprint checked for path/embed equality.
+3) **Tzdb archive verification.**
+   - Read `tzdb_release.json|yaml` inside the release folder and validate
+     `release_tag` + `archive_sha256` (2A-S3-011/013).
+   - Locate a single `*.tar.gz`/`*.tgz` archive in the release directory;
+     compute SHA-256 and enforce exact match to `archive_sha256` (2A-S3-013).
+4) **Compilation pipeline.**
+   - Extract tzdb archive into a temp dir; compile tzif files using `zic`
+     (`-b fat`) when available.
+   - Windows support uses `wsl zic` when native `zic` is absent.
+   - If `zic` is unavailable or compilation fails, hard-fail with 2A-S3-020.
+5) **Transition extraction + canonicalisation.**
+   - Parse TZif files with `zoneinfo._common.load_data`.
+   - Build per-tzid transitions with sentinel `instant = -2**63` and
+     coalesce identical offsets.
+   - Enforce strict monotone instants (2A-S3-051) and offset bounds
+     (-900..+900, 2A-S3-052).
+   - Canonical encode into `tz_cache_v1.bin` using the approved binary layout;
+     `tz_index_digest = sha256(cache_bytes)` and `rle_cache_bytes = len(cache_bytes)`.
+6) **Coverage enforcement.**
+   - Load tzid set from sealed `tz_world_2025a` (pyarrow, tzid column only).
+   - Abort if any tz_world tzid is missing from compiled index (2A-S3-053).
+7) **Emit + immutability.**
+   - Stage output to a temp directory and publish atomically.
+   - If partition exists, require byte-identical output; otherwise abort
+     with 2A-S3-041.
+   - Manifest written as `tz_timetable_cache.json` with required fields
+     and `created_utc = receipt_verified_utc`.
+8) **Observability.**
+   - Structured events: GATE/INPUTS/TZDB_PARSE/COMPILE/CANONICALISE/COVERAGE/
+     VALIDATION/EMIT with manifest_fingerprint and timestamps.
+   - Run-report written to
+     `runs/<run_id>/reports/layer1/2A/state=S3/manifest_fingerprint=<fp>/s3_run_report.json`
+     with compiled counts, coverage summary, digest, and output files list.
+
+Notes recorded for review:
+1) **Offset seconds not divisible by 60** are rounded to minutes and captured
+   as a small `adjustments` sample in the run-report for transparency. This is
+   not a spec-defined output dataset; it remains diagnostic only.
+2) **Binary cache payload only**: the cache payload bytes are the canonical
+   digest source; no auxiliary JSON index file is emitted in v0.
+
+Wiring changes:
+1) Added CLI entry `packages/engine/src/engine/cli/s3_timetable_2a.py`.
+2) Added Makefile wiring for `segment2a-s3` and its argument block.
+
+### Entry: 2026-01-15 03:40
+
+Design element: S3 receipt schema validation (table-schema handling).
+Summary: The S3 run failed when validating `s0_gate_receipt_v1` because the
+receipt schema is defined as a **table** schema (`type: table`), and our
+`_validate_payload` helper attempted to validate the table schema directly with
+`Draft202012Validator`, which does not recognize the `table` type. We must
+convert table schemas to **row schemas** before validating single-row payloads
+and inline the external `$defs` referenced from `schemas.layer1.yaml`.
+
+Decision reasoning (before code changes, detailed):
+1) **Convert table schema → row schema.**
+   - The receipt payload is a single row, so the correct validation target is
+     the row schema derived from the table definition.
+   - This matches how `validate_dataframe` works elsewhere: it validates rows,
+     not the table envelope itself.
+2) **Inline external $defs for layer1 refs.**
+   - `s0_gate_receipt_v1` uses `$ref: schemas.layer1.yaml#/$defs/hex64`.
+   - For table rows, the schema must resolve those refs locally to avoid
+     `UnknownType` or unresolved-ref errors at runtime.
+3) **Keep strict validation and error codes unchanged.**
+   - The fix must not relax validation; it only changes the schema resolution
+     path so the same rules can be enforced correctly.
+
+Implementation plan (before patching code):
+1) Update `_validate_payload` in `seg_2A/s0_gate/runner.py`:
+   - Detect `type: table` and build a row schema via
+     `_prepare_row_schema_with_layer1_defs` when `schemas.layer1.yaml` is
+     available in `ref_packs`.
+   - Fallback to `_table_row_schema` if no external pack is supplied (internal
+     refs only).
+2) Update S3 runner calls to `_validate_payload` so table validations pass the
+   layer1 schema pack (`ref_packs={"schemas.layer1.yaml": schema_layer1}`).
+3) Re-run `segment2a-s3` and confirm the receipt validation passes with the
+   same strict semantics.
+
+### Entry: 2026-01-15 03:50
+
+Design element: S3 error logging payload serialization (tzdb digest mismatch path).
+Summary: The S3 run failed while emitting an `S3_ERROR` because the payload
+included a `FileDigest` object (`archive_digest`) rather than its string
+hex digest. JSON serialization failed before the intended error could be
+raised, masking the underlying validation path.
+
+Decision reasoning (before code changes, detailed):
+1) **Error logging must never crash.**
+   - Failure events are part of the operator story; they must be emitted
+     reliably even when upstream validation fails.
+2) **Use `sha256_hex` explicitly.**
+   - `sha256_file(...)` returns a structured object; only the hex string should
+     be stored in error detail or comparisons.
+3) **Keep validation semantics unchanged.**
+   - This is a logging/typing fix only, not a relaxation of the digest check.
+
+Implementation plan (before patching code):
+1) Compare `archive_digest.sha256_hex` against `tzdb_archive_sha256` instead of
+   comparing the object directly.
+2) In the error detail for `2A-S3-013`, emit `computed` as the hex string.
+3) Re-run `segment2a-s3` to confirm the failure path (if any) now emits a
+   structured error rather than a serialization crash.
+
+### Entry: 2026-01-15 04:05
+
+Design element: S3 tzdb compilation input selection (zic source filtering).
+Summary: The S3 run failed with `2A-S3-020` because we passed **non-tzdb source**
+files (e.g., `CONTRIBUTING`, `LICENSE`, `Makefile`) into `zic`. The current
+`_list_tzdb_sources` collects any file without an extension, which incorrectly
+includes documentation and build files present in the tzdb tarball.
+
+Decision reasoning (before code changes, detailed):
+1) **zic must only ingest tzdb source files.**
+   - Passing non-source files causes zic to emit syntax errors and abort.
+   - We should treat this as an input-selection bug, not a data issue.
+2) **Use an allowlist + content sniff for robustness.**
+   - Known tzdb source filenames (e.g., `africa`, `asia`, `europe`, `etcetera`,
+     `northamerica`, `southamerica`, `backward`, `backzone`, `factory`, etc.)
+     should always be included when present.
+   - For any file with no extension that is **not** in the allowlist, read a
+     small prefix and include it only if the first non-comment line starts with
+     `Zone`, `Rule`, or `Link`. This keeps the logic resilient to future tzdb
+     releases while excluding README/Makefile-style entries.
+3) **Keep leapseconds separate.**
+   - The `leapseconds` file is passed via `-L` and should not be included in
+     the main source list.
+
+Implementation plan (before patching code):
+1) Update `_list_tzdb_sources` in `seg_2A/s3_timetable/runner.py`:
+   - Add a canonical allowlist of tzdb source filenames.
+   - Add a `_looks_like_tz_source` helper to filter unknown no-extension files.
+2) Keep the `leapseconds` path behavior unchanged (`-L` only).
+3) Re-run `segment2a-s3` and confirm zic now succeeds.
+
+### Entry: 2026-01-15 04:20
+
+Design element: S3 offset bounds vs tzdb LMT offsets.
+Summary: After fixing zic inputs, the S3 run still fails with
+`2A-S3-052 OFFSET_OUT_OF_RANGE`. The compiled tzdb for `America/Juneau` contains
+an offset of **+54139 seconds** (≈ +902.3 minutes), which exceeds the current
+spec bounds (−900…+900). This appears to be an early LMT offset present in the
+official tzdb archive; the failure is therefore a spec vs real-data mismatch.
+
+Observed evidence:
+1) `s3_run_report.json` reports `offset_minutes=902` for `America/Juneau`.
+2) Inspecting the compiled tzif file shows `max utcoff = 54139` seconds for
+   `America/Juneau`, confirming the out-of-range value originates in tzdb.
+
+Decision options (before code changes, detailed):
+1) **Broaden bounds (spec update).**
+   - Update S3 spec to allow offsets beyond ±900 (e.g., ±960 or ±1000) so
+     tzdb LMT offsets pass without special-casing.
+   - Implementation change: update the bounds check accordingly.
+2) **Allow an exception for the sentinel pre-transition offset.**
+   - Permit out-of-range offsets only when `instant == MIN_INSTANT`, since
+     these are pre-history LMT values and not modern offsets.
+   - Requires spec update to clarify the exception.
+3) **Keep strict abort (no change).**
+   - This remains fully spec-compliant but blocks S3 on current tzdb data.
+
+Recommendation to user (pending approval):
+Option 2 is the smallest deviation: it keeps the strict bound for all real
+transitions while allowing tzdb LMT prehistory values at the sentinel instant.
+If you prefer no exceptions, we can instead broaden the global bounds, but that
+is a larger spec change.
+
+### Entry: 2026-01-15 04:35
+
+Design element: S3 offset-bound exception for sentinel prehistory rows.
+Summary: User approved **Option 2**: allow out-of-range offsets only for the
+sentinel prehistory row (`instant == MIN_INSTANT`). This aligns with tzdb LMT
+values while preserving strict bounds for all real transitions.
+
+Decision reasoning (before code changes, detailed):
+1) **Scope-limited exception** keeps the integrity of V-13 for actual timeline
+   transitions while acknowledging LMT quirks encoded by tzdb.
+2) **No global bound widening** avoids masking real data errors and keeps the
+   semantics tight for downstream consumers.
+3) **Spec alignment required** so this exception is explicitly documented and
+   auditable (no implicit behavior change).
+
+Implementation plan (before patching code):
+1) Update `state.2A.s3.expanded.md`:
+   - Amend V-13 / bounds language to permit out-of-range offsets *only* when
+     `instant == MIN_INSTANT` (the sentinel prehistory entry).
+   - Keep V-13 as abort for all other transitions.
+2) Update S3 runner:
+   - When enforcing offset bounds, skip the bounds check for the sentinel
+     entry and record the min/max from the non-sentinel transitions.
+3) Re-run `segment2a-s3` and confirm it passes with tzdb 2025a while still
+   enforcing bounds for real transitions.
+
+### Entry: 2026-01-15 04:45
+
+Design element: S3 sentinel offset exception (implementation update).
+Summary: Implemented the sentinel-only exception in both the spec and the S3
+runner to allow tzdb LMT offsets at `instant == MIN_INSTANT` while keeping
+strict bounds for all other transitions.
+
+Implementation actions (step-by-step, detailed):
+1) Updated `state.2A.s3.expanded.md`:
+   - Added the sentinel exception to the compile step, bounds section, V-13,
+     and the 2A-S3-052 error description.
+2) Updated S3 runner offset check:
+   - In `run_s3`, when validating offsets, skip the bounds check if the
+     transition instant equals `MIN_INSTANT`.
+   - All non-sentinel transitions still hard-fail on offsets outside
+     (−900…+900).
+3) Prepared to re-run `segment2a-s3` to confirm S3 now completes on tzdb 2025a.
+
+### Entry: 2026-01-15 05:05
+
+Design element: S3 tzdb staging location (run-local temp).
+Summary: User requested that tzdb extraction/compilation temp work happen under
+the run folder (not `artefacts/priors/tzdata/...`) to avoid accidentally
+checking temp directories into git.
+
+Decision reasoning (before code changes, detailed):
+1) **Keep artefacts immutable.** `artefacts/` is a sealed input location; we
+   should not create transient write artifacts under it.
+2) **Run-local staging** keeps temp directories within `runs/<run_id>/tmp`,
+   which is already treated as runtime scratch.
+3) **Best-effort cleanup** prevents temp buildup across repeated runs.
+
+Implementation plan (before patching code):
+1) Change `_compile_tzdb` to accept a `tmp_base` directory (run temp root) and
+   create `s3_tzdb_*` folders under it instead of using `archive_path.parent`.
+2) Return both `output_dir` and `tmp_root` so the caller can clean up.
+3) In `run_s3`, wrap the compile + parse block in a `try/finally` and
+   `shutil.rmtree(tmp_root, ignore_errors=True)` once tzif parsing is complete.
+
+### Entry: 2026-01-15 05:20
+
+Design element: S3 run-local staging (implementation update).
+Summary: Implemented run-folder staging for tzdb compilation and cleaned up
+temp work directories after parsing to prevent artefacts/ pollution.
+
+Implementation actions (step-by-step, detailed):
+1) Updated `_compile_tzdb` signature to accept `tmp_base` and create
+   `s3_tzdb_*` folders under `run_paths.tmp_root` (run-local temp).
+2) Returned `(output_dir, tmp_root)` so the caller controls cleanup.
+3) Wrapped the compile/parse block in `run_s3` with a `try/finally` cleanup:
+   `shutil.rmtree(tmp_root, ignore_errors=True)` once tzif parsing completes.
+4) Re-ran `segment2a-s3` and confirmed green; the temp directory is now under
+   `runs/<run_id>/tmp/` and does not appear in `artefacts/`.

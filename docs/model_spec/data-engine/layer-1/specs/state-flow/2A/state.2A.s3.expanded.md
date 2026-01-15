@@ -284,7 +284,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 3. **Compile transitions (per `tzid`).**
 
    * Parse the sealed tzdb into a per-`tzid` sequence of **civil-time change instants** (UTC) and **offset minutes**.
-   * For each `tzid`, the transition instants **MUST** be strictly increasing; offset minutes **MUST** fall within the layer bounds (−900…+900) (see V-13).
+   * For each `tzid`, the transition instants **MUST** be strictly increasing; offset minutes **MUST** fall within the layer bounds (−900…+900) **except** for the sentinel prehistory entry (`instant == MIN_INSTANT`) (see V-13).
    * If consecutive transitions would yield **identical effective offsets**, **coalesce** them (remove redundant entries) without altering semantics.
 4. **Normalise & canonicalise.**
 
@@ -300,7 +300,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 
 * **Coverage:** The compiled index **SHALL** include **every `tzid` present in the sealed `tz_world_<release>`** (a superset is allowed).
 * **Ordering:** Within each `tzid`, transition instants **SHALL** be strictly increasing.
-* **Bounds:** Each recorded offset **SHALL** be an integer number of minutes within the layer range; non-finite/NaN values are forbidden.
+* **Bounds:** Each recorded offset **SHALL** be an integer number of minutes within the layer range, **except** for the sentinel prehistory entry (`instant == MIN_INSTANT`); non-finite/NaN values are forbidden.
 * **Integrity:** Recomputing the canonical index **MUST** yield the recorded `tz_index_digest`; `rle_cache_bytes` **MUST** be strictly greater than zero; all cache files referenced by the manifest **MUST** exist.
 
 ### 7.4 Emission & identity discipline
@@ -405,7 +405,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 ### 9.5 Transition sanity (mandatory)
 
 **V-12 — Strict order per `tzid` (Abort).** Transition instants are strictly increasing.
-**V-13 — Offset bounds (Abort).** All offsets are integral minutes within the layer range (−900…+900).
+**V-13 — Offset bounds (Abort).** All offsets are integral minutes within the layer range (−900…+900), **except** for the sentinel prehistory entry (`instant == MIN_INSTANT`).
 **V-14 — No non-finite values (Abort).** No NaN/Inf in instants or offsets.
 
 ### 9.6 Coverage (mandatory)
@@ -500,7 +500,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 
 * **2A-S3-051 TRANSITION_ORDER_INVALID (Abort)** — Non-monotonic transition instants for a `tzid`.
   *Remediation:* sort/validate per-`tzid` transitions strictly ascending; rerun.
-* **2A-S3-052 OFFSET_OUT_OF_RANGE (Abort)** — Offset minutes outside allowed layer bounds (−900…+900).
+* **2A-S3-052 OFFSET_OUT_OF_RANGE (Abort)** — Offset minutes outside allowed layer bounds (−900…+900), except for the sentinel prehistory entry (`instant == MIN_INSTANT`).
   *Remediation:* clamp/validate bounds according to layer policy; rerun.
 * **2A-S3-055 NONFINITE_VALUE (Abort)** — NaN/Inf encountered in instants or offsets.
   *Remediation:* sanitise inputs; ensure numeric policy compliance.
