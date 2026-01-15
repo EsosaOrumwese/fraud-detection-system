@@ -2224,8 +2224,312 @@ Summary: After unpacking dictionary and registry tuples, S4 executed end-to-end
 and emitted the legality report successfully for the current run_id.
 
 Execution notes:
-1) `segment2a-s4` completed green for run_id
+  1) `segment2a-s4` completed green for run_id
    `a988b06e603fe3aa90ac84a3a7e1cd7c`.
 2) `s4_legality_report.json` emitted under
    `data/layer1/2A/legality_report/seed=42/manifest_fingerprint=241f.../`
    with `status=PASS`, and the run-report was updated accordingly.
+
+## S5 - Validation bundle & PASS flag (S5.*)
+
+### Entry: 2026-01-15 04:40
+
+Design element: S5 contract review + pre-implementation plan (validation bundle + PASS gate).
+Summary: Reviewed `state.2A.s5.expanded.md` plus the S5-related schema/dictionary/registry
+entries and drafted the step-by-step implementation plan with open confirmations before
+touching code.
+
+Relevant contract sources reviewed:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s5.expanded.md`
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/2A/schemas.2A.yaml`
+   - `#/validation/validation_bundle_2A`
+   - `#/validation/bundle_index_v1`
+   - `#/validation/validation_bundle_index_2A`
+   - `#/validation/passed_flag`
+   - `#/validation/s0_gate_receipt_v1`
+   - `#/cache/tz_timetable_cache`
+   - `#/validation/s4_legality_report`
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml`
+   - inputs: `s0_gate_receipt_2A`, `tz_timetable_cache`, `site_timezones`, `s4_legality_report`
+   - outputs: `validation_bundle_2A`, `validation_bundle_index_2A`, `validation_passed_flag_2A`
+4) `docs/model_spec/data-engine/layer-1/specs/contracts/2A/artefact_registry_2A.yaml`
+   - lineage + schema anchors for bundle/index/flag and evidence inputs.
+
+Plan (before implementation, detailed):
+1) Resolve run identity + contract packs deterministically.
+   - Read `run_receipt.json` to obtain `run_id`, `seed`, `parameter_hash`,
+     and `manifest_fingerprint` (S5 is fingerprint-scoped; `seed` used for logs).
+   - Load schema packs (`schemas.2A.yaml`, plus layer1 defs) and the
+     dictionary/registry using `ContractSource` so schema refs are authoritative.
+   - Enforce authority precedence: Schema > Dictionary > Registry; any mismatch
+     between dictionary vs registry schema refs triggers `2A-S5-080`.
+
+2) Gate check (V-01).
+   - Resolve `s0_gate_receipt_2A` by dictionary ID, render path with
+     `{manifest_fingerprint}`, and load JSON.
+   - Validate receipt against `#/validation/s0_gate_receipt_v1` and enforce
+     embedded `manifest_fingerprint` equals the path token (path↔embed equality).
+   - Log `GATE` event and validator V-01 PASS/FAIL.
+
+3) Resolve required evidence inputs by ID (V-02).
+   - `tz_timetable_cache` (manifest_fingerprint-scoped files).
+   - `site_timezones` (discovery surface) (seed + manifest_fingerprint).
+   - `s4_legality_report` (seed + manifest_fingerprint).
+   - Use dictionary path templates only; no literal or relative paths.
+   - Apply registry existence/license checks (fail closed on missing registry entry).
+
+4) Cache readiness checks (V-04).
+   - Load `tz_timetable_cache.json` from the S3 cache directory.
+   - Validate schema `#/cache/tz_timetable_cache`.
+   - Enforce path↔embed equality for manifest_fingerprint and ensure payload
+     is non-empty (referenced files exist; `rle_cache_bytes > 0`).
+   - Decide on whether to copy only the manifest or include binary cache bytes
+     in the bundle (see confirmations below).
+
+5) Seed discovery (V-03).
+   - Discover `SEEDS` by enumerating the dictionary path family for
+     `site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/`.
+   - Treat discovery as catalogue existence only; do not read row data.
+   - Sort seeds numerically to keep deterministic ordering in index and logs.
+   - If `SEEDS` is empty, continue (allowed) but ensure bundle still includes
+     at least one evidence file.
+
+6) S4 coverage & PASS checks (V-05).
+   - For every `seed` in `SEEDS`, resolve the S4 report path and load JSON.
+   - Validate schema `#/validation/s4_legality_report`.
+   - Enforce embedded `seed` and `manifest_fingerprint` match path tokens.
+   - Require `status == "PASS"`; otherwise record `2A-S5-030` and abort.
+
+7) Bundle staging (validation_bundle_2A).
+   - Stage under a run-local temp root (`runs/<run_id>/tmp/_tmp.s5_bundle_<uuid>/`).
+   - Copy evidence files **verbatim** (byte-for-byte) into the staging root:
+     - All S4 reports (one per seed).
+     - S3 cache manifest snapshot (see confirmation on inclusion).
+     - Optional checks/metrics omitted unless explicitly required.
+   - Track each staged file’s relative path and SHA-256.
+
+8) Build `index.json` (V-06…V-10).
+   - Create `index.json` with `files: [{path, sha256_hex}]`.
+   - Paths are bundle-root relative; enforce no absolute/`..` segments.
+   - Sort file paths in ASCII-lex order; reject duplicates.
+   - Ensure every staged file (except `_passed.flag`) is listed and nothing
+     outside the bundle root is referenced.
+   - Validate against `#/validation/bundle_index_v1`.
+
+9) Compute `_passed.flag` (V-12…V-14).
+   - Stream-hash raw bytes of all files listed in `index.json` in index order.
+   - Write `_passed.flag` as `sha256_hex = <hex64>` (single ASCII line).
+   - Validate hex format and digest match.
+
+10) Atomic publish + immutability (V-15…V-16).
+   - Publish bundle root and `_passed.flag` under
+     `data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/`
+     (manifest_fingerprint only; no seed partitions).
+   - Use atomic move; if target exists, require byte-identical content
+     or abort with `2A-S5-060`.
+
+11) Run-report + structured logs.
+   - Emit a run-report with required fields (seed list, S4 coverage counts,
+     cache manifest metadata, bundle/index/digest checks).
+   - Emit structured events: `GATE`, `DISCOVERY`, `EVIDENCE`, `INDEX`, `DIGEST`,
+     `VALIDATION`, `EMIT` with timestamp/segment/state/manifest_fingerprint.
+   - Ensure log lines tell the story (gate → discovery → evidence → index → digest → emit).
+
+Open confirmations before coding:
+1) **Failure posture vs bundle emission.** Spec says any validation failure
+   aborts (V-01…V-16), but also says the bundle can record failure evidence
+   (no `_passed.flag`). Should S5 **abort without publishing** on any failure,
+   or **publish a bundle without `_passed.flag`** when failures occur?
+2) **Evidence layout inside the bundle.** Proposed deterministic layout:
+   - `evidence/s4/seed={seed}/s4_legality_report.json`
+   - `evidence/s3/tz_timetable_cache.json`
+   Is this layout acceptable, or do you want bundle paths to mirror the
+   dictionary paths more directly?
+3) **Cache manifest inclusion policy.** The spec says S3 manifest snapshot
+   MAY be included. Should we **always include** `tz_timetable_cache.json`
+   (recommended to keep bundles non-empty and evidence complete), or only
+   include it when `SEEDS` is empty?
+4) **Run-report timestamps.** The spec discourages wall-clock time; should we
+   derive `started_utc`/`finished_utc` from the S0 receipt `verified_at_utc`
+   (deterministic) and set `durations.wall_ms` to 0, or is using actual
+   run timestamps acceptable for the run-report?
+
+### Entry: 2026-01-15 04:45
+
+Design element: S5 confirmations resolved (pre-implementation).
+Summary: User approved the recommended postures for failure handling, bundle
+layout, cache manifest inclusion, and deterministic run-report timestamps.
+
+Decisions recorded before implementation:
+1) **Failure posture:** On any validation failure, publish the bundle **without**
+   `_passed.flag` (so evidence is preserved) and treat absence of the flag as
+   the gate signal. No PASS flag is emitted on failure.
+2) **Bundle layout:** Use a stable evidence sub-tree:
+   - `evidence/s4/seed={seed}/s4_legality_report.json`
+   - `evidence/s3/tz_timetable_cache.json`
+   These paths are indexed and ASCII-lex sorted.
+3) **Cache manifest inclusion:** Always include `tz_timetable_cache.json` in
+   the bundle (even when `SEEDS` is empty) to keep evidence complete.
+4) **Run-report timestamps:** Use deterministic timestamps derived from
+   `s0_gate_receipt_2A.verified_at_utc`; set `durations.wall_ms = 0`.
+
+### Entry: 2026-01-15 04:49
+
+Design element: S5 index self-hash conflict (pre-implementation design callout).
+Summary: `bundle_index_v1` requires `sha256_hex` for each file. V-09 says every
+file in the bundle root (except `_passed.flag`) must appear in the index. If
+`index.json` must list itself with a hash, the hash becomes self-referential and
+non-computable. This is a spec conflict that needs a deterministic resolution.
+
+Reasoning and decision:
+1) The project outcome is a deterministic, verifiable bundle digest over a
+   stable evidence set. Including `index.json` inside itself makes the digest
+   ill-defined (no fixed point).
+2) Prior segments (1A/1B) avoid this by not requiring a per-file hash; 2A’s
+   `bundle_index_v1` explicitly requires `sha256_hex`, so we cannot do the same.
+3) To keep the digest computable and deterministic, S5 will **exclude
+   `index.json` from the index** and treat V-09 as "all files except
+   `_passed.flag` **and** `index.json` are listed."
+
+Decision recorded before implementation:
+- Exclude `index.json` from the `files[]` list and from the digest inputs.
+- Update the V-09 check to ignore `index.json` (and `_passed.flag`) when
+  comparing bundle root files against index entries.
+- Log this as a spec deviation for future spec update.
+
+### Entry: 2026-01-15 05:01
+
+Design element: S5 implementation gap fixes (authority packs, validator mapping, partitioning, and wiring).
+Summary: Before coding S5, tighten the runner to honor all S5 validators, align
+error codes with the spec table, and wire CLI/Makefile support for state-by-state
+execution. These changes preserve the approved failure posture (publish bundle
+without `_passed.flag` on FAIL) and the index self-hash deviation recorded above.
+
+Plan (before implementation, detailed):
+1) Schema authority coverage (dictionary/registry alignment).
+   - Load the 1B schema pack (`schemas.1B.yaml`) alongside `schemas.2A.yaml` and
+     `schemas.layer1.yaml` because the 2A dictionary references 1B anchors
+     (`site_locations`, `validation_bundle_1B`, `passed_flag`).
+   - Ensure `_assert_schema_ref` accepts `schemas.1B.yaml` refs so S5 does not
+     incorrectly fail on valid upstream schema anchors.
+
+2) Error-code mapping alignment (V-02 table).
+   - Replace the custom `2A-S5-080` authority-mismatch error with the spec’s
+     **2A-S5-010 INPUT_RESOLUTION_FAILED**, since mismatched schema refs or
+     missing registry entries are part of “input resolution failed.”
+   - Wrap dictionary/registry lookups in try/except and record
+     **2A-S5-010** with dataset_id + detail rather than raising uncaught
+     `ContractError`.
+
+3) Evidence verbatim validator (V-11).
+   - Extend `_copy_verbatim` to verify that the written bytes equal the source
+     bytes; if they differ, record **2A-S5-046 EVIDENCE_NOT_VERBATIM** and
+     mark the run `FAIL` (bundle still published without `_passed.flag`).
+   - Keep the check lightweight (file-size match + byte equality for the
+     JSON evidence files).
+
+4) Partitioning validator (V-15).
+   - Verify `validation_bundle_2A` dictionary entry has partitioning exactly
+     `["manifest_fingerprint"]` and that the rendered output path contains
+     the manifest token and **does not** include seed.
+   - If violated, record **2A-S5-012 PARTITION_PURITY_VIOLATION** and fail.
+
+5) Story logging and wiring.
+   - Add concise, narrative INFO logs for: evidence staging, index build,
+     digest computation, and publish decision so the run log reads as a
+     coherent story (Gate → Discovery → Evidence → Index → Digest → Emit).
+   - Add `engine.cli.s5_validation_bundle_2a` CLI and Makefile wiring
+     (`SEG2A_S5_ARGS/CMD`, `segment2a-s5` target, and `.PHONY` update).
+
+6) Preserve approved deviations and postures.
+   - Keep failure posture: publish bundle **without** `_passed.flag` on FAIL.
+   - Keep the `index.json` exclusion from `index.json` to avoid self-hash
+     recursion (spec deviation already logged).
+
+### Entry: 2026-01-15 05:08
+
+Design element: S5 runner + CLI + Makefile implementation (post-plan).
+Summary: Implemented the S5 validation bundle runner updates plus CLI/Makefile
+wiring, aligning validator coverage and error-code mapping with the spec while
+preserving the approved bundle-on-fail posture and the index self-hash deviation.
+
+Implementation actions (detailed, after planning):
+1) **Runner authority alignment + dictionary safety.**
+   - Added `schemas.1B.yaml` pack to the S5 authority set (safe even if unused).
+   - Wrapped `find_dataset_entry` in a try/except to catch missing dictionary
+     entries and record **2A-S5-010 INPUT_RESOLUTION_FAILED**, rather than
+     crashing with a `ContractError`.
+   - Remapped schema-ref mismatches to **2A-S5-010** (spec-consistent) instead
+     of the ad-hoc `2A-S5-080` code.
+   - Added a `V-02` validation event that passes when inputs resolve and fails
+     with `2A-S5-010` when they don’t.
+
+2) **Evidence verbatim validator (V-11).**
+   - Updated `_copy_verbatim` to read back the written bytes and confirm they
+     match the source payload.
+   - Recorded **2A-S5-046 EVIDENCE_NOT_VERBATIM** if any evidence mismatch is
+     detected (S3 cache manifest or any S4 report), and emitted V-11 fail.
+
+3) **Index + digest validator coverage (V-06..V-14).**
+   - Added explicit V-07 (ASCII-lex + uniqueness), V-08 (root scoping),
+     V-09 (all files indexed), V-10 (flag excluded), V-12 (hex validity),
+     V-13 (flag format), and V-14 (digest correctness) `VALIDATION` events.
+   - Split hex validity into `index_hex_ok` + `flag_hex_ok` and record
+     **2A-S5-051** when either is invalid or missing.
+   - Preserved the index self-hash deviation: `index.json` is excluded from the
+     index/digest inputs and from the “all files indexed” check.
+
+4) **Partition purity validator (V-15).**
+   - Added an explicit check that `validation_bundle_2A` is partitioned only by
+     `manifest_fingerprint` and that the bundle path template contains no seed.
+   - Violations record **2A-S5-012 PARTITION_PURITY_VIOLATION** and fail V-15.
+
+5) **Story logging improvements.**
+   - Added `EVIDENCE`, `INDEX`, and `DIGEST` structured events with counts and
+     digest fields so the S5 run log reads as Gate → Discovery → Evidence →
+     Index → Digest → Emit.
+
+6) **CLI + Makefile wiring.**
+   - Added `packages/engine/src/engine/cli/s5_validation_bundle_2a.py` with the
+     standard contract/root/runs-root/run-id flags.
+   - Wired `SEG2A_S5_ARGS/CMD` and the `segment2a-s5` target into the Makefile,
+     including `.PHONY` updates.
+
+### Entry: 2026-01-15 05:09
+
+Design element: S5 runtime fixes after first execution attempt.
+Summary: The first `segment2a-s5` run failed with a logging handler misuse and
+an external `$ref` resolution error. Both were wiring/validation issues and are
+resolved without changing the S5 business logic.
+
+Observed failures:
+1) **add_file_handler misuse**
+   - Error: `AttributeError: 'Logger' object has no attribute 'resolve'`.
+   - Cause: passed `logger` into `add_file_handler` instead of the log path.
+2) **schema external $ref resolution**
+   - Error: `Unresolvable: schemas.layer1.yaml#/$defs/hex64` when validating
+     `cache/tz_timetable_cache`.
+   - Cause: `_validate_payload` needs `ref_packs` for schemas referencing
+     `schemas.layer1.yaml`, but S5 called it without ref packs.
+
+Fixes applied:
+1) Updated S5 runner to call `add_file_handler(run_log_path)` consistently with
+   other 2A states (S0–S4).
+2) Passed `ref_packs={"schemas.layer1.yaml": schema_layer1}` for all S5 schema
+   validations that reference layer1 defs (`tz_timetable_cache`, S4 report,
+   checks_v1, bundle_index_v1).
+
+### Entry: 2026-01-15 05:10
+
+Design element: S5 post-fix execution confirmation.
+Summary: Re-ran `make segment2a-s5 RUN_ID=a988b06e603fe3aa90ac84a3a7e1cd7c`;
+all validators V-01 through V-16 passed, the bundle and `_passed.flag` emitted,
+and the run-report wrote successfully.
+
+Execution notes:
+1) Evidence bundle includes `evidence/s3/tz_timetable_cache.json`,
+   `evidence/s4/seed=42/s4_legality_report.json`, and `checks.json` (3 indexed
+   files). Index + digest produced `_passed.flag` with SHA-256
+   `bd1e67aa2673245447359376ef512cdc23176ee042a8d526d5f9d2a2c17b9206`.
+2) Run-report emitted under:
+   `runs/local_full_run-5/a988b06e603fe3aa90ac84a3a7e1cd7c/reports/layer1/2A/state=S5/manifest_fingerprint=241f367ef49d444be4d6da8b3bdd0009c0e1b7c3d99cc27df3a6a48db913044f/s5_run_report.json`.
