@@ -1980,3 +1980,252 @@ Implementation actions (step-by-step, detailed):
    `shutil.rmtree(tmp_root, ignore_errors=True)` once tzif parsing completes.
 4) Re-ran `segment2a-s3` and confirmed green; the temp directory is now under
    `runs/<run_id>/tmp/` and does not appear in `artefacts/`.
+
+### Entry: 2026-01-15 03:48
+
+Design element: Run-local temp cleanup follow-up (cross-state TODO).
+Summary: The run temp folder (`runs/<run_id>/tmp`) still accumulates temp
+folders from other states (e.g., s1_tz_lookup, s2_overrides). User requested
+this be tracked as a TODO rather than addressed now.
+
+TODO (defer, no code change yet):
+1) Inventory which 2A state runners leave temp directories on success/failure.
+2) Add per-state cleanup of only the temp directories created by that state,
+   keeping the root `tmp/` folder intact and avoiding deletions outside
+   `runs/<run_id>/tmp`.
+3) Log cleanup behavior so operators know when temp removal happens (and when
+   it is intentionally skipped for debugging).
+
+## S4 - Legality (DST gaps & folds)
+
+### Entry: 2026-01-15 03:48
+
+Design element: S4 contract review and pre-implementation plan.
+Summary: S4 must read S0 gate receipt + S2 site_timezones + S3 tz_timetable_cache,
+derive gap/fold window counts per tzid (not per site), check coverage, and emit a
+deterministic legality report (s4_legality_report) plus a run-report and story
+logs.
+
+Plan (before implementation, detailed):
+1) Resolve run identity and gate.
+   - Read `run_receipt.json` for run_id/seed/manifest_fingerprint/parameter_hash.
+   - Resolve `s0_gate_receipt_2A` via the dataset dictionary and validate the
+     row against `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
+   - Enforce manifest_fingerprint path-embed equality and capture
+     `verified_at_utc` for deterministic `generated_utc`.
+
+2) Resolve inputs by dictionary ID only.
+   - Resolve `site_timezones` at partition [seed, manifest_fingerprint].
+   - Resolve `tz_timetable_cache` at partition [manifest_fingerprint].
+   - Enforce schema_ref consistency (dictionary vs registry) and abort on
+     mismatch (2A-S4-010 / 2A-S4-080 style conflicts).
+
+3) Load `site_timezones` efficiently and derive working sets.
+   - Stream or scan `site_timezones` for `tzid` only to compute:
+     `sites_total` (row count) and `TZ_USED` (distinct tzids).
+   - Keep memory bounded (set of tzids only).
+
+4) Load and validate cache manifest + payload.
+   - Read `tz_timetable_cache.json` and validate against
+     `schemas.2A.yaml#/cache/tz_timetable_cache` (V-04).
+   - Enforce cache manifest path-embed equality (V-05).
+   - Enforce `rle_cache_bytes > 0` and that `tz_cache_v1.bin` exists and size
+     matches (V-06).
+   - Treat cache payload as authoritative; do not parse raw tzdb.
+
+5) Decode cache payload and compute legality windows per tzid.
+   - Implement a streaming decoder for `tz_cache_v1.bin` using the canonical
+     layout (TZC1 header, tzid count, per-tzid transitions).
+   - Track `tzids_in_cache` and for each tzid in `TZ_USED`:
+     - Iterate consecutive transitions; compute delta_minutes.
+     - Gap when delta_minutes > 0, fold when delta_minutes < 0, none when 0.
+     - Window size is abs(delta_minutes); increment gap/fold counters by
+       transition count (not by number of sites).
+   - Ensure transition instants are strictly increasing for each tzid and
+     offsets are integral minutes.
+
+6) Coverage and status.
+   - Compute missing_tzids = TZ_USED - tzids_in_cache.
+   - Set report `status = PASS` when missing_tzids is empty and all validators
+     pass; otherwise `status = FAIL` and include `missing_tzids` (report only).
+
+7) Numeric domain enforcement.
+   - Enforce offset bounds (e.g., -900..+900) for all transitions used in
+     window derivation; no NaN/Inf (V-13).
+   - Confirm whether sentinel MIN_INSTANT offsets should be exempt to match S3.
+
+8) Emit the report deterministically.
+   - Build `s4_legality_report` with required fields and counts.
+   - Set `generated_utc = s0_gate_receipt.verified_at_utc`.
+   - Validate report schema (V-07) and path-embed equality (V-08).
+   - Publish via atomic directory move; enforce immutability (V-14).
+
+9) Run-report and structured logging.
+   - Emit `s4_run_report.json` with required fields (inputs, cache metadata,
+     counts, missing sample, output path, errors/warnings).
+   - Structured log events: GATE, INPUTS, CHECK, VALIDATION, EMIT, each with
+     timestamp_utc, segment/state/seed/manifest_fingerprint.
+
+Open confirmations to resolve before coding:
+1) V-10 coverage semantics: when missing_tzids is non-empty, should we still
+   emit a FAIL report (status=FAIL) or abort without publishing?
+2) V-13 numeric domain: should S4 mirror the S3 sentinel exception
+   (skip bounds check for MIN_INSTANT), or enforce strict bounds on all offsets?
+3) Missing tzid reporting: include full missing_tzids list in the report and
+   only a small sample in the run-report (recommended), or cap the report list?
+
+### Entry: 2026-01-15 03:48
+
+Design element: S4 confirmations resolved (pre-implementation).
+Summary: User approved the default postures for coverage failure, sentinel bounds,
+and missing tzid reporting. This entry records those decisions before any code changes.
+
+Decisions recorded before implementation:
+1) **Coverage failure emits a FAIL report.**
+   - If `missing_tzids` is non-empty, S4 will still publish `s4_legality_report`
+     with `status=FAIL` and the full missing list; the run does not abort on
+     coverage gaps (deviation from the spec’s “Abort” wording, per user direction).
+2) **Sentinel bounds exception applies.**
+   - S4 will mirror S3’s exception and skip offset bounds checks only when
+     `instant == MIN_INSTANT`; all other transitions must remain within
+     the layer bounds.
+3) **Missing tzid reporting split.**
+   - The report includes the **full** `missing_tzids` list (when non-empty).
+   - The run-report includes only a short `missing_tzids_sample` list.
+
+### Entry: 2026-01-15 03:55
+
+Design element: S4 implementation detail decisions (pre-code clarifications).
+Summary: Pin remaining low-level choices for cache decoding, empty inputs, and
+error-code mapping before writing the runner.
+
+Decisions recorded before implementation:
+1) **Cache decode failure mapping.**
+   - Treat malformed cache payloads (bad header, truncation, invalid counts) as
+     **2A-S4-022 CACHE_BYTES_MISSING** with detail `cache_payload_invalid`.
+   - Rationale: spec has no dedicated payload-corruption code; this keeps the
+     failure in the cache-integrity bucket without inventing new codes.
+2) **Empty site_timezones handling.**
+   - If the partition exists but contains zero parquet files, treat it as an
+     empty dataset (sites_total=0, tzids_total=0) and continue with PASS unless
+     other validators fail. Log a WARN-only message for visibility.
+3) **Cache file naming.**
+   - Use the S3 v0 constant `tz_cache_v1.bin` and `tz_timetable_cache.json`
+     (no auto-discovery); mismatches are treated as cache integrity failures.
+
+### Entry: 2026-01-15 04:13
+
+Design element: S4 legality runner + CLI + Makefile wiring (implementation).
+Summary: Implemented S4 end-to-end per the approved decisions: cache decoding,
+gap/fold counting, coverage fail report emission, deterministic report publish,
+and run-report + story logging.
+
+Implementation actions (step-by-step, detailed):
+1) **New S4 runner package.**
+   - Added `packages/engine/src/engine/layers/l1/seg_2A/s4_legality/runner.py`
+     with the full S4 flow: gate receipt validation, dictionary/registry checks,
+     input resolution, cache decode, legality computation, report publish, and
+     run-report emission.
+   - Added `packages/engine/src/engine/layers/l1/seg_2A/s4_legality/__init__.py`
+     for package registration.
+2) **Gate + authority enforcement.**
+   - Validated the S0 receipt row (`validation/s0_gate_receipt_v1`) using
+     `_validate_payload` with layer1 `$defs` inlined.
+   - Enforced receipt `manifest_fingerprint` equality and captured
+     `verified_at_utc` for deterministic `generated_utc`.
+   - Added schema_ref cross-checks (dictionary vs registry) for
+     `s0_gate_receipt_2A`, `site_timezones`, `tz_timetable_cache`, and
+     `s4_legality_report`.
+3) **Site_timezones scan (streaming).**
+   - Added `_scan_site_timezones` that uses pyarrow batches when available
+     (fallback to polars) to compute `sites_total` and `TZ_USED`.
+   - Empty partitions with no parquet files are treated as zero rows (warn-only).
+4) **Cache manifest + payload handling.**
+   - Validated `tz_timetable_cache.json` against its schema and enforced
+     path-embed equality for `manifest_fingerprint`.
+   - Enforced `rle_cache_bytes > 0`, file existence, and file-size match for
+     `tz_cache_v1.bin`.
+   - Implemented `_decode_cache` to parse the canonical binary layout and count
+     gap/fold windows per tzid while tracking missing tzids.
+   - Applied the sentinel exception: skip bounds checks only for
+     `instant == MIN_INSTANT`; all other offsets must be within -900..+900.
+5) **Legality aggregation + coverage fail policy.**
+   - Gap/fold windows are counted per transition (not multiplied by site count).
+   - `missing_tzids` triggers `status=FAIL` while still emitting the report, and
+     a `VALIDATION` fail event for V-10 is logged with code 2A-S4-024.
+6) **Deterministic report + immutability.**
+   - Emitted `s4_legality_report.json` under the seed+manifest partition with
+     `generated_utc = S0.receipt.verified_at_utc` and strict schema validation.
+   - Used atomic publish with `_hash_partition` to enforce byte-identical
+     re-emits (2A-S4-041).
+7) **Run-report and story logging.**
+   - Added structured events: GATE, INPUTS, CHECK, VALIDATION, EMIT with
+     segment/state/seed/manifest_fingerprint/timestamp.
+   - Wrote `s4_run_report.json` with required fields (inputs, cache metadata,
+     counts, missing sample, output path, errors/warnings).
+8) **CLI + Makefile wiring.**
+   - Added `packages/engine/src/engine/cli/s4_legality_2a.py`.
+   - Added `SEG2A_S4_*` argument block and `segment2a-s4` target to the Makefile.
+9) **Error-code mapping refinements.**
+   - Wrapped receipt/site_timezones/cache resolution to raise 2A-S4-001/010/020
+     on missing inputs, and mapped cache payload decode failures to 2A-S4-022
+     as previously decided.
+
+### Entry: 2026-01-15 04:29
+
+Design element: S4 dictionary loading regression fix (post-run failure).
+Summary: `segment2a-s4` failed because `load_dataset_dictionary` returns a
+`(path, dictionary)` tuple and the runner passed the tuple to
+`find_dataset_entry`, which expects a dict. This is a wiring error, not a
+spec change.
+
+Detail of the failure and reasoning:
+1) Observed failure at runtime: `AttributeError: 'tuple' object has no attribute 'items'`
+   when `find_dataset_entry` iterated the dictionary.
+2) Compared S4 with other 2A runners (`s0_gate`, `s1_tz_lookup`, `s2_overrides`,
+   `s3_timetable`) and confirmed they all destructure the tuple.
+3) Concluded the fix is to unpack `dict_path, dictionary` and ignore the path
+   unless needed for logging (keep behavior aligned with other states).
+
+Resolution applied:
+1) Replace `dictionary = load_dataset_dictionary(...)` with
+   `_dict_path, dictionary = load_dataset_dictionary(...)` in S4 runner.
+
+Follow-up:
+1) Re-run `make segment2a-s4` to confirm dictionary lookups proceed and the
+   report emits as expected.
+
+### Entry: 2026-01-15 04:32
+
+Design element: S4 registry loading regression fix (post-run failure).
+Summary: After fixing the dictionary tuple, the next run failed because
+`load_artefact_registry` also returns `(path, registry)` and the tuple was
+passed to `find_artifact_entry`. This mirrors the prior wiring issue.
+
+Detail of the failure and reasoning:
+1) Observed failure: `AttributeError: 'tuple' object has no attribute 'get'`
+   from `find_artifact_entry` inside S4.
+2) Compared with other 2A runners and confirmed they all unpack the tuple.
+3) Concluded the fix is to unpack `_reg_path, registry` (keeping consistent
+   registry handling across 2A states).
+
+Resolution applied:
+1) Replace `registry = load_artefact_registry(...)` with
+   `_reg_path, registry = load_artefact_registry(...)` in S4 runner.
+
+Follow-up:
+1) Re-run `make segment2a-s4` to validate registry lookups and continue
+   legality report emission.
+
+### Entry: 2026-01-15 04:35
+
+Design element: S4 post-fix validation run.
+Summary: After unpacking dictionary and registry tuples, S4 executed end-to-end
+and emitted the legality report successfully for the current run_id.
+
+Execution notes:
+1) `segment2a-s4` completed green for run_id
+   `a988b06e603fe3aa90ac84a3a7e1cd7c`.
+2) `s4_legality_report.json` emitted under
+   `data/layer1/2A/legality_report/seed=42/manifest_fingerprint=241f.../`
+   with `status=PASS`, and the run-report was updated accordingly.
