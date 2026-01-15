@@ -1172,3 +1172,56 @@ Run outcome notes:
    and `max_abs_delta_decode=5.89e-08` (<= policy quantisation epsilon).
 3) Run-report emitted to stdout and persisted under
    `reports/layer1/2B/state=S2/seed=42/manifest_fingerprint=241f.../`.
+
+## Cross-state logging retrofit (S0-S2)
+
+### Entry: 2026-01-15 14:10
+
+Design element: Reduce validation log spam and improve story-style logs for 2B.
+Summary: The 2B runs emit many `VALIDATION` INFO lines (one per validator),
+which obscures the state narrative. We will keep validator data in run-reports
+but reduce INFO-level noise by logging PASS validations at DEBUG.
+
+Detailed plan (before edits):
+1) Adjust `_emit_validation` in each 2B runner (S0..S2).
+   - Change PASS validations to log at DEBUG while keeping WARN/FAIL at the
+     existing levels.
+   - Keep the structured validation payload unchanged for WARN/ERROR so
+     operators still see failures in the log.
+
+2) Extend `_emit_event` to handle `severity == "DEBUG"`.
+   - Map DEBUG severity to `logger.debug(...)` so PASS validation lines only
+     appear when explicitly requested.
+   - Preserve INFO/WARN/ERROR behavior for all other events.
+
+3) Preserve story logs and run-report evidence.
+   - Do not remove existing stage logs (e.g., “published alias index + blob”,
+     “run-report written”, progress logs) so the narrative remains readable.
+   - All validator results remain in the run-report JSON and error payloads.
+
+Rationale:
+- Operators want to scan logs for the state story; PASS validations belong in
+  the run-report and should not dominate console output unless debugging.
+
+### Entry: 2026-01-15 14:12
+
+Design element: Implement 2B logging retrofit (S0-S2).
+Summary: Updated validation logging across all 2B states so PASS validations
+emit at DEBUG while WARN/FAIL remain visible at INFO/WARN/ERROR. This reduces
+console noise while preserving full validator evidence in run-reports.
+
+Implementation actions (explicit):
+1) Updated `_emit_event` in:
+   - `seg_2B/s0_gate/runner.py`
+   - `seg_2B/s1_site_weights/runner.py`
+   - `seg_2B/s2_alias_tables/runner.py`
+   to handle `severity == "DEBUG"` via `logger.debug(...)`.
+
+2) Updated `_emit_validation` in the same runners to:
+   - log PASS validations at DEBUG,
+   - keep WARN at WARN and FAIL at ERROR,
+   preserving structured payloads for non-PASS outcomes.
+
+Expected effect:
+- Run logs now highlight the state narrative (gate, weights, alias build) without
+  being dominated by PASS validation lines.

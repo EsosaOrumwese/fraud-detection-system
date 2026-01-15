@@ -2533,3 +2533,59 @@ Execution notes:
    `bd1e67aa2673245447359376ef512cdc23176ee042a8d526d5f9d2a2c17b9206`.
 2) Run-report emitted under:
    `runs/local_full_run-5/a988b06e603fe3aa90ac84a3a7e1cd7c/reports/layer1/2A/state=S5/manifest_fingerprint=241f367ef49d444be4d6da8b3bdd0009c0e1b7c3d99cc27df3a6a48db913044f/s5_run_report.json`.
+
+## Cross-state logging retrofit (S0-S5)
+
+### Entry: 2026-01-15 14:10
+
+Design element: Reduce validation log spam and improve story-style logs for 2A.
+Summary: The 2A runs emit many `VALIDATION` INFO lines (one per validator),
+which obscures the state narrative. We will keep validator data in run-reports
+but reduce INFO-level noise by logging PASS validations at DEBUG.
+
+Detailed plan (before edits):
+1) Adjust `_emit_validation` in each 2A runner (S0..S5).
+   - Change PASS validations to log at DEBUG while keeping WARN/FAIL at the
+     existing levels.
+   - Keep the structured validation payload unchanged for WARN/ERROR so
+     operators still see failures in the log.
+
+2) Extend `_emit_event` to handle `severity == "DEBUG"`.
+   - Map DEBUG severity to `logger.debug(...)` so PASS validation lines only
+     appear when explicitly requested.
+   - Preserve INFO/WARN/ERROR behavior for all other events.
+
+3) Preserve story logs and run-report evidence.
+   - Do not remove existing stage logs (e.g., “run-report written”, “loaded
+     inputs”, progress logs) so the narrative remains readable.
+   - All validator results remain in the run-report JSON and error payloads.
+
+Rationale:
+- Operators want to scan logs for the state story; PASS validations belong in
+  the run-report and should not dominate console output unless debugging.
+
+### Entry: 2026-01-15 14:12
+
+Design element: Implement 2A logging retrofit (S0-S5).
+Summary: Updated validation logging across all 2A states so PASS validations
+emit at DEBUG while WARN/FAIL remain visible at INFO/WARN/ERROR. This reduces
+console noise while preserving full validator evidence in run-reports.
+
+Implementation actions (explicit):
+1) Updated `_emit_event` in:
+   - `seg_2A/s0_gate/runner.py`
+   - `seg_2A/s1_tz_lookup/runner.py`
+   - `seg_2A/s2_overrides/runner.py`
+   - `seg_2A/s3_timetable/runner.py`
+   - `seg_2A/s4_legality/runner.py`
+   - `seg_2A/s5_validation_bundle/runner.py`
+   to handle `severity == "DEBUG"` via `logger.debug(...)`.
+
+2) Updated `_emit_validation` in the same runners to:
+   - log PASS validations at DEBUG,
+   - keep WARN at WARN and FAIL at ERROR,
+   preserving structured payloads for non-PASS outcomes.
+
+Expected effect:
+- Run logs now highlight the state narrative (inputs, progress, publish) without
+  being dominated by PASS validation lines.

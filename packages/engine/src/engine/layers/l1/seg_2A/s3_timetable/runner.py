@@ -163,6 +163,8 @@ def _emit_event(
         logger.error("%s %s", event, message)
     elif severity == "WARN":
         logger.warning("%s %s", event, message)
+    elif severity == "DEBUG":
+        logger.debug("%s %s", event, message)
     else:
         logger.info("%s %s", event, message)
 
@@ -175,11 +177,12 @@ def _emit_validation(
     error_code: Optional[str] = None,
     detail: Optional[object] = None,
 ) -> None:
-    severity = "INFO"
     if result == "fail":
         severity = "ERROR"
     elif result == "warn":
         severity = "WARN"
+    else:
+        severity = "DEBUG"
     payload = {"validator_id": validator_id, "result": result}
     if error_code:
         payload["error_code"] = error_code
