@@ -1,6 +1,6 @@
 {
-  "version_tag": "2025.11",
-  "policy_version": "2025.11",
+  "version_tag": "1.0.0",
+  "policy_version": "1.0.0",
   "default_edges": [
     { "edge_id": "iad-us", "country_iso": "US", "weight": 0.35 },
     { "edge_id": "dub-ie", "country_iso": "IE", "weight": 0.25 },

@@ -360,3 +360,51 @@ Actions taken (deterministic and scoped):
    - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
 2) Re-ran `make segment2b-s0`; S0 completed with all validators PASS and
    `warn_count=0` in the run-report.
+
+### Entry: 2026-01-15 09:24
+
+Design element: Semver enforcement applied to 2B policies.
+Summary: Applied semver alignment by setting `policy_version` and `version_tag`
+to `1.0.0` in all four 2B policy JSON files and tightened the 2B policy schemas
+to require semver format for `policy_version`.
+
+Actions taken:
+1) Updated policy JSON files:
+   - `config/layer1/2B/policy/route_rng_policy_v1.json`
+   - `config/layer1/2B/policy/alias_layout_policy_v1.json`
+   - `config/layer1/2B/policy/day_effect_policy_v1.json`
+   - `config/layer1/2B/policy/virtual_edge_policy_v1.json`
+   (set `policy_version` and `version_tag` to "1.0.0").
+2) Updated `schemas.2B.yaml` to enforce a semver regex for `policy_version`
+   across all four policy schemas.
+3) Prepared to re-run S0 after clearing previous run-local outputs to satisfy
+   write-once rules (since version tags changed).
+
+### Entry: 2026-01-15 09:25
+
+Design element: Re-emit S0 after semver alignment.
+Summary: Cleared the prior run-local S0 outputs (write-once guard) and re-ran
+`make segment2b-s0`; the gate completed successfully with all validators PASS
+and `warn_count=0`.
+
+Run outcome details:
+1) V-09 now PASS with version_tag resolved to "1.0.0" for policy assets.
+2) Sealed inputs + receipt republished under the manifest_fingerprint path.
+
+### Entry: 2026-01-15 09:23
+
+Design element: Semver alignment for 2B policy versions.
+Summary: To make policy changes trackable and bumpable, align `policy_version`
+and `version_tag` to an explicit semver (e.g., 1.0.0) and enforce semver format
+in the 2B policy schemas.
+
+Implementation plan (before edits):
+1) Update all four 2B policy JSON files to set:
+   - `policy_version: "1.0.0"`
+   - `version_tag: "1.0.0"`
+   This collapses version signaling to a single value while keeping both fields
+   for compatibility.
+2) Tighten `schemas.2B.yaml` policy definitions to require a semver pattern for
+   `policy_version` (keep `version_tag` as a plain string).
+3) Re-run `segment2b-s0` and clean any prior run-local outputs if write-once
+   rejects the updated payloads.
