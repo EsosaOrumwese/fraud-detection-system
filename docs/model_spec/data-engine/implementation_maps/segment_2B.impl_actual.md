@@ -637,6 +637,63 @@ Run outcome notes:
 3) Run-report emitted to stdout and persisted under
    `reports/layer1/2B/state=S1/seed=42/manifest_fingerprint=241f.../`.
 
+### Entry: 2026-01-15 14:04
+
+Design element: Correct S1 normalisation scope to match per-merchant spec.
+Summary: S2 alias decode coherence failures revealed that S1 normalises
+probabilities per (merchant_id, legal_country_iso) instead of per merchant_id,
+violating the S1 spec requirement that each merchant's total mass sums to 1.
+This must be fixed in S1 to keep S2/S3/S4 coherent.
+
+Detailed plan (before edits, recorded for audit):
+1) Confirm spec intent and mismatch.
+   - Re-read `state.2B.s1.expanded.md` (Sections 2, 7.2, 7.5, 6.2): S1 must
+     normalise per merchant, not per country slice.
+   - Observed S2 failure showed `sum(p_weight) > 1` for a single merchant with
+     multi-country sites, proving the current S1 grouping is too granular.
+
+2) Code changes required in `seg_2B/s1_site_weights/runner.py`.
+   - Change grouping from `["merchant_id", "legal_country_iso"]` to
+     `["merchant_id"]` so the normalisation mass is per merchant.
+   - Update `merchants_total` to be `n_unique(merchant_id)` and keep progress
+     tracking per merchant (spec-aligned counters).
+   - Keep PK order for output rows; use the per-row `legal_country_iso` value
+     when constructing the output rows and PK tuples.
+   - Update error payloads to include a small `legal_country_iso` sample/count
+     rather than a single value (multiple countries per merchant now).
+   - Keep run-report samples per merchant (no legal_country_iso in
+     `samples.normalisation`), matching the spec.
+
+3) Re-emit S1 outputs after code change.
+   - Remove the existing run-local S1 partition for this run_id
+     (`.../data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=.../`)
+     to satisfy write-once semantics (approved by user).
+   - Re-run `make segment2b-s1` and then `make segment2b-s2`, inspect the S2
+     run-report for decode coherence and mass checks.
+
+Implementation action taken immediately after logging this plan:
+1) Updated S1 runner to group by merchant_id only and adjust error payloads to
+   include country samples (per the plan above).
+2) Next: remove the run-local S1 output directory and re-run S1 + S2.
+
+### Entry: 2026-01-15 14:06
+
+Design element: Re-emit S1 after per-merchant normalisation fix.
+Summary: Removed the run-local S1 output partition for the active run_id and
+re-ran `make segment2b-s1`; the run completed green and published corrected
+per-merchant weights.
+
+Actions and observations (post-fix):
+1) Removed the existing run-local partition:
+   `runs/local_full_run-5/a988b06e603fe3aa90ac84a3a7e1cd7c/data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=241f.../`
+   (required by write-once semantics).
+2) Re-ran `make segment2b-s1 RUN_ID=a988b06e603fe3aa90ac84a3a7e1cd7c`.
+   - `merchants_total=1280`, `sites_total=34363`.
+   - `max_abs_mass_error_pre_quant=4.44e-16` and `merchants_over_epsilon=0`.
+   - All validators V-01..V-20 PASS; run-report emitted and persisted.
+3) The corrected weights now reflect per-merchant mass = 1 across all sites
+   (across legal_country_iso), aligning with the S1 spec.
+
 ## S2 - Alias tables (O(1) sampler build) (S2.*)
 
 ### Entry: 2026-01-15 11:05
@@ -1065,3 +1122,53 @@ Resolution plan (pending user confirmation, before any deletion):
 
 Note: per the write-once rules, deleting the old outputs is the only way to
 allow the new seal to publish. Awaiting approval before removal.
+
+### Entry: 2026-01-15 13:48
+
+Design element: S1 write-once guard blocks re-emit (2B-S1-080).
+Summary: After resealing S0, re-running S1 produced new weights but failed to
+publish because the existing `s1_site_weights` partition already exists with
+different bytes (write-once guard).
+
+Observed failure:
+- `EngineFailure: F4:2B-S1-080` from `_atomic_publish_dir` while attempting to
+  publish `data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=<hex>/`.
+
+Resolution plan (pending user approval, before deletion):
+1) Remove the existing run-local S1 output directory:
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=<hex>/`
+2) Re-run `make segment2b-s1` to publish the refreshed weights.
+3) Proceed to `make segment2b-s2` once S1 is green.
+
+### Entry: 2026-01-15 13:58
+
+Design element: S2 Polars streaming panic on parquet (engine mismatch).
+Summary: `make segment2b-s2` panicked inside Polars' old streaming engine:
+`Parquet no longer supported for old streaming engine` during
+`scan_parquet(...).collect(streaming=True)`.
+
+Observed failure:
+- Panic from `polars-pipe` convert.rs:111 while collecting the lazy frame in
+  streaming mode, aborting S2 after the policy resolution step.
+
+Resolution plan (before edit):
+1) Remove `streaming=True` and use `pl.read_parquet(..., columns=[...])` to
+   load only required columns without invoking the deprecated streaming engine.
+2) Re-run `make segment2b-s2` to confirm S2 proceeds past the load step.
+
+Note: this keeps memory bounded by column projection and avoids runtime panics
+from Polars' deprecated streaming engine on parquet sources.
+
+### Entry: 2026-01-15 14:07
+
+Design element: S2 green run after corrected S1 weights.
+Summary: After re-emitting S1 with per-merchant normalisation, `make segment2b-s2`
+completed successfully with all validators PASS and decode coherence restored.
+
+Run outcome notes:
+1) S2 processed `merchants_total=1280`, `sites_total=34363` and published both
+   `s2_alias_index` and `s2_alias_blob` under the manifest_fingerprint path.
+2) Decode check passed for all sampled rows; `merchants_mass_exact_after_decode=1280`
+   and `max_abs_delta_decode=5.89e-08` (<= policy quantisation epsilon).
+3) Run-report emitted to stdout and persisted under
+   `reports/layer1/2B/state=S2/seed=42/manifest_fingerprint=241f.../`.

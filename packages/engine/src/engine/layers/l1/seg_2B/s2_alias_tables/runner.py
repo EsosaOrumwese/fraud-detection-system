@@ -1076,16 +1076,15 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             {"path": str(weights_path)},
         )
 
-    weights_df = (
-        pl.scan_parquet(weights_path)
-        .select([
+    weights_df = pl.read_parquet(
+        weights_path,
+        columns=[
             "merchant_id",
             "legal_country_iso",
             "site_order",
             "p_weight",
             "quantised_bits",
-        ])
-        .collect(streaming=True)
+        ],
     )
     timer.info(f"S2: loaded weights rows={weights_df.height}")
 

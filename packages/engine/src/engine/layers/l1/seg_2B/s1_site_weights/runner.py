@@ -781,7 +781,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         if df.height == 0:
             logger.warning("S1: site_locations is empty; emitting empty weights.")
         sites_total = int(df.height)
-        merchants_total = int(df.select(pl.struct(["merchant_id", "legal_country_iso"]).n_unique()).item())
+        merchants_total = int(df.select(pl.col("merchant_id").n_unique()).item())
 
         missing_columns = [col for col in (weight_column,) if col and col not in df.columns]
         if missing_columns:
@@ -847,10 +847,14 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         output_rows_total = 0
         progress = _ProgressTracker(merchants_total, logger, "S1 merchants processed")
 
-        group_cols = ["merchant_id", "legal_country_iso"]
+        group_cols = ["merchant_id"]
         for _, group_df in df.group_by(group_cols, maintain_order=True):
             merchant_id = int(group_df["merchant_id"][0])
-            legal_country_iso = group_df["legal_country_iso"][0]
+            country_values = group_df["legal_country_iso"].to_list()
+            legal_country_isos = country_values
+            country_set = sorted(set(country_values))
+            country_sample = country_set[:5]
+            country_count = len(country_set)
             sites = int(group_df.height)
             if sites <= 0:
                 continue
@@ -874,7 +878,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "2B-S1-050",
                     "V-09",
                     "invalid_base_weight",
-                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    {
+                        "merchant_id": merchant_id,
+                        "legal_country_iso_sample": country_sample,
+                        "legal_country_count": country_count,
+                    },
                 )
 
             u = base.copy()
@@ -933,7 +941,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "2B-S1-053",
                     "V-13",
                     "fallback_mass_invalid",
-                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    {
+                        "merchant_id": merchant_id,
+                        "legal_country_iso_sample": country_sample,
+                        "legal_country_count": country_count,
+                    },
                 )
 
             p = u / u_sum
@@ -946,7 +958,12 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "2B-S1-051",
                     "V-10",
                     "normalisation_failed",
-                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso, "abs_error": abs_error},
+                    {
+                        "merchant_id": merchant_id,
+                        "legal_country_iso_sample": country_sample,
+                        "legal_country_count": country_count,
+                        "abs_error": abs_error,
+                    },
                 )
 
             negative_mask = p < 0
@@ -957,7 +974,12 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         "2B-S1-057",
                         "V-09",
                         "p_weight_negative",
-                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso, "min_value": min_negative},
+                        {
+                            "merchant_id": merchant_id,
+                            "legal_country_iso_sample": country_sample,
+                            "legal_country_count": country_count,
+                            "min_value": min_negative,
+                        },
                     )
                 clamp_count = int(negative_mask.sum())
                 p[negative_mask] = 0.0
@@ -969,7 +991,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         "2B-S1-051",
                         "V-10",
                         "normalisation_failed_after_clamp",
-                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                        {
+                            "merchant_id": merchant_id,
+                            "legal_country_iso_sample": country_sample,
+                            "legal_country_count": country_count,
+                        },
                     )
                 p = p / sum_p
                 abs_error = abs(float(p.sum()) - 1.0)
@@ -979,7 +1005,12 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         "2B-S1-051",
                         "V-10",
                         "normalisation_failed_after_clamp",
-                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso, "abs_error": abs_error},
+                        {
+                            "merchant_id": merchant_id,
+                            "legal_country_iso_sample": country_sample,
+                            "legal_country_count": country_count,
+                            "abs_error": abs_error,
+                        },
                     )
 
             if np.any(p < 0) or np.any(p > 1):
@@ -987,7 +1018,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "2B-S1-057",
                     "V-09",
                     "p_weight_out_of_range",
-                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    {
+                        "merchant_id": merchant_id,
+                        "legal_country_iso_sample": country_sample,
+                        "legal_country_count": country_count,
+                    },
                 )
             normalise_ms += int((time.monotonic() - stage_start) * 1000)
 
@@ -1022,6 +1057,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
             site_orders = group_df["site_order"].to_numpy()
             for idx in range(sites):
+                legal_country_iso = legal_country_isos[idx]
                 pk_tuple = (merchant_id, legal_country_iso, int(site_orders[idx]))
                 if prev_pk is not None and pk_tuple < prev_pk:
                     _abort(
