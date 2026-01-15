@@ -1540,39 +1540,46 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         logger.info("S0: tz_overrides is empty; no overrides will be applied")
         _emit_validation(logger, manifest_fingerprint, "V-09", "pass")
     else:
-        if tzid_index_present:
-            override_tzids = {
-                entry.get("tzid")
-                for entry in overrides_payload
-                if isinstance(entry.get("tzid"), str)
-            }
-            missing_tzids = sorted(
-                tzid for tzid in override_tzids if tzid and tzid not in tzid_index
-            )
-            if missing_tzids:
-                raise EngineFailure(
-                    "F4",
-                    "2A-S0-032",
-                    STATE,
-                    MODULE_NAME,
-                    {"detail": "override tzid not in tz_world", "missing": missing_tzids},
-                    dataset_id="tz_overrides",
-                )
-            logger.info(
-                "S0: validated tz_overrides against tz_world tzid index (overrides=%s)",
-                len(overrides_payload),
-            )
-            _emit_validation(logger, manifest_fingerprint, "V-09", "pass")
-        else:
-            warnings.append("2A-S0-032")
+        if not tzid_index_present:
             _emit_validation(
                 logger,
                 manifest_fingerprint,
                 "V-09",
-                "warn",
+                "fail",
                 "2A-S0-032",
-                "tzid index not sealed; membership not enforced",
+                {"detail": "tzid index unavailable; overrides require tz_world tzids"},
             )
+            raise EngineFailure(
+                "F4",
+                "2A-S0-032",
+                STATE,
+                MODULE_NAME,
+                {"detail": "tzid index unavailable for overrides", "path": str(tz_world_path)},
+                dataset_id="tz_world_2025a",
+            )
+
+        override_tzids = {
+            entry.get("tzid")
+            for entry in overrides_payload
+            if isinstance(entry.get("tzid"), str)
+        }
+        missing_tzids = sorted(
+            tzid for tzid in override_tzids if tzid and tzid not in tzid_index
+        )
+        if missing_tzids:
+            raise EngineFailure(
+                "F4",
+                "2A-S0-032",
+                STATE,
+                MODULE_NAME,
+                {"detail": "override tzid not in tz_world", "missing": missing_tzids},
+                dataset_id="tz_overrides",
+            )
+        logger.info(
+            "S0: validated tz_overrides against tz_world tzid index (overrides=%s)",
+            len(overrides_payload),
+        )
+        _emit_validation(logger, manifest_fingerprint, "V-09", "pass")
 
     overrides_digest = sha256_file(overrides_path)
     overrides_version = _resolve_version_tag(

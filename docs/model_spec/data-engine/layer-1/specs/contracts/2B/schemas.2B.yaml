@@ -427,7 +427,7 @@ policy:
       version_tag: { type: string, minLength: 1 }
       policy_version: { type: string, minLength: 1, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
       rng_engine:  { const: philox2x64-10 }
-      rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
+      rng_stream_id: { type: string, minLength: 1, pattern: '^2B\.[A-Za-z0-9_.-]+$' }
       draws_per_row: { const: 1 }
       sigma_gamma: { type: number, exclusiveMinimum: 0.0 }
       day_range:

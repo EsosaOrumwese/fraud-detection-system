@@ -2767,5 +2767,38 @@ Changes applied:
 Notes:
 - The derived tzid index is not added to sealed_inputs because it is a pure
   derivative of sealed `tz_world_2025a` (no new external authority).
-- This aligns with V-09’s “authoritative tzid index sealed” rule by treating
+- This aligns with V-09's "authoritative tzid index sealed" rule by treating
   tz_world as the sealed source of tzids.
+
+### Entry: 2026-01-15 19:28
+
+Design element: Enforce tzid-index availability when overrides are non-empty.
+Summary: A recent run emitted `2A-S0-032` WARN because the tzid index was
+unavailable, which downgrades override membership validation. The user wants a
+stricter posture: if overrides exist, S0 must **fail closed** when tz_world
+cannot yield a tzid index (no warn-only skip).
+
+Reasoning (in-flight):
+1) The warning indicates we are unable to validate override tzids against the
+   authoritative tz_world domain. With non-empty overrides, this weakens
+   deterministic correctness.
+2) Because tz_world is sealed and already validated, missing tzids should be
+   treated as a hard failure rather than a warning. This aligns with the user's
+   requirement for strict validation and removes confusing WARN-only logs.
+3) Using `2A-S0-032` keeps the failure within the existing V-09 validator
+   namespace (override tzid membership).
+
+Decision:
+- If overrides are non-empty **and** tzid index cannot be derived from tz_world,
+  S0 aborts with `2A-S0-032` instead of emitting a WARN.
+
+Implementation actions:
+1) Updated `seg_2A/s0_gate/runner.py` to:
+   - emit V-09 FAIL when tzid index is unavailable and overrides exist;
+   - raise `EngineFailure` with `2A-S0-032` and detail indicating the missing
+     tzid index.
+2) Removed the WARN-only fallback for overrides when tzid index is missing.
+
+Follow-up:
+- Re-run `segment2a-s0` for runs using overrides to ensure V-09 passes or fails
+  deterministically (no WARN-only skip).
