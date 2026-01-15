@@ -408,3 +408,660 @@ Implementation plan (before edits):
    `policy_version` (keep `version_tag` as a plain string).
 3) Re-run `segment2b-s0` and clean any prior run-local outputs if write-once
    rejects the updated payloads.
+
+## S1 - Per-merchant weight freezing (S1.*)
+
+### Entry: 2026-01-15 09:31
+
+Design element: 2B.S1 deterministic per-merchant weight freezing (s1_site_weights).
+Summary: S1 must derive a deterministic probability law per merchant from
+site_locations using alias_layout_policy_v1 (floors/caps/normalisation/quantise),
+emit a strict schema table (s1_site_weights), and publish a structured run-report
+with deterministic samples and counters, all under write-once + atomic publish.
+
+Pre-implementation review (spec + contracts) and observations:
+1) State spec (state.2B.s1.expanded.md) requires:
+   - RNG-free pipeline, dictionary-only resolution, seed+manifest_fingerprint
+     partitioning, path-embed equality, write-once + idempotent re-emit.
+   - Output created_utc must echo S0 receipt verified_at_utc.
+   - Optional pins (site_timezones + tz_timetable_cache) are all-or-none; if
+     mixed, log WARN and ignore both (no effect on weights).
+   - Run-report is mandatory to stdout; persisted copy is optional (allowed).
+2) Contract bindings:
+   - Output schema: schemas.2B.yaml#/plan/s1_site_weights (columns strict).
+   - Inputs: schemas.1B.yaml#/egress/site_locations and
+     schemas.2B.yaml#/policy/alias_layout_policy_v1.
+   - Dictionary entry for alias_layout_policy_v1 uses {policy_version} token;
+     2B.S0 now injects policy_version from policy JSON.
+3) Policy/schema mismatch identified:
+   - alias_layout_policy_v1 schema requires many fields not present in the
+     current policy JSON (policy_id, padding_rule, fallback,
+     required_s1_provenance, record_layout, checksum, blob_digest,
+     required_index_fields).
+   - If S1 validates against the policy schema, the current policy file will
+     fail. Plan must reconcile this by updating the policy JSON (preferred) or
+     relaxing schema (not preferred because schema is shape authority).
+
+Detailed plan (before implementation, step-by-step):
+1) Resolve inputs and gate conditions.
+   - Load S0 receipt and sealed_inputs_2B for the manifest_fingerprint.
+   - Resolve site_locations and alias_layout_policy_v1 via dictionary IDs only.
+   - Enforce that both assets appear in sealed_inputs_2B for this manifest.
+   - Optional pins: if both site_timezones + tz_timetable_cache appear in S0
+     inventory, record their resolved paths for run-report; if only one is
+     present, emit WARN and ignore both.
+
+2) Reconcile alias_layout_policy_v1 schema vs JSON content.
+   - Expand policy JSON to satisfy schemas.2B.yaml#/policy/alias_layout_policy_v1
+     required fields, using deterministic defaults consistent with current intent:
+       * policy_id = "alias_layout_policy_v1"
+       * padding_rule.pad_byte_hex = "00" (align with existing padding_value)
+       * fallback = { mode: "uniform" } (matches floor_spec.fallback)
+       * required_s1_provenance = { weight_source: true, quantised_bits: true,
+         floor_applied: true } (explicit policy echo)
+       * record_layout.prob_qbits = quantised_bits
+       * checksum/blob_digest objects aligned to checksum algorithm in encode_spec
+       * required_index_fields header/merchant_row minimal sets aligned to S2
+   - If you want a different policy expansion instead of defaults, confirm
+     before coding (see open confirmations).
+
+3) Deterministic weight derivation per spec.
+   - Compute base weight per row from policy.weight_source:
+     * if weight_source.mode == "uniform", set w_i = 1.0 for all sites.
+     * else, use the policy-declared column name or transform (strictly
+       deterministic; no RNG, no external IO).
+   - Validate domain: w_i finite and >= 0; abort on NaN/inf/negative.
+   - Apply floor/cap per policy (absolute/relative); track floor_applied flag.
+   - Zero-mass fallback: if sum(u_i) <= 0, apply policy fallback (uniform over
+     merchant sites) and set floor_applied true for those rows.
+   - Normalise per merchant; enforce |sum(p_i) - 1| <= normalisation_epsilon.
+     Clamp tiny negatives within tiny_negative_epsilon if policy allows; then
+     re-normalise once.
+
+4) Quantisation to integer grid (deterministic ties).
+   - Use quantised_bits b => grid size G=2^b.
+   - Compute scaled masses m_i = p_i * G; round half-to-even to integers.
+   - Adjust deficit/surplus deterministically using fractional remainder and PK
+     tie-breaks (per spec). Ensure per-merchant integer mass exact.
+   - Ensure per-row |p_hat - p_i| <= quantisation_epsilon; abort if violated.
+
+5) Build output rows and enforce PK ordering.
+   - Output columns: merchant_id, legal_country_iso, site_order, p_weight,
+     weight_source, quantised_bits, floor_applied, created_utc.
+   - created_utc = S0 receipt verified_at_utc.
+   - Writer order strictly by PK. If input not already grouped, do deterministic
+     sort by PK (external sort if needed; avoid memory blowups).
+
+6) Run-report emission (spec-complete, deterministic).
+   - Emit single JSON run-report to stdout (logger.info).
+   - Include required top-level fields, counters, deterministic samples, and
+     id_map with resolved paths.
+   - Persist identical JSON file under reports/layer1/2B/state=S1/... (diagnostic).
+   - Deterministic ordering for validators, samples, and lists.
+
+7) Publish with write-once + atomic move.
+   - Stage outputs under run tmp, then atomic publish to dictionary path.
+   - If partition exists, compare bytes; allow only identical re-emit.
+   - Emit validators (V-01..V-20) with PASS/WARN/FAIL mapping.
+
+8) Performance discipline.
+   - Stream per-merchant windows to keep memory O(max K).
+   - Avoid parallel reductions that change floating order; use stable serial sums.
+   - Log progress by merchants processed with elapsed/rate/eta.
+
+Open confirmations to resolve before coding:
+1) Policy schema alignment: approve expanding alias_layout_policy_v1 JSON to
+   satisfy the current schemas.2B.yaml requirements (recommended), or do you
+   want the schema relaxed to match the existing smaller policy?
+2) weight_source label to emit:
+   - Plan: emit policy.weight_source.id if present, else policy.weight_source.mode,
+     else "unknown". Confirm if you want a different label.
+3) Optional pins usage:
+   - Plan: if both site_timezones + tz_timetable_cache are sealed, only record
+     them in run-report/id_map (no effect on weights). If you want them to
+     influence weighting or additional validation, confirm the intended logic.
+
+### Entry: 2026-01-15 10:19
+
+Design element: 2B.S1 per-merchant weight freezing (implementation start).
+Summary: Proceeding to implement S1 with the updated policy schema, policy-driven
+weight selection, deterministic floors/normalisation/quantisation, and spec-
+complete run-report emission (stdout + file). Optional pins are treated as
+presence-only signals (warn if mixed; no effect on weights).
+
+Decision details (before coding):
+1) Policy schema alignment.
+   - Accept the expanded `alias_layout_policy_v1` JSON (now includes the required
+     structural fields like `layout_version`, `record_layout`, `checksum`, etc.).
+   - Rationale: keep schemas authoritative; policy bytes are sealed inputs and
+     a stable source of truth.
+
+2) weight_source label + column handling.
+   - Emit `weight_source` as `policy.weight_source.id` if present, else
+     `policy.weight_source.mode` (string). This matches spec-provenance.
+   - Supported modes for weight extraction: `uniform` (no column) and `column`
+     (column name required). If mode is unknown or the column is missing, abort
+     with 2B-S1-033.
+   - Rationale: minimal deterministic support without inventing transform logic.
+
+3) Optional pins (site_timezones + tz_timetable_cache).
+   - If both are sealed, record them in run-report/id_map only.
+   - If exactly one is sealed, emit 2B-S1-090 WARN and proceed without either.
+   - Rationale: S1 weights are independent of TZ; pins are retained for lineage.
+
+4) Tiny-negative clamp threshold.
+   - Use `policy.tiny_negative_epsilon` if present; otherwise fall back to
+     `normalisation_epsilon`. Clamp only when `-eps <= p_i < 0`; otherwise abort.
+   - Rationale: follow the spec’s clamp rule with a policy-tunable threshold.
+
+5) Run-report emission posture.
+   - Emit a single JSON run-report to stdout (via `print/json.dumps`) on success,
+     and also persist the same JSON file under reports/layer1/2B/state=S1/...
+   - Rationale: spec requires stdout JSON; file copy aids audits.
+
+Implementation plan (immediate steps):
+1) Implement `run_s1` in `seg_2B/s1_site_weights/runner.py` with:
+   - S0 receipt validation, sealed-input verification, optional-pin handling.
+   - Policy validation (schema + minima), weight extraction, floors/caps,
+     fallback, normalisation, quantisation, PK-ordered emission.
+   - Validator event emissions V-01..V-20 and error mapping.
+2) Add CLI `engine/cli/s1_site_weights_2b.py` (patterned after 2A S1).
+3) Add Makefile wiring (`SEG2B_S1_*` + `segment2b-s1` target).
+4) Run `make segment2b-s1`, fix any failures, and log outcomes + fixes here.
+
+### Entry: 2026-01-15 10:46
+
+Design element: Policy schema acceptance for new S1 fields.
+Summary: The first S1 run failed with `2B-S1-031` because the policy JSON
+contains `cap_spec`, `tiny_negative_epsilon`, and `notes`, but the
+`alias_layout_policy_v1` schema disallowed them via `additionalProperties=false`.
+
+Detailed reasoning and resolution (in-process):
+1) The runner now consumes `cap_spec` and `tiny_negative_epsilon`, and `notes`
+   is a harmless metadata field. These are legitimate policy bytes that we
+   intend to seal and validate, so the schema should acknowledge them rather
+   than forcing policy changes or ignoring fields.
+2) Update `schemas.2B.yaml` to add optional properties:
+   - `cap_spec` as an object with `additionalProperties: true` (parallel to
+     `floor_spec`).
+   - `tiny_negative_epsilon` as a non-negative number.
+   - `notes` as a string.
+3) Re-run S1 after schema update to confirm policy validation passes and the
+   runner proceeds into weight derivation.
+
+### Entry: 2026-01-15 10:47
+
+Design element: Semver regex validation in 2B policy schemas.
+Summary: After adding `cap_spec`, S1 failed again because the semver pattern
+in `policy_version` used a double-escaped dot (`\\.`) under YAML single quotes,
+which made the regex require a literal backslash and reject `1.0.0`.
+
+Detailed fix and rationale:
+1) Replace the pattern string with a single-escape form so the regex engine
+   sees `\.` and accepts `1.0.0`.
+2) Apply the same correction to all 2B policy schema definitions to avoid
+   future false failures (alias_layout/day_effect/route_rng/virtual_edge).
+3) Re-run S1 to confirm `policy_version` passes validation.
+
+### Entry: 2026-01-15 10:48
+
+Design element: Polars batch writer overflow for uint64 merchant_id.
+Summary: S1 failed mid-run when building a `pl.DataFrame` from batch rows;
+Polars inferred a signed integer builder from early rows and then overflowed
+when a merchant_id exceeded int64 range (id64 is uint64 per schema).
+
+Detailed fix and implementation:
+1) Define an explicit output schema for batch construction:
+   - `merchant_id` -> `pl.UInt64`
+   - `legal_country_iso` -> `pl.Utf8`
+   - `site_order` -> `pl.Int64`
+   - `p_weight` -> `pl.Float64`
+   - `weight_source` -> `pl.Utf8`
+   - `quantised_bits` -> `pl.Int64`
+   - `floor_applied` -> `pl.Boolean`
+   - `created_utc` -> `pl.Utf8`
+2) Add `_build_batch_df(rows)` helper and use it for both batch and final
+   flush to guarantee consistent dtypes regardless of row order.
+3) Re-run S1 to confirm the batch writer handles uint64 ids without overflow.
+
+### Entry: 2026-01-15 10:49
+
+Design element: 2B.S1 green run verification.
+Summary: After schema + dtype fixes, `make segment2b-s1` completed successfully.
+
+Run outcome notes:
+1) Validators V-01..V-20 PASS; no WARNs.
+2) Output published to
+   `data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=241f.../`
+   with write-once verified and atomic publish.
+3) Run-report emitted to stdout and persisted under
+   `reports/layer1/2B/state=S1/seed=42/manifest_fingerprint=241f.../`.
+
+## S2 - Alias tables (O(1) sampler build) (S2.*)
+
+### Entry: 2026-01-15 11:05
+
+Design element: 2B.S2 alias index + blob construction (policy-governed, RNG-free).
+Summary: S2 must take `s1_site_weights` + `alias_layout_policy_v1` and emit a
+byte-stable alias blob + index under `[seed, manifest_fingerprint]`, following
+the deterministic Walker/Vose encoding and policy-declared layout/endianness/
+alignment. The run-report must provide a bounded, deterministic evidence trail.
+
+Pre-implementation review (spec + contracts) and key observations:
+1) Inputs are only `s1_site_weights@seed,manifest_fingerprint` plus the
+   token-less `alias_layout_policy_v1` (must match the S0-sealed path/digest).
+   No 2A pins or other artefacts are allowed; S0 receipt is the gate.
+2) Output shapes are `schemas.2B.yaml#/plan/s2_alias_index` (JSON fields-strict)
+   and `schemas.2B.yaml#/binary/s2_alias_blob` (layout/endianness/alignment
+   echoed from policy).
+3) The authoring guide for `alias_layout_policy_v1` is the real layout contract:
+   it defines slice headers, prob_q encoding, checksum scope, and decode law
+   semantics that S5/S6 will rely on.
+
+Decisions and alignment posture (before coding):
+1) Policy alignment with authoring guide.
+   - Extend `alias_layout_policy_v1.json` encode/decode fields to match the
+     authoring guide (mass_rounding, delta_adjust, deterministic queue order,
+     decode-law identifier, record_layout header/prob_qbits/prob_q_encoding,
+     alias_index_type).
+   - Keep `quantised_bits` at 24 (as used by S1), but set
+     `record_layout.prob_qbits = 32` and `decode_law = "walker_vose_q0_32"`
+     to follow the guide’s explicit decode semantics.
+   - This is a sealed policy change: it will require re-running 2B.S0 and 2B.S1
+     for the same run_id so S2’s policy digest echo matches S0 inventory.
+
+2) Deterministic queue convention (V-27).
+   - Implement the exact small/large queue rules in §7.4:
+     * small = m_i < M, large = m_i >= M, with m_i == M treated as large.
+     * queues initialised in PK order and pop from the front.
+   - Track any equality-handling deviation; if detected, emit V-27 WARN with a
+     small evidence sample, but continue only if decode coherence holds.
+
+3) Decode spot-check scope.
+   - Use a deterministic sample of first N merchants in ascending `merchant_id`,
+     decode their slices using `decode_law`, and enforce `|p̂ − p| <= ε_q` and
+     Σ p̂ = 1 per merchant (2B-S2-055). This bounds cost and matches spec.
+
+Detailed plan (step-by-step, before implementation):
+1) Resolve run identity and gate.
+   - Load `run_receipt.json` (seed/parameter_hash/manifest_fingerprint).
+   - Validate `s0_gate_receipt_2B` and `sealed_inputs_2B` exist for this
+     fingerprint; enforce that `alias_layout_policy_v1` is sealed with the
+     exact path + sha256 digest.
+   - Resolve `s1_site_weights` strictly by Dictionary ID and exact partitions.
+
+2) Policy validation and minima checks.
+   - Validate policy against `schemas.2B.yaml#/policy/alias_layout_policy_v1`.
+   - Enforce minima: `layout_version`, `endianness`, `alignment_bytes`,
+     `quantised_bits`, `quantisation_epsilon`, `encode_spec`, `decode_law`,
+     checksum + blob_digest rules, required index fields.
+   - Extract record_layout/prob_qbits and encode_spec parameters to drive
+     encode + serialisation.
+
+3) Load S1 weights and enforce coherence.
+   - Read `s1_site_weights` (PK order), verify `quantised_bits` constant and
+     equals policy `b`.
+   - Group by merchant_id and process sites in PK order for determinism.
+
+4) Integer grid reconstruction (RNG-free).
+   - Compute G = 2^b; for each site, m* = p_weight * G and
+     m0 = round_half_to_even(m*).
+   - Apply residual-ranked ±1 adjustment to reach Σ m_i = G; tie-break by PK.
+   - Abort on negative or overflow masses (2B-S2-052/053).
+
+5) Walker/Vose alias encoding (deterministic).
+   - Compute M = G / K in binary64; initialise small/large queues by PK order.
+   - Emit prob/alias entries per encode_spec; follow deterministic equality
+     handling (m_i == M treated as large).
+   - Finish remaining items with self-alias entries.
+
+6) Slice serialisation + blob write.
+   - Write per-merchant slice payload with header + prob_q + alias arrays as
+     declared in `record_layout` and `encode_spec`; enforce endianness and
+     alignment padding between slices.
+   - Compute per-slice checksum (sha256 over payload bytes, excluding padding).
+   - Track offsets/lengths, ensure alignment and non-overlap.
+
+7) Build index + global digest.
+   - Emit header fields (layout_version, endianness, alignment_bytes,
+     quantised_bits, created_utc, policy_id, policy_digest).
+   - Compute blob_sha256 over raw bytes; set blob_size_bytes and merchants_count.
+   - Validate index against schema; enforce ascending merchant_id order.
+
+8) Decode spot-check + metrics.
+   - Decode a bounded deterministic sample from blob using decode_law; compute
+     max_abs_delta_decode and merchants_mass_exact_after_decode.
+
+9) Publish + run-report.
+   - Stage outputs under run tmp; atomic publish both index + blob; write-once
+     idempotent re-emit only if bytes identical.
+   - Emit run-report JSON to stdout and persist file; include required samples,
+     counters, validators, id_map, and durations_ms (resolve/reconstruct/encode/
+     serialize/digest/decode_check/publish).
+
+Implementation order:
+1) Update `alias_layout_policy_v1.json` to match the authoring guide (with
+   semver bump if needed).
+2) Add `seg_2B/s2_alias_tables/runner.py` + CLI (`s2_alias_tables_2b.py`).
+3) Makefile wiring: `SEG2B_S2_*` args and `segment2b-s2` target.
+4) Re-run `segment2b-s0` + `segment2b-s1` (policy digest changed), then
+   `segment2b-s2` until green; log each failure + fix here.
+
+### Entry: 2026-01-15 11:17
+
+Design element: 2B.S2 policy alignment (alias_layout_policy_v1) before coding.
+Summary: Lock the policy to the authoring guide so S2 emits a binary layout that
+S5/S6 can decode deterministically, then proceed to implement the S2 runner.
+
+Decisions and rationale (recorded before code changes):
+1) Update alias_layout_policy_v1 to the authoring guide’s concrete layout/encode
+   posture (v1 production baseline).
+   - Set `layout_version` to a clear layout identifier (`2B.alias.blob.v1`) to
+     match the authoring guide’s naming and avoid ambiguous layout labels.
+   - Keep `quantised_bits = 24` (already used by S1 and within realism floors).
+   - Set `record_layout.prob_qbits = 32` and `decode_law = "walker_vose_q0_32"`
+     to match the guide’s required decode semantics; S2 will encode Q0.32
+     probabilities and downstream decode will match the Q0.32 law.
+   - Replace the ad-hoc byte-size encode_spec fields with the guide’s
+     algorithmic encode_spec keys: mass_rounding, delta_adjust, worklist_order,
+     treat_within_epsilon_of_one_as_one. Keep padding rules under padding_rule.
+   - Expand record_layout to declare slice_header, prob_q_encoding, and
+     alias_index_type so the blob layout is fully specified in policy bytes.
+   - Update required_index_fields.header to include `merchants` per the guide
+     (header fields must fully declare the top-level index structure).
+
+2) Version bump for policy identity.
+   - Because policy bytes change, bump `policy_version` and `version_tag` to
+     `1.0.1` so the change is traceable and a new digest is sealed by S0.
+   - This necessitates re-running 2B.S0 and 2B.S1 for the same run_id to update
+     `sealed_inputs_2B` and `s1_site_weights` to the new policy digest.
+
+3) Implementation order remains: policy update → S2 runner/CLI/Makefile → re-run
+   S0/S1 to reseal → run S2 until green.
+
+### Entry: 2026-01-15 11:28
+
+Design element: 2B.S2 alias table encoding implementation kickoff.
+Summary: Begin coding the S2 runner/CLI/Makefile with deterministic per-merchant
+streaming, Walker/Vose alias encoding, Q0.32 probability packing, and write-once
+publishing for the index + blob.
+
+Detailed implementation decisions (before code edits):
+1) Input loading and grouping posture.
+   - Read `s1_site_weights` via polars, projecting only the required columns:
+     merchant_id, legal_country_iso, site_order, p_weight, quantised_bits.
+   - Enforce PK monotonicity (merchant_id, legal_country_iso, site_order) while
+     iterating. If out-of-order, abort with 2B-S2-083 instead of resorting, to
+     avoid nondeterministic external sort costs.
+   - Group by merchant_id in the existing order (maintain_order=True), and keep
+     memory bounded to a single-merchant window.
+
+2) Policy/minima validation and bit-depth coherence.
+   - Validate the policy JSON against `schemas.2B.yaml#/policy/alias_layout_policy_v1`.
+   - Enforce required minima keys and compatibility: `decode_law` matches
+     `record_layout.prob_qbits`, `quantised_bits` is constant in S1 and equals
+     the policy value, `alignment_bytes` >= 1, and checksum rules are present.
+
+3) Integer grid reconstruction per merchant.
+   - Use round-to-nearest-even (`numpy.rint`) on `p_weight * G` (G = 2^b).
+   - Compute deficit `delta = G - sum(m)` and apply residual-ranked +/-1 adjust
+     with deterministic tie breaks (residual then PK index). Abort if the sum
+     cannot be reconciled or any m_i is negative or > G.
+
+4) Walker/Vose alias encoding (deterministic queues).
+   - Compute scaled masses and initialize small/large queues in ascending index
+     order. Treat m_i == M as large, and pop/push queues from the front/back to
+     preserve deterministic order. Track any equality handling deviations to
+     emit V-27 WARN evidence without altering the output.
+
+5) Serialization + checksums.
+   - Write each merchant slice as: header (u32 n_sites, u32 prob_qbits, u32 0, u32 0),
+     then prob_q uint32 array and alias uint32 array, in the policy endianness.
+   - Encode prob_q using Q0.32: floor(prob * 2^32), clamp to [1, 2^32-1].
+   - Compute per-slice checksum over payload bytes only; length excludes padding.
+   - Insert alignment padding between slices; track offsets and lengths, and
+     stream blob sha256 as bytes are written.
+
+6) Index generation and validation.
+   - Build the index header with required fields (including merchants array),
+     set blob_size_bytes and blob_sha256, and ensure merchants_count matches
+     the number of rows.
+   - Validate index JSON against `schemas.2B.yaml#/plan/s2_alias_index` with
+     Draft202012Validator. Enforce non-overlap and bounds with explicit checks.
+
+7) Publish and run-report emission.
+   - Stage index + blob under run tmp; atomic publish both with write-once
+     guard. If either exists and bytes differ, abort with 2B-S2-080.
+   - Emit run-report JSON to stdout and persist the same JSON file; include
+     deterministic samples, validators, id_map, and durations_ms.
+### Entry: 2026-01-15 11:55
+
+Design element: 2B.S2 alias table runner implementation (file creation + core algorithm wiring).
+Summary: Begin actual coding for S2, ensuring the runner matches the spec’s deterministic Walker/Vose encode, Q0.32 packing, policy echo, write-once publish, and run-report evidence rules.
+
+Implementation posture and concrete choices (recorded before code edits):
+1) File/runner layout.
+   - Create `packages/engine/src/engine/layers/l1/seg_2B/s2_alias_tables/runner.py` and keep the module name aligned with S2 (“alias tables”).
+   - Use the same logging/event helpers as S1/S0 to keep run logs story-like and consistent.
+   - Reuse S0 helper functions for path resolution, schema extraction, and external $defs inlining.
+
+2) Input handling + gate evidence.
+   - Validate `s0_gate_receipt_2B` and `sealed_inputs_2B` with Draft202012Validator, inlining layer1 $defs into the receipt schema (same approach as S1) to avoid unresolved refs.
+   - Enforce that `alias_layout_policy_v1` is present in sealed_inputs, and that its sealed path matches the dictionary-resolved policy path (abort with 2B-S2-070 on mismatch).
+   - Validate the policy JSON against `schemas.2B.yaml#/policy/alias_layout_policy_v1`, then enforce minima (layout_version/endianness/alignment/quantised_bits/encode_spec/decode_law/checksum/blob_digest/required_index_fields). Missing or unsupported values abort with 2B-S2-032.
+
+3) Weights loading + PK order enforcement.
+   - Load `s1_site_weights` via Polars with only required columns; enforce constant quantised_bits == policy b (2B-S2-058) and verify strict PK ascending order (merchant_id, legal_country_iso, site_order). If ordering breaks, abort with 2B-S2-083 instead of resorting (determinism > implicit reordering).
+
+4) Mass reconstruction and deterministic adjustments.
+   - Use binary64 m* = p_weight * G with G = 2^b; round ties-to-even via numpy.rint; residual adjustment by residual ranking + PK index, skipping invalid decrement cases and aborting with 2B-S2-052/053 when reconciliation fails.
+
+5) Alias encode + Q0.32 packing.
+   - Implement Walker/Vose with deterministic small/large queues (m_i == M treated as large) and treat-within-epsilon-of-one-as-one using policy.quantisation_epsilon.
+   - Encode prob_q with Q0.32 floor/clamp rule and uint32 arrays; pack slice header `u32_n_sites,u32_prob_qbits,u32_reserved0,u32_reserved1` + prob_q + alias arrays in policy endianness.
+
+6) Blob/index serialization + checksums.
+   - Stream blob writes to run tmp, align slice offsets to alignment_bytes, pad with policy.pad_byte_hex, and exclude padding from per-slice checksum scope (policy scope = slice_payload_bytes). Track offset/length per merchant and compute blob sha256 as bytes are written.
+
+7) Validation + run-report evidence.
+   - Validate index JSON against schema with inlined layer1 $defs, then enforce bounds/non-overlap/alignment, merchants/sites coverage, and policy echo/created_utc coherence.
+   - Perform deterministic decode spot-check on first N merchants (N=20), compute p_hat from encoded prob_q + alias, enforce |p_hat - p_weight| <= epsilon_q and sum p_hat ~ 1 (2B-S2-055).
+   - Emit run-report (stdout + file) with required top-level fields, samples (index rows, decode rows, boundary checks, alignment), counters, and durations.
+
+8) Publish semantics.
+   - Write index + blob to staging under run tmp; publish with write-once guard (byte-identity required for re-emit) and sequential atomic renames. If any non-identical existing output is found, abort with 2B-S2-080. If publish fails, abort with 2B-S2-082.
+
+Open risks noted before coding:
+- JSON schema refs: must inline `schemas.layer1.yaml#/$defs/*` into index schema to avoid `Unresolvable` errors.
+- Writer-order strictness: we are aborting if `s1_site_weights` ordering is not strictly ascending; if you prefer an internal deterministic sort, we should revisit before finalizing.
+
+### Entry: 2026-01-15 12:15
+
+Design element: 2B.S2 implementation resume (replace placeholder runner, wire CLI/Makefile).
+Summary: The S2 runner stub currently contains placeholder text; we will replace
+it with the full deterministic alias build, add the CLI entry point, and wire
+the Makefile target. No algorithmic deviations from the prior S2 plan are
+introduced here; this entry logs the exact work sequence before editing code.
+
+Planned actions (before code edits, detailed):
+1) Replace `seg_2B/s2_alias_tables/runner.py` placeholder content.
+   - Implement the full S2 runner as per the 11:55 posture: policy validation,
+     integer-grid reconstruction, Walker/Vose encode, Q0.32 packing, per-slice
+     checksum, streaming blob digest, index build + schema validation, decode
+     spot-check, and atomic publish with write-once guard.
+   - Ensure logs remain story-like and include progress, throughput, and
+     timing stats (elapsed/rate/eta) in long loops.
+
+2) Add CLI entry point `engine/cli/s2_alias_tables_2b.py`.
+   - Pattern after `s1_site_weights_2b.py` to keep config/args consistent
+     (contracts layout/root, runs root, external roots, run-id override).
+
+3) Update Makefile wiring for `segment2b-s2`.
+   - Add `SEG2B_S2_RUN_ID`, `SEG2B_S2_ARGS`, `SEG2B_S2_CMD` variables.
+   - Add `segment2b-s2` target to `.PHONY` and to the target list near
+     `segment2b-s0`/`segment2b-s1` for consistency.
+
+4) After code edits, run `make segment2b-s2` (and re-run S0/S1 if policy digest
+   changes) to confirm green. Record any failures and fixes in this log.
+
+### Entry: 2026-01-15 12:22
+
+Design element: Begin S2 coding pass (runner/CLI/Makefile wiring, plus compatibility shim).
+Summary: Proceed to replace the placeholder runner with the full deterministic
+alias-table build, add the CLI entry point and Makefile target, and optionally
+add a thin import shim so older tests importing `seg_2B.s2_alias` continue to
+work without changing the state implementation naming.
+
+Detailed pre-edit actions and decisions:
+1) Implementation sequencing (before touching code).
+   - First, log this in-process entry, then implement the runner, then add CLI
+     and Makefile wiring, and only after that run S2.
+   - Rationale: capture the exact intended sequence to keep the audit trail
+     usable (the user requested brainstorming + decisions be logged before
+     code changes).
+
+2) Compatibility shim decision.
+   - Decision: add a tiny `seg_2B/s2_alias` module that re-exports the new
+     `S2AliasRunner/S2AliasInputs` from `s2_alias_tables`. This preserves older
+     import paths used in `tests/engine/test_seg_2b_s2_alias.py` without
+     altering the S2 implementation name or spec bindings.
+   - Rationale: the shim is non-invasive, avoids test breakage, and does not
+     change S2’s outputs or contract behaviour.
+
+3) Logging and run-report intent.
+   - Continue story-style logs per spec: explicit stages for RESOLVE, POLICY,
+     RECONSTRUCT, ENCODE, SERIALIZE, DIGEST, DECODE_CHECK, and PUBLISH.
+   - Ensure long loops (per merchant / per slice) include progress with
+     elapsed/rate/eta so operators see real-time progress.
+
+4) Failure-handling posture.
+   - Preserve spec abort codes for each validator; the runner should emit the
+     matching `V-##` status updates and include them in the run-report even on
+     early failure.
+   - Abort-class failures must avoid publishing any outputs; attempted run
+     report emission should still occur with partial data when safe.
+
+### Entry: 2026-01-15 13:36
+
+Design element: Final S2 runner alignment to spec (run-report, queue performance, policy compatibility).
+Summary: Before finishing Makefile wiring and running S2, tighten the runner to
+match the S2 spec’s observability and performance requirements: add missing
+run-report fields (id_map), fix boundary sample indexing, enforce policy
+encode/decode compatibility, and remove O(K^2) queue operations in alias build.
+
+Detailed decisions and changes to apply (before edits):
+1) Run-report completeness (spec compliance).
+   - Add `id_map` with dictionary-resolved paths for:
+     `s1_site_weights`, `alias_layout_policy_v1`, `s2_alias_index`, `s2_alias_blob`.
+   - Ensure `samples.boundary_checks` uses the correct offsets from the sorted
+     ranges list (not the boundary-candidate index) so gaps are accurate.
+   - Keep `targets` order fixed as `[s2_alias_index, s2_alias_blob]` (already
+     correct), and keep validators sorted by id.
+
+2) Alias queue performance (avoid O(K^2)).
+   - Replace `small.pop(0)` / `large.pop(0)` list-queue operations with
+     heap-based worklists (`heapq`) keyed by index. This keeps deterministic
+     ascending-index behaviour while ensuring O(K log K) per merchant instead
+     of quadratic pops.
+   - Still treat `m_i == M` as “large” per the deterministic queue convention.
+
+3) Policy compatibility checks (no silent mismatches).
+   - Abort if `encode_spec.mass_rounding` or `encode_spec.delta_adjust` or
+     `encode_spec.worklist_order` is not the supported values
+     (`round_to_nearest_ties_to_even`, `residual_ranked_plus_minus_one`,
+     `ascending_index`).
+   - Abort if `record_layout.prob_q_encoding` or `alias_index_type` or
+     `slice_header` differs from the supported layout (`Q0.32_floor_clamp...`,
+     `u32`, `u32_n_sites,u32_prob_qbits,u32_reserved0,u32_reserved1`).
+   - Abort if `decode_law` is not `walker_vose_q0_32` or if `prob_qbits > 32`.
+   - Rationale: the implementation is intentionally narrow; any policy drift
+     should fail closed rather than silently producing a different layout.
+
+4) Observability during alias build.
+   - Add a progress tracker that logs merchants processed (elapsed/rate/eta).
+   - Emit a “S2: building alias tables” log with merchant/site counts.
+
+5) Digest timing accuracy.
+   - Record digest timing around the blob SHA-256 finalisation, not a zero-cost
+     no-op, so `digest_ms` reflects actual work.
+
+Next actions after these edits:
+1) Update `seg_2B/s2_alias_tables/runner.py` to implement the changes above.
+2) Wire `segment2b-s2` in the Makefile and run `make segment2b-s2` until green,
+   recording every failure + fix here and in the logbook.
+
+### Entry: 2026-01-15 13:42
+
+Design element: Applied S2 runner + Makefile changes for spec compliance.
+Summary: Implemented the planned S2 runner adjustments and Makefile wiring so
+the alias build follows spec-required logging, policy compatibility, and
+performance posture before running S2.
+
+Actions executed (detailed):
+1) Runner: policy compatibility enforcement.
+   - Added `_validate_policy_compat` checks for endianness/alignment, positive
+     epsilons, encode_spec fields, record_layout fields, decode_law, and
+     checksum/digest settings; aborts on unsupported values with 2B-S2-032.
+
+2) Runner: alias queue performance.
+   - Replaced list `pop(0)` + `bisect.insort` with heap-based worklists to keep
+     deterministic ascending-index behaviour while avoiding O(K^2) queue costs.
+
+3) Runner: observability and report evidence.
+   - Added a progress tracker for merchants with elapsed/rate/eta.
+   - Added an explicit “S2: building alias tables” log line with merchant/row
+     counts.
+   - Fixed boundary sample indexing to reference the correct neighbor ranges.
+   - Added `id_map` to the run-report with dictionary-resolved paths for all
+     inputs/outputs required by §11.10.
+
+4) Runner: digest timing.
+   - Captured `digest_ms` around blob SHA-256 finalisation instead of a no-op
+     timer, and wired this value into the run-report.
+
+5) Makefile: S2 wiring.
+   - Added `SEG2B_S2_RUN_ID`, S2 args/command, `segment2b-s2` target, and
+     `.PHONY` entry so S2 can be run via make consistently with S0/S1.
+
+Next steps:
+1) Run `make segment2b-s2` for the active run_id and inspect the log/report.
+2) Record any failures + fixes in this file and in the logbook.
+
+### Entry: 2026-01-15 13:44
+
+Design element: S2 abort on policy digest mismatch (2B-S2-022).
+Summary: First S2 run after the runner updates failed at the policy digest
+check: the sealed digest for `alias_layout_policy_v1` no longer matches the
+current policy file bytes for the active run_id.
+
+Observed failure (from run log):
+- Validator V-24 failed with `2B-S2-022 policy_digest_mismatch` and showed
+  `sealed=b622...f908` vs `computed=8295...8cfe`.
+
+Diagnosis and resolution plan:
+1) The sealed_inputs_2B entry was produced by 2B.S0 earlier in the run and
+   still carries the old policy digest. Since policy bytes have changed since
+   that seal, S2 correctly fails closed.
+2) Re-run `make segment2b-s0` for the same run_id to refresh sealed_inputs_2B
+   with the current policy digest. (S1 does not depend on this policy, but we
+   will re-run S1 if needed to keep the run lineage consistent.)
+3) Re-run `make segment2b-s2` and confirm the digest check passes.
+4) Record the rerun outputs and any new errors in this log and the logbook.
+
+### Entry: 2026-01-15 13:45
+
+Design element: S0 write-once guard blocks reseal (2B-S0-080).
+Summary: Re-running `segment2b-s0` to refresh the sealed policy digest failed
+because the prior S0 outputs already exist for this run_id and the byte
+content now differs (expected after policy-byte changes).
+
+Resolution plan (pending user confirmation, before any deletion):
+1) Remove the run-local outputs for S0 under:
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/`
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
+2) Re-run `make segment2b-s0` to regenerate receipt + sealed_inputs with the
+   current policy digest.
+3) Retry `make segment2b-s2` after S0 succeeds.
+
+Note: per the write-once rules, deleting the old outputs is the only way to
+allow the new seal to publish. Awaiting approval before removal.

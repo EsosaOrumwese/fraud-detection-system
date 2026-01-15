@@ -41,6 +41,8 @@ SEG2A_S3_RUN_ID ?= $(RUN_ID)
 SEG2A_S4_RUN_ID ?= $(RUN_ID)
 SEG2A_S5_RUN_ID ?= $(RUN_ID)
 SEG2B_S0_RUN_ID ?= $(RUN_ID)
+SEG2B_S1_RUN_ID ?= $(RUN_ID)
+SEG2B_S2_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_PREDICATE ?= center
 
 # ---------------------------------------------------------------------------
@@ -708,6 +710,36 @@ SEG2B_S0_ARGS += --run-id $(SEG2B_S0_RUN_ID)
 endif
 SEG2B_S0_CMD = $(PY_ENGINE) -m engine.cli.s0_gate_2b $(SEG2B_S0_ARGS)
 
+SEG2B_S1_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG2B_S1_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG2B_S1_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG2B_S1_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG2B_S1_RUN_ID)),)
+SEG2B_S1_ARGS += --run-id $(SEG2B_S1_RUN_ID)
+endif
+SEG2B_S1_CMD = $(PY_ENGINE) -m engine.cli.s1_site_weights_2b $(SEG2B_S1_ARGS)
+
+SEG2B_S2_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG2B_S2_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG2B_S2_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG2B_S2_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG2B_S2_RUN_ID)),)
+SEG2B_S2_ARGS += --run-id $(SEG2B_S2_RUN_ID)
+endif
+SEG2B_S2_CMD = $(PY_ENGINE) -m engine.cli.s2_alias_tables_2b $(SEG2B_S2_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -1202,7 +1234,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b-s0 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b-s0 segment2b-s1 segment2b-s2 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
 all: segment1a segment1b 
@@ -1468,6 +1500,14 @@ segment2a-s5:
 segment2b-s0:
 	@echo "Running Segment 2B S0 gate-in"
 	@$(SEG2B_S0_CMD)
+
+segment2b-s1:
+	@echo "Running Segment 2B S1 site weights"
+	@$(SEG2B_S1_CMD)
+
+segment2b-s2:
+	@echo "Running Segment 2B S2 alias tables"
+	@$(SEG2B_S2_CMD)
 
 
 paths-tree:
