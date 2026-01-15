@@ -1971,3 +1971,261 @@ Open confirmations to resolve before coding:
 3) Run-report persistence:
    - Plan: emit to stdout and also persist the same JSON file under the run
      reports path (diagnostic only). Confirm if you prefer stdout-only.
+
+### Entry: 2026-01-15 22:10
+
+Design element: Lock S4 confirmation decisions (epsilon, audit fields, run-report).
+Summary: User confirmed the proposed constants and emission posture, so the S4
+implementation will use a fixed epsilon, include audit fields, and emit both
+stdout and file run-reports.
+
+Decision details (before coding):
+1) Normalisation epsilon (î):
+   - Use a fixed programme constant `1e-12` for all S4 normalisation and tiny-
+     negative guard checks.
+   - Rationale: the spec does not permit additional policy inputs in S4; this
+     keeps behaviour deterministic and consistent with existing 2B epsilons.
+
+2) Optional audit fields:
+   - Always emit `mass_raw` and `denom_raw` in `s4_group_weights` rows.
+   - Rationale: supports V-19 audit coherence and simplifies diagnosis without
+     altering the schema (fields are nullable/optional).
+
+3) Run-report persistence:
+   - Emit the run-report JSON to stdout (single JSON document) and also write
+     the same JSON file under the run reports path.
+   - Rationale: stdout is required by spec; file persistence aids review and
+     traceability without becoming authoritative.
+
+### Entry: 2026-01-15 22:23
+
+Design element: 2B.S4 implementation kickoff (runner/CLI/Makefile wiring).
+Summary: Begin coding S4 with deterministic streaming joins and per-merchant/day
+renormalisation, write-once publish, and spec-tight run-report emission (stdout + file).
+
+Implementation decisions & stepwise plan (before code changes):
+1) Implementation strategy (determinism + performance).
+   - Use a streaming Python loop over `s1_site_weights` and `s3_day_effects` to
+     preserve strict PK order and stable serial reductions. Avoid parallel/group
+     reductions that can change floating order.
+   - Build a compact `site_timezones` lookup map keyed by
+     (merchant_id, legal_country_iso, site_order) -> tzid to ensure O(1) join
+     and to detect multimap keys early (2B-S4-041). Memory is bounded by the
+     number of sites and is acceptable for the 2B scale.
+   - Aggregate base_share per merchant/tzid in PK order while scanning S1,
+     compute per-merchant sum and track max abs error for the run-report.
+   - Extract the day grid from `s3_day_effects` (distinct utc_day, sorted), then
+     stream S3 rows in PK order to emit S4 rows in the same PK order.
+
+2) Join + coverage enforcement (validator mapping).
+   - Missing tzid in the timezones map -> 2B-S4-040 (V-04).
+   - Multimap key (same site key -> multiple tzid) -> 2B-S4-041 (V-04).
+   - Duplicate PK rows while streaming S3 -> 2B-S4-041A (V-07).
+   - Writer order violation in S3 input -> 2B-S4-083 (V-08).
+   - Coverage mismatch per merchant/day or rows_written != rows_expected ->
+     2B-S4-050 (V-06).
+   - Day grid mismatch per merchant (missing or extra day vs global day list) ->
+     2B-S4-090 (V-12).
+
+3) Normalisation + domain checks.
+   - Compute mass_raw = base_share * gamma and denom_raw = sum(mass_raw) per
+     merchant/day. Require denom_raw > 0 (2B-S4-051/V-11).
+   - p_group = mass_raw/denom_raw; if p_group < -epsilon -> 2B-S4-057 (V-10).
+   - If tiny negatives in (-epsilon, 0), clamp to 0 and renormalise once;
+     then enforce |sum(p_group)-1| <= epsilon (2B-S4-051/V-11).
+   - Ensure base_share >= 0 and gamma > 0 (2B-S4-057/V-10).
+   - Always emit mass_raw/denom_raw (nullable) per approved decision.
+
+4) Output + validation + publish.
+   - Emit rows in strict PK order: merchant_id, utc_day, tz_group_id.
+   - Validate batches with `validate_dataframe` against
+     `schemas.2B.yaml#/plan/s4_group_weights` and inline layer1 $defs.
+   - Stage outputs under run-local tmp; atomic publish to dictionary path; on
+     re-run, allow only byte-identical output (2B-S4-081/082).
+
+5) Run-report construction (fields-strict, spec-only).
+   - Include only the spec-required top-level keys:
+     component, manifest_fingerprint, seed, created_utc, catalogue_resolution,
+     inputs_summary, aggregation, normalisation, publish, validators, summary,
+     environment, samples, counters, durations_ms, id_map.
+   - Ensure samples are deterministic (rows by PK order; normalisation/base_share
+     sorted by abs_error; coverage by earliest days). Omit gamma_echo unless
+     V-09 fails.
+
+6) Logging posture.
+   - Story header log with objective + gated inputs + output path.
+   - Progress logs for the S3 row stream (elapsed/processed/total/rate/eta).
+   - Emit validator PASS at DEBUG; WARN/FAIL at visible levels.
+
+7) Code wiring steps.
+   - Create `seg_2B/s4_group_weights/runner.py` (using S3/S2 helper patterns).
+   - Add CLI `engine/cli/s4_group_weights_2b.py`.
+   - Update Makefile with SEG2B_S4_* args/cmd and `segment2b-s4` target.
+   - Log all changes in 2026-01-15 logbook with references to this entry.
+
+### Entry: 2026-01-15 22:51
+
+Design element: S4 execution details for ordering, audit coherence, and sampling.
+Summary: Clarify how to preserve PK order without resorting the S3 input, how
+to apply tiny-negative clamping while keeping audit coherence within epsilon,
+and how to select deterministic samples without storing all merchant/day errors.
+
+Decision details (before coding):
+1) S3 input ordering + writer-order validation.
+   - Read `s3_day_effects` by enumerating parquet parts in ASCII-lex order and
+     iterate rows as-is; do NOT resort the full table.
+   - Enforce PK order on the streamed rows (abort `2B-S4-083`) so output order
+     is guaranteed PK-ascending without a global sort.
+   - Rationale: preserves determinism and avoids an expensive global sort while
+     still validating writer order per V-08.
+
+2) Site-timezones multimap handling.
+   - Treat any duplicate `(merchant_id, legal_country_iso, site_order)` in
+     `site_timezones` as a multimap violation (abort `2B-S4-041`), even if the
+     duplicate rows share the same tzid.
+   - Rationale: the spec mandates a strict 1:1 join; duplicates break the 1:1
+     guarantee even when values are identical.
+
+3) Tiny-negative clamp + audit coherence.
+   - Compute `p_group = mass_raw / denom_raw` first; if any p < -epsilon, abort
+     `2B-S4-057`. For -epsilon <= p < 0, clamp to 0 and renormalise once.
+   - Keep `mass_raw` and `denom_raw` unchanged (still the raw values); enforce
+     audit coherence with an epsilon tolerance so clamping stays within bounds.
+   - Rationale: honours the clamp rule while keeping `p_group` ≈ `mass_raw /
+     denom_raw` within epsilon for V-19.
+
+4) Normalisation samples (top-20 without full storage).
+   - Maintain a sorted top-20 list of `{merchant_id, utc_day, sum_p_group,
+     abs_error}` as we stream; only replace the current worst entry when a new
+     candidate is strictly better by the spec’s ordering.
+   - Rationale: avoids storing all merchant×day errors while keeping the
+     deterministic “largest abs_error, then merchant_id, then utc_day” rule.
+
+### Entry: 2026-01-15 23:01
+
+Design element: S4 wiring + timing fix follow-up.
+Summary: Add the S4 CLI + Makefile target, and fix a timing bug that overwrote
+the aggregation timing metric after it was computed.
+
+Decision details and in-process actions:
+1) Timing metric correction.
+   - Issue spotted: `aggregate_ms` was computed correctly after base_share
+     aggregation, then overwritten by `join_groups_ms` before publishing.
+   - Decision: remove the overwrite so `aggregate_ms` reflects the aggregate
+     phase only, and keep `join_groups_ms` unchanged.
+   - Rationale: run-report timing fields must remain truthful; overwriting
+     breaks performance review and violates the spec’s intent for timing stats.
+
+2) CLI wiring.
+   - Added `engine/cli/s4_group_weights_2b.py` using the same contract/run-root
+     flags pattern as other 2B CLIs, with a dedicated logger and summary line.
+   - Rationale: keeps the CLI surface consistent across 2B states and allows
+     targeted S4 runs without invoking the segment driver.
+
+3) Makefile wiring.
+   - Added `SEG2B_S4_RUN_ID`, `SEG2B_S4_ARGS`, `SEG2B_S4_CMD`, and
+     `segment2b-s4` target; updated `.PHONY` to include the new target.
+   - Rationale: match existing per-state targets and make S4 runnable via
+     the standard make workflow.
+
+### Entry: 2026-01-15 23:03
+
+Design element: S4 runtime fix (scope capture in nested normalisation).
+Summary: Fix the S4 run failure caused by missing nonlocal bindings in the
+per-merchant/day normalisation helper.
+
+Decision details and in-process actions:
+1) Failure observed.
+   - `UnboundLocalError` in `_flush_day` when updating
+     `max_abs_mass_error_per_day` and `merchants_days_over_epsilon` during
+     the normalisation checks.
+   - Root cause: the nested function assigns to those variables without
+     declaring them `nonlocal`, so Python treats them as local.
+
+2) Fix.
+   - Added `max_abs_mass_error_per_day` and `merchants_days_over_epsilon` to
+     the `nonlocal` list at the start of `_flush_day`.
+   - Rationale: these counters are state-wide metrics used in run-report
+     and validator decisions, so they must update the outer scope.
+
+3) Follow-up.
+   - Re-run `make segment2b-s4 RUN_ID=<latest>` after the fix to confirm the
+     run completes and produces the S4 output + run-report.
+
+### Entry: 2026-01-15 23:04
+
+Design element: S4 nonlocal syntax correction.
+Summary: Fix a syntax error caused by using parenthesized `nonlocal` in Python.
+
+Decision details and in-process actions:
+1) Failure observed.
+   - `SyntaxError: invalid syntax` at the `nonlocal` statement after the prior
+     fix, because Python does not allow parenthesized `nonlocal` lists.
+
+2) Fix.
+   - Replaced the parenthesized `nonlocal (...)` with explicit `nonlocal` lines
+     for each variable (`rows_written`, `pk_duplicates`, `combine_ms`,
+     `normalise_ms`, `write_ms`, `publish_bytes_total`,
+     `max_abs_mass_error_per_day`, `merchants_days_over_epsilon`).
+   - Rationale: preserve readability while keeping valid Python syntax.
+
+### Entry: 2026-01-15 23:05
+
+Design element: S4 nonlocal scope fix (batch part index).
+Summary: Fix a second nonlocal scope error while batching output rows.
+
+Decision details and in-process actions:
+1) Failure observed.
+   - `UnboundLocalError` raised when updating `part_index` inside `_flush_day`
+     while writing batches.
+   - Root cause: `_flush_day` increments `part_index` but did not declare it as
+     `nonlocal`.
+
+2) Fix.
+   - Added `part_index` to the `nonlocal` declarations in `_flush_day`.
+   - Rationale: `part_index` is a stateful counter for batch file names and
+     must be updated across day flushes.
+
+### Entry: 2026-01-15 23:06
+
+Design element: S4 base_share clamp to satisfy schema bounds.
+Summary: Prevent schema validation failures caused by floating-point drift
+where `base_share` slightly exceeds 1.0.
+
+Decision details and in-process actions:
+1) Failure observed.
+   - S4 batch validation failed (`2B-S4-030`) because `base_share` values were
+     `1.0000000000000002` for single-group merchants, tripping the schema
+     max of 1.0 even though sums were within epsilon.
+
+2) Fix.
+   - In `_flush_day`, abort if `base_share_value > 1.0 + EPSILON` (true
+     contract violation).
+   - If `1.0 < base_share_value <= 1.0 + EPSILON`, clamp to 1.0 before
+     computing `mass_raw` and emitting the row.
+   - Rationale: preserves deterministic math while tolerating benign float
+     drift; keeps emitted rows within schema bounds.
+
+3) Follow-up.
+   - Re-run `make segment2b-s4 RUN_ID=<latest>` to confirm the batch validator
+     passes and the S4 output + run-report are emitted.
+
+### Entry: 2026-01-15 23:08
+
+Design element: S4 run verification.
+Summary: Re-ran S4 after the clamp fix; run completed and run-report is PASS.
+
+Run review notes:
+1) Execution status.
+   - `make segment2b-s4 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` completed.
+   - Run-report summary: PASS (warn_count=0, fail_count=0).
+
+2) Key counters observed (for reference, non-authoritative).
+   - merchants_total=1249, tz_groups_total=3087, days_total=366,
+     rows_written=1129842 (matches expected).
+   - max_abs_mass_error_per_day ~ 4.44e-16, base_share_sigma_max_abs_error
+     ~ 5.32e-13 (within epsilon).
+
+3) Outcome.
+   - No further code changes needed for S4; proceed to next state once the
+     user confirms.
