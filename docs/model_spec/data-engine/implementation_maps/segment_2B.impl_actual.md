@@ -3167,3 +3167,160 @@ Proposed plan (once confirmations are settled):
    - Path-embed equality for s6_edge_log if written.
    - Replay sample: deterministic output for a fixed seed/run_id.
 
+### Entry: 2026-01-16 18:12
+
+Decision update (user-approved confirmations):
+- Policy shape: proceed with **schema extension** to accept
+  `default_edges + merchant_overrides + geo_metadata` while preserving the
+  existing `edges[]` form. Then update `virtual_edge_policy_v1.json` to include
+  `policy_id`, and normalize edge attributes to `ip_country/edge_lat/edge_lon`.
+  Rationale: preserves current intent (per-merchant overrides) without dropping
+  virtual routing coverage; keeps token-less policy sealing unchanged.
+- Missing overrides: **fallback to default_edges** if a merchant has no override.
+  Rationale: avoids hard failures for new virtual merchants; aligns with
+  per-merchant override semantics while keeping deterministic routing.
+- Optional s6_edge_log: **gate behind policy flag** + dictionary registration,
+  default false to avoid log bloat. Rationale: consistent with S5 selection log
+  gating; avoids unconditional log growth in production.
+- Run-report: emit required STDOUT JSON **and** persist the same JSON under
+  `reports/layer1/2B/state=S6/...` (non-authoritative diagnostic).
+
+Immediate consequences to record before coding:
+- `schemas.2B.yaml#/policy/virtual_edge_policy_v1` will be broadened to accept a
+  second shape (default_edges/merchant_overrides/geo_metadata), which deviates
+  from the authoring guide’s strict edges[]-only posture. This is a spec
+  deviation; will note in logbook and preserve the edges[] path for future
+  convergence.
+- `config/layer1/2B/policy/virtual_edge_policy_v1.json` will be rewritten to
+  include `policy_id` and field names aligned with the schema, plus geo_metadata
+  entries for edge_lat/edge_lon.
+- S6 will treat `is_virtual` as a runtime input: if the arrival record lacks it
+  (current s5_arrival_roster schema), S6 will default to `false` and log a
+  warning. This keeps S6 non-invasive until upstream provides is_virtual.
+
+### Entry: 2026-01-16 18:26
+
+Additional implementation decisions before coding:
+- `s5_arrival_roster_row` schema currently disallows extra fields; to accept
+  `is_virtual` when present, I will add `is_virtual` as an **optional** property
+  (nullable false) to `schemas.2B.yaml#/trace/s5_arrival_roster_row`. This keeps
+  backward compatibility for existing rosters while letting S6 consume the flag
+  when available.
+- RNG trace log handling: S5 already publishes `rng_trace_log` for the run. S6
+  must **append** its trace rows (one per cdn_edge_pick event) to the same
+  run-scoped file. I will implement an **append-capable atomic publish** for
+  `rng_trace_log` that preserves the existing file bytes as a prefix and then
+  appends S6 rows in order. If no new events are produced, S6 will leave the
+  trace log unchanged.
+- RNG audit log handling: if `rng_audit_log` already exists (from S5), S6 will
+  not overwrite it; if missing, S6 will emit a single audit row using the same
+  envelope as S5.
+
+### Entry: 2026-01-16 18:34
+
+Additional decision (edge-log context):
+- `s6_edge_log` requires `tz_group_id` and `site_id`, but those are not present
+  in `s5_arrival_roster_row`. To keep S6 non-invasive, I will **require**
+  `s5_selection_log` to exist **only when** `s6_edge_log` is enabled, and join
+  on `(merchant_id, utc_timestamp, utc_day)` to obtain `tz_group_id`/`site_id`.
+  If `s6_edge_log` is disabled, S6 will not load the selection log and will run
+  off the arrival roster alone.
+
+### Entry: 2026-01-16 18:38
+
+Pre-implementation plan (S6 coding steps; do this before edits):
+- Implement `packages/engine/src/engine/layers/l1/seg_2B/s6_edge_router/runner.py`
+  by adapting S5’s structure and logging conventions:
+  - Story header log: objective, gated inputs (S0 receipt + sealed_inputs,
+    route_rng_policy_v1, virtual_edge_policy_v1, s5_arrival_roster, optional
+    s5_selection_log), and outputs (rng_event_cdn_edge_pick, rng_trace_log,
+    rng_audit_log, optional s6_edge_log, run-report).
+  - Validate S0 receipt against `validation/s0_gate_receipt_v1` schema (2B) and
+    confirm `manifest_fingerprint` matches path token.
+  - Build `sealed_by_id` from S0 receipt payload; require the policy + roster
+    assets and ensure the sealed paths match dictionary catalog paths.
+  - Validate `route_rng_policy_v1` and `virtual_edge_policy_v1` via schema packs
+    (inline layer1 refs) and enforce stream semantics:
+    * `streams.routing_edge.event_families.cdn_edge_pick` must have blocks=1,
+      draws=1, draws_per_virtual=1.
+    * `basis.key_basis` must be `[seed, parameter_hash, run_id]`,
+      `counter_step_per_event`=1, `counter_wrap_policy`="abort".
+  - Normalize virtual edge policy:
+    * If `edges[]` present, treat as default edges.
+    * Else use `default_edges` + `merchant_overrides` + `geo_metadata`.
+    * Enforce weight sum ~=1.0, deterministic ordering by edge_id.
+  - Load `s5_arrival_roster` (JSONL) and default `is_virtual=false` if missing,
+    logging a single warning so S6 is backward compatible.
+  - If `s6_edge_log` is enabled (policy flag + dictionary entry), require
+    `s5_selection_log` and join on `(merchant_id, utc_timestamp, utc_day)` to
+    fetch `tz_group_id` + `site_id`; abort if missing.
+  - Generate RNG: use philox2x64-10 + derived key/counter, one draw per virtual
+    arrival (non-virtual arrivals skipped). Emit `rng_event_cdn_edge_pick` and
+    append trace rows via `RngTraceAccumulator`.
+  - Append trace rows atomically to existing run-scoped `rng_trace_log` while
+    leaving prior bytes intact; emit `rng_audit_log` only if missing.
+  - Optionally emit `s6_edge_log` partitioned by `utc_day` with edge metadata,
+    tz group/site IDs (when enabled).
+  - Persist run-report JSON to `reports/layer1/2B/state=S6/...` and also log a
+    STDOUT JSON summary.
+- Implement `packages/engine/src/engine/cli/s6_edge_router_2b.py` mirroring
+  other CLI entrypoints (run_id argument, validate_only optional if in spec).
+- Update `makefile` with `segment2b-s6` target and include it in the `segment2b`
+  aggregate. Ensure RUN_ID pick-up matches existing pattern.
+- After code changes, run `make segment2b-s6 RUN_ID=<current>` and fix any
+  failures, logging each decision in both logbook and this implementation map.
+
+### Entry: 2026-01-16 19:10
+
+Design element: 2B.S6 policy decoding details (country-weights) + edge-log join.
+Summary: Resolve how to interpret `country_weights` in virtual_edge_policy_v1
+without adding new runtime inputs, and confirm the join strategy for optional
+s6_edge_log (tz_group_id/site_id provenance) so S6 remains deterministic and
+spec-aligned.
+
+Detailed reasoning and decision:
+1) `country_weights` semantics in `virtual_edge_policy_v1`.
+   - Constraint: S6 inputs are strictly run-scoped arrivals
+     `{merchant_id, utc_timestamp, utc_day, is_virtual}` plus (optional)
+     `s5_selection_log` for tz_group_id/site_id when the edge log is enabled.
+     There is *no* per-arrival legal_country in the roster, and S6 is not
+     supposed to read manifest_fingerprint plan tables just to infer it.
+   - Spec requirement: policy must define a deterministic probability law over
+     edges; either explicit per-edge weights, or a country->edge mapping that
+     *induces* such a law.
+   - Options considered:
+     a) Treat `country_weights` as unsupported (hard-fail if present).
+        -> Strict but would break if the policy uses country_weights later.
+     b) Add a new input (merchant legal country) by reading S1 tables.
+        -> Violates the "S6 does not read plan/egress" intent and adds
+           unnecessary I/O.
+     c) Interpret `country_weights` deterministically using the *edge's*
+        `ip_country` as the key, i.e. weight = country_weights[ip_country]
+        (if present), else weight = 0, then renormalize and enforce sum≈1±ε.
+        -> Deterministic, uses only policy fields, and still yields a stable
+           edge law; does not require extra inputs.
+   - Decision: implement (c). If `country_weights` is present and the key
+     for the edge's `ip_country` is missing or yields a non-positive total,
+     abort with 2B-S6-031 (policy minima missing).
+
+2) s6_edge_log join strategy (tz_group_id + site_id provenance).
+   - Constraint: s6_edge_log row schema requires tz_group_id and site_id,
+     but s5_arrival_roster does not carry them.
+   - Options considered:
+     a) Read s5_selection_log only if the edge log is enabled.
+     b) Relax the s6_edge_log schema (not desired).
+   - Decision: require s5_selection_log when edge logging is enabled; load
+     per-day selection log rows into a keyed map by
+     (merchant_id, utc_timestamp, utc_day) so S6 can attach tz_group_id and
+     site_id deterministically. If a selection record is missing, abort with
+     2B-S6-071 to keep the log lineage strict.
+
+3) Implementation steps to reflect the above:
+   - Extend `_normalize_edges` usage to accept `country_weights` by mapping
+     edge.ip_country -> weight (deterministic rule), then enforce weight sum
+     within EPSILON.
+   - Add edge-log join cache keyed by utc_day with selection rows from
+     s5_selection_log when `edge_log_enabled` and dictionary entry present.
+   - Log a story-style note once when `is_virtual` is missing in the roster
+     (defaulting to False), since this affects bypass behaviour.
+
