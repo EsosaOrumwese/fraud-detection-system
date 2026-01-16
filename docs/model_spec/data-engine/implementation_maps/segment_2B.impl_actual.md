@@ -2229,3 +2229,203 @@ Run review notes:
 3) Outcome.
    - No further code changes needed for S4; proceed to next state once the
      user confirms.
+
+## S5 - Router core (two-stage O(1): group -> site) (S5.*)
+
+### Entry: 2026-01-15 23:27
+
+Design element: S5 contract review + pre-implementation plan.
+Summary: Read the S5 expanded spec + contract pack and prepared a detailed,
+state-aware implementation plan with open confirmations.
+
+Files reviewed (state + contracts/policies):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s5.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml (RNG envelope + alias_pick_group/site)
+- config/layer1/2B/policy/route_rng_policy_v1.json
+- config/layer1/2B/policy/alias_layout_policy_v1.json
+
+Key spec anchors and obligations distilled:
+1) S5 is a per-arrival router with exactly TWO single-uniform RNG draws
+   (alias_pick_group -> alias_pick_site) per arrival, strict event order, and
+   cumulative rng_trace_log updates after each event append.
+2) S5 reads only catalogued inputs by ID, at exact partitions
+   [seed, manifest_fingerprint]; policy files are token-less and MUST be
+   selected by S0-sealed path + sha256. No literal paths; no network I/O.
+3) S2 alias artefacts are integrity-checked (policy echo + blob_sha256), but
+   v1 does NOT decode group slices from the blob; it builds per-group aliases
+   from S1 weights filtered by site_timezones.
+4) Optional s5_selection_log is allowed ONLY if the Dictionary registers it;
+   it must be arrival-ordered and partitioned by
+   [seed, parameter_hash, run_id, utc_day], with manifest_fingerprint as a
+   column (path ↔ embed equality).
+5) Run-report is required to STDOUT (strict fields, created_utc = S0
+   verified_at_utc). Persisted copies are non-authoritative but allowed.
+
+Open confirmations to resolve before coding:
+1) route_rng_policy_v1 schema mismatch: current JSON lacks required fields
+   (policy_id, rng_engine, streams.routing_selection/routing_edge). Proposal:
+   update config to match schemas.2B.yaml#/policy/route_rng_policy_v1 and keep
+   semver policy_version (1.0.0). Confirm this is acceptable.
+2) Selection-log gating: spec says "policy-gated" but only the Dictionary
+   registers s5_selection_log. Proposal: add
+   route_rng_policy_v1.extensions.selection_log_enabled (boolean) and treat
+   selection log as enabled only when BOTH the dictionary entry exists and the
+   policy extension is true. Confirm this gating rule.
+3) Arrival source for S5 runner: spec defines per-arrival routing but does not
+   name a dataset of arrivals in the Dictionary. We need to confirm the
+   expected arrival source for the batch runner (e.g., a deterministic driver
+   passed via CLI, or a defined arrival roster in the segment). Until this is
+   clarified, the runner cannot choose a canonical arrival stream.
+
+Planned implementation approach (after confirmations):
+1) Inputs + gate checks (S0-evidence rule).
+   - Load s0_gate_receipt_2B + sealed_inputs_2B at
+     [manifest_fingerprint], validate schema anchors.
+   - Assert route_rng_policy_v1 + alias_layout_policy_v1 appear in sealed
+     inputs with exact path + sha256; record their digests for the run-report.
+   - Resolve all run-local inputs by Dictionary ID:
+     s4_group_weights, s1_site_weights, s2_alias_index, s2_alias_blob,
+     site_timezones at [seed, manifest_fingerprint].
+
+2) Preflight integrity (S2 parity + policy echo).
+   - Hash s2_alias_blob bytes (SHA-256) and compare to s2_alias_index.blob_sha256.
+   - Verify s2_alias_index header fields (layout_version, endianness,
+     alignment_bytes, quantised_bits) match alias_layout_policy_v1.
+   - Abort on mismatch (2B-S5-041).
+
+3) Data access + mapping setup.
+   - Build a site_id -> tz_group_id (tzid) map from site_timezones for
+     coherence checks and filtering. Keep it in memory (id64 -> tzid string).
+   - Prepare streaming readers for s4_group_weights and s1_site_weights in PK
+     order (merchant_id, utc_day, tz_group_id / site_order).
+
+4) Router core (two-stage O(1)).
+   - GROUP_ALIAS[m,d]: build from s4_group_weights p_group rows for (m,d,*) in
+     PK order; build Walker/Vose alias (deterministic, RNG-free).
+   - SITE_ALIAS[m,d,g]: build from s1_site_weights rows for merchant m filtered
+     to tz_group_id == g via site_timezones; weights from p_weight; stable
+     serial normalization; deterministic alias build.
+   - For each arrival (m,t): derive utc_day; draw uniform via Philox
+     alias_pick_group; decode group alias to tz_group_id; draw uniform via
+     alias_pick_site; decode site alias to site_id; assert mapping coherence
+     (site_timezones tzid == chosen tz_group_id). Abort on empty slice or
+     mismatch.
+
+5) RNG evidence + log emission (layer envelope).
+   - Append alias_pick_group event, then alias_pick_site event for each
+     arrival, using schemas.layer1.yaml RNG envelope (module=2B.S5.router).
+   - After EACH event append, append one rng_trace_log row with cumulative
+     totals (events_total, draws_total, blocks_total).
+   - Emit rng_audit_log once per run (routing stream id + policy digest).
+
+6) Optional s5_selection_log (if enabled by policy + dictionary).
+   - Write JSONL in arrival order; one file per
+     [seed, parameter_hash, run_id, utc_day] partition.
+   - Include manifest_fingerprint column; created_utc = S0 verified_at_utc.
+   - Publish atomically; idempotent re-emit only if bytes identical.
+
+7) Run-report (STDOUT JSON; strict fields).
+   - Emit required fields: component, ids, policy digest/stream id, input paths,
+     rng_accounting (events_group, events_site, draws_total), selection_log
+     enabled flag, validators, summary. created_utc from S0 verified_at_utc.
+   - Persist a copy under reports/layer1/2B/state=S5/... for diagnostics (non-
+     authoritative) to stay consistent with other states.
+
+8) Logging (story-style).
+   - Story header: objective, gated inputs validated, outputs/logs to be
+     produced (rng events, trace, optional selection log).
+   - Phase logs: preflight integrity, group alias build, site alias build,
+     per-arrival routing, rng event emission, selection log emission.
+   - Progress logs for long loops include elapsed, processed/total, rate, ETA.
+
+9) Performance + determinism controls.
+   - Cache aliases with LRU-by-bytes; evict SITE_ALIAS first, then GROUP_ALIAS.
+   - Stable serial reductions (binary64 ties-to-even); no data-dependent reorder.
+   - Avoid scanning s2_alias_blob beyond hash verification; do not parse blob.
+
+10) Validation + test plan.
+    - Run `make segment2b-s5 RUN_ID=<latest>` once implemented.
+    - Inspect run-report for draws_total == 2*selections and event-order
+      invariants; confirm selection_log partitioning if enabled.
+    - If failures arise, append entries before fixes per implementation-map
+      discipline.
+
+Entry: 2026-01-15 23:53
+(S5 contracts + policy alignment — pre-implementation reasoning)
+Summary of design problem:
+- The S5 spec defines per-arrival routing but does not name a catalogue dataset
+  for arrivals. The batch/standalone runner would otherwise be forced to read
+  an un-catalogued input, violating the “Dictionary-only resolution” rule.
+- The current `route_rng_policy_v1.json` does not match the schema/authoring
+  guide (missing policy_id/rng_engine/streams shape). S5/S6 must fail-closed
+  if the policy cannot be validated.
+
+Alternatives considered (arrival source):
+1) Treat S5 as a pure library invoked only by 5B (no standalone runner input).
+   - Pros: avoids adding new datasets; aligns with per-arrival routing in L2.
+   - Cons: makes 2B S5 un-runnable in isolation; prevents deterministic batch
+     routing tests for L1; contradicts the current CLI runner posture.
+2) Allow ad-hoc arrival inputs without dictionary entry (literal path or CLI
+   pointer).
+   - Rejected: violates catalogue discipline and “no reads beyond inputs
+     above”; would be non-auditable and break run reproducibility.
+3) Add a catalogued arrival roster dataset for standalone runs.
+   - Chosen: preserves contract discipline; keeps S5 deterministic and testable
+     without forcing L2 presence; still optional for production use.
+
+Decision:
+- Add **optional** dataset `s5_arrival_roster` to 2B contracts (dictionary +
+  schema + registry) for standalone/batch runs. S5 uses it only if present and
+  only when running in batch/CLI mode; L2 (5B) can still own real-time arrivals.
+- Keep S0 sealing unchanged for now (arrival roster is within-segment, run-local
+  input, not cross-layer/policy; S5 will still resolve by Dictionary ID only).
+  If we later require S0 sealing, we will add a new optional seal step with
+  explicit validator IDs.
+- Align `route_rng_policy_v1.json` with the schema and authoring guide: include
+  policy_id, rng_engine, streams.routing_selection/routing_edge, budgets, and
+  a policy_version semver. Add `extensions.selection_log_enabled` to gate
+  optional selection logs.
+
+Arrival roster contract shape (proposed):
+- Path: `data/layer1/2B/s5_arrival_roster/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/arrival_roster.jsonl`
+- Partitioning: `[seed, parameter_hash, run_id]` (run-scoped; utc_day in rows).
+- Row schema (new anchor): `schemas.2B.yaml#/trace/s5_arrival_roster_row`
+  with `{merchant_id, utc_timestamp, utc_day}` (minimum fields for routing).
+- Optional field: `arrival_seq` (only if we need stable ordering when timestamps
+  collide; omit unless required by spec or observed collisions).
+
+Implementation steps (to execute next):
+1) Update `schemas.2B.yaml` to add `trace/s5_arrival_roster_row` (fields-strict,
+   minimal required fields; uses layer defs for id64 + rfc3339_micros + date).
+2) Add `s5_arrival_roster` to `dataset_dictionary.layer1.2B.yaml` (status:
+   optional; run-scoped partitions; schema_ref to new anchor).
+3) Add `s5_arrival_roster` to `artefact_registry_2B.yaml` (category: input or
+   diagnostic; notes: optional, run-local for standalone routing).
+4) Update `config/layer1/2B/policy/route_rng_policy_v1.json` to match schema +
+   authoring guide (policy_id, rng_engine, streams, budgets, key_basis) and add
+   `extensions.selection_log_enabled` default false.
+5) Add a short S5 spec addendum noting the optional arrival roster for batch
+   runs (keeps dictionary-only rule intact).
+6) Log each change in logbook with timestamps before code edits.
+
+Entry: 2026-01-16 00:00
+(S5 contracts + policy alignment — changes applied)
+What changed:
+- Added `trace/s5_arrival_roster_row` schema anchor (minimal row: merchant_id,
+  utc_timestamp, utc_day) in `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`.
+- Registered optional `s5_arrival_roster` dataset in
+  `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+  and `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`.
+- Updated `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s5.expanded.md`
+  to document the optional run-scoped arrival roster and its partition law.
+- Rewrote `config/layer1/2B/policy/route_rng_policy_v1.json` to match the
+  schema/authoring guide and added `extensions.selection_log_enabled=false`.
+
+Notes:
+- No S0 sealing changes yet; arrival roster remains an optional, run-local input
+  resolved by Dictionary ID only (consistent with S5’s “Dictionary-only reads”).
+- If later required, we will add an explicit optional seal step and a new
+  validator ID rather than silently changing S0 behaviour.

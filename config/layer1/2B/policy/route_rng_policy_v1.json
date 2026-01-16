@@ -1,18 +1,38 @@
 {
+  "policy_id": "route_rng_policy_v1",
   "version_tag": "1.0.0",
   "policy_version": "1.0.0",
-  "algorithm": "philox2x64-10",
-  "substreams": [
-    {
-      "id": "router_core",
-      "label": "alias_pick",
-      "max_uniforms": 2
+  "rng_engine": "philox2x64-10",
+  "streams": {
+    "routing_selection": {
+      "rng_stream_id": "2B.routing",
+      "basis": {
+        "key_basis": ["seed", "parameter_hash", "run_id"],
+        "counter_start": { "hi": 0, "lo": 0 },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap"
+      },
+      "event_families": {
+        "alias_pick_group": { "substream_label": "alias_pick_group", "blocks": 1, "draws": "1" },
+        "alias_pick_site": { "substream_label": "alias_pick_site", "blocks": 1, "draws": "1" }
+      },
+      "draws_per_unit": { "draws_per_selection": 2 }
     },
-    {
-      "id": "virtual_edge",
-      "label": "cdn_edge_pick",
-      "max_uniforms": 1
+    "routing_edge": {
+      "rng_stream_id": "2B.routing_edge",
+      "basis": {
+        "key_basis": ["seed", "parameter_hash", "run_id"],
+        "counter_start": { "hi": 0, "lo": 0 },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap"
+      },
+      "event_families": {
+        "cdn_edge_pick": { "substream_label": "cdn_edge_pick", "blocks": 1, "draws": "1" }
+      },
+      "draws_per_unit": { "draws_per_virtual": 1 }
     }
-  ],
-  "notes": "Authoritative Philox sub-stream map for routing + virtual edge selection."
+  },
+  "extensions": {
+    "selection_log_enabled": false
+  }
 }

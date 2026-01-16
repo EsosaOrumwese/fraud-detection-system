@@ -608,6 +608,17 @@ binary:
       alignment_bytes: { type: integer, minimum: 1 }
 
 trace:
+  s5_arrival_roster_row:
+    type: object
+    additionalProperties: false
+    required:
+      - merchant_id
+      - utc_timestamp
+      - utc_day
+    properties:
+      merchant_id:   { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      utc_timestamp: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      utc_day:       { type: string, format: date }
   s5_selection_log_row:
     type: object
     additionalProperties: false

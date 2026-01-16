@@ -350,6 +350,26 @@ subsegments:
         cross_layer: false
         notes: "Writer order: [merchant_id, utc_day, tz_group_id]; write-once; atomic publish."
 
+      # === 2B.S5 optional arrival roster (standalone/batch runs) ===
+      - name: s5_arrival_roster
+        path: data/layer1/2B/s5_arrival_roster/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/arrival_roster.jsonl
+        type: dataset
+        category: input
+        semver: '{semver}'
+        version: '{seed}.{parameter_hash}.{run_id}'
+        digest: '{sha256}'
+        manifest_key: mlr.2B.input.s5_arrival_roster
+        license: Proprietary-Internal
+        role: "Optional per-arrival roster for standalone S5 routing runs (arrival order)."
+        dependencies: []
+        source: external
+        owner: { owner_team: "l1-2b-core" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.2B.yaml#/trace/s5_arrival_roster_row
+        cross_layer: false
+        notes: "Optional; run-scoped partitions [seed, parameter_hash, run_id]; S5 reads only if provided."
+
       # === 2B.S6 (optional) edge selection log ===
       - name: s6_edge_log
         path: logs/layer1/2B/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl

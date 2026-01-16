@@ -46,6 +46,7 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 * `s2_alias_blob` - scope: EGRESS_SCOPED; scope_keys: [seed, manifest_fingerprint]; source: 2B.S2
 * `alias_layout_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
 * `route_rng_policy_v1` - scope: UNPARTITIONED (sealed policy); sealed_inputs: required
+* `s5_arrival_roster` - scope: RUN_SCOPED; scope_keys: [seed, parameter_hash, run_id]; optional input for standalone/batch runs only
 
 **Authority / ordering:**
 * Routing RNG envelopes + alias policy are the sole decode authorities for S5.
@@ -113,6 +114,9 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 * **Routing RNG policy (streams/budgets):**
   `route_rng_policy_v1` (single file; **no partition tokens**). **Shape:** `schemas.2B.yaml#/policy/route_rng_policy_v1`. Declares the Philox stream/sub-stream layout and budgets for **two single-uniform draws per arrival** (group pick, site pick). Selection is by the **exact S0-sealed path + digest**.  
 
+* **Optional arrival roster (standalone/batch runs only):**
+  `s5_arrival_roster@seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}` (JSONL; run-scoped). **Shape:** `schemas.2B.yaml#/trace/s5_arrival_roster_row`. Contains `{merchant_id, utc_timestamp, utc_day}` for the batch runner. If absent, S5 assumes arrivals are supplied by the upstream caller (e.g., 5B) and **must not** read any literal paths.
+
 * **Alias artefacts (compatibility echo; presence & integrity):**
   `s2_alias_index@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (JSON) and `s2_alias_blob@seed={seed}/manifest_fingerprint={manifest_fingerprint}` (binary). **Shapes:** `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. S5 **does not** decode merchant tables in v1, but **must** verify header parity and blob integrity (pre-flight):
   `index.policy_digest == digest(alias_layout_policy_v1)` and `index.blob_sha256 == SHA256(raw bytes of s2_alias_blob)`. Abort on mismatch.  
@@ -121,6 +125,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 
 * **Partitioned datasets** (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s4_group_weights`, `site_timezones`) **must** be selected at **exactly** `[seed={seed}, manifest_fingerprint={manifest_fingerprint}]`; path tokens **must** equal any embedded identity.  
 * **Token-less policies** (`route_rng_policy_v1`, `alias_layout_policy_v1`) carry `partition = {}` in receipts/inventories (per schema); selection is by the **exact** S0-sealed `path` **and** `sha256_hex`.  
+* **Run-scoped arrival roster (if present):** `s5_arrival_roster` uses **`[seed, parameter_hash, run_id]`** and must satisfy path-embed equality; S5 must not read any un-catalogued arrivals.
 
 **3.4 Integrity & compatibility pre-checks (abort on failure)**
 
@@ -914,6 +919,7 @@ This section creates **no** new dataset authorities. Schemas remain governed by 
   • `s2_alias_blob` → `…/2B/s2_alias_blob/seed={seed}/manifest_fingerprint={manifest_fingerprint}/alias.bin` (binary; `[seed, manifest_fingerprint]`) 
   • Cross-segment `site_timezones` (2A egress) → `…/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (Parquet; `[seed, manifest_fingerprint]`) 
   • Policies (token-less, single files): `route_rng_policy_v1`, `alias_layout_policy_v1` (selected by **S0-sealed path + digest**). 
+  • Policies (token-less, single files): `s5_arrival_roster`  `./2B/s5_arrival_roster/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/arrival_roster.jsonl` (JSONL; `[seed, parameter_hash, run_id]`).
 
 * **Artefact Registry (metadata only):** `artefact_registry_2B.yaml`
   Entries for `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, and cross-layer `site_timezones`, plus policy packs with their schema refs. 

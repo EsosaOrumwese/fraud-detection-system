@@ -314,6 +314,25 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  # === 2B.S5 optional arrival roster (standalone/batch runs) ===
+  - id: s5_arrival_roster
+    status: optional
+    owner_subsegment: 2B
+    description: Optional per-arrival roster for standalone routing runs (arrival order).
+    version: '{seed}.{parameter_hash}.{run_id}'
+    format: jsonl
+    path: data/layer1/2B/s5_arrival_roster/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/arrival_roster.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: [utc_timestamp]
+    schema_ref: schemas.2B.yaml#/trace/s5_arrival_roster_row
+    lineage:
+      produced_by:
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    licence: Proprietary-Internal
+
   # === 2B.S5 (optional) selection log ===
   - id: s5_selection_log
     status: optional
