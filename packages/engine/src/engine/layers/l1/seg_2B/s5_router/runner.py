@@ -93,11 +93,13 @@ class _StepTimer:
         self._start = time.monotonic()
         self._last = self._start
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, *args: object) -> None:
         now = time.monotonic()
         elapsed = now - self._start
         delta = now - self._last
         self._last = now
+        if args:
+            message = message % args
         self._logger.info("%s (elapsed=%.2fs, delta=%.2fs)", message, elapsed, delta)
 
 
@@ -624,20 +626,18 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         _abort("2B-S5-020", "V-02", "sealed_inputs_invalid", {"error": str(sealed_errors[0])})
 
     sealed_by_id = {item.get("asset_id"): item for item in sealed_payload if isinstance(item, dict)}
-    required_assets = (
+    sealed_required_assets = (
         "route_rng_policy_v1",
         "alias_layout_policy_v1",
-        "s1_site_weights",
-        "s2_alias_index",
-        "s2_alias_blob",
-        "s4_group_weights",
         "site_timezones",
         "s5_arrival_roster",
     )
-    for asset_id in required_assets:
+    for asset_id in sealed_required_assets:
         if asset_id not in sealed_by_id:
             _abort("2B-S5-020", "V-02", "required_asset_missing", {"asset_id": asset_id})
-    timer.info("S5: sealed inputs verified (policies, s1/s2/s4/timezones, arrival roster)")
+    timer.info(
+        "S5: sealed inputs verified (policies, site_timezones, arrival roster); run-local outputs validated by path/schema checks"
+    )
 
     policy_entry = entries["route_rng_policy_v1"]
     policy_catalog_path = _render_catalog_path(policy_entry, {})
@@ -666,6 +666,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     policy_payload = _load_json(policy_path)
     policy_schema = _schema_from_pack(schema_2b, "policy/route_rng_policy_v1")
+    _inline_external_refs(policy_schema, schema_layer1, "schemas.layer1.yaml#/$defs/")
     policy_errors = list(Draft202012Validator(policy_schema).iter_errors(policy_payload))
     if policy_errors:
         _abort("2B-S5-053", "V-10", "policy_schema_invalid", {"error": str(policy_errors[0])})
@@ -742,6 +743,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     alias_policy_payload = _load_json(alias_policy_path)
     alias_policy_schema = _schema_from_pack(schema_2b, "policy/alias_layout_policy_v1")
+    _inline_external_refs(alias_policy_schema, schema_layer1, "schemas.layer1.yaml#/$defs/")
     alias_policy_errors = list(Draft202012Validator(alias_policy_schema).iter_errors(alias_policy_payload))
     if alias_policy_errors:
         _abort("2B-S5-053", "V-10", "alias_policy_schema_invalid", {"error": str(alias_policy_errors[0])})
@@ -868,10 +870,6 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     _inline_external_refs(timezones_pack, schema_layer1, "schemas.layer1.yaml#/$defs/")
     validate_dataframe(timezones_df.iter_rows(named=True), timezones_pack, timezones_table)
 
-    if "created_utc" in timezones_df.columns:
-        tz_created = timezones_df.get_column("created_utc").unique().to_list()
-        if any(value != created_utc for value in tz_created):
-            _abort("2B-S5-086", "V-14", "created_utc_mismatch", {"dataset": "site_timezones"})
 
     timezones_index: dict[tuple[int, int], str] = {}
     for row in timezones_df.iter_rows(named=True):
@@ -1383,7 +1381,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     }
 
     run_report_path = (
-        run_paths.reports_root
+        run_paths.run_root
+        / "reports"
         / "layer1"
         / "2B"
         / "state=S5"

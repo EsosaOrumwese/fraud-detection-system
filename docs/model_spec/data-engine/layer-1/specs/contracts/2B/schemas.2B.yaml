@@ -215,7 +215,7 @@ policy:
             additionalProperties: false
             required: [rng_stream_id, basis, event_families, draws_per_unit]
             properties:
-              rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
+              rng_stream_id: { type: string, minLength: 1, pattern: '^2B\.[A-Za-z0-9_.-]+$' }
               basis:
                 type: object
                 additionalProperties: false
@@ -263,7 +263,7 @@ policy:
             additionalProperties: false
             required: [rng_stream_id, basis, event_families, draws_per_unit]
             properties:
-              rng_stream_id: { type: string, minLength: 1, pattern: '^2B\\.[A-Za-z0-9_.-]+$' }
+              rng_stream_id: { type: string, minLength: 1, pattern: '^2B\.[A-Za-z0-9_.-]+$' }
               basis:
                 type: object
                 additionalProperties: false

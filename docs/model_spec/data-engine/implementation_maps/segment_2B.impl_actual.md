@@ -2860,3 +2860,218 @@ Implementation actions taken (chronological, detailed):
 Notes:
 - The S5 runner now uses run-root output paths and spec-aligned filenames,
   preventing accidental writes to repo root and matching the layer RNG log conventions.
+### Entry: 2026-01-16 17:11
+
+Problem:
+- Running `segment2b-s5` fails with 2B-S5-020 required_asset_missing for
+  `s1_site_weights`, even though the dataset exists on disk under the run
+  folder. The S0 `sealed_inputs_2B` list does not include run-local outputs
+  (S1/S2/S3/S4 outputs), because S0 only seals external inputs/policies.
+- The current S5 gating erroneously requires *all* inputs (including run-local
+  outputs) to be present in `sealed_inputs_2B`, which is stricter than the spec
+  and conflicts with the S0 responsibility split.
+
+Alternatives considered:
+1) Force S0 to seal run-local outputs (S1/S2/S3/S4) into `sealed_inputs_2B`.
+   - Rejected: S0 cannot know or hash those outputs before they are generated;
+     it violates the state ordering and the spec's S0 role.
+2) Keep sealed_inputs as the external/policy roster only, and treat run-local
+   outputs as required-by-dictionary assets that must exist on disk and pass
+   schema validation later in S5.
+   - Accepted: preserves the intended S0 sealing boundary while still enforcing
+     run-local availability and schema correctness.
+3) Drop sealed_inputs checks entirely for S5.
+   - Rejected: would weaken provenance guarantees for external inputs/policies
+     and the new arrival roster, which should remain sealed.
+
+Decision:
+- Split S5 gating into two categories:
+  - sealed_required_assets: external inputs and policies that must appear in
+    `sealed_inputs_2B` (e.g., route_rng_policy_v1, alias_layout_policy_v1,
+    site_timezones, s5_arrival_roster).
+  - run_local_required_assets: outputs from prior 2B states (s1_site_weights,
+    s2_alias_index, s2_alias_blob, s3_day_effects, s4_group_weights) validated
+    by path existence + schema checks but NOT required in sealed_inputs.
+
+Plan to implement (next step):
+1) Update `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py` to
+   split `required_assets` into sealed vs run-local lists.
+2) Adjust the `2B-S5-020` check to only require sealed assets in
+   `sealed_inputs_2B` while keeping dictionary/path checks for run-local outputs.
+3) Update the narrative log line to clarify which assets are sealed vs run-local.
+4) Rerun `make segment2b-s5` for the same run_id to confirm green.
+
+### Entry: 2026-01-16 17:13
+
+Problem:
+- S5 fails with 2B-S5-020 because `s5_arrival_roster` is missing from
+  sealed_inputs_2B. The roster is optional, but `make segment2b-s5` runs
+  batch/standalone mode and therefore needs a sealed arrival roster to supply
+  arrivals.
+
+Decision:
+- Generate a deterministic run-scoped roster file so S5 can run green.
+- Use *one arrival per merchant_id* derived from `s1_site_weights` so the
+  roster is consistent with the run's sealed inputs.
+- Use a fixed `utc_day` that exists in `s4_group_weights` for all merchants.
+  Observed available days span 2024-01-01..2024-12-31 (366 days); choose
+  `utc_day=2024-01-01` and `utc_timestamp=2024-01-01T00:00:00.000000Z` for
+  determinism and to avoid day-missing failures.
+
+Plan:
+1) Build `arrival_roster.jsonl` at the dictionary path:
+   `data/layer1/2B/s5_arrival_roster/seed=42/parameter_hash=.../run_id=.../arrival_roster.jsonl`
+   with rows `{merchant_id, utc_timestamp, utc_day}`.
+2) Re-run `segment2b-s0` so S0 seals `s5_arrival_roster` into sealed_inputs_2B.
+3) Re-run `segment2b-s5` to verify S5 goes green.
+4) Log the roster generation details (counts, paths) and keep run report output.
+
+### Entry: 2026-01-16 17:37
+
+Action taken:
+- Generated `s5_arrival_roster` JSONL using all unique merchant_id values from
+  `s1_site_weights` (1249 rows) with fixed `utc_day=2024-01-01` and
+  `utc_timestamp=2024-01-01T00:00:00.000000Z`.
+- Wrote to:
+  runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/data/layer1/2B/
+  s5_arrival_roster/seed=42/parameter_hash=56d451.../run_id=2b22.../arrival_roster.jsonl
+
+Result:
+- Re-ran `segment2b-s0` to seal the roster. S0 detected the roster and attempted
+  to publish a new receipt, but failed with 2B-S0-080 (atomic publish violation)
+  because the existing `s0_gate_receipt_2B` file differs from the newly computed
+  receipt (roster inclusion changes the receipt content).
+
+Next step:
+- Remove the existing run-local `s0_gate_receipt` and `sealed_inputs` partitions
+  for this run/manifest (so S0 can publish the updated receipt and sealed inputs),
+  then re-run `segment2b-s0` and `segment2b-s5`.
+
+### Entry: 2026-01-16 17:41
+
+Change in roster generation plan:
+- Since the run-local 2B outputs must be cleared before re-running S0–S5,
+  we can no longer rely on `s1_site_weights` to build the roster (it would
+  be deleted before S0). Instead, derive the roster from the upstream
+  `site_locations` input (1B output), which is already sealed and available
+  before S0 in 2B.
+
+Reasoning:
+- `site_locations` contains stable `merchant_id` coverage for the manifest;
+  using it allows roster generation *before* S0 runs, aligning with the
+  requirement that S0 seals the roster when present.
+- This avoids a circular dependency on S1 outputs and keeps the roster
+  generation deterministic and run-scoped.
+
+Updated steps:
+1) Clear run-local 2B outputs.
+2) Generate `s5_arrival_roster` from `site_locations` (unique merchant_id),
+   with fixed `utc_day=2024-01-01` and `utc_timestamp=2024-01-01T00:00:00.000000Z`.
+3) Run `segment2b` (S0–S5) so S0 seals the roster and downstream created_utc
+   matches the updated receipt.
+
+### Entry: 2026-01-16 17:47
+
+Issue:
+- S5 failed during policy validation with `Unresolvable: schemas.layer1.yaml#/$defs/uint64`.
+- The current S5 policy validation uses Draft202012Validator on the raw schema
+  without inlining external `$ref` definitions, so jsonschema tries to resolve
+  `schemas.layer1.yaml` as a remote URI and fails.
+
+Decision:
+- Inline external refs for policy schemas (route_rng_policy_v1 and
+  alias_layout_policy_v1) using `_inline_external_refs` with the loaded
+  `schemas.layer1.yaml` pack prior to Draft202012Validator.
+
+Plan:
+1) Update `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py` to
+   call `_inline_external_refs(policy_schema, schema_layer1, "schemas.layer1.yaml#/$defs/")`.
+2) Do the same for `alias_policy_schema` before validation.
+3) Re-run `segment2b-s5` for the same run_id.
+
+### Entry: 2026-01-16 17:49
+
+Issue:
+- S5 policy validation fails because `rng_stream_id` pattern in
+  `schemas.2B.yaml` is double-escaped. The parsed pattern contains **two**
+  backslashes (`^2B\\.[...]$`), which fails to match `2B.routing` (expects a
+  literal backslash before the dot). This is a contract bug, not a policy bug.
+
+Decision:
+- Fix the schema pattern to use a single backslash so the regex matches the
+  intended `2B.<token>` naming (e.g., `2B.routing`, `2B.routing_edge`).
+
+Plan:
+1) Update `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+   pattern strings for `rng_stream_id` in routing_selection and routing_edge to
+   `'^2B\.[A-Za-z0-9_.-]+$'` **with a single backslash** in YAML (single-quoted).
+2) Re-run `segment2b-s5` to confirm validation passes.
+
+### Entry: 2026-01-16 17:50
+
+Issue:
+- S5 aborted with `TypeError: _StepTimer.info() takes 2 positional arguments but 4 were given`.
+- The new log line uses format args, but `_StepTimer.info` only accepts a
+  single message string.
+
+Decision:
+- Extend `_StepTimer.info` to accept `*args` and apply `%` formatting when
+  provided, then append elapsed/delta as before. This mirrors `logger.info` usage
+  while preserving the existing elapsed/delta suffix.
+
+Plan:
+1) Update `_StepTimer.info(self, message: str, *args)` and format the message
+   when args are passed.
+2) Re-run `segment2b-s5`.
+
+### Entry: 2026-01-16 17:52
+
+Issue:
+- S5 failed with V-14 created_utc mismatch on `site_timezones`.
+- `site_timezones` is an upstream 2A output; its `created_utc` reflects 2A S0
+  and is not required to match 2B S0 `verified_at_utc`. The created_utc
+  identity law in S5 applies to S5 outputs and 2B-owned outputs (S1/S4), not
+  upstream inputs.
+
+Decision:
+- Remove the created_utc equality check for `site_timezones` in S5. Retain
+  checks for 2B-produced datasets (`s1_site_weights`, `s4_group_weights`) and
+  for S5 outputs (selection log rows).
+
+Plan:
+1) Drop/relax the `site_timezones` created_utc check in
+   `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`.
+2) Re-run `segment2b-s5` for the same run_id.
+
+### Entry: 2026-01-16 17:55
+
+Issue:
+- S5 failed after routing completed with `AttributeError: RunPaths has no reports_root`.
+- S5 uses a non-existent `run_paths.reports_root` instead of the standard
+  `run_paths.run_root / "reports"` used elsewhere.
+
+Decision:
+- Replace `run_paths.reports_root` with `run_paths.run_root / "reports"` for
+  S5 run-report output path.
+
+Plan:
+1) Update `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py` to
+   build `reports_root = run_paths.run_root / "reports"`.
+2) Re-run `segment2b-s5`.
+
+### Entry: 2026-01-16 17:59
+
+Issue:
+- S5 failed with 2B-S5-080 (non-identical output exists) when publishing
+  rng_event_alias_pick_group. Prior failed attempts left partial RNG logs under
+  run-local `logs/layer1/2B/rng/...`.
+
+Decision:
+- Remove the run-local 2B RNG logs for the current run_id so S5 can republish
+  cleanly. This is safe because RNG logs are S5 outputs and must be regenerated
+  with the same sealed inputs.
+
+Plan:
+1) Delete `runs/<run_id>/logs/layer1/2B/rng`.
+2) Re-run `segment2b-s5`.
+
