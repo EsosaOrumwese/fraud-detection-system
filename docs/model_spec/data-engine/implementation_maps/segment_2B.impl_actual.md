@@ -9,6 +9,7 @@ Reading ahead across 2B states is context-only and not an implementation plan.
 
 ---
 
+
 ## S0 - Gate & Environment Seal (S0.*)
 
 ### Entry: 2026-01-15 05:21
@@ -126,7 +127,7 @@ Decision details (before implementation):
 ### Entry: 2026-01-15 08:31
 
 Design element: Implement 2B.S0 runner + CLI + Makefile wiring.
-Summary: Added the S0 gate implementation for 2B, matching the spec’s gate law,
+Summary: Added the S0 gate implementation for 2B, matching the spec's gate law,
 sealed-input inventory, and run-report requirements, while keeping deterministic
 hashing and write-once publishing.
 
@@ -188,6 +189,355 @@ Notes / open risks to watch during test run:
    but downgraded to WARN per approved decision).
 2) Optional cache invalidity is treated as "missing" warn; deeper schema
    validation for cache is deferred until required by spec or observed failures.
+
+
+
+### Entry: 2026-01-15 09:05
+
+Design element: 2B.S0 PASS flag parsing failure (2B-S0-013) during gate.
+Summary: The S0 gate failed while parsing the 1B `_passed.flag` even though the
+file is present and appears to carry the expected sha256. This blocks the
+gate before any bundle integrity check, so it must be resilient to small
+formatting differences in the flag line.
+
+Detailed reasoning and fix plan (in-process):
+1) Reproduce and inspect the actual `_passed.flag` content.
+   - Locate the 1B validation flag under the run-id path
+     `runs/local_full_run-5/<run_id>/data/layer1/1B/validation/.../_passed.flag`.
+   - Confirm the raw line string and verify whether it includes:
+     - extra whitespace,
+     - alternative separators (e.g., `:` instead of `=`),
+     - or any leading BOM/encoding artifacts.
+   - Even if the visible line is `sha256_hex = <64hex>`, the regex in the
+     runner is stricter than it should be (single-space only) and will reject
+     benign whitespace variations.
+
+2) Adjust parsing to be tolerant but still strict about the digest value.
+   - Update `_FLAG_PATTERN` to accept any whitespace around `=`.
+   - Add a fallback search for a 64-hex token anywhere in the line so that
+     variants like `sha256_hex: <hash>` or `sha256_hex=<hash>` still pass.
+   - Keep the failure mode (2B-S0-013) if no 64-hex token is found, so this
+     stays a validation guard rather than silently accepting arbitrary input.
+
+3) Preserve determinism and safety.
+   - The gate still validates that the recomputed bundle hash equals the flag
+     digest. The relaxed parsing only prevents false negatives on formatting,
+     not integrity violations.
+
+Implementation action:
+1) Update `seg_2B/s0_gate/runner.py` `_FLAG_PATTERN` and add fallback hex
+   extraction when the strict pattern does not match.
+2) Re-run `make segment2b-s0` and confirm the gate proceeds past V-01/V-03 to
+   bundle hashing and receipt emission.
+
+### Entry: 2026-01-15 09:08
+
+Design element: Bundle index schema validation error handling in 2B.S0.
+Summary: `Draft202012Validator` returns `ValidationError` objects; my earlier
+raise path constructed `SchemaValidationError` with only a message string,
+which violates the error type signature and raises a `TypeError` before the
+intended 2B-S0-012 failure can be emitted.
+
+Detailed reasoning and fix plan:
+1) Align error construction with other segments (1B/2A).
+   - Use the first validation error’s `.message` and pass a list of dicts
+     (e.g., `[{ "message": <message> }]`) as the `errors` argument.
+   - This preserves a deterministic error surface and keeps the same 2B
+     failure code mapping for invalid bundle index content.
+
+2) Confirm the fix by rerunning S0.
+   - Expect S0 to proceed to bundle hashing; any actual schema issues will
+     emit `2B-S0-012` with clear detail instead of a TypeError.
+
+### Entry: 2026-01-15 09:13
+
+Design element: Validation bundle index schema mismatch (1B bundle vs layer1 index_schema).
+Summary: The 1B validation bundle’s `index.json` is a table with
+`artifact_id/kind/path/mime/notes`, but the 2B runner validated it against the
+layer1 `validation_bundle/index_schema` (path + sha256 only). This triggers
+`2B-S0-012` even when the bundle is valid and blocks the gate.
+
+Detailed reasoning and resolution plan:
+1) Confirm the actual index schema in 1B contracts.
+   - `schemas.1B.yaml` defines `validation_bundle_1B.index_schema` and
+     `validation_bundle_index_1B` as a table with artifact_id/kind/path/mime/notes.
+   - The 1B bundle index content matches the 1B schema, not the layer1 schema.
+
+2) Align 2B dictionary schema_ref with 1B bundle contracts.
+   - Update `dataset_dictionary.layer1.2B.yaml` entry `validation_bundle_1B`
+     to reference `schemas.1B.yaml#/validation/validation_bundle_1B`, matching
+     the 2A dictionary and the actual bundle shape.
+
+3) Make the runner robust to bundle schema variants.
+   - In `seg_2B/s0_gate/runner.py`, select index validation based on the
+     dictionary’s `schema_ref`:
+       - If it points at the 1B bundle, extract `index_schema` from the bundle
+         and validate as a table using `validate_dataframe`.
+       - Otherwise, fall back to the layer1 index_schema (path+sha256 array).
+   - This preserves spec intent while preventing false failures from schema
+     drift between layer1 and 1B bundles.
+
+### Entry: 2026-01-15 09:17
+
+Design element: Dictionary schema_ref lookup bug in 2B.S0.
+Summary: While adding schema-ref–aware bundle index validation, I mistakenly
+treated `entries["validation_bundle_1B"]` as an Entry wrapper instead of the
+raw dictionary payload, causing an AttributeError on `.entry`.
+
+Detailed fix plan:
+1) Correct the lookup to use the dict directly (`entries["validation_bundle_1B"].get("schema_ref")`).
+2) Re-run S0 to confirm the gate progresses past schema selection and into
+   bundle hash verification.
+
+### Entry: 2026-01-15 09:21
+
+Design element: sealed_inputs_2B schema validation type mismatch.
+Summary: `sealed_inputs_2B` is defined as a JSON schema array in
+`schemas.2B.yaml`, but the runner attempted to validate it as a table via
+`validate_dataframe`, which only supports table/stream/geotable/raster types.
+
+Resolution plan:
+1) Switch sealed_inputs_2B validation to use Draft202012Validator with the
+   JSON schema returned by `_schema_from_pack(schema_2b, "validation/sealed_inputs_2B")`.
+2) Preserve the same failure code (`2B-S0-031`) while reporting the first
+   validation error string for clarity.
+3) Re-run S0 to confirm the inventory validation passes and publishing proceeds.
+
+### Entry: 2026-01-15 09:23
+
+Design element: Semver alignment for 2B policy versions.
+Summary: To make policy changes trackable and bumpable, align `policy_version`
+and `version_tag` to an explicit semver (e.g., 1.0.0) and enforce semver format
+in the 2B policy schemas.
+
+Implementation plan (before edits):
+1) Update all four 2B policy JSON files to set:
+   - `policy_version: "1.0.0"`
+   - `version_tag: "1.0.0"`
+   This collapses version signaling to a single value while keeping both fields
+   for compatibility.
+2) Tighten `schemas.2B.yaml` policy definitions to require a semver pattern for
+   `policy_version` (keep `version_tag` as a plain string).
+3) Re-run `segment2b-s0` and clean any prior run-local outputs if write-once
+   rejects the updated payloads.
+
+### Entry: 2026-01-15 09:24
+
+Design element: Semver enforcement applied to 2B policies.
+Summary: Applied semver alignment by setting `policy_version` and `version_tag`
+to `1.0.0` in all four 2B policy JSON files and tightened the 2B policy schemas
+to require semver format for `policy_version`.
+
+Actions taken:
+1) Updated policy JSON files:
+   - `config/layer1/2B/policy/route_rng_policy_v1.json`
+   - `config/layer1/2B/policy/alias_layout_policy_v1.json`
+   - `config/layer1/2B/policy/day_effect_policy_v1.json`
+   - `config/layer1/2B/policy/virtual_edge_policy_v1.json`
+   (set `policy_version` and `version_tag` to "1.0.0").
+2) Updated `schemas.2B.yaml` to enforce a semver regex for `policy_version`
+   across all four policy schemas.
+3) Prepared to re-run S0 after clearing previous run-local outputs to satisfy
+   write-once rules (since version tags changed).
+
+### Entry: 2026-01-15 09:25
+
+Design element: 2B.S0 receipt schema uses external layer1 $defs.
+Summary: `s0_gate_receipt_v1` references `schemas.layer1.yaml#/$defs/uint64` and
+`rfc3339_micros`. Draft202012Validator cannot resolve these external refs by
+default, causing an Unresolvable error even when the payload is correct.
+
+Resolution plan:
+1) Inline layer1 $defs into the receipt schema before validation.
+   - Add `_inline_external_refs` to replace refs of the form
+     `schemas.layer1.yaml#/$defs/<name>` with the concrete def from the
+     layer1 schema pack.
+2) Use the inlined schema for validation and keep error code `2B-S0-030` for
+   genuine receipt schema mismatches.
+
+### Entry: 2026-01-15 09:25
+
+Design element: Re-emit S0 after semver alignment.
+Summary: Cleared the prior run-local S0 outputs (write-once guard) and re-ran
+`make segment2b-s0`; the gate completed successfully with all validators PASS
+and `warn_count=0`.
+
+Run outcome details:
+1) V-09 now PASS with version_tag resolved to "1.0.0" for policy assets.
+2) Sealed inputs + receipt republished under the manifest_fingerprint path.
+
+### Entry: 2026-01-15 09:31
+
+Design element: 2B.S0 execution status after fixes.
+Summary: S0 gate completed successfully with a WARN on version_tag placeholders
+for the 2B policy JSON files (expected per decision). Outputs were published
+under manifest_fingerprint partitions and run-report emitted.
+
+Run outcome notes:
+1) Gate PASS confirmed (bundle hash matched _passed.flag).
+2) Inventory + receipt validation passed; outputs written to:
+   - `data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/s0_gate_receipt_2B.json`
+   - `data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/sealed_inputs_2B.json`
+3) V-09 WARN raised for placeholder version_tag on policy assets; no abort.
+
+### Entry: 2026-01-15 09:38
+
+Design element: 2B policy version_tag placeholders (V-09).
+Summary: Policy assets used `{policy_version}` in the dictionary/registry but
+the policy JSON files only carried `version_tag`, so S0 could not resolve the
+template and emitted placeholder warnings.
+
+Resolution plan (per user direction):
+1) Add `policy_version` to each 2B policy JSON and keep `version_tag` for
+   backward compatibility.
+2) Update `schemas.2B.yaml` policy definitions to allow/require
+   `policy_version` (additionalProperties=false).
+3) Update 2B.S0 runner to read `policy_version` (fallback to `version_tag`)
+   from policy JSON and inject it as a token for version template rendering.
+4) Re-run S0 to confirm V-09 no longer warns (unless a policy is missing the
+   new field).
+
+### Entry: 2026-01-15 09:44
+
+Design element: Write-once re-emit after policy version update.
+Summary: After introducing `policy_version`, previously published S0 outputs
+for this run-id no longer matched the new sealed_inputs payloads, triggering
+the write-once guard (`2B-S0-080`). To re-emit correctly, the old output
+directories for this run-id had to be cleared.
+
+Actions taken (deterministic and scoped):
+1) Removed the existing run-local outputs under:
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/`
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
+2) Re-ran `make segment2b-s0`; S0 completed with all validators PASS and
+   `warn_count=0` in the run-report.
+
+### Entry: 2026-01-15 13:45
+
+Design element: S0 write-once guard blocks reseal (2B-S0-080).
+Summary: Re-running `segment2b-s0` to refresh the sealed policy digest failed
+because the prior S0 outputs already exist for this run_id and the byte
+content now differs (expected after policy-byte changes).
+
+Resolution plan (pending user confirmation, before any deletion):
+1) Remove the run-local outputs for S0 under:
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/`
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
+2) Re-run `make segment2b-s0` to regenerate receipt + sealed_inputs with the
+   current policy digest.
+3) Retry `make segment2b-s2` after S0 succeeds.
+
+Note: per the write-once rules, deleting the old outputs is the only way to
+allow the new seal to publish. Awaiting approval before removal.
+
+### Entry: 2026-01-15 14:10
+
+Design element: Reduce validation log spam and improve story-style logs for 2B.
+Summary: The 2B runs emit many `VALIDATION` INFO lines (one per validator),
+which obscures the state narrative. We will keep validator data in run-reports
+but reduce INFO-level noise by logging PASS validations at DEBUG.
+
+Detailed plan (before edits):
+1) Adjust `_emit_validation` in each 2B runner (S0..S2).
+   - Change PASS validations to log at DEBUG while keeping WARN/FAIL at the
+     existing levels.
+   - Keep the structured validation payload unchanged for WARN/ERROR so
+     operators still see failures in the log.
+
+2) Extend `_emit_event` to handle `severity == "DEBUG"`.
+   - Map DEBUG severity to `logger.debug(...)` so PASS validation lines only
+     appear when explicitly requested.
+   - Preserve INFO/WARN/ERROR behavior for all other events.
+
+3) Preserve story logs and run-report evidence.
+   - Do not remove existing stage logs (e.g., “published alias index + blob”,
+     “run-report written”, progress logs) so the narrative remains readable.
+   - All validator results remain in the run-report JSON and error payloads.
+
+Rationale:
+- Operators want to scan logs for the state story; PASS validations belong in
+  the run-report and should not dominate console output unless debugging.
+
+### Entry: 2026-01-15 14:12
+
+Design element: Implement 2B logging retrofit (S0-S2).
+Summary: Updated validation logging across all 2B states so PASS validations
+emit at DEBUG while WARN/FAIL remain visible at INFO/WARN/ERROR. This reduces
+console noise while preserving full validator evidence in run-reports.
+
+Implementation actions (explicit):
+1) Updated `_emit_event` in:
+   - `seg_2B/s0_gate/runner.py`
+   - `seg_2B/s1_site_weights/runner.py`
+   - `seg_2B/s2_alias_tables/runner.py`
+   to handle `severity == "DEBUG"` via `logger.debug(...)`.
+
+2) Updated `_emit_validation` in the same runners to:
+   - log PASS validations at DEBUG,
+   - keep WARN at WARN and FAIL at ERROR,
+   preserving structured payloads for non-PASS outcomes.
+
+Expected effect:
+- Run logs now highlight the state narrative (gate, weights, alias build) without
+  being dominated by PASS validation lines.
+
+---
+
+
+### Entry: 2026-01-15 20:59
+
+Design element: S0 reseal attempt blocked by write-once publish (2B-S0-080).
+Summary: Re-running 2B.S0 for the same run_id failed because the existing
+`s0_gate_receipt_2B` output partition already exists and the new receipt bytes
+do not match the prior output (expected when policy metadata changed). The
+write-once guard correctly refused to overwrite.
+
+Decision points (pending user confirmation):
+1) Reseal strategy to unblock S3.
+   - Option A: delete the existing run-local 2B S0 outputs for this run_id
+     (`data/layer1/2B/s0_gate_receipt/...` and `data/layer1/2B/sealed_inputs/...`)
+     and re-run `segment2b-s0` to publish a new sealed_inputs_2B.
+   - Option B: start a fresh run_id (rerun 1A/1B/2A or `make all`) so S0 seals
+     into a clean run directory, preserving write-once invariants.
+
+2) My recommendation.
+   - Prefer Option B in production to preserve audit lineage.
+   - In dev mode, Option A is acceptable if you explicitly approve deletion of
+     the S0 outputs for this run_id.
+
+3) Next action (blocked until approval).
+   - Once approved, perform the selected reseal approach and re-run S3.
+
+
+
+### Entry: 2026-01-16 05:31
+
+Design element: Optional sealing of `s5_arrival_roster` in 2B.S0.
+Summary: User requested that the run-scoped arrival roster be sealed in S0
+when present, so S5 reads only catalogued + sealed inputs for standalone runs.
+
+Decision + plan update (before implementation):
+1) Keep the roster optional but seal when present.
+   - If `s5_arrival_roster` exists at the run-scoped partition
+     `[seed, parameter_hash, run_id]`, add it to `sealed_inputs_2B` and the
+     inventory list with its path + sha256_hex.
+   - If missing, continue without abort (standalone runs can supply arrivals
+     later, or L2 can supply arrivals).
+
+2) S0 validation posture.
+   - Treat roster absence as INFO (not WARN) to avoid noise; only enforce
+     sealing when the dataset is present.
+   - Rationale: the roster is a dev/test convenience but should not block
+     runs in production flows where arrivals are streamed from L2.
+
+3) Run-report update.
+   - Include `s5_arrival_roster` in `inputs_summary` only when sealed; ensure
+     `catalogue_resolution` includes its registry version_tag when present.
+
+4) Logging.
+   - Add a narrative log line noting whether the roster was sealed or skipped,
+     and its resolved path when present.
+
 
 ## S1 - Per-merchant weight freezing (S1.*)
 
@@ -417,6 +767,23 @@ Run outcome notes:
 3) Run-report emitted to stdout and persisted under
    `reports/layer1/2B/state=S1/seed=42/manifest_fingerprint=241f.../`.
 
+### Entry: 2026-01-15 13:48
+
+Design element: S1 write-once guard blocks re-emit (2B-S1-080).
+Summary: After resealing S0, re-running S1 produced new weights but failed to
+publish because the existing `s1_site_weights` partition already exists with
+different bytes (write-once guard).
+
+Observed failure:
+- `EngineFailure: F4:2B-S1-080` from `_atomic_publish_dir` while attempting to
+  publish `data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=<hex>/`.
+
+Resolution plan (pending user approval, before deletion):
+1) Remove the existing run-local S1 output directory:
+   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=<hex>/`
+2) Re-run `make segment2b-s1` to publish the refreshed weights.
+3) Proceed to `make segment2b-s2` once S1 is green.
+
 ### Entry: 2026-01-15 14:04
 
 Design element: Correct S1 normalisation scope to match per-merchant spec.
@@ -473,6 +840,9 @@ Actions and observations (post-fix):
    - All validators V-01..V-20 PASS; run-report emitted and persisted.
 3) The corrected weights now reflect per-merchant mass = 1 across all sites
    (across legal_country_iso), aligning with the S1 spec.
+
+
+
 
 ## S2 - Alias tables (O(1) sampler build) (S2.*)
 
@@ -885,41 +1255,6 @@ Diagnosis and resolution plan:
 3) Re-run `make segment2b-s2` and confirm the digest check passes.
 4) Record the rerun outputs and any new errors in this log and the logbook.
 
-### Entry: 2026-01-15 13:45
-
-Design element: S0 write-once guard blocks reseal (2B-S0-080).
-Summary: Re-running `segment2b-s0` to refresh the sealed policy digest failed
-because the prior S0 outputs already exist for this run_id and the byte
-content now differs (expected after policy-byte changes).
-
-Resolution plan (pending user confirmation, before any deletion):
-1) Remove the run-local outputs for S0 under:
-   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/`
-   - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
-2) Re-run `make segment2b-s0` to regenerate receipt + sealed_inputs with the
-   current policy digest.
-3) Retry `make segment2b-s2` after S0 succeeds.
-
-Note: per the write-once rules, deleting the old outputs is the only way to
-allow the new seal to publish. Awaiting approval before removal.
-
-### Entry: 2026-01-15 13:48
-
-Design element: S1 write-once guard blocks re-emit (2B-S1-080).
-Summary: After resealing S0, re-running S1 produced new weights but failed to
-publish because the existing `s1_site_weights` partition already exists with
-different bytes (write-once guard).
-
-Observed failure:
-- `EngineFailure: F4:2B-S1-080` from `_atomic_publish_dir` while attempting to
-  publish `data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=<hex>/`.
-
-Resolution plan (pending user approval, before deletion):
-1) Remove the existing run-local S1 output directory:
-   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s1_site_weights/seed=42/manifest_fingerprint=<hex>/`
-2) Re-run `make segment2b-s1` to publish the refreshed weights.
-3) Proceed to `make segment2b-s2` once S1 is green.
-
 ### Entry: 2026-01-15 13:58
 
 Design element: S2 Polars streaming panic on parquet (engine mismatch).
@@ -955,637 +1290,9 @@ Run outcome notes:
 
 ## Cross-state logging retrofit (S0-S2)
 
-### Entry: 2026-01-15 14:10
 
-Design element: Reduce validation log spam and improve story-style logs for 2B.
-Summary: The 2B runs emit many `VALIDATION` INFO lines (one per validator),
-which obscures the state narrative. We will keep validator data in run-reports
-but reduce INFO-level noise by logging PASS validations at DEBUG.
-
-Detailed plan (before edits):
-1) Adjust `_emit_validation` in each 2B runner (S0..S2).
-   - Change PASS validations to log at DEBUG while keeping WARN/FAIL at the
-     existing levels.
-   - Keep the structured validation payload unchanged for WARN/ERROR so
-     operators still see failures in the log.
-
-2) Extend `_emit_event` to handle `severity == "DEBUG"`.
-   - Map DEBUG severity to `logger.debug(...)` so PASS validation lines only
-     appear when explicitly requested.
-   - Preserve INFO/WARN/ERROR behavior for all other events.
-
-3) Preserve story logs and run-report evidence.
-   - Do not remove existing stage logs (e.g., “published alias index + blob”,
-     “run-report written”, progress logs) so the narrative remains readable.
-   - All validator results remain in the run-report JSON and error payloads.
-
-Rationale:
-- Operators want to scan logs for the state story; PASS validations belong in
-  the run-report and should not dominate console output unless debugging.
-
-### Entry: 2026-01-15 14:12
-
-Design element: Implement 2B logging retrofit (S0-S2).
-Summary: Updated validation logging across all 2B states so PASS validations
-emit at DEBUG while WARN/FAIL remain visible at INFO/WARN/ERROR. This reduces
-console noise while preserving full validator evidence in run-reports.
-
-Implementation actions (explicit):
-1) Updated `_emit_event` in:
-   - `seg_2B/s0_gate/runner.py`
-   - `seg_2B/s1_site_weights/runner.py`
-   - `seg_2B/s2_alias_tables/runner.py`
-   to handle `severity == "DEBUG"` via `logger.debug(...)`.
-
-2) Updated `_emit_validation` in the same runners to:
-   - log PASS validations at DEBUG,
-   - keep WARN at WARN and FAIL at ERROR,
-   preserving structured payloads for non-PASS outcomes.
-
-Expected effect:
-- Run logs now highlight the state narrative (gate, weights, alias build) without
-  being dominated by PASS validation lines.
-
----
 
 ## S3 - Day Effects (S3.*)
-
-### Entry: 2026-01-15 09:05
-
-Design element: 2B.S0 PASS flag parsing failure (2B-S0-013) during gate.
-Summary: The S0 gate failed while parsing the 1B `_passed.flag` even though the
-file is present and appears to carry the expected sha256. This blocks the
-gate before any bundle integrity check, so it must be resilient to small
-formatting differences in the flag line.
-
-Detailed reasoning and fix plan (in-process):
-1) Reproduce and inspect the actual `_passed.flag` content.
-   - Locate the 1B validation flag under the run-id path
-     `runs/local_full_run-5/<run_id>/data/layer1/1B/validation/.../_passed.flag`.
-   - Confirm the raw line string and verify whether it includes:
-     - extra whitespace,
-     - alternative separators (e.g., `:` instead of `=`),
-     - or any leading BOM/encoding artifacts.
-   - Even if the visible line is `sha256_hex = <64hex>`, the regex in the
-     runner is stricter than it should be (single-space only) and will reject
-     benign whitespace variations.
-
-2) Adjust parsing to be tolerant but still strict about the digest value.
-   - Update `_FLAG_PATTERN` to accept any whitespace around `=`.
-   - Add a fallback search for a 64-hex token anywhere in the line so that
-     variants like `sha256_hex: <hash>` or `sha256_hex=<hash>` still pass.
-   - Keep the failure mode (2B-S0-013) if no 64-hex token is found, so this
-     stays a validation guard rather than silently accepting arbitrary input.
-
-3) Preserve determinism and safety.
-   - The gate still validates that the recomputed bundle hash equals the flag
-     digest. The relaxed parsing only prevents false negatives on formatting,
-     not integrity violations.
-
-Implementation action:
-1) Update `seg_2B/s0_gate/runner.py` `_FLAG_PATTERN` and add fallback hex
-   extraction when the strict pattern does not match.
-2) Re-run `make segment2b-s0` and confirm the gate proceeds past V-01/V-03 to
-   bundle hashing and receipt emission.
-
-### Entry: 2026-01-15 09:08
-
-Design element: Bundle index schema validation error handling in 2B.S0.
-Summary: `Draft202012Validator` returns `ValidationError` objects; my earlier
-raise path constructed `SchemaValidationError` with only a message string,
-which violates the error type signature and raises a `TypeError` before the
-intended 2B-S0-012 failure can be emitted.
-
-Detailed reasoning and fix plan:
-1) Align error construction with other segments (1B/2A).
-   - Use the first validation error’s `.message` and pass a list of dicts
-     (e.g., `[{ "message": <message> }]`) as the `errors` argument.
-   - This preserves a deterministic error surface and keeps the same 2B
-     failure code mapping for invalid bundle index content.
-
-2) Confirm the fix by rerunning S0.
-   - Expect S0 to proceed to bundle hashing; any actual schema issues will
-     emit `2B-S0-012` with clear detail instead of a TypeError.
-
-### Entry: 2026-01-15 09:13
-
-Design element: Validation bundle index schema mismatch (1B bundle vs layer1 index_schema).
-Summary: The 1B validation bundle’s `index.json` is a table with
-`artifact_id/kind/path/mime/notes`, but the 2B runner validated it against the
-layer1 `validation_bundle/index_schema` (path + sha256 only). This triggers
-`2B-S0-012` even when the bundle is valid and blocks the gate.
-
-Detailed reasoning and resolution plan:
-1) Confirm the actual index schema in 1B contracts.
-   - `schemas.1B.yaml` defines `validation_bundle_1B.index_schema` and
-     `validation_bundle_index_1B` as a table with artifact_id/kind/path/mime/notes.
-   - The 1B bundle index content matches the 1B schema, not the layer1 schema.
-
-2) Align 2B dictionary schema_ref with 1B bundle contracts.
-   - Update `dataset_dictionary.layer1.2B.yaml` entry `validation_bundle_1B`
-     to reference `schemas.1B.yaml#/validation/validation_bundle_1B`, matching
-     the 2A dictionary and the actual bundle shape.
-
-3) Make the runner robust to bundle schema variants.
-   - In `seg_2B/s0_gate/runner.py`, select index validation based on the
-     dictionary’s `schema_ref`:
-       - If it points at the 1B bundle, extract `index_schema` from the bundle
-         and validate as a table using `validate_dataframe`.
-       - Otherwise, fall back to the layer1 index_schema (path+sha256 array).
-   - This preserves spec intent while preventing false failures from schema
-     drift between layer1 and 1B bundles.
-
-### Entry: 2026-01-15 09:17
-
-Design element: Dictionary schema_ref lookup bug in 2B.S0.
-Summary: While adding schema-ref–aware bundle index validation, I mistakenly
-treated `entries["validation_bundle_1B"]` as an Entry wrapper instead of the
-raw dictionary payload, causing an AttributeError on `.entry`.
-
-Detailed fix plan:
-1) Correct the lookup to use the dict directly (`entries["validation_bundle_1B"].get("schema_ref")`).
-2) Re-run S0 to confirm the gate progresses past schema selection and into
-   bundle hash verification.
-
-### Entry: 2026-01-15 09:21
-
-Design element: sealed_inputs_2B schema validation type mismatch.
-Summary: `sealed_inputs_2B` is defined as a JSON schema array in
-`schemas.2B.yaml`, but the runner attempted to validate it as a table via
-`validate_dataframe`, which only supports table/stream/geotable/raster types.
-
-Resolution plan:
-1) Switch sealed_inputs_2B validation to use Draft202012Validator with the
-   JSON schema returned by `_schema_from_pack(schema_2b, "validation/sealed_inputs_2B")`.
-2) Preserve the same failure code (`2B-S0-031`) while reporting the first
-   validation error string for clarity.
-3) Re-run S0 to confirm the inventory validation passes and publishing proceeds.
-
-### Entry: 2026-01-15 09:23
-
-Design element: Semver alignment for 2B policy versions.
-Summary: To make policy changes trackable and bumpable, align `policy_version`
-and `version_tag` to an explicit semver (e.g., 1.0.0) and enforce semver format
-in the 2B policy schemas.
-
-Implementation plan (before edits):
-1) Update all four 2B policy JSON files to set:
-   - `policy_version: "1.0.0"`
-   - `version_tag: "1.0.0"`
-   This collapses version signaling to a single value while keeping both fields
-   for compatibility.
-2) Tighten `schemas.2B.yaml` policy definitions to require a semver pattern for
-   `policy_version` (keep `version_tag` as a plain string).
-3) Re-run `segment2b-s0` and clean any prior run-local outputs if write-once
-   rejects the updated payloads.
-
-### Entry: 2026-01-15 09:24
-
-Design element: Semver enforcement applied to 2B policies.
-Summary: Applied semver alignment by setting `policy_version` and `version_tag`
-to `1.0.0` in all four 2B policy JSON files and tightened the 2B policy schemas
-to require semver format for `policy_version`.
-
-Actions taken:
-1) Updated policy JSON files:
-   - `config/layer1/2B/policy/route_rng_policy_v1.json`
-   - `config/layer1/2B/policy/alias_layout_policy_v1.json`
-   - `config/layer1/2B/policy/day_effect_policy_v1.json`
-   - `config/layer1/2B/policy/virtual_edge_policy_v1.json`
-   (set `policy_version` and `version_tag` to "1.0.0").
-2) Updated `schemas.2B.yaml` to enforce a semver regex for `policy_version`
-   across all four policy schemas.
-3) Prepared to re-run S0 after clearing previous run-local outputs to satisfy
-   write-once rules (since version tags changed).
-
-### Entry: 2026-01-15 09:25
-
-Design element: 2B.S0 receipt schema uses external layer1 $defs.
-Summary: `s0_gate_receipt_v1` references `schemas.layer1.yaml#/$defs/uint64` and
-`rfc3339_micros`. Draft202012Validator cannot resolve these external refs by
-default, causing an Unresolvable error even when the payload is correct.
-
-Resolution plan:
-1) Inline layer1 $defs into the receipt schema before validation.
-   - Add `_inline_external_refs` to replace refs of the form
-     `schemas.layer1.yaml#/$defs/<name>` with the concrete def from the
-     layer1 schema pack.
-2) Use the inlined schema for validation and keep error code `2B-S0-030` for
-   genuine receipt schema mismatches.
-
-### Entry: 2026-01-15 09:25
-
-Design element: Re-emit S0 after semver alignment.
-Summary: Cleared the prior run-local S0 outputs (write-once guard) and re-ran
-`make segment2b-s0`; the gate completed successfully with all validators PASS
-and `warn_count=0`.
-
-Run outcome details:
-1) V-09 now PASS with version_tag resolved to "1.0.0" for policy assets.
-2) Sealed inputs + receipt republished under the manifest_fingerprint path.
-
-### Entry: 2026-01-15 09:31
-
-Design element: 2B.S0 execution status after fixes.
-Summary: S0 gate completed successfully with a WARN on version_tag placeholders
-for the 2B policy JSON files (expected per decision). Outputs were published
-under manifest_fingerprint partitions and run-report emitted.
-
-Run outcome notes:
-1) Gate PASS confirmed (bundle hash matched _passed.flag).
-2) Inventory + receipt validation passed; outputs written to:
-   - `data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/s0_gate_receipt_2B.json`
-   - `data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/sealed_inputs_2B.json`
-3) V-09 WARN raised for placeholder version_tag on policy assets; no abort.
-
-### Entry: 2026-01-15 09:38
-
-Design element: 2B policy version_tag placeholders (V-09).
-Summary: Policy assets used `{policy_version}` in the dictionary/registry but
-the policy JSON files only carried `version_tag`, so S0 could not resolve the
-template and emitted placeholder warnings.
-
-Resolution plan (per user direction):
-1) Add `policy_version` to each 2B policy JSON and keep `version_tag` for
-   backward compatibility.
-2) Update `schemas.2B.yaml` policy definitions to allow/require
-   `policy_version` (additionalProperties=false).
-3) Update 2B.S0 runner to read `policy_version` (fallback to `version_tag`)
-   from policy JSON and inject it as a token for version template rendering.
-4) Re-run S0 to confirm V-09 no longer warns (unless a policy is missing the
-   new field).
-
-### Entry: 2026-01-15 09:44
-
-Design element: Write-once re-emit after policy version update.
-Summary: After introducing `policy_version`, previously published S0 outputs
-for this run-id no longer matched the new sealed_inputs payloads, triggering
-the write-once guard (`2B-S0-080`). To re-emit correctly, the old output
-directories for this run-id had to be cleared.
-
-Actions taken (deterministic and scoped):
-1) Removed the existing run-local outputs under:
-   - `runs/local_full_run-5/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=<hex>/`
-   - `runs/local_full_run-5/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=<hex>/`
-2) Re-ran `make segment2b-s0`; S0 completed with all validators PASS and
-   `warn_count=0` in the run-report.
-
-### Entry: 2026-01-15 19:52
-
-Design element: 2B.S3 day-effect generation for per-merchant x UTC-day x tz-group gamma multipliers.
-Summary: S3 must deterministically build tz-groups from S1 + 2A site_timezones, draw one
-Philox-based log-normal gamma per {merchant, day, tz_group}, and publish a write-once
-partition `s3_day_effects` with full RNG provenance and coverage validation.
-
-Plan (before implementation, detailed; captured during design):
-1) Resolve authorities and run identity.
-   - Contracts source: `model_spec` layout (dev mode); keep CLI flags for
-     `--contracts-layout` + `--contracts-root` so production can switch to root
-     without code changes.
-   - Load run_receipt.json (run_id, seed, parameter_hash, manifest_fingerprint).
-   - Load dictionary, registry, and schema packs for 2B + 2A + 1A layer1 defs.
-   - Record dictionary_version + registry_version for the run-report.
-
-2) Gate + sealed input discipline.
-   - Resolve `s0_gate_receipt_2B` and validate against
-     `schemas.2B.yaml#/validation/s0_gate_receipt_v1` (inline layer1 $defs).
-   - Extract `created_utc = receipt.verified_at_utc`; this is authoritative
-     and must be echoed into every output row (2B-S3-086).
-   - Resolve and validate `sealed_inputs_2B` (schema) and assert the S3-required
-     assets are sealed: `site_timezones`, `day_effect_policy_v1`,
-     and `validation_bundle_1B`/`validation_passed_flag_1B` only for gate
-     continuity (note: `s1_site_weights` is within-segment, not sealed).
-   - Enforce partition path equality for sealed assets (2B-S3-070).
-
-3) Resolve required inputs by dictionary only (no literal paths).
-   - `s1_site_weights` at `seed={seed}/manifest_fingerprint={manifest_fp}`.
-   - `site_timezones` at `seed={seed}/manifest_fingerprint={manifest_fp}`.
-   - `day_effect_policy_v1` uses the exact sealed path + digest.
-   - Reject any missing or mis-resolved dataset (2B-S3-020/070).
-
-4) Policy validation (minima + RNG posture).
-   - Parse `day_effect_policy_v1` JSON and validate with
-     `schemas.2B.yaml#/policy/day_effect_policy_v1`.
-   - Abort if minima missing: `rng_engine`, `rng_stream_id`, `draws_per_row`,
-     `sigma_gamma`, `day_range`, `rng_derivation`, `record_fields`.
-   - Enforce `draws_per_row == 1` and `rng_engine == philox2x64-10`.
-   - Validate `day_range` inclusive semantics (start_day <= end_day).
-   - Track `sigma_gamma` and `rng_stream_id` for output + run-report.
-
-5) Join + tz-group construction (1:1 join requirement).
-   - Read `s1_site_weights` columns: merchant_id, legal_country_iso, site_order.
-   - Read `site_timezones` columns: merchant_id, legal_country_iso, site_order, tzid.
-   - Detect duplicate tzid per site key (2B-S3-041) and missing tzid (2B-S3-040).
-   - Build per-merchant tz-group set using tzid as `tz_group_id`.
-   - Sort deterministically: merchants ascending; per-merchant tz_groups sorted
-     lexicographically to guarantee writer order.
-
-6) Coverage grid and row order invariants.
-   - Construct UTC day list from policy day_range (inclusive).
-   - Coverage is exactly: merchants × tz_groups_per_merchant × days.
-   - Writer order must be PK order: (merchant_id, utc_day, tz_group_id).
-   - Validate no PK duplicates (2B-S3-042) and order monotonicity (2B-S3-083).
-
-7) RNG derivation (Philox2x64-10; counter monotonicity).
-   - Use UER encoding and SHA-256 for key/counter derivation per policy:
-     - Master: `uer(domain_master) + manifest_fp_bytes + seed_u64`.
-     - Stream: `uer(domain_stream) + rng_stream_id`.
-     - digest = sha256(master + stream); key = LE64 digest[24:32],
-       counter_hi = BE64 digest[16:24], counter_lo = BE64 digest[24:32].
-   - Counter increments by 1 per output row in writer order.
-   - Record counter_hi/lo for each row and enforce strict monotonicity and
-     no wrap (2B-S3-063/064). draw_count must equal rows_expected (2B-S3-062).
-
-8) Distribution and numeric invariants.
-   - For each row, draw u in (0,1) from Philox output `x0` and convert to
-     z via deterministic normal inverse CDF (Acklam approximation).
-   - log_gamma = -0.5 * sigma^2 + sigma * z, gamma = exp(log_gamma).
-   - Abort if log_gamma non-finite or gamma <= 0 (2B-S3-057/058).
-   - Echo sigma_gamma and rng_stream_id per row; mismatch abort (2B-S3-059/061).
-
-9) Output write, schema validation, and atomic publish.
-   - Stage outputs in run tmp dir: `runs/<run_id>/tmp/s3_day_effects_<uuid>/`.
-   - Write parquet parts in batches (100k rows) using polars schema that
-     matches `schemas.2B.yaml#/plan/s3_day_effects`.
-   - Validate via `validate_dataframe` against table schema (inline layer1 defs).
-   - Enforce write-once publish: if target exists, compare hashes and allow
-     only identical output; otherwise abort (2B-S3-080/081).
-   - Publish via atomic rename into dictionary path and remove tmp folder.
-
-10) Run-report + logging story.
-   - Emit story header: objective, gated inputs, outputs.
-   - Log each phase with narrative, not just counts:
-     GATE -> POLICY -> JOIN -> GROUPS -> GENERATE -> VALIDATE -> PUBLISH.
-   - Progress logs must include elapsed, processed/total, rate, ETA.
-   - Run-report includes: policy details + digest, inputs digest, RNG accounting,
-     coverage counts, output stats, validators, samples (rows + tz_groups),
-     and environment metadata. Emit JSON to stdout + persist file.
-
-Open confirmations resolved before coding:
-1) Failure reporting for ambiguity/override already handled in S1/S2; S3 adopts
-   strict abort posture per spec codes above; no relaxations.
-2) No new S3 policy source changes; use S0-sealed policy path + digest only.
-
-### Entry: 2026-01-15 20:12
-
-Design element: S3 implementation kickoff (runner/CLI/Makefile) after planning.
-Summary: Begin implementing the planned S3 runner, CLI, and makefile wiring.
-An earlier attempt to write the runner file failed due to a Windows path-length
-issue; we will re-create the file using apply_patch and confirm the file exists
-before proceeding with the rest of the wiring.
-
-Decision details (before coding, live):
-1) File creation strategy.
-   - Use apply_patch Add File for `seg_2B/s3_day_effects/runner.py` to avoid
-     PowerShell write errors; verify with `Get-ChildItem` afterward.
-   - If apply_patch fails, fall back to a Python writer that targets the same
-     path and validates file existence, then proceed with standard edits.
-
-2) Run-report strictness for S3.
-   - Follow the spec-required top-level fields and include `samples`, `id_map`,
-     and `durations_ms` at top-level (as in other 2B run-reports), while placing
-     required counters inside existing objects (`inputs_summary` + `rng_accounting`)
-     to keep the report minimal and deterministic.
-   - Rationale: satisfies the explicit required fields + sample/counter rules
-     without introducing uncontrolled keys.
-
-3) Publish immutability handling.
-   - If target partition exists and hashes match, skip publish and mark
-     write_once_verified=true; if hashes differ, fail both V-17 and V-18 and
-     abort with code 2B-S3-081 (non-idempotent re-emit), recording 2B-S3-080
-     on V-17 for traceability.
-
-Next implementation actions:
-1) Implement runner with all validators V-01..V-23, strict policy minima,
-   join/coverage checks, RNG derivation, and story logs.
-2) Add CLI `s3_day_effects_2b.py` and makefile wiring for `segment2b-s3`.
-3) Run `make segment2b-s3` and fix any failures, logging each decision/action.
-
-### Entry: 2026-01-15 20:35
-
-Design element: Resume S3 runner/CLI/Makefile implementation and align policy
-digest handling with the provenance rule.
-Summary: Continue building `s3_day_effects` after confirming that
-`day_effect_policy_v1` is schema-aligned (rng_engine, day_range, record_fields)
-and that `sha256_hex` is treated as a provenance echo (not the sealed file
-digest). This entry captures the exact code steps being taken now.
-
-Implementation steps (before code edits, explicit):
-1) Complete the S3 runner in `seg_2B/s3_day_effects/runner.py`.
-   - Add RNG derivation helpers (UER encoding + SHA-256) and Philox2x64-10
-     kernel, including u01 and deterministic normal ICDF.
-   - Implement strict policy minima checks (V-04) and enforce `record_fields`
-     as a minimum set while always emitting the full schema columns.
-   - Enforce sealed-input checks for `day_effect_policy_v1` + `site_timezones`
-     (V-01/V-02/V-03/V-19), using S0 receipt `verified_at_utc` for `created_utc`.
-   - Join `s1_site_weights` to `site_timezones` on the 3-key PK; abort on
-     missing tzid or duplicate tzid (V-05).
-   - Build tz-groups per merchant (sorted) and UTC day grid (inclusive) and
-     generate rows in PK order with counters in lockstep (V-06/V-07/V-08/V-12/V-13).
-   - Write parquet in bounded batches, validate each batch via JSON-schema
-     adapter (V-16), then atomic publish with write-once guard (V-17/V-18).
-
-2) Add the CLI entry point `engine/cli/s3_day_effects_2b.py`.
-   - Mirror S1/S2 CLI structure: contracts layout/root flags, external roots,
-     run-id selection (latest receipt by default).
-
-3) Wire Makefile target `segment2b-s3`.
-   - Add `SEG2B_S3_RUN_ID`, `SEG2B_S3_ARGS`, and `SEG2B_S3_CMD`.
-   - Add a `segment2b-s3` target and include it in `.PHONY`.
-
-4) Run and iterate until green.
-   - Execute `make segment2b-s3 RUN_ID=<active>` and resolve any runtime errors.
-   - Each fix: append a new implementation-map entry + logbook entry with
-     reasoning, and re-run until the output is write-once and the run-report
-     passes all V-01..V-21 checks.
-
-### Entry: 2026-01-15 20:53
-
-Design element: Record-fields minima interpretation adjustment for S3.
-Summary: Align `record_fields` enforcement with the S3 spec (minimum audit
-fields only) rather than requiring the full output schema list. This avoids
-over-restricting policy configurations while still meeting the binding minima.
-
-Decision details (in-flight):
-1) Required minima per spec are:
-   - `gamma`, `log_gamma`, `sigma_gamma`, `rng_stream_id`, `rng_counter_lo`,
-     `rng_counter_hi`, `created_utc`.
-2) The output still emits the full schema-defined columns, but `record_fields`
-   only needs to include the minima list above. Any missing minima remains an
-   abort under `2B-S3-032` (V-04).
-3) Rationale: the policy's `record_fields` is a minimum audit declaration,
-   not a schema-level projection list. Requiring merchant_id/utc_day/tz_group_id
-   would be stricter than the contract text.
-
-### Entry: 2026-01-15 20:58
-
-Design element: S3 policy digest mismatch (2B-S3-070) during first run attempt.
-Summary: Running `segment2b-s3` failed at V-03 because the sealed policy digest
-recorded in `sealed_inputs_2B` does not match the current
-`day_effect_policy_v1.json` content. This is a process/lineage issue (S0 seal
-stale after policy edit), not a runner bug.
-
-Decision details (live, pre-fix):
-1) Keep the V-03 digest check strict.
-   - The spec expects S3 to trust the S0 seal. Allowing mismatches would break
-     lineage and determinism (policy provenance must be frozen at S0).
-   - Therefore the correct fix is to re-run 2B.S0 so `sealed_inputs_2B`
-     captures the updated policy sha256, then re-run S3.
-
-2) Fix sequence to clear the failure.
-   - Run `make segment2b-s0 RUN_ID=<same run_id>` to re-seal inputs using the
-     updated `day_effect_policy_v1.json`.
-   - Immediately re-run `make segment2b-s3 RUN_ID=<same run_id>` to confirm
-     V-03 passes and S3 proceeds to generation/publish.
-
-3) Audit note.
-   - Log the policy digest mismatch and reseal decision in the logbook and
-     reference this entry for traceability.
-
-### Entry: 2026-01-15 20:59
-
-Design element: S0 reseal attempt blocked by write-once publish (2B-S0-080).
-Summary: Re-running 2B.S0 for the same run_id failed because the existing
-`s0_gate_receipt_2B` output partition already exists and the new receipt bytes
-do not match the prior output (expected when policy metadata changed). The
-write-once guard correctly refused to overwrite.
-
-Decision points (pending user confirmation):
-1) Reseal strategy to unblock S3.
-   - Option A: delete the existing run-local 2B S0 outputs for this run_id
-     (`data/layer1/2B/s0_gate_receipt/...` and `data/layer1/2B/sealed_inputs/...`)
-     and re-run `segment2b-s0` to publish a new sealed_inputs_2B.
-   - Option B: start a fresh run_id (rerun 1A/1B/2A or `make all`) so S0 seals
-     into a clean run directory, preserving write-once invariants.
-
-2) My recommendation.
-   - Prefer Option B in production to preserve audit lineage.
-   - In dev mode, Option A is acceptable if you explicitly approve deletion of
-     the S0 outputs for this run_id.
-
-3) Next action (blocked until approval).
-   - Once approved, perform the selected reseal approach and re-run S3.
-
-### Entry: 2026-01-15 21:07
-
-Design element: De-duplicate S3 RNG helpers and keep implementation log append-only.
-Summary: The S3 runner currently embeds its own Philox2x64-10 implementation and
-UER/low64 helpers, which duplicates existing helpers in
-`engine.layers.l1.seg_1A.s1_hurdle.rng`. We will reuse those shared helpers while
-keeping the S3-specific `u = (r + 0.5) * 2^-64` mapping (spec-required). Also,
-the implementation log got out-of-order due to an earlier insert mid-file; we
-will append all future entries at the end and add a chronology note rather than
-rewriting past entries.
-
-Plan (before coding, detailed):
-1) RNG helper reuse (no behavior change).
-   - Replace local `philox2x64_10`, `_uer_string`, `_ser_u64`, `_low64` with imports
-     from `engine.layers.l1.seg_1A.s1_hurdle.rng` (`philox2x64_10`, `uer_string`,
-     `ser_u64`, `low64`).
-   - Keep the S3-specific `_u01` because the spec mandates `u = (r + 0.5) * 2^-64`
-     (the S1 helper uses a different open-interval mapping).
-   - Leave constants like `UINT64_MASK` local; they are harmless and avoid dragging
-     in extra dependencies. No RNG output should change.
-
-2) Chronology correction (without rewriting history).
-   - Do not move existing entries (per “never rewrite prior entries” rule).
-   - Add a short note at the end (this entry) that earlier entries were inserted
-     out-of-order; all new entries will be appended at the bottom.
-   - If you want the file physically re-ordered, get explicit approval first.
-
-3) Re-run plan (after helper swap).
-   - You already deleted `runs/<run_id>/data/layer1/2B/`; rerun `segment2b-s0`
-     to reseal policy digests, then run `segment2b-s3` on the same run_id.
-   - Record each run attempt in the logbook and append any fixes/decisions here.
-
-### Entry: 2026-01-15 21:10
-
-Design element: Applied RNG helper de-dup in S3 runner.
-Summary: Swapped local Philox/UER/low64 helpers for the shared implementations
-from `seg_1A/s1_hurdle/rng.py` while preserving the S3-specific `(r + 0.5) * 2^-64`
-uniform mapping and all RNG derivation logic.
-
-Changes made (actual):
-1) Imported `philox2x64_10`, `uer_string`, `ser_u64`, `low64` from
-   `engine.layers.l1.seg_1A.s1_hurdle.rng` and removed duplicate local
-   implementations in S3.
-2) Kept `_u01` in S3 because the spec mandates `(r + 0.5) * 2^-64` (different
-   from the S1 helper’s open-interval mapping).
-3) Removed unused constants/imports (`UINT64_MAX`, Philox constants, `struct`)
-   to avoid confusion and keep the file minimal.
-
-### Entry: 2026-01-15 21:12
-
-Design element: S3 policy schema failure due to rng_stream_id regex escaping.
-Summary: S3 failed with `2B-S3-031` because the policy schema’s
-`rng_stream_id` pattern is over-escaped in `schemas.2B.yaml`, requiring a
-literal backslash before the dot. The authoring guide expects the pattern
-`^2B\.[A-Za-z0-9_.-]+$`, which should accept `2B.day_effects.gamma`.
-
-Plan (before code edits):
-1) Fix the schema regex to align with the authoring guide.
-   - Update `schemas.2B.yaml` `day_effect_policy_v1.properties.rng_stream_id.pattern`
-     to `^2B\.[A-Za-z0-9_.-]+$` (single backslash in the YAML single-quoted string).
-   - This corrects the schema without changing policy content or data lineage.
-
-2) Re-run S3 only.
-   - No reseal needed because the policy bytes are unchanged; only schema
-     validation semantics were corrected.
-   - Run `make segment2b-s3 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` and
-     continue fixing any further issues until green.
-
-### Entry: 2026-01-15 21:13
-
-Design element: Missing run-local `s1_site_weights` after 2B data cleanup.
-Summary: S3 failed with `FileNotFoundError` when reading `s1_site_weights`
-because the run-local `data/layer1/2B/` directory was deleted to reseal S0,
-which removed S1/S2 outputs. This is a run orchestration issue, but S3 should
-fail with a clear `2B-S3-020` rather than a raw polars error.
-
-Plan (before fix/run):
-1) Add explicit existence checks for `s1_site_weights` and `site_timezones`
-   paths after resolution; if missing, abort with `2B-S3-020` (V-02) and
-   include dataset_id + path in context.
-2) Re-run `segment2b-s1` and `segment2b-s2` for the same run_id to recreate
-   the missing outputs, then re-run `segment2b-s3`.
-
-### Entry: 2026-01-15 21:14
-
-Design element: Implemented explicit input existence checks in S3.
-Summary: Added pre-read existence checks for `site_timezones` and
-`s1_site_weights` to map missing paths to `2B-S3-020` (V-02) instead of a raw
-polars `FileNotFoundError`.
-
-Changes made (actual):
-1) Inserted `Path.exists()` checks after `_resolve_input` for both inputs.
-2) Emitted `input_missing` aborts with `{dataset_id, path}` context.
-
-### Entry: 2026-01-15 21:16
-
-Design element: Schema fix + rerun chain to get S3 green.
-Summary: Corrected the `rng_stream_id` pattern in `schemas.2B.yaml`, re-ran the
-2B chain to restore missing outputs, and S3 completed green for
-run_id `2b22ab5c8c7265882ca6e50375802b26`.
-
-Actions executed (auditable):
-1) Schema fix (policy validation):
-   - Updated `schemas.2B.yaml` `rng_stream_id` pattern to a single-backslash
-     regex `^2B\.[A-Za-z0-9_.-]+$` so `2B.day_effects.gamma` validates.
-
-2) Rerun chain after run-local cleanup:
-   - Re-ran `segment2b-s0` to reseal policy digest in the run folder.
-   - Re-ran `segment2b-s1` and `segment2b-s2` because their outputs were removed
-     when `data/layer1/2B/` was deleted.
-   - Re-ran `segment2b-s3` with the same run_id.
-
-3) Outcome:
-   - S3 emitted `s3_day_effects` successfully with
-     `rows_written=1,129,842`, `tz_groups_total=3,087`, `days_total=366`,
-     `write_once_verified=false`, `atomic_publish=true`.
-   - Run-report written under
-     `runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/reports/layer1/2B/state=S3/seed=42/manifest_fingerprint=e8a05027991ba560d5d334258378e2a607cf0c87b1368dd05fb7ef1a04c0afed/s3_run_report.json`.
-
-## S3 - Corporate-day modulation (S3.*)
 
 ### Entry: 2026-01-15 18:06
 
@@ -1866,6 +1573,341 @@ Implementation intention:
 1) Add `seg_2B/s3_day_effects/runner.py` using S1/S2 patterns + shared RNG helpers.
 2) Add CLI `engine/cli/s3_day_effects_2b.py`.
 3) Add Makefile wiring (`SEG2B_S3_RUN_ID`, args/cmd, target, `.PHONY`).
+
+
+### Entry: 2026-01-15 19:52
+
+Design element: 2B.S3 day-effect generation for per-merchant x UTC-day x tz-group gamma multipliers.
+Summary: S3 must deterministically build tz-groups from S1 + 2A site_timezones, draw one
+Philox-based log-normal gamma per {merchant, day, tz_group}, and publish a write-once
+partition `s3_day_effects` with full RNG provenance and coverage validation.
+
+Plan (before implementation, detailed; captured during design):
+1) Resolve authorities and run identity.
+   - Contracts source: `model_spec` layout (dev mode); keep CLI flags for
+     `--contracts-layout` + `--contracts-root` so production can switch to root
+     without code changes.
+   - Load run_receipt.json (run_id, seed, parameter_hash, manifest_fingerprint).
+   - Load dictionary, registry, and schema packs for 2B + 2A + 1A layer1 defs.
+   - Record dictionary_version + registry_version for the run-report.
+
+2) Gate + sealed input discipline.
+   - Resolve `s0_gate_receipt_2B` and validate against
+     `schemas.2B.yaml#/validation/s0_gate_receipt_v1` (inline layer1 $defs).
+   - Extract `created_utc = receipt.verified_at_utc`; this is authoritative
+     and must be echoed into every output row (2B-S3-086).
+   - Resolve and validate `sealed_inputs_2B` (schema) and assert the S3-required
+     assets are sealed: `site_timezones`, `day_effect_policy_v1`,
+     and `validation_bundle_1B`/`validation_passed_flag_1B` only for gate
+     continuity (note: `s1_site_weights` is within-segment, not sealed).
+   - Enforce partition path equality for sealed assets (2B-S3-070).
+
+3) Resolve required inputs by dictionary only (no literal paths).
+   - `s1_site_weights` at `seed={seed}/manifest_fingerprint={manifest_fp}`.
+   - `site_timezones` at `seed={seed}/manifest_fingerprint={manifest_fp}`.
+   - `day_effect_policy_v1` uses the exact sealed path + digest.
+   - Reject any missing or mis-resolved dataset (2B-S3-020/070).
+
+4) Policy validation (minima + RNG posture).
+   - Parse `day_effect_policy_v1` JSON and validate with
+     `schemas.2B.yaml#/policy/day_effect_policy_v1`.
+   - Abort if minima missing: `rng_engine`, `rng_stream_id`, `draws_per_row`,
+     `sigma_gamma`, `day_range`, `rng_derivation`, `record_fields`.
+   - Enforce `draws_per_row == 1` and `rng_engine == philox2x64-10`.
+   - Validate `day_range` inclusive semantics (start_day <= end_day).
+   - Track `sigma_gamma` and `rng_stream_id` for output + run-report.
+
+5) Join + tz-group construction (1:1 join requirement).
+   - Read `s1_site_weights` columns: merchant_id, legal_country_iso, site_order.
+   - Read `site_timezones` columns: merchant_id, legal_country_iso, site_order, tzid.
+   - Detect duplicate tzid per site key (2B-S3-041) and missing tzid (2B-S3-040).
+   - Build per-merchant tz-group set using tzid as `tz_group_id`.
+   - Sort deterministically: merchants ascending; per-merchant tz_groups sorted
+     lexicographically to guarantee writer order.
+
+6) Coverage grid and row order invariants.
+   - Construct UTC day list from policy day_range (inclusive).
+   - Coverage is exactly: merchants × tz_groups_per_merchant × days.
+   - Writer order must be PK order: (merchant_id, utc_day, tz_group_id).
+   - Validate no PK duplicates (2B-S3-042) and order monotonicity (2B-S3-083).
+
+7) RNG derivation (Philox2x64-10; counter monotonicity).
+   - Use UER encoding and SHA-256 for key/counter derivation per policy:
+     - Master: `uer(domain_master) + manifest_fp_bytes + seed_u64`.
+     - Stream: `uer(domain_stream) + rng_stream_id`.
+     - digest = sha256(master + stream); key = LE64 digest[24:32],
+       counter_hi = BE64 digest[16:24], counter_lo = BE64 digest[24:32].
+   - Counter increments by 1 per output row in writer order.
+   - Record counter_hi/lo for each row and enforce strict monotonicity and
+     no wrap (2B-S3-063/064). draw_count must equal rows_expected (2B-S3-062).
+
+8) Distribution and numeric invariants.
+   - For each row, draw u in (0,1) from Philox output `x0` and convert to
+     z via deterministic normal inverse CDF (Acklam approximation).
+   - log_gamma = -0.5 * sigma^2 + sigma * z, gamma = exp(log_gamma).
+   - Abort if log_gamma non-finite or gamma <= 0 (2B-S3-057/058).
+   - Echo sigma_gamma and rng_stream_id per row; mismatch abort (2B-S3-059/061).
+
+9) Output write, schema validation, and atomic publish.
+   - Stage outputs in run tmp dir: `runs/<run_id>/tmp/s3_day_effects_<uuid>/`.
+   - Write parquet parts in batches (100k rows) using polars schema that
+     matches `schemas.2B.yaml#/plan/s3_day_effects`.
+   - Validate via `validate_dataframe` against table schema (inline layer1 defs).
+   - Enforce write-once publish: if target exists, compare hashes and allow
+     only identical output; otherwise abort (2B-S3-080/081).
+   - Publish via atomic rename into dictionary path and remove tmp folder.
+
+10) Run-report + logging story.
+   - Emit story header: objective, gated inputs, outputs.
+   - Log each phase with narrative, not just counts:
+     GATE -> POLICY -> JOIN -> GROUPS -> GENERATE -> VALIDATE -> PUBLISH.
+   - Progress logs must include elapsed, processed/total, rate, ETA.
+   - Run-report includes: policy details + digest, inputs digest, RNG accounting,
+     coverage counts, output stats, validators, samples (rows + tz_groups),
+     and environment metadata. Emit JSON to stdout + persist file.
+
+Open confirmations resolved before coding:
+1) Failure reporting for ambiguity/override already handled in S1/S2; S3 adopts
+   strict abort posture per spec codes above; no relaxations.
+2) No new S3 policy source changes; use S0-sealed policy path + digest only.
+
+### Entry: 2026-01-15 20:12
+
+Design element: S3 implementation kickoff (runner/CLI/Makefile) after planning.
+Summary: Begin implementing the planned S3 runner, CLI, and makefile wiring.
+An earlier attempt to write the runner file failed due to a Windows path-length
+issue; we will re-create the file using apply_patch and confirm the file exists
+before proceeding with the rest of the wiring.
+
+Decision details (before coding, live):
+1) File creation strategy.
+   - Use apply_patch Add File for `seg_2B/s3_day_effects/runner.py` to avoid
+     PowerShell write errors; verify with `Get-ChildItem` afterward.
+   - If apply_patch fails, fall back to a Python writer that targets the same
+     path and validates file existence, then proceed with standard edits.
+
+2) Run-report strictness for S3.
+   - Follow the spec-required top-level fields and include `samples`, `id_map`,
+     and `durations_ms` at top-level (as in other 2B run-reports), while placing
+     required counters inside existing objects (`inputs_summary` + `rng_accounting`)
+     to keep the report minimal and deterministic.
+   - Rationale: satisfies the explicit required fields + sample/counter rules
+     without introducing uncontrolled keys.
+
+3) Publish immutability handling.
+   - If target partition exists and hashes match, skip publish and mark
+     write_once_verified=true; if hashes differ, fail both V-17 and V-18 and
+     abort with code 2B-S3-081 (non-idempotent re-emit), recording 2B-S3-080
+     on V-17 for traceability.
+
+Next implementation actions:
+1) Implement runner with all validators V-01..V-23, strict policy minima,
+   join/coverage checks, RNG derivation, and story logs.
+2) Add CLI `s3_day_effects_2b.py` and makefile wiring for `segment2b-s3`.
+3) Run `make segment2b-s3` and fix any failures, logging each decision/action.
+
+### Entry: 2026-01-15 20:35
+
+Design element: Resume S3 runner/CLI/Makefile implementation and align policy
+digest handling with the provenance rule.
+Summary: Continue building `s3_day_effects` after confirming that
+`day_effect_policy_v1` is schema-aligned (rng_engine, day_range, record_fields)
+and that `sha256_hex` is treated as a provenance echo (not the sealed file
+digest). This entry captures the exact code steps being taken now.
+
+Implementation steps (before code edits, explicit):
+1) Complete the S3 runner in `seg_2B/s3_day_effects/runner.py`.
+   - Add RNG derivation helpers (UER encoding + SHA-256) and Philox2x64-10
+     kernel, including u01 and deterministic normal ICDF.
+   - Implement strict policy minima checks (V-04) and enforce `record_fields`
+     as a minimum set while always emitting the full schema columns.
+   - Enforce sealed-input checks for `day_effect_policy_v1` + `site_timezones`
+     (V-01/V-02/V-03/V-19), using S0 receipt `verified_at_utc` for `created_utc`.
+   - Join `s1_site_weights` to `site_timezones` on the 3-key PK; abort on
+     missing tzid or duplicate tzid (V-05).
+   - Build tz-groups per merchant (sorted) and UTC day grid (inclusive) and
+     generate rows in PK order with counters in lockstep (V-06/V-07/V-08/V-12/V-13).
+   - Write parquet in bounded batches, validate each batch via JSON-schema
+     adapter (V-16), then atomic publish with write-once guard (V-17/V-18).
+
+2) Add the CLI entry point `engine/cli/s3_day_effects_2b.py`.
+   - Mirror S1/S2 CLI structure: contracts layout/root flags, external roots,
+     run-id selection (latest receipt by default).
+
+3) Wire Makefile target `segment2b-s3`.
+   - Add `SEG2B_S3_RUN_ID`, `SEG2B_S3_ARGS`, and `SEG2B_S3_CMD`.
+   - Add a `segment2b-s3` target and include it in `.PHONY`.
+
+4) Run and iterate until green.
+   - Execute `make segment2b-s3 RUN_ID=<active>` and resolve any runtime errors.
+   - Each fix: append a new implementation-map entry + logbook entry with
+     reasoning, and re-run until the output is write-once and the run-report
+     passes all V-01..V-21 checks.
+
+### Entry: 2026-01-15 20:53
+
+Design element: Record-fields minima interpretation adjustment for S3.
+Summary: Align `record_fields` enforcement with the S3 spec (minimum audit
+fields only) rather than requiring the full output schema list. This avoids
+over-restricting policy configurations while still meeting the binding minima.
+
+Decision details (in-flight):
+1) Required minima per spec are:
+   - `gamma`, `log_gamma`, `sigma_gamma`, `rng_stream_id`, `rng_counter_lo`,
+     `rng_counter_hi`, `created_utc`.
+2) The output still emits the full schema-defined columns, but `record_fields`
+   only needs to include the minima list above. Any missing minima remains an
+   abort under `2B-S3-032` (V-04).
+3) Rationale: the policy's `record_fields` is a minimum audit declaration,
+   not a schema-level projection list. Requiring merchant_id/utc_day/tz_group_id
+   would be stricter than the contract text.
+
+### Entry: 2026-01-15 20:58
+
+Design element: S3 policy digest mismatch (2B-S3-070) during first run attempt.
+Summary: Running `segment2b-s3` failed at V-03 because the sealed policy digest
+recorded in `sealed_inputs_2B` does not match the current
+`day_effect_policy_v1.json` content. This is a process/lineage issue (S0 seal
+stale after policy edit), not a runner bug.
+
+Decision details (live, pre-fix):
+1) Keep the V-03 digest check strict.
+   - The spec expects S3 to trust the S0 seal. Allowing mismatches would break
+     lineage and determinism (policy provenance must be frozen at S0).
+   - Therefore the correct fix is to re-run 2B.S0 so `sealed_inputs_2B`
+     captures the updated policy sha256, then re-run S3.
+
+2) Fix sequence to clear the failure.
+   - Run `make segment2b-s0 RUN_ID=<same run_id>` to re-seal inputs using the
+     updated `day_effect_policy_v1.json`.
+   - Immediately re-run `make segment2b-s3 RUN_ID=<same run_id>` to confirm
+     V-03 passes and S3 proceeds to generation/publish.
+
+3) Audit note.
+   - Log the policy digest mismatch and reseal decision in the logbook and
+     reference this entry for traceability.
+
+### Entry: 2026-01-15 21:07
+
+Design element: De-duplicate S3 RNG helpers and keep implementation log append-only.
+Summary: The S3 runner currently embeds its own Philox2x64-10 implementation and
+UER/low64 helpers, which duplicates existing helpers in
+`engine.layers.l1.seg_1A.s1_hurdle.rng`. We will reuse those shared helpers while
+keeping the S3-specific `u = (r + 0.5) * 2^-64` mapping (spec-required). Also,
+the implementation log got out-of-order due to an earlier insert mid-file; we
+will append all future entries at the end and add a chronology note rather than
+rewriting past entries.
+
+Plan (before coding, detailed):
+1) RNG helper reuse (no behavior change).
+   - Replace local `philox2x64_10`, `_uer_string`, `_ser_u64`, `_low64` with imports
+     from `engine.layers.l1.seg_1A.s1_hurdle.rng` (`philox2x64_10`, `uer_string`,
+     `ser_u64`, `low64`).
+   - Keep the S3-specific `_u01` because the spec mandates `u = (r + 0.5) * 2^-64`
+     (the S1 helper uses a different open-interval mapping).
+   - Leave constants like `UINT64_MASK` local; they are harmless and avoid dragging
+     in extra dependencies. No RNG output should change.
+
+2) Chronology correction (without rewriting history).
+   - Do not move existing entries (per “never rewrite prior entries” rule).
+   - Add a short note at the end (this entry) that earlier entries were inserted
+     out-of-order; all new entries will be appended at the bottom.
+   - If you want the file physically re-ordered, get explicit approval first.
+
+3) Re-run plan (after helper swap).
+   - You already deleted `runs/<run_id>/data/layer1/2B/`; rerun `segment2b-s0`
+     to reseal policy digests, then run `segment2b-s3` on the same run_id.
+   - Record each run attempt in the logbook and append any fixes/decisions here.
+
+### Entry: 2026-01-15 21:10
+
+Design element: Applied RNG helper de-dup in S3 runner.
+Summary: Swapped local Philox/UER/low64 helpers for the shared implementations
+from `seg_1A/s1_hurdle/rng.py` while preserving the S3-specific `(r + 0.5) * 2^-64`
+uniform mapping and all RNG derivation logic.
+
+Changes made (actual):
+1) Imported `philox2x64_10`, `uer_string`, `ser_u64`, `low64` from
+   `engine.layers.l1.seg_1A.s1_hurdle.rng` and removed duplicate local
+   implementations in S3.
+2) Kept `_u01` in S3 because the spec mandates `(r + 0.5) * 2^-64` (different
+   from the S1 helper’s open-interval mapping).
+3) Removed unused constants/imports (`UINT64_MAX`, Philox constants, `struct`)
+   to avoid confusion and keep the file minimal.
+
+### Entry: 2026-01-15 21:12
+
+Design element: S3 policy schema failure due to rng_stream_id regex escaping.
+Summary: S3 failed with `2B-S3-031` because the policy schema’s
+`rng_stream_id` pattern is over-escaped in `schemas.2B.yaml`, requiring a
+literal backslash before the dot. The authoring guide expects the pattern
+`^2B\.[A-Za-z0-9_.-]+$`, which should accept `2B.day_effects.gamma`.
+
+Plan (before code edits):
+1) Fix the schema regex to align with the authoring guide.
+   - Update `schemas.2B.yaml` `day_effect_policy_v1.properties.rng_stream_id.pattern`
+     to `^2B\.[A-Za-z0-9_.-]+$` (single backslash in the YAML single-quoted string).
+   - This corrects the schema without changing policy content or data lineage.
+
+2) Re-run S3 only.
+   - No reseal needed because the policy bytes are unchanged; only schema
+     validation semantics were corrected.
+   - Run `make segment2b-s3 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` and
+     continue fixing any further issues until green.
+
+### Entry: 2026-01-15 21:13
+
+Design element: Missing run-local `s1_site_weights` after 2B data cleanup.
+Summary: S3 failed with `FileNotFoundError` when reading `s1_site_weights`
+because the run-local `data/layer1/2B/` directory was deleted to reseal S0,
+which removed S1/S2 outputs. This is a run orchestration issue, but S3 should
+fail with a clear `2B-S3-020` rather than a raw polars error.
+
+Plan (before fix/run):
+1) Add explicit existence checks for `s1_site_weights` and `site_timezones`
+   paths after resolution; if missing, abort with `2B-S3-020` (V-02) and
+   include dataset_id + path in context.
+2) Re-run `segment2b-s1` and `segment2b-s2` for the same run_id to recreate
+   the missing outputs, then re-run `segment2b-s3`.
+
+### Entry: 2026-01-15 21:14
+
+Design element: Implemented explicit input existence checks in S3.
+Summary: Added pre-read existence checks for `site_timezones` and
+`s1_site_weights` to map missing paths to `2B-S3-020` (V-02) instead of a raw
+polars `FileNotFoundError`.
+
+Changes made (actual):
+1) Inserted `Path.exists()` checks after `_resolve_input` for both inputs.
+2) Emitted `input_missing` aborts with `{dataset_id, path}` context.
+
+### Entry: 2026-01-15 21:16
+
+Design element: Schema fix + rerun chain to get S3 green.
+Summary: Corrected the `rng_stream_id` pattern in `schemas.2B.yaml`, re-ran the
+2B chain to restore missing outputs, and S3 completed green for
+run_id `2b22ab5c8c7265882ca6e50375802b26`.
+
+Actions executed (auditable):
+1) Schema fix (policy validation):
+   - Updated `schemas.2B.yaml` `rng_stream_id` pattern to a single-backslash
+     regex `^2B\.[A-Za-z0-9_.-]+$` so `2B.day_effects.gamma` validates.
+
+2) Rerun chain after run-local cleanup:
+   - Re-ran `segment2b-s0` to reseal policy digest in the run folder.
+   - Re-ran `segment2b-s1` and `segment2b-s2` because their outputs were removed
+     when `data/layer1/2B/` was deleted.
+   - Re-ran `segment2b-s3` with the same run_id.
+
+3) Outcome:
+   - S3 emitted `s3_day_effects` successfully with
+     `rows_written=1,129,842`, `tz_groups_total=3,087`, `days_total=366`,
+     `write_once_verified=false`, `atomic_publish=true`.
+   - Run-report written under
+     `runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/reports/layer1/2B/state=S3/seed=42/manifest_fingerprint=e8a05027991ba560d5d334258378e2a607cf0c87b1368dd05fb7ef1a04c0afed/s3_run_report.json`.
+
+
+
 
 ## S4 - Zone-group renormalisation (S4.*)
 
@@ -2230,6 +2272,9 @@ Run review notes:
    - No further code changes needed for S4; proceed to next state once the
      user confirms.
 
+
+
+
 ## S5 - Router core (two-stage O(1): group -> site) (S5.*)
 
 ### Entry: 2026-01-15 23:27
@@ -2426,6 +2471,392 @@ What changed:
 
 Notes:
 - No S0 sealing changes yet; arrival roster remains an optional, run-local input
-  resolved by Dictionary ID only (consistent with S5’s “Dictionary-only reads”).
+  resolved by Dictionary ID only (consistent with S5's "Dictionary-only reads").
 - If later required, we will add an explicit optional seal step and a new
   validator ID rather than silently changing S0 behaviour.
+
+### Entry: 2026-01-16 05:29
+
+Design element: 2B.S5 router core implementation (Option-A per spec).
+Summary: Implement the two-stage router (group -> site), RNG evidence, optional
+selection log gating, and strict run-report emission, using Dictionary-only
+inputs and S0-sealed policy bytes.
+
+Plan (before implementation, detailed and stepwise):
+1) Establish run identity + contract sources.
+   - Load run_receipt.json for run_id, seed, parameter_hash, manifest_fingerprint.
+   - Resolve ContractSource layout = model_spec (dev mode) and record dictionary/
+     registry versions for the run-report.
+   - Attach a per-run file logger (state-aware) under the run log path.
+
+2) Enforce S0 evidence and sealed inputs (no read before gate).
+   - Resolve `s0_gate_receipt_2B` + `sealed_inputs_2B` at [manifest_fingerprint].
+   - Validate both payloads against `schemas.2B.yaml#/validation/*`.
+   - Confirm `route_rng_policy_v1` and `alias_layout_policy_v1` appear in the
+     sealed_inputs inventory with exact path + sha256_hex (S0-evidence rule).
+   - Record S0 `verified_at_utc` as `created_utc` for all logs/run-report rows.
+
+3) Resolve required inputs by Dictionary ID only (exact partitions).
+   - `s4_group_weights`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`,
+     `site_timezones` at [seed, manifest_fingerprint].
+   - Optional: `s5_arrival_roster` at [seed, parameter_hash, run_id]. If
+     missing, abort in the CLI runner (standalone batch requires a catalogued
+     roster) with 2B-S5-020.
+   - Enforce path-embed equality for all tokenized paths; abort on mismatch.
+
+4) Preflight S2 alias integrity (parity + blob hash).
+   - Read `s2_alias_index` JSON and verify policy echo fields match
+     `alias_layout_policy_v1` (layout_version, endianness, alignment_bytes,
+     quantised_bits).
+   - SHA256 the raw bytes of `s2_alias_blob` and compare to
+     `s2_alias_index.blob_sha256`. Abort on mismatch (2B-S5-041).
+
+5) Site identity resolution (spec gap; deterministic decision).
+   - Inputs only carry `(merchant_id, legal_country_iso, site_order)`; S5
+     requires `site_id` (id64) in selection logs and run-report samples.
+   - Decision: derive `site_id` deterministically as
+     `uint64(sha256(f"{merchant_id}:{legal_country_iso}:{site_order}"))[:8]`
+     (big-endian to uint64). This preserves determinism without adding a new
+     input, and can be replicated by downstream systems.
+   - Log this derivation decision in the logbook + run-report `notes` section.
+
+6) Router core (two-stage alias, Option-A only).
+   - Build GROUP_ALIAS[m, utc_day] from `s4_group_weights` rows (PK order).
+   - Build SITE_ALIAS[m, utc_day, tz_group_id] from `s1_site_weights` filtered
+     by `site_timezones` where tzid == tz_group_id.
+   - For each arrival:
+     a) draw uniform via Philox for alias_pick_group -> tz_group_id;
+     b) draw uniform via Philox for alias_pick_site -> site_id.
+   - Enforce mapping coherence: tz_group_id(site_id) (via site_timezones)
+     must equal chosen tz_group_id; abort on mismatch (2B-S5-055).
+
+7) RNG evidence (layer envelope).
+   - Append one `rng_event_alias_pick_group` and one
+     `rng_event_alias_pick_site` per arrival, in that order.
+   - After EACH event append, append one cumulative `rng_trace_log` row.
+   - Append `rng_audit_log` once per run with routing stream metadata.
+   - Use Philox2x64-10 helper from `seg_1A.s1_hurdle.rng` and the stream/
+     budgets from `route_rng_policy_v1`.
+
+8) Optional selection log (policy + dictionary gated).
+   - Enable only when Dictionary registers `s5_selection_log` AND
+     `route_rng_policy_v1.extensions.selection_log_enabled == true`.
+   - Partition by [seed, parameter_hash, run_id, utc_day]; include
+     manifest_fingerprint column and created_utc.
+   - Writer order = arrival order; publish atomically (write-once).
+
+9) Run-report (STDOUT JSON + file copy).
+   - Emit strict JSON to stdout via logger.info and persist under
+     reports/layer1/2B/state=S5/seed=.../manifest_fingerprint=.../s5_run_report.json.
+   - Include policy ids/digests, dictionary-resolved input paths, RNG accounting
+     (events_group/events_site/draws_total), selection_log_enabled, and samples
+     of {merchant_id, utc_day, tz_group_id, site_id}.
+
+10) Logging (story-style) + performance controls.
+    - Emit a story header with objective + gated inputs + outputs/logs.
+    - Progress logs for arrivals include elapsed, processed/total, rate, ETA.
+    - Cache alias tables with deterministic LRU-by-bytes; evict SITE_ALIAS first.
+
+11) Test/run plan.
+    - Run `make segment2b-s5 RUN_ID=<current>`; fix any schema/path/partition
+      errors; append follow-up entries before each fix (per log discipline).
+    - Validate run-report invariants: draws_total == 2 * selections_logged and
+      event ordering (group then site) is preserved.
+
+Entry: 2026-01-16 05:47
+(S5 RNG derivation + alias build decisions before coding)
+- Decision: implement routing RNG derivation using the route_rng_policy_v1
+  key_basis [seed, parameter_hash, run_id] and a deterministic domain split
+  mirroring the 2B.S3 pattern (sha256 -> key + base counter).
+  - master_digest = sha256( uer_string("2B.S5.master")
+    || parameter_hash_bytes || run_id_bytes || ser_u64(seed) ).
+  - stream_digest = sha256( master_digest || uer_string("2B.S5.routing")
+    || uer_string(rng_stream_id) ).
+  - key = low64(stream_digest); counter_hi/lo = BE64 bytes 16:23 and 24:31.
+  - This binds the stream to route_rng_policy_v1.rng_stream_id and the
+    key_basis without introducing new policy fields.
+- Counter posture: single monotone counter for routing_selection stream; per
+  arrival, consume exactly two events in order (group then site), each with
+  blocks=1/draws="1" and counter delta +1 (u128). This satisfies V-09
+  monotonicity and the “two single-uniform draws per arrival” rule.
+- Uniform mapping: use u01() from 1A.S1 RNG helper (open interval, never 0/1)
+  to satisfy spec’s open-interval uniform requirement.
+- Alias build strategy (deterministic, O(1) picks):
+  - Group alias cache: keyed by (merchant_id, utc_day), built from S4 p_group
+    with stable sort [merchant_id, utc_day, tz_group_id].
+  - Site alias cache: keyed by (merchant_id, tz_group_id), built from S1
+    p_weight rows joined to site_timezones and filtered by tzid == tz_group_id,
+    with stable sort [merchant_id, tz_group_id, site_order].
+  - Per-group weights are renormalized inside each tz_group; any empty slice
+    aborts with a spec error (2B-S5-043 equivalent).
+- site_id derivation (deterministic): site_id is not present in S1/S2/2A
+  outputs, so we will derive id64 as:
+  sha256(f"{merchant_id}:{legal_country_iso}:{site_order}") -> take low 64 bits
+  (little-endian bytes 24..31) to align with other uint64 derivations.
+  This is recorded in run-report + logs for auditability.
+- Selection log gating: emit only if dictionary includes s5_selection_log and
+  route_rng_policy_v1.extensions.selection_log_enabled == true. Default false.
+
+
+### Entry: 2026-01-16 06:36
+
+Design element: 2B.S5 router core implementation start (writer + CLI + Makefile).
+Summary: Begin coding S5 per the documented plan, wiring the runner/CLI/Makefile and
+applying the agreed routing + logging decisions before running the state.
+
+Implementation start plan (detail-first, before code):
+1) Runner scaffold and contracts.
+   - Create `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py` and
+     mirror the helper structure used in S3/S4 (StepTimer, ProgressTracker, emit_event,
+     emit_validation, abort/warn handlers, run-report writer).
+   - Load contract packs for 2B + 2A + layer1; inline layer1 defs for schema refs.
+   - Validate `s0_gate_receipt_2B` + `sealed_inputs_2B` and record created_utc from
+     the receipt for all outputs.
+
+2) Inputs, S0 evidence, and dictionary-only resolution.
+   - Resolve required inputs by ID at [seed, manifest_fingerprint]:
+     `s4_group_weights`, `s1_site_weights`, `s2_alias_index`, `s2_alias_blob`,
+     `site_timezones`.
+   - Resolve optional `s5_arrival_roster` at [seed, parameter_hash, run_id]; if missing,
+     abort with 2B-S5-020 in the CLI runner (standalone batch requires roster).
+   - Enforce S0 evidence by verifying policy entries (route_rng_policy_v1 and
+     alias_layout_policy_v1) exist in sealed_inputs with exact path + sha256.
+
+3) Preflight integrity and policy alignment.
+   - Hash s2_alias_blob bytes and compare to s2_alias_index.blob_sha256.
+   - Verify alias layout policy echo fields in s2_alias_index (layout_version,
+     endianness, alignment_bytes, quantised_bits).
+   - Validate route_rng_policy_v1 schema and enforce rng_engine == philox2x64-10,
+     draws_per_selection == 2, and event_families alias_pick_group/site.
+
+4) Router core (two-stage alias, single-uniform budget).
+   - Build group alias tables per (merchant_id, utc_day) using s4_group_weights.
+   - Build site alias tables per (merchant_id, utc_day, tz_group_id) using s1_site_weights
+     filtered by site_timezones tzid == tz_group_id.
+   - Use Philox2x64-10 with counters from route_rng_policy_v1.basis.counter_start and
+     derive uniforms via u01(); one uniform per event.
+   - Emit alias_pick_group event then alias_pick_site event per arrival, append
+     rng_trace_log after each event, and emit a single rng_audit_log per run.
+
+5) Optional selection log and run-report.
+   - Emit s5_selection_log only when dictionary registers the dataset AND
+     route_rng_policy_v1.extensions.selection_log_enabled == true (default false).
+   - Partition selection log by [seed, parameter_hash, run_id, utc_day], include
+     manifest_fingerprint and counter snapshots for both events.
+   - Emit strict run-report to STDOUT + file; include required keys and deterministic
+     samples (up to 20 selections). Keep the samples even though the spec’s
+     “fields-strict” wording conflicts (flagged in earlier entry).
+
+6) Logging story and progress.
+   - Add S5 story header: objective, gated inputs, outputs/gates being produced.
+   - Progress logs for arrivals include elapsed, processed/total, rate, ETA and
+     explain what each count represents (arrivals routed). Note phases like
+     “building group aliases”, “routing arrivals”, “writing selection log”.
+
+7) Wiring + run plan.
+   - Add CLI `packages/engine/src/engine/cli/s5_router_2b.py` and Makefile target
+     `segment2b-s5` with RUN_ID args. Run the state after implementation and log
+     every fix as new entries.
+
+
+### Entry: 2026-01-16 06:43
+
+Design element: 2B.S5 router implementation pass (start of coding).
+Summary: Begin coding S5 now that the routing decisions are locked; enforce
+the story-style logging and S0-evidence constraints while implementing.
+
+Detailed notes before coding (explicit decisions + mechanics):
+- Re-read: state.2B.s5.expanded.md + schemas.2B.yaml + dataset_dictionary.layer1.2B.yaml
+  + artefact_registry_2B.yaml + route_rng_policy_v1.json + alias_layout_policy_v1.json.
+  Logbook entry references this re-read.
+- Implementation posture:
+  - Use S3/S4 helper patterns (StepTimer/ProgressTracker, _emit_event/_emit_validation,
+    _atomic_publish_dir/_atomic_publish_file, _render_catalog_path/_resolve_dataset_path).
+  - Validate JSONL outputs (rng events/trace/audit/selection log) with Draft202012Validator
+    against record-level schemas; do NOT use validate_dataframe for non-table records.
+  - Validate s5_arrival_roster row-by-row (schemas.2B.yaml#/trace/s5_arrival_roster_row),
+    abort on any row invalid to uphold strict input discipline.
+- RNG/alias mechanics finalization:
+  - Derive Philox key + base counters exactly as S3 (domain_master/domain_stream + rng_stream_id).
+  - One uniform per stage (group/site), blocks=1, draws="1", counter increment +1 per event.
+  - Build per-merchant/day group alias and per-merchant/group site alias using Vose
+    (deterministic ordering). Fail fast on empty slices or non-finite sums.
+- Output/logging discipline:
+  - Emit story header that names objective + inputs validated + outputs produced.
+  - Progress logs include what counts represent (arrivals routed) + rate + ETA.
+  - Run-report includes samples (despite spec ambiguity), with created_utc echoed
+    from S0 receipt verified_at_utc.
+
+### Entry: 2026-01-16 07:18
+
+Design element: 2B.S5 router implementation continuation (runner/CLI/Makefile + concrete mechanics).
+Summary: Proceed with the actual code build for S5, locking the concrete data-flow
+and validation mechanics before writing the runner file.
+
+Detailed implementation notes (before code):
+1) Site identity derivation (explicit function, now locked).
+   - Derive `site_id` deterministically as `low64(sha256(f"{merchant_id}:{legal_country_iso}:{site_order}"))`
+     where `low64` uses the same little-endian 64-bit convention as other layer RNG helpers.
+   - Build a `(merchant_id, site_id) -> tzid` lookup by computing `site_id` for every
+     `site_timezones` row; abort on any duplicate `(merchant_id, site_id)` collisions.
+   - Use this mapping for the S5 coherence check (`tz_group_id(site_id)` must equal
+     the chosen group) and for the selection log `site_id` field.
+
+2) Alias build inputs and ordering (stable, deterministic).
+   - `GROUP_ALIAS[m,d]` is built from S4 `p_group` rows sorted by PK
+     `(merchant_id, utc_day, tz_group_id)`. Abort with 2B-S5-040 if the sum of
+     `p_group` differs from 1.0 beyond EPS (no hidden renormalization).
+   - `SITE_ALIAS[m,d,g]` is built from S1 `p_weight` rows joined to 2A `site_timezones`
+     and filtered to tzid == `g`. Sorting uses `(merchant_id, legal_country_iso, site_order)`
+     as required; weights are normalized within the filtered slice only.
+
+3) Run-scoped arrivals + per-day selection log files.
+   - Require `s5_arrival_roster` at `[seed, parameter_hash, run_id]` for the standalone
+     runner; abort with 2B-S5-020 if missing (catalogue-only reads).
+   - Selection log gating: emit only when (a) Dictionary registers `s5_selection_log` and
+     (b) `route_rng_policy_v1.extensions.selection_log_enabled == true`.
+   - Maintain per-`utc_day` JSONL handles so writer order equals arrival order inside each
+     day partition; publish by atomic move after close.
+
+4) RNG envelopes + trace/audit (strict budgets).
+   - Each arrival emits exactly two events (`alias_pick_group` then `alias_pick_site`),
+     each with `blocks=1`, `draws="1"`, counters incremented by +1.
+   - After EACH event append, add exactly one `rng_trace_log` row via
+     `RngTraceAccumulator.append_event` (cumulative totals).
+   - Emit a single `rng_audit_log` row for the run with algorithm, build_commit,
+     and platform metadata, partitioned by `[seed, parameter_hash, run_id]`.
+
+5) Wiring steps (files).
+   - Create `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`
+     with the above mechanics + story-style logs.
+   - Create CLI `packages/engine/src/engine/cli/s5_router_2b.py`.
+   - Update `makefile` with `segment2b-s5` target, add SEG2B_S5 args/command,
+     and include it in `.PHONY` and `segment2b` target.
+
+### Entry: 2026-01-16 07:38
+
+Design element: 2B.S5 router spec-alignment fixes (outputs, sealed input gating, run-report shape).
+Summary: The initial runner draft must be corrected to follow the S5 expanded spec on
+output partitions/paths, sealed arrival roster handling, alias index parity, and the
+strict run-report shape; also align rng_audit_log to the layer schema and improve
+story-style logging.
+
+Detailed plan before code changes (stepwise + decisions):
+1) Outputs & partition alignment (spec-critical).
+   - Split RNG event output into TWO partitions:
+     `rng_event_alias_pick_group` and `rng_event_alias_pick_site`, each written to
+     the dictionary path under `logs/layer1/2B/rng/events/<family>/seed=.../parameter_hash=.../run_id=.../part-00000.jsonl`.
+   - Use `run_paths.run_root / rendered_path` for all outputs (events, trace, audit,
+     selection log). Remove any path handling that publishes relative to repo root.
+   - Validate that rendered output paths contain required tokens
+     `[seed, parameter_hash, run_id]` for RNG logs (per S5 §5.2), and abort if not.
+
+2) Arrival roster gating (standalone runner must be catalogue-only).
+   - Require `s5_arrival_roster` in `sealed_inputs_2B` (per our earlier decision);
+     compare sealed path with the rendered dictionary path and enforce partition
+     equality for `[seed, parameter_hash, run_id]`.
+   - Remove the incorrect check comparing the rendered path to the raw template
+     string (it falsely aborts for templated paths).
+   - Validate arrival roster rows against `schemas.2B.yaml#/trace/s5_arrival_roster_row`;
+     abort on any invalid row to preserve strict input discipline.
+
+3) Alias artefact parity vs alias_layout_policy_v1.
+   - Enforce header parity for `layout_version`, `endianness`, `alignment_bytes`,
+     and `quantised_bits` between `s2_alias_index` and `alias_layout_policy_v1`.
+   - Keep blob integrity check (`blob_sha256`) and policy digest echo check
+     (`index.policy_digest == alias_layout_policy_v1.sha256_hex`).
+   - Optionally verify `blob_size_bytes` matches actual blob byte length (warn or
+     abort; decide during implementation and document).
+
+4) RNG audit payload alignment.
+   - Replace `audit_payload` with schema-valid fields only:
+     `ts_utc, run_id, seed, manifest_fingerprint, parameter_hash, algorithm, build_commit`,
+     plus optional `code_digest`, `hostname`, `platform`, `notes` (no `python_version`).
+   - Compute `build_commit` via local git hash resolution (same helper style as S6).
+
+5) Run-report reformat to spec (fields-strict).
+   - Build `component="2B.S5"`, `manifest_fingerprint`, `seed`, `parameter_hash`, `run_id`,
+     `created_utc` (S0 verified_at_utc), `catalogue_resolution`.
+   - Add `policy` block with id/version_tag/sha256/rng_engine/rng_stream_id/draws_per_selection.
+   - Add `inputs_summary` (dictionary-resolved paths for s4/s1/site_timezones/s2 index/blob).
+   - Add `rng_accounting` with `events_group`, `events_site`, `events_total`,
+     `draws_total`, `first_counter`, `last_counter` (objects `{hi, lo}`).
+   - Add `logging` (selection_log_enabled + partition string when enabled),
+     `validators`, `summary` (PASS/FAIL + warn_count/fail_count),
+     `environment` (engine_commit, python_version, platform, network_io_detected),
+     `samples.selections` + `samples.inputs`.
+   - Remove non-spec keys from the current draft (e.g., `segment`, `state`, `counts`).
+
+6) Story-style logging (operator-readable).
+   - Emit a story header: objective, gated inputs, and outputs being produced.
+   - Add phase logs: “validated S0 receipt”, “sealed inputs verified”, “alias
+     parity checks”, “routing arrivals”, “writing rng logs”, “selection log
+     publish” so the run reads as a coherent narrative.
+   - Keep progress logs with elapsed, processed/total, rate, ETA for the routing loop.
+
+7) Wiring.
+   - Add CLI `engine.cli.s5_router_2b` with run-id/config args (mirrors other 2B CLIs).
+   - Add Makefile `segment2b-s5` target + args, and include S5 in `segment2b`.
+
+### Entry: 2026-01-16 07:56
+
+Design element: 2B.S5 router implementation changes applied (post-plan execution).
+Summary: Implemented the spec alignment changes in the S5 runner, added the CLI and
+Makefile wiring, and corrected outputs/validation/reporting to match the S5 expanded spec.
+
+Implementation actions taken (chronological, detailed):
+1) Output partitioning + atomic publish.
+   - Split RNG event outputs into two distinct partitions (group/site) with
+     `part-00000.jsonl` filenames to satisfy `dataset_dictionary.layer1.2B.yaml`
+     (`rng_event_alias_pick_group` and `rng_event_alias_pick_site`).
+   - Switched all output targets to `run_paths.run_root / rendered_path` via a
+     shared `_render_output_path()` helper (handles `part-*.jsonl` -> `part-00000.jsonl`).
+   - Added output partition token checks for `[seed, parameter_hash, run_id]` on
+     event/trace/audit paths before publishing.
+   - Replaced directory publishes with `_atomic_publish_file` for event/trace/audit
+     logs; selection logs also publish via `_atomic_publish_file`.
+   - Added temp cleanup: `shutil.rmtree(tmp_root, ignore_errors=True)` after publish.
+
+2) Arrival roster sealing + path/partition equality.
+   - Enforced `s5_arrival_roster` presence in `sealed_inputs_2B` and validated
+     sealed path equality against the rendered dictionary path.
+   - Enforced partition equality for `[seed, parameter_hash, run_id]` and path-embed
+     equality checks on the rendered path string.
+   - Added sha256 integrity check of the roster file vs `sealed_inputs_2B`.
+
+3) Alias index parity checks (policy echo + blob size).
+   - Added header parity validation between `s2_alias_index` and
+     `alias_layout_policy_v1` for `layout_version`, `endianness`,
+     `alignment_bytes`, `quantised_bits`.
+   - Added `blob_size_bytes` verification against the actual alias blob size.
+   - Kept existing `blob_sha256` and `policy_digest` parity checks.
+
+4) RNG policy enforcement + audit schema compliance.
+   - Added strict checks for `rng_engine`, `key_basis`, `counter_step_per_event`,
+     `counter_wrap_policy`, event family `blocks/draws`, and
+     `draws_per_selection == 2`.
+   - Implemented `_resolve_git_hash()` (same posture as S6) and removed
+     schema-invalid audit fields; `rng_audit_log` now uses only schema-allowed
+     fields (`build_commit`, optional `code_digest/hostname/platform/notes`).
+
+5) Run-report format updated to the spec’s fields-strict layout.
+   - Replaced the prior ad-hoc structure with `component`, `catalogue_resolution`,
+     `policy`, `inputs_summary`, `rng_accounting`, `logging`, `validators`,
+     `summary`, `environment`, `samples`.
+   - Added deterministic `samples.inputs` + `samples.selections` and
+     RNG accounting reconciliation (events_total == draws_total == 2x selections).
+
+6) Story-style logging upgrades.
+   - Added explicit narrative logs for: S0 receipt verification, sealed input
+     verification, policy+RNG setup, alias index parity, arrival roster load,
+     input row counts, and publish completion.
+   - Kept progress logs with elapsed/rate/ETA and clarified label to
+     “arrivals_routed (group->site selections)”.
+
+7) Wiring.
+   - Added CLI `packages/engine/src/engine/cli/s5_router_2b.py`.
+   - Added Makefile target + args for `segment2b-s5` and included S5 in `segment2b`.
+
+Notes:
+- The S5 runner now uses run-root output paths and spec-aligned filenames,
+  preventing accidental writes to repo root and matching the layer RNG log conventions.

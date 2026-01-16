@@ -449,7 +449,10 @@ def _candidate_tzids(
     return matches
 
 
-def _build_tz_index(tz_world_path: Path, logger) -> tuple[list, list[str], STRtree, dict[int, int], set[str]]:
+def _build_tz_index(
+    tz_world_path: Path,
+    logger,
+) -> tuple[list, list[str], STRtree, dict[int, int], set[str], dict[str, set[str]]]:
     if not _HAVE_GEOPANDAS:
         raise EngineFailure(
             "F4",
@@ -458,7 +461,7 @@ def _build_tz_index(tz_world_path: Path, logger) -> tuple[list, list[str], STRtr
             MODULE_NAME,
             {"detail": "geopandas_unavailable", "path": str(tz_world_path)},
         )
-    gdf = gpd.read_parquet(tz_world_path)
+    gdf = gpd.read_parquet(tz_world_path, columns=["tzid", "country_iso", "geometry"])
     if "tzid" not in gdf.columns:
         raise EngineFailure(
             "F4",
@@ -469,7 +472,12 @@ def _build_tz_index(tz_world_path: Path, logger) -> tuple[list, list[str], STRtr
         )
     geoms: list = []
     tzids: list[str] = []
-    for tzid, geom in zip(gdf["tzid"].astype(str), gdf.geometry):
+    country_tzids: dict[str, set[str]] = {}
+    if "country_iso" in gdf.columns:
+        country_values = gdf["country_iso"]
+    else:
+        country_values = [None] * len(gdf)
+    for tzid, country_iso, geom in zip(gdf["tzid"].astype(str), country_values, gdf.geometry):
         if geom is None:
             raise EngineFailure(
                 "F4",
@@ -478,6 +486,10 @@ def _build_tz_index(tz_world_path: Path, logger) -> tuple[list, list[str], STRtr
                 MODULE_NAME,
                 {"detail": "tz_world_null_geom", "path": str(tz_world_path)},
             )
+        if country_iso is not None:
+            country = str(country_iso).strip().upper()
+            if country:
+                country_tzids.setdefault(country, set()).add(tzid)
         parts = _split_antimeridian_geometries(geom)
         for part in parts:
             geoms.append(part)
@@ -489,10 +501,10 @@ def _build_tz_index(tz_world_path: Path, logger) -> tuple[list, list[str], STRtr
             STATE,
             MODULE_NAME,
             {"detail": "tz_world_empty_geoms", "path": str(tz_world_path)},
-        )
+    )
     geom_index = {id(geom): idx for idx, geom in enumerate(geoms)}
     tree = STRtree(geoms)
-    return geoms, tzids, tree, geom_index, set(tzids)
+    return geoms, tzids, tree, geom_index, set(tzids), country_tzids
 
 
 def _write_batch(df: pl.DataFrame, batch_index: int, output_tmp: Path, logger) -> None:
@@ -537,6 +549,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         "overrides_site": 0,
         "overrides_mcc": 0,
         "overrides_country": 0,
+        "overrides_country_singleton_auto": 0,
     }
     checks = {
         "pk_duplicates": 0,
@@ -1088,7 +1101,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         output_pack, output_table = _prepare_table_pack_with_layer1_defs(
             schema_2a, "plan/s1_tz_lookup", schema_layer1, "schemas.layer1.yaml"
         )
-        geoms, tzids, tree, geom_index, tzid_set = _build_tz_index(tz_world_path, logger)
+        geoms, tzids, tree, geom_index, tzid_set, country_tzids = _build_tz_index(
+            tz_world_path, logger
+        )
         logger.info("S1: tz_world polygons loaded=%d", len(geoms))
 
         site_paths = _list_parquet_files(site_locations_path)
@@ -1182,75 +1197,88 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             override_scope = "country"
                             override_tzid = overrides_country[legal_country_iso]
                         if override_tzid is None:
-                            logger.error(
-                                "S1: border ambiguity unresolved after nudge; no override matched (key=%s, candidates=%s)",
+                            if not candidates:
+                                country_set = country_tzids.get(legal_country_iso)
+                                if country_set and len(country_set) == 1:
+                                    tzid = next(iter(country_set))
+                                    counts["overrides_country_singleton_auto"] += 1
+                                    logger.info(
+                                        "S1: resolved empty candidates via country singleton (country=%s, tzid=%s, key=%s)",
+                                        legal_country_iso,
+                                        tzid,
+                                        key,
+                                    )
+                            if tzid is None:
+                                logger.error(
+                                    "S1: border ambiguity unresolved after nudge; no override matched (key=%s, candidates=%s)",
+                                    key,
+                                    candidate_list,
+                                )
+                                _emit_failure_event(
+                                    logger,
+                                    "2A-S1-055",
+                                    seed,
+                                    manifest_fingerprint,
+                                    str(parameter_hash),
+                                    run_id,
+                                    {
+                                        "detail": "border_ambiguity_unresolved",
+                                        "key": key,
+                                        "candidate_tzids": candidate_list,
+                                        "candidate_count": len(candidate_list),
+                                        "nudge_lat": nudge_lat,
+                                        "nudge_lon": nudge_lon,
+                                    },
+                                )
+                                raise EngineFailure(
+                                    "F4",
+                                    "2A-S1-055",
+                                    STATE,
+                                    MODULE_NAME,
+                                    {
+                                        "detail": "border_ambiguity_unresolved",
+                                        "key": key,
+                                        "candidate_tzids": candidate_list,
+                                        "candidate_count": len(candidate_list),
+                                        "nudge_lat": nudge_lat,
+                                        "nudge_lon": nudge_lon,
+                                    },
+                                )
+                        else:
+                            if override_tzid not in tzid_set:
+                                unknown_tzid += 1
+                                checks["unknown_tzid"] = unknown_tzid
+                                _emit_failure_event(
+                                    logger,
+                                    "2A-S1-053",
+                                    seed,
+                                    manifest_fingerprint,
+                                    str(parameter_hash),
+                                    run_id,
+                                    {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
+                                )
+                                raise EngineFailure(
+                                    "F4",
+                                    "2A-S1-053",
+                                    STATE,
+                                    MODULE_NAME,
+                                    {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
+                                )
+                            tzid = override_tzid
+                            override_applied = True
+                            counts["overrides_applied"] += 1
+                            if override_scope == "site":
+                                counts["overrides_site"] += 1
+                            elif override_scope == "mcc":
+                                counts["overrides_mcc"] += 1
+                            elif override_scope == "country":
+                                counts["overrides_country"] += 1
+                            logger.info(
+                                "S1: resolved border ambiguity via %s override (tzid=%s, key=%s)",
+                                override_scope,
+                                override_tzid,
                                 key,
-                                candidate_list,
                             )
-                            _emit_failure_event(
-                                logger,
-                                "2A-S1-055",
-                                seed,
-                                manifest_fingerprint,
-                                str(parameter_hash),
-                                run_id,
-                                {
-                                    "detail": "border_ambiguity_unresolved",
-                                    "key": key,
-                                    "candidate_tzids": candidate_list,
-                                    "candidate_count": len(candidate_list),
-                                    "nudge_lat": nudge_lat,
-                                    "nudge_lon": nudge_lon,
-                                },
-                            )
-                            raise EngineFailure(
-                                "F4",
-                                "2A-S1-055",
-                                STATE,
-                                MODULE_NAME,
-                                {
-                                    "detail": "border_ambiguity_unresolved",
-                                    "key": key,
-                                    "candidate_tzids": candidate_list,
-                                    "candidate_count": len(candidate_list),
-                                    "nudge_lat": nudge_lat,
-                                    "nudge_lon": nudge_lon,
-                                },
-                            )
-                        if override_tzid not in tzid_set:
-                            unknown_tzid += 1
-                            checks["unknown_tzid"] = unknown_tzid
-                            _emit_failure_event(
-                                logger,
-                                "2A-S1-053",
-                                seed,
-                                manifest_fingerprint,
-                                str(parameter_hash),
-                                run_id,
-                                {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
-                            )
-                            raise EngineFailure(
-                                "F4",
-                                "2A-S1-053",
-                                STATE,
-                                MODULE_NAME,
-                                {"detail": "override_tzid_unknown", "key": key, "tzid": override_tzid},
-                            )
-                        tzid = override_tzid
-                        override_applied = True
-                        counts["overrides_applied"] += 1
-                        if override_scope == "site":
-                            counts["overrides_site"] += 1
-                        elif override_scope == "mcc":
-                            counts["overrides_mcc"] += 1
-                        elif override_scope == "country":
-                            counts["overrides_country"] += 1
-                        logger.info(
-                            "S1: resolved border ambiguity via %s override (tzid=%s, key=%s)",
-                            override_scope,
-                            override_tzid,
-                            key,
-                        )
                 if nudge_lat is None and nudge_lon is not None:
                     _emit_failure_event(
                         logger,
@@ -1371,6 +1399,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 counts["overrides_site"],
                 counts["overrides_mcc"],
                 counts["overrides_country"],
+            )
+        if counts["overrides_country_singleton_auto"] > 0:
+            logger.info(
+                "S1: country-singleton fallback applied=%d",
+                counts["overrides_country_singleton_auto"],
             )
 
         if rows_emitted != sites_total:

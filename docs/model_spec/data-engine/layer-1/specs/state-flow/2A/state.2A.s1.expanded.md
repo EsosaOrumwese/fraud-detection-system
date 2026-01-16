@@ -6,7 +6,7 @@
 **Short name:** 2A.S1 “Provisional TZ”
 **Layer/Segment/State:** L1 / 2A (Civil Time) / S1
 **Doc ID:** `layer1/2A/state-1`
-**Version (semver):** `v1.0.0-alpha` *(advance per change control)*
+**Version (semver):** `v1.1.0-alpha` *(advance per change control)*
 **Status:** `draft | alpha | frozen` *(normative at ≥ `alpha`; semantics locked at `frozen`)*
 **Owners:** Design Authority (DA): ‹name› • Review Authority (RA): ‹name›
 **Effective date:** ‹YYYY-MM-DD›
@@ -29,6 +29,7 @@
 **Change log (summary):**
 
 * `v1.0.0-alpha` - Initial specification for 2A.S1 (Provisional TZ lookup). Subsequent edits follow §13 Change Control.
+* `v1.1.0-alpha` - Add country-singleton fallback for empty candidate sets after nudge + overrides.
 
 ---
 
@@ -70,6 +71,7 @@
 * Point-in-polygon membership against `tz_world`.
 * Deterministic tie-break using the sealed ε-nudge policy and recording of any nudge applied.
 * Ambiguity fallback via sealed `tz_overrides` (site > mcc > country) when post-nudge candidates remain ambiguous.
+* Deterministic fallback for empty candidate sets: if post-nudge candidates are empty and no override applies, and `legal_country_iso` maps to exactly one tzid in sealed `tz_world`, assign that tzid and keep the source as `polygon` (no override applied).
 * Row-coverage discipline: **bijective projection** from `site_locations` rows (same `[seed, manifest_fingerprint]`) to `s1_tz_lookup` rows.
 
 **Out of scope.**
@@ -123,7 +125,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 
 5. **`tz_overrides` policy (sealed in S0)**
    *Required invariants:* schema-valid override list with scope-target rules.
-   *Use in S1:* **ambiguity fallback only**. If the nudge still yields 0/2+ candidates, S1 MAY select an override by precedence `site > mcc > country`. If no active override applies, S1 MUST fail with 2A-S1-055.
+   *Use in S1:* **ambiguity fallback only**. If the nudge still yields 0/2+ candidates, S1 MAY select an override by precedence `site > mcc > country`. If no active override applies, S1 MAY apply the country-singleton fallback (when the country maps to exactly one tzid in tz_world); otherwise it MUST fail with 2A-S1-055.
 
 6. **`merchant_mcc_map` (ingress; conditional)**
    *Required identity:* only required if any override entry has `scope: mcc`.
@@ -144,6 +146,7 @@ S1 **consumes only** the following inputs, all of which MUST resolve via the Dat
 
 * **Nudge application:** It is **per-site optional**—ε is applied only when required to break border ambiguity. (Policy asset itself MUST be present and sealed.)
 * **Overrides:** May be empty in S0; if empty, S1 has no ambiguity fallback and behaves as before (post-nudge ambiguity -> 2A-S1-055).
+* **Country-singleton fallback:** Optional; applies only when post-nudge candidates are empty, no override matches, and the country maps to exactly one tzid in tz_world.
 
 ---
 
@@ -555,6 +558,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 * `counts.overrides_site : uint64`
 * `counts.overrides_mcc : uint64`
 * `counts.overrides_country : uint64`
+* `counts.overrides_country_singleton_auto : uint64` - rows resolved by country-singleton fallback (no policy override).
 * `checks.pk_duplicates : uint32` — detected primary-key duplicates (0 on PASS)
 * `checks.coverage_mismatch : uint32` — missing/excess rows vs input (0 on PASS)
 * `checks.null_tzid : uint32` — rows with `tzid_provisional = null` (0 on PASS)

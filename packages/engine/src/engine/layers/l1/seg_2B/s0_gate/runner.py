@@ -556,6 +556,8 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
 
     tokens = {
         "seed": str(seed),
+        "parameter_hash": str(parameter_hash),
+        "run_id": str(run_id),
         "manifest_fingerprint": str(manifest_fingerprint),
     }
 
@@ -570,7 +572,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "day_effect_policy_v1",
         "virtual_edge_policy_v1",
     ]
-    optional_ids = ["tz_timetable_cache"]
+    optional_ids = ["tz_timetable_cache", "s5_arrival_roster"]
     for dataset_id in required_ids + optional_ids + ["s0_gate_receipt_2B", "sealed_inputs_2B"]:
         try:
             entries[dataset_id] = find_dataset_entry(dictionary, dataset_id).entry
@@ -845,6 +847,22 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
             {"detail": "optional cache missing", "path": str(optional_path)},
         )
 
+    optional_roster_present = 0
+    roster_entry = entries["s5_arrival_roster"]
+    roster_path = _resolve_dataset_path(roster_entry, run_paths, config.external_roots, tokens)
+    if roster_path.exists():
+        _add_sealed_asset("s5_arrival_roster", roster_path)
+        optional_roster_present = 1
+        logger.info(
+            "S0: optional arrival roster present; sealed s5_arrival_roster path=%s",
+            roster_path,
+        )
+    else:
+        logger.info(
+            "S0: optional arrival roster missing; standalone S5 will require a run-scoped roster at %s",
+            roster_path,
+        )
+
     _emit_validation(logger, manifest_fingerprint, "V-11", "pass")
 
     seen_ids: set[str] = set()
@@ -1087,6 +1105,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
             "inputs_total": len(sealed_assets_sorted),
             "required_present": required_present,
             "optional_cache_present": optional_cache_present,
+            "optional_arrival_roster_present": optional_roster_present,
             "policy_ids": policy_ids_sorted,
             "policy_digests": policy_digests_sorted,
         },

@@ -1051,6 +1051,106 @@ Implementation actions (detailed):
    - No schema or partition changes for `s1_tz_lookup`; only the selection
      logic for ambiguous sites changes.
 
+### Entry: 2026-01-16 05:05
+
+Design element: S1 gap/edge handling for empty candidate sets (country-singleton fallback).
+Summary: A Bermuda (BM) site failed with 2A-S1-055 because tz_world had no polygon
+that *covers* the exact point after the single nudge. This is an empty-candidate
+case (not multi-tzid ambiguity), so I will add a deterministic country-singleton
+fallback derived from tz_world to avoid repeated per-run overrides for countries
+with exactly one tzid.
+
+Plan (before implementation, detailed):
+1) Confirm spec posture + scope (read `state.2A.s1.expanded.md`).
+   - S1 currently allows only one nudge and then override fallback; if no override
+     applies, it aborts with 2A-S1-055. This path does not address empty-candidate
+     points that are just outside a polygon boundary.
+   - The change is a deterministic tie-break that uses **sealed tz_world only**,
+     not new inputs. It must remain RNG-free and preserve S2 compatibility.
+
+2) Derive a **country->tzid set** map from sealed tz_world.
+   - Use the `country_iso` column in tz_world (GeoParquet) and build a map
+     `{iso2: set(tzid)}` while building the geometry index.
+   - Normalise country codes to uppercase strings; ignore blank/null values.
+   - Store the map alongside `tzid_set` for use during S1 lookup.
+
+3) Apply country-singleton fallback **only for empty candidate sets**.
+   - After the nudge, if `candidates == set()` and **no override matched**
+     (site/mcc/country), check `country_tzids[legal_country_iso]`.
+   - If the country set exists and has exactly one tzid, use it as
+     `tzid_provisional` and **do not** set `override_applied` (keep source as
+     `polygon` so S2 does not expect a policy override).
+   - If the country set has 0 or 2+ tzids, keep existing failure path:
+     emit 2A-S1-055 with candidate context.
+
+4) Preserve S2 contract semantics.
+   - Do **not** set `override_applied` or `override_scope` for the singleton
+     fallback to avoid 2A-S2-054/024 failures (S2 expects override fields only
+     when policy overrides were applied).
+   - `tzid_provisional_source` remains `"polygon"` because the tzid is still
+     derived from sealed tz_world.
+
+5) Observability + run-report updates.
+   - Add a new counter `overrides_country_singleton_auto` to `counts` in the
+     run-report and increment when the fallback fires.
+   - Emit a narrative INFO log:
+     "S1: resolved empty candidates via country singleton (country=..., tzid=..., key=...)"
+     so operators understand why the row did not fail.
+   - Keep existing `overrides_*` counters strictly for policy overrides only.
+
+6) Spec alignment.
+   - Update `state.2A.s1.expanded.md` to document the country-singleton fallback
+     as a deterministic, tz_world-derived tie-break for empty candidates.
+   - Add a change-log entry and bump the spec minor version (alpha) to reflect
+     this behavioural change.
+
+7) Validation + test plan.
+   - Re-run `segment2a-s0` then `segment2a-s1` for the failing run_id to confirm:
+     - BM case resolves without 2A-S1-055.
+     - `overrides_applied` stays 0 unless a policy override matched.
+     - Run-report counts include `overrides_country_singleton_auto`.
+   - Verify S2 still accepts the output (override_applied stays false).
+
+### Entry: 2026-01-16 05:25
+
+Design element: Implement S1 country-singleton fallback + spec alignment (post-plan).
+Summary: Added a tz_world-derived country->tzid map, applied a singleton fallback
+for empty candidate sets, and updated the S1 expanded spec + run-report counts
+to document the new deterministic tie-break.
+
+Implementation actions (detailed):
+1) **Runner changes (`seg_2A/s1_tz_lookup/runner.py`).**
+   - Extended `_build_tz_index` to load `country_iso` and build a
+     `{iso2: set(tzid)}` map while building the geometry index; returned the
+     map alongside `tzid_set` so it can be used without additional IO.
+   - Added `overrides_country_singleton_auto` to `counts` and a story log when
+     the fallback is applied.
+   - In the post-nudge ambiguity branch:
+     - When **no override matched** and `candidates` is empty, check
+       `country_tzids[legal_country_iso]`. If it contains exactly one tzid,
+       assign it to `tzid_provisional` and keep `override_applied=false` so S2
+       continues to treat the row as `polygon`-sourced.
+     - If no singleton exists, preserve the existing 2A-S1-055 failure path
+       with full candidate context.
+
+2) **Spec update (`state.2A.s1.expanded.md`).**
+   - Bumped version to `v1.1.0-alpha` and added a change-log entry describing
+     the country-singleton fallback.
+   - Added an in-scope bullet and a Null/empty allowance note describing when
+     the fallback is permitted and that it does **not** set override flags.
+   - Updated the tz_overrides input section and 2A-S1-055 wording to reflect
+     the fallback as a deterministic tie-break for empty candidates.
+   - Added `counts.overrides_country_singleton_auto` to the run-report schema
+     description so the new metric is documented.
+
+3) **Compatibility guard.**
+   - The fallback is **not** treated as a policy override (no change to
+     `override_applied`/`override_scope`), preserving S2 validation semantics.
+
+Next step:
+- Re-run `segment2a-s0` + `segment2a-s1` on the failing run_id to validate the
+  new behavior and confirm run-report counts/logs reflect the fallback.
+
 ## S2 - Overrides & finalisation (S2.*)
 
 ### Entry: 2026-01-14 20:18
