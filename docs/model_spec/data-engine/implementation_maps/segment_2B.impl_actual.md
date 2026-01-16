@@ -3075,3 +3075,95 @@ Plan:
 1) Delete `runs/<run_id>/logs/layer1/2B/rng`.
 2) Re-run `segment2b-s5`.
 
+
+## S6 - Virtual-merchant edge routing (S6.*)
+
+### Entry: 2026-01-16 18:09
+
+Design element: 2B.S6 virtual-edge routing branch for is_virtual arrivals.
+Summary: S6 must read S0-sealed policy inputs, bypass non-virtual arrivals,
+consume exactly one RNG draw per virtual arrival on routing_edge, and emit
+run-scoped RNG evidence (and optional s6_edge_log) without touching any
+manifest_fingerprint-scoped plan/egress surfaces.
+
+Observations from spec/contract review:
+- S6 relies on S0 receipt + sealed_inputs_2B (manifest_fingerprint scoped) and
+  does not re-hash upstream bundles.
+- Required token-less policies: route_rng_policy_v1 and virtual_edge_policy_v1
+  selected by exact S0-sealed path + sha256.
+- S6 runtime input comes from S5 per-arrival fields
+  {merchant_id, utc_timestamp, utc_day, tz_group_id, site_id, is_virtual};
+  S6 must not recompute S5 decisions.
+- RNG evidence is run-scoped only (seed, parameter_hash, run_id). One event
+  per virtual arrival, and one rng_trace_log row after each event.
+- Optional s6_edge_log may be emitted only if registered in the Dictionary.
+- Current virtual_edge_policy_v1 JSON does not match schemas.2B.yaml (missing
+  policy_id, uses default_edges/merchant_overrides/geo_metadata instead of
+  edges[] with ip_country/edge_lat/edge_lon), and the spec expects a per-merchant
+  distribution.
+
+Open confirmations before coding (need user decision):
+1) Policy shape: should we extend schemas.2B.yaml to allow
+   default_edges + merchant_overrides (matching the current policy intent), or
+   should we rewrite the policy to the existing edges[] schema and drop
+   per-merchant overrides?
+   - Recommendation: extend schema to accept default_edges + merchant_overrides
+     and update the policy file to include policy_id + ip_country/edge_lat/
+     edge_lon so the spec's per-merchant distribution is preserved.
+2) Missing per-merchant entries: when a merchant has no override, should S6
+   fall back to default_edges (recommended) or abort?
+3) Optional s6_edge_log: dictionary already registers s6_edge_log. Should we
+   emit it whenever registered, or gate behind a policy flag (e.g.
+   extensions.edge_log_enabled) to avoid log bloat?
+4) Run-report handling: spec requires a single STDOUT JSON report. Should we
+   also persist a copy under reports/layer1/2B/state=S6 (non-authoritative),
+   consistent with other 2B states?
+
+Proposed plan (once confirmations are settled):
+1) Contracts/policy alignment:
+   - Update schemas.2B.yaml virtual_edge_policy_v1 to allow default_edges +
+     merchant_overrides (or update policy JSON to edges[] if we choose that).
+   - Update config/layer1/2B/policy/virtual_edge_policy_v1.json to include
+     policy_id, version_tag, policy_version, and edge attributes
+     {edge_id, ip_country, edge_lat, edge_lon, weight or country_weights}.
+   - Ensure policy weights per merchant sum to 1 +/- epsilon; log and abort
+     on policy minima failure.
+
+2) S6 runner inputs and gating:
+   - Verify S0 receipt + sealed_inputs_2B at manifest_fingerprint.
+   - Resolve route_rng_policy_v1 + virtual_edge_policy_v1 by S0-sealed
+     path + sha256 (no literal paths).
+   - Optionally resolve s2_alias_index/blob by [seed, manifest_fingerprint] for
+     integrity echo only (no decode).
+   - Read S5 arrival stream fields as runtime inputs; do not touch S5 outputs.
+
+3) Algorithm (per arrival):
+   - If is_virtual=0: bypass, no RNG draw, no edge selection, no S6 logs.
+   - If is_virtual=1:
+     - Determine the merchant's edge distribution (override if present,
+       otherwise default_edges).
+     - Build/lookup per-merchant alias table in canonical edge_id order.
+     - Draw exactly one single-uniform from routing_edge stream and decode
+       to edge_id.
+     - Attach ip_country/edge_lat/edge_lon from policy for that edge_id.
+     - Append rng_event_cdn_edge_pick event (run-scoped) and then append
+       one rng_trace_log row.
+     - If s6_edge_log enabled, append a trace row with required fields and
+       manifest_fingerprint embedded (run-scoped, utc_day partition).
+
+4) Logging (story-first):
+   - Story header: objective, gated inputs, outputs.
+   - Progress logs for virtual arrivals (elapsed, processed/total, rate, eta).
+   - Summaries: virtual count, non-virtual count, draws count, edge_log status.
+
+5) Resumability and atomic publish:
+   - Stage outputs under run tmp, then atomic publish to run-scoped paths.
+   - Enforce write-once and byte-identical re-emits; otherwise require new run_id.
+
+6) Validation/tests:
+   - Policy schema validation + minima checks (non-empty edges, weights sum to
+     1 +/- epsilon, attributes present).
+   - RNG budget: draws == virtual_arrivals, counters monotone, no wrap.
+   - Path-embed equality for s6_edge_log if written.
+   - Replay sample: deterministic output for a fixed seed/run_id.
+
