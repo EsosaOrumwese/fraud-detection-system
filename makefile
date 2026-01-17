@@ -87,6 +87,7 @@ GIT_COMMIT ?= $(shell git rev-parse HEAD)
 # Run helpers
 # ---------------------------------------------------------------------------
 LATEST_RUN_ID = $(shell $(PY_SCRIPT) -c "import json, pathlib; root = pathlib.Path('$(RUNS_ROOT)'); ids = sorted([p.parent.name for p in root.glob('*/run_receipt.json')], key=lambda name: (root / name / 'run_receipt.json').stat().st_mtime); print(ids[-1] if ids else '')")
+RUN_ID_OR_LATEST = $(if $(strip $(RUN_ID)),$(RUN_ID),$(LATEST_RUN_ID))
 
 .PHONY: latest-run-id
 latest-run-id:
@@ -1186,7 +1187,7 @@ SEG3A_ARGS = \
 	--run-s5 \
 	--run-s6 \
 	--run-s7 \
-	--run-id $(RUN_ID) \
+	--run-id $(RUN_ID_OR_LATEST) \
 	--result-json "$(SEG3A_RESULT_JSON)" \
 	--quiet-summary \
 	$(SEG3A_EXTRA)
@@ -1238,7 +1239,7 @@ SEG5A_ARGS = \
 	--data-root "$(RUN_ROOT)" \
 	--upstream-manifest-fingerprint $$UPSTREAM_MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
-	--run-id "$(RUN_ID)" \
+	--run-id "$(RUN_ID_OR_LATEST)" \
 	--dictionary "$(SEG5A_DICTIONARY)" \
 	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
 	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
@@ -1273,7 +1274,7 @@ SEG5B_ARGS = \
 	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
 	--seed $(SEED) \
-	--run-id "$(RUN_ID)" \
+	--run-id "$(RUN_ID_OR_LATEST)" \
 	--dictionary-path "$(SEG5B_DICTIONARY)" \
 	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
 	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
@@ -1293,7 +1294,7 @@ SEG6A_ARGS = \
 	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
 	--seed $(SEED) \
-	--run-id "$(RUN_ID)" \
+	--run-id "$(RUN_ID_OR_LATEST)" \
 	--dictionary-path "$(SEG6A_DICTIONARY)" \
 	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
 	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
@@ -1313,7 +1314,7 @@ SEG6B_ARGS = \
 	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
 	--seed $(SEED) \
-	--run-id "$(RUN_ID)" \
+	--run-id "$(RUN_ID_OR_LATEST)" \
 	--dictionary-path "$(SEG6B_DICTIONARY)" \
 	--validation-bundle-1a "$$VALIDATION_BUNDLE_1A" \
 	--validation-bundle-1b "$$VALIDATION_BUNDLE_1B" \
@@ -1664,9 +1665,14 @@ segment2b-s8:
 
 segment2b-arrival-roster:
 	@echo "Normalizing 2B arrival roster (add is_virtual if missing)"
-	@$(PY_SCRIPT) scripts/normalize_arrival_roster.py --run-id "$(RUN_ID)" --runs-root "$(RUNS_ROOT)"
+	@run_id="$(RUN_ID_OR_LATEST)"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json files found under $(RUNS_ROOT). Provide RUN_ID." >&2; \
+		exit 1; \
+	fi; \
+	$(PY_SCRIPT) scripts/normalize_arrival_roster.py --run-id "$$run_id" --runs-root "$(RUNS_ROOT)"
 
-segment2b: segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8
+segment2b: segment2b-arrival-roster segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8
 
 segment3a-s0:
 	@echo "Running Segment 3A S0 gate-in"
