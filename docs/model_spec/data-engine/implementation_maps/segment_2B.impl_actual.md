@@ -4232,3 +4232,156 @@ Open confirmations (need owner decision before coding):
 3) Reuse helper: OK to reuse the existing validation-bundle helper from 1A/1B
    for index/flag creation to guarantee identical bundle law?
 
+### Entry: 2026-01-17 09:31
+
+Decision log + implementation plan for S8 (post-confirmation).
+
+Decisions (confirmed by owner):
+1) Bundle contents: minimal evidence only — include S0 receipt + sealed_inputs
+   and S7 reports for required seeds. Do NOT embed full S2/S3/S4 or policy
+   snapshots in the bundle (provenance echoed in the run-report only).
+2) S7 WARN handling: WARNs are allowed as long as `overall_status == PASS`.
+   WARN counts are reported in the run-report but do not block PASS.
+3) Helper reuse: reuse the canonical bundle hashing + atomic publish behavior
+   from 1A/1B (same index/flag law) but adapt to S8’s index schema
+   (`{path, sha256_hex}` only).
+
+Implementation plan (stepwise):
+1) Create new module `packages/engine/src/engine/layers/l1/seg_2B/s8_validation_bundle/`
+   with `runner.py` + `__init__.py`.
+2) Implement S8 runner:
+   - Load contracts (dictionary/registry/schemas.2B + schemas.layer1).
+   - Resolve run receipt -> run_id/seed/parameter_hash/manifest_fingerprint.
+   - Resolve S0 evidence paths (`s0_gate_receipt_2B`, `sealed_inputs_2B`) and
+     validate against schema pack.
+   - Discover seed sets from S2/S3/S4 outputs (by dictionary path with seed
+     wildcard) and compute deterministic intersection (ASCII-lex).
+   - For each required seed: load and validate S7 report (schema), enforce
+     PASS status and path↔embed equality.
+   - Validate sealed policy digests by S0 `sealed_inputs_2B` (path+sha256).
+   - Build a temp workspace under `runs/<run_id>/tmp/`.
+   - Copy S0 evidence + S7 reports into canonical bundle layout:
+     `evidence/s0/{s0_gate_receipt_2B.json,sealed_inputs_2B.json}`,
+     `reports/seed={seed}/s7_audit_report.json`.
+   - Create `index.json` with `{path, sha256_hex}` entries (relative paths,
+     ASCII-lex order, `_passed.flag` excluded) and validate against
+     `schemas.2B.yaml#/validation/validation_bundle_index_2B`.
+   - Compute bundle digest over indexed bytes and emit `_passed.flag`.
+   - Publish via atomic move; if destination exists, allow only identical bytes.
+   - Emit a single STDOUT run-report (logger JSON) with seed coverage,
+     policy digests, bundle digest proofs, validators + summary.
+3) CLI: add `packages/engine/src/engine/cli/s8_validation_bundle_2b.py`
+   and Makefile wiring: `SEG2B_S8_CMD`, `segment2b-s8`, update `segment2b`
+   chain to include S8.
+4) Logging: story header, seed discovery, S7 coverage, hashing progress
+   (count/total, rate, ETA), publish decision.
+5) Run `make segment2b-s8 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` and
+   inspect the run-report + bundle contents for spec compliance.
+
+### Entry: 2026-01-17 09:37
+
+Implementation update: S8 runner + CLI + Makefile wiring.
+
+Changes applied:
+1) Added `packages/engine/src/engine/layers/l1/seg_2B/s8_validation_bundle/runner.py`
+   implementing the S8 bundle workflow:
+   - S0 receipt + sealed_inputs validation (schema checks + manifest match).
+   - Seed discovery via intersection of S2/S3/S4 outputs.
+   - S7 report validation per seed with PASS requirement.
+   - Policy digest verification using S0 sealed inputs.
+   - Bundle assembly in run-local `tmp/`, canonical index with `{path, sha256_hex}`,
+     `_passed.flag` digest, atomic publish, and STDOUT run-report.
+2) Added `packages/engine/src/engine/layers/l1/seg_2B/s8_validation_bundle/__init__.py`.
+3) Added CLI `packages/engine/src/engine/cli/s8_validation_bundle_2b.py`.
+4) Updated Makefile to add `SEG2B_S8_CMD`, `segment2b-s8`, and include S8 in
+   the `segment2b` chain (plus phony list).
+
+Notes:
+- Bundle contents are minimal (S0 evidence + S7 reports only).
+- Index excludes `_passed.flag` and uses ASCII-lex ordering.
+- Run-report emitted via logger JSON only (no file persisted).
+
+### Entry: 2026-01-17 09:38
+
+Design element: Fix S8 schema pack loading for layer1 defs.
+
+Summary: First S8 run fails because it tries to load
+`schemas.layer1.yaml` from the 2B contract folder. Layer-1 common `$defs`
+live under the 1A pack (as in other 2B states). We must load
+`load_schema_pack(source, "1A", "layer1")` instead of `"2B", "layer1"`.
+
+Plan (before execution):
+1) Update S8 runner to load schema_layer1 from the 1A pack.
+2) Re-run `make segment2b-s8 SEG2B_S8_RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 09:39
+
+Implementation update: switched S8 layer1 schema source to 1A pack.
+
+Changes applied:
+- In `packages/engine/src/engine/layers/l1/seg_2B/s8_validation_bundle/runner.py`,
+  load `schema_layer1` via `load_schema_pack(source, "1A", "layer1")` to match
+  existing 2B runners.
+
+Next step:
+- Re-run `make segment2b-s8 SEG2B_S8_RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 09:40
+
+Design element: Fix layer1 `$defs` inlining for S8 schema validation.
+
+Summary: The S8 run now fails with `KeyError: 'uint64'` inside the custom
+`_inline_external_refs` implementation. The issue is that it attempted to
+resolve `$defs` directly from the root instead of using the shared 2B helpers
+that understand `$defs` layout. We should reuse `_schema_from_pack` and
+`_inline_external_refs` from 2B.S0 (same as S7) to resolve layer1 `$defs`.
+
+Plan (before execution):
+1) Import `_schema_from_pack` + `_inline_external_refs` from
+   `engine.layers.l1.seg_2B.s0_gate.runner`.
+2) Remove the local schema helpers and use the shared ones in `_validate_payload`.
+3) Re-run `make segment2b-s8 SEG2B_S8_RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 09:41
+
+Implementation update: S8 schema validation now uses shared 2B.S0 helpers.
+
+Changes applied:
+- Imported `_schema_from_pack` and `_inline_external_refs` from
+  `engine.layers.l1.seg_2B.s0_gate.runner`.
+- Removed the local schema resolver and updated `_validate_payload` to use
+  the shared helpers, fixing `$defs` resolution for layer1 refs.
+
+Next step:
+- Re-run `make segment2b-s8 SEG2B_S8_RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 09:44
+
+Outcome + minor compliance tweak: S8 passes; adjust run-report publish_path.
+
+Result:
+- `make segment2b-s8 SEG2B_S8_RUN_ID=2b22ab5c8c7265882ca6e50375802b26`
+  completes with PASS and publishes the validation bundle.
+
+Follow-up tweak:
+- Update the STDOUT run-report `bundle.publish_path` to include the resolved
+  manifest_fingerprint (not the `{manifest_fingerprint}` template) so it
+  matches the spec example.
+
+### Entry: 2026-01-17 09:43
+
+Implementation update: resolve `publish_path` token in S8 run-report.
+
+Changes applied:
+- `bundle.publish_path` now replaces `{manifest_fingerprint}` with the actual
+  manifest value in the STDOUT run-report.
+
+### Entry: 2026-01-17 09:42
+
+Outcome: S8 rerun passes with resolved publish_path.
+
+Results:
+- `make segment2b-s8 SEG2B_S8_RUN_ID=2b22ab5c8c7265882ca6e50375802b26`
+  completes with PASS; bundle already exists with identical bytes and the
+  run-report now prints a resolved `publish_path`.
+

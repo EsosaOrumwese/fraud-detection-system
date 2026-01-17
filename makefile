@@ -819,6 +819,21 @@ SEG2B_S7_ARGS += --run-id $(SEG2B_S7_RUN_ID)
 endif
 SEG2B_S7_CMD = $(PY_ENGINE) -m engine.cli.s7_audit_2b $(SEG2B_S7_ARGS)
 
+SEG2B_S8_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG2B_S8_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG2B_S8_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG2B_S8_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG2B_S8_RUN_ID)),)
+SEG2B_S8_ARGS += --run-id $(SEG2B_S8_RUN_ID)
+endif
+SEG2B_S8_CMD = $(PY_ENGINE) -m engine.cli.s8_validation_bundle_2b $(SEG2B_S8_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -1011,6 +1026,7 @@ SEG2B_S7_QUIET ?= 1
 SEG2B_RUN_S8 ?= 1
 SEG2B_S8_WORKSPACE ?=
 SEG2B_S8_QUIET ?= 1
+SEG2B_S8_RUN_ID ?=
 
 ifeq ($(strip $(SEG2B_PIN_TZ)),1)
 SEG2B_EXTRA += --pin-tz-assets
@@ -1313,7 +1329,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-arrival-roster merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
 all: segment1a segment1b segment2a
@@ -1610,11 +1626,15 @@ segment2b-s7:
 	@echo "Running Segment 2B S7 audit/CI gate"
 	@$(SEG2B_S7_CMD)
 
+segment2b-s8:
+	@echo "Running Segment 2B S8 validation bundle"
+	@$(SEG2B_S8_CMD)
+
 segment2b-arrival-roster:
 	@echo "Normalizing 2B arrival roster (add is_virtual if missing)"
 	@$(PY_SCRIPT) scripts/normalize_arrival_roster.py --run-id "$(RUN_ID)" --runs-root "$(RUNS_ROOT)"
 
-segment2b: segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7
+segment2b: segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8
 
 
 paths-tree:
