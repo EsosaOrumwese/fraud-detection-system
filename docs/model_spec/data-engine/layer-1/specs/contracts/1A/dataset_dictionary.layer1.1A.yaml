@@ -134,7 +134,7 @@ reference_data:
   path: reference/spatial/tz_world/2025a/tz_world.parquet
   partitioning: []
   ordering: []
-  schema_ref: schemas.ingress.layer1.yaml#/tz_world_shp
+  schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
   lineage:
     produced_by:
     consumed_by: [2A]

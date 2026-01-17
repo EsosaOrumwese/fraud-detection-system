@@ -47,7 +47,7 @@ validation:
             required: [bundle_id, bundle_path, flag_path, sha256_hex, status]
             properties:
               bundle_id:  { type: string }
-              bundle_path:{ type: string }
+              bundle_path: { type: string }
               flag_path:  { type: string }
               sha256_hex: { $ref: '#/$defs/hex64' }
               status:     { type: string, enum: [PASS] }
