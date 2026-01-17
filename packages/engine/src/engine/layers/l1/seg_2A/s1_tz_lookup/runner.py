@@ -70,6 +70,7 @@ MODULE_NAME = "2A.S1.tz_lookup"
 SEGMENT = "2A"
 STATE = "S1"
 BATCH_SIZE = 200_000
+AMBIGUITY_SAMPLE_LIMIT = 10
 
 
 @dataclass(frozen=True)
@@ -558,6 +559,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         "unknown_tzid": 0,
     }
     writer_order_violation = False
+    ambiguity_total = 0
+    ambiguity_samples: list[dict] = []
 
     try:
         receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -1193,24 +1196,46 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             if mcc_key and mcc_key in overrides_mcc:
                                 override_scope = "mcc"
                                 override_tzid = overrides_mcc[mcc_key]
-                        if override_tzid is None and legal_country_iso in overrides_country:
+                        country_key = None
+                        if legal_country_iso is not None:
+                            country_key = str(legal_country_iso).strip().upper()
+                        if override_tzid is None and country_key and country_key in overrides_country:
                             override_scope = "country"
-                            override_tzid = overrides_country[legal_country_iso]
+                            override_tzid = overrides_country[country_key]
                         if override_tzid is None:
                             if not candidates:
-                                country_set = country_tzids.get(legal_country_iso)
+                                country_set = country_tzids.get(country_key) if country_key else None
                                 if country_set and len(country_set) == 1:
                                     tzid = next(iter(country_set))
                                     counts["overrides_country_singleton_auto"] += 1
                                     logger.info(
                                         "S1: resolved empty candidates via country singleton (country=%s, tzid=%s, key=%s)",
-                                        legal_country_iso,
+                                        country_key,
                                         tzid,
                                         key,
                                     )
                             if tzid is None:
+                                ambiguity_total += 1
+                                reason = "empty_candidates" if not candidate_list else "multi_candidates"
+                                if len(ambiguity_samples) < AMBIGUITY_SAMPLE_LIMIT:
+                                    ambiguity_samples.append(
+                                        {
+                                            "key": key,
+                                            "legal_country_iso": legal_country_iso,
+                                            "country_key": country_key,
+                                            "candidate_tzids": candidate_list,
+                                            "candidate_count": len(candidate_list),
+                                            "lat_deg": lat,
+                                            "lon_deg": lon,
+                                            "nudge_lat_deg": nudge_lat,
+                                            "nudge_lon_deg": nudge_lon,
+                                            "reason": reason,
+                                        }
+                                    )
                                 logger.error(
-                                    "S1: border ambiguity unresolved after nudge; no override matched (key=%s, candidates=%s)",
+                                    "S1: border ambiguity unresolved after nudge (reason=%s, country=%s, key=%s, candidates=%s)",
+                                    reason,
+                                    country_key,
                                     key,
                                     candidate_list,
                                 )
@@ -1223,11 +1248,13 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                     run_id,
                                     {
                                         "detail": "border_ambiguity_unresolved",
+                                        "reason": reason,
                                         "key": key,
                                         "candidate_tzids": candidate_list,
                                         "candidate_count": len(candidate_list),
                                         "nudge_lat": nudge_lat,
                                         "nudge_lon": nudge_lon,
+                                        "country_key": country_key,
                                     },
                                 )
                                 raise EngineFailure(
@@ -1237,11 +1264,13 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                     MODULE_NAME,
                                     {
                                         "detail": "border_ambiguity_unresolved",
+                                        "reason": reason,
                                         "key": key,
                                         "candidate_tzids": candidate_list,
                                         "candidate_count": len(candidate_list),
                                         "nudge_lat": nudge_lat,
                                         "nudge_lon": nudge_lon,
+                                        "country_key": country_key,
                                     },
                                 )
                         else:
@@ -1565,6 +1594,13 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 "inputs": inputs_block,
                 "counts": counts,
                 "checks": checks,
+                "diagnostics": {
+                    "border_ambiguity_unresolved": {
+                        "total": ambiguity_total,
+                        "sample_limit": AMBIGUITY_SAMPLE_LIMIT,
+                        "samples": ambiguity_samples,
+                    }
+                },
                 "output": {"path": output_catalog_path, "format": "parquet"},
                 "warnings": warnings,
                 "errors": errors,

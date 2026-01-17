@@ -1151,6 +1151,122 @@ Next step:
 - Re-run `segment2a-s0` + `segment2a-s1` on the failing run_id to validate the
   new behavior and confirm run-report counts/logs reflect the fallback.
 
+### Entry: 2026-01-17 00:07
+
+Design element: 2A.S1 country-singleton auto fallback + unresolved ambiguity reporting.
+Summary: Recent S1 runs still hit `2A-S1-055` (border_ambiguity_unresolved) for
+points that should be resolvable by the country-singleton fallback. The intent
+is to make the fallback robust (normalize country keys) and to emit a compact
+run-report diagnostic sample when ambiguity remains after nudge + overrides.
+
+Plan (before implementation, detailed):
+1) Reconfirm spec posture (binding).
+   - Re-read `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s1.expanded.md`
+     for the ambiguity fallback rule and run-report content expectations.
+   - Verify the fallback is allowed only after nudge and only when a country
+     maps to exactly one tzid in `tz_world`.
+
+2) Diagnose why fallback is not triggering.
+   - `tz_world` includes `country_iso` (even if not declared in the schema),
+     and the fallback builds `country_tzids` from those values.
+   - The lookup uses raw `legal_country_iso` from `site_locations` without
+     normalization, so a lower-case or whitespace variant can miss the map.
+   - Implement a normalized country key (`strip().upper()`) for the fallback
+     lookup while preserving the raw value for primary keys and override
+     precedence (no change to row identity).
+
+3) Implement robust country-singleton fallback.
+   - Introduce a local `country_key` derived from `legal_country_iso` only for
+     the fallback lookup (`country_tzids.get(country_key)`).
+   - Keep override precedence unchanged: site > mcc > country.
+   - If `country_key` is missing/empty or maps to 0/2+ tzids, do not resolve
+     and proceed to 2A-S1-055 as before.
+
+4) Add unresolved ambiguity diagnostics to the run-report.
+   - Track `border_ambiguity_unresolved_total` and a bounded sample list
+     (`limit=10`) with: `key`, `legal_country_iso`, `country_key`,
+     `candidate_tzids`, `candidate_count`, `lat_deg`, `lon_deg`,
+     `nudge_lat_deg`, `nudge_lon_deg`, and `reason` (empty vs multi).
+   - Add a `diagnostics.border_ambiguity_unresolved` block to the run-report
+     (non-identity-bearing) so failures are actionable without trawling logs.
+
+5) Logging updates (story-aligned, minimal).
+   - When fallback resolves, log `country_key`, tzid, and the key tuple.
+   - On failure, log whether the candidate set was empty or multi, and include
+     the normalized country key in the error context.
+
+6) Validation plan.
+   - Re-run `segment2a-s1` on the failing run_id to confirm:
+     - `overrides_country_singleton_auto` increments when fallback resolves.
+     - `2A-S1-055` still fires only when country singleton is not applicable.
+     - run-report includes the new diagnostics block on failure.
+
+No schema changes:
+- `s1_tz_lookup` output remains unchanged (columns_strict).
+- Run-report gains an additive diagnostics block only (allowed by spec).
+
+### Entry: 2026-01-17 00:09
+
+Design element: Implemented normalized country-singleton fallback + run-report diagnostics (S1).
+Summary: Updated the S1 ambiguity resolution path to normalize country keys for
+singleton fallback and to emit bounded diagnostics for unresolved border cases.
+
+Changes applied:
+1) Added `AMBIGUITY_SAMPLE_LIMIT` and per-run trackers
+   (`ambiguity_total`, `ambiguity_samples`) in
+   `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`.
+2) Normalized `legal_country_iso` (`strip().upper()`) for the country-singleton
+   fallback lookup so tz_world mappings are found even if inputs vary in case
+   or whitespace.
+3) On unresolved ambiguity (2A-S1-055), record a bounded diagnostic sample with
+   key, country, candidates, lat/lon, nudge coords, and reason (empty vs multi).
+4) Added `diagnostics.border_ambiguity_unresolved` to the run-report so failures
+   remain actionable without digging through logs.
+5) Updated the error log message to include the reason and normalized country
+   key to align with the narrative logging requirements.
+
+Validation plan:
+- Re-run `segment2a-s1` for the failing run_id and confirm:
+  - Country singleton fallback increments `overrides_country_singleton_auto`.
+  - 2A-S1-055 still fires only when no country singleton applies.
+  - The run-report includes the new diagnostics block with sample entries.
+
+### Entry: 2026-01-17 00:20
+
+Design element: Fix S1 indentation regression (unblock run).
+Summary: After the previous S1 edits, `runner.py` raised an `IndentationError`
+because `checks`, `writer_order_violation`, and ambiguity trackers were
+accidentally indented one level too deep. This blocked all S1 runs.
+
+Action taken:
+- Realigned the initialization block for `checks`, `writer_order_violation`,
+  `ambiguity_total`, and `ambiguity_samples` to the same scope as `counts`.
+
+Validation plan:
+- Re-run `segment2a-s1` for the failing run_id to confirm the import error is
+  gone and S1 executes.
+
+### Entry: 2026-01-17 00:25
+
+Design element: Fix S1 ambiguity override flow + run-report writer scope.
+Summary: The `2A-S1-055` path still fired for BM because the override-selection
+logic was mis-indented (override application skipped). The run-report writer
+also referenced `run_report` before assignment when `merchant_mcc_map` was not
+present.
+
+Action taken:
+1) Reordered and re-indented the ambiguity branch so override selection happens
+   first, then (only if no override) the country-singleton fallback/failure.
+   - Uses a normalized `country_key` for overrides and fallback.
+2) Moved `run_report` construction outside the `merchant_mcc_map` conditional,
+   so the report is always defined and written even when MCC is absent.
+
+Validation plan:
+- Re-run `segment2a-s1` for the BM key and confirm:
+  - Country override applies (`overrides_country` increments).
+  - `2A-S1-055` does not fire for BM.
+  - Run-report writes without `UnboundLocalError`.
+
 ## S2 - Overrides & finalisation (S2.*)
 
 ### Entry: 2026-01-14 20:18

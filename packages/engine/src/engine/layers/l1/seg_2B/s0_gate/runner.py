@@ -970,11 +970,34 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         )
     _emit_validation(logger, manifest_fingerprint, "V-07", "pass")
 
+    receipt_entry = entries["s0_gate_receipt_2B"]
+    sealed_entry = entries["sealed_inputs_2B"]
+    receipt_path = _resolve_dataset_path(receipt_entry, run_paths, config.external_roots, tokens)
+    sealed_inputs_path = _resolve_dataset_path(sealed_entry, run_paths, config.external_roots, tokens)
+
+    existing_verified_at = None
+    if receipt_path.exists():
+        try:
+            existing_payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+            existing_verified_at = existing_payload.get("verified_at_utc")
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "S0: existing receipt unreadable; will attempt publish with new timestamp. error=%s",
+                exc,
+            )
+
+    verified_at_utc = existing_verified_at or receipt.get("created_utc")
+    if not verified_at_utc:
+        verified_at_utc = utc_now_rfc3339_micro()
+        logger.warning(
+            "S0: run_receipt missing created_utc; using current time for verified_at_utc (non-deterministic)."
+        )
+
     receipt_payload = {
         "manifest_fingerprint": str(manifest_fingerprint),
         "seed": int(seed),
         "parameter_hash": str(parameter_hash),
-        "verified_at_utc": utc_now_rfc3339_micro(),
+        "verified_at_utc": verified_at_utc,
         "sealed_inputs": sealed_inputs_for_receipt,
         "catalogue_resolution": {
             "dictionary_version": str(dictionary.get("version", "unknown")),
@@ -994,11 +1017,6 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
             {"detail": "receipt schema invalid", "error": str(errors[0])},
         )
     _emit_validation(logger, manifest_fingerprint, "V-06", "pass")
-
-    receipt_entry = entries["s0_gate_receipt_2B"]
-    sealed_entry = entries["sealed_inputs_2B"]
-    receipt_path = _resolve_dataset_path(receipt_entry, run_paths, config.external_roots, tokens)
-    sealed_inputs_path = _resolve_dataset_path(sealed_entry, run_paths, config.external_roots, tokens)
 
     if f"manifest_fingerprint={manifest_fingerprint}" not in receipt_path.as_posix():
         raise EngineFailure(

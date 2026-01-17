@@ -3509,8 +3509,50 @@ Detailed reasoning and decision:
 1) S5 validates that upstream run-local outputs share the same `created_utc`
    as the current S0 receipt. After resealing S0, older S1 outputs now fail
    the check (2B-S5-086).
-2) Correct fix is to rerun S1–S4 for the same run_id after the new S0 so their
+2) Correct fix is to rerun S1-S4 for the same run_id after the new S0 so their
    `created_utc` matches the receipt.
 3) Plan: remove run-local `data/layer1/2B/s1_site_weights`, `s2_alias_*`,
-   `s3_day_effects`, `s4_group_weights` partitions and rerun S1–S4, then S5.
+   `s3_day_effects`, `s4_group_weights` partitions and rerun S1-S4, then S5.
+
+### Entry: 2026-01-17 00:32
+
+Design element: S0 receipt determinism on re-run (2B-S0-080).
+Summary: Re-running `segment2b` failed in S0 because the existing
+`s0_gate_receipt_2B.json` differed only by `verified_at_utc`. We need a stable
+timestamp so write-once idempotence can pass for the same run_id.
+
+Detailed reasoning and decision:
+1) `_atomic_publish_file` correctly rejects non-identical outputs, but the
+   receipt payload uses `utc_now_rfc3339_micro()` for `verified_at_utc`, so
+   every re-run produces new bytes even when inputs are unchanged.
+2) For a fixed run_id, the determinism contract should allow a re-run to
+   detect "identical output already exists" and continue, not fail.
+3) Use `run_receipt.created_utc` as the receipt’s `verified_at_utc` to keep
+   deterministic outputs tied to the run_id. This timestamp is already stable
+   and available in `run_receipt.json`, and still satisfies the schema.
+4) Fallback: if `created_utc` is missing (unexpected), use the current time to
+   avoid crashing, but log a WARN so we know determinism may be lost.
+5) After implementing, rerun `make segment2b` to confirm S0 idempotence and
+   allow the pipeline to proceed to S5/S6 without resealing errors.
+
+### Entry: 2026-01-17 00:35
+
+Design element: Preserve existing verified_at_utc when receipt already exists.
+Summary: The prior S0 receipt was created before the deterministic timestamp
+change, so its `verified_at_utc` differs from the new deterministic value.
+We will reuse the existing receipt’s timestamp when the file exists to keep
+byte-for-byte idempotence without manual cleanup.
+
+Detailed reasoning and decision:
+1) The current error persists because the old receipt on disk still has the
+   original `verified_at_utc` (from `utc_now`), so the newly generated receipt
+   differs even after anchoring to `run_receipt.created_utc`.
+2) For resumability, a re-run with the same run_id should treat the existing
+   receipt as authoritative if all other fields match. Reusing its timestamp
+   is the minimum change that preserves the write-once contract.
+3) Plan: resolve `receipt_path` before constructing the payload; if the file
+   exists and parses, read `verified_at_utc` and use that value in the new
+   payload. Then the identical-output check passes unless other fields changed.
+4) If parsing fails, keep the deterministic timestamp and let the mismatch
+   surface as an error (corrupted output should not be silently overwritten).
 
