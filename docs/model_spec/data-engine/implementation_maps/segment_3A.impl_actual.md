@@ -663,3 +663,406 @@ Open confirmations needed before coding:
 4) **Zone-count zero handling:**
    If `zone_count_country(c)==0` for a country with outlets, should S1 always
    fail (strict) or allow policy-driven monolithic fallback?
+
+### Entry: 2026-01-17 12:00
+Confirmed S1 decisions + pre-implementation plan (before coding).
+
+Decisions confirmed by user (binding for this implementation pass):
+1) Country polygon source for Z(c):
+   - Add `world_countries` to 3A contracts (dictionary + registry) and seal it
+     in 3A.S0 (required input). Use spatial intersection between
+     `tz_world_2025a` polygons and `world_countries` polygons to derive
+     `Z(c)` and `zone_count_country`.
+   - Rationale: `tz_world` schema does not include `country_iso` and iso3166
+     has no geometry; explicit polygon dataset keeps S1 deterministic and
+     contract-clean (no ad-hoc inputs).
+
+2) Theta-mix hash step:
+   - Implement the exact hash formula in
+     `zone_mixture_policy_3A.md` for the default branch:
+       `msg = "3A.S1.theta_mix|{merchant_id}|{legal_country_iso}|{parameter_hash_hex}"`
+       `x = first_8_bytes(SHA256(msg))` (uint64 big-endian)
+       `u_det = (x + 0.5) / 2^64`
+     If `u_det < theta_mix`: `is_escalated=true` and `decision_reason=default_escalation`;
+     else `is_escalated=false` and `decision_reason=legacy_default`.
+
+3) tz_timetable_cache cross-check:
+   - If `tz_timetable_cache` is sealed, cross-check derived tzids against the
+     compiled tz universe; if not sealed, skip this check (no soft fail).
+
+4) zone_count_country == 0:
+   - Fail closed with `E3A_S1_006_ZONE_STRUCTURE_INCONSISTENT` unless a future
+     policy explicitly allows a deterministic monolithic fallback (not present
+     now). This keeps output integrity and avoids silent empties.
+
+Implementation plan (explicit, stepwise):
+1) Contracts + sealing updates
+   - Add `world_countries` entry to:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml`
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/3A/artefact_registry_3A.yaml`
+   - Update 3A.S0 gate:
+     - Add `world_countries` to the cross-layer dictionary consistency check list.
+     - Add `world_countries` to the required sealed-inputs list so it is hashed
+       and recorded in `sealed_inputs_3A`.
+
+2) New S1 runner + CLI + Makefile wiring
+   - Create `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`
+     with a deterministic, RNG-free implementation.
+   - Create `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/__init__.py`
+     exporting `run_s1`.
+   - Create CLI `packages/engine/src/engine/cli/s1_escalation_3a.py` mirroring
+     S0 CLI pattern.
+   - Add Makefile target `segment3a-s1` and update `segment3a` chain to include S1.
+
+3) S1 input resolution + gate enforcement
+   - Resolve `run_receipt.json` (latest unless `--run-id` provided).
+   - Load schema packs: `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`,
+     `schemas.1A.yaml`, `schemas.1B.yaml`, `schemas.2A.yaml`, `schemas.2B.yaml`,
+     `schemas.3A.yaml`.
+   - Load 3A dictionary + registry (contracts layout from config, dev uses
+     `model_spec`).
+   - Resolve + validate `s0_gate_receipt_3A` and `sealed_inputs_3A`.
+   - Enforce upstream PASS status for 1A/1B/2A in the receipt.
+   - For each required input, confirm a sealed row exists and recompute SHA-256
+     to match `sealed_inputs_3A.sha256_hex` (fail closed on mismatch).
+
+4) Policy loading + validation
+   - Load `zone_mixture_policy` from sealed path (YAML).
+   - Validate against `schemas.3A.yaml#/policy/zone_mixture_policy_v1`.
+   - Extract `policy_id` and `version` (non-placeholder) and compute
+     `theta_digest = sha256(policy_bytes)`.
+
+5) Derive Z(c) and zone_count_country
+   - Load `world_countries` + `tz_world_2025a` (GeoParquet) via geopandas.
+   - Normalize antimeridian using `_split_antimeridian_geometries` so polygons
+     intersect consistently.
+   - Build STRtree for tz polygons; for each country polygon, query intersecting
+     tz geometries, union tzids into `Z(c)`.
+   - Compute `zone_count_country[country_iso] = |Z(c)|`.
+   - If zero for any country in outlet scope -> `E3A_S1_006_ZONE_STRUCTURE_INCONSISTENT`.
+   - If `tz_timetable_cache` is sealed, assert all tzids are present in the
+     compiled tz universe (fail with `E3A_S1_010_TZ_UNIVERSE_MISMATCH`).
+
+6) Aggregate outlet counts + apply mixture policy
+   - Read `outlet_catalogue` with Polars; group by `(merchant_id, legal_country_iso)`
+     to compute `site_count`.
+   - For each row:
+     - Evaluate rules in order; first match wins.
+     - If no rule matches, apply `theta_mix` hash step as above.
+   - Derive `is_escalated` from `decision_reason` (monolithic vs escalation
+     reasons as defined in the policy guide).
+
+7) Write S1 outputs + reports
+   - Emit `s1_escalation_queue` with required columns, including:
+     `mixture_policy_id`, `mixture_policy_version`, `theta_digest`.
+   - Validate against `schemas.3A.yaml#/plan/s1_escalation_queue`.
+   - Enforce immutability: if partition exists, compare hashes and skip if
+     identical; else fail.
+   - Emit `segment_state_runs` JSONL row and `s1_run_report_3A` file with
+     summary counts (pairs_total, pairs_escalated, pairs_monolithic).
+
+8) Logging (story-first)
+   - Header: objective, gated inputs, and outputs.
+   - Phase logs: policy load, Z(c) build, outlet aggregation, policy application,
+     output publish.
+   - Progress logs with elapsed/rate/ETA for loops over countries and merchant
+     pairs (narrative context included).
+
+9) Test plan
+   - Run `make segment3a-s0` (reseal with world_countries) then
+     `make segment3a-s1 RUN_ID=<current>`.
+   - Validate `s1_escalation_queue` schema + determinism (re-run idempotence).
+   - Spot-check `decision_reason` distribution and theta_mix behaviour.
+
+### Entry: 2026-01-17 12:23
+Starting 3A.S1 implementation now (new code + wiring + run-to-green).
+
+Additional spec-level details surfaced in the latest read-through (to wire into
+the implementation before coding):
+- Error code mapping per §9 of the S1 expanded spec:
+  - Missing or invalid `s0_gate_receipt_3A` / `sealed_inputs_3A` => `E3A_S1_001`.
+  - Any upstream gate status != PASS => `E3A_S1_002` with segment name.
+  - Catalogue load/validation failures => `E3A_S1_003` with failing artefact id.
+  - Mixture policy missing/ambiguous => `E3A_S1_004` with missing_roles/conflicts.
+  - Mixture policy schema invalid => `E3A_S1_005` with violation count.
+  - Unknown country or zone-count zero => `E3A_S1_006` with reason.
+  - Sealed input digest mismatch => `E3A_S1_007` with logical_id/path/digests.
+  - Output schema invalid => `E3A_S1_010` with violation count and field sample.
+  - Output immutability violation => `E3A_S1_012`.
+  - Any non-logical I/O error => `E3A_S1_013`.
+- The schema for `s1_escalation_queue` includes optional
+  `dominant_zone_share_bucket` and `eligible_for_escalation`; we will emit
+  `eligible_for_escalation` when a rule matches a guard (monolithic) or
+  escalation condition; `dominant_zone_share_bucket` will carry any `bucket`
+  field from the matched rule (or null).
+- `zone_count_country` is allowed to be 0 by schema, but spec declares it as an
+  inconsistency for any country with outlets (must fail closed).
+- `zone_mixture_policy_3A` guide pins the `theta_mix` hash formula verbatim;
+  must implement exact bytes and string formatting as specified.
+
+Concrete implementation steps now (to execute in code):
+1) Create `s1_escalation/runner.py`:
+   - Reuse helpers from `seg_3A.s0_gate.runner`:
+     `_resolve_run_receipt`, `_resolve_dataset_path`, `_render_catalog_path`,
+     `_schema_from_pack`, `_table_pack`, `_inline_external_refs`,
+     `_segment_state_runs_path`, `_load_json`, `_load_yaml`, `_hash_partition`,
+     `_append_jsonl`.
+   - Add S1-specific helpers: StepTimer, ProgressTracker, hash mix helper,
+     STRtree-based intersection for Z(c), and atomic publish for parquet output.
+2) Load + validate S0 artefacts and upstream gate PASS.
+3) Validate sealed inputs and recompute digests (policy, outlet_catalogue,
+   iso3166, world_countries, tz_world, optional tz_timetable_cache).
+4) Build Z(c) using world_countries + tz_world intersections (dateline-safe).
+5) Aggregate outlet_catalogue to site_count and apply policy rules + theta_mix.
+6) Validate output against `schemas.3A.yaml#/plan/s1_escalation_queue`.
+7) Publish output and run-report (segment_state_runs + s1_run_report_3A).
+8) Wire CLI + Makefile; run `make segment3a-s0` (reseal world_countries) then
+   `make segment3a-s1` until green.
+
+Logging intent (story-first, narrative):
+- S1 header: objective + gated inputs + outputs.
+- Phase logs: policy load, Z(c) build, outlet aggregation, policy application,
+  output validation/publish.
+- Progress logs with elapsed/rate/ETA for country loop and merchant-pair loop.
+
+### Entry: 2026-01-17 12:49
+
+S1 implementation decision notes before coding (new details surfaced while
+writing the runner):
+
+1) tz_timetable_cache cross-check scope (optional input)
+   - The cache manifest only exposes `tzdb_release_tag` + digests; it does not
+     carry a tzid list. To avoid reading any uncatalogued files (spec rule),
+     the cross-check will be implemented as:
+       * if `tz_timetable_cache` is sealed, assert its `tzdb_release_tag`
+         matches the release tag implied by the sealed `tz_world_2025a`
+         dataset id/path (e.g., `tz_world_2025a` -> release tag `2025a`).
+       * if mismatch, fail closed with `E3A_S1_006_ZONE_STRUCTURE_INCONSISTENT`
+         and include both tags in the error context.
+     - This stays contract-clean and enforces a meaningful compatibility check
+       without inventing new input surfaces.
+
+2) eligible_for_escalation semantics (optional diagnostic column)
+   - Encode as "eligible but not chosen" vs "never eligible":
+     * `eligible_for_escalation = true` for decision reasons:
+       `forced_escalation`, `default_escalation`, `legacy_default`.
+     * `eligible_for_escalation = false` for monolithic guard reasons:
+       `forced_monolithic`, `below_min_sites`.
+   - Rationale: "legacy_default" represents a pair that passed guards but
+     was not selected by the deterministic mix.
+
+3) dominant_zone_share_bucket population
+   - Populate from `rule.bucket` when the matching rule supplies it.
+   - Otherwise set to null (no derived bucket).
+
+4) STRtree compatibility guard
+   - STRtree query return types differ between Shapely versions (geoms vs
+     indices). The implementation will accept both:
+       * if candidate is an integer index, look up geometry via `tz_geoms[idx]`;
+       * else treat it as a geometry object directly.
+   - This avoids version-specific failure while preserving deterministic
+     intersection results.
+
+### Entry: 2026-01-17 14:09
+
+Resume 3A.S1 implementation work after the response mix-up. S0 is complete and
+green; continue only with S1 wiring + run-to-green.
+
+Immediate pre-implementation plan (before further code changes):
+1) Wire S1 CLI and Makefile:
+   - Create `packages/engine/src/engine/cli/s1_escalation_3a.py` mirroring the
+     S0 CLI pattern (contracts layout/root, runs root, external roots, run_id).
+   - Add Makefile variables/targets for `segment3a-s1` and include S1 in the
+     `segment3a` chain; update `.PHONY`.
+2) Validate the current S1 runner for correctness before running:
+   - Confirm policy validation matches the schema + guide (rules, reasons).
+   - Confirm Z(c) logic uses `world_countries` + `tz_world` and handles
+     antimeridian splits deterministically (STRtree guard retained).
+   - Confirm optional `tz_timetable_cache` check is release-tag only, as
+     previously decided.
+   - Confirm output schema validation uses the JSONSchema adapter (table->row)
+     with layer1 defs inlined where needed.
+3) Re-seal S0 inputs (world_countries is now required):
+   - Run `make segment3a-s0` to reseal and ensure `sealed_inputs_3A` includes
+     world_countries; only then run S1.
+4) Run to green and iterate:
+   - Run `make segment3a-s1 RUN_ID=<current>`; capture any failures.
+   - For each failure, append a new entry with the decision + fix path before
+     editing code. Log the same decisions/actions in the logbook with time.
+5) Logging expectations:
+   - Ensure S1 logs a story header (objective, gated inputs, outputs) and
+     narrative progress for Z(c) and pair processing; include elapsed/rate/ETA.
+
+Decision note for this continuation:
+- No changes to S1 logic are planned unless a run failure or spec mismatch is
+  discovered; the immediate focus is wiring + execution.
+
+### Entry: 2026-01-17 14:11
+
+Implemented S1 wiring steps before running:
+- Added CLI `packages/engine/src/engine/cli/s1_escalation_3a.py` matching the S0
+  CLI contract-switching pattern (contracts layout/root, runs root, external
+  roots, optional run_id).
+- Added Makefile wiring for S1:
+  `SEG3A_S1_RUN_ID`, `SEG3A_S1_ARGS`, `SEG3A_S1_CMD`, `segment3a-s1` target, and
+  `segment3a` chain now includes S0 then S1.
+
+Next: run `make segment3a-s0` (to reseal world_countries) then
+`make segment3a-s1` and iterate to green, logging any fixes as they arise.
+
+### Entry: 2026-01-17 14:12
+
+Run failure while re-sealing S0 before S1:
+- `make segment3a-s0` failed with `E3A_S0_002_CATALOGUE_MALFORMED` because
+  `world_countries` schema_ref differs across dictionaries:
+  - 1A: `schemas.ingress.layer1.yaml#/world_countries_shp`
+  - 1B/2A/3A: `schemas.ingress.layer1.yaml#/world_countries`
+  - `world_countries_shp` is just an alias to `world_countries`, but the
+    catalogue consistency check requires exact match.
+
+Decision:
+- Standardize `world_countries` schema_ref to the canonical anchor
+  `schemas.ingress.layer1.yaml#/world_countries` across dictionaries.
+  This aligns 1A with 1B/2A/3A and keeps the cross-layer consistency rule strict.
+
+Planned change:
+- Update `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+  to use `schemas.ingress.layer1.yaml#/world_countries` for `world_countries`.
+- Rerun `make segment3a-s0`, then proceed to `make segment3a-s1`.
+
+### Entry: 2026-01-17 14:13
+
+Applied the schema_ref alignment:
+- Updated `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+  to set `world_countries.schema_ref` = `schemas.ingress.layer1.yaml#/world_countries`
+  (aligns with 1B/2A/3A).
+
+Next: rerun `make segment3a-s0` to reseal with the aligned dictionary.
+
+### Entry: 2026-01-17 14:14
+
+S0 reseal attempt failed with immutability:
+- `make segment3a-s0` now passes catalogue checks but fails with
+  `E3A_S0_009_IMMUTABILITY_VIOLATION` when publishing `sealed_inputs_3A`.
+- Reason: the existing run-local `sealed_inputs_3A.json` (from the prior
+  schema_ref mismatch state) differs from the newly computed one after the
+  dictionary fix, and S0 is write-once by contract.
+
+Decision point:
+- To reseal under the same `run_id` and `manifest_fingerprint`, we must delete
+  the run-local S0 outputs (`s0_gate_receipt_3A` and `sealed_inputs_3A`) for
+  this manifest so S0 can republish, or start a fresh run_id.
+
+Next action pending approval:
+- Remove:
+  - `runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/data/layer1/3A/s0_gate_receipt/manifest_fingerprint=e8a05027991ba560d5d334258378e2a607cf0c87b1368dd05fb7ef1a04c0afed/s0_gate_receipt_3A.json`
+  - `runs/local_full_run-5/2b22ab5c8c7265882ca6e50375802b26/data/layer1/3A/sealed_inputs/manifest_fingerprint=e8a05027991ba560d5d334258378e2a607cf0c87b1368dd05fb7ef1a04c0afed/sealed_inputs_3A.json`
+  then rerun `make segment3a-s0` and `make segment3a-s1`.
+
+### Entry: 2026-01-17 14:21
+
+S1 run failure after resealing S0:
+- `make segment3a-s1` failed in `outlet_aggregate` with
+  `scan_parquet() got an unexpected keyword argument 'columns'`.
+- Root cause: the local Polars version does not accept the `columns=...` kwarg
+  for `pl.scan_parquet`. This causes an infra error before any domain logic.
+
+Decision:
+- Replace the `columns=` kwarg with a `select()` call after scanning:
+  `pl.scan_parquet(path).select(["merchant_id","legal_country_iso"])`.
+- This preserves lazy scanning semantics and compatibility with older Polars.
+
+Planned change:
+- Update `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`
+  in the `outlet_aggregate` phase to remove `columns=` and use `select()`.
+- Rerun `make segment3a-s1` and continue to green.
+
+### Entry: 2026-01-17 14:22
+
+S1 still failing in outlet aggregation after the scan_parquet fix:
+- New error: `'LazyFrame' object has no attribute 'groupby'` from Polars.
+- Root cause: local Polars uses `group_by` on LazyFrame (not `groupby`).
+
+Decision:
+- Swap `groupby(...)` to `group_by(...)` for the LazyFrame aggregation.
+- Keep the rest of the pipeline the same to preserve determinism.
+
+Planned change:
+- Update `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`
+  to use `group_by` for `outlet_scan`.
+- Rerun `make segment3a-s1` and continue to green.
+
+### Entry: 2026-01-17 14:23
+
+S1 failure after LazyFrame group_by fix:
+- Error in `zone_structure`: "No match for FieldRef.Name(geom)" while reading
+  `world_countries` / `tz_world` with `columns=["...","geom"]`.
+- The GeoParquet files expose the geometry column as `geometry`, not `geom`,
+  so selecting `geom` fails.
+
+Decision:
+- Stop selecting `geom` at read time. Load the GeoParquet without `columns=`
+  and use the GeoDataFrame geometry attribute (`row.geometry`) when iterating.
+- Add a small helper to resolve geometry from either `row.geometry` or
+  `row.geom` to tolerate both column names.
+
+Planned change:
+- Update `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`:
+  read `world_gdf` and `tz_gdf` without `columns=...` and use a geometry
+  accessor for row iteration.
+- Rerun `make segment3a-s1`.
+
+### Entry: 2026-01-17 14:24
+
+S1 failure after geometry-column fix:
+- Error: `'numpy.int64' object has no attribute 'intersects'` inside the
+  STRtree candidate loop.
+- Root cause: in some Shapely builds, STRtree returns numpy integer indices
+  (not Python int), so the `isinstance(candidate, int)` check misses them and
+  the code tries to call `.intersects` on the integer.
+
+Decision:
+- Expand the STRtree guard to treat any `numbers.Integral` (including numpy
+  integer types) as an index and resolve via `tz_geoms[int(candidate)]`.
+
+Planned change:
+- Update `_resolve_candidate_geoms` in
+  `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py` to
+  use `numbers.Integral` for index detection.
+- Rerun `make segment3a-s1`.
+
+### Entry: 2026-01-17 14:25
+
+S1 failure after STRtree index guard:
+- Error: Polars cannot append `merchant_id` values above int64 when building
+  the output DataFrame from `output_rows` (value overflow to i128).
+- Root cause: `pl.DataFrame(output_rows)` infers a signed int dtype; some
+  `merchant_id` values exceed int64 (they are uint64/id64 in schema).
+
+Decision:
+- Build the output DataFrame with an explicit schema that uses `pl.UInt64` for
+  `merchant_id` (and `seed`), and appropriate dtypes for other columns.
+- This enforces contract-aligned types and avoids inference overflow.
+
+Planned change:
+- Update `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`
+  to construct `pl.DataFrame(output_rows, schema=...)` with explicit dtypes.
+- Rerun `make segment3a-s1`.
+
+### Entry: 2026-01-17 14:26
+
+Actions completed and result:
+- Deleted run-local S0 outputs for 3A (approved) so S0 could reseal:
+  - `.../data/layer1/3A/s0_gate_receipt/manifest_fingerprint=.../s0_gate_receipt_3A.json`
+  - `.../data/layer1/3A/sealed_inputs/manifest_fingerprint=.../sealed_inputs_3A.json`
+- Reran `make segment3a-s0` successfully; S0 resealed inputs with aligned
+  world_countries schema_ref.
+- Applied the remaining S1 fixes:
+  - Polars compatibility: `scan_parquet` + `select` and `group_by`.
+  - GeoParquet geometry handling: use row geometry regardless of column name.
+  - STRtree guard: accept `numbers.Integral` indices.
+  - Explicit output schema to keep `merchant_id` in `UInt64`.
+- Reran `make segment3a-s1`; S1 completed green and published
+  `s1_escalation_queue` (2596 rows) + run-report.
+
+Ready to move to S2 review/plan when you are.

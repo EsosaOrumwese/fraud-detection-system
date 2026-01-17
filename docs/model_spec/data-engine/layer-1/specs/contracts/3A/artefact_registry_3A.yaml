@@ -322,6 +322,25 @@ subsegments:
     cross_layer: true
     notes: null
 
+  - name: world_countries
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.world_countries
+    license: Public-Domain
+    role: "Country polygons (GeoParquet) for zone mapping."
+    dependencies: [iso3166_canonical_2024]
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/world_countries
+    cross_layer: true
+    notes: null
+
   - name: tz_world_2025a
     path: reference/spatial/tz_world/2025a/tz_world.parquet
     type: dataset

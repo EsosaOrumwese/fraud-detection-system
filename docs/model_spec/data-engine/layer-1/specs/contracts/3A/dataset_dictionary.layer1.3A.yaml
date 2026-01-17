@@ -177,6 +177,24 @@ reference_data:
   pii: false
   licence: CC-BY-4.0
 
+- id: world_countries
+  status: approved
+  owner_subsegment: ingress
+  description: Country polygons (GeoParquet) for zone mapping.
+  version: '2024'
+  format: parquet
+  path: reference/spatial/world_countries/2024/world_countries.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/world_countries
+  lineage:
+    produced_by:
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Public-Domain
+
 - id: tz_world_2025a
   status: approved
   owner_subsegment: ingress

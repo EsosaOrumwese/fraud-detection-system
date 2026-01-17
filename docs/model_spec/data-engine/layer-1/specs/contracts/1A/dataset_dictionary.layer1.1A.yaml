@@ -116,7 +116,7 @@ reference_data:
   path: reference/spatial/world_countries/2024/world_countries.parquet
   partitioning: []
   ordering: []
-  schema_ref: schemas.ingress.layer1.yaml#/world_countries_shp
+  schema_ref: schemas.ingress.layer1.yaml#/world_countries
   lineage:
     produced_by:
     consumed_by: [1A, 1B, 2A]

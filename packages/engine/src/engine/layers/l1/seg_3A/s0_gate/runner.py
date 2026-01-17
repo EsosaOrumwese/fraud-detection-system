@@ -617,6 +617,7 @@ def _check_catalogue_consistency(
         "tz_timetable_cache",
         "s4_legality_report",
         "iso3166_canonical_2024",
+        "world_countries",
         "tz_world_2025a",
         "day_effect_policy_v1",
     ]
@@ -922,6 +923,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "validation_passed_flag_2A",
         "outlet_catalogue",
         "iso3166_canonical_2024",
+        "world_countries",
         "tz_world_2025a",
     ]
     optional_ids = [
