@@ -3906,3 +3906,257 @@ Next verification steps:
    - Run `make segment2b-s7 RUN_ID=...` and confirm report emission.
    - Re-run to validate write-once idempotence and check the run-report JSON.
 
+### Entry: 2026-01-17 07:40
+
+Design element: Rerun 2B end-to-end with resealed inputs after S5 failures.
+Summary: S5 failed due to `required_asset_missing` and S7 failed because S2/S3/S4
+were not present in `sealed_inputs_2B`. We'll remove run-local 2B outputs and
+rerun `make segment2b` so S0 reseals and S1–S6 regenerate under the same
+manifest_fingerprint, then re-run S7.
+
+Plan (before execution):
+1) Determine the latest run_id under `runs/local_full_run-5` and use that
+   run_id for cleanup and rerun unless you specify otherwise.
+2) Remove run-local 2B outputs only (leave other segments intact):
+   - `runs/<run_id>/data/layer1/2B`
+   - `runs/<run_id>/logs/layer1/2B`
+   - `runs/<run_id>/reports/layer1/2B`
+3) Rerun `make segment2b` to reseal S0 and regenerate S1-S6, then run S7.
+4) If any state fails, append a new entry with the error, options considered,
+   and the chosen fix before changing code.
+
+### Entry: 2026-01-17 08:19
+
+Design element: Rerun 2B with run-local tmp cleanup to validate BM ambiguity
+resolution under a same-run_id reseal.
+
+Summary: User believes stale tmp directories may be causing reuse of old
+artifacts and masking a real BM ambiguity issue even after deleting 2B outputs.
+We will clear the run-local tmp staging folder for the same run_id, reseal S0,
+and rerun `segment2b` end-to-end to confirm whether the BM failure persists.
+
+Plan (before execution):
+1) Confirm run_id = `2b22ab5c8c7265882ca6e50375802b26` (user request: same id).
+2) Keep run-local 2B outputs already removed; do not touch other segments.
+3) Remove run-local staging only:
+   - `runs/<run_id>/tmp/*` (delete all staging subfolders).
+4) Rerun `make segment2b RUN_ID=<run_id>` to reseal S0 with current
+   `tz_overrides` + inputs and regenerate S1-S7.
+5) If S1 still fails with 2A-S1-055, treat it as a logic/input issue (not
+   stale tmp), capture the failing key, and only then consider code/policy
+   changes with a new detailed entry.
+
+### Entry: 2026-01-17 08:24
+
+Design element: Handle `s5_arrival_roster` missing after reseal rerun.
+
+Summary: After clearing run-local tmp and rerunning `make segment2b` with the
+same run_id, S5 fails with `2B-S5-020 required_asset_missing` for
+`s5_arrival_roster`. S0 logs that the optional arrival roster is missing,
+so S5 cannot proceed. This is unrelated to the BM ambiguity; we must generate
+the run-scoped roster and reseal S0 so it is included in `sealed_inputs_2B`.
+
+Plan (before execution):
+1) Generate/normalize the roster using the existing Make target:
+   `make segment2b-arrival-roster RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+   This uses `scripts/normalize_arrival_roster.py` to emit
+   `data/layer1/2B/s5_arrival_roster/seed=42/parameter_hash=.../run_id=.../arrival_roster.jsonl`.
+2) Rerun `make segment2b RUN_ID=2b22ab5c8c7265882ca6e50375802b26` so S0 seals
+   `s5_arrival_roster` and S5/S6/S7 can proceed.
+3) If S5 still fails, capture the exact validator code and add a new entry
+   before adjusting code or policy.
+
+### Entry: 2026-01-17 08:25
+
+Design element: Reseal S0 after roster generation without losing the roster.
+
+Summary: After generating `s5_arrival_roster`, rerunning `segment2b` failed in
+S0 with `2B-S0-080` (atomic publish violation) because S0 outputs already
+exist for this run_id. We need to delete S0/S1-S4 outputs while **preserving**
+`s5_arrival_roster`, then rerun S0 so it can seal the roster.
+
+Plan (before execution):
+1) Enumerate `runs/<run_id>/data/layer1/2B` and remove all state outputs
+   **except** `s5_arrival_roster/` (keep the roster JSONL intact).
+2) Also remove `runs/<run_id>/logs/layer1/2B` and
+   `runs/<run_id>/reports/layer1/2B` to ensure a clean reseal.
+3) Rerun `make segment2b RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+4) If S0 still fails, inspect `_atomic_publish_file` write-once guard and
+   confirm no stale `s0_gate_receipt_2B` / `sealed_inputs_2B` remain.
+
+### Entry: 2026-01-17 08:31
+
+Design element: S7 should not require S2 outputs to be in `sealed_inputs_2B`.
+
+Summary: After resealing with `s5_arrival_roster`, the run reaches S7 but fails
+with `2B-S7-020 sealed_asset_missing` for `s2_alias_index`. S2 outputs are
+run-local artefacts, not S0-sealed inputs, so S7 should resolve them from the
+run-local dataset paths (dictionary + registry) and verify existence/schema
+instead of requiring them in `sealed_inputs_2B`.
+
+Plan (before execution):
+1) Adjust S7 to treat S2/S3/S4 artefacts as **outputs**, not sealed inputs:
+   - Resolve `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`,
+     `s4_group_weights` via run-local paths.
+   - Validate path existence + schema refs (path↔embed checks) but do not
+     require them in `sealed_inputs_2B`.
+2) Keep `sealed_inputs_2B` checks for true inputs/policies only (S0 receipt,
+   policies, optional routing logs).
+3) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` and
+   confirm the audit report publishes.
+
+### Entry: 2026-01-17 08:32
+
+Implementation update: S7 output resolution fix.
+
+Changes applied:
+1) Added `_require_output_asset(...)` in
+   `packages/engine/src/engine/layers/l1/seg_2B/s7_audit/runner.py` to resolve
+   run-local outputs (S2/S3/S4) without requiring them in `sealed_inputs_2B`.
+2) Swapped S2/S3/S4 asset resolution to `_require_output_asset` and kept
+   `_require_sealed_asset` for policies only.
+3) Removed the `sealed_blob_digest_mismatch` check for alias blob since there
+   is no sealed digest for output artefacts; still enforce
+   `index_payload.blob_sha256` match.
+4) Updated the narrative log to reflect “sealed inputs for policies; outputs for
+   S2/S3/S4”.
+
+Next step:
+- Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` to confirm
+  the audit report passes with run-local S2/S3/S4 outputs.
+
+### Entry: 2026-01-17 08:34
+
+Design element: Fix S7 schema validation for `plan/s2_alias_index` refs.
+
+Summary: S7 now reaches alias index validation but fails because the schema
+references `schemas.layer1.yaml#/$defs/rfc3339_micros` and `_validate_payload`
+did not receive the layer-1 ref pack for this schema. We need to pass the same
+`ref_packs` mapping used for the S0 receipt validation.
+
+Plan (before execution):
+1) Update the `_validate_payload` call for `plan/s2_alias_index` to pass
+   `{"schemas.layer1.yaml#/$defs/": schema_layer1}` so Draft202012Validator can
+   inline external refs.
+2) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 08:35
+
+Implementation update: S7 alias-index schema validation refs.
+
+Changes applied:
+- Updated `_validate_payload` invocation for `plan/s2_alias_index` to pass
+  `{"schemas.layer1.yaml#/$defs/": schema_layer1}` so external refs are
+  inlined and Draft202012Validator can resolve `rfc3339_micros`.
+
+Next step:
+- Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 08:36
+
+Design element: Fix indentation error introduced in S7 after ref-pack update.
+
+Summary: The rerun of `segment2b-s7` now fails with an `IndentationError` at
+`runner.py` line ~693. The prior change inserted a `_validate_payload(...)`
+call after a `try:` but did not indent it, so Python expects an indented block.
+We need to correct the indentation so the try/except captures the validation.
+
+Plan (before execution):
+1) Open `packages/engine/src/engine/layers/l1/seg_2B/s7_audit/runner.py`
+   around the `try:` block near `_validate_payload(plan/s2_alias_index)`.
+2) Indent the `_validate_payload` call (and any adjacent statements) so it is
+   inside the intended `try:` block.
+3) Keep the existing exception handling intact (do not change semantics).
+4) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 08:37
+
+Design element: Resolve S7 `slice_header_qbits_mismatch` (header=32 vs policy=24).
+
+Summary: S7 now reaches the alias slice checks but fails with
+`2B-S7-205 slice_header_qbits_mismatch` for a merchant. The alias index header
+quantised bits read from S2 output is 32, while the sealed alias layout policy
+declares 24. This means S2 outputs and the sealed policy are out of sync
+(likely S2 was generated with a different policy revision or S2 is not honoring
+the current `quantised_bits` field).
+
+Plan (before execution):
+1) Inspect S2 alias index writer (S2 runner) to see how `quantised_bits` is
+   derived and written into the header for each slice.
+2) Confirm the sealed alias layout policy for this run_id:
+   - policy file path from `sealed_inputs_2B` (S0 receipt),
+   - expected `quantised_bits` (currently 24).
+3) Determine whether the mismatch is due to stale S2 outputs:
+   - If S2 uses the policy value but outputs were generated before policy edits,
+     delete run-local S2/S3/S4 outputs and rerun `make segment2b` so S2 rebuilds
+     with the current policy (no code change).
+   - If S2 is hardcoding or deriving 32 incorrectly, update S2 to use the
+     policy value, then rerun S2+.
+4) Add a narrative log in S2 when writing the alias header stating which
+   `quantised_bits` is used (policy vs override) to make future audits clear.
+5) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 08:38
+
+Design element: Align S7 slice header qbits check to alias record_layout.prob_qbits.
+
+Summary: Inspection of S2 alias table generation shows the slice header embeds
+`prob_qbits` from `policy.record_layout` (default 32), while `quantised_bits`
+is the grid size used elsewhere. S7 currently compares `header_qbits` against
+`policy.quantised_bits`, which incorrectly flags a mismatch when
+`quantised_bits != prob_qbits` (e.g., 24 vs 32). The fix is to compare
+`header_qbits` to `record_layout.prob_qbits` and to use `prob_qbits` for
+decoding `prob_q` values in the audit sample.
+
+Plan (before execution):
+1) In S7, derive `record_layout = alias_policy_payload.get("record_layout", {})`
+   and `prob_qbits = int(record_layout.get("prob_qbits") or 0)` with validation.
+2) Replace the `header_qbits != policy_quantised_bits` check with
+   `header_qbits != prob_qbits` and keep the same error code.
+3) Use `prob_qbits` (not `policy_quantised_bits`) for `q_scale` when decoding
+   the alias slice probabilities.
+4) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` and
+   confirm the audit report publishes.
+
+### Entry: 2026-01-17 08:39
+
+Design element: Avoid Polars streaming panic when collecting S3/S4 key diffs.
+
+Summary: S7 now progresses to the S3/S4 key reconciliation but panics with
+`Parquet no longer supported for old streaming engine` when calling
+`collect(streaming=True)`. This appears to be a Polars runtime limitation for
+lazy parquet scans in the old streaming engine. We need to collect without
+streaming to avoid the crash (the key diff is small enough to fit in memory).
+
+Plan (before execution):
+1) Replace `collect(streaming=True)` with plain `.collect()` (or explicit
+   `collect(streaming=False)`) for `missing_in_s4` and `missing_in_s3`.
+2) Keep the lazy scan and anti-joins unchanged.
+3) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 08:40
+
+Design element: Remove remaining `collect(streaming=True)` calls in S7.
+
+Summary: After the first streaming fix, S7 still panics when collecting
+`gamma_mismatch` and later summary stats, because several other
+`collect(streaming=True)` calls remain. We need to remove streaming for all
+remaining LazyFrame collects in S7 to avoid the Polars parquet panic.
+
+Plan (before execution):
+1) Replace every remaining `collect(streaming=True)` in
+   `seg_2B/s7_audit/runner.py` with `.collect()`.
+2) Keep the lazy plan structure intact (no change to joins/filters).
+3) Re-run `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26`.
+
+### Entry: 2026-01-17 08:41
+
+Outcome: S7 audit passes after qbits + Polars collect fixes.
+
+Results:
+- `make segment2b-s7 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` now completes with
+  `S7_RUN_REPORT` status PASS.
+- Alias decode checks, S3/S4 key reconciliation, and mass consistency
+  validations all pass after aligning header qbits with `record_layout.prob_qbits`
+  and removing streaming collects.
+

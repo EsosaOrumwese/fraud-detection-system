@@ -591,35 +591,43 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
             )
         return resolved, sealed, catalog_path
 
+    def _require_output_asset(
+        asset_id: str,
+        entry: dict,
+        token_values: dict[str, str],
+        validator_id: str,
+    ) -> tuple[Path, str]:
+        catalog_path = _render_catalog_path(entry, token_values)
+        resolved = _resolve_dataset_path(entry, run_paths, config.external_roots, token_values)
+        if not resolved.exists():
+            _abort("2B-S7-020", validator_id, "required_asset_missing", {"asset_id": asset_id, "path": str(resolved)})
+        return resolved, catalog_path
+
     alias_index_entry = entries["s2_alias_index"]
-    alias_index_path, alias_index_sealed, alias_index_catalog = _require_sealed_asset(
+    alias_index_path, alias_index_catalog = _require_output_asset(
         "s2_alias_index",
         alias_index_entry,
-        {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         "V-03",
     )
     alias_blob_entry = entries["s2_alias_blob"]
-    alias_blob_path, alias_blob_sealed, alias_blob_catalog = _require_sealed_asset(
+    alias_blob_path, alias_blob_catalog = _require_output_asset(
         "s2_alias_blob",
         alias_blob_entry,
-        {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         "V-03",
     )
     s3_entry = entries["s3_day_effects"]
-    s3_path, s3_sealed, s3_catalog = _require_sealed_asset(
+    s3_path, s3_catalog = _require_output_asset(
         "s3_day_effects",
         s3_entry,
-        {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         "V-03",
     )
     s4_entry = entries["s4_group_weights"]
-    s4_path, s4_sealed, s4_catalog = _require_sealed_asset(
+    s4_path, s4_catalog = _require_output_asset(
         "s4_group_weights",
         s4_entry,
-        {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint},
         "V-03",
     )
@@ -650,7 +658,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
 
     _record_validator("V-02", "pass")
     _record_validator("V-03", "pass")
-    timer.info("S7: sealed inputs resolved for S2/S3/S4 + policies (partition-exact)")
+    timer.info("S7: sealed inputs resolved for policies; run-local outputs resolved for S2/S3/S4")
 
     alias_policy_payload = _load_json(alias_policy_path)
     alias_policy_schema = _schema_from_pack(schema_2b, "policy/alias_layout_policy_v1")
@@ -679,10 +687,24 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     policy_alignment_bytes = int(alias_policy_payload.get("alignment_bytes") or 0)
     policy_quantised_bits = int(alias_policy_payload.get("quantised_bits") or 0)
     quantisation_epsilon = float(alias_policy_payload.get("quantisation_epsilon") or 0.0)
+    record_layout = alias_policy_payload.get("record_layout") or {}
+    prob_qbits = int(record_layout.get("prob_qbits") or 0)
+    if prob_qbits <= 0 or prob_qbits > 32:
+        _abort(
+            "2B-S7-205",
+            "V-05",
+            "prob_qbits_invalid",
+            {"prob_qbits": prob_qbits},
+        )
 
     index_payload = _load_json(alias_index_path)
     try:
-        _validate_payload(schema_2b, "plan/s2_alias_index", index_payload)
+        _validate_payload(
+            schema_2b,
+            "plan/s2_alias_index",
+            index_payload,
+            {"schemas.layer1.yaml#/$defs/": schema_layer1},
+        )
     except SchemaValidationError as exc:
         _abort("2B-S7-200", "V-04", "alias_index_schema_invalid", {"error": str(exc)})
     _record_validator("V-04", "pass")
@@ -730,13 +752,6 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
             "V-05",
             "blob_digest_mismatch",
             {"index": index_payload.get("blob_sha256"), "computed": blob_sha256},
-        )
-    if str(alias_blob_sealed.get("sha256_hex") or "") != blob_sha256:
-        _abort(
-            "2B-S7-202",
-            "V-05",
-            "sealed_blob_digest_mismatch",
-            {"sealed": alias_blob_sealed.get("sha256_hex"), "computed": blob_sha256},
         )
     _record_validator("V-05", "pass")
 
@@ -830,12 +845,12 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
                     "slice_header_sites_mismatch",
                     {"merchant_id": merchant_id, "header": header_sites, "row": sites},
                 )
-            if header_qbits != policy_quantised_bits:
+            if header_qbits != prob_qbits:
                 _abort(
                     "2B-S7-205",
                     "V-05",
                     "slice_header_qbits_mismatch",
-                    {"merchant_id": merchant_id, "header": header_qbits, "policy": policy_quantised_bits},
+                    {"merchant_id": merchant_id, "header": header_qbits, "policy": prob_qbits},
                 )
             prob_q: list[int] = []
             alias: list[int] = []
@@ -851,7 +866,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
                     "alias_index_out_of_range",
                     {"merchant_id": merchant_id, "sites": sites},
                 )
-            q_scale = float(1 << policy_quantised_bits)
+            q_scale = float(1 << prob_qbits)
             prob = [value / q_scale for value in prob_q]
             p_hat = _decode_probabilities(prob, alias)
             sum_p = float(sum(p_hat))
@@ -884,8 +899,8 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     s4_keys = s4_scan.select(["merchant_id", "utc_day", "tz_group_id"]).unique()
     missing_in_s4 = s3_keys.join(s4_keys, on=["merchant_id", "utc_day", "tz_group_id"], how="anti")
     missing_in_s3 = s4_keys.join(s3_keys, on=["merchant_id", "utc_day", "tz_group_id"], how="anti")
-    missing_s4_rows = missing_in_s4.collect(streaming=True)
-    missing_s3_rows = missing_in_s3.collect(streaming=True)
+    missing_s4_rows = missing_in_s4.collect()
+    missing_s3_rows = missing_in_s3.collect()
     if missing_s4_rows.height or missing_s3_rows.height:
         _abort(
             "2B-S7-300",
@@ -904,7 +919,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
         how="inner",
         suffix="_s3",
     )
-    gamma_mismatch = joined.filter(pl.col("gamma") != pl.col("gamma_s3")).limit(5).collect(streaming=True)
+    gamma_mismatch = joined.filter(pl.col("gamma") != pl.col("gamma_s3")).limit(5).collect()
     if gamma_mismatch.height:
         _abort(
             "2B-S7-301",
@@ -917,7 +932,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     mass = s4_scan.group_by(["merchant_id", "utc_day"]).agg(
         sum_p_group=pl.col("p_group").sum()
     )
-    mass_df = mass.collect(streaming=True)
+    mass_df = mass.collect()
     if mass_df.height:
         mass_df = mass_df.with_columns((pl.col("sum_p_group") - 1.0).abs().alias("abs_error"))
         max_abs_mass_error_s4 = float(mass_df["abs_error"].max())
@@ -945,7 +960,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
                 {"note": "s1_site_weights sealed but s4 base_share absent"},
             )
         base_mass = s4_scan.group_by("merchant_id").agg(sum_base=pl.col("base_share").sum())
-        base_df = base_mass.collect(streaming=True)
+        base_df = base_mass.collect()
         if base_df.height:
             base_df = base_df.with_columns((pl.col("sum_base") - 1.0).abs().alias("abs_error"))
             bad_base = base_df.filter(pl.col("abs_error") > EPSILON)
@@ -960,9 +975,9 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     else:
         _record_validator("V-11", "pass", context={"note": "s1_site_weights not sealed; base_share check skipped"})
 
-    merchants_total = int(s4_scan.select(pl.col("merchant_id").n_unique()).collect(streaming=True)[0, 0])
-    groups_total = int(s4_scan.select(pl.col("tz_group_id").n_unique()).collect(streaming=True)[0, 0])
-    days_total = int(s4_scan.select(pl.col("utc_day").n_unique()).collect(streaming=True)[0, 0])
+    merchants_total = int(s4_scan.select(pl.col("merchant_id").n_unique()).collect()[0, 0])
+    groups_total = int(s4_scan.select(pl.col("tz_group_id").n_unique()).collect()[0, 0])
+    days_total = int(s4_scan.select(pl.col("utc_day").n_unique()).collect()[0, 0])
 
     selection_log_paths: list[Path] = []
     edge_log_paths: list[Path] = []
