@@ -3578,3 +3578,331 @@ Detailed reasoning and decision:
 4) After clearing the logs, re-run `segment2b-s5` and `segment2b-s6`. Both
    states completed successfully, confirming the log cleanup was sufficient.
 
+### Entry: 2026-01-17 06:13
+
+Design element: Deterministic mixed `is_virtual` assignment in arrival roster.
+Summary: User requested a deterministic 5–10% virtual mix and asked to lock
+the percentage. I will default to 10% virtual and encode it directly into the
+arrival roster generation so S6 is exercised without external 5B inputs.
+
+Detailed reasoning and decision:
+1) The current roster generator writes `is_virtual=false` for every merchant,
+   which yields zero virtual arrivals and makes S6 a no-op.
+2) We need a deterministic, repeatable rule to avoid ad-hoc overrides and to
+   keep reruns stable for the same seed. Using a hash of `(merchant_id, seed)`
+   provides a consistent partition without introducing randomness.
+3) Pick a fixed 10% threshold so S6 has enough volume to validate, without
+   dominating the sample. This is configurable in code but defaults are locked
+   to 10% unless explicitly overridden.
+4) Implementation plan: update `scripts/normalize_arrival_roster.py` to compute
+   `is_virtual` per row using `sha256(f"{merchant_id}:{seed}") % 100 < 10`,
+   and apply the same rule both when generating a new roster and when filling
+   missing `is_virtual` fields in an existing roster.
+5) After regeneration, rerun S0 to reseal the roster (if needed) and rerun
+   S5/S6 to confirm virtual arrivals are routed.
+
+### Entry: 2026-01-17 06:14
+
+Design element: Implement deterministic 10% virtual assignment in roster.
+Summary: Updated the arrival roster normalization script to assign `is_virtual`
+using a hash of `(merchant_id, seed)` with a fixed 10% threshold.
+
+Detailed reasoning and decision:
+1) Implemented `_virtual_bucket` using SHA-256 and `% 100` to ensure stable,
+   reproducible bucketing across runs for the same seed.
+2) Locked `VIRTUAL_PERCENT = 10` in the script; no CLI override to keep the
+   default consistent unless code is changed intentionally.
+3) Applied the rule in two paths:
+   - When generating a new roster from `site_locations`.
+   - When normalizing an existing roster missing `is_virtual`.
+4) Kept existing `is_virtual` values untouched to preserve manual overrides
+   or upstream-provided flags.
+
+## S7 - Audits & CI gate (S7.*)
+
+### Entry: 2026-01-17 06:20
+
+Design element: S7 audit/CI gate pre-implementation review (contracts + evidence).
+Summary: Reviewed the S7 expanded spec and 2B contract surfaces. S7 is RNG-free,
+reads only Dictionary-resolved inputs (S2/S3/S4 + sealed policies, and optional
+S5/S6 logs + RNG evidence when present), and emits a single authoritative
+`s7_audit_report` at `[seed, manifest_fingerprint]` with write-once/atomic
+publish and stdout-only run-report.
+
+Detailed reasoning and decisions:
+1) Authorities and inputs are explicit. S7 must enforce S0 gate evidence first,
+   then read only Dictionary IDs at exact partitions:
+   - S2/S3/S4 at `[seed, manifest_fingerprint]`.
+   - Policies token-less by S0-sealed `path + sha256_hex`.
+   - Optional S5/S6 logs at `[seed, parameter_hash, run_id, utc_day]`, and only
+     then read Layer-1 RNG evidence at `[seed, parameter_hash, run_id]`.
+2) Output identity is strict: `s7_audit_report` is the only authoritative
+   output, partitioned `[seed, manifest_fingerprint]`, with path↔embed equality
+   and `created_utc` equal to S0 `verified_at_utc`. Publish is write-once with
+   atomic move; re-emit allowed only if byte-identical.
+3) Required checks in the spec include:
+   - S2 index/blob schema + header/blob digest parity + policy echo.
+   - S3/S4 day-grid equality, gamma echo, and per-merchant/day sum(p_group)=1.
+   - Optional logs: arrival ordering, partition/lineage checks, and RNG evidence
+     reconciliation (S5: 2 events/selection; S6: 1 event/virtual).
+4) Deterministic samples are mandated (bounded K=32). Proposed selection is
+   lowest-lex merchant_id/utc_day for reproducibility without extra RNG.
+5) Open confirmations for the user before coding:
+   - Optional logs: treat absence as SKIP (no WARN) vs WARN? Spec calls them
+     optional, so default is SKIP unless you want explicit WARNs.
+   - Run-report persistence: spec says STDOUT-only; do you want a persisted
+     file copy (non-authoritative) or strict stdout-only to reduce I/O?
+   - inputs_digest scope: echo only S0-sealed S2/S3/S4 + policies (strict),
+     or also include optional logs if present (even though they are not sealed)?
+   - RNG evidence: if S5/S6 logs exist but rng_audit_log or rng_trace_log is
+     missing, do we hard-fail (spec-leaning) or downgrade to WARN?
+
+### Entry: 2026-01-17 06:22
+
+Design element: S7 confirmation decisions before implementation.
+Summary: Locked in the S7 decisions for optional logs, run-report, inputs_digest
+scope, and RNG evidence handling so the implementation follows a single path.
+
+Detailed reasoning and decision:
+1) Optional logs (S5/S6): treat their absence as SKIP (no WARN), because the
+   dictionary marks them optional and the spec does not mandate presence.
+   If logs are present, all evidence checks must run; if absent, skip the
+   related validators without warning.
+2) Run-report emission: STDOUT-only JSON diagnostic (no persisted copy), to
+   align with S7's observability section and avoid extra non-authoritative
+   artefacts.
+3) inputs_digest scope: include only S0-sealed inputs (S2/S3/S4 + policies).
+   Optional logs are not sealed; record them in checks/metrics instead of
+   digest to avoid mixing sealed and non-sealed evidence.
+4) RNG evidence: if S5/S6 logs are present but rng_audit_log or rng_trace_log
+   is missing, hard-fail. Reconciliation is required to validate draw budgets
+   and counters; passing without evidence would violate the audit gate.
+
+### Entry: 2026-01-17 06:35
+
+Design element: S7 audit/CI gate implementation plan (runner + CLI + Makefile).
+Summary: Implement `seg_2B/s7_audit` runner that enforces S7 audit checks and
+publishes `s7_audit_report` (stdout-only run-report), then wire CLI + Makefile
+target. Preserve deterministic sampling and write-once semantics.
+
+Detailed reasoning and decision (plan before coding):
+1) Inputs + authorities (strict):
+   - Read S0 receipt at `[manifest_fingerprint]` to anchor `created_utc` and
+     validate gate lineage. Use `run_receipt.created_utc` to enforce deterministic
+     timestamps. Use S0 `sealed_inputs` to identify sealed assets and their
+     digests.
+   - Resolve S2/S3/S4 datasets at `[seed, manifest_fingerprint]` using the
+     Dictionary + `RunPaths` (no ad-hoc paths). Resolve policies by sealed path +
+     sha256 (token-less).
+   - Optional logs: `s5_selection_log` and `s6_edge_log` at
+     `[seed, parameter_hash, run_id, utc_day]` only if present. If either log
+     exists, require RNG evidence logs (`rng_trace_log`, `rng_audit_log`) at
+     `[seed, parameter_hash, run_id]` and hard-fail if missing.
+2) Core checks to implement:
+   - S2 alias index + blob:
+     a) Validate index JSON schema + header echo vs `alias_layout_policy_v1`
+        (layout_version, endianness, alignment_bytes, quantised_bits).
+     b) Validate blob digest (sha256) equals header + sealed policy digest.
+     c) Validate merchants_count, row checksum hex pattern, and bounds for
+        offset+length within blob_size_bytes.
+     d) Deterministic sample K<=32 merchants by lowest merchant_id; for each
+        sample, read slice header (u32 sites + prob_qbits + reserved) and decode
+        alias probabilities. Recompute checksum and compare with row checksum.
+        Compute `p_hat` from prob_q + alias and ensure `abs(sum(p_hat)-1.0)`
+        <= `quantisation_epsilon`. Record `alias_decode_max_abs_delta` as the
+        max `abs(sum(p_hat)-1.0)` across samples. NOTE: Spec mentions
+        `max|p_hat - p_enc|`, but `p_enc` is not available at S7 without
+        re-deriving original weights; we will log this assumption in the
+        run-report and implementation map if needed.
+   - S3/S4 coherence:
+     a) Ensure day grid equality between S3 and S4 (same merchants, utc_day,
+        tz_group_id). Use sorted keys to compare counts and detect drift.
+     b) Ensure S4.gamma == S3.gamma per row (exact float match, or with
+        epsilon? Use exact match to respect determinism; log count + samples).
+     c) For each merchant/day, verify sum(p_group)=1.0 within EPSILON and
+        report max_abs_mass_error_s4.
+   - Optional logs:
+     a) If `s5_selection_log` exists, validate schema, enforce
+        manifest_fingerprint + created_utc echo, and ensure per-merchant order
+        is non-decreasing by utc_timestamp (no reordering within a day). Count
+        selections; expected draws = 2 * selections.
+     b) If `s6_edge_log` exists, validate schema, enforce manifest_fingerprint +
+        created_utc echo, and ensure timestamps non-decreasing. Count virtual
+        arrivals; expected draws = 1 * virtual arrivals.
+     c) If RNG evidence logs exist, reconcile event counts vs expected draws and
+        ensure RNG trace/audit logs cover the counter space referenced by the
+        logs (fail if missing).
+3) Output/reporting plan:
+   - Emit a narrative story header log at start describing objective, gated
+     inputs (S0 receipt, S2/S3/S4, policies, optional logs), and outputs.
+   - Emit progress logs for long loops (sample decoding, S3/S4 scans, log
+     validation) with elapsed/rate/ETA.
+   - Produce `s7_audit_report` JSON at
+     `[seed, manifest_fingerprint]` with `created_utc` echoing S0
+     `verified_at_utc`, `inputs_digest` containing only sealed assets, and
+     `checks/metrics/summary` per spec. Use write-once atomic publish (fail
+     if existing non-identical).
+   - Emit stdout-only run-report JSON (no persisted run-report file), with
+     diagnostics for any skipped optional checks.
+4) Wiring plan:
+   - Create `packages/engine/src/engine/layers/l1/seg_2B/s7_audit/runner.py`
+     and `__init__.py`.
+   - Add CLI `packages/engine/src/engine/cli/s7_audit_2b.py`.
+   - Update `makefile` to add `segment2b-s7` target and include in `segment2b`.
+5) Testing/resumability:
+   - Run `make segment2b-s7 RUN_ID=...` and re-run to verify write-once/atomic
+     behaviour (idempotent when identical). On failure, log error codes and
+     sample keys in S7 run-report (stdout).
+   - Verify that optional logs are SKIP (not WARN) when absent and that RNG
+     evidence missing triggers a hard fail when logs are present.
+
+### Entry: 2026-01-17 07:00
+
+Design element: Continue S7 implementation after partial file creation.
+Summary: The S7 runner file is incomplete (stops after edge-log validation).
+I will finish the remaining validations (RNG evidence, site-timezone mapping),
+emit the audit report, and wire CLI/Makefile as originally planned.
+
+Detailed reasoning and decision:
+1) The current `runner.py` stops immediately after the optional S5/S6 log
+   validation block. This leaves out mandatory checks in the S7 expanded spec:
+   - RNG evidence reconciliation (V-12/V-13/V-14/V-16/V-17).
+   - Site-timezone/edge-policy mapping checks (V-15).
+   - Audit report creation and atomic publish (V-18).
+2) No change to the earlier decisions. We will finish the runner using the
+   exact checks laid out in the 06:35 plan, without changing the scope or
+   tolerances.
+3) After completing the runner logic, add the CLI wrapper and Makefile target.
+   Both are direct wiring steps and do not alter any model behavior.
+4) Once wiring is done, run `make segment2b-s7` to validate that the report
+   publishes and reruns are idempotent. Any adjustments that arise will be
+   logged in new entries, not rewrites.
+
+### Entry: 2026-01-17 07:16
+
+Design element: Finish 2B.S7 audit runner and wire CLI/Makefile.
+Summary: Complete the S7 runner logic (RNG evidence reconciliation, mapping
+checks, audit report emission) and add CLI + Makefile wiring, keeping the
+implementation deterministic and streaming-friendly.
+
+Detailed plan and reasoning (before coding):
+1) Evidence source and authority audit.
+   - Inputs are strictly Dictionary-resolved: S2/S3/S4 at
+     `[seed, manifest_fingerprint]`, policies via sealed S0 path+digest,
+     optional S5/S6 logs at `[seed, parameter_hash, run_id, utc_day]`,
+     RNG core logs at `[seed, parameter_hash, run_id]`.
+   - Shape authorities: 2B pack for S2/S3/S4 + policy + trace rows, Layer-1
+     pack for rng_audit_log + rng_trace_log + event families.
+   - Decision: do NOT infer any paths; require presence through dictionary
+     entries and S0 sealed inventory, and record failures via 2B-S7 codes.
+
+2) Streamed JSONL processing to avoid large in-memory loads.
+   - Selection/edge log validation currently uses read_text(). Replace with a
+     streaming iterator to reduce memory and improve performance.
+   - Ensure progress logs (elapsed, rate, ETA) are emitted through the
+     existing ProgressTracker while iterating.
+
+3) RNG evidence checks (V-13/V-14/V-16).
+   - If optional logs exist, require rng_audit_log + rng_trace_log + event logs.
+   - Validate event log rows against Layer-1 schemas; enforce rng_stream_id
+     matches route_rng_policy_v1 for `alias_pick_group`, `alias_pick_site`,
+     `cdn_edge_pick`.
+   - Counter checks:
+     - Per-event: after > before; if after < before => 2B-S7-404 (wrap),
+       if after == before or non-monotone vs prior => 2B-S7-403.
+     - Per-log monotone: maintain last_after per log to ensure strict increase.
+   - Budget checks:
+     - S5: group events count == selection count and site events count ==
+       selection count (2 events per selection).
+     - S6: edge event count == virtual arrivals from s6_edge_log
+       (1 event per virtual).
+   - Trace reconciliation:
+     - Parse rng_trace_log and extract final draws_total/events_total per
+       (module, substream_label); verify draws_total == events_total per
+       substream.
+     - Compute draws_expected = 2*selections + virtuals and compare to the
+       sum of per-substream draws_total; fail 2B-S7-402 on mismatch.
+   - Rationale: this matches the spec’s “two per selection / one per virtual”
+     rule and enforces counter monotonicity without requiring expensive joins.
+
+4) Mapping/attribute checks (V-15).
+   - Build a `site_timezones` lookup from 2A (merchant_id, site_id -> tzid).
+   - For selection log sample rows, recompute site_id via low64 hash and
+     assert tz_group_id matches the 2A tzid (else 2B-S7-410).
+   - For edge log sample rows, ensure edge_id exists in virtual_edge_policy_v1
+     and record missing attributes as 2B-S7-411.
+   - Use a bounded sample (MAX_SAMPLE) to keep runtime predictable while
+     still providing coverage.
+
+5) Audit report creation + atomic publish (V-17/V-18).
+   - Build `s7_audit_report` with path↔embed equality and created_utc anchored
+     to S0 receipt `verified_at_utc`.
+   - Include `catalogue_resolution`, `inputs_digest` (S2/S3/S4 + policies),
+     `checks[]`, `metrics`, and `summary` per schema.
+   - Write to run tmp and atomically publish to
+     `data/layer1/2B/s7_audit_report/seed=.../manifest_fingerprint=...`.
+   - Idempotent re-run: if bytes are identical, skip; otherwise fail with
+     2B-S7-502.
+
+6) Wiring and test steps.
+   - Add CLI wrapper `engine.cli.s7_audit_2b` and Makefile target
+     `segment2b-s7`, include in `segment2b`.
+   - Run `make segment2b-s7 RUN_ID=...` to verify report emission and ensure
+     reruns are idempotent; log any failures + fixes in new entries.
+
+Logging intent (story-first):
+   - Add a state story header log summarizing objective, gated inputs, and
+     outputs.
+   - Emit phase logs for S2/S3/S4 validation, RNG evidence checks, mapping
+     checks, and report emission so the operator can follow the flow without
+     consulting the spec.
+
+### Entry: 2026-01-17 07:29
+
+Design element: Implemented the remaining S7 audit logic + wiring.
+Summary: Completed RNG evidence reconciliation, mapping checks, audit report
+emission, and CLI/Makefile wiring for 2B.S7. This converts the previously
+partial runner into a spec-complete state gate.
+
+Implementation details (what changed and why):
+1) Streaming JSONL iteration:
+   - Added `_iter_jsonl_rows` and `_resolve_jsonl_paths` helpers to stream
+     JSONL logs line-by-line instead of `read_text()`. This avoids loading
+     full logs into memory and keeps progress logs responsive.
+   - Updated selection/edge log loops to use streaming iteration with
+     explicit JSON decode failure handling (2B-S7-400).
+
+2) RNG evidence reconciliation (V-13/V-14/V-16):
+   - Added a shared `_scan_event_log` path that validates Layer-1 event log
+     schema, enforces stream id + substream_label, and checks counter monotonicity
+     and wrap detection (2B-S7-403/404).
+   - Required event log counts to match selection/virtual counts (2B-S7-402).
+   - Parsed `rng_trace_log` for per-(module,substream) totals, enforced
+     draws_total == events_total per substream, and reconciled totals to
+     expected draws across S5/S6 (2B-S7-402).
+   - Verified `rng_audit_log` presence and schema (evidence-only, RNG-free).
+
+3) Mapping & attribute checks (V-15):
+   - Built a `site_timezones` index by recomputing site_id from
+     (merchant_id, legal_country_iso, site_order) and compared against
+     selection log samples (2B-S7-410).
+   - Built an edge_id lookup from `virtual_edge_policy_v1` (edges, defaults,
+     merchant_overrides) and asserted edge_id presence for edge log samples
+     (2B-S7-411).
+
+4) Audit report (V-17/V-18):
+   - Constructed `s7_audit_report` with path↔embed equality, created_utc
+     anchored to S0 verified_at_utc, `inputs_digest` from sealed inputs, and
+     required metrics/summary fields.
+   - Validated report against `schemas.2B.yaml#/validation/s7_audit_report_v1`
+     and published atomically with idempotent re-emit handling.
+
+5) Wiring:
+   - Added CLI `engine.cli.s7_audit_2b`.
+   - Updated Makefile with `SEG2B_S7_CMD`, `segment2b-s7` target, and added
+     S7 to `.PHONY` and the `segment2b` chain.
+
+Next verification steps:
+   - Run `make segment2b-s7 RUN_ID=...` and confirm report emission.
+   - Re-run to validate write-once idempotence and check the run-report JSON.
+

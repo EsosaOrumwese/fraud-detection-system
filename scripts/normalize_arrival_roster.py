@@ -1,34 +1,36 @@
-"""Normalize or build 2B arrival roster with is_virtual defaults."""
+"""Normalize or build 2B arrival roster with deterministic is_virtual assignment."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 import polars as pl
 
 
-def _parse_bool(value: str) -> bool:
-    value = value.strip().lower()
-    if value in {"true", "1", "yes"}:
-        return True
-    if value in {"false", "0", "no"}:
-        return False
-    raise ValueError(f"Invalid boolean value: {value}")
+VIRTUAL_PERCENT = 10
+
+
+def _virtual_bucket(merchant_id: int, seed: int) -> int:
+    token = f"{merchant_id}:{seed}".encode("utf-8")
+    digest = hashlib.sha256(token).digest()
+    return int.from_bytes(digest[:4], "big") % 100
+
+
+def _is_virtual(merchant_id: int, seed: int) -> bool:
+    return _virtual_bucket(merchant_id, seed) < VIRTUAL_PERCENT
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--runs-root", default="runs/local_full_run-5")
-    parser.add_argument("--default-is-virtual", default="false")
     args = parser.parse_args()
 
     run_id = args.run_id.strip()
     runs_root = Path(args.runs_root)
-    default_is_virtual = _parse_bool(args.default_is_virtual)
-
     receipt_path = runs_root / run_id / "run_receipt.json"
     if not receipt_path.exists():
         raise SystemExit(f"Run receipt not found: {receipt_path}")
@@ -81,11 +83,12 @@ def main() -> None:
         merchant_ids = df.get_column("merchant_id").to_list()
         with tmp_path.open("w", encoding="utf-8") as handle:
             for merchant_id in merchant_ids:
+                is_virtual = _is_virtual(int(merchant_id), int(seed))
                 payload = {
                     "merchant_id": int(merchant_id),
                     "utc_timestamp": utc_timestamp,
                     "utc_day": utc_day,
-                    "is_virtual": default_is_virtual,
+                    "is_virtual": is_virtual,
                 }
                 handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
                 handle.write("\n")
@@ -94,7 +97,8 @@ def main() -> None:
             "Generated arrival roster:",
             f"path={roster_path}",
             f"rows={len(merchant_ids)}",
-            f"default_is_virtual={default_is_virtual}",
+            f"virtual_percent={VIRTUAL_PERCENT}",
+            f"seed={seed}",
         )
         return
 
@@ -113,7 +117,7 @@ def main() -> None:
             payload = json.loads(line)
             total += 1
             if "is_virtual" not in payload:
-                payload["is_virtual"] = default_is_virtual
+                payload["is_virtual"] = _is_virtual(int(payload["merchant_id"]), int(seed))
                 updated += 1
             else:
                 kept += 1
@@ -127,6 +131,8 @@ def main() -> None:
         f"rows={total}",
         f"added_is_virtual={updated}",
         f"kept_existing={kept}",
+        f"virtual_percent={VIRTUAL_PERCENT}",
+        f"seed={seed}",
     )
 
 
