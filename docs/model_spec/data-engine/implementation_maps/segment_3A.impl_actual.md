@@ -1066,3 +1066,120 @@ Actions completed and result:
   `s1_escalation_queue` (2596 rows) + run-report.
 
 Ready to move to S2 review/plan when you are.
+
+## S2 - Country-Zone Priors & Floors
+
+### Entry: 2026-01-17 14:48
+
+Scope for this pass: S2 contract review + pre-implementation plan (no code yet).
+
+Files read (expanded doc + contracts + policy guides):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s2.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/artefact_registry_3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/data-intake/3A/country_zone_alphas_3A.md
+- docs/model_spec/data-engine/layer-1/specs/data-intake/3A/zone_floor_policy_3A.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml
+
+S2 objective (from spec):
+- Build parameter-scoped (`parameter_hash`) `s2_country_zone_priors` as the
+  sole authority for Dirichlet à priors after applying floor/bump policy.
+  Deterministic and RNG-free; no dependence on S1 outputs.
+
+Authoritative inputs (must be sealed in S0):
+- `s0_gate_receipt_3A`, `sealed_inputs_3A` (gate + whitelist).
+- Policies: `country_zone_alphas`, `zone_floor_policy` (sealed, required).
+- References: `iso3166_canonical_2024`, `world_countries`, `tz_world_2025a`
+  (sealed, required).
+- Optional: `tz_timetable_cache` (sealed; only for compatibility checks).
+
+Output:
+- `s2_country_zone_priors` partitioned by `parameter_hash` only.
+- `s2_run_report_3A` (schema_ref: `schemas.layer1.yaml#/run_report/segment_state_run`).
+- `segment_state_runs` JSONL row per invocation.
+
+Key invariants from spec + guides:
+- Z(c) must be derived from `world_countries` + `tz_world_2025a` polygons.
+- Priors must align exactly to Z(c) and be strictly positive after floors.
+- `alpha_effective(c,z) = max(alpha_raw(c,z), floor_alpha(c,z))`.
+- `alpha_sum_country` must be > 0; `share_effective` in [0,1] and sums to 1 per country.
+- S2 MUST NOT read S1 outputs or merchant-level data; only priors + references.
+
+Open confirmations (need your call before coding):
+1) **Z(c) derivation reuse:** should S2 recompute Z(c) from `world_countries` +
+   `tz_world_2025a` (preferred, deterministic, policy-guide aligned), or reuse
+   any precomputed mapping if one exists? I recommend recomputing in S2 to
+   keep S2 parameter-scoped and independent of S1.
+2) **Missing/extra tzids in prior pack:** the authoring guide demands exact
+   Z(c) match, but the floor-policy semantics define `alpha_raw=0` for missing
+   (c,z). Should S2 fail closed on *any* missing/extra tzids, or allow missing
+   tzids to be filled with 0.0 and rely on floors? I recommend:
+   - **extra tzids** -> hard fail,
+   - **missing tzids** -> hard fail (to stay consistent with the pack’s
+     “exact universe” rule) unless you explicitly want a “fill + floor” mode.
+3) **tz_timetable_cache cross-check:** if sealed, should S2 perform the same
+   release-tag compatibility check as S1 (tzdb_release_tag vs tz_world tag)?
+   I recommend yes, to keep the tz universe consistent without reading any
+   uncatalogued tzid list.
+4) **Run-report emission:** dictionary defines `s2_run_report_3A`; do you want
+   this file to include a summary of floor/bump counts per tzid (diagnostic), or
+   keep it minimal (counts + status) to avoid log/report bloat? I recommend
+   minimal by default and include only aggregated counts.
+
+Pre-implementation plan (stepwise, phase-aligned):
+1) **Resolve S0 gate + sealed inputs**
+   - Load `s0_gate_receipt_3A` + `sealed_inputs_3A`; validate schemas.
+   - Confirm upstream gates PASS (1A/1B/2A).
+   - Build a sealed lookup by `logical_id` and verify sha256 digests for each
+     required artefact.
+
+2) **Load + validate prior and floor policies**
+   - `country_zone_alphas`: validate against `schemas.3A.yaml#/policy/country_zone_alphas_v1`.
+   - `zone_floor_policy`: validate against `schemas.3A.yaml#/policy/zone_floor_policy_v1`.
+   - Extract `prior_pack_id/version` and `floor_policy_id/version` (non-placeholder).
+
+3) **Build Z(c) zone universe**
+   - Read `world_countries` and `tz_world_2025a` geos; split antimeridian
+     polygons (`_split_antimeridian_geometries`).
+   - For each country polygon, intersect with tz polygons to produce Z(c).
+   - Fail on any `Z(c)==∅` for a country appearing in the prior pack.
+   - Optional tzdb release-tag check if `tz_timetable_cache` is sealed.
+
+4) **Construct alpha_raw per (c,z)**
+   - For each country in the prior pack, map `tzid_alphas` to Z(c).
+   - Enforce no extra tzids; handle missing tzids per the confirmation above.
+   - `alpha_raw` ≥ 0 (strictly >0 per authoring guide unless “fill=0” mode is approved).
+
+5) **Apply floor/bump policy**
+   - For each (c,z): compute `alpha_sum_raw`, `share_raw` (0 if sum=0).
+   - Determine `floor_value` + `bump_threshold` for tzid (default 0 / 1.0 if missing).
+   - `floor_alpha = floor_value` when share_raw ≥ bump_threshold.
+   - `alpha_effective = max(alpha_raw, floor_alpha)`.
+   - `floor_applied` + `bump_applied` flags from alpha change (v1).
+
+6) **Finalize output rows**
+   - `alpha_sum_country = sum(alpha_effective)` per country (must be > 0).
+   - `share_effective = alpha_effective / alpha_sum_country`.
+   - Populate required columns per `schemas.3A.yaml#/plan/s2_country_zone_priors`.
+   - Sort rows by `[country_iso, tzid]` for determinism.
+
+7) **Validate + publish**
+   - Validate rows with `validate_dataframe` using `schemas.3A.yaml#/plan/s2_country_zone_priors`
+     (layer1 defs inlined).
+   - Write to tmp, enforce immutability on publish (parameter_hash partition).
+
+8) **Run-report + logs**
+   - Emit story header log (objective, gated inputs, outputs).
+   - Progress logs for country loop and tzid loop (elapsed, rate, ETA).
+   - Write `segment_state_runs` JSONL and `s2_run_report_3A` (PASS/FAIL, counts).
+
+Performance considerations:
+- Parameter-scoped output is small; keep in memory but allow streaming if needed.
+- Avoid re-reading geometry; cache Z(c) derivation once per run.
+
+Resumability:
+- If `s2_country_zone_priors` already exists and bytes match, skip publish.
+- If non-identical, fail immutability per spec.
+
+Awaiting your confirmation on the four open points above before coding.
