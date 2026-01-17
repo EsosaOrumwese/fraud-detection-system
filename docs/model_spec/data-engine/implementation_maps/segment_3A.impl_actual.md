@@ -1183,3 +1183,21 @@ Resumability:
 - If non-identical, fail immutability per spec.
 
 Awaiting your confirmation on the four open points above before coding.
+
+### Entry: 2026-01-17 15:17
+
+S2 confirmations received (approved):
+- Recompute Z(c) from `world_countries` + `tz_world_2025a` each run (no reuse of S1).
+- Fail closed on extra tzids in the prior pack; fail closed on missing tzids vs Z(c).
+- If `tz_timetable_cache` is sealed, enforce the release-tag match vs the tz_world tag.
+- Keep S2 run-report minimal (aggregated counts only; no per-tzid diagnostics).
+
+Implementation notes before coding:
+- S2 will validate `s0_gate_receipt_3A` + `sealed_inputs_3A` and hard-fail if upstream
+  gates are not PASS or if sealed-input digests/path tokens mismatch.
+- S2 must accept `sealed_inputs_3A` in JSON-list (prod) and parquet (test harness)
+  without changing the prod contract; parquet support is a local harness fallback.
+- I will add `PriorsInputs`/`PriorsRunner` (test harness) that read a local dictionary
+  path + data_root without run_receipt; this will not alter the production runner.
+- Output will follow `schemas.3A.yaml#/plan/s2_country_zone_priors` with deterministic
+  sorting and immutability checks on publish.
