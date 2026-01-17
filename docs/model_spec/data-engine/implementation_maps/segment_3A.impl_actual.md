@@ -556,3 +556,110 @@ Next: rerun `make segment3a-s0`.
 
 Next: confirm S0 artefacts (`s0_gate_receipt_3A`, `sealed_inputs_3A`) exist
 and move to S1 planning when you’re ready.
+
+## S1 - Mixture Policy & Escalation Queue
+
+### Entry: 2026-01-17 11:43
+Scope for this pass: contract review + detailed pre-implementation plan for
+3A.S1 only (no code yet).
+
+Files read (expanded doc + contracts + data-intake):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s1.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/artefact_registry_3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/data-intake/3A/zone_mixture_policy_3A.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml
+
+S1 objective (from spec):
+- Deterministic, RNG-free classification of each `(merchant_id, legal_country_iso)`
+  into monolithic vs escalated, writing `s1_escalation_queue` as the **sole**
+  authority for downstream 3A.S3/S4/S5.
+
+Authoritative inputs (must be sealed in S0):
+- S0 artefacts: `s0_gate_receipt_3A`, `sealed_inputs_3A`.
+- 1A egress: `outlet_catalogue` (seed + manifest_fingerprint scoped).
+- Sealed references: `iso3166_canonical_2024`, `tz_world_2025a`.
+- Sealed policy: `zone_mixture_policy` (schema `schemas.3A.yaml#/policy/zone_mixture_policy_v1`).
+- Optional sealed inputs: `site_timezones`, `tz_timetable_cache` (spec says S1
+  MUST NOT use per-site tzids for zone-count derivation).
+
+Planned implementation (stepwise, phase-aligned to spec):
+1) **Resolve S0 + sealed inputs**
+   - Resolve and validate `s0_gate_receipt_3A` and `sealed_inputs_3A` against
+     `schemas.3A.yaml#/validation/s0_gate_receipt_3A` and
+     `schemas.3A.yaml#/validation/sealed_inputs_3A`.
+   - Enforce upstream PASS via `s0_gate_receipt_3A.upstream_gates.*`.
+   - For each required artefact, confirm a matching row exists in
+     `sealed_inputs_3A` and recompute SHA-256 to match `sha256_hex`.
+
+2) **Load + validate mixture policy**
+   - Locate policy entry via `sealed_inputs_3A` and `sealed_policy_set`
+     (role must be `"zone_mixture_policy"`).
+   - Validate the policy against `schemas.3A.yaml#/policy/zone_mixture_policy_v1`.
+   - Derive `mixture_policy_id` (logical ID) and `mixture_policy_version`
+     (use the policy file `version`; fail if placeholder).
+   - Compute policy digest for optional `theta_digest` column.
+
+3) **Build country → Z(c) mapping**
+   - Use `tz_world_2025a` + country polygons to compute
+     `Z(c) = { tzid | tz_polygon(tzid) ∩ country_polygon(c) ≠ ∅ }`.
+   - Derive `zone_count_country(c) = |Z(c)|`.
+   - Cache `zone_count_country` in a dict keyed by `legal_country_iso`.
+   - If `zone_count_country` is missing for any `legal_country_iso` in scope,
+     fail with `E3A_S1_006_ZONE_STRUCTURE_INCONSISTENT` unless policy explicitly
+     allows a deterministic monolithic fallback.
+
+4) **Aggregate outlet counts**
+   - Read `outlet_catalogue` (columns: `merchant_id`, `legal_country_iso` only).
+   - Compute `site_count(m,c)` via group-by; enforce deterministic ordering by
+     sorting on `(merchant_id, legal_country_iso)`.
+
+5) **Apply mixture policy per (m,c)**
+   - Evaluate rules in policy order; first match wins.
+   - If no rule matches, apply deterministic hash mix using `theta_mix` as per
+     `zone_mixture_policy_3A` guide:
+     `u_det = (SHA256("3A.S1.theta_mix|m|c|parameter_hash")[:8]+0.5)/2^64`.
+   - Emit `decision_reason` exactly from policy; `is_escalated` implied by
+     decision_reason vocabulary (monolithic vs escalated).
+
+6) **Materialise `s1_escalation_queue`**
+   - Populate required columns per `schemas.3A.yaml#/plan/s1_escalation_queue`.
+   - Include optional columns when available: `theta_digest`,
+     `eligible_for_escalation`, `dominant_zone_share_bucket`, `notes`.
+   - Validate rows, sort by dictionary ordering, and write to
+     `data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={mf}/`.
+   - Enforce immutability: if dataset exists, compare row-by-row; if identical
+     skip/overwrite; else fail with immutability error.
+
+7) **Observability + run-report**
+   - Emit story header log: objective + gated inputs + outputs.
+   - Emit counts: pairs_total, pairs_escalated, pairs_monolithic, escalation_rate,
+     and zone-count bucket breakdown.
+   - Emit PASS/FAIL run-report per spec (status + error_code mapping).
+
+Performance + determinism notes:
+- Use Polars scan + group-by to avoid full in-memory outlet table.
+- Single pass over `tz_world_2025a` for Z(c); cache results.
+- Deterministic ordering for grouping and output writes.
+- RNG-free; no wall-clock time influences.
+
+Open confirmations needed before coding:
+1) **Country polygon source for Z(c):**
+   Spec defines `Z(c)` via tz polygons intersecting country polygons, but
+   `tz_world_2025a` schema does not include `country_iso`, and `iso3166` has no
+   geometry. Should we:
+   - add `world_countries_2024` (or equivalent) to 3A contracts + S0 sealing and
+     use spatial intersection, or
+   - treat `tz_world_2025a` as already country-tagged in the actual data and
+     update schema if needed?
+2) **Theta-mix hash step:**
+   The policy authoring guide pins the deterministic hash formula for `theta_mix`.
+   Confirm we should implement exactly that (SHA256-based `u_det`) for the
+   default branch when no rule matches.
+3) **Optional tz_timetable_cache cross-check:**
+   If `tz_timetable_cache` is sealed, should S1 validate that every tzid in `Z(c)`
+   exists in the compiled tz universe? (If not sealed, S1 will skip this check.)
+4) **Zone-count zero handling:**
+   If `zone_count_country(c)==0` for a country with outlets, should S1 always
+   fail (strict) or allow policy-driven monolithic fallback?
