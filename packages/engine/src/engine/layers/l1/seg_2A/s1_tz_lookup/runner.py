@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
 import time
 import uuid
@@ -16,6 +17,7 @@ import numpy as np
 import polars as pl
 from jsonschema import Draft202012Validator
 from shapely.geometry import Point
+from shapely.ops import nearest_points
 from shapely.strtree import STRtree
 
 try:
@@ -453,7 +455,16 @@ def _candidate_tzids(
 def _build_tz_index(
     tz_world_path: Path,
     logger,
-) -> tuple[list, list[str], STRtree, dict[int, int], set[str], dict[str, set[str]]]:
+) -> tuple[
+    list,
+    list[str],
+    STRtree,
+    dict[int, int],
+    set[str],
+    dict[str, set[str]],
+    dict[str, list[int]],
+    list[Optional[str]],
+]:
     if not _HAVE_GEOPANDAS:
         raise EngineFailure(
             "F4",
@@ -473,7 +484,9 @@ def _build_tz_index(
         )
     geoms: list = []
     tzids: list[str] = []
+    geom_countries: list[Optional[str]] = []
     country_tzids: dict[str, set[str]] = {}
+    country_geom_indices: dict[str, list[int]] = {}
     if "country_iso" in gdf.columns:
         country_values = gdf["country_iso"]
     else:
@@ -495,6 +508,9 @@ def _build_tz_index(
         for part in parts:
             geoms.append(part)
             tzids.append(tzid)
+            geom_countries.append(country)
+            if country:
+                country_geom_indices.setdefault(country, []).append(len(geoms) - 1)
     if not geoms:
         raise EngineFailure(
             "F4",
@@ -505,7 +521,50 @@ def _build_tz_index(
     )
     geom_index = {id(geom): idx for idx, geom in enumerate(geoms)}
     tree = STRtree(geoms)
-    return geoms, tzids, tree, geom_index, set(tzids), country_tzids
+    return geoms, tzids, tree, geom_index, set(tzids), country_tzids, country_geom_indices, geom_countries
+
+
+def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return radius * c
+
+
+def _nearest_tzid_for_country(
+    geoms: list,
+    tzids: list[str],
+    geom_countries: list[Optional[str]],
+    country_geom_indices: dict[str, list[int]],
+    country_key: Optional[str],
+    point: Point,
+) -> Optional[tuple[str, float]]:
+    if not country_key:
+        return None
+    indices = country_geom_indices.get(country_key)
+    if not indices:
+        return None
+    best_tzid: Optional[str] = None
+    best_dist: Optional[float] = None
+    for idx in indices:
+        geom = geoms[idx]
+        tzid = tzids[idx]
+        if geom_countries[idx] != country_key:
+            continue
+        nearest_point = nearest_points(point, geom)[1]
+        distance_m = _haversine_meters(point.y, point.x, nearest_point.y, nearest_point.x)
+        if best_dist is None or distance_m < best_dist:
+            best_dist = distance_m
+            best_tzid = tzid
+        elif best_dist is not None and distance_m == best_dist and best_tzid and tzid < best_tzid:
+            best_tzid = tzid
+    if best_tzid is None or best_dist is None:
+        return None
+    return best_tzid, best_dist
 
 
 def _write_batch(df: pl.DataFrame, batch_index: int, output_tmp: Path, logger) -> None:
@@ -551,6 +610,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         "overrides_mcc": 0,
         "overrides_country": 0,
         "overrides_country_singleton_auto": 0,
+        "fallback_nearest_within_threshold": 0,
+        "fallback_nearest_outside_threshold": 0,
     }
     checks = {
         "pk_duplicates": 0,
@@ -561,6 +622,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     writer_order_violation = False
     ambiguity_total = 0
     ambiguity_samples: list[dict] = []
+    fallback_samples: list[dict] = []
 
     try:
         receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -1099,14 +1161,22 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             )
         tz_nudge_semver = str(nudge_payload.get("semver", ""))
         tz_nudge_digest = str(nudge_payload.get("sha256_digest", ""))
+        threshold_meters = epsilon * 111000.0
         _emit_validation(logger, seed, manifest_fingerprint, "V-05", "pass")
 
         output_pack, output_table = _prepare_table_pack_with_layer1_defs(
             schema_2a, "plan/s1_tz_lookup", schema_layer1, "schemas.layer1.yaml"
         )
-        geoms, tzids, tree, geom_index, tzid_set, country_tzids = _build_tz_index(
-            tz_world_path, logger
-        )
+        (
+            geoms,
+            tzids,
+            tree,
+            geom_index,
+            tzid_set,
+            country_tzids,
+            country_geom_indices,
+            geom_countries,
+        ) = _build_tz_index(tz_world_path, logger)
         logger.info("S1: tz_world polygons loaded=%d", len(geoms))
 
         site_paths = _list_parquet_files(site_locations_path)
@@ -1217,62 +1287,113 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             if tzid is None:
                                 ambiguity_total += 1
                                 reason = "empty_candidates" if not candidate_list else "multi_candidates"
-                                if len(ambiguity_samples) < AMBIGUITY_SAMPLE_LIMIT:
-                                    ambiguity_samples.append(
+                                nearest = _nearest_tzid_for_country(
+                                    geoms,
+                                    tzids,
+                                    geom_countries,
+                                    country_geom_indices,
+                                    country_key,
+                                    point,
+                                )
+                                if nearest:
+                                    tzid, distance_m = nearest
+                                    if distance_m <= threshold_meters:
+                                        counts["fallback_nearest_within_threshold"] += 1
+                                        resolution_method = "nearest_within_threshold"
+                                        logger.info(
+                                            "S1: resolved border ambiguity via nearest polygon (method=within_threshold, country=%s, tzid=%s, distance_m=%.2f, threshold_m=%.2f, key=%s)",
+                                            country_key,
+                                            tzid,
+                                            distance_m,
+                                            threshold_meters,
+                                            key,
+                                        )
+                                    else:
+                                        counts["fallback_nearest_outside_threshold"] += 1
+                                        resolution_method = "nearest_outside_threshold"
+                                        logger.warning(
+                                            "S1: resolved border ambiguity via nearest polygon (method=outside_threshold, country=%s, tzid=%s, distance_m=%.2f, threshold_m=%.2f, key=%s)",
+                                            country_key,
+                                            tzid,
+                                            distance_m,
+                                            threshold_meters,
+                                            key,
+                                        )
+                                    if len(fallback_samples) < AMBIGUITY_SAMPLE_LIMIT:
+                                        fallback_samples.append(
+                                            {
+                                                "key": key,
+                                                "legal_country_iso": legal_country_iso,
+                                                "country_key": country_key,
+                                                "candidate_tzids": candidate_list,
+                                                "candidate_count": len(candidate_list),
+                                                "lat_deg": lat,
+                                                "lon_deg": lon,
+                                                "nudge_lat_deg": nudge_lat,
+                                                "nudge_lon_deg": nudge_lon,
+                                                "resolution_method": resolution_method,
+                                                "distance_m": distance_m,
+                                                "threshold_m": threshold_meters,
+                                                "reason": reason,
+                                            }
+                                        )
+                                else:
+                                    if len(ambiguity_samples) < AMBIGUITY_SAMPLE_LIMIT:
+                                        ambiguity_samples.append(
+                                            {
+                                                "key": key,
+                                                "legal_country_iso": legal_country_iso,
+                                                "country_key": country_key,
+                                                "candidate_tzids": candidate_list,
+                                                "candidate_count": len(candidate_list),
+                                                "lat_deg": lat,
+                                                "lon_deg": lon,
+                                                "nudge_lat_deg": nudge_lat,
+                                                "nudge_lon_deg": nudge_lon,
+                                                "reason": reason,
+                                            }
+                                        )
+                                    logger.error(
+                                        "S1: border ambiguity unresolved after nudge (reason=%s, country=%s, key=%s, candidates=%s)",
+                                        reason,
+                                        country_key,
+                                        key,
+                                        candidate_list,
+                                    )
+                                    _emit_failure_event(
+                                        logger,
+                                        "2A-S1-055",
+                                        seed,
+                                        manifest_fingerprint,
+                                        str(parameter_hash),
+                                        run_id,
                                         {
+                                            "detail": "border_ambiguity_unresolved",
+                                            "reason": reason,
                                             "key": key,
-                                            "legal_country_iso": legal_country_iso,
-                                            "country_key": country_key,
                                             "candidate_tzids": candidate_list,
                                             "candidate_count": len(candidate_list),
-                                            "lat_deg": lat,
-                                            "lon_deg": lon,
-                                            "nudge_lat_deg": nudge_lat,
-                                            "nudge_lon_deg": nudge_lon,
-                                            "reason": reason,
-                                        }
+                                            "nudge_lat": nudge_lat,
+                                            "nudge_lon": nudge_lon,
+                                            "country_key": country_key,
+                                        },
                                     )
-                                logger.error(
-                                    "S1: border ambiguity unresolved after nudge (reason=%s, country=%s, key=%s, candidates=%s)",
-                                    reason,
-                                    country_key,
-                                    key,
-                                    candidate_list,
-                                )
-                                _emit_failure_event(
-                                    logger,
-                                    "2A-S1-055",
-                                    seed,
-                                    manifest_fingerprint,
-                                    str(parameter_hash),
-                                    run_id,
-                                    {
-                                        "detail": "border_ambiguity_unresolved",
-                                        "reason": reason,
-                                        "key": key,
-                                        "candidate_tzids": candidate_list,
-                                        "candidate_count": len(candidate_list),
-                                        "nudge_lat": nudge_lat,
-                                        "nudge_lon": nudge_lon,
-                                        "country_key": country_key,
-                                    },
-                                )
-                                raise EngineFailure(
-                                    "F4",
-                                    "2A-S1-055",
-                                    STATE,
-                                    MODULE_NAME,
-                                    {
-                                        "detail": "border_ambiguity_unresolved",
-                                        "reason": reason,
-                                        "key": key,
-                                        "candidate_tzids": candidate_list,
-                                        "candidate_count": len(candidate_list),
-                                        "nudge_lat": nudge_lat,
-                                        "nudge_lon": nudge_lon,
-                                        "country_key": country_key,
-                                    },
-                                )
+                                    raise EngineFailure(
+                                        "F4",
+                                        "2A-S1-055",
+                                        STATE,
+                                        MODULE_NAME,
+                                        {
+                                            "detail": "border_ambiguity_unresolved",
+                                            "reason": reason,
+                                            "key": key,
+                                            "candidate_tzids": candidate_list,
+                                            "candidate_count": len(candidate_list),
+                                            "nudge_lat": nudge_lat,
+                                            "nudge_lon": nudge_lon,
+                                            "country_key": country_key,
+                                        },
+                                    )
                         else:
                             if override_tzid not in tzid_set:
                                 unknown_tzid += 1
@@ -1525,6 +1646,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             overrides_site=counts["overrides_site"],
             overrides_mcc=counts["overrides_mcc"],
             overrides_country=counts["overrides_country"],
+            fallback_nearest_within_threshold=counts["fallback_nearest_within_threshold"],
+            fallback_nearest_outside_threshold=counts["fallback_nearest_outside_threshold"],
         )
 
         _atomic_publish_dir(output_tmp, output_root, logger, "s1_tz_lookup")
@@ -1599,7 +1722,13 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         "total": ambiguity_total,
                         "sample_limit": AMBIGUITY_SAMPLE_LIMIT,
                         "samples": ambiguity_samples,
-                    }
+                    },
+                    "border_ambiguity_fallbacks": {
+                        "within_threshold": counts["fallback_nearest_within_threshold"],
+                        "outside_threshold": counts["fallback_nearest_outside_threshold"],
+                        "sample_limit": AMBIGUITY_SAMPLE_LIMIT,
+                        "samples": fallback_samples,
+                    },
                 },
                 "output": {"path": output_catalog_path, "format": "parquet"},
                 "warnings": warnings,

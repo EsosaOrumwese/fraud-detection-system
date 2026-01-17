@@ -3018,3 +3018,106 @@ Implementation actions:
 Follow-up:
 - Re-run `segment2a-s0` for runs using overrides to ensure V-09 passes or fails
   deterministically (no WARN-only skip).
+
+### Entry: 2026-01-17 17:30
+
+Design element: S1 ambiguity handling to avoid production aborts (border gaps / multi-tz).
+Summary: We are changing S1 to keep runs green when post-nudge candidate selection yields 0 or >1 tzids and no override applies. This is driven by repeated border-gap failures (BM/MN/etc) and the need to avoid production aborts. The change must keep the S1 output schema untouched (columns_strict) and preserve downstream S2/S5 expectations.
+
+Context + constraints:
+- S1 output `s1_tz_lookup` is columns_strict with tzid_provisional_source enum [polygon, override]; we cannot add new columns or enum values without a contract change.
+- S1 must emit exactly one row per site_locations input (1:1 coverage). Dropping rows or writing null tzids will violate S1 & S2 contracts.
+- Spec says: after nudge, if ambiguity remains and no override applies, MAY use country-singleton fallback; otherwise MUST abort (2A-S1-055). This is too brittle for production. We will deviate and log it.
+- Downstream S2 uses override provenance; we must keep override_applied false when we resolve via non-override fallback so S2 does not misclassify.
+
+Alternatives considered:
+1) Keep fail-closed (spec default). Rejected: repeated production aborts for border gaps.
+2) Add a new “exceptions” dataset + allow unresolved rows (tzid null). Rejected: violates S1 schema and 1:1 coverage; would break S2.
+3) Deterministic fallback that still outputs a tzid, with audit logs + run-report signals. Chosen: keep coverage while preserving determinism and auditability.
+
+Decision (approved by user):
+A) Keep override precedence (site > mcc > country).
+B) If no override applies and candidates empty or >1, attempt country-singleton fallback (already in code).
+C) If still unresolved, apply a deterministic nearest-polygon fallback using tz_world geometry for the SAME country ISO, with distance threshold derived from the sealed tz_nudge epsilon (meters = epsilon_degrees * 111_000). This uses only sealed inputs and avoids new policy fields.
+D) If the nearest polygon is beyond the threshold, still select it to preserve 1:1 coverage, but log a WARN and record an exception in the run-report (so operators can add explicit overrides later). This is the smallest deviation that prevents aborts.
+E) All fallback resolutions are emitted with tzid_provisional_source="polygon" and override_applied=false (schema-safe). The run-report records resolution_method so the story is visible.
+
+Implementation plan (before coding):
+1) Update S1 runner to track additional counters:
+   - fallback_country_singleton (already counted), fallback_nearest_within_threshold,
+     fallback_nearest_outside_threshold, fallback_multi_candidates_tie.
+2) Extend tz_world index builder to retain country_iso per geometry so nearest fallback can enforce same-ISO.
+3) Add helper to compute nearest geometry + distance:
+   - use STRtree.nearest + geom_index mapping;
+   - compute distance in meters using nearest_points + haversine;
+   - threshold_meters = epsilon_degrees * 111_000 (derivative of sealed policy).
+4) Modify ambiguity branch:
+   - after override + country-singleton attempts, compute nearest tzid (same-ISO).
+   - If distance <= threshold_meters: accept and log INFO (resolution_method=nearest_within_threshold).
+   - If distance > threshold_meters: accept and log WARN (resolution_method=nearest_outside_threshold) and append exception entry.
+   - If no same-ISO polygons exist (unexpected): fail with 2A-S1-055 (true data issue).
+5) Update run-report diagnostics block:
+   - include counts for fallback_nearest_{within,outside}_threshold
+   - include small sample list (key, country, tzid, distance_m, threshold_m, method).
+6) Logging (story aligned):
+   - narrative log when nearest fallback is used (key, country, tzid, distance_m, method),
+     and when outside-threshold fallback occurs (WARN).
+7) Cross-state considerations:
+   - No schema changes in s1_tz_lookup; tzid_provisional_source stays "polygon".
+   - S2/S5 continue to see a complete 1:1 dataset; override provenance remains accurate.
+
+Spec deviation note:
+- This adds a deterministic fallback not explicitly allowed by S1 spec (which would otherwise abort). I will log this in the logbook with rationale (production robustness + determinism) before coding.
+
+Next actions:
+1) Append logbook entry with this decision and rationale.
+2) Implement code changes in `seg_2A/s1_tz_lookup/runner.py`.
+3) Run `segment2a-s1` and verify logs + run-report reflect fallback counts.
+
+### Entry: 2026-01-17 17:42
+
+Design element: Implement nearest-polygon fallback for S1 ambiguity (post-nudge).
+Summary: Applied the plan from 17:30 to keep S1 green on border-gap/multi-candidate cases while preserving schema and 1:1 coverage.
+
+Changes applied:
+1) `seg_2A/s1_tz_lookup/runner.py`:
+   - Added tz_world geometry indexing by country + helpers for deterministic nearest lookup:
+     `_haversine_meters`, `_nearest_tzid_for_country` (same-ISO only).
+   - Added `threshold_meters = epsilon_degrees * 111000.0` so the fallback is derived from the sealed tz_nudge policy (no new inputs).
+   - In ambiguity branch (after overrides + country-singleton), if still unresolved:
+     * Select nearest tz_world polygon for the same ISO.
+     * If distance <= threshold: resolve and log INFO (method=within_threshold).
+     * If distance > threshold: resolve anyway to preserve 1:1 coverage, log WARN (method=outside_threshold), and record in run-report diagnostics.
+     * If no same-ISO polygons: retain 2A-S1-055 abort (true data hole).
+   - Counted fallback usage (`fallback_nearest_within_threshold`, `fallback_nearest_outside_threshold`) and emitted these in LOOKUP logs.
+   - Added fallback samples to the S1 run-report diagnostics for auditability.
+
+Notes on spec alignment:
+- This is a documented deviation from the S1 spec’s fail-closed requirement for post-nudge ambiguity. The deviation is narrow (same-ISO only), deterministic, and derived from sealed inputs. It avoids breaking downstream S2/S5 by maintaining the 1:1 plan output.
+
+Next steps:
+1) Re-run `segment2a-s1` (with the same run_id) so the new fallback logic is exercised and the run-report reflects fallback counts.
+2) If you want an explicit override for recurrent countries, we can still add them to tz_overrides; the fallback is an automatic safety net.
+
+### Entry: 2026-01-17 17:46
+
+Design element: S1 import failure due to stray `_build_tz_index` fragment.
+Summary: Resolved an IndentationError introduced during the fallback changes; removed the duplicated fragment so S1 imports cleanly.
+
+Actions:
+1) Edited `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py` to remove the stray lines:
+   - `tz_world_path, logger` and the extra closing `)` that were left after the refactor.
+2) Logged the fix in the logbook for traceability.
+
+Next step:
+- Re-run `make segment2a-s1 RUN_ID=970b0bd6833be3a0f08df8e8abf0364c`.
+
+### Entry: 2026-01-17 17:48
+
+Run validation: S1 executed with new fallback logic.
+- Command: `make segment2a-s1 RUN_ID=970b0bd6833be3a0f08df8e8abf0364c`
+- Result: GREEN. `s1_tz_lookup` emitted and run-report written under the run_id.
+- Observed fallback: MN resolved via nearest polygon (within threshold); logged in run-report diagnostics and LOOKUP counters.
+
+Next step:
+- Proceed to 2A.S2 or downstream states as needed; no further S1 fixes required based on this run.
