@@ -3321,6 +3321,196 @@ Detailed reasoning and decision:
      within EPSILON.
    - Add edge-log join cache keyed by utc_day with selection rows from
      s5_selection_log when `edge_log_enabled` and dictionary entry present.
-   - Log a story-style note once when `is_virtual` is missing in the roster
-     (defaulting to False), since this affects bypass behaviour.
+- Log a story-style note once when `is_virtual` is missing in the roster
+  (defaulting to False), since this affects bypass behaviour.
+
+### Entry: 2026-01-16 23:24
+
+Design element: Apply the S6 sealed-policy mismatch fix for run_id
+`2b22ab5c8c7265882ca6e50375802b26`.
+Summary: Execute the approved remediation (delete run-local S0 outputs, reseal,
+rerun S6) so the sealed_inputs digest matches the updated policy files.
+
+Detailed reasoning and decision:
+1) The error is a sealed digest mismatch for `virtual_edge_policy_v1` in S6,
+   which means sealed_inputs_2B still reflects the old policy digest.
+2) Spec posture is to trust S0 seals, so the correct fix is to reseal rather
+   than bypass validation. We avoid new run IDs to preserve the downstream
+   run-local tables already produced in S1-S5.
+3) Targeted deletion is safe because only S0 outputs encode sealed inputs:
+   - `runs/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=...`
+   - `runs/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=...`
+4) After deletion, rerun S0 to rebuild sealed_inputs and then rerun S6; if any
+   new validation issues arise, log them and fix incrementally.
+
+### Entry: 2026-01-16 23:27
+
+Design element: S6 rng_audit_log publish collision (2B-S6-080).
+Summary: S6 attempted to publish `rng_audit_log` but the run already contains
+an audit file from S5. The correct behaviour is to append a new audit record
+if missing (or no-op if present), not to re-publish the file.
+
+Detailed reasoning and decision:
+1) The run already has `logs/layer1/2B/rng/audit/.../rng_audit_log.jsonl`
+   written by S5. S6 calls `_atomic_publish_file` and fails because the file
+   exists and differs.
+2) Other states (1B S5/S6) use append semantics for rng_audit_log with a
+   “present already” check keyed by run_id+seed+parameter_hash+fingerprint.
+3) Decision: implement `_ensure_rng_audit` in S6 (and align S5) to:
+   - check for an existing audit row matching the current run signature,
+     return if found;
+   - append the audit row if the file exists but the row is missing;
+   - create the file if it does not exist.
+4) This preserves resumability and avoids destructive deletes of audit logs.
+
+### Entry: 2026-01-16 23:30
+
+Design element: S6 sealed policy digest mismatch after policy edits.
+Summary: S6 failed with 2B-S6-020 because `virtual_edge_policy_v1` sha256
+in `sealed_inputs_2B` no longer matches the updated policy file.
+
+Detailed reasoning and decision:
+1) Diagnosis: S0 sealed `virtual_edge_policy_v1` earlier (digest A), but the
+   policy JSON was later updated (digest B). S6 correctly blocks on mismatch.
+2) Spec posture: S6 must trust S0 sealed inventory; therefore the fix is to
+   re-run S0 to re-seal the policy (or start a new run if immutable outputs
+   must be preserved).
+3) Lowest-impact fix: delete only the S0 outputs for this run_id and manifest
+   (run-local `s0_gate_receipt` + `sealed_inputs` folders) and re-run S0.
+   This keeps the run-local arrival roster and downstream tables intact.
+4) Execution plan:
+   - Remove:
+     `runs/<run_id>/data/layer1/2B/s0_gate_receipt/manifest_fingerprint=...`
+     and
+     `runs/<run_id>/data/layer1/2B/sealed_inputs/manifest_fingerprint=...`
+   - Re-run `make segment2b-s0 RUN_ID=<current>` to reseal policies.
+   - Re-run `make segment2b-s6 RUN_ID=<current>` to verify S6 green.
+
+### Entry: 2026-01-16 23:33
+
+Design element: Implement append-style rng_audit_log handling in 2B S5/S6.
+Summary: Replaced atomic publish of rng_audit_log in S5/S6 with an
+append-or-noop helper to avoid collisions when multiple states write to the
+run-scoped audit log.
+
+Detailed reasoning and decision:
+1) Implemented `_ensure_rng_audit` in both runners to mirror 1B behaviour:
+   - If a matching row already exists (run_id+seed+parameter_hash+fingerprint),
+     log and return.
+   - If file exists but row missing, append.
+   - If file missing, create it.
+2) Removed audit tmp file write and `_atomic_publish_file` calls for
+   rng_audit_log; kept audit payload validation and structure unchanged.
+3) Next step: rerun `make segment2b-s6 RUN_ID=...` to confirm S6 green without
+   deleting existing audit logs.
+
+### Entry: 2026-01-16 23:36
+
+Design element: Validate S6 rerun after audit-log append fix.
+Summary: Reran S0 to reseal policies and reran S6; S6 completed with
+`rng_audit_log already contains audit row` and no publish collision.
+
+Detailed reasoning and decision:
+1) S0 reseal confirmed `virtual_edge_policy_v1` digest updated in
+   sealed_inputs_2B for the current run_id.
+2) S6 completed successfully without deleting the existing audit log, which
+   validates the append/no-op behaviour and preserves resumability.
+
+### Entry: 2026-01-16 23:38
+
+Design element: Normalize s5_arrival_roster to include `is_virtual`.
+Summary: Add `is_virtual` to the run-scoped arrival roster so downstream S6
+can read explicit virtual flags instead of defaulting.
+
+Detailed reasoning and decision:
+1) Current roster rows only carry `{merchant_id, utc_timestamp, utc_day}`.
+   S6 already accepts missing `is_virtual` but logs a warning and treats
+   all rows as non-virtual. For now, we want explicit `is_virtual=false`
+   until the upstream 5B owner provides true virtual flags.
+2) Since the roster is a run-scoped input sealed by S0, we must edit the
+   roster file and then re-run S0 to re-seal its digest (avoid mismatch in S5).
+3) Implementation plan:
+   - Add a small script to rewrite the JSONL roster in-place, inserting
+     `is_virtual` when missing (default false), while preserving existing
+     `is_virtual` values if already present.
+   - Add a Makefile helper target to run the script for a given RUN_ID,
+     reading `seed` + `parameter_hash` from `run_receipt.json`.
+   - After normalization, rerun `make segment2b-s0 RUN_ID=<run_id>` to reseal.
+
+### Entry: 2026-01-16 23:40
+
+Design element: Reseal S0 after roster normalization (receipt collision).
+Summary: S0 reseal failed due to existing `s0_gate_receipt_2B` and
+`sealed_inputs_2B` outputs; remove the run-local partitions and rerun S0.
+
+Detailed reasoning and decision:
+1) The roster digest changed, so S0 must emit a new receipt + sealed_inputs.
+2) Atomic publish fails if a non-identical receipt already exists (2B-S0-080).
+3) Spec posture allows deleting run-local S0 outputs to reseal the same run_id.
+4) Plan: remove `data/layer1/2B/s0_gate_receipt/manifest_fingerprint=...` and
+   `data/layer1/2B/sealed_inputs/manifest_fingerprint=...`, then rerun S0.
+
+### Entry: 2026-01-16 23:41
+
+Design element: Execute roster normalization + S0 reseal.
+Summary: Normalized the run-scoped roster to include `is_virtual=false` and
+successfully resealed S0 for the current run_id.
+
+Detailed reasoning and decision:
+1) Ran `scripts/normalize_arrival_roster.py` via Makefile to add `is_virtual`
+   to all roster rows (default false).
+2) Deleted the S0 receipt + sealed_inputs partitions to allow S0 to publish
+   updated digests.
+3) Reran `make segment2b-s0 RUN_ID=2b22ab5c8c7265882ca6e50375802b26` and
+   confirmed S0 PASS with updated roster digest.
+
+### Entry: 2026-01-16 23:48
+
+Design element: Rebuild missing s5_arrival_roster and ensure it carries
+`is_virtual`.
+Summary: Extend the roster normalizer to generate a roster when missing,
+using upstream `site_locations` and a fixed UTC day, and include
+`is_virtual=false` in each row.
+
+Detailed reasoning and decision:
+1) The run-local roster file was missing, causing S5 to fail with
+   2B-S5-020 required_asset_missing even though S0 ran.
+2) The spec allows generating a run-scoped roster from upstream sealed inputs
+   (site_locations) for standalone/batch runs; this avoids dependencies on
+   S1 outputs.
+3) Implementation plan:
+   - If the roster file is absent, scan `site_locations` parquet (merchant_id
+     only), build one row per merchant_id with `utc_day=2024-01-01`,
+     `utc_timestamp=2024-01-01T00:00:00.000000Z`, and `is_virtual=false`.
+   - Write JSONL to the dictionary path; then rerun S0 to reseal the digest.
+
+### Entry: 2026-01-16 23:49
+
+Design element: Avoid polars streaming panic when scanning site_locations.
+Summary: Switch roster generation to non-streaming `read_parquet` to avoid
+the deprecated streaming engine failure on Parquet.
+
+Detailed reasoning and decision:
+1) `pl.scan_parquet(...).collect(streaming=True)` panics with
+   "Parquet no longer supported for old streaming engine" in the current
+   Polars version.
+2) Dataset size for `site_locations` is manageable for a one-time unique
+   merchant_id pass in this run; prefer correctness over streaming.
+3) Use `pl.read_parquet(site_paths, columns=["merchant_id"]).unique()` to
+   collect merchant_ids deterministically.
+
+### Entry: 2026-01-16 23:55
+
+Design element: Resolve S5 created_utc mismatch after resealing S0.
+Summary: Resealing S0 updates `created_utc`, so downstream S1–S4 outputs must
+be regenerated to match the new receipt timestamp before S5 can proceed.
+
+Detailed reasoning and decision:
+1) S5 validates that upstream run-local outputs share the same `created_utc`
+   as the current S0 receipt. After resealing S0, older S1 outputs now fail
+   the check (2B-S5-086).
+2) Correct fix is to rerun S1–S4 for the same run_id after the new S0 so their
+   `created_utc` matches the receipt.
+3) Plan: remove run-local `data/layer1/2B/s1_site_weights`, `s2_alias_*`,
+   `s3_day_effects`, `s4_group_weights` partitions and rerun S1–S4, then S5.
 

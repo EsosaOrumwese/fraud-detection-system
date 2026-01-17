@@ -1297,7 +1297,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-arrival-roster merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
 all: segment1a segment1b segment2a
@@ -1589,6 +1589,10 @@ segment2b-s5:
 segment2b-s6:
 	@echo "Running Segment 2B S6 edge router"
 	@$(SEG2B_S6_CMD)
+
+segment2b-arrival-roster:
+	@echo "Normalizing 2B arrival roster (add is_virtual if missing)"
+	@$(PY_SCRIPT) scripts/normalize_arrival_roster.py --run-id "$(RUN_ID)" --runs-root "$(RUNS_ROOT)"
 
 segment2b: segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6
 

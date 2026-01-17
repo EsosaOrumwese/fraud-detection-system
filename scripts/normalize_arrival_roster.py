@@ -1,0 +1,134 @@
+"""Normalize or build 2B arrival roster with is_virtual defaults."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import polars as pl
+
+
+def _parse_bool(value: str) -> bool:
+    value = value.strip().lower()
+    if value in {"true", "1", "yes"}:
+        return True
+    if value in {"false", "0", "no"}:
+        return False
+    raise ValueError(f"Invalid boolean value: {value}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--runs-root", default="runs/local_full_run-5")
+    parser.add_argument("--default-is-virtual", default="false")
+    args = parser.parse_args()
+
+    run_id = args.run_id.strip()
+    runs_root = Path(args.runs_root)
+    default_is_virtual = _parse_bool(args.default_is_virtual)
+
+    receipt_path = runs_root / run_id / "run_receipt.json"
+    if not receipt_path.exists():
+        raise SystemExit(f"Run receipt not found: {receipt_path}")
+
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    seed = receipt.get("seed")
+    parameter_hash = receipt.get("parameter_hash")
+    if seed is None or not parameter_hash:
+        raise SystemExit(f"Missing seed or parameter_hash in receipt: {receipt_path}")
+
+    roster_path = (
+        runs_root
+        / run_id
+        / "data"
+        / "layer1"
+        / "2B"
+        / "s5_arrival_roster"
+        / f"seed={seed}"
+        / f"parameter_hash={parameter_hash}"
+        / f"run_id={run_id}"
+        / "arrival_roster.jsonl"
+    )
+    if not roster_path.exists():
+        manifest_fingerprint = receipt.get("manifest_fingerprint")
+        if not manifest_fingerprint:
+            raise SystemExit(f"Missing manifest_fingerprint in receipt: {receipt_path}")
+        site_root = (
+            runs_root
+            / run_id
+            / "data"
+            / "layer1"
+            / "1B"
+            / "site_locations"
+            / f"seed={seed}"
+            / f"manifest_fingerprint={manifest_fingerprint}"
+        )
+        if site_root.is_file():
+            site_paths = [site_root]
+        else:
+            site_paths = sorted(site_root.glob("*.parquet"))
+        if not site_paths:
+            raise SystemExit(f"site_locations parquet not found under: {site_root}")
+
+        utc_day = "2024-01-01"
+        utc_timestamp = "2024-01-01T00:00:00.000000Z"
+        roster_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = roster_path.with_suffix(".jsonl.tmp")
+
+        df = pl.read_parquet(site_paths, columns=["merchant_id"]).unique()
+        merchant_ids = df.get_column("merchant_id").to_list()
+        with tmp_path.open("w", encoding="utf-8") as handle:
+            for merchant_id in merchant_ids:
+                payload = {
+                    "merchant_id": int(merchant_id),
+                    "utc_timestamp": utc_timestamp,
+                    "utc_day": utc_day,
+                    "is_virtual": default_is_virtual,
+                }
+                handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
+                handle.write("\n")
+        tmp_path.replace(roster_path)
+        print(
+            "Generated arrival roster:",
+            f"path={roster_path}",
+            f"rows={len(merchant_ids)}",
+            f"default_is_virtual={default_is_virtual}",
+        )
+        return
+
+    tmp_path = roster_path.with_suffix(".jsonl.tmp")
+    total = 0
+    updated = 0
+    kept = 0
+
+    with roster_path.open("r", encoding="utf-8") as handle, tmp_path.open(
+        "w", encoding="utf-8"
+    ) as tmp_handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            payload = json.loads(line)
+            total += 1
+            if "is_virtual" not in payload:
+                payload["is_virtual"] = default_is_virtual
+                updated += 1
+            else:
+                kept += 1
+            tmp_handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
+            tmp_handle.write("\n")
+
+    tmp_path.replace(roster_path)
+    print(
+        "Normalized arrival roster:",
+        f"path={roster_path}",
+        f"rows={total}",
+        f"added_is_virtual={updated}",
+        f"kept_existing={kept}",
+    )
+
+
+if __name__ == "__main__":
+    main()

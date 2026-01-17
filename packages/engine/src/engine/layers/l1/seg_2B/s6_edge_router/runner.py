@@ -321,6 +321,38 @@ def _atomic_publish_file(tmp_path: Path, final_path: Path, logger, label: str) -
     return False
 
 
+def _ensure_rng_audit(audit_path: Path, audit_entry: dict, logger, state_label: str) -> None:
+    if audit_path.exists():
+        with audit_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                payload = json.loads(line)
+                if (
+                    payload.get("run_id") == audit_entry.get("run_id")
+                    and payload.get("seed") == audit_entry.get("seed")
+                    and payload.get("parameter_hash") == audit_entry.get("parameter_hash")
+                    and payload.get("manifest_fingerprint") == audit_entry.get("manifest_fingerprint")
+                ):
+                    logger.info(
+                        "%s: rng_audit_log already contains audit row for run_id=%s",
+                        state_label,
+                        audit_entry["run_id"],
+                    )
+                    return
+        with audit_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(audit_entry, ensure_ascii=True, sort_keys=True))
+            handle.write("\n")
+        logger.info("%s: appended rng_audit_log entry for run_id=%s", state_label, audit_entry["run_id"])
+        return
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text(
+        json.dumps(audit_entry, ensure_ascii=True, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    logger.info("%s: wrote rng_audit_log entry for run_id=%s", state_label, audit_entry["run_id"])
+
+
 def _read_last_json_line(path: Path) -> Optional[dict]:
     if not path.exists():
         return None
@@ -1029,7 +1061,6 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
 
     event_tmp = event_tmp_dir / "part-00000.jsonl"
     trace_tmp_path = tmp_root / "rng_trace_log.jsonl"
-    audit_tmp_path = tmp_root / "rng_audit_log.jsonl"
 
     trace_acc = RngTraceAccumulator()
     edge_handles: dict[str, tuple[Path, object]] = {}
@@ -1200,7 +1231,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     audit_errors = list(audit_validator.iter_errors(audit_payload))
     if audit_errors:
         _abort("2B-S6-050", "V-11", "rng_audit_invalid", {"error": audit_errors[0].message})
-    audit_tmp_path.write_text(json.dumps(audit_payload, ensure_ascii=True, sort_keys=True) + "\n", encoding="utf-8")
+    # rng_audit_log is append-only across states; only add a row if missing.
 
     rng_draws_total = rng_events
     if rng_events != virtual_total:
@@ -1246,7 +1277,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
         event_tmp.unlink(missing_ok=True)
 
     _atomic_append_file(trace_tmp_path, trace_output, logger, "rng_trace_log")
-    _atomic_publish_file(audit_tmp_path, audit_output, logger, "rng_audit_log")
+    _ensure_rng_audit(audit_output, audit_payload, logger, "S6")
 
     if edge_log_enabled and edge_log_entry:
         for utc_day, (tmp_path, _handle) in edge_handles.items():
