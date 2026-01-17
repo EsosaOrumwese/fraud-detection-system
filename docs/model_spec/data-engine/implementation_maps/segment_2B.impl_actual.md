@@ -4160,3 +4160,75 @@ Results:
   validations all pass after aligning header qbits with `record_layout.prob_qbits`
   and removing streaming collects.
 
+### Entry: 2026-01-17 09:19
+
+Design element: 2B.S8 validation bundle & `_passed.flag`.
+
+Summary: S8 is a deterministic, RNG-free packager. It must verify S0 evidence
+and S7 PASS coverage for a deterministic seed set, then assemble a
+manifest_fingerprint-scoped validation bundle with canonical `index.json` and
+`_passed.flag`. No re-auditing, no network I/O, Dictionary-only resolution.
+
+Sources reviewed:
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s8.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+
+Plan (before implementation):
+1) Inputs & authority:
+   - Resolve by Dataset Dictionary ID only.
+   - Require S0 evidence (`s0_gate_receipt_2B`, `sealed_inputs_2B`) at
+     `[manifest_fingerprint]`.
+   - Require `s7_audit_report` at `[seed, manifest_fingerprint]` for each seed
+     in the discovery set and enforce `summary.overall_status == PASS`.
+   - Resolve S2/S3/S4 outputs (`s2_alias_index`, `s2_alias_blob`,
+     `s3_day_effects`, `s4_group_weights`) at `[seed, manifest_fingerprint]`
+     for seed discovery and optional provenance snapshots (no re-audit).
+   - Resolve policies (`alias_layout_policy_v1`, `route_rng_policy_v1`,
+     `virtual_edge_policy_v1`) by exact S0-sealed path+sha256 (partition `{}`).
+2) Seed discovery:
+   - Build seed sets from S2/S3/S4 presence under the manifest_fingerprint.
+   - Required seeds = intersection; if empty -> abort.
+   - Deterministic ordering: ASCII-lex on decimal seed strings.
+3) Audit prerequisite:
+   - For every required seed: validate S7 report against
+     `schemas.2B.yaml#/validation/s7_audit_report_v1` and require PASS.
+   - Path↔embed equality check for `seed`/`manifest_fingerprint` inside each
+     report.
+4) Bundle layout (deterministic, write-once):
+   - Create temp workspace under `runs/<run_id>/tmp/` (run-local).
+   - Place S7 reports under `reports/seed={seed}/s7_audit_report.json`.
+   - Place S0 evidence under `evidence/s0/` (receipt + sealed_inputs).
+   - Optional evidence snapshots: policies and/or S2/S3/S4 digests under
+     `evidence/refs/` if we decide to include them.
+5) Canonical index + flag:
+   - Build `index.json` entries `{path, sha256_hex}` with relative paths only,
+     ASCII-lex by path, `_passed.flag` excluded, fields-strict.
+   - Compute bundle digest = SHA256(concat(indexed file bytes in path order)).
+   - Write `_passed.flag` single line: `sha256_hex = <hex64>`.
+6) Publish:
+   - Atomic move to
+     `data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/`
+     (write-once). If existing, allow idempotent re-emit only if byte-identical
+     (otherwise abort).
+7) Run-report:
+   - Emit one JSON to STDOUT only (per spec) with seed coverage, inputs_digest,
+     bundle digest proofs, validators + summary.
+8) Logging:
+   - Story header: objective + gated inputs + outputs.
+   - Phase logs for seed discovery, S7 PASS checks, hashing/index, flag, publish.
+   - Progress logs for file hashing (elapsed, count/total, rate, ETA).
+9) Reuse helpers:
+   - Prefer shared bundle helper from 1A.S9 / 1B.S8 for index+flag construction
+     if already present to ensure canonical behavior.
+
+Open confirmations (need owner decision before coding):
+1) Evidence inclusion: Should the bundle include full S2/S3/S4 files and policy
+   snapshots, or only S0 evidence + S7 reports? Spec allows optional evidence
+   snapshots but doesn’t mandate them.
+2) S7 WARN handling: OK to allow WARN-only S7 reports (PASS required), or
+   should WARN be treated as fail in S8?
+3) Reuse helper: OK to reuse the existing validation-bundle helper from 1A/1B
+   for index/flag creation to guarantee identical bundle law?
+
