@@ -3556,3 +3556,25 @@ Detailed reasoning and decision:
 4) If parsing fails, keep the deterministic timestamp and let the mismatch
    surface as an error (corrupted output should not be silently overwritten).
 
+### Entry: 2026-01-17 01:00
+
+Design element: S5 RNG log re-run blocked by non-identical outputs.
+Summary: `2B-S5-080` triggered because prior RNG log files already existed for
+the same run_id, and the new outputs differed. To preserve the write-once
+contract without overwriting, we cleared the run-local log files and re-ran S5.
+
+Detailed reasoning and decision:
+1) `_atomic_publish_file` is intentionally strict: it fails if a file already
+   exists but its hash differs. This is the right default to protect
+   determinism and avoid silent overwrites.
+2) The existing RNG log files were produced by an earlier S5 run with different
+   inputs (policy/roster revisions). For the same run_id, that makes the new
+   outputs non-identical, so the publish correctly aborted.
+3) Since the intended behaviour for reruns is to *explicitly* clear outputs
+   when inputs changed, the safest fix is to delete the run-local RNG log files
+   for `alias_pick_group`, `alias_pick_site`, and `rng_trace_log` and then
+   re-run S5. This preserves the write-once contract while allowing a clean
+   regeneration.
+4) After clearing the logs, re-run `segment2b-s5` and `segment2b-s6`. Both
+   states completed successfully, confirming the log cleanup was sufficient.
+
