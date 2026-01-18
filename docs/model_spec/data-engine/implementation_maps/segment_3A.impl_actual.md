@@ -1369,3 +1369,143 @@ Logging commitments (story-driven):
 If any of the above choices need to change mid-implementation, I will append a
 new entry documenting the alternative considered, the change, and the reason
 before editing code.
+
+### Entry: 2026-01-18 01:21
+
+Implementation start checkpoint for S2 (pre-code). This entry captures the
+first concrete mechanics decisions I need to lock in before touching code.
+
+1) **sealed_inputs_3A format handling**
+   - Decision: accept the contract JSON list as authoritative, but add a
+     *non-invasive* fallback: if JSON parsing fails and the path is a parquet,
+     load via Polars and treat each row as a sealed_inputs record.
+   - Rationale: existing test harnesses sometimes materialize sealed inputs as
+     parquet; this keeps dev runs unblocked without changing the prod contract.
+   - Constraint: fallback only if JSON cannot be read; it will not be used
+     when the JSON file is valid.
+
+2) **Immutability comparison**
+   - Decision: if `s2_country_zone_priors` already exists, read all parquet
+     files, sort by `[country_iso, tzid]`, and compare to the newly computed
+     DataFrame using exact equality (no tolerance).
+   - Rationale: output is deterministic; exact comparisons are required by
+     the immutability contract and avoid hiding drift.
+   - If mismatch: raise `E3A_S2_011_IMMUTABILITY_VIOLATION` and do not overwrite.
+
+3) **Output file layout**
+   - Decision: write a single `part-00000.parquet` under the parameter hash
+     partition (the dataset is small and fits in memory).
+   - Rationale: stable layout, simplest to hash/compare, aligns with other
+     small parameter-scoped outputs.
+
+4) **Error-code mapping choices**
+   - Missing/invalid S0 artefacts -> `E3A_S2_001_S0_GATE_OR_SEALED_INPUTS_INVALID`.
+   - Missing/malformed catalogue artefacts -> `E3A_S2_002_CATALOGUE_MALFORMED`.
+   - Missing or ambiguous policy/prior -> `E3A_S2_003_PRIOR_OR_POLICY_MISSING_OR_AMBIGUOUS`.
+   - Policy/prior schema violations -> `E3A_S2_004_PRIOR_OR_POLICY_SCHEMA_INVALID`.
+   - Unknown country or empty Z(c) -> `E3A_S2_005_ZONE_UNIVERSE_MISMATCH`.
+   - sealed_inputs digest/path mismatch -> `E3A_S2_006_SEALED_INPUT_MISMATCH`.
+   - Missing tzids in priors (vs Z(c)) -> `E3A_S2_007_DOMAIN_MISMATCH_UNIVERSE`.
+   - Alpha sum or share consistency failures -> `E3A_S2_008_ALPHA_VECTOR_DEGENERATE_OR_INCONSISTENT`.
+   - Output schema violations -> `E3A_S2_009_OUTPUT_SCHEMA_INVALID`.
+   - Lineage inconsistency -> `E3A_S2_010_LINEAGE_INCONSISTENT`.
+   - Output partition conflict -> `E3A_S2_011_IMMUTABILITY_VIOLATION`.
+   - Any unexpected I/O/infra failure -> `E3A_S2_012_INFRASTRUCTURE_IO_ERROR`.
+
+With these choices recorded, I can proceed to implement the S2 runner + CLI +
+Makefile wiring.
+
+### Entry: 2026-01-18 01:26
+
+Pre-coding alignment checkpoint (logging + wiring context before edits).
+Purpose: confirm the concrete implementation flow, logging cadence, and Makefile
+targets so the S2 work lands consistent with existing S1/S0 style.
+
+Evidence used:
+- Run log style sampled from the current run:
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/run_log_970b0bd6833be3a0f08df8e8abf0364c.log`
+  (story headers, phase logs, progress cadence with elapsed/rate/ETA).
+- Contracts refreshed:
+  `docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml`,
+  `docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml`.
+- Error code section checked in:
+  `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s2.expanded.md`.
+
+Implementation alignment decisions (to avoid drift from prior engineer):
+1) **Logging cadence & structure**
+   - Emit a story header log before any heavy work:
+     objective + gated inputs + outputs.
+   - Use phase logs (StepTimer) between major phases (gate, sealed inputs,
+     policy load, Z(c) derivation, alpha derivation, publish).
+   - Use progress logs with elapsed/rate/ETA for long loops (country iteration
+     in Z(c) and alpha derivation), matching the run-log pattern.
+
+2) **CLI + Makefile integration**
+   - Mirror `s1_escalation_3a` CLI shape for S2 (`--contracts-layout`,
+     `--contracts-root`, `--runs-root`, `--external-root`, `--run-id`).
+   - Add `segment3a-s2` target and wire into `segment3a` chain after S1.
+   - Add `SEG3A_S2_RUN_ID` + `SEG3A_S2_ARGS/CMD` in Makefile near S0/S1 blocks.
+
+3) **Contracts-root alignment**
+   - Continue to resolve contracts via `EngineConfig` with `contracts_layout`
+     so switching from model_spec to root contracts remains config-only.
+
+Implementation steps (immediate next actions):
+1) Create `packages/engine/src/engine/layers/l1/seg_3A/s2_priors/runner.py`
+   following S1's patterns, using S0 helper imports where possible.
+2) Add `packages/engine/src/engine/layers/l1/seg_3A/s2_priors/__init__.py`.
+3) Add `packages/engine/src/engine/cli/s2_priors_3a.py`.
+4) Update Makefile with `segment3a-s2` and S2 run args variables.
+
+If any deviation from these alignment decisions becomes necessary during coding,
+I will append a new entry before the change is applied.
+
+### Entry: 2026-01-18 01:45
+
+Implementation actions completed (S2 coding pass) + small in-flight decisions.
+
+Files created/updated:
+- `packages/engine/src/engine/layers/l1/seg_3A/s2_priors/runner.py`
+  - Full S2 runner with gate + sealed input validation, prior/floor parsing,
+    Z(c) derivation via STRtree + antimeridian split, floor/bump application,
+    output schema validation, immutability checks, and run-report emission.
+- `packages/engine/src/engine/layers/l1/seg_3A/s2_priors/__init__.py`
+  - Export `run_s2`.
+- `packages/engine/src/engine/cli/s2_priors_3a.py`
+  - CLI wrapper mirroring S0/S1 args.
+- `makefile`
+  - Added `SEG3A_S2_RUN_ID`, `SEG3A_S2_ARGS/CMD`, `segment3a-s2` target, and
+    extended `segment3a` chain and `.PHONY` list.
+
+Micro-decisions locked during coding:
+1) **Immutability comparison mechanism**
+   - Use Polars `DataFrame.equals` for the primary equality check.
+   - If equality fails but shapes match, compute `difference_count` using
+     anti-joins on all columns (exact match) to populate
+     `E3A_S2_011_IMMUTABILITY_VIOLATION` context.
+   - Rationale: `equals` is the most direct strict comparison available in
+     Polars; anti-joins give a deterministic difference count without
+     introducing tolerance.
+
+2) **tz cache release-tag mismatch mapping**
+   - If `tz_timetable_cache` is sealed and its `tzdb_release_tag` disagrees
+     with the tz_world tag, fail with
+     `E3A_S2_005_ZONE_UNIVERSE_MISMATCH` and `reason="unmappable_tzid"`.
+   - Rationale: spec does not define a dedicated reason for release-tag
+     mismatch; this preserves the error family while capturing the detail.
+
+3) **Domain mismatch enforcement (re-confirmed)**
+   - Extra prior tzids -> `E3A_S2_005_ZONE_UNIVERSE_MISMATCH`.
+   - Missing prior tzids -> `E3A_S2_007_DOMAIN_MISMATCH_UNIVERSE`.
+   - Implemented by precomputing missing/extra counts before alpha derivation.
+
+Next steps:
+- Sanity-check the runner for syntax/logic errors.
+- Run the requested `make segment2b-s2` and fix any errors (logging decisions).
+
+### Entry: 2026-01-18 01:47
+
+Small correctness fix during S2 review:
+- Adjusted `zone_count_buckets` aggregation to use the full list of
+  per-country zone counts (no set-deduplication), ensuring accurate frequency
+  counts in the run-report.
