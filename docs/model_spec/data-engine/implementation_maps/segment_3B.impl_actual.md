@@ -307,3 +307,47 @@ Next action (pending user input):
   `ENGINE_EXTERNAL_ROOTS` or move the file into `artefacts/rasters/`.
 - Otherwise, schedule a long-running offline build outside the CLI timeout
   and re-run `make segment3b-s0` afterward.
+
+---
+
+### Entry: 2026-01-18 14:26
+
+HRSL acquisition path switched to AWS CLI sync + local VRT layout.
+
+Problem:
+- Remote VRT streaming is too slow; user requested that `make hrsl_raster`
+  use AWS CLI instead of the HTTP/VRT downloader path.
+- The S3 bucket layout places `hrsl_general-latest.vrt` under
+  `hrsl-cogs/hrsl_general/`, but the build script only recognized VRTs at the
+  local root and looked for tiles under `local_root/v1`.
+
+Decision:
+- Make `make hrsl_raster` sync the `hrsl_general/` prefix from S3 into
+  `artefacts/rasters/source/hrsl/hrsl_general` before running the build.
+- Update the build script to resolve local VRTs either at the root or inside
+  `hrsl_general/` and to require local tiles when the caller requests it.
+
+Rationale:
+- AWS CLI sync is faster and more reliable than streaming the VRT over HTTP.
+- The bucket layout matches `hrsl_general/` and should be treated as the
+  canonical local layout after sync.
+- Enforcing a local-only run in `make` prevents accidental fallback to
+  remote streaming during long builds.
+
+Implementation notes:
+- `makefile`:
+  - Added `HRSL_S3_BUCKET`, `HRSL_LOCAL_ROOT`, and `HRSL_S3_SYNC_CMD`.
+  - `hrsl_raster` target now runs `aws s3 sync --no-sign-request` to fetch the
+    VRT + tiles, then calls the Python script with `--local-root` and
+    `--require-local`.
+- `scripts/build_hrsl_raster_3b.py`:
+  - Added `resolve_local_vrt()` to find `hrsl_general-latest.vrt` or
+    `hrsl_general.vrt` under `local_root/` or `local_root/hrsl_general/`.
+  - Added `--require-local` flag to fail closed if local tiles/VRT are missing.
+  - Kept the remote VRT fallback for direct script runs without
+    `--require-local`.
+
+Validation plan:
+- Run `make hrsl_raster` to ensure AWS sync completes and the build uses the
+  local VRT layout.
+- Re-run `make segment3b-s0` to confirm `hrsl_raster` sealing succeeds.

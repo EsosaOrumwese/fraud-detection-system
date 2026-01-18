@@ -1468,6 +1468,9 @@ VIRTUAL_VALIDATION_CMD = $(PY_SCRIPT) scripts/build_virtual_validation_3b.py
 CDN_KEY_DIGEST_CMD = $(PY_SCRIPT) scripts/build_cdn_key_digest_3b.py
 HRSL_VINTAGE = HRSL_2025-12-31
 HRSL_SEMVER = 1.0.0
+HRSL_S3_BUCKET ?= s3://dataforgood-fb-data/hrsl-cogs/hrsl_general/
+HRSL_LOCAL_ROOT ?= artefacts/rasters/source/hrsl
+HRSL_S3_SYNC_CMD = aws s3 sync --no-sign-request $(HRSL_S3_BUCKET) "$(HRSL_LOCAL_ROOT)/hrsl_general"
 HRSL_RASTER_CMD = $(PY_SCRIPT) scripts/build_hrsl_raster_3b.py --vintage $(HRSL_VINTAGE) --semver $(HRSL_SEMVER)
 PELIAS_VERSION = 2025-12-31
 PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --pelias-version $(PELIAS_VERSION)
@@ -1566,7 +1569,10 @@ cdn_key_digest:
 
 hrsl_raster:
 	@echo "Building 3B hrsl_raster"
-	$(HRSL_RASTER_CMD)
+	@command -v aws >/dev/null 2>&1 || { echo "aws CLI not found; install AWS CLI v2 to sync HRSL tiles." >&2; exit 1; }
+	@echo "Syncing HRSL tiles from $(HRSL_S3_BUCKET)"
+	@$(HRSL_S3_SYNC_CMD)
+	$(HRSL_RASTER_CMD) --local-root "$(HRSL_LOCAL_ROOT)" --require-local
 
 pelias_cached:
 	@echo "Building 3B pelias_cached.sqlite"

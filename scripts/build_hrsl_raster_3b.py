@@ -66,12 +66,35 @@ def download_vrt(vrt_path: Path, vrt_url: str) -> None:
     download_file(vrt_url, vrt_path)
 
 
+def has_tif(root: Path) -> bool:
+    if not root.exists():
+        return False
+    for path in root.rglob("*.tif"):
+        if path.is_file():
+            return True
+    return False
+
+
+def resolve_local_vrt(local_root: Path) -> Path | None:
+    candidates = [
+        local_root / "hrsl_general-latest.vrt",
+        local_root / "hrsl_general.vrt",
+        local_root / "hrsl_general" / "hrsl_general-latest.vrt",
+        local_root / "hrsl_general" / "hrsl_general.vrt",
+    ]
+    for vrt_path in candidates:
+        if vrt_path.exists() and has_tif(vrt_path.parent):
+            return vrt_path
+    return None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--vintage", required=True)
     parser.add_argument("--semver", required=True)
     parser.add_argument("--vrt-url", default=VRT_URL)
     parser.add_argument("--local-root", default=str(LOCAL_ROOT))
+    parser.add_argument("--require-local", action="store_true")
     parser.add_argument("--log-every", type=int, default=200)
     parser.add_argument("--log-seconds", type=int, default=30)
     return parser.parse_args()
@@ -104,29 +127,22 @@ def main() -> None:
 
     local_root = Path(args.local_root)
     temp_dir: tempfile.TemporaryDirectory | None = None
-    local_tiles_root = local_root / "v1"
-    local_tiles_ok = local_tiles_root.exists() and any(local_tiles_root.glob("*.tif"))
-    if local_root.exists() and local_tiles_ok:
-        local_vrt = local_root / "hrsl_general-latest.vrt"
-        if not local_vrt.exists():
-            fallback_vrt = local_root / "hrsl_general.vrt"
-            if fallback_vrt.exists():
-                local_vrt = fallback_vrt
-            else:
-                raise RuntimeError(
-                    f"Local root missing hrsl_general-latest.vrt or hrsl_general.vrt: {local_root}"
-                )
+    local_vrt = resolve_local_vrt(local_root)
+    if local_vrt is not None:
         vrt_path = local_vrt
         vrt_sha256 = sha256_path(vrt_path)
         vrt_bytes = vrt_path.stat().st_size
     else:
-        if local_root.exists() and not local_tiles_ok:
+        if args.require_local:
+            raise RuntimeError(
+                "Local HRSL tiles/VRT not found. Sync tiles with AWS CLI before running."
+            )
+        if local_root.exists():
             print(
-                f"[hrsl] Local VRT tiles missing under {local_tiles_root}; "
+                f"[hrsl] Local VRT tiles missing under {local_root}; "
                 "falling back to remote VRT.",
                 flush=True,
             )
-        local_root = None
         temp_dir = tempfile.TemporaryDirectory()
         tmp_path = Path(temp_dir.name)
         vrt_path = tmp_path / "hrsl_general.vrt"
