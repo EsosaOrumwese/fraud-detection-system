@@ -208,7 +208,7 @@ policy:
       streams:
         type: object
         additionalProperties: false
-        required: [routing_selection, routing_edge]
+        required: [routing_selection, routing_edge, virtual_edge_catalogue]
         properties:
           routing_selection:
             type: object
@@ -298,6 +298,54 @@ policy:
                 required: [draws_per_virtual]
                 properties:
                   draws_per_virtual: { const: 1 }
+          virtual_edge_catalogue:
+            type: object
+            additionalProperties: false
+            required: [rng_stream_id, basis, event_families, draws_per_unit]
+            properties:
+              rng_stream_id: { type: string, minLength: 1, pattern: '^3B\.[A-Za-z0-9_.-]+$' }
+              basis:
+                type: object
+                additionalProperties: false
+                required: [key_basis, counter_start, counter_step_per_event, counter_wrap_policy]
+                properties:
+                  key_basis: { const: ["seed", "parameter_hash", "run_id"] }
+                  counter_start:
+                    type: object
+                    additionalProperties: false
+                    required: [hi, lo]
+                    properties:
+                      hi: { $ref: "schemas.layer1.yaml#/$defs/uint64" }
+                      lo: { $ref: "schemas.layer1.yaml#/$defs/uint64" }
+                  counter_step_per_event: { const: 1 }
+                  counter_wrap_policy: { const: abort_on_wrap }
+              event_families:
+                type: object
+                additionalProperties: false
+                required: [edge_jitter]
+                properties:
+                  edge_jitter:
+                    type: object
+                    additionalProperties: false
+                    required: [substream_label, blocks, draws]
+                    properties:
+                      substream_label: { const: edge_jitter }
+                      blocks: { const: 1 }
+                      draws: { const: "2" }
+                  edge_tile_assign:
+                    type: object
+                    additionalProperties: false
+                    required: [substream_label, blocks, draws]
+                    properties:
+                      substream_label: { const: edge_tile_assign }
+                      blocks: { const: 1 }
+                      draws: { const: "1" }
+              draws_per_unit:
+                type: object
+                additionalProperties: false
+                required: [draws_per_edge]
+                properties:
+                  draws_per_edge: { const: 2 }
       extensions:
         type: object
         additionalProperties: true

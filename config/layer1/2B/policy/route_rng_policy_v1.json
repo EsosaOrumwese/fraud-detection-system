@@ -30,6 +30,20 @@
         "cdn_edge_pick": { "substream_label": "cdn_edge_pick", "blocks": 1, "draws": "1" }
       },
       "draws_per_unit": { "draws_per_virtual": 1 }
+    },
+    "virtual_edge_catalogue": {
+      "rng_stream_id": "3B.edge_catalogue",
+      "basis": {
+        "key_basis": ["seed", "parameter_hash", "run_id"],
+        "counter_start": { "hi": 0, "lo": 0 },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap"
+      },
+      "event_families": {
+        "edge_jitter": { "substream_label": "edge_jitter", "blocks": 1, "draws": "2" },
+        "edge_tile_assign": { "substream_label": "edge_tile_assign", "blocks": 1, "draws": "1" }
+      },
+      "draws_per_unit": { "draws_per_edge": 2 }
     }
   },
   "extensions": {

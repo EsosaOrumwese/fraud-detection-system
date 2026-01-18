@@ -428,6 +428,139 @@ subsegments:
         cross_layer: true
         notes: null
 
+      - name: world_countries
+        path: reference/spatial/world_countries/2024/world_countries.parquet
+        type: reference
+        category: spatial
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.ref.world_countries
+        license: CC-BY-4.0
+        role: World country polygons for edge placement validation.
+        dependencies: []
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.ingress.layer1.yaml#/world_countries
+        cross_layer: true
+        notes: null
+
+      - name: tile_index
+        path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
+        type: dataset
+        category: prep
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.s1.tile_index
+        license: Proprietary-Internal
+        role: Eligible raster cells per country (deterministic, RNG-free).
+        dependencies: [ world_countries, hrsl_raster ]
+        source: internal
+        owner: { owner_team: "mlr-1b-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1B.yaml#/prep/tile_index
+        cross_layer: true
+        notes: "Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id]."
+
+      - name: tile_weights
+        path: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
+        type: dataset
+        category: prep
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.s2.tile_weights
+        license: Proprietary-Internal
+        role: Deterministic fixed-dp weights per eligible tile.
+        dependencies: [ tile_index ]
+        source: internal
+        owner: { owner_team: "mlr-1b-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1B.yaml#/prep/tile_weights
+        cross_layer: true
+        notes: "Depends on tile_index for the same parameter_hash."
+
+      - name: tile_bounds
+        path: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
+        type: dataset
+        category: prep
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.s1.tile_bounds
+        license: Proprietary-Internal
+        role: Rectangle bounds per eligible tile.
+        dependencies: [ tile_index ]
+        source: internal
+        owner: { owner_team: "mlr-1b-core" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1B.yaml#/prep/tile_bounds
+        cross_layer: true
+        notes: null
+
+      - name: tz_world_2025a
+        path: reference/spatial/tz_world/2025a/tz_world.parquet
+        type: reference
+        category: spatial
+        semver: "{semver}"
+        version: "{tz_world_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.ref.tz_world_2025a
+        license: CC-BY-4.0
+        role: Timezone polygons for operational tz resolution.
+        dependencies: []
+        source: external
+        owner: { owner_team: "mlr-2a-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.ingress.layer1.yaml#/tz_world_2025a
+        cross_layer: true
+        notes: null
+
+      - name: tz_nudge
+        path: config/layer1/2A/timezone/tz_nudge.yml
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.policy.tz_nudge
+        license: Proprietary-Internal
+        role: Deterministic tz boundary nudge policy.
+        dependencies: []
+        source: internal
+        owner: { owner_team: "mlr-2a-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2A.yaml#/policy/tz_nudge_v1
+        cross_layer: true
+        notes: null
+
+      - name: tz_overrides
+        path: config/layer1/2A/timezone/tz_overrides.yaml
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.policy.tz_overrides
+        license: Proprietary-Internal
+        role: Governed timezone overrides (country/site/mcc).
+        dependencies: []
+        source: internal
+        owner: { owner_team: "mlr-2a-governance" }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.2A.yaml#/policy/tz_overrides_v1
+        cross_layer: true
+        notes: null
+
       # 6 GOVERNING VALIDATION & LOGGING POLICIES
       - name: virtual_validation_policy
         path: config/layer1/3B/virtual/virtual_validation.yml

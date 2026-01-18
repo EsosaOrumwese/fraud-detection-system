@@ -981,3 +981,140 @@ Open questions / decisions to confirm with user before coding:
 
 Next action once clarified:
 - Update S0 sealing to include missing spatial/tz assets (if required), then implement S2 runner + CLI + Makefile target, and run `make segment3b-s2` until green.
+
+---
+
+### Entry: 2026-01-18 20:48
+
+3B.S2 decisions confirmed (user approved).
+
+Decisions locked:
+- **RNG policy source**: Extend `route_rng_policy_v1` to include a 3B.S2 stream for edge jitter (and optional edge_tile_assign). Update `schemas.2B.yaml` + `config/layer1/2B/policy/route_rng_policy_v1.json` accordingly, then validate in S2.
+- **Sealed spatial/tz assets**: Update 3B.S0 sealing to require and record `tile_index`, `tile_weights`, `tile_bounds`, `world_countries`, `tz_world_2025a`, `tz_nudge`, and `tz_overrides` so S2 reads only sealed inputs.
+- **Edge weights**: Uniform per-edge weights per merchant (sum=1.0 per merchant). No proportional weighting beyond deterministic country/tile allocations.
+- **Edge ordering**: `edge_seq_index` is 0-based; ordering by `(merchant_id, country_iso, tile_id, jitter_rank)`; `edge_id` uses SHA256("3B.EDGE" + 0x1F + merchant_id + 0x1F + LE32(edge_seq_index)) -> low64 hex.
+- **Timezone resolution**: Reuse 2A-style tz_world + nudge + overrides. For overrides, apply country-level overrides (scope=country); set `tz_source` as POLYGON/NUDGE/OVERRIDE.
+- **Digest law**: `edge_digest` = SHA256 of canonical JSON of row fields (excluding edge_digest), per-merchant digest = SHA256 concatenation of edge_digest values in edge_id order, global digest = SHA256 concatenation of per-merchant digests in merchant_id order.
+
+Implementation impacts:
+- Contracts update for new route_rng_policy stream schema; config update for policy file.
+- 3B dictionary + registry updates to expose upstream tile/tz assets; 3B.S0 required sealed inputs list expanded.
+- 3B.S2 runner will implement deterministic Phase A-F algorithm with RNG events + progress logging, and outputs `edge_catalogue_3B` + `edge_catalogue_index_3B`.
+
+---
+
+### Entry: 2026-01-18 21:21
+
+S2 implementation plan refinements before coding.
+
+Decisions (additional to 20:48 approvals):
+- Precompute country edge budgets once (edge_scale is global) and reuse for all virtual merchants to avoid repeating integerisation per merchant.
+- Precompute per-country tile allocations once (tile_weights + edges_per_country) and reuse per merchant. This makes the per-merchant loop a deterministic expansion + jitter pass.
+- Use tile_bounds as jitter bounds (already sealed) and only treat hrsl_raster as a sealed input/digest reference; no raster reads for jitter in v1.
+- Skip `edge_tile_assign` RNG events because tile allocations are deterministic (no random permutation). Only emit `edge_jitter` RNG events (draws=2 per attempt).
+- RNG key/counter derivation follows route_rng_policy_v1 basis (seed + parameter_hash + run_id) with domain strings `mlr:3B.edge_catalogue.master` and `mlr:3B.edge_catalogue.stream`.
+- Timezone resolution: load tz_world polygons, build STRtree, apply deterministic nudge (tz_nudge epsilon) when polygon match is empty/ambiguous; apply tz_overrides only for scope=country (skip other scopes with a warning) and set tz_source accordingly.
+
+Planned implementation notes:
+- Reuse `_split_antimeridian_geometries` for world_countries/tz_world geometries.
+- Cache per-country prepared geometries for faster point-in-polygon checks during jitter.
+- Edge jitter loop will emit progress logs with elapsed/rate/ETA and track resample counts for run report.
+- Edge digest law: compute per-edge digest from canonical JSON (required edge fields only), then per-merchant/global digests by concatenating edge_digest strings in sorted order.
+
+---
+
+### Entry: 2026-01-18 21:54
+
+S2 implementation detail decisions for deterministic IDs, weights, and tz provenance.
+
+Decisions:
+- rng_event_id law: set `rng_event_id = sha256(rng_stream_id || "|" || merchant_id || "|" || edge_seq_index)` (hex64).
+  - Reasoning: RNG event JSONL has no `rng_event_id` field and includes `ts_utc`, so hashing full event
+    payload would make `edge_catalogue_3B` non-deterministic. A synthetic ID anchored to the same
+    deterministic inputs as the edge identity keeps outputs stable and still correlates to the jitter
+    events via `(merchant_id, edge_seq_index)`.
+- edge_weight law: per-merchant uniform weights, `edge_weight = 1.0 / edge_count_total` for all edges
+  in `E_m` (sum to 1.0 per merchant). This is simple, deterministic, and contract-compliant.
+- tz_source mapping: use `POLYGON` when a unique polygon match is found at the original point,
+  `NUDGE` when the deterministic epsilon nudge yields a unique match, and `OVERRIDE` only when a
+  country-scoped override is applied. Ignore `site`/`mcc` override scopes in S2 with explicit warnings.
+- edge_catalogue_index_3B digests: per-merchant digest is sha256 over concatenated `edge_digest`
+  strings in `edge_id` order; global digest is sha256 over concatenated per-merchant digests in
+  ascending `merchant_id` order. These orderings align with writer_sort and are deterministic.
+- provenance fields: set `cdn_policy_id = "cdn_country_weights"`, `cdn_policy_version` from the
+  policy file, `spatial_surface_id = "tile_bounds"`, and `hrsl_tile_id = str(tile_id)`.
+
+Notes:
+- `edge_tile_assign` RNG events remain unused (deterministic tile allocation); only `edge_jitter`
+  events are emitted. The run report will record `edge_tile_assign` as zero events.
+
+---
+
+### Entry: 2026-01-18 22:24
+
+S2 first run failed due to sealed input digest mismatch for route_rng_policy_v1.
+
+Observation:
+- `make segment3b-s2` failed with `E3B_S2_005_SEALED_INPUT_DIGEST_MISMATCH` for
+  `route_rng_policy_v1` (computed digest differs from sealed digest in
+  `sealed_inputs_3B`).
+- This is expected because `config/layer1/2B/policy/route_rng_policy_v1.json`
+  was updated to add the `virtual_edge_catalogue` stream after S0 sealed inputs
+  were written for the current manifest.
+
+Decision:
+- Re-run `3B.S0` to reseal `route_rng_policy_v1` and refresh `sealed_inputs_3B`
+  and `s0_gate_receipt_3B` for the current run, then re-run S2.
+
+Rationale:
+- S2 is required to enforce sealed input digests; the only correct fix is to
+  reseal after changing a governed policy.
+
+---
+
+### Entry: 2026-01-18 22:25
+
+Route RNG policy schema fix to unblock S0 reseal for 3B.
+
+Problem:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml` defines
+  `route_rng_policy_v1.streams.virtual_edge_catalogue.rng_stream_id` with
+  `pattern: '^3B\\.[A-Za-z0-9_.-]+$'`, which matches `3B\<char>` (literal
+  backslash) and rejects valid IDs like `3B.edge_catalogue`.
+- 3B.S0 failed validation for `route_rng_policy_v1` after adding the
+  `virtual_edge_catalogue` stream because of this regex.
+
+Decision:
+- Fix the regex to `'^3B\.[A-Za-z0-9_.-]+$'` so a literal dot is accepted and
+  valid 3B stream IDs pass schema validation.
+
+Rationale:
+- Aligns 3B stream IDs with the existing 2B pattern and the policy content.
+- Required for S0 to reseal the updated RNG policy.
+
+---
+
+### Entry: 2026-01-18 22:26
+
+S0 reseal blocked by immutability after policy change.
+
+Observation:
+- Re-running `make segment3b-s0` now fails with
+  `E3B_S0_009_IMMUTABILITY_VIOLATION` because
+  `sealed_inputs_3B` already exists for the current
+  `manifest_fingerprint` and the new policy digest would change the
+  contents.
+
+Implication:
+- The RNG policy change requires a new manifest fingerprint (or an explicit
+  dev override) before S0 can reseal.
+
+Pending decision (needs user direction):
+1) Re-run upstream to generate a new manifest/run_id (strict immutability),
+   then run 3B.S0 and 3B.S2 under the new manifest.
+2) In dev mode, explicitly remove/relocate the existing `sealed_inputs_3B`
+   and `s0_gate_receipt_3B` for this manifest and reseal (violates
+   immutability but keeps the current run context).
+3) Revert the RNG policy change and keep the existing seal (not preferred).
+
+---
