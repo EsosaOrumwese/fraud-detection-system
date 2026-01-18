@@ -1837,3 +1837,186 @@ Fix applied and outcome:
     `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/data/layer1/3A/s3_zone_shares/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`.
   - Run-report written under the matching reports path with status PASS.
 - Pending item for `make segment3a-s3` is now satisfied.
+
+### Entry: 2026-01-18 03:04
+
+S4 review + implementation plan (pre-coding):
+
+Goal:
+- Implement 3A.S4 integer zone allocation per `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s4.expanded.md`,
+  producing `s4_zone_counts` from S1 site counts and S3 shares, aligned to S2
+  zone universes, RNG-free and deterministic.
+
+Contract sources & authorities:
+- Contracts loaded via `ContractSource(config.contracts_root, config.contracts_layout)` (dev mode uses
+  `docs/model_spec/...` layout; production can switch to root contracts without code changes).
+- Inputs: `s0_gate_receipt_3A`, `sealed_inputs_3A`, `s1_escalation_queue`,
+  `s2_country_zone_priors`, `s3_zone_shares`, plus run-report rows for S1/S2/S3.
+- Output: `s4_zone_counts` and `s4_run_report_3A` (schema ref: `schemas.layer1.yaml#/run_report/segment_state_run`).
+
+Algorithm plan (explicit steps):
+1) **Run identity + paths**
+   - Read `run_receipt.json` to fix `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`.
+   - Instantiate `RunPaths`, attach file handler, emit story header log with objective and outputs.
+2) **Load contracts**
+   - Load dictionary and schema packs: `dataset_dictionary.layer1.3A.yaml`, `schemas.3A.yaml`,
+     `schemas.layer1.yaml` via `load_dataset_dictionary` / `load_schema_pack`.
+   - Fail with `E3A_S4_002_CATALOGUE_MALFORMED` if any required catalogue artefact is missing/invalid.
+3) **S0 gate + sealed inputs**
+   - Validate `s0_gate_receipt_3A` and `sealed_inputs_3A` schemas.
+   - Enforce upstream gates (1A/1B/2A) `PASS`.
+   - Verify `sealed_policy_set` includes `zone_mixture_policy`, `country_zone_alphas`, `zone_floor_policy`
+     (same posture as S3). If any missing -> `E3A_S4_001_PRECONDITION_FAILED`.
+4) **S1 escalation queue**
+   - Load and schema-validate `s1_escalation_queue`.
+   - Assert no duplicate `(merchant_id, legal_country_iso)` pairs.
+   - Build `D` and `D_esc`, sorted by `(merchant_id, legal_country_iso)`.
+   - Ensure `site_count >= 1` for escalated pairs; otherwise fail with
+     `E3A_S4_003_DOMAIN_MISMATCH_S1` or `E3A_S4_007_OUTPUT_INCONSISTENT` depending on context.
+5) **S2 priors**
+   - Load and validate `s2_country_zone_priors`.
+   - Assert no duplicate `(country_iso, tzid)`.
+   - Build `Z(c)` per country (sorted lexicographically by `tzid`).
+   - Verify all escalated countries have non-empty `Z(c)`; missing -> `E3A_S4_004_DOMAIN_MISMATCH_ZONES`.
+   - Capture `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`
+     as unique constants (fail `E3A_S4_007_OUTPUT_INCONSISTENT` on lineage mismatch).
+6) **S3 shares**
+   - Load and validate `s3_zone_shares`.
+   - Assert no duplicate `(merchant_id, legal_country_iso, tzid)`.
+   - Project `D_S3` and require `D_S3 == D_esc`; otherwise `E3A_S4_003_DOMAIN_MISMATCH_S1`.
+   - For each `(m,c)`, ensure `tzid` set equals `Z(c)` and matches S3; otherwise
+     `E3A_S4_004_DOMAIN_MISMATCH_ZONES`.
+   - Validate `share_sum_country` consistent within each `(m,c)` and within tolerance of 1.
+     Out-of-range or inconsistent -> `E3A_S4_007_OUTPUT_INCONSISTENT`.
+7) **Integerisation per `(m,c)`**
+   - For each escalated pair, iterate `Z_ord(c)` (lexicographic tzid):
+     - `T_z = site_count * share_drawn` (float64).
+     - `b_z = floor(T_z)`, `base_sum = Σ b_z`, `R = site_count - base_sum`.
+     - If `R < 0` or `base_sum > site_count`, fail `E3A_S4_005_COUNT_CONSERVATION_BROKEN`.
+     - Residuals `r_z = T_z - b_z` (in [0,1)).
+     - Order by `(-r_z, tzid, stable_index)`; allocate `+1` to top `R`.
+     - Record `zone_site_count` and optional `residual_rank`.
+   - Compute `zone_site_count_sum = site_count` per `(m,c)` and track conservation stats.
+8) **Materialize output**
+   - Build rows with required fields:
+     `seed`, `manifest_fingerprint`, `merchant_id`, `legal_country_iso`, `tzid`,
+     `zone_site_count`, `zone_site_count_sum`, `share_sum_country`,
+     `prior_pack_id`, `prior_pack_version`, `floor_policy_id`, `floor_policy_version`,
+     plus optional `fractional_target`, `residual_rank`, `alpha_sum_country`, `notes`.
+   - Validate against `schemas.3A.yaml#/plan/s4_zone_counts` (schema invalid -> `E3A_S4_006_OUTPUT_SCHEMA_INVALID`).
+   - Sort by `(merchant_id, legal_country_iso, tzid)`.
+9) **Idempotent publish**
+   - If existing `s4_zone_counts` partition exists, normalize + compare row-for-row:
+     - identical -> reuse; different -> `E3A_S4_008_IMMUTABILITY_VIOLATION`.
+   - Else write via tmp path, then publish atomically.
+10) **Run-report + segment_state_runs**
+   - Write `s4_run_report_3A` with counts (`pairs_total`, `pairs_escalated`, `pairs_monolithic`,
+     `zone_rows_total`, `zones_per_pair_avg`, `zones_zero_allocated`,
+     `pairs_with_single_zone_nonzero`, `pairs_count_conserved`,
+     `pairs_count_conservation_violations`) and lineage fields.
+   - Append to `segment_state_runs` for `(layer1, 3A, S4)` as in S2/S3.
+   - Error handling maps to `E3A_S4_001`–`E3A_S4_009` per spec, with `error_context` populated
+     to include required fields (e.g., counts + sample identifiers).
+
+Logging + resumability:
+- Emit story header log at start with objective and outputs.
+- Phase logs aligned to spec steps (S0 gate, S1/S2/S3 load, domain build, integerisation, publish).
+- Use progress logs for `(m,c)` loop: elapsed, processed/total, rate, ETA.
+- If pre-existing output is identical, skip rewrite; otherwise fail immutability.
+
+Performance considerations:
+- Use Polars for all dataset loads; avoid full-row Python loops except per `(m,c)` integerisation.
+- Pre-index S3 rows by `(merchant_id, legal_country_iso)` for fast access, but avoid tuple-key mismatches
+  (unwrap tuple keys from `partition_by(..., as_dict=True)`).
+- Keep memory bounded by iterating per pair; no need to materialize massive intermediate arrays.
+
+Open decisions/questions to confirm with user before coding:
+1) Should S4 populate optional `fractional_target`, `residual_rank`, and `alpha_sum_country` columns
+   in `s4_zone_counts` (recommended for auditability), or keep output minimal?
+2) Tolerance for `share_sum_country` (S4 acceptance): reuse S3's `TOLERANCE=1e-12`, or adopt
+   a different epsilon from validation specs?
+3) Should S4 enforce presence of S1/S2/S3 run-report rows strictly (fail if missing), or allow
+   dataset existence alone in dev mode?
+
+### Entry: 2026-01-18 03:18
+
+S4 decisions confirmed before coding:
+- **Optional columns**: populate `fractional_target`, `residual_rank`, and
+  `alpha_sum_country` in `s4_zone_counts` to support auditability and replay.
+- **Share-sum tolerance**: reuse S3’s `TOLERANCE = 1e-12` for
+  `share_sum_country` consistency checks.
+- **Run-report strictness**: require S1/S2/S3 run-report rows and `status="PASS"`;
+  missing or non-PASS is treated as `E3A_S4_001_PRECONDITION_FAILED`.
+
+These decisions are binding for the S4 implementation below; any deviation will
+be logged as a new entry before changes are made.
+
+### Entry: 2026-01-18 03:36
+
+S4 implementation actions (coding in progress, deterministic integerisation):
+- Added S4 runner at `packages/engine/src/engine/layers/l1/seg_3A/s4_zone_counts/runner.py`.
+  Key mechanics implemented:
+  1) S0 gate + sealed inputs validation (schema, upstream gate PASS, sealed policy IDs).
+  2) Strict run-report checks for S1/S2/S3 (`status="PASS"` required).
+  3) S1/S2/S3 dataset validation, duplicate detection, and domain alignment checks.
+  4) Deterministic integerisation per `(m,c)` using floor + residual ranking
+     with tie-break: `(-residual, tzid, stable_index)`.
+  5) Output construction with optional diagnostics populated:
+     `fractional_target`, `residual_rank`, `alpha_sum_country`.
+  6) Idempotent publish with immutability enforcement (`E3A_S4_008`).
+  7) Narrative logs + progress tracker (elapsed/progress/rate/ETA).
+  8) Run-report + segment_state_runs emission; structured start/success/failure
+     logs per S4 observability spec (in addition to validation logs).
+- Added module export: `packages/engine/src/engine/layers/l1/seg_3A/s4_zone_counts/__init__.py`.
+- Added CLI entrypoint: `packages/engine/src/engine/cli/s4_zone_counts_3a.py`.
+- Updated `makefile` with `SEG3A_S4_RUN_ID`, args/cmd wiring, `segment3a-s4`
+  target, and `segment3a` chain update; `.PHONY` updated accordingly.
+
+Notes on error mapping during implementation:
+- Precondition errors map to `E3A_S4_001_PRECONDITION_FAILED` with required
+  `component/reason/state` fields.
+- Domain mismatches use `E3A_S4_003` (pair-level) and `E3A_S4_004` (zone-level).
+- Integerisation failures (`remainder_invalid`, `count_sum_mismatch`) map to
+  `E3A_S4_005_COUNT_CONSERVATION_BROKEN`.
+- Output schema validation maps to `E3A_S4_006_OUTPUT_SCHEMA_INVALID`.
+- Output inconsistencies (lineage or share_sum issues) map to `E3A_S4_007`.
+- Immutability mismatches map to `E3A_S4_008_IMMUTABILITY_VIOLATION`.
+
+Pending:
+- Run `make segment3a-s4` and record any failures and fixes.
+
+### Entry: 2026-01-18 03:37
+
+S4 run verification:
+- Executed `make segment3a-s4` for run_id `970b0bd6833be3a0f08df8e8abf0364c`.
+- S4 completed successfully; integerisation loop processed 1471 escalated pairs
+  and produced 14800 rows.
+- Output published to:
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/data/layer1/3A/s4_zone_counts/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`.
+- Run-report written to:
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/reports/layer1/3A/state=S4/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08/run_report.json`
+  with `status="PASS"` and `pairs_count_conservation_violations=0`.
+
+### Entry: 2026-01-18 03:39
+
+Post-run correction (precondition mapping):
+- Adjusted S4 runner to treat missing S0/S1/S2/S3 artefacts as
+  `E3A_S4_001_PRECONDITION_FAILED` instead of falling into the generic
+  infrastructure error path.
+- Implemented explicit `InputResolutionError` handling around:
+  - `s0_gate_receipt_3A` and `sealed_inputs_3A`,
+  - `s1_escalation_queue`,
+  - `s2_country_zone_priors`,
+  - `s3_zone_shares`.
+- Rationale: aligns S4 error codes with the binding spec’s precondition rules
+  for missing upstream artefacts.
+
+Pending:
+- Re-run `make segment3a-s4` to confirm the change stays green.
+
+### Entry: 2026-01-18 03:39 (follow-up)
+
+Re-run after precondition-mapping change:
+- Executed `make segment3a-s4` again; output was identical and S4 returned PASS.
+- Idempotence path exercised: existing `s4_zone_counts` detected and left
+  unchanged (logged as identical).
