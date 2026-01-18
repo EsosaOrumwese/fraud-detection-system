@@ -1684,3 +1684,156 @@ Open confirmations before coding:
 If any of the above decisions change mid-implementation, I will append a new
 entry capturing the alternatives considered, the change, and the rationale
 before editing code.
+
+### Entry: 2026-01-18 02:26
+
+Decisions confirmed for S3 implementation (user-approved):
+1) `rng_stream_id` format:
+   - Use SHA-256 hex digest of `3A.S3|zone_dirichlet|{merchant_id}|{country_iso}`.
+   - Rationale: fixed-length, deterministic, and avoids delimiter ambiguity;
+     still tied to `(m,c)` identity for replay and diagnostics.
+
+2) Stream derivation material:
+   - Derive master material from `{manifest_fingerprint_bytes, seed}` only,
+     mirroring the 1A RNG helper pattern.
+   - `run_id` and `parameter_hash` are not injected into the key derivation;
+     `run_id` remains an identity partition for RNG logs.
+   - Rationale: aligns with existing engine RNG practice while keeping
+     deterministic replay for identical run anchors.
+
+3) `rng_event_id` in `s3_zone_shares`:
+   - Leave `rng_event_id` null (schema allows nullable).
+   - Rationale: linkage is already established by `rng_stream_id` and
+     event envelopes; avoid inventing extra identifiers pre-contract.
+
+4) Existing RNG logs on re-run:
+   - If `rng_event_zone_dirichlet` and `rng_trace_log` already exist and are
+     non-empty, validate-and-skip emitting new logs.
+   - If only one exists (partial logs), fail closed as an append-only
+     integrity violation.
+   - Rationale: preserve append-only semantics and avoid duplicate events.
+
+Implementation start (immediate next steps):
+- Build S3 RNG helper (`seg_3A/s3_zone_shares/rng.py`) using Philox2x64-10 +
+  Marsaglia-Tsang gamma sampler from 1A, with 3A-specific domain tags.
+- Implement `run_s3` runner with:
+  - S0 gate + sealed inputs validation,
+  - S1/S2 input loading and domain checks,
+  - deterministic Dirichlet sampling per escalated `(m,c)`,
+  - RNG event + trace logging,
+  - `s3_zone_shares` output with immutability checks,
+  - run-report and `segment_state_runs` emission.
+- Add `__init__.py` export, CLI entrypoint, and Makefile target for `segment3a-s3`.
+
+If any deviation from these decisions becomes necessary during coding, I will
+append a new entry describing the change and why before editing code.
+
+### Entry: 2026-01-18 02:46
+
+Implementation actions completed for S3 (Dirichlet zone shares):
+Files created/updated:
+- `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/rng.py`
+  - New 3A-specific RNG helper with domain tags:
+    `mlr:3A.master` for master material and `mlr:3A.zone_dirichlet` for stream.
+  - Implements Philox substreams + u01 sampling (single/pair) mirroring 1A.
+- `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`
+  - Full S3 runner: S0/S1/S2 validation, deterministic Dirichlet sampling,
+    RNG event + trace emission, immutability checks, run-report emission.
+- `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/__init__.py`
+  - Export `run_s3`.
+- `packages/engine/src/engine/cli/s3_zone_shares_3a.py`
+  - CLI wrapper mirroring S0/S1/S2 args.
+- `makefile`
+  - Added `SEG3A_S3_RUN_ID`, S3 args/cmd, `segment3a-s3` target, and updated
+    `segment3a` chain + `.PHONY`.
+
+Micro-decisions made during coding:
+1) **Alpha consistency check**:
+   - For each country, compute `alpha_sum_raw = sum(alpha_effective)` and
+     compare to S2’s `alpha_sum_country` within `TOLERANCE`.
+   - If mismatch or non-positive, fail with `E3A_S3_006_DIRICHLET_ALPHA_MISMATCH`.
+   - Rationale: catches drift between S2 outputs and S3’s sampling inputs.
+
+2) **Existing RNG logs handling (idempotence)**:
+   - If both `rng_event_zone_dirichlet` and `rng_trace_log` exist for the run,
+     skip emitting new RNG logs; still compute shares and enforce immutability.
+   - If only one exists, fail with `E3A_S3_007_RNG_ACCOUNTING_BROKEN`.
+   - If logs are skipped, `rng_trace_rows` in run-report is set to the expected
+     event count (to reflect the run scope).
+
+3) **Audit log requirement**:
+   - If RNG logs already exist, require a matching audit row for the run_id.
+   - If writing new logs, append audit row if missing (append-only behavior).
+
+Pending:
+- Run `make segment3a-s3` and capture any failures in the logbook (with any
+  corrective decisions appended here).
+
+### Entry: 2026-01-18 02:49
+
+Issue observed while running `make segment3a-s3`:
+- Run-report shows `E3A_S3_012_INFRASTRUCTURE_IO_ERROR` with
+  `error_context` pointing to `'DataFrame' object has no attribute 'groupby'`
+  in the S2 prior-validation phase in
+  `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`.
+
+Plan and decision (pre-fix):
+- Root cause: Polars uses `group_by`, not the pandas-style `groupby`.
+- Alternatives considered:
+  1) Convert to pandas for this check (rejected: unnecessary materialization,
+     deviates from polars-only pipeline, increases memory).
+  2) Replace with Polars `group_by` (chosen: idiomatic, minimal change, keeps
+     invariant enforcement on alpha-sum uniqueness).
+- Exact change: replace `s2_df.groupby("country_iso")` with
+  `s2_df.group_by("country_iso")` when computing `alpha_sum_counts`.
+- Inputs/authorities: S2 output `s2_prior_dirichlet` schema from
+  `docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml`;
+  prior-lineage invariants from S3 expanded spec.
+- Invariants preserved: per-country `alpha_sum_country` must be unique.
+- Logging: no new logs; existing validation log remains aligned to the S3
+  story header for priors validation.
+- Resumability: no new artifacts; re-run should reuse existing run scope and
+  continue to immutability checks.
+- Validation: re-run `make segment3a-s3` and inspect the run report for green
+  completion; log outcome and any new decisions in logbook + this map.
+
+### Entry: 2026-01-18 02:53
+
+Issue observed while re-running `make segment3a-s3` after the group_by fix:
+- S3 fails with `E3A_S3_003_PRIOR_SURFACE_INCOMPLETE` reporting
+  `missing_countries_count=63`, `sample_country_iso=AD`.
+- Local inspection shows S1 escalated countries are present in S2 priors,
+  so this appears to be a key-mismatch bug in S3, not a true data gap.
+
+Plan and decision (pre-fix):
+- Root cause: `polars.DataFrame.partition_by(..., as_dict=True)` returns tuple
+  keys (e.g., `('AD',)`), while escalated countries are strings (`'AD'`).
+  This causes every escalated country to appear "missing" because the keys
+  do not compare equal.
+- Alternatives considered:
+  1) Replace `partition_by` with `group_by` and aggregate lists, then iterate.
+     (rejected: more refactor for a small mismatch fix)
+  2) Keep `partition_by` but unwrap tuple keys when building `priors_by_country`
+     (chosen: minimal, preserves existing validation flow)
+- Exact change: normalize `country_iso` by unwrapping tuple keys to their first
+  element before using as dict keys and for logging/validation.
+- Inputs/authorities: S1 escalation queue (`legal_country_iso`) and S2 priors
+  (`country_iso`) as defined in `schemas.3A.yaml` and the S3 expanded spec.
+- Invariants preserved: per-country alpha validation and prior surface
+  completeness checks remain unchanged, but now compare like-for-like keys.
+- Logging: no new logging; validation errors keep the existing narrative flow.
+- Validation: re-run `make segment3a-s3`, verify green run-report, and record
+  the outcome in the logbook + this map.
+
+### Entry: 2026-01-18 02:54
+
+Fix applied and outcome:
+- Updated `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`
+  to unwrap tuple keys from `partition_by(..., as_dict=True)` so
+  `priors_by_country` uses string `country_iso` keys.
+- Re-ran `make segment3a-s3`; S3 completed successfully.
+  - Progress logs emitted as expected during the sampling loop.
+  - Output published to:
+    `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/data/layer1/3A/s3_zone_shares/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`.
+  - Run-report written under the matching reports path with status PASS.
+- Pending item for `make segment3a-s3` is now satisfied.
