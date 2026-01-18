@@ -1509,3 +1509,178 @@ Small correctness fix during S2 review:
 - Adjusted `zone_count_buckets` aggregation to use the full list of
   per-country zone counts (no set-deduplication), ensuring accurate frequency
   counts in the run-report.
+
+## S3 - Zone Share Sampling (Dirichlet draws)
+
+### Entry: 2026-01-18 02:10
+
+Context for S3 planning (files read this pass):
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s3.expanded.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/artefact_registry_3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml
+- docs/model_spec/data-engine/rdv_rails_constitution_v1.md (Layer-1 RNG law)
+- Implementation patterns for RNG + trace:
+  - packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/rng.py
+  - packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py
+  - packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py
+  - packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py
+
+Problem statement (S3):
+- Implement the RNG-bearing state for Segment 3A. Given:
+  - `s1_escalation_queue` (S1 authority on escalated merchant-country pairs),
+  - `s2_country_zone_priors` (S2 authority on alpha vectors per country),
+  - plus S0 gate + sealed inputs,
+  produce:
+  - `s3_zone_shares` (one row per escalated merchant x country x tzid),
+  - `rng_event_zone_dirichlet` events (one per escalated pair),
+  - `rng_trace_log` updates after each event,
+  - `rng_audit_log` entry if missing,
+  with strict determinism, immutability for `s3_zone_shares`, and Layer-1 RNG
+  envelope compliance.
+
+Key decisions and alternatives (some require confirmation):
+1) RNG stream keying + `rng_stream_id`
+   - Alternative A: `rng_stream_id` as a readable string
+     (e.g., `3A.zone_dirichlet:{merchant_id}:{country_iso}`), then hash to
+     derive Philox key and base counter.
+   - Alternative B: `rng_stream_id` as a SHA-256 hex digest of a canonical
+     tuple (module, substream_label, merchant_id, country_iso).
+   - Recommendation: **Alternative B** to keep deterministic, fixed-length
+     stream IDs and avoid delimiter ambiguity. This ID is written to both
+     `rng_event_zone_dirichlet` and `s3_zone_shares`.
+   - Confirmation needed: whether you want readable stream IDs or hashed IDs.
+
+2) RNG master material inputs
+   - Alternative A: derive master material from `{manifest_fingerprint, seed}`
+     (matches 1A RNG helper pattern).
+   - Alternative B: include `parameter_hash` (and/or `run_id`) directly in
+     master material or stream ID derivation.
+   - Recommendation: **Alternative A** to align with existing engine RNG
+     practice. `parameter_hash` is already part of `manifest_fingerprint`,
+     and `run_id` is used for partitioning/log identity.
+   - Confirmation needed: whether you want `run_id` (or explicit
+     `parameter_hash`) to influence the stream key beyond the manifest hash.
+
+3) `rng_event_id` in `s3_zone_shares`
+   - Alternative A: leave `rng_event_id` null (schema allows nullable).
+   - Alternative B: compute deterministic event ID (e.g., hash of
+     `{seed, parameter_hash, run_id, module, substream_label, rng_stream_id}`).
+   - Recommendation: **Alternative A** (null) unless you want explicit
+     linkage beyond `rng_stream_id`.
+
+4) Existing RNG logs behavior on re-run
+   - Alternative A: if events + trace already exist for `(seed, parameter_hash, run_id)`,
+     validate and skip emitting new RNG logs (idempotent).
+   - Alternative B: allow appending new events (would violate append-only
+     identity requirements and introduce duplicates).
+   - Recommendation: **Alternative A**; if partial logs exist, fail closed.
+
+5) Gamma sampler implementation
+   - Alternative A: reuse Marsaglia-Tsang gamma sampler from 1A S7
+     (counts blocks/draws precisely).
+   - Alternative B: implement new gamma logic.
+   - Recommendation: **Alternative A** for consistency and replayability.
+
+Planned implementation steps (pre-coding plan; explicit mechanics):
+1) Contracts + identity
+   - Load schema packs: `schemas.layer1.yaml`, `schemas.3A.yaml`.
+   - Load dictionary/registry: `dataset_dictionary.layer1.3A.yaml`,
+     `artefact_registry_3A.yaml`.
+   - Resolve run receipt; capture `run_id`, `parameter_hash`, `manifest_fingerprint`,
+     and `seed`. Validate token formats.
+   - Continue to use `ContractSource` via `EngineConfig` so switching from
+     model_spec to root contracts is config-only.
+
+2) Gate + sealed inputs (S0)
+   - Resolve `s0_gate_receipt_3A` and `sealed_inputs_3A` via catalogue.
+   - Validate schemas; ensure upstream gates for 1A/1B/2A are PASS.
+   - Verify `sealed_policy_set` contains S1/S2 policy entries; if an RNG
+     policy artefact is ever introduced, verify it is sealed and hashed.
+
+3) Load S1/S2 data-plane inputs
+   - Read `s1_escalation_queue@seed/manifest_fingerprint` and validate schema.
+   - Read `s2_country_zone_priors@parameter_hash` and validate schema.
+   - Build `D_esc`: filter `is_escalated=true`, sort by
+     `(merchant_id, legal_country_iso)`; this ordering defines RNG event order.
+   - For each country in `D_esc`, assert S2 provides priors
+     (missing -> `E3A_S3_003_PRIOR_SURFACE_INCOMPLETE`).
+
+4) Build per-country prior map
+   - For each `country_iso`, derive `Z_ord(c)` by sorting `tzid` ascending.
+   - Create alpha list `alpha_effective(c, z_i)` in this order.
+   - Validate:
+     - all `alpha_effective > 0`,
+     - `alpha_sum_country` consistent across rows for the country,
+     - lineage fields (`prior_pack_id/version`, `floor_policy_id/version`)
+       constant across the entire dataset.
+
+5) RNG wiring + sampling loop
+   - Implement `seg_3A/s3_zone_shares/rng.py` mirroring 1A RNG helpers:
+     - Philox2x64-10 core + `u01` mapping.
+     - `Substream` with 128-bit counter and block-based draws.
+     - `derive_master_material` (manifest_fingerprint_bytes + seed).
+     - `derive_substream_state` using label + canonicalized `(merchant_id, country_iso)`.
+   - For each `(merchant_id, legal_country_iso)` in `D_esc`:
+     - compute `rng_stream_id` (per decision above),
+     - snapshot `counter_before`,
+     - for each alpha in `Z_ord(c)` draw `Gamma(alpha, 1)` via MT1998
+       implementation (counts blocks/draws),
+     - ensure `sum_gamma > 0`, compute `share_drawn = gamma_i / sum_gamma`,
+     - snapshot `counter_after`, compute `blocks` (u128 delta) and
+       `draws` (uniform count), verify `blocks` matches counter delta.
+
+6) Emit RNG event + trace
+   - Write `rng_event_zone_dirichlet` JSONL rows (one per `(m,c)`):
+     `module="3A.S3"`, `substream_label="zone_dirichlet"`,
+     `rng_stream_id`, `merchant_id`, `country_iso`, `zone_count`,
+     counters + blocks/draws, optional `alpha_sum_country`.
+   - Append one `rng_trace_log` row after each event using a trace accumulator
+     (same pattern as S7): totals per `(module, substream_label)` only.
+   - Ensure `rng_audit_log` entry exists (append-only) using the S5 router
+     `_ensure_rng_audit` pattern.
+
+7) Build `s3_zone_shares`
+   - For each `(m,c,z)` row: populate required columns:
+     - `share_drawn`, `share_sum_country`, `alpha_sum_country`,
+       lineage fields from S2, `rng_module`, `rng_substream_label`,
+       `rng_stream_id`, optional `rng_event_id` (decision pending).
+   - Sort rows by `[merchant_id, legal_country_iso, tzid]`.
+   - Validate against `schemas.3A.yaml#/plan/s3_zone_shares`.
+
+8) Idempotent publish + immutability
+   - If `s3_zone_shares` exists for `{seed, manifest_fingerprint}`:
+     - read + normalize + sort existing rows and compare to new rows.
+     - identical => skip write; mismatch => `E3A_S3_011_IMMUTABILITY_VIOLATION`.
+   - For RNG logs:
+     - If events + trace already exist for the run, treat as idempotent
+       and skip emitting new logs (validate counts vs D_esc).
+     - If partial logs exist, fail closed.
+   - Use tmp files + atomic publish to avoid partial outputs.
+
+9) Observability + run-report
+   - Story header log: objective, gated inputs, outputs.
+   - Phase logs before/after: load S0, load S1/S2, build priors, RNG sampling,
+     output publish.
+   - Progress logs for `(m,c)` loop: elapsed, rate, ETA.
+   - Emit `segment_state_runs` JSONL and `s3_run_report_3A` with:
+     counts of escalated pairs, total rows, zone-count distribution,
+     RNG events/draws/blocks, status/error code.
+
+Performance + resumability considerations:
+- Use in-memory structures for per-country priors (small), and loop per
+  escalated pair (streamed). Avoid storing large intermediates in memory.
+- If outputs already exist and are identical, skip re-write to support resume.
+- If a failure occurs after RNG events are emitted, the run is marked FAIL
+  (events remain as append-only logs per spec).
+
+Open confirmations before coding:
+1) `rng_stream_id` format (hashed vs readable).
+2) Whether to include `run_id` or explicit `parameter_hash` in stream derivation.
+3) Whether to populate `rng_event_id` (deterministic) or leave null.
+4) Idempotent behavior for existing RNG logs (validate-and-skip vs fail).
+
+If any of the above decisions change mid-implementation, I will append a new
+entry capturing the alternatives considered, the change, and the rationale
+before editing code.
