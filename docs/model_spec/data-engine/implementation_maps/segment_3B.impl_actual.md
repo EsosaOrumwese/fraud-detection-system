@@ -386,3 +386,88 @@ Validation plan:
 - Re-run `make hrsl_raster` to confirm the build resolves
   `hrsl_general-latest.vrt` from the synced directory and reads tiles from the
   same `v1/` subfolder.
+
+---
+
+### Entry: 2026-01-18 18:40
+
+Pelias bundle digest mismatch during S0 gate; rebuild decision.
+
+Problem:
+- `make segment3b-s0` failed at `E3B_S0_006_SEALED_INPUT_DIGEST_MISMATCH` for
+  `pelias_cached_bundle.json` vs `pelias_cached.sqlite`.
+- Current bundle/provenance report `sha256_hex = d0fd...` and bytes `56500224`,
+  while the on-disk sqlite hashes to `5fce...` with bytes `56499549`.
+
+Options considered:
+1) Patch only `pelias_cached_bundle.json` to match the sqlite hash.
+   - Fast, but leaves provenance inconsistent with the actual sqlite bytes.
+2) Rebuild the sqlite bundle via the official script to regenerate both the
+   sqlite and bundle/provenance in a consistent, auditable way.
+
+Decision:
+- Rebuild the pelias cached sqlite bundle using
+  `scripts/build_pelias_cached_sqlite_3b.py` (via `make pelias_cached`) so the
+  sqlite, bundle manifest, and provenance sidecar are aligned.
+
+Rationale:
+- The data-intake guide requires the bundle manifest to carry the sqlite hash
+  and the provenance sidecar to record the raw inputs used. Rebuilding produces
+  a coherent set and avoids silent inconsistencies.
+- Rebuild cost is acceptable (GeoNames dumps are small relative to HRSL).
+
+Plan:
+- Run `make pelias_cached` to rebuild and refresh the three artefacts:
+  `artefacts/geocode/pelias_cached.sqlite`,
+  `artefacts/geocode/pelias_cached_bundle.json`,
+  `artefacts/geocode/pelias_cached_bundle.provenance.json`.
+- Re-run `make segment3b-s0` to verify the bundle digest check passes.
+- Log the outcome in the logbook with hash/byte confirmation.
+
+---
+
+### Entry: 2026-01-18 18:41
+
+S0 receipt schema violation: sealed_policy_set includes `notes`.
+
+Problem:
+- `make segment3b-s0` failed after sealing inputs because the receipt payload
+  included a `notes` field in each `sealed_policy_set` item.
+- `schemas.3B.yaml#/validation/s0_gate_receipt_3B` defines
+  `sealed_policy_set` items with `additionalProperties: false` and does not
+  permit `notes`.
+
+Decision:
+- Remove `notes` from `sealed_policy_set` items; keep required fields only
+  (`logical_id`, `path`, `schema_ref`, `sha256_hex`, `role`, optional
+  `owner_segment`).
+
+Rationale:
+- Preserve strict schema compliance for the receipt output. Versioning evidence
+  is already enforced by the policy version checks; including it in the
+  receipt is not allowed by contract and should remain in logs if needed.
+
+Plan:
+- Update the sealed policy append block in
+  `packages/engine/src/engine/layers/l1/seg_3B/s0_gate/runner.py` to omit
+  `notes`.
+- Re-run `make segment3b-s0` to confirm schema validation passes.
+
+---
+
+### Entry: 2026-01-18 18:42
+
+Pelias rebuild + sealed_policy_set fix applied; S0 green.
+
+Actions taken:
+- Ran `make pelias_cached` to rebuild the pelias cached bundle.
+  - New sqlite digest: `c81dd6418a1e4d0f464c13955d4bd36bd5fe5467147c9c6c460384dbb3d54e5c`
+  - Bytes: `56799232`
+  - Bundle/provenance now match the sqlite digest and bytes.
+- Removed the `notes` field from `sealed_policy_set` items in
+  `packages/engine/src/engine/layers/l1/seg_3B/s0_gate/runner.py`.
+- Re-ran `make segment3b-s0`; S0 completed successfully with receipt and
+  sealed inputs written.
+
+Outcome:
+- 3B.S0 gate passes and output schema validates.

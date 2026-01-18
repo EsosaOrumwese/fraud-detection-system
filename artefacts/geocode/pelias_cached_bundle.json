@@ -1,6 +1,6 @@
 {
   "version": "2025-12-31",
-  "sha256_hex": "d0fd700625f6d15819b2a8430be6f08e1cba48507687a70f052b460d068ce0ee",
+  "sha256_hex": "c81dd6418a1e4d0f464c13955d4bd36bd5fe5467147c9c6c460384dbb3d54e5c",
   "tile_span": "global",
   "licence": "CC-BY-4.0 (GeoNames Gazetteer extract)",
   "notes": "Built deterministically from GeoNames dump files: cities500.zip, countryInfo.txt, admin1CodesASCII.txt, timeZones.txt."

@@ -305,7 +305,6 @@ BI.22	Muramvya	Muramvya	425550
 BI.13	Gitega	Gitega	426271
 BI.21	Ruyigi	Ruyigi	426699
 BI.11	Cankuzo	Cankuzo	427700
-BI.14	Karuzi	Karuzi	428218
 BI.09	Bubanza	Bubanza	428514
 BI.12	Cibitoke	Cibitoke	430020
 BI.19	Ngozi	Ngozi	430567
@@ -313,7 +312,6 @@ BI.15	Kayanza	Kayanza	430951
 BI.18	Muyinga	Muyinga	431747
 BI.16	Kirundo	Kirundo	432455
 BI.20	Rutana	Rutana	434147
-BI.23	Mwaro	Mwaro	434386
 BI.24	Bujumbura Mairie	Bujumbura Mairie	7303939
 BI.25	Bujumbura Rural	Bujumbura Rural	7303940
 BI.26	Rumonge	Rumonge	11184798
@@ -1394,7 +1392,7 @@ IQ.05	Sulaymaniyah	Sulaymaniyah	98465
 IQ.17	An Najaf	An Najaf	98862
 IQ.04	Al-Qadisiyah	Al-Qadisiyah	99022
 IQ.03	Muthanna	Muthanna	99032
-IQ.01	Al Anbar	Al Anbar	99592
+IQ.01	Anbar	Anbar	99592
 IQ.19	Halabja	Halabja	12218240
 IR.26	Tehran	Tehran	110791
 IR.36	Zanjan	Zanjan	111452
@@ -3585,7 +3583,7 @@ UA.21	Sumy	Sumy	692196
 UA.20	Sevastopol City	Sevastopol City	694422
 UA.19	Rivne	Rivne	695592
 UA.18	Poltava	Poltava	696634
-UA.17	Odessa	Odessa	698738
+UA.17	Odesa	Odesa	698738
 UA.16	Mykolaiv	Mykolaiv	700567
 UA.15	Lviv	Lviv	702549
 UA.14	Luhansk	Luhansk	702657

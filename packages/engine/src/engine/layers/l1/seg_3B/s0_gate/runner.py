@@ -1173,7 +1173,6 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                 "sha256_hex": digest.sha256_hex,
                 "schema_ref": schema_ref,
                 "path": catalog_path,
-                "notes": f"version={version}",
             }
         )
         sealed_assets.append(
