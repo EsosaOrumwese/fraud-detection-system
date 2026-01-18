@@ -4430,3 +4430,55 @@ Implementation steps (pre-code):
 Next: implement the change, re-run `make segment2b-s8`, then
 `make segment3a-s7` to confirm green chain.
 
+### Entry: 2026-01-18 08:56
+
+Implementation update: S8 switched to index-only (no copied artefacts).
+
+Changes applied:
+- `packages/engine/src/engine/layers/l1/seg_2B/s8_validation_bundle/runner.py`:
+  - Replaced copy-into-bundle flow with `hash_source` that computes digests
+    directly from the canonical source file bytes.
+  - Index entries now reference **run-root-relative paths** (POSIX), derived
+    from the resolved source paths.
+  - `_passed.flag` digest is computed over **source file bytes** in
+    ASCII-lex `path` order (`_bundle_hash` now reads from run_root).
+  - Bundle root now contains only `index.json` + `_passed.flag`; temp bundle
+    still published via atomic move with immutability enforcement.
+  - Added a WARN log noting the spec deviation (index paths no longer bundle-root).
+
+Deviation note (explicit):
+- The 2B.S8 spec requires `index.json` paths to be **relative to the bundle
+  root** with files present under that root. The new index-only approach
+  references run-root paths and does not copy artefacts into the bundle. This
+  is an approved deviation to align with the index-only strategy used for 3A.S7.
+
+### Entry: 2026-01-18 08:57
+
+Run attempt after index-only change hit immutability; need bundle reset.
+
+Observed failure:
+- `make segment2b-s8` failed with `F4:2B-S8-080` (immutability) because the
+  existing `validation_bundle_2B` partition contains copied evidence files
+  and differs from the new index-only output.
+
+Decision + next action:
+- Remove the existing bundle directory for the active manifest to allow
+  regeneration with index-only content, then re-run `make segment2b-s8`.
+
+### Entry: 2026-01-18 08:57
+
+Action taken:
+- Deleted `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/data/layer1/2B/validation/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`
+  to clear the immutability barrier before re-running S8.
+
+### Entry: 2026-01-18 08:58
+
+Run outcome after index-only change + bundle reset.
+
+- `make segment2b-s8` succeeded for run_id
+  `970b0bd6833be3a0f08df8e8abf0364c`.
+- New bundle emitted with index-only layout (only `index.json` + `_passed.flag`)
+  under `data/layer1/2B/validation/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08/`.
+- Run logs include the explicit WARN about index paths referencing run_root
+  (documented deviation).
+

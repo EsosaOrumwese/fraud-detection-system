@@ -2755,3 +2755,260 @@ Logging obligations:
 
 Next: implement S7 runner + CLI + Makefile wiring, then run segment2b-s8 →
 segment3a-s7 to verify end-to-end with index-only bundles.
+
+### Entry: 2026-01-18 08:56
+
+S7 implementation (index-only bundle) completed; code wiring in place.
+
+What was implemented:
+- New S7 runner at
+  `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`
+  with:
+  - S6 run-report gate (`status=PASS`, `error_code=null`) + S6 receipt gate
+    (`overall_status=PASS`) as hard preconditions.
+  - S0 gate + sealed inputs validation and upstream gate PASS check.
+  - Required artefact existence + schema validation for S0–S6 datasets.
+  - Per-member digests using canonical JSON or raw-byte partition hashing.
+  - S6 digest parity checks (`validation_report_digest`, `issue_table_digest`).
+  - Bundle index construction with `members` sorted by `logical_id`.
+  - Composite digest from member digests; `_passed.flag` emits that digest.
+  - Immutability enforcement on existing bundle/flag.
+  - Run-report + segment_state_runs emission.
+- Export module:
+  `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/__init__.py`.
+- CLI entrypoint:
+  `packages/engine/src/engine/cli/s7_validation_bundle_3a.py`.
+- Makefile wiring:
+  `SEG3A_S7_RUN_ID` defaults, args/cmd, `segment3a-s7` target, and `segment3a`
+  chain now includes S7.
+
+Deviation notes (recorded explicitly):
+1) **Index-only bundle**: `validation_bundle_3A` contains only `index.json` and
+   `_passed.flag`. Member paths reference canonical run-root-relative paths
+   (token-resolved dictionary paths). This aligns with the approved option.
+2) **RNG evidence in bundle**: S3 RNG logs (`rng_event_zone_dirichlet`,
+   `rng_trace_log`, `rng_audit_log`) are included as bundle members to satisfy
+   the spec’s RNG-evidence clause **without** introducing a new digest artefact.
+   These logs are not listed in `validation_bundle_3A` registry dependencies,
+   so this is a deliberate (documented) deviation to be formalized later.
+
+Observability + performance notes:
+- Added narrative logs: objective header, gating confirmation, per-member digest
+  logs, and progress logs for file-loop hashing with elapsed/rate/ETA.
+- Schema validation uses `validate_dataframe` for Parquet datasets; this is
+  consistent with binding "schema-valid" requirement but may be IO-heavy.
+
+### Entry: 2026-01-18 08:59
+
+S7 sealed-inputs validation failure diagnosed and a correction plan was drafted
+before modifying code.
+
+Observed failure:
+- `make segment3a-s7` aborted at the sealed_inputs gate with
+  `E3A_S7_002_PRECONDITION_MISSING_ARTEFACT` because
+  `schemas.3A.yaml#/validation/sealed_inputs_3A` defines a **row object**
+  while the emitted `sealed_inputs_3A` payload is a **list of rows**.
+- The current S7 implementation validates the entire list against the object
+  schema, which yields a schema error (`type=object` expected).
+- Other 3A states (S2/S4/S5/S6) validate `sealed_inputs_3A` by iterating the
+  list and validating each row against the object schema.
+
+Decision and reasoning:
+- Align S7 with the established 3A pattern (S2/S6) by:
+  1) enforcing `sealed_inputs` is a list;
+  2) validating each row against the object schema;
+  3) failing fast on non-dict rows or schema errors.
+- This preserves the contract definition (row object) while respecting the
+  payload envelope (list), and avoids introducing a schema override for S7.
+
+Planned code changes (stepwise):
+1) In `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`,
+   replace the list-level schema validation with per-row validation.
+2) Add an explicit "not list" guard with the same precondition error code.
+3) Include row index + error message in the abort context for auditability.
+4) Re-run `make segment3a-s7` and document any immutability cleanup required.
+
+### Entry: 2026-01-18 09:00
+
+Applied the sealed-inputs validation fix in S7 as planned.
+
+Implementation details:
+- Updated `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`
+  to:
+  - Assert `sealed_inputs` is a list and abort with
+    `sealed_inputs_not_list` (precondition error) if not.
+  - Validate each row with the `sealed_inputs_3A` object schema using
+    `Draft202012Validator`, matching the S2/S6 approach.
+  - Abort on non-dict rows (`sealed_inputs_not_object`) or schema errors with
+    row index + error message included in the context.
+
+Next: re-run `make segment3a-s7` and address any immutability conflicts.
+
+### Entry: 2026-01-18 09:01
+
+Follow-up failure discovered during S7 member validation; plan to align
+member-level schema validation for `sealed_inputs_3A`.
+
+Observed failure:
+- After the sealed-inputs gate fix, `make segment3a-s7` progressed into member
+  digesting but failed when validating `sealed_inputs_3A` as a JSON member.
+- The JSON member path still applies the object schema to the list payload,
+  causing `member_schema_invalid` with the same "type=object expected" error.
+
+Decision and reasoning:
+- Special-case the `sealed_inputs_3A` member in the JSON validation branch:
+  validate each row with the object schema (as in S2/S6), but retain the
+  bundle digest over the canonical list payload.
+- This keeps the bundle digest deterministic while respecting the actual
+  payload envelope and avoids inventing a new array schema.
+
+Planned code changes:
+1) In the JSON member handling block, detect `dataset_id == DATASET_SEALED_INPUTS`.
+2) Assert payload is a list and validate each row with the existing schema.
+3) Keep `_json_digest(payload)` for the bundle member digest.
+4) Re-run `make segment3a-s7` after the change.
+
+### Entry: 2026-01-18 09:02
+
+Applied the `sealed_inputs_3A` member-validation fix.
+
+Implementation details:
+- In the JSON member branch of
+  `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`:
+  - Special-cased `DATASET_SEALED_INPUTS` to assert list payloads.
+  - Validated each row against the object schema with row-index error context.
+  - Retained `_json_digest(payload)` to keep the member digest deterministic
+    over the canonical list payload.
+
+Next: re-run `make segment3a-s7` and handle any immutability conflicts.
+
+### Entry: 2026-01-18 09:03
+
+New failure encountered during member digesting: wildcard log paths are being
+treated as missing before `_resolve_event_paths` can expand them.
+
+Observed failure:
+- `make segment3a-s7` failed at member `rng_event_zone_dirichlet` with
+  `E3A_S7_002_PRECONDITION_MISSING_ARTEFACT`.
+- The member loop performs `if not path.exists()` before branching on `kind`.
+  For log members, the dataset path is a glob (`part-*.jsonl`), so `Path.exists`
+  returns false even though matching files (e.g., `part-00000.jsonl`) exist.
+
+Decision and reasoning:
+- For `kind == "log"`, skip the pre-branch `path.exists()` check and defer
+  existence validation to `_resolve_event_paths`, which already handles
+  globbing and missing-file diagnostics.
+- Catch `InputResolutionError` from `_resolve_event_paths` and convert it to
+  the same precondition abort used for missing artefacts, preserving error
+  codes and narrative logs.
+
+Planned code changes:
+1) Move the `path.exists()` guard to apply only to non-log members.
+2) Wrap `_resolve_event_paths` in a try/except to emit a consistent
+   `member_missing` failure on missing log paths.
+3) Re-run `make segment3a-s7`.
+
+### Entry: 2026-01-18 09:04
+
+Applied the log-member glob handling fix.
+
+Implementation details:
+- Updated the member loop in
+  `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`
+  so `path.exists()` is enforced only for non-log members.
+- Wrapped `_resolve_event_paths` in a try/except that converts
+  `InputResolutionError` into the standard `member_missing` precondition
+  failure, preserving the error code and audit context.
+
+Next: re-run `make segment3a-s7` to continue the bundle build.
+
+### Entry: 2026-01-18 09:05
+
+S7 log validation now fails on schema type "stream"; plan to adapt validator
+to use the stream record schema for JSONL rows.
+
+Observed failure:
+- During hashing of `rng_event_zone_dirichlet`, `_hash_jsonl_with_validation`
+  constructed a `Draft202012Validator` from a schema with `type: stream`.
+- The jsonschema library rejects the custom `type: stream` definition and
+  throws `Unknown type 'stream'`, causing
+  `E3A_S7_007_INFRASTRUCTURE_IO_ERROR`.
+
+Decision and reasoning:
+- Treat log schemas with `type: stream` as a record schema wrapper where the
+  JSONL lines should be validated against `schema.record`.
+- Preserve `$defs`/`$id` from the parent stream schema so `$ref` resolution
+  continues to work for record validation.
+- This matches how `jsonschema_adapter` interprets "stream" for table row
+  validation elsewhere in the engine.
+
+Planned code changes:
+1) Add a small helper in S7 to map `type: stream` schemas to a record schema
+   with inherited `$defs`/`$id`.
+2) Use that helper in `_hash_jsonl_with_validation` before instantiating the
+   validator.
+3) Re-run `make segment3a-s7`.
+
+### Entry: 2026-01-18 09:06
+
+Applied the stream-schema adaptation for JSONL validation.
+
+Implementation details:
+- Added `_record_schema_for_stream` in
+  `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`
+  to transform `type: stream` schemas into record schemas with inherited
+  `$schema`/`$id`/`$defs`.
+- `_hash_jsonl_with_validation` now validates each JSONL row using the record
+  schema, avoiding the jsonschema "Unknown type 'stream'" error.
+
+Next: re-run `make segment3a-s7`.
+
+### Entry: 2026-01-18 09:08
+
+`make segment3a-s7` completed successfully after the object-schema parquet
+validation fix.
+
+Run outcome:
+- `STATE_SUCCESS` for S7, bundle published at
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/data/layer1/3A/validation/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`.
+- Run-report emitted at
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/reports/layer1/3A/state=S7/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08/run_report.json`.
+
+### Entry: 2026-01-18 09:07
+
+Member validation now fails for `s6_issue_table_3A` because its schema is an
+object, not a table; plan to support object-schema parquet validation.
+
+Observed failure:
+- S7 fails at `s6_issue_table_3A` with `E3A_S7_003_INDEX_BUILD_FAILED`:
+  `_table_pack` rejects schema type `object` for the parquet issue table.
+- In the contract pack, `schemas.3A.yaml#/validation/s6_issue_table_3A` is a
+  row object schema (used directly in S6), not a "table" schema.
+
+Decision and reasoning:
+- Extend the parquet-member validation branch to support object schemas by
+  validating each parquet row against the object schema (mirrors S6 behavior).
+- Keep the existing table-pack validation for plan/egress tables so we do not
+  weaken schema enforcement for true table schemas.
+
+Planned code changes:
+1) Inspect the schema definition via `_schema_from_pack`.
+2) If `type == "object"`, validate each row with `Draft202012Validator` using
+   `_schema_for_payload`; strip None-valued fields as S6 does.
+3) Otherwise keep the existing `validate_dataframe` path.
+4) Re-run `make segment3a-s7`.
+
+### Entry: 2026-01-18 09:08
+
+Applied the object-schema parquet validation branch for S7 members.
+
+Implementation details:
+- In the parquet member branch of
+  `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`,
+  inspected the schema definition via `_schema_from_pack`.
+- If the schema is `type: object`, validate each row against the object schema
+  (with None-stripping) using `Draft202012Validator`.
+- Otherwise, retained the existing `validate_dataframe` + table-pack path for
+  table schemas.
+
+Next: re-run `make segment3a-s7`.

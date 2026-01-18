@@ -206,11 +206,11 @@ def _discover_seeds(entry: dict, run_paths: RunPaths, manifest_fingerprint: str)
     return seeds
 
 
-def _bundle_hash(bundle_root: Path, index_entries: list[dict]) -> str:
+def _bundle_hash(run_root: Path, index_entries: list[dict]) -> str:
     paths = sorted(entry["path"] for entry in index_entries if entry.get("path"))
     hasher = hashlib.sha256()
     for rel_path in paths:
-        hasher.update((bundle_root / rel_path).read_bytes())
+        hasher.update((run_root / rel_path).read_bytes())
     return hasher.hexdigest()
 
 
@@ -473,26 +473,28 @@ def run_s8(config: EngineConfig, run_id: Optional[str] = None) -> S8RunResult:
     index_entries: list[dict] = []
     total_bytes = 0
 
-    def copy_and_hash(src: Path, rel_path: str) -> None:
+    def hash_source(src: Path) -> None:
         nonlocal total_bytes
-        dest = tmp_root / rel_path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, dest)
-        digest = sha256_file(dest).sha256_hex
+        try:
+            rel_path = src.relative_to(run_paths.run_root).as_posix()
+        except ValueError as exc:
+            raise InputResolutionError(f"Index path not under run_root: {src}") from exc
+        digest = sha256_file(src).sha256_hex
         index_entries.append({"path": rel_path, "sha256_hex": digest})
-        total_bytes += dest.stat().st_size
+        total_bytes += src.stat().st_size
 
-    copy_and_hash(s0_path, "evidence/s0/s0_gate_receipt_2B.json")
-    copy_and_hash(sealed_path, "evidence/s0/sealed_inputs_2B.json")
+    logger.info("S8: building index-only bundle (no copies); paths are run-root relative")
+    logger.warning(
+        "S8: index paths reference run_root (deviation: spec expects bundle-root paths for members)"
+    )
+    hash_source(s0_path)
+    hash_source(sealed_path)
 
     progress = _ProgressTracker(len(seeds_required), logger, "S8: hashing S7 reports")
     for seed_value in seeds_required:
         seed_tokens = {"seed": str(seed_value), "manifest_fingerprint": manifest_fingerprint}
         s7_path = _resolve_dataset_path(s7_entry, run_paths, config.external_roots, seed_tokens)
-        copy_and_hash(
-            s7_path,
-            f"reports/seed={seed_value}/s7_audit_report.json",
-        )
+        hash_source(s7_path)
         progress.update(1)
 
     index_entries = sorted(index_entries, key=lambda entry: entry["path"])
@@ -516,7 +518,7 @@ def run_s8(config: EngineConfig, run_id: Optional[str] = None) -> S8RunResult:
         )
 
     _write_json(tmp_root / "index.json", index_entries)
-    bundle_hash = _bundle_hash(tmp_root, index_entries)
+    bundle_hash = _bundle_hash(run_paths.run_root, index_entries)
     (tmp_root / "_passed.flag").write_text(f"sha256_hex = {bundle_hash}\n", encoding="ascii")
     timer.info("S8: index.json + _passed.flag written (files_indexed=%d)", len(index_entries))
 
