@@ -867,3 +867,117 @@ S1 execution outcome.
 - Re-ran `make segment3b-s1` after the dtype + schema inlining + `pl.lit` fixes.
 - S1 now completes successfully and publishes `virtual_classification_3B`, `virtual_settlement_3B`, and `s1_run_report_3B` for run_id `970b0bd6833be3a0f08df8e8abf0364c`.
 - Counts observed: `merchants_total=10000`, `virtual_merchants=309`, `settlement_rows=309`.
+
+---
+
+### Entry: 2026-01-18 20:46
+
+3B.S2 spec review + implementation planning (initial).
+
+Problem framing:
+- Implement 3B.S2 (CDN edge catalogue construction) per `state.3B.s2.expanded.md`.
+- S2 is first RNG-bearing 3B state; must be deterministic, policy-governed, and emit RNG events/logs.
+- Must consume S1 outputs + sealed inputs; produce `edge_catalogue_3B` + `edge_catalogue_index_3B` with strict partition/ordering + RNG logs.
+
+Key inputs/contracts (authoritative):
+- S0 gate + sealed inputs:
+  - `s0_gate_receipt_3B` (`schemas.3B.yaml#/validation/s0_gate_receipt_3B`).
+  - `sealed_inputs_3B` (`schemas.3B.yaml#/validation/sealed_inputs_3B`).
+- S1 outputs:
+  - `virtual_classification_3B`, `virtual_settlement_3B` (`schemas.3B.yaml#/plan/*`).
+- Policy/refs for S2:
+  - `cdn_country_weights` (`schemas.3B.yaml#/policy/cdn_country_weights_v1`).
+  - `cdn_key_digest` (sealed; may be echoed or used for RNG domain separation).
+  - `route_rng_policy_v1` (`schemas.2B.yaml#/policy/route_rng_policy_v1`).
+  - `hrsl_raster` (ingress). 
+  - Spatial/tz assets: `tile_index`, `tile_weights`, possibly `tile_bounds`, `world_countries`, `tz_world_2025a`, `tz_overrides`, `tz_nudge`, `tz_timetable_cache` (per spec). 
+- Output datasets:
+  - `edge_catalogue_3B`, `edge_catalogue_index_3B` (`schemas.3B.yaml#/plan/*`), with ordering in dictionary.
+  - RNG logs: `rng_event_edge_tile_assign`, `rng_event_edge_jitter`, `rng_audit_log`, `rng_trace_log` (`schemas.layer1.yaml#/rng/...`).
+
+Observed gaps vs spec:
+- Current `sealed_inputs_3B` for the active run does not include `tile_index`, `tile_weights`, `tile_bounds`, `world_countries`, or `tz_world_2025a` (only site_locations/timezones, tz_timetable_cache, hrsl_raster, etc.). S2 spec requires spatial/tz assets to be sealed. This likely needs S0 updates before S2 can run.
+- `route_rng_policy_v1` (schema + config) currently defines only `routing_selection` and `routing_edge` streams; no 3B.S2 substreams for `edge_tile_assign` / `edge_jitter` are present. Need a decision on how to source RNG stream IDs and budgets for S2.
+
+Baseline algorithm choice (aligned with spec + existing contracts):
+- Use the v1 `cdn_country_weights` policy as the sole edge-budget authority:
+  - `edge_scale` -> total edges per merchant (E). No merchant classes/overrides because v1 schema lacks those fields.
+  - Country allocation via largest-remainder integerisation (per authoring guide).
+- Use 1B tiling surfaces for spatial allocation:
+  - For each country, use `tile_weights` (weight_fp + dp) to form per-tile weights `w_tile`, normalised by country.
+  - If `tile_bounds` is available, use it for jitter bounds; otherwise compute bounds from `hrsl_raster` + row/col in `tile_index`.
+- RNG usage confined to jitter (Phase D). Optional `edge_tile_assign` stream only if we introduce random permutations; otherwise skip tile-assign RNG events and keep allocation deterministic.
+- Timezone resolution: reuse 2A-style tz lookup (tz_world + nudge + overrides), but apply to edge coordinates. Use `tz_source` values: `POLYGON` for direct polygon match; `OVERRIDE` when override applied; `NUDGE` for nudge-only resolution if policy requires (schema supports `NUDGE`).
+- Edge id law: follow spec 6.7.1 (SHA256 of `"3B.EDGE" + 0x1F + merchant_id + 0x1F + edge_seq_index`, low64 hex). Use deterministic edge ordering to assign `edge_seq_index` (e.g., sort by merchant_id, country_iso, tile_id, jitter_rank).
+- Edge digest: compute per-edge digest over canonical row fields (excluding itself) in a documented order; index digest per-merchant/global derived from ordered edge digests per spec.
+
+Implementation plan (stepwise, with decisions + logging):
+1) **Contract + gating checks (Phase A)**
+   - Load run receipt; resolve seed/parameter_hash/manifest_fingerprint.
+   - Validate `s0_gate_receipt_3B` + `sealed_inputs_3B` with schema; verify upstream gate PASS; confirm identity fields.
+   - Validate S1 outputs `virtual_classification_3B` + `virtual_settlement_3B`; enforce 1:1 mapping for virtual merchants.
+   - Build `V` from `virtual_classification_3B.is_virtual`.
+   - Log story header: objective, gated inputs, intended outputs (narrative per AGENTS).
+
+2) **Resolve + validate sealed inputs**
+   - Build `sealed_by_id` from `sealed_inputs_3B`.
+   - Require `cdn_country_weights`, `cdn_key_digest`, `route_rng_policy_v1`, `hrsl_raster` and spatial/tz assets (tile_index/tile_weights/tile_bounds, world_countries, tz_world_2025a, tz_overrides, tz_nudge). Fail closed if missing.
+   - Validate policy YAML via `schemas.3B.yaml#/policy/cdn_country_weights_v1`.
+   - Confirm digests match sealed inputs when hardened mode is enabled.
+
+3) **Phase B (RNG-free edge budgets)**
+   - Parse `cdn_country_weights` (version, edge_scale, countries list).
+   - For each merchant in V:
+     - `E_total = edge_scale` (int).
+     - Determine `C_m` as all policy countries with weight>0.
+     - Compute `T_m(c) = E_total * weight(c)` and integerise with largest remainder (tie-break ISO2 asc).
+   - Log counts (total virtual merchants, edges per merchant min/avg/max).
+
+4) **Phase C (RNG-free tile allocation)**
+   - Load tile weights for each country; convert `weight_fp` + `dp` -> float weights; normalise per country.
+   - Integerise per-country edge counts into tile counts using largest remainder (tie-break by tile_id).
+   - Optional: keep a per-merchant in-memory plan, or emit a temporary plan file for resumability.
+
+5) **Phase D (RNG-bearing jitter + RNG logs)**
+   - Use Philox to generate `u_lon`, `u_lat` for each edge slot.
+   - Jitter inside tile bounds; verify inside country polygon (world_countries). Retry up to `JITTER_MAX_ATTEMPTS` (policy default; will define from spec or config).
+   - Emit `rng_event_edge_jitter` for each attempt; include envelope (stream_id, counters, blocks/draws), edge_seq_index, attempt, accepted.
+   - If `edge_tile_assign` RNG stream is required, emit events when performing any random permutation; otherwise skip and rely on deterministic ordering.
+   - Append/maintain `rng_trace_log` and `rng_audit_log` per existing Layer-1 patterns (reuse 1B S5/S6 utilities).
+
+6) **Phase E (tz resolution)**
+   - Build tz-world index once (reuse 2A tz lookup utilities) and apply to edge coordinates.
+   - Apply nudge + overrides; set `tz_source` accordingly.
+   - Fail closed if any edge lacks tzid.
+
+7) **Phase F (edge catalogue + index)**
+   - Assemble edge rows with required columns: merchant_id, edge_id, edge_seq_index, country_iso, lat/lon, tzid_operational, tz_source, edge_weight, hrsl_tile_id (tile_id), spatial_surface_id, cdn_policy_id/version, rng_stream_id/event_id, sampling_rank, edge_digest.
+   - Sort by dictionary writer_sort (merchant_id, edge_id) before writing parquet.
+   - Compute per-merchant and global digests for `edge_catalogue_index_3B` using canonical ordering; write index parquet.
+   - Atomic publish both outputs; if outputs exist, compare digests and fail on mismatch.
+
+8) **Validation + invariants**
+   - Enforce schema validation on outputs (inline layer1 defs where needed).
+   - Check counts: edge_count_total == row count per merchant; global totals match.
+   - Verify RNG event counts align with edges placed.
+   - Record run report with counts + digests + policy ids/versions.
+
+Performance + memory considerations:
+- Use streaming/batched processing per merchant or per country to avoid building full edge arrays in memory.
+- For jitter, use chunked loops with progress logs including elapsed/rate/ETA.
+- Avoid reading full tile surfaces repeatedly; cache per-country tile arrays with capped LRU (similar to 1B.S6).
+
+Resumability hooks:
+- Use temp output dirs + atomic publish; detect existing partitions and skip if identical.
+- RNG logs: append trace/audit only if missing for this run_id; skip event emission if already present.
+
+Open questions / decisions to confirm with user before coding:
+1) **RNG policy source:** `route_rng_policy_v1` lacks S2 streams. Should we extend it (new stream IDs + budgets), or introduce a 3B-specific RNG policy artefact? If extending, preferred stream_id/substream labels? 
+2) **Spatial surfaces:** Should S2 use `tile_bounds` if present, or compute bounds from HRSL raster + row/col? If tile_bounds is not sealed today, should we update S0 to seal it (and tile_index/tile_weights/world_countries/tz_world) before S2?
+3) **Edge weights:** Should `edge_weight` be uniform per edge (sum=1 per merchant), or proportional to country/tile weights? (Spec allows both with documented law.)
+4) **Edge id ordering:** Confirm `edge_seq_index` ordering key (recommended: country_iso, tile_id, jitter_rank) and 0-based vs 1-based.
+5) **TZ resolution:** Should we reuse 2A tz lookup logic directly (including nudge + overrides), and map `tz_source` to `POLYGON/OVERRIDE/NUDGE`? Any simplified mode acceptable?
+6) **Edge digest law:** Confirm canonical digest formula for `edge_digest` and `edge_catalogue_index_3B` (per-merchant + global) if a specific law exists beyond the general guidance.
+
+Next action once clarified:
+- Update S0 sealing to include missing spatial/tz assets (if required), then implement S2 runner + CLI + Makefile target, and run `make segment3b-s2` until green.
