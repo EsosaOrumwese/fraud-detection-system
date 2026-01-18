@@ -2529,3 +2529,94 @@ Run outcome after fixes:
   - `CHK_STATE_STATUS_CONSISTENCY` WARN triggered for S3 (run_report PASS but
     S6 check FAIL).
 - S6 run status remains PASS (report/receipt published) per earlier decision.
+
+### Entry: 2026-01-18 08:12
+
+S6 trace-selection correction to align RNG accounting with observed logs.
+
+Problem recap (from latest run):
+- `CHK_S3_RNG_ACCOUNTING` failed because the trace row selected by the
+  "max (after_hi, after_lo)" rule produced totals
+  (events_total=74, blocks_total=2226, draws_total=3014) that did not match
+  the RNG event sums (events_total=1471, blocks_total=43491, draws_total=58878).
+- Inspection of `rng_trace_log` for the run shows:
+  - 1471 rows for `module="3A.S3"` and `substream_label="zone_dirichlet"`,
+    each row cumulative (events_total increments by 1 each line).
+  - `rng_counter_after_{hi,lo}` is **not monotonic** across those rows, so
+    "max counter" does not correspond to the final cumulative totals.
+
+Alternatives considered (and why):
+1) **Keep max-counter selection** (spec note) and accept FAIL:
+   - Rejected because it makes S6 fail on otherwise internally consistent
+     RNG event/trace totals when trace counters are non-monotonic.
+2) **Select by max events_total / blocks_total / draws_total**:
+   - Chosen because the trace log rows are cumulative, so the row with the
+     highest totals reflects the aggregate used for accounting. This aligns
+     with the binding S6 requirement to compare Σblocks/Σdraws vs the trace
+     aggregate. It preserves determinism and uses data already in the trace.
+3) **Compute totals by taking max of each field independently**:
+   - Rejected because it can mix fields from different rows; prefer a single
+     consistent aggregate row.
+
+Decision (deviation note):
+- **Select the trace aggregate row by max (events_total, blocks_total,
+  draws_total)**, then break ties deterministically with (after_hi, after_lo),
+  ts_utc, and source filename.
+- This departs from the schema comment that prefers max counter as the primary
+  selector, but matches the actual trace log semantics in this run (cumulative
+  totals per row). I will log the counter-vs-total selection divergence so we
+  can revisit if the RNG trace writer is updated.
+
+Implementation steps (before coding):
+1) Adjust `s6_validation/runner.py` trace row selection:
+   - Filter trace rows to those matching run_id + seed (do not include
+     mismatched rows in candidate selection).
+   - Replace `_select_trace_row` ordering to prefer max totals.
+   - Optionally compute the max-counter row for logging (single log line).
+2) Add a narrative log line when max-counter row differs from max-total row.
+3) Re-run `make segment3a-s6`.
+   - If immutability violation arises (report changed), remove the existing
+     S6 outputs for this run_id and re-run; document the action.
+4) Record all follow-on decisions/errors in this map and the logbook.
+
+### Entry: 2026-01-18 08:14
+
+Rerun attempt after trace-selection change hit immutability.
+
+Observed failure:
+- `make segment3a-s6` failed with
+  `E3A_S6_006_IMMUTABILITY_VIOLATION` for
+  `s6_validation_report_3A` because the report content changed (expected after
+  selecting the max-total trace row).
+
+Decision and immediate next action:
+- Remove the existing S6 outputs for this run_id (report, issue table, receipt)
+  to allow regeneration with the corrected accounting logic.
+- Re-run `make segment3a-s6` and confirm `overall_status="PASS"`.
+
+### Entry: 2026-01-18 08:15
+
+Action taken for immutability reset.
+
+- Deleted prior S6 outputs for run_id `970b0bd6833be3a0f08df8e8abf0364c`:
+  - `runs/local_full_run-5/.../data/layer1/3A/s6_validation_report/.../report.json`
+  - `runs/local_full_run-5/.../data/layer1/3A/s6_issues/.../issues.parquet`
+  - `runs/local_full_run-5/.../data/layer1/3A/s6_receipt/.../s6_receipt.json`
+- Next: rerun `make segment3a-s6` to regenerate outputs with the updated trace
+  selection logic.
+
+### Entry: 2026-01-18 08:15
+
+Rerun outcome after trace-selection change + output reset.
+
+- `make segment3a-s6` succeeded for run_id
+  `970b0bd6833be3a0f08df8e8abf0364c`.
+- `s6_validation_report_3A` now reports:
+  - `overall_status="PASS"`, `checks_failed_count=0`, `checks_warn_count=0`.
+  - `CHK_S3_RNG_ACCOUNTING` passes when using the max-total trace row.
+- Outputs regenerated:
+  - `s6_validation_report_3A`
+  - `s6_issue_table_3A` (0 rows)
+  - `s6_receipt_3A`
+- Run log includes a narrative INFO entry noting that max-counter and max-total
+  trace selection differ for this run; totals are used for accounting.

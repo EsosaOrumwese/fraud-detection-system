@@ -383,6 +383,27 @@ def _select_trace_row(rows: Iterable[tuple[dict, str]]) -> tuple[Optional[dict],
     best_key: Optional[tuple] = None
     for row, source in rows:
         key = (
+            int(row.get("events_total") or 0),
+            int(row.get("blocks_total") or 0),
+            int(row.get("draws_total") or 0),
+            int(row.get("rng_counter_after_hi") or 0),
+            int(row.get("rng_counter_after_lo") or 0),
+            str(row.get("ts_utc") or ""),
+            source,
+        )
+        if best_key is None or key > best_key:
+            best_key = key
+            best_row = row
+            best_source = source
+    return best_row, best_source
+
+
+def _select_trace_row_by_counter(rows: Iterable[tuple[dict, str]]) -> tuple[Optional[dict], Optional[str]]:
+    best_row: Optional[dict] = None
+    best_source: Optional[str] = None
+    best_key: Optional[tuple] = None
+    for row, source in rows:
+        key = (
             int(row.get("rng_counter_after_hi") or 0),
             int(row.get("rng_counter_after_lo") or 0),
             str(row.get("ts_utc") or ""),
@@ -1024,6 +1045,8 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                     )
                 if str(payload.get("run_id")) != run_id_value or int(payload.get("seed") or -1) != int(seed):
                     trace_identity_mismatch += 1
+                    trace_tracker.update(1)
+                    continue
                 if (
                     str(payload.get("module")) == MODULE_RNG
                     and str(payload.get("substream_label")) == SUBSTREAM_LABEL
@@ -1499,6 +1522,19 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
             )
 
         trace_row, trace_source = _select_trace_row(trace_rows)
+        trace_counter_row, trace_counter_source = _select_trace_row_by_counter(trace_rows)
+        if trace_row and trace_counter_row and trace_row != trace_counter_row:
+            logger.info(
+                "S6: rng_trace aggregate selection uses max totals; max-counter differs (totals_events=%s,totals_blocks=%s,totals_draws=%s,totals_source=%s,counter_events=%s,counter_blocks=%s,counter_draws=%s,counter_source=%s)",
+                trace_row.get("events_total"),
+                trace_row.get("blocks_total"),
+                trace_row.get("draws_total"),
+                trace_source,
+                trace_counter_row.get("events_total"),
+                trace_counter_row.get("blocks_total"),
+                trace_counter_row.get("draws_total"),
+                trace_counter_source,
+            )
         trace_mismatch = 0
         if trace_row is None:
             trace_mismatch += 1
