@@ -53,6 +53,7 @@ SEG3A_S2_RUN_ID ?= $(RUN_ID)
 SEG3A_S3_RUN_ID ?= $(RUN_ID)
 SEG3A_S4_RUN_ID ?= $(RUN_ID)
 SEG3A_S5_RUN_ID ?= $(RUN_ID)
+SEG3A_S6_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_PREDICATE ?= center
 
 # ---------------------------------------------------------------------------
@@ -931,6 +932,21 @@ SEG3A_S5_ARGS += --run-id $(SEG3A_S5_RUN_ID)
 endif
 SEG3A_S5_CMD = $(PY_ENGINE) -m engine.cli.s5_zone_alloc_3a $(SEG3A_S5_ARGS)
 
+SEG3A_S6_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG3A_S6_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG3A_S6_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG3A_S6_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG3A_S6_RUN_ID)),)
+SEG3A_S6_ARGS += --run-id $(SEG3A_S6_RUN_ID)
+endif
+SEG3A_S6_CMD = $(PY_ENGINE) -m engine.cli.s6_validation_3a $(SEG3A_S6_ARGS)
+
 SEG1A_REQUIRED_REFS = \
 	$(MERCHANT_TABLE) \
 	$(ISO_TABLE) \
@@ -1426,7 +1442,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
 all: segment1a segment1b segment2a segment2b segment3a
@@ -1762,7 +1778,11 @@ segment3a-s5:
 	@echo "Running Segment 3A S5 zone allocation egress"
 	@$(SEG3A_S5_CMD)
 
-segment3a: segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5
+segment3a-s6:
+	@echo "Running Segment 3A S6 validation"
+	@$(SEG3A_S6_CMD)
+
+segment3a: segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6
 
 paths-tree:
 	@$(PY_SCRIPT) scripts/build_paths_tree.py

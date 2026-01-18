@@ -2242,3 +2242,290 @@ S5 run verification:
   `zone_alloc_universe_hash`, and produced run-report:
   `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/reports/layer1/3A/state=S5/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08/run_report.json`.
 - Re-run confirmed idempotence (existing outputs detected as identical).
+
+### Entry: 2026-01-18 06:53
+
+S6 planning notebook (Structural Validation & Segment Audit).
+
+Problem statement:
+- Implement 3A.S6 as the read-only validator over S0-S5 artefacts and S3 RNG logs.
+- Produce `s6_validation_report_3A`, optional `s6_issue_table_3A`, and `s6_receipt_3A`.
+- Enforce deterministic, stable output; no RNG; no data-plane mutation.
+
+Inputs / authorities to use:
+- Run identity from `run_receipt.json`: `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`.
+- S0 anchor artefacts:
+  - `s0_gate_receipt_3A` (upstream gate PASS, sealed_policy_set IDs).
+  - `sealed_inputs_3A` (external artefact whitelist + sha256).
+- Internal datasets:
+  - `s1_escalation_queue` (D, D_esc, `site_count`).
+  - `s2_country_zone_priors` (Z(c), α and floor lineage).
+  - `s3_zone_shares` (share vectors).
+  - `s4_zone_counts` (integer counts).
+  - `zone_alloc` and `zone_alloc_universe_hash` (egress + digests).
+- Run-report entries for S1-S5 (`s1_run_report_3A` ... `s5_run_report_3A`).
+- RNG logs for S3:
+  - `rng_event_zone_dirichlet` (module="3A.S3", substream="zone_dirichlet").
+  - `rng_trace_log` for same module/substream.
+  - `rng_audit_log` (run-scoped anchor for RNG).
+- External policy artefacts (via sealed_inputs + dictionary):
+  - `zone_mixture_policy`, `country_zone_alphas`, `zone_floor_policy`,
+    `day_effect_policy_v1`.
+- Contracts:
+  - `schemas.3A.yaml` (`#/validation/s6_validation_report_3A`,
+    `#/validation/s6_issue_table_3A`, `#/validation/s6_receipt_3A`).
+  - `schemas.layer1.yaml` RNG logs + segment_state_run.
+  - `schemas.2B.yaml` day-effect policy.
+  - `dataset_dictionary.layer1.3A.yaml`, `artefact_registry_3A.yaml`.
+
+Decisions confirmed (user-approved):
+1) `CHK_S3_SHARE_SUM` tolerance = `1e-12` (align S3/S4).
+2) `CHK_STATE_STATUS_CONSISTENCY` is WARN-level (not FAIL).
+3) `CHK_S5_UNIVERSE_HASH_DIGESTS` recomputes `zone_alloc_parquet_digest` using
+   the same masked routing-hash rule as S5 (hex-zero).
+
+Plan (stepwise, explicit):
+1) **Run receipt + log init**
+   - Resolve `run_receipt.json` (latest or by run_id).
+   - Initialize run log file handler.
+   - Emit story header log (objective, gated inputs, outputs).
+2) **Load contracts**
+   - Load dictionary + registry + schema packs (3A, 2B, layer1, ingress).
+   - Failure -> `E3A_S6_002_CATALOGUE_MALFORMED`.
+3) **Precondition checks**
+   - Load + schema-validate `s0_gate_receipt_3A` and `sealed_inputs_3A`.
+   - Verify upstream gate PASS (1A/1B/2A).
+   - Ensure sealed_policy_set includes required IDs:
+     `zone_mixture_policy`, `country_zone_alphas`, `zone_floor_policy`,
+     `day_effect_policy_v1`.
+4) **Load run-reports and datasets**
+   - Load S1-S5 run-report JSONs; schema-validate.
+   - Load datasets (S1-S5) and validate against schema anchors.
+   - Load RNG logs: `rng_event_zone_dirichlet`, `rng_trace_log`,
+     `rng_audit_log`; validate against layer1 RNG schemas.
+5) **Load external policies and verify digests**
+   - Resolve policy artefacts via dictionary; verify `sealed_inputs_3A` path
+     matches rendered path and sha256 matches computed.
+   - Schema-validate policies against their schema anchors.
+6) **Initialize check registry**
+   - Fixed list per spec:
+     `CHK_S0_GATE_SEALED_INPUTS`, `CHK_S1_DOMAIN_COUNTS`,
+     `CHK_S2_PRIORS_ZONE_UNIVERSE`, `CHK_S3_DOMAIN_ALIGNMENT`,
+     `CHK_S3_SHARE_SUM`, `CHK_S3_RNG_ACCOUNTING`,
+     `CHK_S4_COUNT_CONSERVATION`, `CHK_S4_DOMAIN_ALIGNMENT`,
+     `CHK_S5_ZONE_ALLOC_COUNTS`, `CHK_S5_UNIVERSE_HASH_DIGESTS`,
+     `CHK_S5_UNIVERSE_HASH_COMBINED`, `CHK_STATE_STATUS_CONSISTENCY`.
+   - Each entry has default severity (ERROR for structural, WARN for
+     status-consistency), status=PASS, affected_count=0.
+7) **Execute checks**
+   - `CHK_S0_GATE_SEALED_INPUTS`:
+     verify upstream gate PASS + sealed_inputs presence/digest/schema.
+   - `CHK_S1_DOMAIN_COUNTS`:
+     duplicate `(m,c)` detection; site_count >=1; escalation flags well-formed.
+   - `CHK_S2_PRIORS_ZONE_UNIVERSE`:
+     confirm Z(c) set consistency; alpha_effective>0; alpha_sum_country>0.
+   - `CHK_S3_DOMAIN_ALIGNMENT`:
+     S3 domain equals D_esc and tzids per (m,c) match Z(c).
+   - `CHK_S3_SHARE_SUM`:
+     per (m,c) sum share_drawn; tolerance 1e-12; WARN for slight drift,
+     FAIL for large drift (define thresholds in implementation).
+   - `CHK_S3_RNG_ACCOUNTING`:
+     for each (m,c) in S3, exactly one rng_event; reconcile event totals with
+     rng_trace_log aggregate; ensure audit log exists for run.
+   - `CHK_S4_COUNT_CONSERVATION`:
+     per (m,c) sum zone_site_count equals zone_site_count_sum and S1 site_count.
+   - `CHK_S4_DOMAIN_ALIGNMENT`:
+     S4 domain equals D_esc x Z(c); tzid set per pair matches S2/S3.
+   - `CHK_S5_ZONE_ALLOC_COUNTS`:
+     zone_alloc domain equals S4; counts match S4 and S1 totals.
+   - `CHK_S5_UNIVERSE_HASH_DIGESTS`:
+     recompute component digests (zone_alpha, theta, floor, day_effect,
+     zone_alloc_parquet_digest masked) and compare to
+     zone_alloc_universe_hash.
+   - `CHK_S5_UNIVERSE_HASH_COMBINED`:
+     recompute routing_universe_hash from recomputed component digests;
+     compare to zone_alloc_universe_hash and to per-row zone_alloc value.
+   - `CHK_STATE_STATUS_CONSISTENCY`:
+     if any state run-report says PASS while corresponding checks FAIL,
+     flag WARN and record affected count.
+8) **Issue table assembly**
+   - Collect issue rows with `issue_code`, `check_id`, severity, message, keys.
+   - Sort by (severity, issue_code, merchant_id, legal_country_iso, tzid).
+9) **Report + receipt**
+   - Aggregate check counts; compute `overall_status` (FAIL if any ERROR
+     check FAIL, else PASS).
+   - Build `s6_validation_report_3A` (sorted check_id order).
+   - Compute digest for report JSON (canonical sorted JSON bytes).
+   - If issue table exists, compute digest over canonical parquet bytes.
+   - Build `s6_receipt_3A` with `check_status_map` and digests.
+10) **Idempotent publish**
+   - If report/issue/receipt exists and identical -> reuse; else fail
+     `E3A_S6_007_IMMUTABILITY_VIOLATION`.
+11) **Run-report + segment_state_runs**
+   - Emit S6 run-report with counts and statuses; append segment_state_runs.
+
+Logging / observability:
+- Story header log and phase logs aligned to spec (preconditions, load data,
+  run checks, build outputs).
+- Logs include counts and scope context (e.g., “CHK_S3_SHARE_SUM: pairs=…,
+  tolerance=1e-12, dataset=… output=report”).
+- For any per-row loops (e.g., share sums), use elapsed/progress/rate/ETA.
+
+Performance considerations:
+- Use Polars group_by aggregations for per-pair checks.
+- Avoid large Python loops; if needed, log progress at a fixed cadence.
+
+Validation/testing plan:
+- Run `make segment3a-s6`.
+- Verify PASS on current run_id; re-run to confirm idempotence.
+- Check `s6_validation_report_3A`, `s6_receipt_3A` presence and schema validity.
+
+### Entry: 2026-01-18 06:55
+
+S6 implementation kickoff (pre-coding decisions + last-mile plan tweaks).
+
+Problem to resolve before coding:
+- Pin down output materialisation details (issue-table emission, digest rules,
+  immutability comparison) so the S6 runner can be deterministic and aligned
+  with S5's approved deviations without drifting from prior state style.
+
+Alternatives considered:
+1) **Issue table emission**
+   - A) Emit only when issues exist (optional output).
+   - B) Always emit `s6_issue_table_3A`, even if empty, to align with the
+     dataset dictionary and avoid missing-artifact ambiguity for S7.
+2) **JSON immutability comparison**
+   - A) Compare normalized JSON objects (ignoring formatting).
+   - B) Compare canonical JSON bytes (sorted keys, no whitespace) so the
+     "byte-identical output" requirement is enforced directly.
+3) **Share-sum handling**
+   - A) Allow WARN band (e.g., <=1e-8 warn, >1e-8 fail).
+   - B) Single tolerance (1e-12) with FAIL on any exceedance.
+
+Decision + rationale:
+- Use (1B): always emit `s6_issue_table_3A` (empty if no issues), because the
+  dictionary declares it as a dataset and S7/ops tooling can assume a stable
+  file exists per manifest. This avoids "optional file missing" ambiguity.
+- Use (2B): compare canonical JSON bytes for report/receipt immutability. The
+  S6 spec demands byte-identical outputs, and S5 already uses canonical JSON
+  bytes for immutability checks. This keeps parity with existing state style.
+- Use (3B): apply a single tolerance (1e-12) for `CHK_S3_SHARE_SUM` and mark
+  FAIL on any breach. This matches the S3/S4 tolerance and keeps severity
+  logic straightforward (no WARN band beyond the dedicated WARN check).
+- Reuse the approved S5 deviation: recompute `zone_alloc_parquet_digest` with
+  `routing_universe_hash` masked to hex-zero during digesting.
+
+Implementation steps (refined, no code yet):
+1) Create `seg_3A/s6_validation/runner.py` with S6 run flow:
+   - preconditions (S0 gate + sealed inputs + S1-S5 datasets + RNG logs),
+     schema validation, and sealed policy digest verification.
+   - execute check registry and accumulate issue rows without aborting on
+     structural check failures.
+2) Build outputs:
+   - `s6_validation_report_3A` (checks sorted by check_id).
+   - `s6_issue_table_3A` parquet (sorted, possibly empty).
+   - `s6_receipt_3A` with `s6_version` from registry semver.
+   - compute digests for report and issue table (sha256 over canonical bytes).
+3) Enforce immutability:
+   - JSON outputs compared via canonical bytes.
+   - Parquet issue table compared via DataFrame equality.
+4) Emit run-report + `segment_state_runs`, with run status PASS even if
+   `overall_status` FAIL; only precondition/catalogue/IO/schema errors
+   cause S6 run FAIL.
+5) Wire CLI + Makefile target `segment3a-s6`, then run `make segment3a-s6`.
+
+### Entry: 2026-01-18 07:39
+
+S6 implementation resume (continuation after stub runner created).
+
+Context snapshot:
+- `packages/engine/src/engine/layers/l1/seg_3A/s6_validation/runner.py` exists
+  but only contains imports + helper classes (StepTimer/ProgressTracker).
+- No CLI/module export/Makefile wiring yet for S6.
+- A temporary `test.txt` exists in the S6 folder and should be removed.
+
+Decision trail (additional, while resuming coding):
+1) **Run-status semantics vs overall_status**:
+   - I will treat S6 as "execution PASS" if it completes and publishes report/
+     issue/receipt, even if `overall_status="FAIL"` due to check failures.
+   - Rationale: keeps S6 aligned with other validation stages (S6 still
+     produces the canonical report/receipt for S7). This does not alter the
+     segment-level decision (overall_status remains FAIL). If the spec's
+     "abort on invariant violation" is interpreted differently, I will
+     document the interpretation as an approved deviation.
+2) **RNG trace selection**:
+   - Implement the explicit tie-breaking order described in the RNG schema
+     comments: max (after_hi, after_lo), then latest ts_utc, then max
+     (events_total, blocks_total, draws_total), then lexicographic max source
+     filename. This ensures determinism across multi-part trace logs.
+3) **External artefact sealing for S6 reads**:
+   - S6 will re-hash and schema-validate every external artefact it reads
+     (policies + outlet_catalogue) and enforce sealed_inputs match before
+     using them in checks. Any mismatch is a precondition failure.
+
+Immediate implementation steps (explicit, in-order):
+1) Replace the stub S6 runner with the full implementation:
+   - Precondition: load run_receipt and contracts; validate S0 gate and sealed
+     inputs; verify sealed policy/outlet_catalogue digests + schemas.
+   - Load and schema-validate S1-S5 datasets, zone_alloc_universe_hash, and
+     RNG logs (audit/event/trace).
+   - Execute the defined check registry (CHK_S0...CHK_STATE_STATUS_CONSISTENCY),
+     accumulate issue rows, and compute report metrics + overall_status.
+   - Build report/issue/receipt with canonical JSON digests and enforce
+     immutability (JSON bytes, parquet equality). Use masked routing hash
+     when recomputing zone_alloc_parquet_digest.
+   - Emit run-report + segment_state_runs, and log STATE_START/SUCCESS/FAILURE.
+2) Create `__init__.py` to export `run_s6`.
+3) Add CLI entrypoint `engine.cli.s6_validation_3a`.
+4) Wire Makefile target `segment3a-s6` (+ args/cmd/run_id vars) and include
+   in `segment3a` chain.
+5) Delete `packages/engine/src/engine/layers/l1/seg_3A/s6_validation/test.txt`.
+6) Run `make segment3a-s6`, iterate to green, logging each fix in this map
+   and in the logbook.
+
+### Entry: 2026-01-18 08:02
+
+S6 implementation fixes and run outcome (post-initial failures).
+
+Failure 1 (during `make segment3a-s6`):
+- Error: Polars overflow when building `event_pair_df` from RNG events.
+- Root cause: `merchant_id` values can exceed signed int64; Polars inferred
+  `i64` when constructing the DataFrame from Python tuples.
+- Fix:
+  - Build `event_pair_df` with an explicit schema using `pl.UInt64` for
+    `merchant_id` and `orient="row"`.
+  - Update issue-table `merchant_id` dtype to `UInt64` as well.
+- Rationale: `id64` is unsigned 64-bit per layer1 schema; use `UInt64` in
+  Polars to avoid overflow and keep joins aligned with S1/S3 types.
+
+Failure 2 (during `make segment3a-s6`):
+- Error: issue-table schema validation failed because optional fields
+  (`merchant_id`, `legal_country_iso`, `tzid`, `details`) were set to `None`,
+  which violates the non-nullable JSON schema for those optional properties.
+- Decision + fix:
+  - Treat `None` as "field absent" for schema validation by filtering out
+    `None` keys before validating each issue row.
+  - Keep Parquet columns nullable to represent optional values in a table.
+- Rationale: the schema marks these fields as optional (not required) but not
+  `nullable`, which conflicts with a tabular representation where absent
+  optional fields become nulls. Filtering `None` aligns validation with the
+  intended "optional field may be omitted" semantics.
+- **Deviation note**: This is a pragmatic interpretation to bridge JSON
+  object optionality and Parquet nullability. If you want strict schema
+  parity, we should update `schemas.3A.yaml#/validation/s6_issue_table_3A`
+  to explicitly mark optional fields as `nullable: true` or adjust the
+  issue-table contract to a table schema.
+
+Run outcome after fixes:
+- `make segment3a-s6` succeeded for run_id
+  `970b0bd6833be3a0f08df8e8abf0364c`.
+- Outputs written:
+  - `s6_validation_report_3A`
+  - `s6_issue_table_3A` (2 rows)
+  - `s6_receipt_3A`
+- `overall_status="FAIL"` due to `CHK_S3_RNG_ACCOUNTING`:
+  - Trace row selection per spec (max counter) yielded totals that did not
+    match event sums (`trace_mismatch=3`), recorded in issues.
+  - `CHK_STATE_STATUS_CONSISTENCY` WARN triggered for S3 (run_report PASS but
+    S6 check FAIL).
+- S6 run status remains PASS (report/receipt published) per earlier decision.
