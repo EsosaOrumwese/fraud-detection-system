@@ -471,3 +471,399 @@ Actions taken:
 
 Outcome:
 - 3B.S0 gate passes and output schema validates.
+
+---
+
+### Entry: 2026-01-18 19:47
+
+3B.S1 spec review + implementation plan (virtual classification + settlement nodes).
+
+Scope recap (from spec + contracts):
+- Outputs: `virtual_classification_3B`, `virtual_settlement_3B` (parquet, keyed
+  by `merchant_id`, partitioned by `{seed, manifest_fingerprint}`).
+- Inputs: S0 gate (`s0_gate_receipt_3B`, `sealed_inputs_3B`), merchant universe
+  (`transaction_schema_merchant_ids`), policy (`mcc_channel_rules`),
+  settlement coords (`virtual_settlement_coords`), and optional upstream egress
+  (`outlet_catalogue`, `site_locations`, `site_timezones`, `zone_alloc`).
+- RNG-free, deterministic; S1 is sole authority for virtual membership and
+  settlement nodes. No HashGate outputs.
+
+Key spec/contract reconciliations to implement:
+- `decision_reason` enum in schema is `[RULE_MATCH, OVERRIDE_ACCEPT,
+  OVERRIDE_DENY, DEFAULT_GUARD]`. The S1 spec mentions `NO_RULE_MATCH` but
+  allows “equivalent enum.” Plan: map no-rule to `DEFAULT_GUARD`.
+- `tz_source` enum in schema is `[INGEST, OVERRIDE, DERIVED]` while the spec
+  text uses `INGESTED/POLYGON/OVERRIDE`. Plan: use schema values; map
+  ingested tzid to `INGEST`, polygon-derived to `DERIVED`, override to
+  `OVERRIDE`.
+- `virtual_mode` exists in schema but not in the spec text. Plan: set
+  `VIRTUAL_ONLY` for `is_virtual=1`, `NON_VIRTUAL` for `is_virtual=0`;
+  reserve `HYBRID` for future policies (no v1 signal).
+
+Plan (stepwise; aligned to earlier segment style):
+1) **Bootstrap + identity checks**
+   - Load run receipt (run_id/seed/manifest_fingerprint/parameter_hash).
+   - Load + validate `s0_gate_receipt_3B` and `sealed_inputs_3B` against
+     `schemas.3B.yaml#/validation/*`.
+   - Assert `segment_id=3B`, `state_id=S0`, same `manifest_fingerprint`, and
+     `seed`/`parameter_hash` match current run.
+   - Verify `upstream_gates` PASS for 1A/1B/2A/3A.
+   - Verify contract triplet compatibility with S0 `catalogue_versions`
+     (same pattern as prior states).
+
+2) **Sealed input lookup & preflight**
+   - Build `sealed_inputs` map by `logical_id`.
+   - Require at least: `transaction_schema_merchant_ids`, `mcc_channel_rules`,
+     `virtual_settlement_coords`, `pelias_cached_sqlite`, `pelias_cached_bundle`,
+     `cdn_weights_ext_yaml` (present in sealed inputs even if not used directly).
+   - For each required entry: confirm path exists and schema_ref resolvable;
+     for small assets (policy + coords) recompute digest and compare to
+     `sha256_hex`.
+   - Capture S0 digests for policy + coords: `virtual_rules_digest`,
+     `settlement_coord_digest`. Use these as output provenance fields.
+
+3) **Load merchant universe**
+   - Resolve `transaction_schema_merchant_ids` path from sealed_inputs.
+     If a directory, locate the single parquet member deterministically
+     (sorted glob, fail if 0 or >1).
+   - Read with polars; enforce required columns:
+     `merchant_id`, `mcc`, `channel`, `home_country_iso` or `legal_country_iso`
+     (policy only needs `mcc` + `channel` today, but validate required set).
+   - Validate uniqueness of `merchant_id` (fail if duplicates).
+   - Sort by `merchant_id` for deterministic output ordering.
+
+4) **Load and validate policy**
+   - Load `mcc_channel_rules.yaml` and validate against
+     `schemas.3B.yaml#/policy/virtual_rules_policy_v1`.
+   - Build rule map keyed by `(mcc, channel)`, enforcing uniqueness.
+   - Extract `policy_version` from the policy payload; use S0 registry
+     `manifest_key` as `source_policy_id`.
+
+5) **Classification surface**
+   - Normalize `mcc` to zero-padded 4-digit string for rule lookups.
+   - Determine `decision` for each merchant:
+     * match rule -> `is_virtual = decision=="virtual"`,
+       `decision_reason="RULE_MATCH"`.
+     * no match -> `is_virtual=0`, `decision_reason="DEFAULT_GUARD"`.
+   - Populate columns per schema:
+     * `virtual_mode` = `VIRTUAL_ONLY` if virtual else `NON_VIRTUAL`.
+     * `rule_id`, `rule_version` = null (v1 policy has no rule IDs).
+     * `source_policy_id` = registry `manifest_key` for `mcc_channel_rules`.
+     * `source_policy_version` = policy `version`.
+     * `classification_digest` = `virtual_rules_digest` from S0 receipt.
+     * `notes` left null (no freeform spec requirement).
+
+6) **Settlement nodes**
+   - Load `virtual_settlement_coords.csv`; validate against
+     `schemas.3B.yaml#/reference/virtual_settlement_coords_v1`.
+   - Require unique `merchant_id` in coords. (Fail if duplicates.)
+   - Join coords to virtual merchants (`is_virtual=1`); fail if any virtual
+     merchant missing coords (unless an explicit partial-coverage flag is
+     introduced).
+   - Construct `settlement_site_id` per spec §6.7:
+     `sha256("3B.SETTLEMENT" + 0x1F + str(merchant_id)) -> low64 -> 16-hex`.
+   - `tzid_settlement` from coords; fail if null (v1 coords provide tzid).
+   - `tz_source` = `INGEST`.
+   - `coord_source_id` = `coord_source` from coords (fallback to logical_id
+     if null).
+   - `coord_source_version` = `coordinate_batch` from
+     `virtual_settlement_coords.provenance.json` (fallback to empty error).
+   - `settlement_coord_digest` = S0 `settlement_coord_digest`.
+   - `tz_policy_digest` = S0 `tz_index_digest` if present; else
+     `tzdata_archive_digest` (requires a decision).
+
+7) **Validate + write outputs**
+   - Validate both outputs against `schemas.3B.yaml#/plan/*`.
+   - Write to canonical dataset paths from dictionary.
+   - Use temp dir + atomic move; if existing outputs found:
+     * If byte-identical, treat as no-op.
+     * If different, abort with output inconsistency error.
+
+8) **Run report**
+   - Emit `s1_run_report_3B` using `schemas.layer1.yaml#/run_report/segment_state_run`
+     with counts (merchants total, virtual merchants, settlement rows) and
+     input digests used.
+
+9) **Logging + observability**
+   - Story header: objective, gated inputs, outputs.
+   - Log counts: merchant universe size, rule count, virtual count, coords
+     coverage, settlement rows.
+   - For any long loops (if not vectorised), log progress with elapsed/rate/ETA.
+   - Log path + digest summaries for sealed inputs and outputs.
+
+Open decisions/questions to confirm with user:
+- `decision_reason` mapping for “no rule”: use `DEFAULT_GUARD` (schema-compliant)
+  vs introduce `NO_RULE_MATCH` (schema change).
+- `virtual_mode` mapping: default to `NON_VIRTUAL`/`VIRTUAL_ONLY` only.
+- `tz_source` vocabulary mismatch: use schema enums `INGEST/DERIVED/OVERRIDE`.
+- `tz_policy_digest` source: prefer S0 `tz_index_digest`; confirm if S1 should
+  instead use the tzdata archive digest or the sealed_inputs digest for
+  `tz_timetable_cache`.
+
+---
+
+### Entry: 2026-01-18 19:59
+
+S1 decisions confirmed; implementation begins.
+
+Confirmed decisions (per user approval):
+- `decision_reason`: use `DEFAULT_GUARD` for no-rule cases (schema-compliant).
+- `virtual_mode`: set `VIRTUAL_ONLY` for `is_virtual=1`, `NON_VIRTUAL` for
+  `is_virtual=0`; `HYBRID` unused in v1.
+- `tz_source`: use schema enum values `INGEST/DERIVED/OVERRIDE` (map ingested
+  tzid to `INGEST`).
+- `tz_policy_digest`: use `tz_index_digest` from `s0_gate_receipt_3B`
+  (fallback to `tzdata_archive_digest` if index digest missing).
+
+Implementation approach chosen:
+- Follow 3A.S1 runner pattern: validate S0 receipt + sealed inputs, verify
+  required sealed artefacts and digests, then compute classification and
+  settlement outputs in a deterministic order using polars and atomic publish.
+- Use v1 `mcc_channel_rules` exact match lookup (no overrides/priorities).
+- Derive `settlement_site_id` per §6.7 hash law
+  (`SHA256("3B.SETTLEMENT" + 0x1F + merchant_id)` -> low64 -> 16-hex).
+
+Next steps:
+- Implement `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`.
+- Add CLI entrypoint and Makefile target (`segment3b-s1`).
+- Run `make segment3b-s1` and fix any failures; log decisions as they arise.
+
+---
+
+### Entry: 2026-01-18 20:22
+
+S1 implementation details (initial build).
+
+Key mechanics implemented:
+- Runner at `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`
+  mirrors the 3A.S1 structure:
+  - Load run receipt, attach run log, load 3B dictionary/registry + schema packs.
+  - Validate `s0_gate_receipt_3B` and `sealed_inputs_3B`, enforce upstream PASS.
+  - Build `sealed_by_id`, require `transaction_schema_merchant_ids` and parse the
+    `{version}` token from its sealed path to resolve dictionary paths.
+  - Verify required sealed assets with digest comparisons (policy, coords, merchant
+    ids, pelias, cdn weights).
+  - Apply `mcc_channel_rules` exact-match table to `merchant_id` universe to
+    produce `virtual_classification_3B`.
+  - Join `virtual_settlement_coords` to virtual merchants only, enforce tzid
+    presence, and construct `settlement_site_id` via the SHA256 low64 law.
+  - Validate both outputs against `schemas.3B.yaml#/plan/*`, write parquet to
+    temp dirs, then atomic publish with immutability check.
+  - Emit `s1_run_report_3B` with counts + digests.
+
+Sidecar provenance decision:
+- `coord_source_version` is populated from
+  `artefacts/virtual/virtual_settlement_coords.provenance.json` (`coordinate_batch`).
+  Treated as a required sidecar for the `virtual_settlement_coords` dataset
+  (fail closed if missing), despite not being a separate sealed input row.
+  Rationale: schema requires `coord_source_version` and the data-intake guide
+  defines it as part of the coordinate artefact bundle.
+
+Immutability handling for paired outputs:
+- Added `_atomic_publish_pair()` to ensure both `virtual_classification_3B` and
+  `virtual_settlement_3B` are either both published or both rejected when
+  existing partitions are present; detects partial outputs and fails closed.
+
+CLI + Makefile wiring:
+- `packages/engine/src/engine/cli/s1_virtual_classification_3b.py`
+  entrypoint added.
+- Makefile updated with `SEG3B_S1_*` args + `segment3b-s1` target.
+
+Pending verification:
+- Run `make segment3b-s1` to confirm green and validate outputs.
+
+---
+
+### Entry: 2026-01-18 20:23
+
+S1 fixes after first run attempt.
+
+Issue 1: S0 receipt identity fields.
+- Observed: `s0_gate_receipt_3B` does not include `segment_id`/`state_id` fields
+  (schema only includes `version`, `manifest_fingerprint`, `seed`,
+  `parameter_hash`, `upstream_gates`, `sealed_policy_set`, `digests`).
+- Decision: remove the `segment_id/state_id` check from S1. Keep the
+  `manifest_fingerprint`, `seed`, and `parameter_hash` checks as authoritative.
+
+Issue 2: EngineFailure attribute mismatch.
+- Observed: `EngineFailure` exposes `failure_code`, not `error_code`.
+- Decision: use `exc.failure_code` to populate run-report error_code.
+
+Next action:
+- Re-run `make segment3b-s1` and address any further issues.
+
+---
+
+### Entry: 2026-01-18 20:26
+
+S1 merchant_id type failure planning.
+
+Problem:
+- `make segment3b-s1` fails at merchant_universe with Polars error "conversion from u64 to i64 failed in column merchant_id for 625 values".
+- Root cause: S1 casts merchant_id to `pl.Int64`, but the id64 contract is uint64 and the ingress parquet includes values above signed 64-bit range.
+
+Options considered:
+1) Keep `Int64` and clamp or modulo values.
+   - Rejected: violates the id64 contract and determinism expectations.
+2) Coerce merchant_id to string.
+   - Rejected: schema requires integer id64 and downstream joins assume numeric keys.
+3) Use `UInt64` consistently across the S1 pipeline (merchant ids + settlement coords).
+   - Accepted: aligns with schema and existing layer-1 patterns, preserves full range.
+
+Decision:
+- Replace the S1 merchant_id cast with `pl.UInt64`.
+- After validating `virtual_settlement_coords`, cast its merchant_id to `pl.UInt64` so join keys are aligned.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: swap `pl.Int64` -> `pl.UInt64` for merchant_df; add a `pl.UInt64` cast for coords_df before duplicate/join checks.
+- Re-run `make segment3b-s1` and record any new failures in the implementation map/logbook.
+
+Invariants to preserve:
+- Merchant ids remain unsigned 64-bit (`id64`); schema validation order stays the same.
+- No changes to digesting or manifest handling.
+
+Logging:
+- Keep existing story/progress logs; only add logging if new error context is needed.
+
+---
+
+### Entry: 2026-01-18 20:30
+
+S1 failure: StepTimer formatting error.
+
+Problem:
+- `make segment3b-s1` now fails in `merchant_universe` with `_StepTimer.info() takes 2 positional arguments but 4 were given`.
+- Root cause: `_StepTimer.info(message)` only accepts a single formatted message string, but several call sites pass logger-style format args.
+
+Options considered:
+1) Expand `_StepTimer.info` signature to accept `*args` and perform formatting.
+   - Would change helper API and potentially hide formatting mistakes.
+2) Keep `_StepTimer.info` as-is and pre-format strings at each call site.
+   - Minimal change; consistent with intent of StepTimer as a simple wrapper.
+
+Decision:
+- Update the three call sites to pass a fully formatted string (f-string) into `_StepTimer.info`.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: convert `timer.info` calls for merchant universe, classification, and settlement nodes to f-strings.
+- Re-run `make segment3b-s1` and log the result.
+
+---
+
+### Entry: 2026-01-18 20:32
+
+S1 classification failure: Polars treating decision constants as column names.
+
+Problem:
+- `make segment3b-s1` now fails in `classification` with `error_context.detail="DEFAULT_GUARD"`.
+- The only place that literal appears in the classification phase is the `pl.when(...).then(_DECISION_DEFAULT)` expression.
+- Polars treats bare strings in expressions as column references in some contexts; missing column "DEFAULT_GUARD" triggers a `ColumnNotFound`-style error, surfaced as detail "DEFAULT_GUARD".
+
+Options considered:
+1) Add a column named `DEFAULT_GUARD` (nonsense).
+2) Wrap constants in `pl.lit(...)` to force literal values.
+   - Aligns with other layer-1 code (explicit `pl.lit` usage).
+
+Decision:
+- Wrap `_DECISION_DEFAULT`, `_DECISION_RULE_MATCH`, `_VIRTUAL_MODE_*` in `pl.lit` when used in `pl.when` expressions.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: update the classification `with_columns` block to use `pl.lit` for string constants.
+- Re-run `make segment3b-s1` and record results.
+
+---
+
+### Entry: 2026-01-18 20:34
+
+S1 settlement coords CSV parse failure due to int64 inference.
+
+Problem:
+- `virtual_settlement_coords.csv` contains merchant_id values above signed 64-bit range.
+- `pl.read_csv` infers `i64` and fails parsing (error: could not parse ... as dtype i64).
+
+Options considered:
+1) Increase `infer_schema_length` to scan more rows.
+   - Does not fix signed-vs-unsigned; still `i64`.
+2) Allow parse errors (`ignore_errors=True`) and fill nulls.
+   - Masks invalid data; violates spec (merchant_id must be present).
+3) Provide explicit schema override for `merchant_id` as `UInt64`.
+   - Aligns with id64 contract and avoids parse failure.
+
+Decision:
+- Pass `schema_overrides={"merchant_id": pl.UInt64}` to `pl.read_csv` for coords.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: update `pl.read_csv(coords_path)` to set `schema_overrides` for `merchant_id`.
+- Re-run `make segment3b-s1` and log any follow-up failures.
+
+---
+
+### Entry: 2026-01-18 20:35
+
+S1 settlement coords validation failing on unresolved layer1 defs.
+
+Problem:
+- `validate_dataframe` on `reference/virtual_settlement_coords_v1` now errors with `Unresolvable: schemas.layer1.yaml#/$defs/id64`.
+- The JSON schema adapter uses `$defs` from the local pack; `schemas.3B.yaml` keeps `id64` as an external ref to `schemas.layer1.yaml`, which is not inlined for table validation.
+
+Options considered:
+1) Skip validation for coords.
+   - Rejected: would violate spec contract checks.
+2) Extend jsonschema_adapter to resolve external packs.
+   - Larger change; unnecessary for this state.
+3) Inline external layer1 refs into the specific table schema before validation.
+   - Matches patterns in other segments (e.g., 2B S1 output validation).
+
+Decision:
+- Call `_inline_external_refs(..., schema_layer1, "schemas.layer1.yaml#")` on the coords table pack and on output table packs before `validate_dataframe`.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: inline layer1 defs for `reference/virtual_settlement_coords_v1`, `plan/virtual_classification_3B`, and `plan/virtual_settlement_3B`.
+- Re-run `make segment3b-s1` and log any follow-on issues.
+
+---
+
+### Entry: 2026-01-18 20:37
+
+S1 unresolved id64 persists after inlining table nodes.
+
+Observation:
+- Validation still fails with `Unresolvable: schemas.layer1.yaml#/$defs/id64`.
+- The table columns reference `#/$defs/id64`, and the pack's `$defs.id64` is itself a `$ref` to `schemas.layer1.yaml#/$defs/id64`.
+- Inlining only the table node does not update the pack `$defs`, so the external ref remains.
+
+Decision:
+- Inline external refs on the entire table pack (including `$defs`), not just the table node.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: replace `_inline_external_refs(pack[table], ...)` with `_inline_external_refs(pack, ...)` for coords and output packs.
+- Re-run `make segment3b-s1`.
+
+---
+
+### Entry: 2026-01-18 20:38
+
+S1 settlement_join failure: coord_source default literal treated as column name.
+
+Problem:
+- Failure detail `virtual_settlement_coords` during `settlement_join` after the join succeeded.
+- The only place that literal is used in this phase is the `coord_source_id` default:
+  `pl.when(...).then("virtual_settlement_coords")...`.
+- Polars treats bare strings in expressions as column references; missing column triggers a `ColumnNotFound` error surfaced as the literal name.
+
+Decision:
+- Wrap the default string in `pl.lit("virtual_settlement_coords")`.
+
+Planned edits:
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: update `coord_source_id` expression to use `pl.lit`.
+- Re-run `make segment3b-s1`.
+
+---
+
+### Entry: 2026-01-18 20:39
+
+S1 execution outcome.
+
+- Re-ran `make segment3b-s1` after the dtype + schema inlining + `pl.lit` fixes.
+- S1 now completes successfully and publishes `virtual_classification_3B`, `virtual_settlement_3B`, and `s1_run_report_3B` for run_id `970b0bd6833be3a0f08df8e8abf0364c`.
+- Counts observed: `merchants_total=10000`, `virtual_merchants=309`, `settlement_rows=309`.
