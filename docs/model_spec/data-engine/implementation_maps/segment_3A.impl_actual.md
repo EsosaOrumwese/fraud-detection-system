@@ -2020,3 +2020,225 @@ Re-run after precondition-mapping change:
 - Executed `make segment3a-s4` again; output was identical and S4 returned PASS.
 - Idempotence path exercised: existing `s4_zone_counts` detected and left
   unchanged (logged as identical).
+
+### Entry: 2026-01-18 04:05
+
+S5 planning notebook (initial; pending user clarification on digest recursion).
+
+Problem statement:
+- Implement 3A.S5 to publish `zone_alloc` (cross-layer egress) and
+  `zone_alloc_universe_hash` (routing universe hash + component digests).
+- Must be RNG-free and deterministic; must enforce S0/S1/S2/S3/S4 gates and
+  sealed-input integrity; must emit narrative logs and resumable outputs.
+
+Inputs / authorities to be used:
+- Run identity from `run_receipt.json`: `run_id`, `seed`, `parameter_hash`,
+  `manifest_fingerprint`.
+- S0 gate + sealed inputs:
+  - `s0_gate_receipt_3A` (upstream gate PASS checks, sealed_policy_set list).
+  - `sealed_inputs_3A` (external artefacts whitelist, path + sha256_hex).
+- Segment inputs:
+  - `s1_escalation_queue` (domain D, `site_count`, escalation flags).
+  - `s2_country_zone_priors` (Z(c), `alpha_sum_country`, prior/floor lineage).
+  - `s3_zone_shares` (zone domain per escalated pair).
+  - `s4_zone_counts` (authoritative integer counts per (m,c,z)).
+- External policy artefacts (resolved via dictionary + sealed_inputs):
+  - `zone_mixture_policy` -> `config/layer1/3A/policy/zone_mixture_policy.yaml`.
+  - `country_zone_alphas` -> `config/layer1/3A/allocation/country_zone_alphas.yaml`.
+  - `zone_floor_policy` -> `config/layer1/3A/allocation/zone_floor_policy.yaml`.
+  - `day_effect_policy_v1` -> `config/layer1/2B/policy/day_effect_policy_v1.json`.
+- Contracts:
+  - `schemas.3A.yaml` (`#/egress/zone_alloc`, `#/validation/zone_alloc_universe_hash`).
+  - `schemas.layer1.yaml` (`#/run_report/segment_state_run`).
+  - `schemas.2B.yaml` (`#/policy/day_effect_policy_v1`).
+  - `dataset_dictionary.layer1.3A.yaml` and `artefact_registry_3A.yaml`.
+  - Contract source via `ContractSource(config.contracts_root, config.contracts_layout)`.
+
+Plan / mechanics (draft, stepwise):
+1) **Run receipt + logging**
+   - Resolve `run_receipt.json`, verify `run_id`, `seed`, `parameter_hash`,
+     `manifest_fingerprint`.
+   - Initialize run log file handler; emit a story header:
+     objective + gated inputs + outputs (`zone_alloc`, `zone_alloc_universe_hash`).
+2) **Load contracts**
+   - Load dataset dictionary + artefact registry + schema packs; on failure
+     -> `E3A_S5_002_CATALOGUE_MALFORMED`.
+3) **S0 gate / sealed inputs checks**
+   - Load + schema-validate `s0_gate_receipt_3A` and `sealed_inputs_3A`.
+   - Enforce upstream gate PASS for segments 1A/1B/2A.
+   - Ensure `sealed_policy_set` contains logical IDs:
+     `zone_mixture_policy`, `country_zone_alphas`, `zone_floor_policy`,
+     `day_effect_policy_v1`.
+   - Build `sealed_by_id` map; ensure unique logical IDs per row.
+4) **Verify sealed policy artefacts**
+   - For each required logical ID:
+     - Resolve dictionary path and ensure `sealed_inputs_3A.path` matches
+       the rendered catalog path.
+     - Compute sha256 of raw bytes (file or directory) and compare to
+       `sealed_inputs_3A.sha256_hex`.
+     - Load policy payload to extract ID/version via `_policy_version_from_payload`
+       (used to populate `mixture_policy_version` and `day_effect_policy_version`).
+5) **Require upstream run-report PASS**
+   - Load `s1_run_report_3A`, `s2_run_report_3A`, `s3_run_report_3A`,
+     `s4_run_report_3A`; schema-validate and require `status="PASS"`.
+   - Missing/non-PASS -> `E3A_S5_001_PRECONDITION_FAILED`.
+6) **Load and validate S1-S4 datasets**
+   - Read Parquet for S1/S2/S3/S4, validate against schema anchors.
+   - Ensure uniqueness of keys:
+     - S1 unique (merchant_id, legal_country_iso).
+     - S4 unique (merchant_id, legal_country_iso, tzid).
+7) **Domain + conservation checks**
+   - Build D_esc from S1 where `is_escalated=true` (plus `site_count`).
+   - Build Z(c) from S2 (country_iso, tzid) and `zone_count_by_country`.
+   - Validate:
+     - S4 (m,c) pairs == D_esc; compute missing/extra counts.
+     - S4 tzid per row must exist in Z(c) and per-pair tzid count must equal
+       zone_count_by_country (detect missing or extra zones).
+     - S3 tzid per row must exist in Z(c) and per-pair tzid count must match
+       zone_count_by_country (domain cross-check).
+     - For each (m,c): `zone_site_count_sum` equals sum(zone_site_count) and
+       equals S1 `site_count`.
+   - Any mismatch -> `E3A_S5_003_DOMAIN_MISMATCH` with required counts
+     (missing_escalated_pairs_count, unexpected_pairs_count,
+     affected_zone_triplets_count + sample identifiers).
+8) **Construct zone_alloc rows**
+   - Base rows from S4 (`zone_site_count`, `zone_site_count_sum`, prior/floor lineage).
+   - Join in S1 `site_count`.
+   - Add policy lineage fields:
+     `mixture_policy_id`, `mixture_policy_version`,
+     `day_effect_policy_id`, `day_effect_policy_version`.
+   - Optionally add `alpha_sum_country` (from S2/S4), keep `notes` null.
+   - `routing_universe_hash` placeholder until digest computation.
+9) **Writer-sort + schema validation**
+   - Sort by (merchant_id, legal_country_iso, tzid).
+   - Validate against `schemas.3A.yaml#/egress/zone_alloc`;
+     failures -> `E3A_S5_006_OUTPUT_SCHEMA_INVALID`.
+10) **Idempotent publish (zone_alloc)**
+    - Resolve output path via dictionary; enforce partition key presence.
+    - If output exists: read, normalize, and compare; identical -> reuse,
+      else -> `E3A_S5_007_IMMUTABILITY_VIOLATION`.
+    - If new: write to tmp dir then atomic rename.
+11) **Digest computation**
+    - `zone_alloc_parquet_digest`: hash concatenated bytes of output parquet files
+      sorted by relative path ASCII order.
+    - `zone_alpha_digest`: hash concatenated bytes of S2 parquet files
+      (parameter_hash partition) sorted by relative path ASCII order.
+    - `theta_digest`, `zone_floor_digest`, `day_effect_digest`:
+      sha256 of raw policy file bytes.
+12) **routing_universe_hash**
+    - Compute SHA256 over ASCII hex digests in order:
+      zone_alpha_digest || theta_digest || zone_floor_digest ||
+      day_effect_digest || zone_alloc_parquet_digest.
+13) **Finalize zone_alloc + universe hash artefact**
+    - Fill `routing_universe_hash` into zone_alloc rows.
+    - Write/validate `zone_alloc_universe_hash` JSON; if existing, compare and
+      enforce immutability (`E3A_S5_007_IMMUTABILITY_VIOLATION`).
+14) **Run-report + segment_state_runs**
+    - Emit run-report with status, counts, digests, and output paths.
+    - Append to `segment_state_runs` JSONL.
+
+Logging / observability:
+- Story header log: objective + gated inputs + outputs.
+- Phase logs aligned to spec: S0 gate, sealed inputs, S1-S4 load, domain checks,
+  output build, digest computation, publish.
+- If any per-pair loops are used, emit progress logs with elapsed, processed/total,
+  rate, and ETA (monotonic time).
+- Emit STATE_START / STATE_SUCCESS / STATE_FAILURE events and VALIDATION events,
+  consistent with S4 pattern.
+
+Performance + resumability:
+- Prefer Polars joins/group-by for domain and count checks; avoid Python loops.
+- Hash files in streaming mode; do not load entire artefacts into RAM.
+- Idempotent output checks allow resumability; fail closed on mismatched outputs.
+
+Open decisions / clarifications (must resolve before coding):
+1) **Routing hash vs zone_alloc_parquet_digest recursion**
+   - Spec simultaneously requires digest of final `zone_alloc` bytes and uses
+     `zone_alloc_parquet_digest` to compute `routing_universe_hash`.
+   - Options considered:
+     A) Define `zone_alloc_parquet_digest` over zone_alloc *without*
+        `routing_universe_hash`, then compute routing hash and embed it
+        (digest is of pre-hash representation).
+     B) Define digest over final zone_alloc but compute routing hash using a
+        canonicalized representation with `routing_universe_hash` blanked.
+     C) Explicitly exclude the `routing_universe_hash` column from digest
+        computation (column-level digest rule), and document as a deviation.
+   - Need user decision; current plan is to pause until a deterministic rule is agreed.
+2) **Monolithic pairs**
+   - S4 only outputs escalated pairs; plan is to emit escalated-only `zone_alloc`.
+   - Confirm whether any monolithic pairs should be projected into `zone_alloc`.
+3) **Optional fields**
+   - Plan to include `alpha_sum_country` in `zone_alloc` (copied from S2/S4)
+     for auditability. Confirm if any additional lineage fields are required.
+
+### Entry: 2026-01-18 04:12
+
+S5 decisions confirmed (binding for implementation):
+
+1) **Digest recursion resolution (approved deviation)**:
+   - Use a canonicalized `zone_alloc_parquet_digest` computed over the same
+     `zone_alloc` rows but with `routing_universe_hash` masked to a fixed
+     hex-zero string (e.g., `"0"*64) before Parquet serialization.
+   - Rationale: avoids circular dependency between `zone_alloc_parquet_digest`
+     and `routing_universe_hash` while remaining deterministic.
+   - This deviates from the literal "digest final on-disk bytes" wording; the
+     deviation is approved by the user and will be documented in S5 logs and
+     in future S6 validation logic (S6 must recompute the digest using the same
+     masking rule).
+2) **Domain projection**:
+   - `zone_alloc` is escalated-only (D_esc), aligned with S4 output; monolithic
+     pairs are not projected in S5.
+3) **Optional fields**:
+   - Populate `alpha_sum_country` in `zone_alloc` (copied from S2/S4) for
+     auditability. Leave `notes` null unless an explicit diagnostic is required.
+
+Implementation plan updates based on these decisions:
+- Add a helper to compute a canonicalized digest by writing a masked copy of
+  the `zone_alloc` DataFrame to a temp directory, hashing its parquet bytes in
+  ASCII-lex path order, then deleting the temp directory.
+- Compute `routing_universe_hash` from component digests where
+  `zone_alloc_parquet_digest` is the masked digest.
+- After writing the final `zone_alloc`, optionally re-run the masked digest
+  computation and assert it matches the stored digest (fail with
+  `E3A_S5_004_DIGEST_MISMATCH` if not).
+
+### Entry: 2026-01-18 04:34
+
+S5 implementation actions (coding and validation):
+- Added S5 runner with deterministic egress + digest logic:
+  `packages/engine/src/engine/layers/l1/seg_3A/s5_zone_alloc/runner.py`.
+  Key mechanics implemented:
+  1) S0 gate + sealed inputs validation (schema, upstream gate PASS, sealed policy IDs).
+  2) Sealed policy verification for mixture, priors, floor, day-effect:
+     path match, digest match, schema validation, and version placeholder checks.
+  3) Strict run-report checks for S1-S4 (`status="PASS"` required).
+  4) S1/S2/S3/S4 dataset validation, duplicate detection, and domain alignment:
+     escalated pairs, Z(c) membership, per-pair zone counts, and count conservation.
+  5) `zone_alloc` projection from S4 counts + S1 totals, plus lineage fields and
+     optional `alpha_sum_country`.
+  6) Masked `zone_alloc_parquet_digest` computation (routing_universe_hash set to
+     hex-zero for digesting) and routing-universe hash derivation.
+  7) Idempotent publish of `zone_alloc` and `zone_alloc_universe_hash` with
+     immutability enforcement (`E3A_S5_007_IMMUTABILITY_VIOLATION`).
+  8) Narrative logs + STATE_START/STATE_SUCCESS/STATE_FAILURE emission and
+     run-report + segment_state_runs updates.
+- Added module export + CLI entrypoint:
+  `packages/engine/src/engine/layers/l1/seg_3A/s5_zone_alloc/__init__.py`,
+  `packages/engine/src/engine/cli/s5_zone_alloc_3a.py`.
+- Updated `makefile` with `SEG3A_S5_*` args/cmd wiring, `segment3a-s5` target,
+  and added S5 to the `segment3a` chain + `.PHONY`.
+
+Deviation note (approved):
+- `zone_alloc_parquet_digest` is computed on a canonicalized representation
+  where `routing_universe_hash` is masked to a fixed hex-zero string before
+  Parquet serialization. This avoids the digest/hash recursion and is recorded
+  in logs and run-report (`zone_alloc_digest_rule=mask_routing_universe_hash`).
+- This requires S6 validation to recompute the digest using the same masking
+  rule; document the matching change when S6 is implemented.
+
+S5 run verification:
+- Executed `make segment3a-s5` for run_id `970b0bd6833be3a0f08df8e8abf0364c`.
+- S5 completed successfully (PASS), generated `zone_alloc` (14800 rows) and
+  `zone_alloc_universe_hash`, and produced run-report:
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/reports/layer1/3A/state=S5/seed=42/manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08/run_report.json`.
+- Re-run confirmed idempotence (existing outputs detected as identical).
