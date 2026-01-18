@@ -2620,3 +2620,56 @@ Rerun outcome after trace-selection change + output reset.
   - `s6_receipt_3A`
 - Run log includes a narrative INFO entry noting that max-counter and max-total
   trace selection differ for this run; totals are used for accounting.
+
+### Entry: 2026-01-18 08:20
+
+S7 contract + spec review (no code yet).
+
+Docs read (time-stamped context for S7):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s7.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3A/artefact_registry_3A.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+- Existing bundle patterns: `packages/engine/src/engine/layers/l1/seg_2B/s8_validation_bundle/runner.py`
+
+Key binding points captured:
+- S7 is RNG-free, read-only, and only emits `validation_bundle_3A` (index.json)
+  + `_passed.flag`.
+- Hard gate: S6 run-report `status="PASS"` and `s6_receipt_3A.overall_status == "PASS"`;
+  otherwise S7 must refuse to seal.
+- Required bundle members at minimum: S0 gate + sealed inputs, S1 escalation,
+  S2 priors, S3 shares (+ RNG evidence reference per spec), S4 counts, S5
+  zone_alloc + universe hash, S6 report/issue/receipt (issue table exists
+  even if empty).
+- `validation_bundle_index_3A` schema (layer1) requires:
+  `manifest_fingerprint`, `parameter_hash`, `s6_receipt_digest`, and
+  `members[]` with `logical_id`, `path`, `schema_ref`, `sha256_hex`, `role`
+  (optional size_bytes/notes; metadata free-form).
+- Canonical member ordering is **ASCII-lex by logical_id**; composite digest is
+  SHA256 over concatenated member digests in that order. `_passed.flag` is
+  single-line `sha256_hex = <hex64>`.
+
+Open questions / clarifications needed before implementation:
+1) **Bundle membership vs RNG evidence**:
+   - Spec text says S3 RNG evidence (logs or digest artefact) must be included
+     or referenced, but `artefact_registry_3A` validation_bundle dependencies do
+     **not** list RNG logs. Should S7 include RNG logs/digests as members anyway,
+     or treat RNG evidence as optional/non-member in this version?
+2) **Bundle contents strategy**:
+   - Should `validation_bundle_3A` physically copy artefacts into the bundle
+     directory (like 2B.S8), or should it be an index-only bundle that
+     references the canonical dataset paths (as allowed by “by value or by
+     canonical reference”)? This affects `members[].path` semantics and digest
+     inputs.
+3) **Path semantics in `members[]`**:
+   - If index-only, should `path` be the resolved run-local path (e.g.
+     `data/layer1/3A/...`) or a catalogue-relative path? If copied, should
+     `path` be bundle-relative (e.g. `evidence/s3/...`)?
+4) **Digest reuse policy**:
+   - For JSON artefacts we can recompute canonical JSON digests; for Parquet we
+     hash bytes. Is it acceptable to reuse digests already recorded in S5/S6
+     (e.g. `s6_receipt_digest`, `zone_alloc_universe_hash`) to avoid re-reading
+     large files, or should S7 recompute all member digests directly?
+
+Next (pending answers):
+- Resolve the above with the user before writing the S7 plan entry and code.
