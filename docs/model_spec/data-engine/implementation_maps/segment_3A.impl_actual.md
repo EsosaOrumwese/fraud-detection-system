@@ -2673,3 +2673,85 @@ Open questions / clarifications needed before implementation:
 
 Next (pending answers):
 - Resolve the above with the user before writing the S7 plan entry and code.
+
+### Entry: 2026-01-18 08:34
+
+S7 implementation plan (approved options + deviations noted up front).
+
+Decisions locked (per user approval):
+1) **Bundle strategy:** index-only; S7 will not copy artefacts into the bundle
+   directory. The bundle root will contain only `index.json` + `_passed.flag`.
+2) **Path semantics:** use Dataset Dictionary-resolved paths (tokens expanded)
+   as run-root-relative POSIX strings in `members[].path`.
+3) **Digest policy:** recompute all member digests in S7 (canonical JSON for
+   JSON artefacts; raw-byte SHA-256 over partitioned files for Parquet/logs).
+4) **RNG evidence:** include S3 RNG logs (`rng_event_zone_dirichlet`,
+   `rng_trace_log`, `rng_audit_log`) as bundle members to satisfy the S7
+   requirement without introducing a new digest artefact.
+   - **Deviation note:** these RNG logs are not listed in
+     `validation_bundle_3A` dependencies in the registry. This adds extra
+     bundle members without a catalogue update; we will log as a deviation
+     and can formalize via a registry update later if desired.
+
+Design approach (pre-code, stepwise):
+1) **Contracts + identity**
+   - Load `dataset_dictionary.layer1.3A.yaml`, `artefact_registry_3A.yaml`,
+     `schemas.3A.yaml`, and `schemas.layer1.yaml` (from 1A pack).
+   - Resolve `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint` from
+     `run_receipt.json`; treat as immutable inputs.
+2) **Hard gates (must pass)**
+   - Load S6 run-report (`s6_run_report_3A`) and assert
+     `status="PASS"` + `error_code=null`; else `E3A_S7_001_S6_NOT_PASS`.
+   - Load `s6_receipt_3A`, validate schema, and assert
+     `overall_status="PASS"`; else `E3A_S7_001_S6_NOT_PASS`.
+   - Load `s0_gate_receipt_3A` + `sealed_inputs_3A`, validate schemas, and
+     verify upstream gates 1A/1B/2A PASS; else `E3A_S7_002_PRECONDITION`.
+3) **Required artefacts (exist + schema-valid)**
+   - Validate and resolve S0–S6 artefacts listed in the S7 spec:
+     `s1_escalation_queue`, `s2_country_zone_priors`, `s3_zone_shares`,
+     `s4_zone_counts`, `zone_alloc`, `zone_alloc_universe_hash`,
+     `s6_validation_report_3A`, `s6_issue_table_3A`, `s6_receipt_3A`.
+   - Resolve RNG logs (`rng_event_zone_dirichlet`, `rng_trace_log`,
+     `rng_audit_log`) for this run/seed.
+   - Any missing or schema-invalid artefact -> `E3A_S7_002_PRECONDITION`.
+4) **S6 digest verification**
+   - Recompute canonical digests for `s6_validation_report_3A` and
+     `s6_issue_table_3A`; compare to values in `s6_receipt_3A`.
+   - Mismatch -> `E3A_S7_004_DIGEST_MISMATCH`.
+5) **Build membership list**
+   - Use dataset IDs as `logical_id` and a stable role map:
+     gate, sealed_inputs, escalation, priors, shares, rng_event, rng_trace,
+     rng_audit, counts, egress, universe_hash, validation_report,
+     validation_issues, validation_receipt.
+   - `members[]` sorted ASCII-lex by `logical_id` (binding rule).
+   - `path` populated with dictionary-resolved paths (token-expanded) using
+     POSIX separators.
+6) **Per-member digesting**
+   - JSON: parse + canonical dump (sorted keys, no extra whitespace),
+     digest over bytes.
+   - Parquet/log partitions: list files (lex order), stream bytes in chunks
+     to compute digest; capture `size_bytes`.
+   - Use progress logging for per-file loops with elapsed/rate/ETA.
+7) **Build index.json**
+   - Construct object with `manifest_fingerprint`, `parameter_hash`,
+     `s6_receipt_digest` (canonical JSON digest), `members[]`, `metadata`.
+   - Validate against `schemas.layer1.yaml#/validation/validation_bundle_index_3A`.
+   - Serialize with stable ordering to `index.json`.
+8) **Composite digest + _passed.flag**
+   - `bundle_sha256_hex` = SHA256(concat of member `sha256_hex` in member order).
+   - Write `_passed.flag` with `sha256_hex = <bundle_sha256_hex>`.
+9) **Immutability**
+   - If bundle root exists, compare canonical index object + flag bytes.
+   - Mismatch -> `E3A_S7_006_IMMUTABILITY_VIOLATION`.
+10) **Run-report + segment_state_runs**
+   - Emit run-report at `s7_run_report_3A` with status PASS/FAIL and counts.
+   - Append `segment_state_runs` row for S7.
+
+Logging obligations:
+- Story header: objective, gated inputs, outputs.
+- Per-member digest logs: include file_count, bytes, and hashing progress with
+  elapsed/rate/ETA for long loops.
+- Explicit log when RNG logs are included as members (deviation note).
+
+Next: implement S7 runner + CLI + Makefile wiring, then run segment2b-s8 →
+segment3a-s7 to verify end-to-end with index-only bundles.

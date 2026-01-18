@@ -4385,3 +4385,48 @@ Results:
   completes with PASS; bundle already exists with identical bytes and the
   run-report now prints a resolved `publish_path`.
 
+### Entry: 2026-01-18 08:34
+
+S8 refactor plan: switch to index-only bundle (no copying).
+
+Context:
+- Current `2B.S8` implementation copies evidence into the bundle root and
+  indexes those copied files.
+- User request: make S8 index-only (no copying), aligned with 3A.S7 approach.
+- **Spec tension:** 2B.S8 spec requires index paths to be **relative to the
+  bundle root** and files to live under that root (bundle is a real directory).
+  Index-only will reference run-root files outside the bundle root. This is a
+  deliberate deviation and will be documented explicitly.
+
+Decision:
+- Convert S8 to index-only by building `index.json` from **run-root-relative**
+  paths pointing to the canonical artefacts (S0 + S7 reports) and compute
+  digests over those source bytes; bundle root will contain only
+  `index.json` + `_passed.flag`.
+- Keep the existing membership set (S0 + S7 reports) unchanged to avoid
+  widening scope; do not add S2/S3/S4 to the index at this time.
+
+Implementation steps (pre-code):
+1) Remove copy-to-bundle flow:
+   - Replace `copy_and_hash` with `hash_source` that computes digest and
+     `size_bytes` from the original file (no copy).
+2) Build index entries using **run-root-relative POSIX paths** derived from
+   the resolved source file paths (e.g., `data/layer1/...` or `reports/...`).
+3) Update bundle digest calculation:
+   - `_passed.flag` uses SHA256 over concatenated **source file bytes** in
+     ASCII-lex `path` order (per index entries).
+   - Adjust `_bundle_hash` to read from `run_root / path` instead of bundle
+     root.
+4) Bundle publishing:
+   - Write only `index.json` + `_passed.flag` into temp bundle dir and publish
+     via atomic move; immutability check still applies.
+5) Logging:
+   - Add a narrative log noting index-only mode + run-root base for index
+     paths; include counts/bytes.
+6) Document deviation:
+   - S8 spec expects index paths to exist under bundle root; we will log this
+     as an approved deviation in the map + logbook.
+
+Next: implement the change, re-run `make segment2b-s8`, then
+`make segment3a-s7` to confirm green chain.
+
