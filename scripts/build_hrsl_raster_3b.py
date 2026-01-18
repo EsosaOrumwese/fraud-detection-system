@@ -29,7 +29,7 @@ VRT_URL = (
     "hrsl_general/hrsl_general-latest.vrt"
 )
 TR_DEG = 3.0 / 3600.0
-LOCAL_ROOT = ROOT / "artefacts/rasters/source/hrsl_general"
+LOCAL_ROOT = ROOT / "artefacts/rasters/source/hrsl"
 
 
 def sha256_path(path: Path) -> str:
@@ -82,7 +82,11 @@ def main() -> None:
     os.environ.setdefault("AWS_NO_SIGN_REQUEST", "YES")
     os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "YES")
     os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif,.vrt")
+    os.environ.setdefault("CPL_VSIL_CURL_USE_HEAD", "NO")
     os.environ.setdefault("GDAL_NUM_THREADS", "ALL_CPUS")
+    os.environ.setdefault("GDAL_HTTP_MAX_RETRY", "5")
+    os.environ.setdefault("GDAL_HTTP_RETRY_DELAY", "2")
+    os.environ.setdefault("GDAL_HTTP_TIMEOUT", "60")
     proj_db = None
     rasterio_root = Path(rasterio.__file__).resolve().parent
     candidate = rasterio_root / "proj_data" / "proj.db"
@@ -99,104 +103,121 @@ def main() -> None:
         temp_out_path.unlink()
 
     local_root = Path(args.local_root)
-    if local_root.exists():
+    temp_dir: tempfile.TemporaryDirectory | None = None
+    local_tiles_root = local_root / "v1"
+    local_tiles_ok = local_tiles_root.exists() and any(local_tiles_root.glob("*.tif"))
+    if local_root.exists() and local_tiles_ok:
         local_vrt = local_root / "hrsl_general-latest.vrt"
         if not local_vrt.exists():
-            raise RuntimeError(
-                f"Local root missing hrsl_general-latest.vrt: {local_root}"
-            )
+            fallback_vrt = local_root / "hrsl_general.vrt"
+            if fallback_vrt.exists():
+                local_vrt = fallback_vrt
+            else:
+                raise RuntimeError(
+                    f"Local root missing hrsl_general-latest.vrt or hrsl_general.vrt: {local_root}"
+                )
         vrt_path = local_vrt
         vrt_sha256 = sha256_path(vrt_path)
         vrt_bytes = vrt_path.stat().st_size
     else:
-        local_root = None
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp_path = Path(tmpdir)
-            vrt_path = tmp_path / "hrsl_general.vrt"
-            download_vrt(vrt_path, args.vrt_url)
-            vrt_sha256 = sha256_path(vrt_path)
-            vrt_bytes = vrt_path.stat().st_size
-            vrt_text = vrt_path.read_text(encoding="utf-8")
-            base_url = "https://dataforgood-fb-data.s3.amazonaws.com/hrsl-cogs/hrsl_general/"
-            vrt_text = vrt_text.replace(
-                'relativeToVRT="1">', f'relativeToVRT="0">/vsicurl/{base_url}'
+        if local_root.exists() and not local_tiles_ok:
+            print(
+                f"[hrsl] Local VRT tiles missing under {local_tiles_root}; "
+                "falling back to remote VRT.",
+                flush=True,
             )
-            vrt_path.write_text(vrt_text, encoding="utf-8")
+        local_root = None
+        temp_dir = tempfile.TemporaryDirectory()
+        tmp_path = Path(temp_dir.name)
+        vrt_path = tmp_path / "hrsl_general.vrt"
+        download_vrt(vrt_path, args.vrt_url)
+        vrt_sha256 = sha256_path(vrt_path)
+        vrt_bytes = vrt_path.stat().st_size
+        vrt_text = vrt_path.read_text(encoding="utf-8")
+        base_url = "https://dataforgood-fb-data.s3.amazonaws.com/hrsl-cogs/hrsl_general/"
+        vrt_text = vrt_text.replace(
+            'relativeToVRT="1">', f'relativeToVRT="0">/vsicurl/{base_url}'
+        )
+        vrt_path.write_text(vrt_text, encoding="utf-8")
 
-    with rasterio.open(vrt_path) as src:
-        if src.crs is None:
-            raise RuntimeError("VRT missing CRS")
-        bounds = src.bounds
-        width = int(math.ceil((bounds.right - bounds.left) / TR_DEG))
-        height = int(math.ceil((bounds.top - bounds.bottom) / TR_DEG))
-        transform = from_origin(bounds.left, bounds.top, TR_DEG, TR_DEG)
+    try:
+        with rasterio.open(vrt_path) as src:
+            if src.crs is None:
+                raise RuntimeError("VRT missing CRS")
+            bounds = src.bounds
+            width = int(math.ceil((bounds.right - bounds.left) / TR_DEG))
+            height = int(math.ceil((bounds.top - bounds.bottom) / TR_DEG))
+            transform = from_origin(bounds.left, bounds.top, TR_DEG, TR_DEG)
 
-        profile = {
-            "driver": "GTiff",
-            "height": height,
-            "width": width,
-            "count": 1,
-            "dtype": "float32",
-            "crs": "EPSG:4326",
-            "transform": transform,
-            "nodata": 0.0,
-            "tiled": True,
-            "blockxsize": 512,
-            "blockysize": 512,
-            "compress": "deflate",
-            "predictor": 2,
-            "bigtiff": "YES",
-        }
+            profile = {
+                "driver": "GTiff",
+                "height": height,
+                "width": width,
+                "count": 1,
+                "dtype": "float32",
+                "crs": "EPSG:4326",
+                "transform": transform,
+                "nodata": 0.0,
+                "tiled": True,
+                "blockxsize": 512,
+                "blockysize": 512,
+                "compress": "deflate",
+                "predictor": 2,
+                "bigtiff": "YES",
+            }
 
-        with WarpedVRT(
-            src,
-            crs="EPSG:4326",
-            transform=transform,
-            width=width,
-            height=height,
-            resampling=Resampling.average,
-            nodata=0.0,
-            dtype="float32",
-        ) as vrt:
-            with rasterio.open(temp_out_path, "w", **profile) as dst:
-                blocks_x = math.ceil(width / profile["blockxsize"])
-                blocks_y = math.ceil(height / profile["blockysize"])
-                total_blocks = blocks_x * blocks_y
-                start_time = time.time()
-                last_log = start_time
-                log_every = max(1, int(args.log_every))
-                log_seconds = max(1, int(args.log_seconds))
-                completed = 0
-                for _, window in dst.block_windows(1):
-                    data = vrt.read(
-                        1,
-                        window=window,
-                        out_dtype="float32",
-                        fill_value=0.0,
-                    )
-                    data = data * 9.0
-                    data = np.where(data < 0.0, 0.0, data)
-                    dst.write(data, 1, window=window)
-                    completed += 1
-                    now = time.time()
-                    if completed % log_every == 0 or (now - last_log) >= log_seconds:
-                        elapsed = now - start_time
-                        rate = completed / elapsed if elapsed > 0 else 0.0
-                        remaining = total_blocks - completed
-                        eta = remaining / rate if rate > 0 else 0.0
-                        pct = (completed / total_blocks) * 100 if total_blocks else 0.0
-                        print(
-                            (
-                                f"[hrsl] {completed}/{total_blocks} blocks "
-                                f"({pct:.2f}%) elapsed={elapsed:.0f}s "
-                                f"eta={eta:.0f}s rate={rate:.2f} blocks/s"
-                            ),
-                            flush=True,
+            with WarpedVRT(
+                src,
+                crs="EPSG:4326",
+                transform=transform,
+                width=width,
+                height=height,
+                resampling=Resampling.average,
+                nodata=0.0,
+                dtype="float32",
+            ) as vrt:
+                with rasterio.open(temp_out_path, "w", **profile) as dst:
+                    blocks_x = math.ceil(width / profile["blockxsize"])
+                    blocks_y = math.ceil(height / profile["blockysize"])
+                    total_blocks = blocks_x * blocks_y
+                    start_time = time.time()
+                    last_log = start_time
+                    log_every = max(1, int(args.log_every))
+                    log_seconds = max(1, int(args.log_seconds))
+                    completed = 0
+                    for _, window in dst.block_windows(1):
+                        data = vrt.read(
+                            1,
+                            window=window,
+                            out_dtype="float32",
+                            fill_value=0.0,
                         )
-                        last_log = now
+                        data = data * 9.0
+                        data = np.where(data < 0.0, 0.0, data)
+                        dst.write(data, 1, window=window)
+                        completed += 1
+                        now = time.time()
+                        if completed % log_every == 0 or (now - last_log) >= log_seconds:
+                            elapsed = now - start_time
+                            rate = completed / elapsed if elapsed > 0 else 0.0
+                            remaining = total_blocks - completed
+                            eta = remaining / rate if rate > 0 else 0.0
+                            pct = (completed / total_blocks) * 100 if total_blocks else 0.0
+                            print(
+                                (
+                                    f"[hrsl] {completed}/{total_blocks} blocks "
+                                    f"({pct:.2f}%) elapsed={elapsed:.0f}s "
+                                    f"eta={eta:.0f}s rate={rate:.2f} blocks/s"
+                                ),
+                                flush=True,
+                            )
+                            last_log = now
 
-                dst.build_overviews([2, 4, 8, 16], Resampling.average)
-                dst.update_tags(ns="rio_overview", resampling="average")
+                    dst.build_overviews([2, 4, 8, 16], Resampling.average)
+                    dst.update_tags(ns="rio_overview", resampling="average")
+    finally:
+        if temp_dir is not None:
+            temp_dir.cleanup()
 
     if OUT_PATH.exists():
         OUT_PATH.unlink()
