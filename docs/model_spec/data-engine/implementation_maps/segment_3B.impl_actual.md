@@ -351,3 +351,38 @@ Validation plan:
 - Run `make hrsl_raster` to ensure AWS sync completes and the build uses the
   local VRT layout.
 - Re-run `make segment3b-s0` to confirm `hrsl_raster` sealing succeeds.
+
+---
+
+### Entry: 2026-01-18 16:27
+
+HRSL local VRT selection corrected after tile path mismatch.
+
+Problem:
+- `make hrsl_raster` failed with `RasterioIOError` because the VRT referenced
+  `v1/cog_*.tif` relative to its own directory, but the build script selected
+  `artefacts/rasters/source/hrsl/hrsl_general.vrt` (at the parent root),
+  causing GDAL to look for tiles at `artefacts/rasters/source/hrsl/v1/*` even
+  though the AWS sync placed tiles under
+  `artefacts/rasters/source/hrsl/hrsl_general/v1/*`.
+
+Decision:
+- Prefer VRTs that live alongside their `v1/` tile directory and only accept a
+  VRT if a sibling `v1/` contains tiles.
+- Align the Makefile default local root to the synced `hrsl_general/` directory
+  so the VRT and tiles share the same parent path.
+
+Implementation notes:
+- `scripts/build_hrsl_raster_3b.py`:
+  - `resolve_local_vrt()` now checks `vrt_path.parent/v1` for tiles and
+    prioritizes VRTs under `local_root/hrsl_general/`.
+- `makefile`:
+  - `HRSL_LOCAL_ROOT` default set to
+    `artefacts/rasters/source/hrsl/hrsl_general`.
+  - `HRSL_S3_SYNC_CMD` now syncs directly into `$(HRSL_LOCAL_ROOT)` (no extra
+    `/hrsl_general` suffix).
+
+Validation plan:
+- Re-run `make hrsl_raster` to confirm the build resolves
+  `hrsl_general-latest.vrt` from the synced directory and reads tiles from the
+  same `v1/` subfolder.

@@ -66,10 +66,11 @@ def download_vrt(vrt_path: Path, vrt_url: str) -> None:
     download_file(vrt_url, vrt_path)
 
 
-def has_tif(root: Path) -> bool:
-    if not root.exists():
+def has_vrt_tiles(vrt_path: Path) -> bool:
+    tiles_root = vrt_path.parent / "v1"
+    if not tiles_root.exists():
         return False
-    for path in root.rglob("*.tif"):
+    for path in tiles_root.rglob("*.tif"):
         if path.is_file():
             return True
     return False
@@ -77,13 +78,13 @@ def has_tif(root: Path) -> bool:
 
 def resolve_local_vrt(local_root: Path) -> Path | None:
     candidates = [
-        local_root / "hrsl_general-latest.vrt",
-        local_root / "hrsl_general.vrt",
         local_root / "hrsl_general" / "hrsl_general-latest.vrt",
         local_root / "hrsl_general" / "hrsl_general.vrt",
+        local_root / "hrsl_general-latest.vrt",
+        local_root / "hrsl_general.vrt",
     ]
     for vrt_path in candidates:
-        if vrt_path.exists() and has_tif(vrt_path.parent):
+        if vrt_path.exists() and has_vrt_tiles(vrt_path):
             return vrt_path
     return None
 
