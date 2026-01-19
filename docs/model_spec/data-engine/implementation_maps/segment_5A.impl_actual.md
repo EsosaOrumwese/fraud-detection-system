@@ -1614,3 +1614,120 @@ Execution notes:
   - `data/layer2/5A/merchant_zone_profile/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/merchant_zone_profile_5A.parquet`
   - `data/layer2/5A/merchant_class_profile/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/merchant_class_profile_5A.parquet`
   - run report at `reports/layer2/5A/state=S1/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/run_report.json`
+
+---
+
+### Entry: 2026-01-19 16:18
+
+5A.S2 planning notes (weekly shape library).
+
+Context + files read (for traceability):
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s2.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/artefact_registry_5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+- `config/layer2/5A/policy/shape_library_5A.v1.yaml`
+- `config/layer2/5A/policy/shape_time_grid_policy_5A.v1.yaml`
+- `config/layer2/5A/policy/zone_shape_modifiers_5A.v1.yaml`
+- `config/layer2/5A/scenario/scenario_metadata.v1.yaml`
+
+Problem / scope:
+- Implement 5A.S2 per spec: deterministic class/zone weekly shapes over a local-week grid,
+  no RNG, policy-driven, outputs partitioned by `(parameter_hash, scenario_id)`.
+- Inputs are sealed via S0; domain comes from S1 (`merchant_zone_profile_5A`).
+- Outputs: `shape_grid_definition_5A`, `class_zone_shape_5A`, optional `class_shape_catalogue_5A`,
+  plus run report `s2_run_report_5A`.
+
+Open questions / decisions to confirm:
+1) Scenario handling: use `scenario_id` from `s0_gate_receipt_5A` only, or emit shapes for
+   every `scenario_id` in `scenario_metadata` (even if scenario_mode is scenario_agnostic)?
+2) Channel dimension: S1 output does not include `channel_group`. Should S2:
+   - emit shapes without channel_group (single template per class/zone), using `channel_group="mixed"` for
+     template selection, or
+   - expand each class/zone across all `shape_library_5A.channel_groups`?
+3) Template selection law: use `u_det_pick_index_v1` as
+   `u = SHA256("5A.S2.template|{demand_class}|{channel_group}|{tzid}|{parameter_hash_hex}")`,
+   `idx = u64(u[0:8]) % len(candidate_templates)`? (Matches zone_group_id_law prefix.)
+4) Bucket time reference: use bucket start minute or bucket midpoint for Gaussian evaluation?
+5) Normalisation tolerance: policy has no explicit epsilon. Ok to use fixed `eps=1e-6` (or 1e-8)?
+6) Degenerate shapes: if total mass == 0, fail closed or fallback to flat `1/T_week`?
+7) Optional `class_shape_catalogue_5A`: emit it (recommended) or skip entirely?
+
+Implementation plan (stepwise, detailed):
+1) **Scaffold state modules + CLI**
+   - Add `packages/engine/src/engine/layers/l2/seg_5A/s2_weekly_shape_library/runner.py`.
+   - Add CLI entry `packages/engine/src/engine/cli/s2_weekly_shape_library_5a.py`.
+   - Wire makefile: `SEG5A_S2_CMD`, `segment5a-s2`, and extend `segment5a` to run S0->S2.
+2) **Load contracts + gate S0/S1**
+   - Use `ContractSource` (model_spec layout) and reuse helpers from `seg_5A.s0_gate.runner`:
+     `_schema_from_pack`, `_inline_external_refs`, `_resolve_dataset_path`, `_load_json/_load_yaml`,
+     `_sealed_inputs_digest`, `_render_catalog_path`.
+   - Resolve `s0_gate_receipt_5A` and `sealed_inputs_5A` from dictionary/registry; validate schemas.
+   - Recompute `sealed_inputs_digest` and compare to receipt.
+   - Enforce upstream PASS for 1A-3B from receipt.
+   - Resolve `merchant_zone_profile_5A` and validate schema (`schemas.5A.yaml#/model/merchant_zone_profile_5A`)
+     using array-row validation (same pattern as S1).
+3) **Resolve scenario_id + policy artefacts**
+   - Use `scenario_metadata` (sealed) and `s0_gate_receipt_5A.scenario_id` to determine `scenario_id`.
+   - Load/validate `shape_time_grid_policy_5A`, `shape_library_5A`; load optional `zone_shape_modifiers_5A`.
+   - Validate invariants: `shape_library_5A.scenario_mode == scenario_agnostic`;
+     zone_group_mode bucket counts/prefix consistent between shape_library and zone_shape_modifiers (if present).
+4) **Build time-grid (shape_grid_definition_5A)**
+   - Use grid policy: `bucket_duration_minutes`, `buckets_per_day`, `T_week`.
+   - For each `bucket_index in [0..T_week-1]` compute:
+     `local_day_of_week = 1 + floor(k / buckets_per_day)` and
+     `local_minutes_since_midnight = (k % buckets_per_day) * bucket_duration_minutes`.
+   - Add derived flags (is_weekend, is_nominal_open_hours) if policy provides them.
+   - Validate contiguous bucket_index coverage and schema compliance.
+5) **Discover S2 domain from S1**
+   - Read `merchant_zone_profile_5A` and select `demand_class`, `legal_country_iso`, `tzid`.
+   - Build `DOMAIN_S1 = unique(demand_class, legal_country_iso, tzid)`.
+   - If policy declares additional domain hints, union them (currently none in config).
+   - Decide whether to append `channel_group` dimension (see open question #2).
+6) **Template selection + base shape generation**
+   - Build an in-memory map of templates and resolution rules from `shape_library_5A`.
+   - For each `(demand_class, zone[, channel_group])`:
+     - Select template via rule match + deterministic pick.
+     - Compute unnormalised values per bucket:
+       `base = baseline_floor + sum(gaussian_peaks(minute))`,
+       `daily = (base ** power) * dow_weight[dow-1]`.
+     - `gaussian_peak = amplitude * exp(-0.5 * ((minute - center)/sigma)^2)`.
+7) **Apply zone modifiers (optional)**
+   - Compute `zone_group_id` using policy law (hash of demand_class, channel_group, tzid, parameter_hash).
+   - Apply overrides (country/tz match) to force profile; else map zone_group_id to profile.
+   - Multiply by `dow_multipliers` and `time_window_multipliers` (bucket in window).
+8) **Normalise + validate**
+   - For each class/zone, sum over buckets.
+   - If total==0, apply decided fallback (flat or fail).
+   - Normalize to `shape_value = v / total`.
+   - Validate non-negative, finite, and sum within epsilon.
+   - Enforce policy constraints where defined (night mass, weekend mass, nonflat ratio, class-specific floors).
+9) **Build outputs**
+   - `shape_grid_definition_5A`: one row per bucket with `(parameter_hash, scenario_id, bucket_index, ...)`.
+   - `class_zone_shape_5A`: one row per (class, zone[, channel], bucket_index) with `shape_value` and `s2_spec_version`.
+   - Optional `class_shape_catalogue_5A`: one row per demand_class[/channel_group] describing template_id/type/params.
+   - Validate outputs against `schemas.5A.yaml` (array-row validator with `$defs` inlined).
+10) **Idempotent writes**
+    - Resolve canonical output paths from the dictionary using `(parameter_hash, scenario_id)`.
+    - If outputs exist, compare hashes; if identical, skip; else fail `S2_OUTPUT_CONFLICT`.
+    - Use staging directories and atomic rename to publish.
+11) **Run report + logging**
+    - Emit story header: objective, gated inputs, outputs.
+    - Log grid size, domain sizes, templates selected counts, modifier usage, normalisation stats.
+    - Use progress tracker for per-domain loops (elapsed, rate, ETA).
+    - Write `s2_run_report_5A` (schema `schemas.layer2.yaml#/run_report/segment_state_run`).
+
+Performance / memory notes:
+- Domain size is modest (unique demand_class x zone), but shapes scale as `|DOMAIN| * T_week`.
+- Use vectorised grid arrays and avoid Python-heavy per-bucket loops where possible.
+- Use deterministic hashing (sha256) and avoid RNG.
+
+Resumability / idempotency:
+- Output identity is `(parameter_hash, scenario_id)` only; ensure no merges across partitions.
+- If outputs exist and match, no-op; if mismatch, fail with `S2_OUTPUT_CONFLICT`.
+
+Validation / testing plan:
+- Schema validation for S0 receipt, sealed_inputs, S1 output, policies, and S2 outputs.
+- Domain alignment: every `(class, zone[, channel])` has exactly `T_week` buckets.
+- Normalisation: sum within epsilon for each class/zone.
+- Idempotency: re-run with same inputs yields identical hashes.
