@@ -1,5 +1,5 @@
 policy_id: demand_scale_policy_5A
-version: v1.0.0
+version: v1
 weekly_volume_unit: arrivals_per_local_week
 global_multiplier: 0.664569
 brand_size_exponent: 0.08

@@ -1,5 +1,5 @@
 policy_id: merchant_class_policy_5A
-version: v1.0.0
+version: v1
 demand_class_catalog:
 - demand_class: always_on_local
   description: Always-on local; near-continuous baseline.
@@ -332,41 +332,38 @@ decision_tree_v1:
   nonvirtual_branch:
     by_channel_group:
       card_present:
-        by_sector:
-          digital_services: office_hours
-          general_retail: consumer_daytime
-          grocery_pharmacy: consumer_daytime
-          fuel_auto: fuel_convenience
-          travel_hospitality: travel_hospitality
-          dining_entertainment: evening_weekend
-          cash_fin_services: office_hours
-          utilities_bills: bills_utilities
-          government_education: office_hours
-          other: consumer_daytime
+        digital_services: office_hours
+        general_retail: consumer_daytime
+        grocery_pharmacy: consumer_daytime
+        fuel_auto: fuel_convenience
+        travel_hospitality: travel_hospitality
+        dining_entertainment: evening_weekend
+        cash_fin_services: office_hours
+        utilities_bills: bills_utilities
+        government_education: office_hours
+        other: consumer_daytime
       card_not_present:
-        by_sector:
-          digital_services: online_24h
-          general_retail: online_24h
-          grocery_pharmacy: online_24h
-          fuel_auto: online_bursty
-          travel_hospitality: online_bursty
-          dining_entertainment: online_bursty
-          cash_fin_services: online_bursty
-          utilities_bills: bills_utilities
-          government_education: office_hours
-          other: online_24h
+        digital_services: online_24h
+        general_retail: online_24h
+        grocery_pharmacy: online_24h
+        fuel_auto: online_bursty
+        travel_hospitality: online_bursty
+        dining_entertainment: online_bursty
+        cash_fin_services: online_bursty
+        utilities_bills: bills_utilities
+        government_education: office_hours
+        other: online_24h
       mixed:
-        by_sector:
-          digital_services: office_hours
-          general_retail: consumer_daytime
-          grocery_pharmacy: consumer_daytime
-          fuel_auto: fuel_convenience
-          travel_hospitality: travel_hospitality
-          dining_entertainment: evening_weekend
-          cash_fin_services: office_hours
-          utilities_bills: bills_utilities
-          government_education: office_hours
-          other: consumer_daytime
+        digital_services: office_hours
+        general_retail: consumer_daytime
+        grocery_pharmacy: consumer_daytime
+        fuel_auto: fuel_convenience
+        travel_hospitality: travel_hospitality
+        dining_entertainment: evening_weekend
+        cash_fin_services: office_hours
+        utilities_bills: bills_utilities
+        government_education: office_hours
+        other: consumer_daytime
   default_class: consumer_daytime
   subclass_rules:
     zone_role:

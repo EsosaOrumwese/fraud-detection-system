@@ -1634,7 +1634,7 @@ scenario_calendar_5a:
 		exit 1; \
 	fi; \
 	echo "Building 5A scenario_calendar_5A (manifest_fingerprint $$manifest)"; \
-	$(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint "$$manifest" --zone-alloc-path "$$zone_alloc_path"
+	$(PY_SCRIPT) scripts/build_scenario_calendar_5a.py --manifest-fingerprint "$$manifest" --zone-alloc-path "$$zone_alloc_path" --output-root "$$run_root"
 
 policies_5a: merchant_class_policy_5a demand_scale_policy_5a shape_library_5a
 	@echo "5A policy scripts complete (manual configs: baseline_intensity, scenario_horizon, scenario_overlay)"

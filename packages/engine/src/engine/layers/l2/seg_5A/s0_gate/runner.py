@@ -475,6 +475,44 @@ def _bundle_digest_from_members(
     return digest
 
 
+def _bundle_digest_from_member_files(
+    bundle_root: Path,
+    index_payload: dict,
+    schema_layer1: dict,
+    logger,
+    manifest_fingerprint: str,
+    index_path: Path,
+) -> str:
+    schema = _schema_from_pack(schema_layer1, "validation/validation_bundle_index_3B")
+    _inline_external_refs(schema, schema_layer1, "schemas.layer1.yaml#")
+    errors = list(Draft202012Validator(schema).iter_errors(index_payload))
+    if errors:
+        raise EngineFailure(
+            "F4",
+            "S0_IO_READ_FAILED",
+            STATE,
+            MODULE_NAME,
+            {"detail": str(errors[0]), "path": str(index_path)},
+        )
+    members = index_payload.get("members")
+    if not isinstance(members, list) or not members:
+        raise EngineFailure(
+            "F4",
+            "S0_IO_READ_FAILED",
+            STATE,
+            MODULE_NAME,
+            {"detail": "bundle index missing members", "path": str(index_path)},
+        )
+    _validate_index_entries(members, index_path)
+    bundle_digest, _ = _bundle_hash(bundle_root, members)
+    logger.info(
+        "S0: 3B bundle index validated (members=%d) for manifest_fingerprint=%s",
+        len(members),
+        manifest_fingerprint,
+    )
+    return bundle_digest
+
+
 def _validate_index_entries(index_entries: list[dict], index_path: Path) -> list[str]:
     paths = []
     for entry in index_entries:
@@ -1026,7 +1064,6 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "1A": ("validation_bundle_1A", "validation_passed_flag_1A", schema_1a, "validation/validation_bundle_index_1A"),
         "1B": ("validation_bundle_1B", "validation_passed_flag_1B", schema_1b, "validation/validation_bundle_index_1B"),
         "2A": ("validation_bundle_2A", "validation_passed_flag_2A", schema_2a, "validation/validation_bundle_index_2A"),
-        "3B": ("validation_bundle_3B", "validation_passed_flag_3B", schema_layer1, "validation/validation_bundle_index_3B"),
     }
 
     for segment_id, (bundle_id, flag_id, schema_pack, index_anchor) in gate_map.items():
@@ -1076,6 +1113,51 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
             bundle_root.as_posix(),
             bundle_digest,
         )
+
+    bundle_entry = find_dataset_entry(dictionary_5a, "validation_bundle_3B").entry
+    flag_entry = find_dataset_entry(dictionary_5a, "validation_passed_flag_3B").entry
+    bundle_root = _resolve_dataset_path(bundle_entry, run_paths, config.external_roots, tokens)
+    flag_path = _resolve_dataset_path(flag_entry, run_paths, config.external_roots, tokens)
+    if not bundle_root.exists():
+        _abort(
+            "S0_IO_READ_FAILED",
+            "V-03",
+            "validation_bundle_missing",
+            {"bundle_id": "validation_bundle_3B", "path": str(bundle_root)},
+            manifest_fingerprint,
+        )
+    index_path = bundle_root / "index.json"
+    index_payload = _load_json(index_path)
+    bundle_digest = _bundle_digest_from_member_files(
+        bundle_root,
+        index_payload,
+        schema_layer1,
+        logger,
+        manifest_fingerprint,
+        index_path,
+    )
+    flag_digest = _parse_pass_flag(flag_path)
+    if bundle_digest != flag_digest:
+        _abort(
+            "S0_IO_READ_FAILED",
+            "V-03",
+            "hashgate_mismatch",
+            {"bundle_id": "validation_bundle_3B", "expected": bundle_digest, "actual": flag_digest},
+            manifest_fingerprint,
+        )
+    bundle_digests["validation_bundle_3B"] = bundle_digest
+    upstream_gates["3B"] = {
+        "status": "PASS",
+        "bundle_id": "validation_bundle_3B",
+        "bundle_path": _render_catalog_path(bundle_entry, tokens),
+        "bundle_sha256_hex": bundle_digest,
+        "flag_sha256_hex": flag_digest,
+    }
+    logger.info(
+        "S0: segment_3B gate verified (bundle=%s, digest=%s, law=members_bytes)",
+        bundle_root.as_posix(),
+        bundle_digest,
+    )
 
     bundle_entry = find_dataset_entry(dictionary_5a, "validation_bundle_2B").entry
     flag_entry = find_dataset_entry(dictionary_5a, "validation_passed_flag_2B").entry
@@ -1272,7 +1354,26 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                 logger,
             )
         else:
-            resolved_path = _resolve_dataset_path(entry, run_paths, config.external_roots, tokens)
+            try:
+                resolved_path = _resolve_dataset_path(entry, run_paths, config.external_roots, tokens)
+            except InputResolutionError as exc:
+                if dataset_id in optional_ids:
+                    sealed_optional_missing.append(dataset_id)
+                    continue
+                error_code = "S0_REQUIRED_POLICY_MISSING"
+                if dataset_id in {
+                    "scenario_horizon_config_5A",
+                    "scenario_metadata",
+                    "scenario_calendar_5A",
+                }:
+                    error_code = "S0_REQUIRED_SCENARIO_MISSING"
+                _abort(
+                    error_code,
+                    "V-05",
+                    "required_input_missing",
+                    {"dataset_id": dataset_id, "path": str(entry.get("path") or ""), "error": str(exc)},
+                    manifest_fingerprint,
+                )
             if not resolved_path.exists():
                 if dataset_id in optional_ids:
                     sealed_optional_missing.append(dataset_id)
@@ -1412,7 +1513,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         catalog_path = entry.get("path") or ""
         partition_keys = list(entry.get("partitioning") or [])
         status = "REQUIRED" if dataset_id in required_ids else "OPTIONAL"
-        notes = None
+        notes = ""
         if dataset_id == "scenario_calendar_5A":
             notes = f"scenario_ids={','.join(sorted(set(scenario_ids)))}"
 
@@ -1449,7 +1550,9 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
     )
 
     sealed_schema = _schema_from_pack(schema_5a, "validation/sealed_inputs_5A")
+    _inline_external_refs(sealed_schema, schema_layer1, "schemas.layer1.yaml#")
     _inline_external_refs(sealed_schema, schema_layer2, "schemas.layer2.yaml#")
+    _inline_external_refs(sealed_schema, schema_ingress_layer2, "schemas.ingress.layer2.yaml#")
     errors = list(Draft202012Validator(sealed_schema).iter_errors(sealed_rows_sorted))
     if errors:
         _abort(
@@ -1540,7 +1643,9 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         receipt_payload["scenario_pack_id"] = scenario_pack_id
 
     receipt_schema = _schema_from_pack(schema_5a, "validation/s0_gate_receipt_5A")
+    _inline_external_refs(receipt_schema, schema_layer1, "schemas.layer1.yaml#")
     _inline_external_refs(receipt_schema, schema_layer2, "schemas.layer2.yaml#")
+    _inline_external_refs(receipt_schema, schema_ingress_layer2, "schemas.ingress.layer2.yaml#")
     errors = list(Draft202012Validator(receipt_schema).iter_errors(receipt_payload))
     if errors:
         _abort(
@@ -1581,7 +1686,9 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         )
 
     scenario_manifest_schema = _schema_from_pack(schema_5a, "validation/scenario_manifest_5A")
+    _inline_external_refs(scenario_manifest_schema, schema_layer1, "schemas.layer1.yaml#")
     _inline_external_refs(scenario_manifest_schema, schema_layer2, "schemas.layer2.yaml#")
+    _inline_external_refs(scenario_manifest_schema, schema_ingress_layer2, "schemas.ingress.layer2.yaml#")
     errors = list(Draft202012Validator(scenario_manifest_schema).iter_errors(scenario_manifest_rows))
     if errors:
         _abort(

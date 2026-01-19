@@ -1,5 +1,5 @@
 policy_id: scenario_overlay_policy_5A
-version: v1.0.1
+version: v1
 
 event_types:
   HOLIDAY:
@@ -31,11 +31,11 @@ event_types:
 scope_rules:
   allowed_scope_kinds: [global, country, tzid, demand_class, merchant]
   predicate_schema:
-    global: bool
-    country_iso: ISO2
-    tzid: IANA_TZID
-    demand_class: DEMAND_CLASS
-    merchant_id: U64
+    global: true
+    country_iso: "US"
+    tzid: "Etc/UTC"
+    demand_class: "example_class"
+    merchant_id: 1
   rules:
     require_at_least_one_predicate: true
     global_cannot_combine: true

@@ -1,0 +1,20 @@
+version: v1
+grid:
+  bucket_duration_minutes: 60
+  week_start: monday_00_00_local
+  day_of_week_encoding: "1=Mon,...,7=Sun"
+  minutes_per_day: 1440
+  days_per_week: 7
+  buckets_per_day: 24
+  T_week: 168
+  bucket_index_law: "k=(dow-1)*T_day + floor(minute/bucket_minutes)"
+  inverse_mapping_law: "dow=1+floor(k/T_day); minute=(k%T_day)*bucket_minutes"
+  derived_flags:
+    weekend_days: [6, 7]
+    is_weekend_law: "dow in weekend_days"
+    nominal_open_hours:
+      days: [1, 2, 3, 4, 5]
+      start_minute: 540
+      end_minute_exclusive: 1020
+    is_nominal_open_hours_law: "dow in days AND start_minute <= minute < end_minute_exclusive"
+notes: "v1 local-week discretisation for Segment 5A; token-less; DST handled upstream."

@@ -1,5 +1,5 @@
 policy_id: baseline_intensity_policy_5A
-version: v1.0.1
+version: v1
 
 scale_source_field: weekly_volume_expected
 scale_units: arrivals_per_local_week

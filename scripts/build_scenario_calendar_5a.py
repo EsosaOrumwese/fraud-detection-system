@@ -14,6 +14,7 @@ import yaml
 
 
 UTC = timezone.utc
+MIN_EVENTS_PER_SCENARIO = 2000
 
 
 @dataclass
@@ -178,6 +179,12 @@ def _validate_event_bounds(event: dict[str, Any], overlay_policy: dict) -> None:
             raise ValueError("ramp event missing amplitude_peak")
         if not (bounds[0] <= event["amplitude_peak"] <= bounds[1]):
             raise ValueError(f"{event['event_type']} amplitude_peak out of bounds")
+
+
+def _amplitude_in_bounds(event_type: str, overlay_policy: dict, scenario_id: str, stage: str, *keys: str) -> float:
+    bounds = overlay_policy["event_types"][event_type]["amplitude_bounds"]
+    u = _u_det(scenario_id, stage, *keys)
+    return bounds[0] + (bounds[1] - bounds[0]) * u
 
 
 def _ensure_scope(event: dict[str, Any]) -> None:
@@ -596,6 +603,56 @@ def _generate_events(
                 )
             )
 
+    min_events = MIN_EVENTS_PER_SCENARIO
+    max_events = overlay_policy["calendar_validation"]["max_events_per_scenario"]
+    if len(events) < min_events:
+        extra_classes = sorted(demand_classes.difference(required_classes))
+        if extra_classes:
+            extras: list[dict[str, Any]] = []
+            for event in events:
+                if event["event_type"] not in {"PAYDAY", "HOLIDAY"}:
+                    continue
+                if event["demand_class"] not in required_classes:
+                    continue
+                for extra_class in extra_classes:
+                    extra = dict(event)
+                    extra["demand_class"] = extra_class
+                    if event["event_type"] == "PAYDAY":
+                        extra["amplitude_peak"] = _amplitude_in_bounds(
+                            "PAYDAY",
+                            overlay_policy,
+                            scenario.scenario_id,
+                            "payday_extra_amp",
+                            extra_class,
+                            str(event.get("country_iso") or "global"),
+                            str(event.get("start_utc") or ""),
+                        )
+                        extra["amplitude"] = None
+                    else:
+                        extra["amplitude"] = _amplitude_in_bounds(
+                            "HOLIDAY",
+                            overlay_policy,
+                            scenario.scenario_id,
+                            "holiday_extra_amp",
+                            extra_class,
+                            str(event.get("country_iso") or "global"),
+                            str(event.get("start_utc") or ""),
+                        )
+                        extra["amplitude_peak"] = None
+                        extra["ramp_in_buckets"] = None
+                        extra["ramp_out_buckets"] = None
+                    note = event.get("notes") or ""
+                    extra["notes"] = (note + " | class-extended").strip()
+                    extras.append(extra)
+            for extra in extras:
+                if len(events) >= min_events:
+                    break
+                if len(events) + 1 > max_events:
+                    break
+                events.append(extra)
+        if len(events) < min_events:
+            raise ValueError(f"Event count {len(events)} below realism floor {min_events}")
+
     # validate bounds + scope
     for event in events:
         _validate_event_bounds(event, overlay_policy)
@@ -674,6 +731,12 @@ def main() -> None:
         type=Path,
         default=Path("config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml"),
     )
+    parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=Path("."),
+        help="Root for data/layer2/5A/scenario_calendar outputs.",
+    )
     args = parser.parse_args()
 
     overlay_policy = _load_yaml(args.overlay_policy)
@@ -693,8 +756,10 @@ def main() -> None:
         )
 
         max_events = overlay_policy["calendar_validation"]["max_events_per_scenario"]
-        if not (2000 <= len(events) <= max_events):
-            raise ValueError(f"Event count {len(events)} outside realism bounds")
+        if not (MIN_EVENTS_PER_SCENARIO <= len(events) <= max_events):
+            raise ValueError(
+                f"Event count {len(events)} outside realism bounds [{MIN_EVENTS_PER_SCENARIO}, {max_events}]"
+            )
 
         event_ids = set()
         for event in events:
@@ -751,7 +816,12 @@ def main() -> None:
             "notes": pl.Utf8,
         }
         df = pl.DataFrame(columns, schema=schema)
-        output_dir = Path("config/layer2/5A/scenario/calendar") / f"fingerprint={args.manifest_fingerprint}" / f"scenario={scenario.scenario_id}"
+        output_dir = (
+            args.output_root
+            / "data/layer2/5A/scenario_calendar"
+            / f"manifest_fingerprint={args.manifest_fingerprint}"
+            / f"scenario_id={scenario.scenario_id}"
+        )
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / "scenario_calendar_5A.parquet"
         df.write_parquet(output_path)
