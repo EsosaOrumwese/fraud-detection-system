@@ -1044,6 +1044,60 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s5_structural_summary_3B
+  status: draft
+  owner_subsegment: 3B
+  description: S5 structural checks summary for S0-S4 invariants.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_structural_summary_3B.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.3B.yaml#/validation/s5_structural_summary_3B
+  lineage:
+    produced_by: 3B.S5
+    consumed_by: [HashGate, downstream segments]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s5_rng_summary_3B
+  status: draft
+  owner_subsegment: 3B
+  description: S5 RNG accounting summary for 3B.S2 streams.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_rng_summary_3B.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.3B.yaml#/validation/s5_rng_summary_3B
+  lineage:
+    produced_by: 3B.S5
+    consumed_by: [HashGate, downstream segments]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s5_digest_summary_3B
+  status: draft
+  owner_subsegment: 3B
+  description: S5 digest summary for key 3B artefacts and policies.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_digest_summary_3B.json
+  partitioning: [manifest_fingerprint]
+  ordering: []
+  schema_ref: schemas.3B.yaml#/validation/s5_digest_summary_3B
+  lineage:
+    produced_by: 3B.S5
+    consumed_by: [HashGate, downstream segments]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
 - id: s1_run_report_3B
   status: draft
   owner_subsegment: 3B

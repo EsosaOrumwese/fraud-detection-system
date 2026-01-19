@@ -1166,6 +1166,66 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: s5_structural_summary_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_structural_summary_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s5_structural_summary
+        license: Proprietary-Internal
+        role: S5 structural checks summary for S0-S4 invariants.
+        dependencies:
+          - validation_bundle_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s5_structural_summary_3B
+        cross_layer: false
+        notes: null
+
+      - name: s5_rng_summary_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_rng_summary_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s5_rng_summary
+        license: Proprietary-Internal
+        role: S5 RNG accounting summary for 3B.S2 streams.
+        dependencies:
+          - validation_bundle_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s5_rng_summary_3B
+        cross_layer: false
+        notes: null
+
+      - name: s5_digest_summary_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/s5_digest_summary_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s5_digest_summary
+        license: Proprietary-Internal
+        role: S5 digest summary for key 3B artefacts and policies.
+        dependencies:
+          - validation_bundle_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s5_digest_summary_3B
+        cross_layer: false
+        notes: null
+
       # 10 PROCESS & RECOVERY LOGS
       - name: route_rng_policy_v1
         path: config/layer1/2B/policy/route_rng_policy_v1.json

@@ -243,6 +243,90 @@ validation:
           virtual_routing_policy_digest: { $ref: '#/$defs/hex64' }
       notes: { type: string }
 
+  s5_structural_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, status, checks]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      checks:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [check_id, status]
+          properties:
+            check_id:       { type: string }
+            status:         { type: string, enum: [PASS, FAIL, WARN] }
+            affected_count: { type: integer, minimum: 0 }
+            detail:         { type: string }
+            notes:          { type: string }
+      counts:
+        type: object
+        additionalProperties: false
+        properties:
+          virtual_merchants: { type: integer, minimum: 0 }
+          edge_merchants:    { type: integer, minimum: 0 }
+          alias_merchants:   { type: integer, minimum: 0 }
+          edge_total:        { type: integer, minimum: 0 }
+          validation_tests:  { type: integer, minimum: 0 }
+      notes: { type: string }
+
+  s5_rng_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, status, streams]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      streams:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [module, substream_label, events_total, draws_total, blocks_total, status]
+          properties:
+            module:         { type: string }
+            substream_label: { type: string }
+            events_total:   { type: integer, minimum: 0 }
+            draws_total:    { type: integer, minimum: 0 }
+            blocks_total:   { type: integer, minimum: 0 }
+            expected_events: { type: integer, minimum: 0 }
+            expected_draws: { type: integer, minimum: 0 }
+            expected_blocks: { type: integer, minimum: 0 }
+            status:         { type: string, enum: [PASS, FAIL, WARN] }
+            notes:          { type: string }
+      notes: { type: string }
+
+  s5_digest_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, digests]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      digests:
+        type: object
+        additionalProperties: false
+        properties:
+          edge_catalogue_index_digest:   { $ref: '#/$defs/hex64' }
+          edge_alias_index_digest:       { $ref: '#/$defs/hex64' }
+          edge_alias_blob_digest:        { $ref: '#/$defs/hex64' }
+          edge_universe_hash:            { $ref: '#/$defs/hex64' }
+          virtual_routing_policy_digest: { $ref: '#/$defs/hex64' }
+          virtual_validation_contract_digest: { $ref: '#/$defs/hex64' }
+          cdn_country_weights_digest:    { $ref: '#/$defs/hex64' }
+          mcc_channel_rules_digest:      { $ref: '#/$defs/hex64' }
+          route_rng_policy_digest:       { $ref: '#/$defs/hex64' }
+          virtual_validation_policy_digest: { $ref: '#/$defs/hex64' }
+          virtual_routing_fields_digest: { $ref: '#/$defs/hex64' }
+      notes: { type: string }
+
   gamma_draw_log_entry_3B:
     type: object
     additionalProperties: false

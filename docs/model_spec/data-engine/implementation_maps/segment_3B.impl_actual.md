@@ -2126,3 +2126,276 @@ Result:
 - `s4_run_summary_3B` and `s4_run_report_3B` written successfully.
 
 ---
+
+## S5 - Segment validation bundle & `_passed.flag`
+
+### Entry: 2026-01-19 09:04
+
+S5 spec review + planning kickoff.
+
+Files read (expanded spec + design + contracts + reference implementation):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/3B/state.3B.s5.expanded.md`
+- `docs/design/data-engine/layer-1/3B/3B-S5-dag.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/artefact_registry_3B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml` (bundle index + passed flag)
+- `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py` (style + bundle law reference)
+
+Problem framing (S5 purpose):
+- RNG-free validation gate: re-audit S0-S4 artefacts + RNG logs, assemble a
+  3B validation bundle, write `index.json` and `_passed.flag`, and expose a
+  HashGate for downstream consumers.
+
+Notable contract/schematic mismatches to resolve up front:
+1) **Bundle hash law ambiguity.**
+   - 3B.S5 expanded spec/DAG calls for bundle digest over *evidence file bytes
+     in ASCII path order*.
+   - 3A.S7 implementation uses an **index-only** digest (sha256 of member
+     sha256_hex strings), not bytes.
+   - Need a decision for 3B: follow S5 spec law (bytes) or align with 3A's
+     index-only approach for operational consistency.
+2) **`s5_manifest_3B` optional vs index schema requirement.**
+   - `schemas.layer1.yaml#/validation/validation_bundle_index_3B` requires
+     `s5_manifest_digest`.
+   - `s5_manifest_3B` is described as optional in the spec/DAG but appears
+     structurally required by the index schema.
+   - Likely resolution: always emit `s5_manifest_3B` so its digest can be
+     included; otherwise we need to change the schema.
+3) **Sealed inputs vs RNG logs.**
+   - S5 spec says RNG logs are required for S2 audit and should be sealed
+     inputs, but 3B.S0 currently does **not** seal RNG logs; RNG logs are
+     produced by S2 and recorded as datasets in the dictionary.
+   - Need to confirm whether S5 should treat RNG logs as required internal
+     inputs (from dictionary) or as sealed artefacts (requiring S0 change).
+4) **Sealed inputs format inconsistency in DAG.**
+   - DAG mentions `sealed_inputs_3B.parquet` while the dictionary uses
+     `sealed_inputs_3B.json`. Implementation must follow dictionary.
+
+Draft implementation approach (stepwise, with intended mechanics):
+1) **Identity + gating**
+   - Resolve run receipt; load `s0_gate_receipt_3B` + `sealed_inputs_3B`.
+   - Validate schemas, enforce `upstream_gates` PASS for 1A/1B/2A/3A.
+2) **Resolve required artefacts**
+   - S1-S4 outputs from dictionary (classification/settlement, edge catalogue &
+     index, alias blob/index, universe hash, routing policy, validation
+     contract, optional s4_run_summary_3B).
+   - RNG logs from dictionary (`rng_audit_log`, `rng_trace_log`,
+     `rng_event_edge_tile_assign`, `rng_event_edge_jitter`) with schema
+     validation via layer1 RNG schemas.
+   - Required policies from sealed inputs (CDN weights, alias layout, route RNG
+     policy, virtual validation policy, routing fields, tz/tiling artefacts as
+     needed for checks).
+3) **Structural checks**
+   - Re-check S1 invariants (virtual set vs settlement rows).
+   - Re-check S2 counts (edge catalogue vs index totals; lat/lon, tzid sanity).
+   - Re-check S3 alias index counts + blob digest + universe hash component
+     digests (mirror S3/S4 digest law and note approved deviations).
+   - Re-check S4 routing policy + validation contract coherence with S1-S3 and
+     routing-field policy.
+4) **RNG accounting checks**
+   - Use RNG logs to validate module/stream IDs for S2 and reconcile draws/
+     blocks versus expected counts (edge counts + jitter attempts).
+   - Determine whether to enforce strict equality or allow tolerances per policy.
+5) **Evidence + bundle assembly**
+   - Build staging bundle directory with deterministic evidence files (JSON
+     summaries, optional issue list), include `s5_manifest_3B`.
+   - Create index.json per schema; compute bundle digest using the approved law.
+   - Write `_passed.flag` and atomically publish the bundle (immutability check).
+6) **Run report**
+   - Emit `s5_run_report_3B` in the same pattern as S4/S3 with counts and
+     failure context.
+
+Open questions to confirm before implementation:
+1) Bundle digest law: use byte-concat law (S5 spec) or index-only law (S7 style)?
+2) Should `s5_manifest_3B` be mandatory (to satisfy `s5_manifest_digest`), or
+   should we alter the bundle index schema to make the digest optional?
+3) Are RNG logs required inputs (fail if missing), or should S5 treat them as
+   optional with WARN if not sealed for a manifest?
+4) Evidence scope: minimum required evidence files for `validation_bundle_3B`
+   in v1 (e.g., S0 gate + sealed inputs + S1-S4 artefacts + RNG summaries),
+   vs larger evidence set (copying/parquet snapshots).
+
+Next:
+- Await your decisions on the open questions, then write the detailed S5 plan
+  entry and proceed to implementation.
+
+---
+
+### Entry: 2026-01-19 09:18
+
+S5 decisions confirmed (approved by user) and locked for implementation.
+
+Decision set:
+1) **Bundle digest law**
+   - Use the S5 spec law: SHA-256 over the **bytes of evidence files** in
+     ASCII-sorted `path` order (not the index-only hex concat law from 3A.S7).
+   - Deviation from 3A is documented; 3A remains unchanged.
+2) **`s5_manifest_3B` requirement**
+   - Treat `s5_manifest_3B` as **mandatory** so
+     `validation_bundle_index_3B.s5_manifest_digest` can always be set without
+     schema changes.
+3) **RNG logs posture**
+   - Treat RNG logs as **required internal inputs** (dictionary-resolved and
+     schema-validated) even though they are not sealed by S0.
+   - Document this as an approved deviation from the "sealed inputs only"
+     requirement (S0 cannot seal S2 outputs).
+4) **Evidence scope**
+   - Keep the bundle lightweight: include small JSON evidence files in the
+     bundle and avoid copying large parquets/blobs.
+   - Structural and RNG checks are summarized in dedicated evidence JSONs.
+   - Large artefacts are covered via digests recorded in `s5_manifest_3B` and
+     the digest-summary evidence file.
+
+Implementation plan adjustments (to honor the decisions):
+- Introduce S5 evidence JSON files with schemas:
+  `s5_structural_summary_3B`, `s5_rng_summary_3B`, `s5_digest_summary_3B`.
+- Register these evidence files in dictionary/registry so the bundle index
+  can reference schema_ref and canonical paths.
+- Stage a bundle directory containing:
+  `s0_gate_receipt_3B.json`, `sealed_inputs_3B.json`, `s5_manifest_3B.json`,
+  and the S5 evidence JSON files; compute bundle digest from these files.
+- Build `index.json` per `schemas.layer1.yaml#/validation/validation_bundle_index_3B`
+  with `s5_manifest_digest` and member entries pointing to the staged files.
+
+Next:
+- Implement S5 runner + CLI + Makefile target; update contracts and schemas
+  for the new evidence files; run `make segment3b-s5` until green.
+
+---
+
+### Entry: 2026-01-19 09:20
+
+S5 contract updates for bundle evidence files.
+
+Actions:
+- Added schema definitions in `schemas.3B.yaml` for:
+  `s5_structural_summary_3B`, `s5_rng_summary_3B`, `s5_digest_summary_3B`.
+- Registered these evidence files in
+  `dataset_dictionary.layer1.3B.yaml` and `artefact_registry_3B.yaml` with
+  canonical paths inside the validation bundle.
+
+Rationale:
+- The bundle index requires schema_ref per evidence file; explicit schemas and
+  dictionary entries keep these bundle files auditable and contract-bound.
+
+---
+
+### Entry: 2026-01-19 09:37
+
+S5 implementation underway (runner + CLI + Makefile).
+
+Actions:
+- Implemented `packages/engine/src/engine/layers/l1/seg_3B/s5_validation_bundle/runner.py`
+  with S0 gating, S1-S4 structural checks, RNG log audit, digest summaries, and
+  bundle construction using the byte-concat hash law.
+- Added CLI entrypoint `packages/engine/src/engine/cli/s5_validation_bundle_3b.py`.
+- Added `segment3b-s5` target + args/cmd wiring in `makefile` and included it
+  in `.PHONY` and the `segment3b` aggregate target.
+
+Design notes captured in code:
+- RNG logs are required internal inputs (dictionary-resolved, schema-validated),
+  with tile-assign events optional.
+- Bundle evidence files are small JSON summaries plus S0/sealed inputs; large
+  artefacts are referenced via digests in the S5 manifest/digest summary.
+
+Next:
+- Run `python -m py_compile` for the new S5 modules, then execute
+  `make segment3b-s5` to validate and resolve any runtime issues.
+
+---
+
+### Entry: 2026-01-19 09:38
+
+S5 run-report guardrail fix after initial failure.
+
+Observed issue:
+- First `make segment3b-s5` failed before `tokens` were initialized, causing
+  the run-report writer to throw `cannot access local variable 'tokens'`.
+
+Fix applied:
+- Initialized `tokens`, `run_paths`, and `dictionary_3b` at function entry
+  and gated run-report writing on their availability.
+
+Next:
+- Re-run `make segment3b-s5` and address any runtime validation issues.
+
+---
+
+### Entry: 2026-01-19 09:39
+
+S5 schema hotfix after YAML parse failure.
+
+Observed issue:
+- `schemas.3B.yaml` failed to parse due to missing spaces after
+  `substream_label:` and `expected_events:` in `s5_rng_summary_3B`.
+
+Fix:
+- Added the required spaces to restore valid YAML.
+
+Next:
+- Re-run `make segment3b-s5`.
+
+---
+
+### Entry: 2026-01-19 09:40
+
+S5 schema parse fix (expected_blocks spacing).
+
+Observed issue:
+- YAML parse error remained due to `expected_blocks:{...}` missing space.
+
+Fix:
+- Updated to `expected_blocks: { ... }` in `schemas.3B.yaml`.
+
+Next:
+- Re-run `make segment3b-s5`.
+
+---
+
+### Entry: 2026-01-19 09:42
+
+S5 validation-contract schema handling adjustment.
+
+Observed issue:
+- `virtual_validation_contract_3B` parquet reads fill missing struct fields
+  with nulls, causing schema validation to fail on optional threshold fields.
+
+Decision:
+- Clean nested structs (`thresholds`, `inputs`, `target_population`) by
+  dropping null keys before validating against the schema, preserving the
+  contract while avoiding false failures from parquet struct padding.
+
+Change:
+- Added `_drop_none` helper and used it when validating the
+  `virtual_validation_contract_3B` table.
+
+Next:
+- Re-run `make segment3b-s5`.
+
+---
+
+### Entry: 2026-01-19 09:53
+
+S5 rerun after schema-validation failure.
+
+Observed:
+- `run_report.json` showed `E3B_S5_INPUT_SCHEMA_INVALID` with
+  `thresholds.cutoff_tolerance_seconds`/`thresholds.max_abs_error` being `None`.
+- The parquet file stores null struct fields when optional thresholds are unset.
+
+Decision:
+- Validate the fix by inspecting sample rows and confirming `_drop_none`
+  removes null keys prior to schema validation; no further schema changes.
+
+Actions:
+- Ran an ad-hoc validation check to confirm the cleaned rows pass the
+  `virtual_validation_contract_3B` schema.
+- Re-ran `make segment3b-s5`; S5 completed with `status=PASS`, warning that
+  `rng_event_edge_tile_assign` is missing (allowed), and wrote the bundle
+  index + passed flag for the current manifest.
+
+Notes:
+- No code changes were required beyond the earlier `_drop_none` adjustment.
+
+---
