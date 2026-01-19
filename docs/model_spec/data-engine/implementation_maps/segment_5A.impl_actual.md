@@ -2187,3 +2187,116 @@ Outcome:
   - `class_zone_baseline_local_5A`
 - Outputs were byte-identical to the prior run, so publish steps were skipped and
   idempotency confirmed.
+
+---
+
+### Entry: 2026-01-19 19:27
+
+5A.S4 spec review + pre-implementation plan (calendar & scenario overlays).
+
+References read:
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/artefact_registry_5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+- `config/layer2/5A/scenario/scenario_horizon_config_5A.v1.yaml`
+- `config/layer2/5A/scenario/scenario_overlay_policy_5A.v1.yaml`
+- `config/layer2/5A/scenario/overlay_ordering_policy_5A.v1.yaml`
+- `config/layer2/5A/scenario/scenario_overlay_validation_policy_5A.v1.yaml`
+- `config/layer2/5A/scenario/scenario_metadata.v1.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/scenario_horizon_config_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/scenario_overlay_policy_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/overlay_ordering_policy_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/scenario_overlay_validation_policy_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/scenario_calendar_5A_derivation-guide.md`
+
+Key observations / questions to resolve before coding:
+1) **Sealed-input gating vs S1-S3 outputs**: S4 spec requires S1/S2/S3 artefacts to be
+   present in `sealed_inputs_5A`, but current S0 only seals policies/configs and the
+   scenario calendar (not S1/S2/S3 outputs). Need to confirm whether to keep the S3-era
+   deviation (resolve S1/S2/S3 outputs directly via dictionary) or extend S0 sealing to
+   include S1-S3 outputs.
+2) **Scenario calendar location**: the derivation guide says the calendar lives under
+   `config/layer2/5A/scenario/calendar/...`, but the dataset dictionary contracts use
+   `data/layer2/5A/scenario_calendar/...` (run-local). Confirm we should continue
+   following the dictionary path (current generator + S0 sealing already use that path).
+3) **UTC->local mapping authority**: horizon mapping is pinned to use 2A civil-time
+   surfaces (`tz_timetable_cache`); confirm whether we should wire that dependency into
+   S4 (even though it is not sealed in 5A.S0) or whether zoneinfo-based conversion is an
+   acceptable dev-mode deviation.
+4) **Optional outputs**: confirm whether to always emit
+   `merchant_zone_overlay_factors_5A` (diagnostics) and whether to embed
+   `overlay_factor_total` inside `merchant_zone_scenario_local_5A`.
+5) **UTC scenario output**: `scenario_horizon_config_5A.emit_utc_intensities=false` in the
+   current config. Confirm we should skip `merchant_zone_scenario_utc_5A` unless this
+   flag is true.
+
+Implementation plan (stepwise, policy-driven):
+1) **Gate + sealed inputs**: load `s0_gate_receipt_5A` + `sealed_inputs_5A`, validate
+   schemas, enforce parameter/hash identity, recompute sealed digest, and confirm
+   upstream segment PASS. Accept scenario_id as string or length-1 list.
+2) **Resolve required inputs**:
+   - Required sealed: `scenario_horizon_config_5A`, `scenario_overlay_policy_5A`,
+     `scenario_calendar_5A`.
+   - Optional sealed: `overlay_ordering_policy_5A`,
+     `scenario_overlay_validation_policy_5A`, `scenario_manifest_5A`.
+   - Required model outputs: `merchant_zone_profile_5A`, `shape_grid_definition_5A`,
+     `merchant_zone_baseline_local_5A` (resolve via dictionary if S0 sealing not extended).
+3) **Domain build**:
+   - Load `merchant_zone_profile_5A` and validate schema.
+   - Derive domain `(merchant_id, legal_country_iso, tzid, demand_class)`; enforce
+     uniqueness and identity consistency.
+4) **Horizon grid + week-map**:
+   - From `scenario_horizon_config_5A`, select the matching `scenario_id` and compute
+     horizon bucket count `H`. Enforce bucket alignment + duration.
+   - Validate `shape_grid_definition_5A.bucket_duration_minutes` matches horizon bucket
+     duration and grid bucket indices are contiguous.
+   - Build a deterministic mapping `WEEK_MAP[tzid, h] -> k` using the pinned rules
+     (UTC anchor -> local day/time -> bucket_index). Use 2A civil-time surfaces if
+     approved; otherwise log deviation and use zoneinfo.
+5) **Calendar validation**:
+   - Load `scenario_calendar_5A` and validate schema.
+   - Enforce event type vocab + shape_kind bounds + scope rules using
+     `scenario_overlay_policy_5A.calendar_validation` settings.
+   - Enforce time-within-horizon and bucket alignment.
+6) **Event factor expansion**:
+   - For each event, compute the active horizon bucket range and per-bucket factor
+     (`constant` or `ramp` per policy).
+   - Partition events by scope kind (global / country / tzid / demand_class / merchant)
+     to avoid massive cross joins.
+7) **Overlay aggregation**:
+   - If `overlay_ordering_policy_5A` present, compute per-type factors with
+     `MOST_SPECIFIC_ONLY` selection + per-type aggregation mode, then apply masking rules
+     and multiply all type factors.
+   - If ordering policy missing, multiply all event factors per row/bucket directly.
+   - Clamp to `scenario_overlay_policy_5A.combination.{min_factor,max_factor}`.
+8) **Scenario intensities**:
+   - Join `merchant_zone_baseline_local_5A` with the horizon mapping to project each
+     `(m,z)` baseline bucket into each horizon bucket, then apply `overlay_factor_total`.
+   - Enforce `lambda_local_scenario` finite and nonnegative; validate against optional
+     `scenario_overlay_validation_policy_5A` (warnings + gating thresholds).
+9) **Outputs**:
+   - Emit `merchant_zone_scenario_local_5A` (required).
+   - Emit `merchant_zone_overlay_factors_5A` if we decide to publish diagnostics.
+   - Emit `merchant_zone_scenario_utc_5A` only when `emit_utc_intensities=true`.
+   - Use idempotent parquet publish with conflict detection (`S4_OUTPUT_CONFLICT`).
+10) **Run-report**:
+   - Include counts (domain size, horizon buckets, event counts), factor stats
+     (min/median/p95/max), warning counts, and any validation outcomes.
+11) **Logging**:
+   - Story header log: objective + gated inputs + outputs.
+   - Phase logs for horizon-grid build, calendar validation, event expansion,
+     overlay aggregation, output validation and publishing.
+   - Progress logs with elapsed/rate/ETA for long loops (calendar expansion,
+     per-row validation of scenario outputs).
+
+Performance/resumability notes:
+- Expect `|D_S3| * H_local` output rows (~14k * 2160 ~ 31M); use vectorised Polars
+  joins and avoid Python loops over domain-horizon points.
+- Precompute per-tzid horizon-to-week bucket map once and reuse.
+- Publish outputs atomically with hash-based idempotency to support reruns.
+
+Testing/validation plan:
+- Run `make segment5a-s4` on the current run id and inspect run-report metrics + overlay
+  warnings.
+- Verify idempotent re-run (no output conflicts).
