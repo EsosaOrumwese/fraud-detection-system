@@ -1739,3 +1739,390 @@ Open decisions to confirm before coding:
 - Whether to emit s4_run_summary_3B (optional).
 
 ---
+
+### Entry: 2026-01-19 07:58
+
+Decision confirmation for S4 (approved by user):
+- Introduce a dedicated routing-field contract for S4 and seal it in 3B.S0.
+  * New artefact: config/layer1/3B/virtual/virtual_routing_fields_v1.yaml
+  * Schema anchor: schemas.3B.yaml#/policy/virtual_routing_fields_v1
+  * Dictionary id: virtual_routing_fields_v1
+  * Registry manifest_key: mlr.3B.config.virtual_routing_fields
+  * Required fields in policy: tzid_settlement_field, tzid_operational_field,
+    settlement_day_field, settlement_cutoff_rule, ip_country_field,
+    ip_latitude_field, ip_longitude_field.
+  * Rationale: avoid guessing event-field anchors; satisfy S4 spec requirement
+    for an explicit routing-field contract sealed by S0.
+
+- Validation tests emitted by S4:
+  * Only IP_COUNTRY_MIX and SETTLEMENT_CUTOFF are emitted for now, based on
+    available fields in virtual_validation.yml (ip_country_tolerance,
+    cutoff_tolerance_seconds).
+  * EDGE_USAGE_VS_WEIGHT and ROUTING_RECEIPT are deferred until explicit
+    policy thresholds and input bindings are added; not emitted in v1.
+
+- Validation inputs:
+  * IP_COUNTRY_MIX uses datasets: s6_edge_log (2B) and edge_catalogue_3B (3B)
+    with join_keys: [merchant_id, edge_id]; fields bound via routing-field
+    contract (ip_country_field).
+  * SETTLEMENT_CUTOFF uses datasets: s6_edge_log (2B) and virtual_settlement_3B
+    (3B) with join_keys: [merchant_id]; fields include settlement_day_field
+    from routing-field contract and tzid_settlement_field for audit.
+
+- RNG binding for virtual routing policy:
+  * module: "2B.virtual_edge" (from 2B.S6 implementation)
+  * substream_label: "cdn_edge_pick" (from route_rng_policy_v1 event family)
+  * event_schema: "schemas.layer1.yaml#/rng/events/cdn_edge_pick"
+
+- Emit s4_run_summary_3B:
+  * Include counts, policy ids/versions, and key digests for observability.
+  * Immutability enforced; summary remains non-authoritative.
+
+Implementation changes required:
+1) Add new routing-field policy config file + schema + dictionary + registry.
+2) Update 3B.S0 gate to include routing-field policy in policy_ids/sealing.
+3) Implement 3B.S4 runner + CLI + Makefile target, following S0/S3 patterns.
+4) Update logbook with stepwise decisions and code changes as they occur.
+
+---
+
+### Entry: 2026-01-19 08:04
+
+S4 implementation in-progress: sealed routing-field contract added.
+
+Actions taken:
+- Added new policy file `config/layer1/3B/virtual/virtual_routing_fields_v1.yaml`
+  with explicit field anchors for tz and geo bindings.
+- Added schema `schemas.3B.yaml#/policy/virtual_routing_fields_v1` to validate
+  the routing-field policy payload.
+- Added dataset dictionary entry `virtual_routing_fields_v1` pointing to the
+  config path and schema.
+- Added artefact registry entry with manifest_key
+  `mlr.3B.config.virtual_routing_fields` for sealing and audit.
+- Updated 3B.S0 policy sealing list to include `virtual_routing_fields_v1`.
+
+Decision notes:
+- The routing-field policy is treated as required for S4 to avoid guessing
+  event field anchors; S0 now seals it alongside other 3B policies.
+
+Next steps:
+- Implement 3B.S4 runner/CLI/Makefile target.
+- Use the routing-field policy values for `dual_timezone_semantics` and
+  `geo_field_bindings` in `virtual_routing_policy_3B` and as field anchors for
+  `virtual_validation_contract_3B`.
+
+---
+
+### Entry: 2026-01-19 08:26
+
+S4 implementation follow-up: align error handling + finish Makefile wiring.
+
+Design problems surfaced:
+1) **Error code preservation.**
+   - The S4 runner currently catches only a generic `Exception`, which
+     collapses explicit `EngineFailure` aborts (and their error codes) into a
+     generic infrastructure error. This would mask validation failures in
+     run reports and operator logs.
+2) **Makefile completeness.**
+   - `SEG3B_S4_CMD` exists but the `segment3b-s4` target and aggregate
+     `segment3b` dependency are missing. This blocks `make segment3b` from
+     running S4 and prevents direct `make segment3b-s4`.
+
+Decision + rationale:
+- Mirror the S3/S2 runner error-handling pattern: explicitly catch
+  `EngineFailure` first and preserve `error_code`, `error_class`, and
+  `context`, then catch schema/input/value exceptions as infra errors.
+  This keeps failure taxonomy consistent across the segment.
+- Add Makefile targets for S4 and include them in `.PHONY` and `segment3b`
+  so the run pipeline is consistent and discoverable.
+
+Planned implementation steps:
+1) Update `packages/engine/src/engine/layers/l1/seg_3B/s4_virtual_contracts/runner.py`
+   to add an `except EngineFailure` branch and a guarded secondary branch for
+   schema/input errors, matching the S3 error handling structure.
+2) Update `makefile` to add `segment3b-s4` target, include it in `.PHONY`, and
+   append to the aggregate `segment3b` target.
+3) Run `python -m py_compile` on the new S4 modules and then
+   `make segment3b-s4` to confirm green behavior.
+
+---
+
+### Entry: 2026-01-19 08:27
+
+S4 follow-up implementation actions completed.
+
+Actions:
+1) **Error handling alignment**
+   - Added explicit `except EngineFailure` handling in
+     `seg_3B/s4_virtual_contracts/runner.py` so aborts preserve their
+     `error_code`, `error_class`, and context.
+   - Added a secondary catch for schema/input/value errors to map them to
+     `E3B_S4_019_INFRASTRUCTURE_IO_ERROR`, mirroring S3.
+   - Rationale: keep error taxonomy stable and avoid masking validation
+     failures under a generic infrastructure code.
+
+2) **Makefile wiring**
+   - Added `segment3b-s4` target to the Makefile, included it in `.PHONY`,
+     and appended it to the aggregate `segment3b` target.
+   - Rationale: ensure `make segment3b` covers S4 and allow a direct
+     `make segment3b-s4` run.
+
+Next:
+- Run `python -m py_compile` for new S4 modules and execute
+  `make segment3b-s4` to validate S4 end-to-end.
+
+---
+
+### Entry: 2026-01-19 08:29
+
+S4 run attempt revealed two implementation bugs + a sealing prerequisite.
+
+Observed failures:
+1) `make segment3b-s4` failed early with
+   `E3B_S4_003_REQUIRED_INPUT_NOT_SEALED` for `virtual_routing_fields_v1`.
+   - Cause: S0 for the current manifest has not resealed after adding the
+     routing-field policy. The sealed inputs list is missing the new artefact.
+2) Exception handler crash:
+   - `AttributeError: 'EngineFailure' object has no attribute 'error_code'`.
+   - Cause: EngineFailure exposes `failure_code`/`failure_class`, not
+     `error_code`. The S4 handler copied a wrong attribute pattern.
+3) Run-report write failed:
+   - `edge_count_total_all` referenced before assignment in the finally block.
+   - Cause: the variable is only set after S2 index parsing; early failures
+     leave it undefined.
+
+Decision and remediation plan:
+- Align the S4 error handler to use `exc.failure_code`, `exc.failure_class`,
+  and `exc.detail`, matching the established engine error contract.
+- Initialize `edge_count_total_all = None` (and similar run-report-only fields
+  if needed) before entering the try block so early failures still emit a
+  run-report.
+- Reseal 3B.S0 for the current run/manifest to include the new
+  `virtual_routing_fields_v1` artefact. Follow the same dev-mode pattern as
+  earlier: move the existing `sealed_inputs_3B.json` and
+  `s0_gate_receipt_3B.json` into a run-local `dev_overrides/...` folder before
+  re-running `segment3b-s0`.
+
+Next steps:
+1) Patch `s4_virtual_contracts/runner.py` with the corrected exception
+   attribute names and `edge_count_total_all` initialization.
+2) Log the reseal action in logbook + implementation map.
+3) Move S0 seal artefacts aside, rerun `make segment3b-s0`, then rerun
+   `make segment3b-s4` until green.
+
+---
+
+### Entry: 2026-01-19 08:30
+
+Applied S4 robustness fixes after the failed run.
+
+Changes implemented:
+1) **EngineFailure attribute fix**
+   - Updated S4 exception handling to use `exc.failure_code`,
+     `exc.failure_class`, and `exc.detail`, aligning with the canonical
+     `EngineFailure` interface (same as 3B.S1/S2).
+2) **Run-report variable initialization**
+   - Initialized `edge_count_total_all = None` before the try block so the
+     run-report writer can safely reference it even if S4 fails early.
+
+Outcome:
+- The S4 runner no longer crashes in its exception handler and can emit a
+  run-report on early failures. Next step is resealing S0 and re-running S4.
+
+---
+
+### Entry: 2026-01-19 08:31
+
+Dev-mode reseal unblock for S4 prerequisites.
+
+Action taken:
+- Moved the current `sealed_inputs_3B.json` and `s0_gate_receipt_3B.json` for
+  `manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`
+  into:
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/dev_overrides/3B_S0_reseal_2026-01-19_0831/`
+  so that `segment3b-s0` can reseal with the new
+  `virtual_routing_fields_v1` policy.
+
+Rationale:
+- The manifest is immutable; resealing is blocked unless existing sealed
+  artefacts are moved aside. This mirrors the previously approved dev-mode
+  reseal procedure for S0.
+
+Next:
+- Re-run `make segment3b-s0` and then `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:32
+
+S4 retry failure during edge catalogue validation.
+
+Observed error:
+- Run-report shows `error_context.detail = "'LazyFrame' object has no attribute 'groupby'"`
+  with `phase = s2_edge_catalogue`.
+- This originates from the S4 code path:
+  `edge_scan = pl.scan_parquet(...); edge_scan.groupby("merchant_id").len().collect()`.
+
+Diagnosis:
+- Current Polars version exposes `.group_by()` for `LazyFrame` (not `.groupby`).
+- The S4 code used the eager DataFrame API name, which raises an attribute
+  error in lazy mode.
+
+Decision:
+- Replace `.groupby(...)` with `.group_by(...)` for the lazy scan, matching
+  the polars usage elsewhere in the codebase (e.g., 3A/2B validation).
+
+Plan:
+1) Update S4 edge catalogue aggregation to use `group_by`.
+2) Re-run `make segment3b-s4` to confirm the edge counts path completes.
+
+---
+
+### Entry: 2026-01-19 08:33
+
+Applied S4 Polars fix.
+
+Change:
+- Replaced `edge_scan.groupby("merchant_id")` with
+  `edge_scan.group_by("merchant_id")` in the S4 edge catalogue aggregation.
+
+Outcome:
+- Code aligns with the Polars lazy API and matches other segment usage.
+  Next step is to re-run `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:34
+
+S4 retry failed on `_StepTimer.info` formatting.
+
+Observed error:
+- Run-report shows `_StepTimer.info() takes 2 positional arguments but 4 were given`
+  during `phase = s3_universe_hash`.
+
+Diagnosis:
+- `_StepTimer.info` accepts only a single preformatted string, but two call
+  sites in S4 still use printf-style formatting with extra args.
+
+Decision:
+- Convert the remaining `timer.info(...)` calls to f-strings so they pass a
+  single formatted message, consistent with the fix applied in S2/S3 earlier.
+
+Plan:
+1) Replace the `timer.info` call after S3 validation with an f-string.
+2) Replace the final publish `timer.info` call with an f-string.
+3) Re-run `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:35
+
+Applied S4 timer formatting fixes.
+
+Changes:
+- Converted the S3-universe validation `timer.info` and the publish
+  `timer.info` calls to f-strings so only a single message is passed.
+
+Outcome:
+- `_StepTimer.info` no longer receives printf-style arguments.
+  Proceeding to re-run `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:36
+
+S4 validation contract schema check fails due to object columns.
+
+Observed error:
+- `Unsupported column type 'object' for JSON Schema adapter.` during
+  `validation_contract` phase when validating `virtual_validation_contract_3B`.
+
+Diagnosis:
+- The `virtual_validation_contract_3B` schema defines object-typed columns
+  (`target_population`, `inputs`, `thresholds`) and arrays of objects.
+- `engine.contracts.jsonschema_adapter` currently only supports primitive and
+  array columns, and rejects `type: object` in columns/items.
+
+Decision:
+- Extend the JSON schema adapter to support `type: object` in both columns
+  and array items by translating the schema-pack fields (`properties`,
+  `required`, `additionalProperties`, etc.) into Draft202012-compatible
+  object schemas. Keep the transformation minimal so existing validations are
+  unaffected and object-type tables can be validated.
+
+Plan:
+1) Update `_column_schema` to handle `col_type == "object"`.
+2) Update `_item_schema` to handle `item_type == "object"`.
+3) Re-run `make segment3b-s4` to ensure the validation contract passes.
+
+---
+
+### Entry: 2026-01-19 08:37
+
+Extended JSON schema adapter for object columns/items.
+
+Changes:
+- Added `_object_schema` helper in `engine/contracts/jsonschema_adapter.py`.
+- Updated `_item_schema` to accept `type: object`.
+- Updated `_column_schema` to accept `type: object`.
+
+Outcome:
+- Schema validation now supports object-typed columns and arrays of objects,
+  enabling `virtual_validation_contract_3B` validation to proceed.
+
+Next:
+- Re-run `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:39
+
+S4 run-summary schema mismatch.
+
+Observed error:
+- `additionalProperties` violation: `digests` field not allowed in
+  `s4_run_summary_3B` schema during the `run_summary` phase.
+
+Diagnosis:
+- The schema only permits: `manifest_fingerprint`, `parameter_hash`, `status`,
+  `cdn_key_digest`, `virtual_validation_digest`, `routing_policy_version`,
+  and `notes`. Our implementation added a `digests` object for observability.
+
+Decision:
+- Remove the `digests` field from `s4_run_summary_3B` to comply with the
+  published contract. (If we want digests later, we should extend the schema
+  explicitly rather than sneaking extra fields.)
+
+Plan:
+1) Drop `digests` from the run-summary payload in the S4 runner.
+2) Re-run `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:40
+
+Applied S4 run-summary schema fix.
+
+Change:
+- Removed the `digests` field from the `s4_run_summary_3B` payload to keep
+  `additionalProperties: false` compliance with the schema.
+
+Outcome:
+- Run-summary now validates against `schemas.3B.yaml#/s4_run_summary_3B`.
+  Next step is to re-run `make segment3b-s4`.
+
+---
+
+### Entry: 2026-01-19 08:41
+
+S4 run completed successfully after fixes.
+
+Result:
+- `make segment3b-s4` completes with `status=PASS` for
+  `run_id=970b0bd6833be3a0f08df8e8abf0364c` and
+  `manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`.
+- `virtual_routing_policy_3B` and `virtual_validation_contract_3B` were
+  byte-identical to existing outputs and skipped re-publish (idempotent).
+- `s4_run_summary_3B` and `s4_run_report_3B` written successfully.
+
+---

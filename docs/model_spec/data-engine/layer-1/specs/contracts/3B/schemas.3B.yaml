@@ -602,6 +602,29 @@ policy:
       cutoff_tolerance_seconds: { type: integer, minimum: 0 }
       notes: { type: string }
 
+  virtual_routing_fields_v1:
+    type: object
+    additionalProperties: false
+    required:
+      - version
+      - tzid_settlement_field
+      - tzid_operational_field
+      - settlement_day_field
+      - settlement_cutoff_rule
+      - ip_country_field
+      - ip_latitude_field
+      - ip_longitude_field
+    properties:
+      version: { type: string, minLength: 1 }
+      tzid_settlement_field: { type: string, minLength: 1 }
+      tzid_operational_field: { type: string, minLength: 1 }
+      settlement_day_field: { type: string, minLength: 1 }
+      settlement_cutoff_rule: { type: string, minLength: 1 }
+      ip_country_field: { type: string, minLength: 1 }
+      ip_latitude_field: { type: string, minLength: 1 }
+      ip_longitude_field: { type: string, minLength: 1 }
+      notes: { type: string }
+
   cdn_key_digest_v1:
     type: object
     additionalProperties: false

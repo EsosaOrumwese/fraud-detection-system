@@ -26,6 +26,21 @@ _TYPE_MAP = {
 }
 
 
+def _object_schema(node: dict[str, Any]) -> dict[str, Any]:
+    schema: dict[str, Any] = {"type": "object"}
+    for key in (
+        "properties",
+        "required",
+        "additionalProperties",
+        "minProperties",
+        "maxProperties",
+        "patternProperties",
+    ):
+        if key in node:
+            schema[key] = node[key]
+    return schema
+
+
 def _item_schema(item: dict[str, Any]) -> dict[str, Any]:
     schema: dict[str, Any] = {}
     ref = item.get("$ref")
@@ -35,15 +50,18 @@ def _item_schema(item: dict[str, Any]) -> dict[str, Any]:
         item_type = item.get("type")
         if not item_type:
             raise ContractError(f"Array items missing type or $ref: {item}")
-        if item_type not in _TYPE_MAP:
+        if item_type == "object":
+            schema = _object_schema(item)
+        elif item_type not in _TYPE_MAP:
             raise ContractError(
                 f"Unsupported array item type '{item_type}' for JSON Schema adapter."
             )
-        schema = {"type": _TYPE_MAP[item_type]}
-        if item_type == "date":
-            schema["format"] = "date"
-        if item_type == "datetime":
-            schema["format"] = "date-time"
+        else:
+            schema = {"type": _TYPE_MAP[item_type]}
+            if item_type == "date":
+                schema["format"] = "date"
+            if item_type == "datetime":
+                schema["format"] = "date-time"
     for key in (
         "pattern",
         "minimum",
@@ -76,6 +94,8 @@ def _column_schema(column: dict[str, Any]) -> dict[str, Any]:
             for key in ("minItems", "maxItems", "uniqueItems"):
                 if key in column:
                     schema[key] = column[key]
+        elif col_type == "object":
+            schema = _object_schema(column)
         elif col_type not in _TYPE_MAP:
             raise ContractError(f"Unsupported column type '{col_type}' for JSON Schema adapter.")
         else:

@@ -581,6 +581,25 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: virtual_routing_fields_v1
+        path: config/layer1/3B/virtual/virtual_routing_fields_v1.yaml
+        type: config
+        category: policy
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_routing_fields
+        license: Proprietary-Internal
+        role: Event-field bindings for virtual routing semantics.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/policy/virtual_routing_fields_v1
+        cross_layer: false
+        notes: null
+
       - name: virtual_logging_policy
         path: config/layer1/3B/logging/virtual_logging.yml
         type: config

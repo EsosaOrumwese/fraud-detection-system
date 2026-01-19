@@ -285,6 +285,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: virtual_routing_fields_v1
+  status: draft
+  owner_subsegment: 3B
+  description: Event-field bindings for virtual routing semantics.
+  version: '{policy_version}'
+  format: yaml
+  path: config/layer1/3B/virtual/virtual_routing_fields_v1.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3B.yaml#/policy/virtual_routing_fields_v1
+  lineage:
+    produced_by: 3B.governance
+    consumed_by: [3B.S4, 3B.S5, 4A]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
 - id: virtual_logging_policy
   status: draft
   owner_subsegment: 3B

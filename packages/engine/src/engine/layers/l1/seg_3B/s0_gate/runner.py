@@ -1088,6 +1088,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "mcc_channel_rules",
         "cdn_country_weights",
         "virtual_validation_policy",
+        "virtual_routing_fields_v1",
         "virtual_logging_policy",
     ]
     policy_2b_ids = {"route_rng_policy_v1", "alias_layout_policy_v1", "day_effect_policy_v1"}
