@@ -1618,3 +1618,124 @@ Notes:
   `reports/layer1/3B/state=S2/.../run_report.json`.
 
 ---
+
+### Entry: 2026-01-19 07:01
+
+S4 planning kickoff. Read and reviewed:
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3B/state.3B.s4.expanded.md
+- docs/design/data-engine/layer-1/3B/3B-S4-dag.md
+- docs/design/data-engine/layer-1/3B/3B-overview-dag.md
+- docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml (virtual_routing_policy_3B, virtual_validation_contract_3B, policy schemas)
+- docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3B/artefact_registry_3B.yaml
+- config/layer1/3B/virtual/virtual_validation.yml
+- config/layer1/3B/virtual/cdn_key_digest.yaml
+- config/layer1/2B/policy/alias_layout_policy_v1.json
+- config/layer1/2B/policy/route_rng_policy_v1.json
+- docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml (edge log fields)
+
+Problem framing:
+- Implement 3B.S4 as an RNG-free control-plane state that publishes
+  virtual_routing_policy_3B and virtual_validation_contract_3B for a
+  manifest, using only S0-S3 outputs and sealed policy artefacts.
+- Must be deterministic, idempotent, and atomic across the two outputs.
+
+Planned approach (high-level sequence):
+1) Load run context and contracts:
+   - Read run_receipt; set run_id, seed, parameter_hash, manifest_fingerprint.
+   - Use ContractSource(config.contracts_root, config.contracts_layout) to load:
+     dataset_dictionary, artefact_registry, schema packs for 3B + 2B + 1A/layer1.
+   - Log contract paths and the identity triple; no RNG usage.
+2) Gate and seal validation:
+   - Resolve s0_gate_receipt_3B and sealed_inputs_3B via dictionary entries.
+   - Validate both against schema; assert manifest_fingerprint match, and
+     seed/parameter_hash match if present.
+   - Require upstream gates 1A/1B/2A/3A PASS; otherwise fail fast.
+3) Parse sealed_inputs_3B:
+   - Enforce list-of-objects schema; enforce logical_id uniqueness and
+     manifest_fingerprint equality.
+   - Build sealed_by_id for lookup.
+   - Required sealed artefacts for S4:
+     * virtual_validation_policy (3B policy)
+     * cdn_key_digest (3B policy)
+     * route_rng_policy_v1 (2B policy)
+     * alias_layout_policy_v1 (2B policy)
+     * event schema / routing-field contract (TBD: missing in repo)
+   - For each required artefact:
+     * confirm sealed path == dictionary path;
+     * resolve actual path via run roots/external roots;
+     * hash bytes and compare to sealed_inputs_3B.sha256_hex.
+4) Load and validate S1-S3 outputs:
+   - virtual_classification_3B, virtual_settlement_3B (S1),
+     edge_catalogue_3B, edge_catalogue_index_3B (S2),
+     edge_alias_blob_3B, edge_alias_index_3B, edge_universe_hash_3B (S3).
+   - Validate against schema packs with _table_pack + validate_dataframe
+     (parquet datasets) and JSON schema for JSON outputs.
+   - Coherence checks:
+     * One settlement row per virtual merchant; no extras.
+     * Edge catalogue only includes virtual merchants.
+     * edge_catalogue_index counts align with edge_catalogue_3B.
+     * Alias index coverage exists for each merchant with edges.
+     * edge_universe_hash_3B references the same alias/index digest law
+       and matches the existing alias/index artefacts.
+     * Alias layout compatibility: alias blob header layout_version and
+       alignment_bytes must match alias_layout_policy_v1.
+5) Build virtual_routing_policy_3B object:
+   - Identity: manifest_fingerprint, parameter_hash, edge_universe_hash.
+   - Policy versions:
+     * routing_policy_id/version from route_rng_policy_v1 payload.
+     * virtual_validation_policy_id/version from virtual_validation.yml payload.
+   - cdn_key_digest from cdn_key_digest.yaml (payload + digest verification).
+   - alias_layout_version from alias_layout_policy_v1 (and verify vs alias header).
+   - dual_timezone_semantics and geo_field_bindings based on event schema
+     contract (TBD; requires confirmation of field anchors).
+   - artefact_paths: render canonical paths for edge_catalogue_index,
+     edge_alias_blob, edge_alias_index (via dictionary path templates).
+   - alias_*_manifest_key fields from artefact_registry_3B.
+   - virtual_edge_rng_binding:
+     * module and substream_label based on route_rng_policy_v1 and 2B
+       routing implementation (likely "2B.virtual_edge" + "cdn_edge_pick"),
+       event_schema anchor for RNG events (likely schemas.layer1.yaml#/rng/events/cdn_edge_pick).
+   - overrides: empty unless a policy/config is specified.
+6) Build virtual_validation_contract_3B:
+   - Parse virtual_validation.yml into test definitions.
+   - Emit deterministic test_id (hash of test_type + scope + population).
+   - Use policy thresholds:
+     * ip_country_tolerance -> max_abs_error or max_rel_error (TBD).
+     * cutoff_tolerance_seconds -> cutoff_tolerance_seconds.
+     * EDGE_USAGE_VS_WEIGHT thresholds (TBD: may need a new policy field).
+   - Bind inputs.datasets and inputs.fields to dataset IDs and
+     schema anchors (TBD; need event schema/routing-field contract).
+   - Sort rows by test_id ASC; ensure enabled set and profile if used.
+7) Validation + atomic publish:
+   - Validate routing policy JSON against schemas.3B.yaml#/egress/virtual_routing_policy_3B.
+   - Validate validation contract table against schemas.3B.yaml#/egress/virtual_validation_contract_3B.
+   - Use atomic publish (temp file/dir then rename), with immutability checks:
+     if outputs exist and bytes differ -> fail; if identical -> no-op.
+8) Optional s4_run_summary_3B:
+   - Include counts (virtual merchants, test count), policy IDs/versions.
+   - Use immutability guard; note this is informative only.
+
+Logging + observability plan:
+- Emit story header: objective, identity triple, sealed inputs, outputs.
+- Log each validation phase as narrative steps (S0 gating, sealed policy checks,
+  S1/S2/S3 validation, routing policy assembly, validation contract assembly).
+- For any list/loop (merchant sets, test rows), emit progress summaries with
+  elapsed time and counts; loops are small but still log counts for traceability.
+
+Resumability + determinism:
+- No RNG; ensure deterministic ordering (sorted lists, sorted rows).
+- Idempotence enforced by byte-compare on existing outputs.
+- No partial outputs: publish routing policy and validation contract atomically.
+
+Open decisions to confirm before coding:
+- Event schema / routing-field contract to bind tz/geo fields (no explicit artefact
+  found yet). Need authoritative schema anchor strings.
+- Which validation tests to emit given minimal virtual_validation.yml:
+  IP_COUNTRY_MIX, SETTLEMENT_CUTOFF, EDGE_USAGE_VS_WEIGHT, ROUTING_RECEIPT?
+- Dataset IDs for validation inputs (e.g., 2B.s6_edge_log, arrivals, labels).
+- Mapping of ip_country / lat / lon field anchors and settlement vs operational
+  tz field anchors.
+- Whether to emit s4_run_summary_3B (optional).
+
+---
