@@ -777,7 +777,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schemas.3B.yaml#/binary/edge_alias_blob_3B
+        schema: schemas.3B.yaml#/binary/edge_alias_blob_header_3B
         cross_layer: false
         notes: null
 

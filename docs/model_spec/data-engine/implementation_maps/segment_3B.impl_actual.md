@@ -6,6 +6,297 @@ delete or rewrite prior entries.
 
 ---
 
+## S3 - Edge alias tables & virtual edge universe hash
+
+### Entry: 2026-01-19 06:00
+
+Context read and pre-implementation planning for 3B.S3.
+
+Files read (expanded spec + contracts + policy):
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/3B/state.3B.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/artefact_registry_3B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `config/layer1/2B/policy/alias_layout_policy_v1.json`
+- `config/layer1/3B/virtual/cdn_country_weights.yaml`
+- `config/layer1/3B/virtual/cdn_key_digest.yaml`
+
+Design problem summary:
+- Build deterministic, RNG-free alias tables from `edge_catalogue_3B` and emit:
+  `edge_alias_blob_3B`, `edge_alias_index_3B`, and `edge_universe_hash_3B`.
+- Must use only sealed inputs from `sealed_inputs_3B`, align with
+  `alias_layout_policy_v1`, and keep compatibility with 2B alias decoding.
+
+Key contract mismatches to resolve before coding:
+1) Registry vs dictionary schema ref for the alias blob:
+   - dictionary uses `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`
+   - registry uses `schemas.3B.yaml#/binary/edge_alias_blob_3B` (no such anchor)
+2) `alias_layout_policy_v1.required_index_fields` requires fields not present in
+   `edge_alias_index_3B` schema (e.g., policy_digest, created_utc, merchants list).
+3) `edge_universe_hash_3B` schema does not expose a components map or alias blob
+   digest, but the S3 spec expects these in the universe hash assembly.
+4) `edge_alias_index_3B` includes a `universe_hash` column. If populated, the
+   alias index digest becomes circular (digest depends on the hash).
+5) `gamma_draw_log_3B` is listed as an S3 output but S3 is RNG-free.
+
+Pre-implementation plan (stepwise, with intent and mechanics):
+1) **Identity + gating**
+   - Load `run_receipt.json` for `{seed, parameter_hash, manifest_fingerprint}`.
+   - Resolve `s0_gate_receipt_3B` and `sealed_inputs_3B` via the 3B dictionary.
+   - Validate schemas, enforce upstream gates PASS, and confirm identity echoes.
+
+2) **Resolve required inputs (sealed-only)**
+   - From `sealed_inputs_3B`, resolve:
+     - `alias_layout_policy_v1` (layout + quantisation law)
+     - `cdn_country_weights` and `cdn_key_digest` (for universe hash components)
+     - `mcc_channel_rules` (virtual_rules_digest source)
+     - `route_rng_policy_v1` (compatibility digest only, no RNG use)
+   - Validate each sealed artefact schema and (if hardened) digest.
+   - Fail closed if any required sealed artefact is missing or mismatched.
+
+3) **Load S1 + S2 outputs and validate invariants**
+   - Read and validate:
+     - `virtual_classification_3B`
+     - `virtual_settlement_3B`
+     - `edge_catalogue_3B`
+     - `edge_catalogue_index_3B`
+   - Invariants:
+     - Every `merchant_id` in `edge_catalogue_3B` must be virtual in S1.
+     - Per-merchant edge counts in `edge_catalogue_index_3B` match actual rows.
+     - Global edge count matches sum of merchant counts.
+   - Enforce canonical ordering: `edge_catalogue_3B` sorted by
+     `(merchant_id, edge_id)` as per writer_sort; fail if out of order.
+
+4) **Alias construction per merchant (RNG-free)**
+   - For each merchant group (streamed in sorted order):
+     - Build weight vector from `edge_weight` (or policy uniform fallback).
+     - Compute grid size `G = 2^quantised_bits`; quantise weights to integer
+       masses using the same rounding + residual adjustment as 2B.S2.
+     - Build Walker-Vose alias table deterministically (no RNG).
+     - Encode to bytes using `record_layout` (`prob_qbits`, `alias_index_type`)
+       and `endianness` from the policy, matching 2B encoding.
+     - Compute per-merchant checksum on slice payload as per policy.
+   - Append slices to a single blob, padding/alignment per policy; track
+     `offset`, `length`, and blob sha256 in-stream.
+   - Accumulate per-merchant rows for the alias index.
+
+5) **Build alias blob header + index table**
+   - Blob header (`edge_alias_blob_header_3B`):
+     - `layout_version`, `endianness`, `alignment_bytes`,
+       `blob_length_bytes`, `blob_sha256_hex`
+     - Optional: `alias_layout_policy_id`, `alias_layout_policy_version`
+   - Alias index (`edge_alias_index_3B`):
+     - MERCHANT rows with offset/length, counts, checksum, layout version.
+     - GLOBAL summary row with blob size/digest and total edge counts.
+   - Writer sort: MERCHANT rows ordered by `merchant_id`, GLOBAL row in a fixed
+     `scope` position (append last, same as S2 index behavior).
+
+6) **Compute digests + universe hash**
+   - Edge catalogue digest: reuse S2 global digest from `edge_catalogue_index_3B`.
+   - Alias index digest law (proposed):
+     - Compute per-merchant row digests from canonical JSON of row fields
+       (excluding any nulls) and `sha256` concat in `merchant_id` order.
+   - Alias blob digest: use sha256 of raw blob bytes computed while writing.
+   - Universe hash:
+     - Assemble component digests per the S3 spec; sort by component name;
+       concatenate digest bytes; sha256 -> `universe_hash`.
+   - Emit `edge_universe_hash_3B` JSON with required fields:
+     `manifest_fingerprint`, `parameter_hash`, `cdn_weights_digest`,
+     `edge_catalogue_index_digest`, `edge_alias_index_digest`,
+     `virtual_rules_digest`, `universe_hash`.
+
+7) **Validation + publish**
+   - Re-check:
+     - Per-merchant checksum matches slice bytes.
+     - Offsets/lengths are in bounds and non-overlapping.
+     - Blob sha256 matches header and index global row.
+   - Validate `edge_alias_index_3B` and `edge_universe_hash_3B` against schemas.
+   - Atomic publish:
+     - Write blob, index, hash to temp paths then rename to canonical paths.
+   - Idempotence:
+     - If outputs exist, compare digests/bytes; if identical, treat as PASS;
+       if different, fail with `E3B_S3_OUTPUT_INCONSISTENT_REWRITE`.
+
+Logging plan (story-first):
+- Header log: objective, gated inputs (S0, S1, S2), outputs (blob, index, hash).
+- Phase logs: inputs resolved, policy parsed, alias build start, digest build.
+- Loop progress: per-merchant alias build log every N merchants with elapsed,
+  processed/total, rate, eta (monotonic time); include scope in messages.
+- Validation logs: counts, checksum coverage, index/offset checks, hash summary.
+
+Performance + memory:
+- Stream `edge_catalogue_3B` in sorted order and build alias tables per merchant
+  to avoid holding the full edge table in memory.
+- Write blob incrementally and compute digest on the fly.
+- Avoid full-dataframe materialization unless required for invariants.
+
+Resumability hooks:
+- Use run-local temp dir for blob/index/hash; only publish when all validations
+  pass.
+- If re-run with existing outputs, compare digests and skip write on match.
+
+Planned tests:
+- `make segment3b-s3` to validate end-to-end.
+- Re-run S3 with same manifest to confirm byte-identical outputs.
+- If S2 can produce zero-edge mode, verify empty blob/index behavior.
+
+Open questions to resolve before implementation:
+1) Should we fix the registry to reference
+   `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`, or add a new
+   `edge_alias_blob_3B` schema anchor?
+2) Should 3B.S3 honor `alias_layout_policy_v1.required_index_fields` by
+   extending `edge_alias_index_3B` schema, or ignore these requirements and
+   emit only schema-defined columns?
+3) Universe hash components: should we extend `edge_universe_hash_3B` schema
+   to include alias blob digest + a components map, or compute `universe_hash`
+   from the minimal fields currently in schema?
+4) Weight source: use `edge_weight` from S2 or enforce policy "uniform" even
+   if S2 weights change in future?
+5) Alias index digest law and `universe_hash` column:
+   - Is it acceptable to leave `edge_alias_index_3B.universe_hash` null to avoid
+     circular digests?
+   - Should the digest be computed from row content or file bytes?
+6) `gamma_draw_log_3B`: emit an empty log, emit nothing, or update dictionary
+   to remove it from S3 outputs?
+
+Next action once clarified:
+- Append a second S3 entry documenting the confirmed decisions, then implement
+  3B.S3 in `packages/engine/src/engine/layers/l1/seg_3B/s3_alias_tables/` and
+  `packages/engine/src/engine/cli/s3_alias_tables_3b.py`, update makefile, and
+  run `make segment3b-s3` to green.
+
+---
+
+### Entry: 2026-01-19 06:10
+
+Decisions confirmed for 3B.S3 (approved by user) and locked for implementation.
+
+Decision set (with rationale and implementation impact):
+1) **Alias blob schema ref fix (registry).**
+   - Decision: Update `artefact_registry_3B.yaml` to reference
+     `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`, matching the dataset
+     dictionary and existing schema.
+   - Rationale: the registry currently points to a non-existent schema anchor
+     (`edge_alias_blob_3B`). Aligning to the header schema is the smallest
+     correction and keeps contracts coherent.
+   - Impact: contract-only change (no algorithm change) and required for any
+     strict schema validation of registry entries.
+
+2) **Alias index fields vs policy required_index_fields.**
+   - Decision: Emit only schema-defined columns in
+     `edge_alias_index_3B` (per `schemas.3B.yaml#/plan/edge_alias_index_3B`);
+     do not extend the schema in S3 v1.
+   - Rationale: `alias_layout_policy_v1.required_index_fields` is a 2B policy
+     contract and includes fields not present in 3B schemas. Extending 3B
+     schema would be a breaking change. We instead warn when policy-required
+     fields are absent from the schema.
+   - Impact: S3 index rows will not include policy-specific headers
+     (policy_digest, created_utc, merchants list).
+
+3) **Universe hash composition (minimal schema).**
+   - Decision: Compute `edge_universe_hash_3B` using only the fields required
+     by the current schema: `cdn_weights_digest`, `edge_catalogue_index_digest`,
+     `edge_alias_index_digest`, `virtual_rules_digest`, plus
+     `manifest_fingerprint`/`parameter_hash`, and `universe_hash`.
+   - Rationale: schema does not expose components or alias blob digest. Adding
+     them would require schema changes. We log a spec deviation for the missing
+     components (alias blob, alias layout policy digest, RNG policy digest).
+   - Impact: universe hash will be schema-compliant but narrower than the
+     expanded spec; deviation logged and documented.
+
+4) **Weight source precedence.**
+   - Decision: Use `edge_weight` from `edge_catalogue_3B` as authoritative;
+     fall back to uniform only if weights are invalid (sum <= 0 or NaN).
+   - Rationale: keeps S3 aligned to S2’s edge universe even if S2 weights change
+     in future; avoids hard-coding uniform beyond policy fallback.
+   - Impact: alias tables follow S2 weights with a deterministic fallback path.
+
+5) **Alias index digest law (avoid circularity).**
+   - Decision: Leave `edge_alias_index_3B.universe_hash` null and compute the
+     `edge_alias_index_digest` from canonical row content (schema fields only),
+     sorted deterministically by `(scope, merchant_id)` with `GLOBAL` last.
+   - Rationale: including `universe_hash` in index rows would create a circular
+     dependency if the index digest feeds into `universe_hash`.
+   - Impact: index digest is stable and computable before writing the universe
+     hash.
+
+6) **gamma_draw_log_3B guardrail.**
+   - Decision: Emit an empty JSONL file at the canonical path for
+     `gamma_draw_log_3B`.
+   - Rationale: S3 must remain RNG-free; an empty log is a guardrail and aligns
+     with the spec’s “expected empty” contract.
+   - Impact: any non-empty gamma log in future is treated as a fatal violation.
+
+Implementation next steps:
+- Apply the registry schema-ref fix.
+- Implement `seg_3B/s3_alias_tables` runner + CLI using 2B alias logic, and
+  update makefile target `segment3b-s3`.
+- Run `make segment3b-s3` until green, documenting any deviations/errors.
+
+---
+
+### Entry: 2026-01-19 06:27
+
+Plan adjustment before coding: digest law for `edge_catalogue_index_digest` and
+`edge_alias_index_digest`.
+
+Change:
+- Prior plan proposed computing `edge_alias_index_digest` from canonical row
+  content to avoid any parquet nondeterminism.
+- Updated decision (before implementation): compute both
+  `edge_catalogue_index_digest` and `edge_alias_index_digest` as SHA256 over the
+  **actual parquet bytes** (single file) in keeping with the S3 design DAG
+  guidance and the minimal schema.
+
+Reasoning:
+- The design DAG explicitly specifies digesting the parquet bytes as the
+  canonical law for these digests.
+- The index files are single-file parquet outputs with deterministic writing
+  order, so byte hashing is stable across identical runs.
+- This avoids inventing a new digest law that could drift from the design docs.
+
+Implementation impact:
+- Use `sha256_file()` on the `edge_catalogue_index_3B` and
+  `edge_alias_index_3B` parquet files (or `_hash_partition` if these ever become
+  partitioned directories).
+- Keep `edge_alias_index_3B.universe_hash` null (approved deviation) so the
+  index digest does not depend on the universe hash.
+
+---
+
+### Entry: 2026-01-19 06:47
+
+Implementation adjustments during S3 bring-up (errors + fixes).
+
+1) **Timer formatting bug**
+   - Symptom: `_StepTimer.info() takes 2 positional arguments but 4 were given`.
+   - Cause: `timer.info` only accepts a single string; calls used printf-style
+     args.
+   - Fix: convert those calls to f-strings (single message argument).
+
+2) **Merchant ID overflow in alias index**
+   - Symptom: Polars failed building `edge_alias_index_3B` with
+     `could not append value ... of type i128` (merchant_id > int64).
+   - Cause: `merchant_id` column was declared as `pl.Int64`, but id64 can exceed
+     signed 64-bit range.
+   - Fix: set `merchant_id` column in the alias index schema to `pl.UInt64`.
+   - Rationale: matches id64 domain and allows large merchant IDs without
+     overflow.
+
+3) **Alignment/padding handling**
+   - Adjustment: moved alignment + padding logic to `_flush_merchant` so padding
+     is applied between slices when `pad_included=false`, mirroring 2B alias
+     blob law.
+   - Outcome: offsets remain aligned across merchants and slice length semantics
+     match the policy.
+
+Result:
+- `make segment3b-s3` runs cleanly after these fixes; outputs published and
+  run-report written for the current manifest.
+
+---
+
 ## S0 - Gate & Environment Seal
 
 ### Entry: 2026-01-18 13:16
