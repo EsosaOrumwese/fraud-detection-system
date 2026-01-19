@@ -1140,3 +1140,190 @@ Plan:
 - Re-run `make segment3b-s0`, then `make segment3b-s2`.
 
 ---
+
+### Entry: 2026-01-18 22:52
+
+S2 failure during `tile_surfaces` phase: `E3B_S2_019_INFRASTRUCTURE_IO_ERROR`
+reported “No parquet files found under .../data/layer1/1B/tile_index/...”.
+
+Observation:
+- `tile_index` (and `tile_weights`/`tile_bounds`) are written as partitioned
+  parquet datasets (per `country=XX/part-000.parquet`) by 1B, so there are no
+  parquet files at the top-level directory root. The current S2 helper
+  `_resolve_parquet_files` only checks `root.glob("*.parquet")`, which fails on
+  partitioned datasets even when data exists.
+
+Decision:
+- Treat partitioned parquet directories as valid input by switching to
+  `root.rglob("*.parquet")` in `_resolve_parquet_files` so the scan includes
+  nested partitions. This keeps behavior for single-file datasets and allows
+  S2 to operate on partitioned inputs without changing contract paths.
+
+Plan:
+- Update `_resolve_parquet_files` to `rglob("*.parquet")`.
+- Re-run `make segment3b-s2` to confirm S2 proceeds past `tile_surfaces`.
+- If outputs already exist, confirm immutability behavior (skip if identical).
+
+---
+
+### Entry: 2026-01-18 22:56
+
+S2 validation failure after parquet discovery fix:
+`E3B_S2_TILE_SURFACE_INVALID` for `country_iso=AQ` with detail showing no
+`tile_weights`/`tile_index` rows for that country.
+
+Diagnosis:
+- `cdn_country_weights` includes `AQ` and `VA` (both tagged `tail_uniform`).
+- 1B’s tiling surfaces do not provide rows for `AQ`/`VA` (no
+  `country=AQ`/`country=VA` partitions in `tile_index`, and no `part-AQ/VA`
+  in `tile_weights`), so S2 is correct to treat this as a configuration error
+  per spec (country referenced in budgets has no tiles).
+
+Decision:
+- Treat this as a policy/data issue rather than an S2 algorithm change.
+- Remove `AQ` and `VA` from `config/layer1/3B/virtual/cdn_country_weights.yaml`
+  and renormalise the remaining weights to sum to 1 (required by the
+  `cdn_key_digest` builder), then rebuild
+  `config/layer1/3B/virtual/cdn_key_digest.yaml` with
+  `scripts/build_cdn_key_digest_3b.py`.
+
+Rationale:
+- S2 must fail when the policy references countries without tiling surfaces
+  (explicit in S2 error taxonomy). Adjusting the policy keeps S2 aligned with
+  spec while avoiding a rework of 1B tiling for territories that have no tiles.
+- Renormalising preserves the probabilistic interpretation while dropping the
+  unsupported countries.
+
+Plan:
+- Remove `AQ`/`VA` entries from the policy file.
+- Rescale weights across remaining countries and update the policy file.
+- Regenerate `cdn_key_digest.yaml`.
+- Reseal 3B.S0 for the manifest (policy bytes changed), then re-run S2.
+
+---
+
+### Entry: 2026-01-18 22:57
+
+Action: unblocked reseal after CDN policy update.
+
+Details:
+- Moved the existing `sealed_inputs_3B.json` and `s0_gate_receipt_3B.json` for
+  `manifest_fingerprint=35c89fb31f5d034652df74c69ffbec7641b2128375ba5dd3582fb2e5a4ed2e08`
+  into `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/dev_overrides/3B_S0_reseal_2026-01-18_2256/`
+  so S0 can reseal with the updated `cdn_country_weights`/`cdn_key_digest`.
+
+Next:
+- Re-run `make segment3b-s0`, then `make segment3b-s2`.
+
+---
+
+### Entry: 2026-01-18 23:09
+
+S2 still failed in `tile_surfaces` with `E3B_S2_019_INFRASTRUCTURE_IO_ERROR`,
+but the exception detail was empty. The run consumed several GB of memory and
+stalled before logging `tile allocations prepared`, which suggests a
+low-level exception (possibly `MemoryError`) while building the per-country
+tile-bounds maps.
+
+Observation:
+- The S2 implementation was constructing `tile_bounds_by_country` with **all**
+  tile bounds for every country, even though only a small subset of tiles
+  receive edges after integerisation. This inflates memory (dict per tile ×
+  global tile count) and scales poorly with the number of tiles.
+
+Decision:
+- Keep the validation that tile bounds cover every tile in `tile_weights`, but
+  store **only** the bounds for tiles that receive edges (`count > 0`) in
+  `tile_bounds_by_country`. This reduces retained memory while preserving the
+  correctness checks.
+
+Change outline:
+- Compute `tile_alloc` before loading bounds to identify `needed_bounds`.
+- Load bounds for the country, validate coverage via a `bounds_ids` set.
+- Build `bounds_map` only for tiles in `needed_bounds`.
+- Store the reduced `bounds_map` for use during jitter.
+
+Plan:
+- Apply the bounds-map reduction change.
+- Re-run `make segment3b-s2` to confirm the tile-surfaces phase completes and
+  edge placement proceeds with reduced memory pressure.
+
+---
+
+### Entry: 2026-01-18 23:17
+
+Follow-up: the first bounds-map reduction still left `tile_surfaces` using
+excessive memory (S2 run stalled with ~7–8 GB RSS and no progress logs). The
+remaining pressure appears to come from loading **full** bounds columns for
+every tile before filtering to the small subset actually used.
+
+Decision:
+- Split bounds loading into two passes:
+  1) load only `tile_id` for the country to validate coverage;
+  2) load full bounds only for `needed_bounds` (tiles with `count > 0`).
+- Terminate the in-flight S2 run to apply this change and retry with the new
+  memory profile.
+
+Change outline:
+- Replace the single full `tile_bounds` collect with:
+  * `bounds_id_df = ...select(["tile_id"]).collect()` for coverage validation;
+  * `bounds_df = ...filter(tile_id in needed_bounds).select([...]).collect()` to
+    build the bounds map only for tiles actually used.
+
+Plan:
+- Re-run `make segment3b-s2` and confirm it progresses beyond `tile_surfaces`.
+
+---
+
+### Entry: 2026-01-18 23:22
+
+New failure after memory reductions:
+- `E3B_S2_019_INFRASTRUCTURE_IO_ERROR` with detail:
+  `_StepTimer.info() takes 2 positional arguments but 4 were given`.
+
+Cause:
+- `timer.info` only accepts a single formatted message string; the call site
+  in `tile_surfaces` passed printf-style format args.
+
+Fix:
+- Replace the call with a preformatted f-string:
+  `timer.info(f"... countries={...}, edge_scale={...}")`.
+
+Plan:
+- Re-run `make segment3b-s2` to confirm it proceeds past `tile_surfaces`.
+
+---
+
+### Entry: 2026-01-18 23:30
+
+S2 progressed into edge placement and failed with
+`E3B_S2_TZ_RESOLUTION_FAILED` for a point in `country_iso=TW`.
+
+Diagnosis:
+- `tz_world` contains `Asia/Taipei` for `TW`, but the jittered point fell
+  outside any tz polygon and the nudge step did not yield a unique tzid.
+- `tz_overrides` only covered `RS` and `BM`, so no override applied for `TW`.
+
+Decision:
+- Add a country-level override for `TW -> Asia/Taipei` in
+  `config/layer1/2A/timezone/tz_overrides.yaml` to handle polygon gaps while
+  staying within the S2 override mechanism (per spec step 6.6.3).
+
+Plan:
+- Update `tz_overrides.yaml`, reseal 3B.S0 for the manifest, and re-run S2.
+
+---
+
+### Entry: 2026-01-18 23:40
+
+Result after resealing with the TW tz override:
+- `3B.S2` completed successfully (`status=PASS`) and emitted edge catalogue,
+  index, and RNG logs. The run report shows `tz_sources` with `OVERRIDE=309`
+  (TW edges) and the remainder from polygon resolution.
+
+Notes:
+- The `make segment3b-s2` CLI invocation timed out locally, but the run
+  continued and finished in the background; verification is via
+  `reports/layer1/3B/state=S2/.../run_report.json`.
+
+---

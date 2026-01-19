@@ -237,7 +237,7 @@ def _resolve_parquet_files(root: Path) -> list[Path]:
         return [root]
     if not root.exists():
         raise InputResolutionError(f"Missing parquet directory: {root}")
-    paths = sorted(root.glob("*.parquet"))
+    paths = sorted(root.rglob("*.parquet"))
     if not paths:
         raise InputResolutionError(f"No parquet files found under {root}")
     return paths
@@ -1366,22 +1366,20 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     manifest_fingerprint,
                 )
 
-            bounds_df = (
+            tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
+            allocations = [
+                (tile_id, count)
+                for tile_id, count in sorted(tile_alloc.items())
+                if count > 0
+            ]
+            needed_bounds = {tile_id for tile_id, count in allocations if count > 0}
+
+            bounds_id_df = (
                 tile_bounds_scan.filter(pl.col("country_iso") == country_iso)
-                .select(
-                    [
-                        "tile_id",
-                        "min_lon_deg",
-                        "max_lon_deg",
-                        "min_lat_deg",
-                        "max_lat_deg",
-                        "centroid_lon_deg",
-                        "centroid_lat_deg",
-                    ]
-                )
+                .select(["tile_id"])
                 .collect()
             )
-            if bounds_df.is_empty():
+            if bounds_id_df.is_empty():
                 _abort(
                     "E3B_S2_TILE_SURFACE_INVALID",
                     "V-08",
@@ -1389,17 +1387,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     {"country_iso": country_iso, "path": str(tile_bounds_root)},
                     manifest_fingerprint,
                 )
-            bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
-            for row in bounds_df.iter_rows(named=True):
-                bounds_map[int(row["tile_id"])] = (
-                    float(row["min_lon_deg"]),
-                    float(row["max_lon_deg"]),
-                    float(row["min_lat_deg"]),
-                    float(row["max_lat_deg"]),
-                    float(row["centroid_lon_deg"]),
-                    float(row["centroid_lat_deg"]),
-                )
-            missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_map]
+            bounds_ids = set(int(value) for value in bounds_id_df.get_column("tile_id").to_list())
+            missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_ids]
             if missing_bounds:
                 _abort(
                     "E3B_S2_TILE_SURFACE_INVALID",
@@ -1408,20 +1397,40 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     {"country_iso": country_iso, "missing": missing_bounds[:10]},
                     manifest_fingerprint,
                 )
-
-            tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
-            allocations = [
-                (tile_id, count)
-                for tile_id, count in sorted(tile_alloc.items())
-                if count > 0
-            ]
+            bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
+            if needed_bounds:
+                bounds_df = (
+                    tile_bounds_scan.filter(pl.col("country_iso") == country_iso)
+                    .filter(pl.col("tile_id").is_in(list(needed_bounds)))
+                    .select(
+                        [
+                            "tile_id",
+                            "min_lon_deg",
+                            "max_lon_deg",
+                            "min_lat_deg",
+                            "max_lat_deg",
+                            "centroid_lon_deg",
+                            "centroid_lat_deg",
+                        ]
+                    )
+                    .collect()
+                )
+                for row in bounds_df.iter_rows(named=True):
+                    tile_id = int(row["tile_id"])
+                    bounds_map[tile_id] = (
+                        float(row["min_lon_deg"]),
+                        float(row["max_lon_deg"]),
+                        float(row["min_lat_deg"]),
+                        float(row["max_lat_deg"]),
+                        float(row["centroid_lon_deg"]),
+                        float(row["centroid_lat_deg"]),
+                    )
             tile_allocations[country_iso] = allocations
             tile_bounds_by_country[country_iso] = bounds_map
 
         timer.info(
-            "S2: tile allocations prepared (countries=%d, edge_scale=%d)",
-            len(countries_sorted),
-            edge_scale,
+            f"S2: tile allocations prepared (countries={len(countries_sorted)}, "
+            f"edge_scale={edge_scale})"
         )
 
         current_phase = "world_geometry"

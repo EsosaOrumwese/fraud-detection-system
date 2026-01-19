@@ -2,4 +2,4 @@ version: v1.0.0
 source_policy_id: cdn_country_weights
 source_policy_version: v1.0.0
 edge_scale: 500
-cdn_key_digest: fd3bc26f160429978f2ddac16c0cbe15b7d78cca0a94942622d0ae52a5d57301
+cdn_key_digest: 369b4c1ef0faa83810814d3053f269766bf0af5c56dbd81c27408ec2f62f0114

@@ -11,3 +11,9 @@
   evidence_url: null
   expiry_yyyy_mm_dd: null
   notes: "Resolve border ambiguity for Bermuda; tz_world has a single tzid."
+- scope: country
+  target: "TW"
+  tzid: "Asia/Taipei"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "S2 tz resolution fallback for TW when tz_world polygons miss jittered points."
